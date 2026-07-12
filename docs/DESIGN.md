@@ -99,6 +99,17 @@ Characters view (collapsible profile, portrait, relationship map), Locations (hi
 worlds), Timeline, Plotlines, Plotgrid, Board/Corkboard, Stats (pacing, plot-hole/setup-payoff
 detection), Scene-details inspector. Prioritized separately once the library + surfaces exist.
 
+**Per-view strategy → `storyline-analysis.md`.** A source read of Storyline v1.10.41
+maps every view to one of four categories: **①** adopt/port code (MIT), **②** Bases/Dataview
+as engine (declarative, note-scoped), **③** standalone render code (graphs, corkboard,
+subway, Plotgrid — no query can express these), **④** a new `.base` view only (no code).
+Guiding principle: **frontmatter is the source of truth; Bases/Dataview render it; the plugin
+writes back only plain Properties, never a plugin-owned store** — writing is in scope "where
+it makes sense", the point is not owning the data (Storyline's rigidity comes from owning it).
+The Bases spike (§4) also decides how much of the Inspector is ③ vs a ②-embed: verify whether
+the Core Bases table's inline property editing suffices. Highest-value ①-ports: `StoryGraph.ts`
++ `RelationshipMap.ts` (force-directed SVG).
+
 ## 6. References
 
 - `_forge` data model — `/Volumes/Moon/Apps/stories/_forge/blueprint/DESIGN.md`
