@@ -1,4 +1,4 @@
-# Privacy Policy — {{PLUGIN_NAME}}
+# Privacy Policy — Story Forge
 
 _Last updated: YYYY-MM-DD._
 
@@ -7,15 +7,15 @@ _Last updated: YYYY-MM-DD._
 ## TL;DR
 
 <!-- One-paragraph summary. Example: -->
-<!-- {{PLUGIN_NAME}} is an offline-first, zero-telemetry Obsidian community plugin. Your vault content stays on your machine. The plugin does not phone home and does not collect usage analytics. -->
+<!-- Story Forge is an offline-first, zero-telemetry Obsidian community plugin. Your vault content stays on your machine. The plugin does not phone home and does not collect usage analytics. -->
 
-## What {{PLUGIN_NAME}} does with your data
+## What Story Forge does with your data
 
 <!-- Enumerate every data flow: what is read, what is written, what is sent over the network, where it is stored. -->
 - _e.g._ Vault content remains local; no upload.
-- _e.g._ Credentials (API tokens) are stored in `<vault>/.obsidian/plugins/{{PLUGIN_ID}}/data.json`.
+- _e.g._ Credentials (API tokens) are stored in `<vault>/.obsidian/plugins/story-forge/data.json`.
 
-## What {{PLUGIN_NAME}} does NOT do
+## What Story Forge does NOT do
 
 - **No telemetry.** No usage events, crash reports, or analytics.
 - **No third-party tracking.** No advertising IDs, cookies, or fingerprinting.
@@ -40,12 +40,12 @@ _Last updated: YYYY-MM-DD._
 ## Security of local credentials
 
 <!-- Required if any credentials or tokens are stored locally. -->
-- _e.g._ Tokens are stored at `<vault>/.obsidian/plugins/{{PLUGIN_ID}}/data.json` with `chmod 600` where the platform allows.
+- _e.g._ Tokens are stored at `<vault>/.obsidian/plugins/story-forge/data.json` with `chmod 600` where the platform allows.
 - _e.g._ Tokens are NOT stored in `data.json` so that Obsidian Sync does not propagate them across devices.
 
 ## Disconnect and data retention
 
-- Uninstalling the plugin removes its bundle from `<vault>/.obsidian/plugins/{{PLUGIN_ID}}/`.
+- Uninstalling the plugin removes its bundle from `<vault>/.obsidian/plugins/story-forge/`.
 - Local plugin data (settings, cached state) is retained until the user manually deletes the plugin folder.
 
 ## Dependencies and supply chain
@@ -54,8 +54,8 @@ The full list of bundled dependencies is visible in `package-lock.json` in this 
 
 ## Open source
 
-- Source code: https://github.com/MMoMM-org/{{GITHUB_REPO}}
-- Issue tracker: https://github.com/MMoMM-org/{{GITHUB_REPO}}/issues
+- Source code: https://github.com/MMoMM-org/obsidian-story-forge
+- Issue tracker: https://github.com/MMoMM-org/obsidian-story-forge/issues
 - License: MIT
 
 ## Contact

@@ -16,9 +16,9 @@ export class SettingsTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-		containerEl.addClass("mp-settings");
+		containerEl.addClass("sf-settings");
 
-		const headerEl = containerEl.createDiv({ cls: "mp-settings-header" });
+		const headerEl = containerEl.createDiv({ cls: "sf-settings-header" });
 		this.header.render(headerEl);
 
 		new Setting(containerEl)

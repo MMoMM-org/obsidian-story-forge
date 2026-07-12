@@ -19,14 +19,14 @@ bundle.
 
 ## Plugin hanko (印, the seal)
 
-MiYo plugins ship a 144×144 PNG hanko at `{{PLUGIN_ID}}_hanko_144.png`,
+MiYo plugins ship a 144×144 PNG hanko at `story-forge_hanko_144.png`,
 imported from `src/settings/HeaderSection.ts`. 144×144 is 2× HiDPI of the
 72×72 rendered size and adds ~36 KB to `main.js`. Avoid the README-grade
 1024×1024 original — it bloats the bundle by ~1.4 MB.
 
 To wire up your hanko:
 
-1. Drop the PNG at `assets/{{PLUGIN_ID}}_hanko_144.png`.
+1. Drop the PNG at `assets/story-forge_hanko_144.png`.
 2. In `src/settings/HeaderSection.ts`, uncomment the `import hankoImageUrl …`
    line and remove the `const hankoImageUrl: string | null = null` fallback.
 3. Update the `HeaderSection` test in `test/settings/HeaderSection.test.ts`
@@ -52,7 +52,7 @@ Run this once on your stamp asset:
 from PIL import Image
 from collections import deque
 
-src, dst, threshold = "assets/{{PLUGIN_ID}}_hanko_144.png", "assets/{{PLUGIN_ID}}_hanko_144.png", 230
+src, dst, threshold = "assets/story-forge_hanko_144.png", "assets/story-forge_hanko_144.png", 230
 img = Image.open(src).convert("RGBA")
 w, h = img.size
 px = img.load()

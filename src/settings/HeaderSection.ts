@@ -23,7 +23,7 @@
  * inside settings is noise.
  *
  * To use this file in a new plugin:
- *   1. Drop your hanko at assets/{{PLUGIN_ID}}_hanko_144.png (144×144 PNG).
+ *   1. Drop your hanko at assets/story-forge_hanko_144.png (144×144 PNG).
  *   2. Uncomment the hanko import below and remove the `null` fallback.
  *   3. Set REPO_URL to your GitHub repo and TAGLINE to one curated line.
  *   4. Replace the `mp` CSS-class prefix throughout this file and styles.css
@@ -31,14 +31,14 @@
  */
 
 import type {PluginManifest} from "obsidian";
-// import hankoImageUrl from "../../assets/{{PLUGIN_ID}}_hanko_144.png";
+// import hankoImageUrl from "../../assets/story-forge_hanko_144.png";
 const hankoImageUrl: string | null = null;
 
 interface HeaderSectionDeps {
 	plugin: {manifest: PluginManifest};
 }
 
-const REPO_URL = "https://github.com/MMoMM-org/{{GITHUB_REPO}}";
+const REPO_URL = "https://github.com/MMoMM-org/obsidian-story-forge";
 const TAGLINE = "Curated one-line tagline — replace per plugin";
 
 function parseAuthorDisplayName(author: string): string {
@@ -58,28 +58,28 @@ export class HeaderSection {
 		const {manifest} = this.plugin;
 		const manifestWithUrl = manifest as PluginManifest & {authorUrl?: string};
 
-		const textCol = containerEl.createDiv({cls: "mp-header-text"});
-		const identity = textCol.createDiv({cls: "mp-header-identity"});
+		const textCol = containerEl.createDiv({cls: "sf-header-text"});
+		const identity = textCol.createDiv({cls: "sf-header-identity"});
 
-		identity.createSpan({text: manifest.name, cls: "mp-plugin-name"});
+		identity.createSpan({text: manifest.name, cls: "sf-plugin-name"});
 		identity.createSpan({text: ` v${manifest.version}`});
 
 		const authorName = parseAuthorDisplayName(manifest.author ?? "");
-		identity.createSpan({text: " · ", cls: "mp-header-sep"});
+		identity.createSpan({text: " · ", cls: "sf-header-sep"});
 		if (manifestWithUrl.authorUrl !== undefined) {
 			identity.createEl("a", {text: authorName, href: manifestWithUrl.authorUrl});
 		} else {
 			identity.createSpan({text: authorName});
 		}
 
-		identity.createSpan({text: " · ", cls: "mp-header-sep"});
+		identity.createSpan({text: " · ", cls: "sf-header-sep"});
 		identity.createEl("a", {text: "Documentation", href: REPO_URL});
 
-		textCol.createEl("p", {text: TAGLINE, cls: "mp-tagline"});
+		textCol.createEl("p", {text: TAGLINE, cls: "sf-tagline"});
 
 		if (hankoImageUrl !== null) {
 			containerEl.createEl("img", {
-				cls: "mp-header-hanko",
+				cls: "sf-header-hanko",
 				attr: {
 					src: hankoImageUrl,
 					alt: `${manifest.name} hanko`,

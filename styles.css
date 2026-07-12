@@ -1,26 +1,26 @@
-/* Plugin styles — replace `mp-` prefix with your plugin's short prefix
+/* Plugin styles — replace `sf-` prefix with your plugin's short prefix
  * (e.g. `kado-`, `hashi-`). Structural rules only — every color must come
  * from Obsidian theme tokens (`--text-normal`, `--text-muted`, `--text-faint`,
  * `--text-accent`, `--font-small`, `--font-semibold`).
  */
 
-.mp-settings {
+.sf-settings {
 	padding: 0 16px;
 }
 
-.mp-settings-header {
+.sf-settings-header {
 	display: flex;
 	align-items: center;
 	gap: 16px;
 	padding: 12px 0 14px 0;
 }
 
-.mp-header-text {
+.sf-header-text {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.mp-header-identity {
+.sf-header-identity {
 	font-size: var(--font-small);
 	color: var(--text-muted);
 	display: flex;
@@ -29,26 +29,26 @@
 	gap: 0 6px;
 }
 
-.mp-header-identity a {
+.sf-header-identity a {
 	color: var(--text-accent);
 }
 
-.mp-plugin-name {
+.sf-plugin-name {
 	font-weight: var(--font-semibold);
 	color: var(--text-normal);
 }
 
-.mp-header-sep {
+.sf-header-sep {
 	color: var(--text-faint);
 }
 
-.mp-tagline {
+.sf-tagline {
 	margin: 4px 0 0 0;
 	font-size: var(--font-small);
 	color: var(--text-muted);
 }
 
-.mp-header-hanko {
+.sf-header-hanko {
 	flex: 0 0 auto;
 	display: block;
 	margin-left: auto;
@@ -56,7 +56,7 @@
 	height: 72px;
 }
 
-.mp-settings .setting-item-description {
+.sf-settings .setting-item-description {
 	color: var(--text-muted);
 	font-size: var(--font-small);
 }

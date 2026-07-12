@@ -1,23 +1,23 @@
-# {{PLUGIN_NAME}}
+# Story Forge
 
-{{PLUGIN_DESCRIPTION}}
+Property-driven reference panels that follow the active note, showing linked story entities and their fields in the sidebar.
 
 ## Installation
 
 ### Community Plugins (after listing)
 1. Open Obsidian Settings → Community Plugins
-2. Search for "{{PLUGIN_NAME}}"
+2. Search for "Story Forge"
 3. Install and enable
 
 ### Manual
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/MMoMM-org/{{GITHUB_REPO}}/releases/latest)
-2. Create folder `<vault>/.obsidian/plugins/{{PLUGIN_ID}}/`
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/MMoMM-org/obsidian-story-forge/releases/latest)
+2. Create folder `<vault>/.obsidian/plugins/story-forge/`
 3. Copy the downloaded files into that folder
 4. Restart Obsidian and enable the plugin
 
 ### BRAT (Beta)
 1. Install [BRAT](https://github.com/TfTHacker/obsidian42-brat)
-2. Add beta plugin: `MMoMM-org/{{GITHUB_REPO}}`
+2. Add beta plugin: `MMoMM-org/obsidian-story-forge`
 
 ## Usage
 
@@ -26,8 +26,8 @@
 ## Development
 
 ```bash
-git clone https://github.com/MMoMM-org/{{GITHUB_REPO}}.git
-cd {{GITHUB_REPO}}
+git clone https://github.com/MMoMM-org/obsidian-story-forge.git
+cd obsidian-story-forge
 git config core.hooksPath .githooks
 npm install
 npm run dev       # Watch mode
@@ -53,19 +53,19 @@ Plugin development is dramatically faster (~30x per iteration) when the build ou
 1. Create the test vault directory structure inside the repo:
 
    ```
-   test/{{PLUGIN_ID}}/
+   test/story-forge/
    ├── .obsidian/
    │   └── plugins/
-   │       └── {{PLUGIN_ID}}/   # this is what you symlink to
+   │       └── story-forge/   # this is what you symlink to
    └── (test notes go here)
    ```
 
-   Add `test/{{PLUGIN_ID}}/.obsidian/workspace*` to `.gitignore` (per-developer state).
+   Add `test/story-forge/.obsidian/workspace*` to `.gitignore` (per-developer state).
 
 2. Symlink build outputs into the plugin folder:
 
    ```bash
-   cd test/{{PLUGIN_ID}}/.obsidian/plugins/{{PLUGIN_ID}}/
+   cd test/story-forge/.obsidian/plugins/story-forge/
    ln -s ../../../../../main.js main.js
    ln -s ../../../../../manifest.json manifest.json
    ln -s ../../../../../styles.css styles.css 2>/dev/null || true

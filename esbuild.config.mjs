@@ -59,8 +59,8 @@ const copyAssets = {
 				copyFileSync("styles.css", "build/styles.css");
 			}
 
-			const VAULT_DIR = "test/{{REPO_NAME}}/.obsidian";
-			const VAULT_PLUGIN_DIR = `${VAULT_DIR}/plugins/{{PLUGIN_ID}}`;
+			const VAULT_DIR = "test/StoryForge/.obsidian";
+			const VAULT_PLUGIN_DIR = `${VAULT_DIR}/plugins/story-forge`;
 			if (!existsSync(VAULT_DIR)) return;
 
 			mkdirSync(VAULT_PLUGIN_DIR, { recursive: true });
