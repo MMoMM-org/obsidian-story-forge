@@ -1,23 +1,16 @@
-# Obsidian workspace state — regenerated on open, not worth committing
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/appearance.json
-.obsidian/graph.json
-.obsidian/core-plugins.json
-.obsidian/hotkeys.json
-.obsidian/types.json
-.obsidian/cache
+# Obsidian plugin state & binaries — per-machine, not story content.
+# The real infra (Templates, FileClasses, Bases, CLAUDE.md) lives in 00 Meta/.
+# _forge/blueprint/vault-template/ is the source of the initial .obsidian seed;
+# the vault itself does not version it (keeps Obsidian Git clean).
+.obsidian/
+
+# Smart Connections AI embedding cache — regenerated, never canon
+.smart-env/
+
+# MiYo hashi runtime (token config + generated lock/log)
+.tomo-hashi/
+
+# Trash & OS
 .trash/
-
-# Plugin under development — copied in from the build output by esbuild
-# (main.js, dev-stamped manifest.json, styles.css) plus the Hot Reload marker
-# and any runtime state. All generated; never committed.
-.obsidian/plugins/*/data.json
-.obsidian/plugins/*/main.js
-.obsidian/plugins/*/styles.css
-.obsidian/plugins/*/manifest.json
-.obsidian/plugins/*/.hotreload
-
-# Keep hot-reload (committed tooling)
-!.obsidian/plugins/hot-reload/main.js
-!.obsidian/plugins/hot-reload/manifest.json
+.DS_Store
+**/.DS_Store
