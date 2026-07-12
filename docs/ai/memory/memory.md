@@ -1,4 +1,4 @@
-# Memory Index — {{REPO_NAME}}
+# Memory Index — StoryForge
 
 > Budget: ≤ 200 lines. Archive entries when stale.
 

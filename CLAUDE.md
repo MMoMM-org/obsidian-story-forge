@@ -1,34 +1,50 @@
-# MiYo {{REPO_NAME}}
+# Story Forge
 
-{{PLUGIN_DESCRIPTION}}
+Property-driven reference panels that follow the active note, showing linked story entities and their fields in the sidebar.
 
-@~/Kouzou/standards/general.md
+Standalone Obsidian plugin repo (own git repo, no remote required). Seeded from the Kouzou
+obsidian-plugin blueprint, then decoupled from MiYo — mirrors the `obsidian-markdown-mason`
+sibling. Personal global standards still apply via `~/.claude/CLAUDE.md`; this repo carries
+no MiYo project coupling (no `team.md` import, no `_inbox/_outbox` handoff mesh).
 
-## Project Files
-@~/Kouzou/projects/miyo/team.md
+## What this plugin is
 
-## Memory & Context
-@docs/ai/memory/memory.md
+Story Forge renders **property-driven reference views** that follow the active note. It reads
+the facts-as-Properties story canon (the `_forge` model: one canonical note per entity, hard
+facts in frontmatter, typed relations as `[[wikilinks]]`) and surfaces the entities linked from
+the current note — no single-database lock-in.
 
-## Routing Rules
-- Repo conventions/style → docs/ai/memory/general.md
-- Tool/CI/build knowledge → docs/ai/memory/tools.md
-- Domain/business rules → docs/ai/memory/domain.md
-- Architectural decisions → docs/ai/memory/decisions.md
-- Current focus/blockers → docs/ai/memory/context.md
-- Bugs/fixes → docs/ai/memory/troubleshooting.md
+Views are a **curated + user-authored library** (the markdown-mason pattern): a catalog of
+reviewed views plus views you import from your vault, each an underlying **Bases / Dataview /
+DataviewJS** query, managed and consent-gated in-plugin. Two render surfaces: a **sidebar
+panel** and a Storyline-style **note panel**.
 
-## Build Commands
+See `docs/DESIGN.md` for the architecture, the two surfaces, the query-engine model, and the
+open decision points.
+
+## Build commands
+
 ```bash
-npm run build        # TypeScript check + esbuild production build
-npm test             # vitest unit tests
-npm run lint         # eslint with obsidianmd rules
-npm run dev          # esbuild watch mode (development)
-npm run test:watch   # vitest watch mode
-npm run test:coverage # vitest with v8 coverage
+npm run build         # tsc check + esbuild production build
+npm test              # vitest unit tests
+npm run lint          # eslint (obsidianmd rules) + stylelint
+npm run typecheck     # tsc --noEmit
+npm run dev           # esbuild watch — redeploys into test/StoryForge/ vault
 ```
 
+## Memory & context
+
+Routing for `docs/ai/memory/`:
+- Repo conventions/style → `general.md`
+- Tool/CI/build knowledge → `tools.md`
+- Domain/business rules → `domain.md`
+- Architectural decisions → `decisions.md`
+- Current focus/blockers → `context.md`
+- Bugs/fixes → `troubleshooting.md`
+
 ## Rules
+
 - Use Plan Mode for any change touching more than 2 files
-- Commit after every completed task
-- When changes affect other repos → create handoff in _outbox/
+- Commit after every completed task (Conventional Commits; hooks block direct commits to `main`)
+- English for all committed content
+- One feature or fix per change

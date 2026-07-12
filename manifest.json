@@ -1,9 +1,9 @@
 {
-	"id": "{{PLUGIN_ID}}",
-	"name": "{{PLUGIN_NAME}}",
+	"id": "story-forge",
+	"name": "Story Forge",
 	"version": "0.0.0",
 	"minAppVersion": "1.5.7",
-	"description": "{{PLUGIN_DESCRIPTION}}",
+	"description": "Property-driven reference panels that follow the active note, showing linked story entities and their fields in the sidebar.",
 	"author": "Marcus Breiden",
 	"authorUrl": "https://www.mmomm.org",
 	"fundingUrl": {

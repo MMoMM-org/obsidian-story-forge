@@ -1,4 +1,4 @@
-# {{REPO_NAME}} — Agent Guide
+# StoryForge — Agent Guide
 
 ## Repo Layout
 
@@ -36,5 +36,5 @@ Before merging a feature phase, verify:
 - [ ] **Adapter-API audit.** `grep -rn "vault.adapter\." src/` — every hit is a potential editor-cache desync. Justify each one or migrate to `vault.modify` / `vault.modifyBinary`.
 - [ ] **Closure-snapshot review.** Any new event handler / interval / view callback that reads from settings? Does it read through `this.plugin.settings.X` (live) or via a captured `settings` object (snapshot)?
 - [ ] **Lifecycle hygiene.** Plugin entry point has a double-init guard. Teardown drains registered cleanups LIFO with try/catch around each.
-- [ ] **Real-vault smoke.** Build, hot-reload into `test/{{PLUGIN_ID}}/`, exercise the happy path of every feature added in this phase. Bugs found here are 5–10x cheaper than bugs found post-merge.
+- [ ] **Real-vault smoke.** Build, hot-reload into `test/story-forge/`, exercise the happy path of every feature added in this phase. Bugs found here are 5–10x cheaper than bugs found post-merge.
 - [ ] **Diagnostic-tool parity.** If this phase touched an external API, can `scripts/<api>-inspect.mjs` reproduce the same call? If not, extend the script.

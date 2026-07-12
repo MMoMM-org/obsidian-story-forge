@@ -38,8 +38,6 @@ data.json
 
 # Workspace scratch / inter-project message channels — local-only, not committed
 temp/
-_inbox/
-_outbox/
 _archive/
 
 # MCP config (may contain API keys)

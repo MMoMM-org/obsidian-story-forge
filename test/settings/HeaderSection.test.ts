@@ -12,8 +12,8 @@ import {HeaderSection} from "../../src/settings/HeaderSection";
 
 function makeManifest(overrides: Partial<PluginManifest> = {}): PluginManifest {
 	return {
-		id: "{{PLUGIN_ID}}",
-		name: "{{PLUGIN_NAME}}",
+		id: "story-forge",
+		name: "Story Forge",
 		version: "0.0.0-test",
 		minAppVersion: "1.5.7",
 		description: "test",
