@@ -1,0 +1,55 @@
+name: Release
+
+on:
+    push:
+        branches: [main]
+
+permissions:
+    contents: write
+    issues: write
+    pull-requests: write
+    id-token: write
+    attestations: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 22
+                  cache: npm
+
+            - run: npm ci
+
+            - run: npm run build
+
+            - run: npm test
+
+            - name: Release
+              id: release
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: npx semantic-release
+
+            # Attest the bytes that semantic-release actually uploaded.
+            # semantic-release's exec/prepareCmd reruns `node version-bump.mjs
+            # && npm run build`, which rewrites build/main.js, build/styles.css
+            # and build/manifest.json with the bumped version BEFORE the github
+            # plugin uploads them. Attesting after the Release step signs those
+            # exact bytes; users can verify via `gh attestation verify <file>
+            # --owner MMoMM-org`. If no release is cut (chore/ci commits),
+            # this still runs and attests the pre-release build artifacts —
+            # harmless, since nothing is published.
+            - name: Attest build provenance
+              uses: actions/attest-build-provenance@v4
+              with:
+                  subject-path: |
+                      build/main.js
+                      build/styles.css
+                      build/manifest.json
