@@ -1,6 +1,6 @@
 {
 	"name": "story-forge",
-	"version": "1.1.0",
+	"version": "0.1.0",
 	"description": "Property-driven reference panels that follow the active note, showing linked story entities and their fields in the sidebar.",
 	"main": "main.js",
 	"type": "module",
