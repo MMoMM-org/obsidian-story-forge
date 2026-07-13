@@ -1,8 +1,12 @@
 name: Release
 
+# Paused: releases are manual-only until the plugin is real. Semantic-release
+# auto-cut 1.0.0/1.1.0 on every push and always starts at 1.x, which is wrong
+# for a pre-plugin repo. Re-enable by restoring the `push` trigger below.
 on:
-    push:
-        branches: [main]
+    workflow_dispatch:
+    # push:
+    #     branches: [main]
 
 permissions:
     contents: write
