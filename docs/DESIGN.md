@@ -112,6 +112,7 @@ the Core Bases table's inline property editing suffices. Highest-value ①-ports
 
 ## 6. References
 
+- **Build plan (milestones → XDD specs)** — `build-plan.md`
 - **Views & plugin integration (authoritative view spec)** — `views-and-integration.md`
 - **View roadmap & phasing** — `view-roadmap.md`
 - **Storyline per-view strategy (①–④)** — `storyline-analysis.md`
