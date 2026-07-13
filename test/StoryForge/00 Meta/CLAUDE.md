@@ -1,7 +1,7 @@
 # Forge — Fiction Vault Canon
 
 > Vault-level instructions for Claude Code. Copied into each series vault's `00 Meta/`.
-> The prose content of this vault is **German**; these instructions are English.
+> All content in this vault is **English** — prose and these instructions alike.
 
 ## What this vault is
 
@@ -31,7 +31,7 @@ second note for an entity that already exists — extend the canonical one.
 
 ## When writing prose
 
-- German, in the author's established voice. Match tone and register of the surrounding scenes.
+- English, in the author's established voice. Match tone and register of the surrounding scenes.
 - Stay inside the beats from `20 Planning/`. Do not invent canon — if a fact is missing, ask or flag it.
 - Before writing a scene, read the linked entities' canon notes for continuity.
 
