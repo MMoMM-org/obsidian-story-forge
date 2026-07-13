@@ -19,6 +19,8 @@ fieldsOrder:
   - s-act
   - s-chapter
   - s-order
+  - s-storyday
+  - s-when
   - s-status
   - s-pov
   - s-characters
@@ -69,6 +71,16 @@ fields:
     options: {}
     path: ""
     id: s-order
+  - name: storyDay
+    type: Number
+    options: {}
+    path: ""
+    id: s-storyday
+  - name: when
+    type: Input
+    options: {}
+    path: ""
+    id: s-when
   - name: status
     type: Select
     options:

@@ -6,6 +6,8 @@ book: "[[Wardens of Moonharbor]]"
 act: 1
 chapter: "1"
 order: 1
+storyDay: 1
+when: "Night 1"
 status: draft
 pov: "[[Mara Stoneway]]"
 characters:
