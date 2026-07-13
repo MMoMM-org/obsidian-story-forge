@@ -51,7 +51,7 @@ Config travels in the snapshot — plugins open already-configured. Enabled set:
 | longform | Manuscript authoring (scenes → drafts), per-book projects |
 | dataview · js-engine | Reference side-panel + canon tables; JS-backed views |
 | templater-obsidian | Instantiates the `00 Meta/Templates/` entity + scene templates |
-| metadata-menu | Drives the FileClasses (`fc-character`, `fc-character-fantasy`) |
+| metadata-menu | Drives the FileClasses (`fc-character`/`-fantasy`, `fc-location`, `fc-object`, `fc-lore`, `fc-scene`) |
 | obsidian-meta-bind-plugin | `VIEW[{…}]` stat lines / portrait view in notes |
 | calendarium | `40 Timeline/` events (fresh calendar — set yours up) |
 | quickadd | Create entities from templates |
