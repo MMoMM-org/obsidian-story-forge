@@ -6,20 +6,22 @@ type, allowed values, whether it is a `[[wikilink]]` relation, and how to use it
 
 ## Source of truth
 
-The **machine schema** is authoritative — these notes only describe it:
+The **machine schema** is authoritative — these notes only describe it. Every
+type has a metadata-menu FileClass (enforced schema) plus an entity/scene
+template (the author-facing property surface); the two are kept in agreement:
 
-| Type | Machine source | Reference |
-|---|---|---|
-| character | `00 Meta/FileClasses/fc-character.md` (+ its template) | `character.md` |
-| character (fantasy) | `00 Meta/FileClasses/fc-character-fantasy.md` | `character-fantasy.md` |
-| location | `00 Meta/Templates/entity-location.md` | `location.md` |
-| object | `00 Meta/Templates/entity-object.md` | `object.md` |
-| lore | `00 Meta/Templates/entity-lore.md` | `lore.md` |
-| scene | `00 Meta/Templates/scene.md` | `scene.md` |
+| Type | FileClass | Template | Reference |
+|---|---|---|---|
+| character | `fc-character.md` | `entity-character.md` | `character.md` |
+| character (fantasy) | `fc-character-fantasy.md` | — (extends fc-character) | `character-fantasy.md` |
+| location | `fc-location.md` | `entity-location.md` | `location.md` |
+| object | `fc-object.md` | `entity-object.md` | `object.md` |
+| lore | `fc-lore.md` | `entity-lore.md` | `lore.md` |
+| scene | `fc-scene.md` | `scene.md` | `scene.md` |
 
-FileClasses (metadata-menu) are the enforced schema for the types that have one;
-the entity/scene **templates** carry the property surface for the rest. When you
-change the schema, change the machine source **and** the matching reference note.
+(FileClasses live in `00 Meta/FileClasses/`, templates in `00 Meta/Templates/`.)
+When you change the schema, change the machine source **and** the matching
+reference note.
 
 ## Staying in sync
 

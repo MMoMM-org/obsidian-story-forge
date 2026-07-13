@@ -29,10 +29,10 @@ const SCHEMA = join(META, 'Schema');
 const TYPES = [
   { type: 'character', template: 'entity-character.md', fileclass: 'fc-character.md', doc: 'character.md' },
   { type: 'character-fantasy', fileclass: 'fc-character-fantasy.md', doc: 'character-fantasy.md' },
-  { type: 'location', template: 'entity-location.md', doc: 'location.md' },
-  { type: 'object', template: 'entity-object.md', doc: 'object.md' },
-  { type: 'lore', template: 'entity-lore.md', doc: 'lore.md' },
-  { type: 'scene', template: 'scene.md', doc: 'scene.md' },
+  { type: 'location', template: 'entity-location.md', fileclass: 'fc-location.md', doc: 'location.md' },
+  { type: 'object', template: 'entity-object.md', fileclass: 'fc-object.md', doc: 'object.md' },
+  { type: 'lore', template: 'entity-lore.md', fileclass: 'fc-lore.md', doc: 'lore.md' },
+  { type: 'scene', template: 'scene.md', fileclass: 'fc-scene.md', doc: 'scene.md' },
 ];
 
 // `tags` classifies the note and is not a metadata-menu field; allow it to be
