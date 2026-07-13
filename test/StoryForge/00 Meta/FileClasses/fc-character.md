@@ -95,10 +95,10 @@ fields:
     options:
       sourceType: ValuesList
       valuesList:
-        "1": männlich
-        "2": weiblich
-        "3": divers
-        "4": nichtbinär
+        "1": male
+        "2": female
+        "3": diverse
+        "4": non-binary
     path: ""
     id: f-gender
   - name: occupation

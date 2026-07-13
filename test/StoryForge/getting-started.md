@@ -2,7 +2,7 @@
 
 > Shared runbook for the **author** and **Claude**. Read this when a vault is first stamped
 > from `_forge/blueprint/vault-template/`, and whenever you need to know what a vault should
-> contain or reconfigure. The prose content of this vault is **German**; this file is English.
+> contain or reconfigure. All content in this vault is **English** — prose and this file alike.
 
 ## What this vault is
 

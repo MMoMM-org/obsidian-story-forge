@@ -1,49 +1,49 @@
 ---
 type: character
 name: Tobias Ferro
-aliases: [Tobias, der Alte Wärter]
+aliases: [Tobias, the Old Keeper]
 nickname: ""
 role: deuteragonist
 status: alive
 age: 68
-gender: männlich
-occupation: Leuchtturmwärter
+gender: male
+occupation: lighthouse keeper
 height: 179              # cm
-build: hager
-hair: "grauweiß, schütter"
-eyes: wassergrau
+build: gaunt
+hair: "grey-white, thinning"
+eyes: water-grey
 distinctive_features:
-  - "steifes linkes Bein, geht am Stock"
-  - "Pfeife stets im Mundwinkel"
-tagline: "Der letzte Wärter, der sich noch erinnert, wie das Mondfeuer wirklich brennt."
+  - "stiff left leg, walks with a cane"
+  - "pipe forever in the corner of his mouth"
+tagline: "The last keeper who still remembers how the moonfire truly burns."
 portrait: ""
 significant_other: []
 family: []
 friends:
-  - "[[Elke Steinweg]]"
+  - "[[Elke Stoneway]]"
 allies:
-  - "[[Mara Steinweg]]"
+  - "[[Mara Stoneway]]"
 enemies:
-  - "[[Silvan Nachtweber]]"
-first_appearance: "[[Szene 1 - Das erloschene Feuer]]"
+  - "[[Silvan Nightweaver]]"
+first_appearance: "[[Scene 1 - The Extinguished Fire]]"
 series: "Forge"
 tags: [canon/character]
 ---
 
 # Tobias Ferro
 
-> [!info] Fakten stehen im Frontmatter oben — Bases und das Referenz-Panel lesen sie. Fließtext folgt unten.
+> [!info] Facts live in the frontmatter above — Bases and the reference panel read them. Prose follows below.
 
 ## Overview
 
-Seit über vierzig Jahren hütet Tobias Ferro das Licht im [[Leuchtturm von Mondhafen]]. Er kennt die [[Die Leuchtfeuer-Linse]] besser als sein eigenes Spiegelbild und ist der Einzige, der die alte Wahrheit über [[Das Mondfeuer]] noch weitergeben kann. Sein Lehrling [[Mara Steinweg]] ist ihm längst mehr Familie als Schülerin.
+For over forty years Tobias Ferro has tended the light in the [[Moonharbor Lighthouse]]. He knows [[The Beacon Lens]] better than his own reflection and is the only one who can still pass on the old truth about [[The Moonfire]]. His apprentice [[Mara Stoneway]] has long been more family to him than student.
 
 ## Personality
 
-Wortkarg, trocken, geduldig wie Fels. Was er einmal weiß, vergisst er nie — und das macht ihn zum gefährlichsten Gegner für alle, die den Hafen ins Dunkel stürzen wollen.
+Taciturn, dry, patient as rock. What he learns once, he never forgets — and that makes him the most dangerous adversary for anyone who would plunge the harbour into darkness.
 
 ## Background
 
-In der Nacht, in der er sein Bein verlor, rettete er das Licht zum ersten Mal vor dem Erlöschen. Seither geht er am Stock, aber nie ohne seine Pfeife.
+On the night he lost his leg, he saved the light from going out for the first time. He has walked with a cane ever since, but never without his pipe.
 
 ## Notes
