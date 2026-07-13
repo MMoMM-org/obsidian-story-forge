@@ -27,8 +27,21 @@ Number. The act this scene sits in.
 Text. The chapter label (kept as text to allow "1a", "Prologue", etc.).
 
 ### `order`
-Number. The scene's order within the book — the primary sort key for timeline and
-manuscript views.
+Number. The scene's order within the book — the primary reading-order sort key.
+Distinct from the manuscript order Longform maintains, and from chronology
+(`storyDay`).
+
+### `storyDay`
+Number. The ordinal day the scene happens on in the story (Day 1 = 1). This drives
+timeline placement and chronological sort; a relative jump is authored as
+`prev + 14` ("two weeks later"). Works without any calendar. Timeline falls back to
+`order` when `storyDay` is empty.
+
+### `when`
+Text. A free-text display label for the scene's time — "Day 1", "Two weeks later",
+or a date. Shown on the timeline; does not affect placement (that's `storyDay`). A
+calendar-aware absolute date (`storyDate`, Calendarium, two-calendar-capable) is a
+planned optional addition — not part of the schema yet.
 
 ### `status`
 Select — one of `idea | outline | draft | revised | done | final`. Drafting
