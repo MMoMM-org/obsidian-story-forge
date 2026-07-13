@@ -112,6 +112,10 @@ the Core Bases table's inline property editing suffices. Highest-value ①-ports
 
 ## 6. References
 
+- **Views & plugin integration (authoritative view spec)** — `views-and-integration.md`
+- **View roadmap & phasing** — `view-roadmap.md`
+- **Storyline per-view strategy (①–④)** — `storyline-analysis.md`
+- **_forge Claude Code skills (continuity/plot-holes/warnings)** — `claude-skills.md`
 - `_forge` data model — `/Volumes/Moon/Apps/stories/_forge/blueprint/DESIGN.md`
 - markdown-mason (catalog + consent pattern) — `/Volumes/Moon/Coding/obsidian-markdown-mason`
 - Storyline (view reference) — https://github.com/pixerojan/obsidian-storyline
