@@ -1,9 +1,11 @@
 # Story Forge — View Roadmap
 
-> Concrete per-view build specs. Categories (①–④) and rationale live in
-> `storyline-analysis.md`; phasing in `DESIGN.md §5`. Every view obeys the
-> guiding principle: **frontmatter is the source of truth; Bases/Dataview render
-> it; any write is a plain-Property `processFrontMatter` call, never a
+> Concrete per-view build specs + phasing. **Which views we ship, their layout,
+> feature set, and plugin integration now live in `views-and-integration.md`**
+> (the authoritative view spec, decided with Marcus). Categories (①–④) and
+> rationale live in `storyline-analysis.md`; phasing in `DESIGN.md §5`. Every view
+> obeys the guiding principle: **frontmatter is the source of truth; Bases/Dataview
+> render it; any write is a plain-Property `processFrontMatter` call, never a
 > plugin-owned store.**
 
 ## Conventions
@@ -83,17 +85,25 @@ catalog; spike verdict recorded → Inspector strategy chosen.
 
 ## Later — standalone views (③), some seeded by ports (①)
 
-Prioritized separately once the library + both surfaces exist. Ordered by value:
+The confirmed set (see `views-and-integration.md` for layout/features), ordered by
+value once the library + both surfaces exist:
 
-1. **Story graph** + **Relationship map** — port `StoryGraph.ts` /
-   `RelationshipMap.ts` (force-directed SVG, pan/zoom). Highest-value ①-ports.
-2. **Locations — hierarchical tree** (nest over the `world` chain).
-3. **Board / Kanban** — scenes in `status` columns; **drag → write `status`/`order`**.
-4. **Plotgrid** — plotline × scene matrix.
-5. **Timeline — swimlane** (horizontal lanes) · **Plotlines — subway map**.
-6. **Stats — analytics** (pacing, setup/payoff, plot-hole, prose/echo).
-7. **Custom Inspector** — only if the S0 spike shows Bases inline-edit is
-   insufficient; else it stays a ②-embed.
+1. **Kanban** — scenes in `status` columns; **drag → write `status`/`order`**.
+2. **Plotgrid** — plotline × scene matrix; toggle cell → write `plotlines`.
+3. **Timeline** — needs the scene time model (`storyDay` + `when`; `storyDate`
+   via Calendarium optional/later, two-calendar-aware).
+4. **Locations — hierarchical tree** (nest over the `world` chain).
+5. **Plotlines — subway map** (the list variant is already ② in v0.2).
+
+**Story graph:** use the **core Obsidian graph** (tag colour-groups + canon
+filter) as the MVP — no code. A custom force-directed graph (port `StoryGraph.ts`)
+is a low-priority later, only if typed/coloured edges are wanted.
+
+**Dropped:** corkboard, manuscript view (Longform owns it), stats/analytics, and
+plot-holes/warnings (→ `claude-skills.md`).
+
+**Custom Inspector** — only if the S0 spike shows Bases inline-edit is
+insufficient; else it stays a ②-embed.
 
 **Sequencing rule:** ② and ④ first (cheapest, prove the flexible substrate);
 the S0 spike decides how much ③ we actually owe.
