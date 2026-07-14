@@ -117,10 +117,35 @@ export class Workspace {
 
 	off = vi.fn();
 
-	/** Simulate layout-ready: calls cb immediately (tests don't have a real layout cycle). */
+	/**
+	 * When true, onLayoutReady() STORES callbacks instead of invoking them
+	 * synchronously, so a test can assert behaviour before vs. after layout is
+	 * ready. Opt-in so existing tests keep the synchronous default. Flush the
+	 * stored callbacks with _flushLayoutReady().
+	 */
+	_deferLayoutReady = false;
+	/** Callbacks captured while _deferLayoutReady is true. */
+	_layoutReadyCbs: Array<() => void> = [];
+
+	/**
+	 * Simulate layout-ready. Default: calls cb immediately (tests don't have a
+	 * real layout cycle). If _deferLayoutReady is set, the cb is stored and only
+	 * runs when _flushLayoutReady() is called — used to test layout-ready gating.
+	 */
 	onLayoutReady = vi.fn((cb: () => void): void => {
+		if (this._deferLayoutReady) {
+			this._layoutReadyCbs.push(cb);
+			return;
+		}
 		cb();
 	});
+
+	/** Run and clear any callbacks captured while deferral was enabled. */
+	_flushLayoutReady(): void {
+		const cbs = this._layoutReadyCbs;
+		this._layoutReadyCbs = [];
+		for (const cb of cbs) cb();
+	}
 
 	getLeavesOfType = vi.fn((_type: string): WorkspaceLeaf[] => []);
 

@@ -188,8 +188,66 @@ describe("SidebarView: follow lifecycle", () => {
 	});
 
 	it("first resolve is deferred until workspace.onLayoutReady", async () => {
-		// onLayoutReady is called synchronously in the mock, so verify it was called
+		// onLayoutReady is called synchronously in the mock, so verify it was called.
+		// The real gating (listeners registered only AFTER layout-ready fires) is
+		// asserted in the "layout-ready gating" describe block below, which defers
+		// the onLayoutReady callback.
 		expect(app.workspace.onLayoutReady).toHaveBeenCalled();
+	});
+
+	it("cache present + classify 'unknown' → S4 non-entity, resolve NOT called", async () => {
+		const file = makeMdFile("Ideas scratchpad");
+		// Cache is present (not null) so this is NOT the S9 error path...
+		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: {} }));
+		// ...but classify says it's not a tracked entity → S4.
+		vi.spyOn(
+			(view as unknown as { scoping: { classify: (f: TFile) => string } }).scoping,
+			"classify",
+		).mockReturnValue("unknown");
+
+		const resolveSpy = vi.spyOn(
+			(view as unknown as { scoping: { resolve: (f: TFile) => unknown } }).scoping,
+			"resolve",
+		);
+
+		app.workspace._trigger("active-leaf-change", makeMdLeaf(file));
+		vi.advanceTimersByTime(300);
+
+		// (a) resolve is never called for a non-entity note
+		expect(resolveSpy).not.toHaveBeenCalled();
+
+		// (b) the body shows S4 non-entity content (not S9 error, not S6 stub)
+		const body = view.contentEl.querySelector(".sf-body") as HTMLElement;
+		const badge = view.contentEl.querySelector(".sf-badge");
+		expect(badge?.textContent).toBe("not an entity");
+		expect(body.querySelector(".sf-empty")).not.toBeNull();
+		expect(body.textContent).toContain(
+			"This note isn't a tracked character, location, scene, object, lore, or plotline.",
+		);
+		expect(body.querySelector(".sf-errbox")).toBeNull();
+		expect(body.querySelector(".sf-stublabel")).toBeNull();
+	});
+
+	it("onClose cancels the pending debounce — no dangling resolve fires", async () => {
+		const file = makeMdFile("Mara Stoneway");
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		const resolveSpy = vi.spyOn(
+			(view as unknown as { scoping: { resolve: (f: TFile) => unknown } }).scoping,
+			"resolve",
+		);
+
+		// Enqueue a debounced follow, then close BEFORE the debounce window elapses.
+		app.workspace._trigger("active-leaf-change", makeMdLeaf(file));
+		await view.onClose();
+
+		// Advancing past the debounce window must NOT trigger the cancelled follow.
+		vi.advanceTimersByTime(300);
+
+		expect(resolveSpy).not.toHaveBeenCalled();
 	});
 
 	it("metadataCache 'changed' event re-resolves the current subject file", async () => {
@@ -257,5 +315,45 @@ describe("SidebarView: follow lifecycle", () => {
 		// It should have been called for active-leaf-change and metadataCache.changed
 		const registerEventCalls = (view.registerEvent as ReturnType<typeof vi.fn>).mock.calls;
 		expect(registerEventCalls.length).toBeGreaterThanOrEqual(2);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Layout-ready gating: follow listeners are wired ONLY after onLayoutReady fires
+// ---------------------------------------------------------------------------
+
+describe("SidebarView: layout-ready gating", () => {
+	let app: App;
+	let ownLeaf: WorkspaceLeaf;
+	let view: SidebarView;
+
+	afterEach(async () => {
+		if (view) await view.onClose();
+	});
+
+	it("registerEvent is NOT called until the onLayoutReady callback fires", async () => {
+		app = makeApp();
+		// Opt in to deferral: onLayoutReady stores the cb instead of running it.
+		app.workspace._deferLayoutReady = true;
+
+		ownLeaf = makeOwnLeaf(app);
+		ownLeaf.view.getViewType = vi.fn(() => SIDEBAR_VIEW_TYPE);
+		view = new SidebarView(ownLeaf);
+
+		await view.onOpen();
+
+		// Before layout-ready: the callback is captured but not run, so the follow
+		// listeners must NOT have been registered yet.
+		expect(app.workspace._layoutReadyCbs.length).toBe(1);
+		const registerEvent = view.registerEvent as ReturnType<typeof vi.fn>;
+		expect(registerEvent).not.toHaveBeenCalled();
+
+		// Fire the stored layout-ready callback.
+		app.workspace._flushLayoutReady();
+
+		// After layout-ready: the follow listeners are now registered via
+		// registerEvent (active-leaf-change + metadataCache 'changed').
+		expect(registerEvent).toHaveBeenCalled();
+		expect(registerEvent.mock.calls.length).toBeGreaterThanOrEqual(2);
 	});
 });
