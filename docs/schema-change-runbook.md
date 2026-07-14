@@ -11,14 +11,13 @@ The schema is canonical in **`schema/<type>.json`** (see `schema/README.md`). Fo
 `npm run schema:gen`, which regenerates the Template, FileClass, and human doc; then
 `npm run schema:check`.
 
-- Migrated (generated from `schema/`): **`scene`**.
-- Not yet migrated (hand-maintained per the process below): `character`, `character-fantasy`,
-  `location`, `object`, `lore`.
+All entity types are generated from `schema/`: `scene`, `character`, `character-fantasy`,
+`location`, `object`, `lore`.
 
-For a migrated type the flow is `edit schema/<type>.json → npm run schema:gen →
-npm run schema:check`; the rename / seed-note / XDD ripple below still applies. The rest of
-this runbook describes the underlying three-artifact contract — what the generator produces,
-and what you keep in sync by hand for un-migrated types.
+The flow is `edit schema/<type>.json → npm run schema:gen → npm run schema:check`; the rename /
+seed-note / XDD ripple below still applies. The rest of this runbook describes the underlying
+three-artifact contract — what the generator produces. (A template's note **body** is author
+content: preserved across regeneration, not generated.)
 
 ## The three artifacts (`test/StoryForge/00 Meta/`)
 

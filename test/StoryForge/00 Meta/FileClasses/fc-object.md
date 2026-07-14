@@ -6,18 +6,18 @@ tagNames:
   - canon/object
 filesPaths:
   - 30 Canon/33 Objects
-bookmarksGroups: 
-excludes: 
-extends: 
+bookmarksGroups:
+excludes:
+extends:
 savedViews: []
-favoriteView: 
+favoriteView:
 fieldsOrder:
   - o-type
   - o-name
-  - o-alias
+  - o-aliases
   - o-owner
   - o-kind
-  - o-firstapp
+  - o-first_appearance
   - o-series
 version: "3.0"
 fields:
@@ -40,7 +40,7 @@ fields:
       sourceType: ValuesList
       valuesList: {}
     path: ""
-    id: o-alias
+    id: o-aliases
   - name: owner
     type: File
     options:
@@ -62,7 +62,7 @@ fields:
     type: Input
     options: {}
     path: ""
-    id: o-firstapp
+    id: o-first_appearance
   - name: series
     type: Input
     options: {}

@@ -2,22 +2,24 @@
 limit: 20
 mapWithTag: false
 icon: wand-sparkles
-tagNames: 
-filesPaths: 
-bookmarksGroups: 
-excludes: 
+tagNames:
+  - 
+filesPaths:
+  - 
+bookmarksGroups:
+excludes:
 extends: fc-character
 savedViews: []
-favoriteView: 
+favoriteView:
 fieldsOrder:
   - g-species
-  - g-combat
-  - g-magic
-  - g-otherskills
+  - g-combat_skills
+  - g-magical_abilities
+  - g-other_skills
   - g-weapons
   - g-armor
-  - g-magicitems
-  - g-equip
+  - g-magical_items
+  - g-other_equipment
 version: "3.0"
 fields:
   - name: species
@@ -52,7 +54,7 @@ fields:
       valuesList: {}
       valuesListNotePath: 00 Meta/FileClasses/fc-combat-skills.md
     path: ""
-    id: g-combat
+    id: g-combat_skills
   - name: magical_abilities
     type: Multi
     options:
@@ -60,12 +62,12 @@ fields:
       valuesList: {}
       valuesListNotePath: 00 Meta/FileClasses/fc-magical-abilities.md
     path: ""
-    id: g-magic
+    id: g-magical_abilities
   - name: other_skills
     type: Input
     options: {}
     path: ""
-    id: g-otherskills
+    id: g-other_skills
   - name: weapons
     type: Multi
     options:
@@ -85,10 +87,10 @@ fields:
     type: Input
     options: {}
     path: ""
-    id: g-magicitems
+    id: g-magical_items
   - name: other_equipment
     type: Input
     options: {}
     path: ""
-    id: g-equip
+    id: g-other_equipment
 ---

@@ -6,34 +6,34 @@ tagNames:
   - canon/character
 filesPaths:
   - 30 Canon/31 Characters
-bookmarksGroups: 
-excludes: 
-extends: 
+bookmarksGroups:
+excludes:
+extends:
 savedViews: []
-favoriteView: 
+favoriteView:
 fieldsOrder:
   - f-type
   - f-name
-  - f-alias
-  - f-nick
+  - f-aliases
+  - f-nickname
   - f-role
   - f-status
   - f-age
   - f-gender
-  - f-occ
+  - f-occupation
   - f-height
   - f-build
   - f-hair
   - f-eyes
-  - f-distf
-  - f-tagl
-  - f-portr
-  - f-so
-  - f-fam
-  - f-frnd
-  - f-ally
-  - f-enmy
-  - f-firstapp
+  - f-distinctive_features
+  - f-tagline
+  - f-portrait
+  - f-significant_other
+  - f-family
+  - f-friends
+  - f-allies
+  - f-enemies
+  - f-first_appearance
   - f-series
 version: "3.0"
 fields:
@@ -56,12 +56,12 @@ fields:
       sourceType: ValuesList
       valuesList: {}
     path: ""
-    id: f-alias
+    id: f-aliases
   - name: nickname
     type: Input
     options: {}
     path: ""
-    id: f-nick
+    id: f-nickname
   - name: role
     type: Select
     options:
@@ -105,7 +105,7 @@ fields:
     type: Input
     options: {}
     path: ""
-    id: f-occ
+    id: f-occupation
   - name: height
     type: Number
     options: {}
@@ -132,52 +132,52 @@ fields:
       sourceType: ValuesList
       valuesList: {}
     path: ""
-    id: f-distf
+    id: f-distinctive_features
   - name: tagline
     type: Input
     options: {}
     path: ""
-    id: f-tagl
+    id: f-tagline
   - name: portrait
     type: Input
     options: {}
     path: ""
-    id: f-portr
+    id: f-portrait
   - name: significant_other
     type: MultiFile
     options:
       dvQueryString: dv.pages("#canon/character")
     path: ""
-    id: f-so
+    id: f-significant_other
   - name: family
     type: MultiFile
     options:
       dvQueryString: dv.pages("#canon/character")
     path: ""
-    id: f-fam
+    id: f-family
   - name: friends
     type: MultiFile
     options:
       dvQueryString: dv.pages("#canon/character")
     path: ""
-    id: f-frnd
+    id: f-friends
   - name: allies
     type: MultiFile
     options:
       dvQueryString: dv.pages("#canon/character")
     path: ""
-    id: f-ally
+    id: f-allies
   - name: enemies
     type: MultiFile
     options:
       dvQueryString: dv.pages("#canon/character")
     path: ""
-    id: f-enmy
+    id: f-enemies
   - name: first_appearance
     type: Input
     options: {}
     path: ""
-    id: f-firstapp
+    id: f-first_appearance
   - name: series
     type: Input
     options: {}

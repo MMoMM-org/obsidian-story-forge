@@ -6,20 +6,20 @@ tagNames:
   - canon/location
 filesPaths:
   - 30 Canon/32 Locations
-bookmarksGroups: 
-excludes: 
-extends: 
+bookmarksGroups:
+excludes:
+extends:
 savedViews: []
-favoriteView: 
+favoriteView:
 fieldsOrder:
   - l-type
   - l-name
-  - l-alias
+  - l-aliases
   - l-world
-  - l-loctype
+  - l-locationtype
   - l-region
-  - l-inhab
-  - l-firstapp
+  - l-inhabitants
+  - l-first_appearance
   - l-series
 version: "3.0"
 fields:
@@ -42,7 +42,7 @@ fields:
       sourceType: ValuesList
       valuesList: {}
     path: ""
-    id: l-alias
+    id: l-aliases
   - name: world
     type: File
     options:
@@ -61,7 +61,7 @@ fields:
         "5": building
         "6": room
     path: ""
-    id: l-loctype
+    id: l-locationtype
   - name: region
     type: Input
     options: {}
@@ -72,12 +72,12 @@ fields:
     options:
       dvQueryString: dv.pages("#canon/character")
     path: ""
-    id: l-inhab
+    id: l-inhabitants
   - name: first_appearance
     type: Input
     options: {}
     path: ""
-    id: l-firstapp
+    id: l-first_appearance
   - name: series
     type: Input
     options: {}
