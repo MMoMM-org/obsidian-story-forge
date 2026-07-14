@@ -74,7 +74,7 @@ Each phase is a separate file. Tasks follow red-green-refactor: **Prime** (conte
 - [x] [Phase 1: View store](phase-1.md)
 - [x] [Phase 2: Scoping service](phase-2.md)
 - [x] [Phase 3: Sidebar panel shell](phase-3.md)
-- [ ] [Phase 4: Integration & validation](phase-4.md)
+- [x] [Phase 4: Integration & validation](phase-4.md)
 
 ---
 
