@@ -126,7 +126,7 @@ Status: AUTO ✓
 | Step | Expected | Coverage |
 |------|----------|----------|
 | 10a. Disable the plugin from Settings → Community Plugins | No JS console errors; no orphaned event listeners (devtools Memory/Listeners panel) | PARTIAL — `test/main.test.ts > T4.2 lifecycle cleanup > SidebarView listeners are registered via registerEvent (tracked)` asserts listeners go through registerEvent (so Obsidian cleans them up); `test/views/SidebarView.registration.test.ts > all listeners registered via registerEvent` verifies the same at view level; `test/views/SidebarView.follow.test.ts > onClose cancels the debounced follow function` confirms debounce cancel. Visual console check in Obsidian is GUI-only. |
-| 10b. Sidebar leaf is removed on unload | | AUTO — `test/main.test.ts > detachLeavesOfType is called with SIDEBAR_VIEW_TYPE on unload` |
+| 10b. Plugin does NOT detach leaves on unload (preserves user layout per obsidianmd guidance; Obsidian releases the registered view type natively) | Sidebar view type is unregistered by Obsidian; the leaf position is preserved for the next load | AUTO — `test/main.test.ts > does NOT detach leaves on unload (obsidianmd guidance — preserve layout)` |
 
 Status: PARTIAL — ⏳ pending manual (console error check)
 

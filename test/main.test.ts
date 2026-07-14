@@ -5,7 +5,7 @@
  * (a) onload instantiates ViewStore, registers SIDEBAR_VIEW_TYPE
  * (b) settings fold into StoryForgeData and persist across a reload
  * (c) CLOBBER GUARDS: saveSettings preserves views; setRecord preserves settings
- * (d) onunload detaches the sidebar view type
+ * (d) onunload runs cleanly WITHOUT detaching leaves (preserves user layout; obsidianmd guidance)
  * (e) no view activation runs before workspace.onLayoutReady (gated via activateView call)
  * T4.2: registered handler count returns to baseline after cleanup; view state cleared on close
  */
