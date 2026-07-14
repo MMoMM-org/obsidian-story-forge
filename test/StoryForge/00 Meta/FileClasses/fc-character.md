@@ -98,7 +98,7 @@ fields:
         "1": male
         "2": female
         "3": diverse
-        "4": non-binary
+        "4": nonbinary
     path: ""
     id: f-gender
   - name: occupation
