@@ -16,6 +16,8 @@ plotlines: []
 arc: ""
 beat: ""
 wordcount: null
+prev: []           # ["[[Scene]]"]
+next: []           # ["[[Scene]]"]
 series: "Forge"
 tags: [manuscript/scene]
 ---

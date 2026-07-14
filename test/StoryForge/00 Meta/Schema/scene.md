@@ -55,6 +55,12 @@ Text — a `[[beat note]]` link in `20 Planning/`, or empty. The planning beat t
 ### `wordcount`
 Number. Maintained by the word-count plugin; leave empty and let it fill in.
 
+### `prev`
+List of `[[scene]]` links to the preceding scene(s) — the reading-order chain to the neighbouring scene. Fragile versus Longform's own ordering; provisional.
+
+### `next`
+List of `[[scene]]` links to the following scene(s) — the reading-order chain to the neighbouring scene.
+
 ### `series`
 Text. The series this scene belongs to.
 
