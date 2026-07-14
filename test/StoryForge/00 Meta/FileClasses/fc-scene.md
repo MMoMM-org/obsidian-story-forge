@@ -29,6 +29,8 @@ fieldsOrder:
   - s-arc
   - s-beat
   - s-wordcount
+  - s-prev
+  - s-next
   - s-series
 version: "3.0"
 fields:
@@ -134,6 +136,18 @@ fields:
     options: {}
     path: ""
     id: s-wordcount
+  - name: prev
+    type: MultiFile
+    options:
+      dvQueryString: dv.pages("#manuscript/scene")
+    path: ""
+    id: s-prev
+  - name: next
+    type: MultiFile
+    options:
+      dvQueryString: dv.pages("#manuscript/scene")
+    path: ""
+    id: s-next
   - name: series
     type: Input
     options: {}
