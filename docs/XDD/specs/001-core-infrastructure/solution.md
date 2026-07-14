@@ -163,7 +163,7 @@ graph LR
 .
 ├── src/
 │   ├── main.ts                 # MODIFY: wire store+scoping+view; register view; onLayoutReady
-│   ├── constants.ts            # NEW: SIDEBAR_VIEW_TYPE, ICON, DEBOUNCE_MS
+│   ├── pluginConstants.ts      # NEW: SIDEBAR_VIEW_TYPE, ICON, DEBOUNCE_MS (renamed from constants.ts to avoid an eslint node-builtin false positive)
 │   ├── store/
 │   │   ├── ViewStore.ts        # NEW: getViews/setRecord/deleteRecord + applyDefaults (mason clone)
 │   │   └── types.ts            # NEW: ViewRecord, StoryForgeData, PluginDataPort
