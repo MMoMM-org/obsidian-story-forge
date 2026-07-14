@@ -25,9 +25,23 @@ export interface TagCache {
 	position?: unknown;
 }
 
+/** Matches the real Obsidian Reference interface. */
+export interface Reference {
+	link: string;
+	original: string;
+	displayText?: string;
+}
+
+/** Matches the real Obsidian FrontmatterLinkCache interface. */
+export interface FrontmatterLinkCache extends Reference {
+	/** The frontmatter key, e.g. "pov", "characters.0", "location". */
+	key: string;
+}
+
 export interface CachedMetadata {
 	tags?: TagCache[];
 	frontmatter?: Record<string, unknown>;
+	frontmatterLinks?: FrontmatterLinkCache[];
 }
 
 // --- App & Workspace ---
@@ -82,6 +96,9 @@ export class App {
 	};
 	metadataCache = {
 		getFileCache: vi.fn((_file: TFile): CachedMetadata | null => null),
+		getFirstLinkpathDest: vi.fn(
+			(_linkpath: string, _sourcePath: string): TFile | null => null,
+		),
 		on: vi.fn(),
 	};
 }
@@ -468,8 +485,16 @@ export function normalizePath(path: string): string {
 	return path.replace(/\\/g, "/").replace(/\/+/g, "/");
 }
 
+/**
+ * Realistic getAllTags implementation: reads cache.tags and returns the tag
+ * strings (e.g. "#canon/character"). Returns null when cache has no tags.
+ * Tests can override via vi.mocked(getAllTags).mockReturnValue(...).
+ */
 export const getAllTags = vi.fn(
-	(_cache: CachedMetadata): string[] | null => null,
+	(cache: CachedMetadata): string[] | null => {
+		if (!cache.tags || cache.tags.length === 0) return null;
+		return cache.tags.map((t) => t.tag);
+	},
 );
 
 // --- Factories ---
@@ -499,9 +524,29 @@ export function createMockTFile(overrides?: Partial<{
 export function createMockCachedMetadata(overrides?: Partial<{
 	tags: TagCache[];
 	frontmatter: Record<string, unknown>;
+	frontmatterLinks: FrontmatterLinkCache[];
 }>): CachedMetadata {
 	return {
 		tags: overrides?.tags ?? [],
 		frontmatter: overrides?.frontmatter ?? {},
+		frontmatterLinks: overrides?.frontmatterLinks,
+	};
+}
+
+/**
+ * Build a FrontmatterLinkCache entry.
+ * key: frontmatter field path, e.g. "pov", "characters.0", "location".
+ * link: the wikilink target (without brackets), e.g. "Mara Stoneway".
+ */
+export function createMockFrontmatterLink(
+	key: string,
+	link: string,
+	displayText?: string,
+): FrontmatterLinkCache {
+	return {
+		key,
+		link,
+		original: displayText ? `[[${link}|${displayText}]]` : `[[${link}]]`,
+		displayText,
 	};
 }
