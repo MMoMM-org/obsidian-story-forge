@@ -1,0 +1,27 @@
+{
+  "entity": "object",
+  "icon": "package",
+  "folder": "30 Canon/33 Objects",
+  "tag": "canon/object",
+  "note": "Canonical note for a thing that matters to the story (item, artifact, contract), under `30 Canon/33 Objects/`. Machine source: `00 Meta/Templates/entity-object.md`.",
+  "idPrefix": "o",
+  "fields": [
+    { "name": "type", "type": "fixed", "value": "object",
+      "description": "Fixed classifier — always `object`. Set by the template; do not change it." },
+    { "name": "name", "type": "text",
+      "description": "Text. The object's canonical name. Should match the note title." },
+    { "name": "aliases", "type": "list",
+      "description": "List of text. Other names for the object." },
+    { "name": "owner", "type": "relation", "relation": "character",
+      "description": "A single `[[Character]]` link to who owns or controls the object. A typed relation — always a wikilink. Leave empty if unowned." },
+    { "name": "kind", "type": "select",
+      "values": ["contract", "artifact", "relic", "item"],
+      "description": "Select — e.g. `contract | artifact | relic | item`. The category of object." },
+    { "name": "first_appearance", "type": "text",
+      "description": "Text — a `[[scene note]]` link. The scene where the object first appears." },
+    { "name": "series", "type": "text", "default": "Forge",
+      "description": "Text. The series this canon belongs to." },
+    { "name": "tags", "type": "tags",
+      "description": "List. Always includes `canon/object` — how views and Bases select object notes." }
+  ]
+}

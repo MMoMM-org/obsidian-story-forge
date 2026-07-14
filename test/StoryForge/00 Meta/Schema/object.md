@@ -1,8 +1,6 @@
 # Object — property reference
 
-Canonical note for a thing that matters to the story (item, artifact, contract),
-under `30 Canon/33 Objects/`. Machine source:
-`00 Meta/Templates/entity-object.md`.
+Canonical note for a thing that matters to the story (item, artifact, contract), under `30 Canon/33 Objects/`. Machine source: `00 Meta/Templates/entity-object.md`.
 
 ## Properties
 
@@ -16,8 +14,7 @@ Text. The object's canonical name. Should match the note title.
 List of text. Other names for the object.
 
 ### `owner`
-A single `[[Character]]` link to who owns or controls the object. A typed
-relation — always a wikilink. Leave empty if unowned.
+A single `[[Character]]` link to who owns or controls the object. A typed relation — always a wikilink. Leave empty if unowned.
 
 ### `kind`
 Select — e.g. `contract | artifact | relic | item`. The category of object.

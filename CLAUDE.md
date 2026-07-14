@@ -29,17 +29,20 @@ npm run build         # tsc check + esbuild production build
 npm test              # vitest unit tests
 npm run lint          # eslint (obsidianmd rules) + stylelint
 npm run typecheck     # tsc --noEmit
-npm run schema:check  # verify _forge frontmatter schema is in sync (gate)
+npm run schema:gen    # regenerate vault artifacts from canonical schema/*.json
+npm run schema:check  # verify the story frontmatter schema is in sync (gate)
 npm run dev           # esbuild watch — redeploys into test/StoryForge/ vault
 ```
 
-## Changing the `_forge` schema
+## Changing the story schema
 
-FileClasses (`test/StoryForge/00 Meta/FileClasses/`), entity/scene templates
-(`00 Meta/Templates/`), and the human property reference (`00 Meta/Schema/`) must stay in sync;
-`npm run schema:check` is the gate. **Before editing any of them, read
-`docs/schema-change-runbook.md`** — it lists exactly what to update for add/rename/remove and the
-ripple into the XDD spec.
+The story-entity schema is canonical in **`schema/*.json`** (see `schema/README.md`). The vault
+artifacts under `test/StoryForge/00 Meta/` — FileClasses, entity/scene Templates, and the human
+reference `Schema/` — are **generated** from it: edit the JSON, then `npm run schema:gen`.
+`npm run schema:check` is the gate. **Before changing the schema, read
+`docs/schema-change-runbook.md`** — it covers add/rename/remove, seed-note updates, and the
+ripple into the XDD spec. Migration is per type: `scene` is generated from `schema/scene.json`;
+the rest are still hand-maintained in the vault (kept green by `schema:check`) until migrated.
 
 ## Memory & context
 

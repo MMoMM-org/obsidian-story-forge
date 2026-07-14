@@ -6,18 +6,18 @@ tagNames:
   - canon/lore
 filesPaths:
   - 30 Canon/34 Lore
-bookmarksGroups: 
-excludes: 
-extends: 
+bookmarksGroups:
+excludes:
+extends:
 savedViews: []
-favoriteView: 
+favoriteView:
 fieldsOrder:
   - r-type
   - r-name
-  - r-alias
+  - r-aliases
   - r-scope
   - r-related
-  - r-firstapp
+  - r-first_appearance
   - r-series
 version: "3.0"
 fields:
@@ -40,7 +40,7 @@ fields:
       sourceType: ValuesList
       valuesList: {}
     path: ""
-    id: r-alias
+    id: r-aliases
   - name: scope
     type: Select
     options:
@@ -62,7 +62,7 @@ fields:
     type: Input
     options: {}
     path: ""
-    id: r-firstapp
+    id: r-first_appearance
   - name: series
     type: Input
     options: {}
