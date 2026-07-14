@@ -19,17 +19,19 @@ fieldsOrder:
   - s-act
   - s-chapter
   - s-order
-  - s-storyday
-  - s-when
   - s-status
   - s-pov
-  - s-characters
-  - s-location
-  - s-plotlines
+  - s-chars
+  - s-loc
+  - s-plot
   - s-arc
   - s-beat
-  - s-wordcount
+  - s-wc
+  - s-day
+  - s-flash
   - s-series
+  - s-prev
+  - s-next
 version: "3.0"
 fields:
   - name: type
@@ -57,7 +59,7 @@ fields:
     path: ""
     id: s-book
   - name: act
-    type: Number
+    type: Input
     options: {}
     path: ""
     id: s-act
@@ -71,27 +73,17 @@ fields:
     options: {}
     path: ""
     id: s-order
-  - name: storyDay
-    type: Number
-    options: {}
-    path: ""
-    id: s-storyday
-  - name: when
-    type: Input
-    options: {}
-    path: ""
-    id: s-when
   - name: status
     type: Select
     options:
       sourceType: ValuesList
       valuesList:
         "1": idea
-        "2": outline
-        "3": draft
-        "4": revised
-        "5": done
-        "6": final
+        "2": init
+        "3": structure
+        "4": draft
+        "5": revise
+        "6": done
     path: ""
     id: s-status
   - name: pov
@@ -105,19 +97,20 @@ fields:
     options:
       dvQueryString: dv.pages("#canon/character")
     path: ""
-    id: s-characters
+    id: s-chars
   - name: location
     type: File
     options:
       dvQueryString: dv.pages("#canon/location")
     path: ""
-    id: s-location
+    id: s-loc
   - name: plotlines
-    type: MultiFile
+    type: Multi
     options:
-      dvQueryString: dv.pages("#planning/plotline")
+      sourceType: ValuesList
+      valuesList: {}
     path: ""
-    id: s-plotlines
+    id: s-plot
   - name: arc
     type: Input
     options: {}
@@ -132,10 +125,32 @@ fields:
     type: Number
     options: {}
     path: ""
-    id: s-wordcount
+    id: s-wc
+  - name: day
+    type: Input
+    options: {}
+    path: ""
+    id: s-day
+  - name: flashback
+    type: Boolean
+    options: {}
+    path: ""
+    id: s-flash
   - name: series
     type: Input
     options: {}
     path: ""
     id: s-series
+  - name: prev
+    type: MultiFile
+    options:
+      dvQueryString: dv.pages("#manuscript/scene")
+    path: ""
+    id: s-prev
+  - name: next
+    type: MultiFile
+    options:
+      dvQueryString: dv.pages("#manuscript/scene")
+    path: ""
+    id: s-next
 ---

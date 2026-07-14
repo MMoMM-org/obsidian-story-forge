@@ -6,7 +6,7 @@ nickname: ""
 role: ""            # protagonist | deuteragonist | antagonist | supporting | minor
 status: alive       # alive | dead | missing | unknown
 age: null
-gender: ""
+gender: male        # male | female | diverse | nonbinary
 occupation: ""
 height: null              # cm — hard physical facts are continuity-checkable
 build: ""
