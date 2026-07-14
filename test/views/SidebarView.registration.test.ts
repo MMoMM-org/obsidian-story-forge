@@ -14,7 +14,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App, WorkspaceLeaf, ItemView } from "obsidian";
-import { SIDEBAR_VIEW_TYPE, ICON } from "constants";
+import { SIDEBAR_VIEW_TYPE, ICON } from "pluginConstants";
 import { SidebarView, activateView } from "views/SidebarView";
 
 // ---------------------------------------------------------------------------
@@ -27,14 +27,13 @@ function makeApp(): App {
 
 function makeLeaf(app: App): WorkspaceLeaf {
 	const leaf = new WorkspaceLeaf();
+	leaf.app = app;
 	// Override setViewState to track calls but also update view type
 	leaf.setViewState = vi.fn(
 		async (state: { type: string; active?: boolean }) => {
 			leaf.view.getViewType = vi.fn(() => state.type);
 		},
 	);
-	// Attach app reference for convenience in tests
-	(leaf as unknown as Record<string, unknown>)["app"] = app;
 	return leaf;
 }
 
@@ -61,7 +60,7 @@ describe("SidebarView: ItemView contract", () => {
 	beforeEach(() => {
 		app = makeApp();
 		leaf = makeLeaf(app);
-		view = new SidebarView(leaf, app);
+		view = new SidebarView(leaf);
 	});
 
 	it("extends ItemView", () => {

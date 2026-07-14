@@ -16,7 +16,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { App, WorkspaceLeaf, TFile, augmentEl } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { StubContextTab } from "views/StubContextTab";
-import { SIDEBAR_VIEW_TYPE } from "constants";
+import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 
 // ---------------------------------------------------------------------------
@@ -27,8 +27,9 @@ function makeApp(): App {
 	return new App();
 }
 
-function makeOwnLeaf(): WorkspaceLeaf {
+function makeOwnLeaf(app: App): WorkspaceLeaf {
 	const leaf = new WorkspaceLeaf();
+	leaf.app = app;
 	leaf.view.getViewType = vi.fn(() => SIDEBAR_VIEW_TYPE);
 	leaf.setViewState = vi.fn(async (s: { type: string }) => {
 		leaf.view.getViewType = vi.fn(() => s.type);
@@ -92,8 +93,8 @@ describe("SidebarView: state rendering", () => {
 
 	beforeEach(async () => {
 		app = makeApp();
-		leaf = makeOwnLeaf();
-		view = new SidebarView(leaf, app);
+		leaf = makeOwnLeaf(app);
+		view = new SidebarView(leaf);
 		await view.onOpen();
 	});
 

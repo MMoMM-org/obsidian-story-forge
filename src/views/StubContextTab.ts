@@ -37,7 +37,8 @@ type AugEl = HTMLElement & {
 };
 
 function asAug(el: HTMLElement): AugEl {
-	return el as AugEl;
+	// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+	return el as unknown as AugEl;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,10 +54,10 @@ export class StubContextTab implements ContextTab {
 
 		const rows = root.createDiv({ cls: "sf-rows" });
 		for (const entity of ctx.entities) {
-			const row = asAug(rows).createDiv({ cls: "sf-row" });
-			asAug(row).createSpan({ cls: "sf-f", text: entity.field ?? "" });
-			asAug(row).createSpan({ cls: "sf-lnk", text: entity.file.basename });
-			asAug(row).createSpan({ cls: "sf-k", text: entity.kind });
+			const row = rows.createDiv({ cls: "sf-row" });
+			row.createSpan({ cls: "sf-f", text: entity.field ?? "" });
+			row.createSpan({ cls: "sf-lnk", text: entity.file.basename });
+			row.createSpan({ cls: "sf-k", text: entity.kind });
 		}
 
 		// Backlink seam footer — empty in M1, filled in M3

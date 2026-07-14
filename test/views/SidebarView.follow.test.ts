@@ -15,7 +15,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { App, WorkspaceLeaf, TFile } from "obsidian";
 import { SidebarView } from "views/SidebarView";
-import { SIDEBAR_VIEW_TYPE } from "constants";
+import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,6 +27,7 @@ function makeApp(): App {
 
 function makeOwnLeaf(app: App): WorkspaceLeaf {
 	const leaf = new WorkspaceLeaf();
+	leaf.app = app;
 	leaf.setViewState = vi.fn(async (s: { type: string }) => {
 		leaf.view.getViewType = vi.fn(() => s.type);
 	});
@@ -70,7 +71,7 @@ describe("SidebarView: follow lifecycle", () => {
 		ownLeaf = makeOwnLeaf(app);
 		// Make ownLeaf report as story-forge-panel
 		ownLeaf.view.getViewType = vi.fn(() => SIDEBAR_VIEW_TYPE);
-		view = new SidebarView(ownLeaf, app);
+		view = new SidebarView(ownLeaf);
 		await view.onOpen();
 	});
 

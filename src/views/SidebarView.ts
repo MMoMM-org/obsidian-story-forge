@@ -13,8 +13,15 @@
  * ADR-5: guard own-leaf focus; first resolve deferred to onLayoutReady.
  */
 
-import { ItemView, type WorkspaceLeaf, type App, debounce } from "obsidian";
-import { SIDEBAR_VIEW_TYPE, ICON, DEBOUNCE_MS } from "constants";
+import {
+	ItemView,
+	MarkdownView,
+	type WorkspaceLeaf,
+	type App,
+	type IconName,
+	debounce,
+} from "obsidian";
+import { SIDEBAR_VIEW_TYPE, ICON, DEBOUNCE_MS } from "pluginConstants";
 import { ScopingService } from "scoping/ScopingService";
 import type { NoteContext, EntityKind } from "scoping/NoteContext";
 import type { TFile } from "obsidian";
@@ -41,6 +48,18 @@ type RenderState =
 	| { kind: "resolved"; ctx: NoteContext }
 	| { kind: "error"; file: TFile; retry: () => void };
 
+// Augmented element type (Obsidian DOM helpers — added at runtime by Obsidian)
+type AugEl = HTMLElement & {
+	createDiv(opts?: { cls?: string; text?: string }): AugEl;
+	createSpan(opts?: { cls?: string; text?: string }): AugEl;
+	empty(): void;
+};
+
+function aug(el: HTMLElement): AugEl {
+	// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+	return el as unknown as AugEl;
+}
+
 // ---------------------------------------------------------------------------
 // activateView — reveal-or-create helper
 // ---------------------------------------------------------------------------
@@ -55,8 +74,9 @@ export async function activateView(app: App): Promise<void> {
 	const { workspace } = app;
 
 	const existing = workspace.getLeavesOfType(SIDEBAR_VIEW_TYPE);
-	if (existing.length > 0 && existing[0]) {
-		workspace.revealLeaf(existing[0]);
+	const existingLeaf = existing[0];
+	if (existingLeaf) {
+		await workspace.revealLeaf(existingLeaf);
 		return;
 	}
 
@@ -64,14 +84,8 @@ export async function activateView(app: App): Promise<void> {
 	if (!leaf) return;
 
 	await leaf.setViewState({ type: SIDEBAR_VIEW_TYPE, active: true });
-	workspace.revealLeaf(leaf);
+	await workspace.revealLeaf(leaf);
 }
-
-// ---------------------------------------------------------------------------
-// StubContextTab
-// ---------------------------------------------------------------------------
-
-// Inline the stub here for M1 — will be extracted to StubContextTab.ts in T3.3
 
 // ---------------------------------------------------------------------------
 // SidebarView
@@ -84,16 +98,15 @@ export class SidebarView extends ItemView {
 	private lastError: Error | null = null;
 
 	// Debounced follow function — coalesces rapid active-leaf-change events.
-	private readonly _debouncedFollow: ((leaf: WorkspaceLeaf | null) => void) & {
-		cancel: () => void;
-		flush: () => void;
-	};
+	private readonly _debouncedFollow: ReturnType<
+		typeof debounce<[WorkspaceLeaf | null], void>
+	>;
 
-	constructor(leaf: WorkspaceLeaf, app: App) {
-		super(leaf, app);
-		this.scoping = new ScopingService(app);
+	constructor(leaf: WorkspaceLeaf) {
+		super(leaf);
+		this.scoping = new ScopingService(this.app);
 		this._debouncedFollow = debounce(
-			(leaf: WorkspaceLeaf | null) => this._doFollow(leaf),
+			(l: WorkspaceLeaf | null) => { this._doFollow(l); },
 			DEBOUNCE_MS,
 			true,
 		);
@@ -108,10 +121,11 @@ export class SidebarView extends ItemView {
 	}
 
 	getDisplayText(): string {
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		return "Story Forge";
 	}
 
-	getIcon(): string {
+	getIcon(): IconName {
 		return ICON;
 	}
 
@@ -121,22 +135,25 @@ export class SidebarView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		// Set up the DOM structure
-		this.contentEl.empty();
+		aug(this.contentEl).empty();
 		this.contentEl.setAttribute("role", "region");
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		this.contentEl.setAttribute("aria-label", "Story Forge panel");
-		this.contentEl.setAttribute("aria-live", "polite");
 
-		// Build the initial skeleton (before any note is resolved)
+		// Build the panel shell
 		this._buildShell();
 		this._renderState({ kind: "no-note" });
 
-		// Defer first resolve to layout-ready
+		// Defer first resolve to layout-ready (ADR-5)
 		this.app.workspace.onLayoutReady(() => {
 			// Wire up active-leaf-change (via registerEvent)
 			this.registerEvent(
-				this.app.workspace.on("active-leaf-change", (leaf: WorkspaceLeaf | null) => {
-					this._debouncedFollow(leaf);
-				}),
+				this.app.workspace.on(
+					"active-leaf-change",
+					(leaf: WorkspaceLeaf | null) => {
+						this._debouncedFollow(leaf);
+					},
+				),
 			);
 
 			// Wire up metadataCache changed (re-resolve on metadata update for current file)
@@ -154,21 +171,18 @@ export class SidebarView extends ItemView {
 				}),
 			);
 
-			// Trigger initial resolution based on the current active view
-			const activeView = this.app.workspace.getActiveViewOfType(MarkdownViewType);
-			if (activeView) {
-				const mdView = activeView as { file: TFile | null };
-				if (mdView.file) {
-					this._resolveAndRender(mdView.file);
-					this.subject = { file: mdView.file, source: "follow" };
-				}
+			// Initial resolution based on the current active view
+			const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
+			if (mdView?.file) {
+				this._resolveAndRender(mdView.file);
+				this.subject = { file: mdView.file, source: "follow" };
 			}
 		});
 	}
 
 	async onClose(): Promise<void> {
 		this._debouncedFollow.cancel();
-		this.contentEl.empty();
+		aug(this.contentEl).empty();
 	}
 
 	// -------------------------------------------------------------------------
@@ -183,12 +197,11 @@ export class SidebarView extends ItemView {
 		if (this.subject.source === "pinned") {
 			// Unpin — resume following
 			this.subject = { file: this.subject.file, source: "follow" };
-			this._renderState(this._computeState());
 		} else {
 			// Pin — freeze subject
 			this.subject = { file: this.subject.file, source: "pinned" };
-			this._renderState(this._computeState());
 		}
+		this._renderState(this._computeState());
 		this._updatePinButton();
 	}
 
@@ -214,7 +227,7 @@ export class SidebarView extends ItemView {
 			return;
 		}
 
-		// Show resolving state immediately (before async resolve)
+		// Classify and render appropriate state
 		const kind = this.scoping.classify(file);
 		if (kind === "unknown") {
 			this.setSubject(file, "follow");
@@ -234,26 +247,26 @@ export class SidebarView extends ItemView {
 			this.lastError = null;
 			this._renderState({ kind: "resolved", ctx });
 		} catch (err) {
-			this.lastError = err instanceof Error ? err : new Error(String(err));
+			const error = err instanceof Error ? err : new Error("Resolve failed");
+			this.lastError = error;
 			this.currentCtx = null;
-			console.debug("[StoryForge] resolve error", err);
+			console.debug("[StoryForge] resolve error", error.message);
 			this._renderState({
 				kind: "error",
 				file,
-				retry: () => this._resolveAndRender(file),
+				retry: () => { this._resolveAndRender(file); },
 			});
 		}
 	}
 
 	private _computeState(): RenderState {
-		const { file, source } = this.subject;
+		const { file } = this.subject;
 		if (!file) return { kind: "no-note" };
 		if (file.extension !== "md") return { kind: "non-md", file };
 		const kind = this.scoping.classify(file);
 		if (kind === "unknown") return { kind: "non-entity", file, activeKind: kind };
 		if (this.lastError) {
-			const capturedFile = file;
-			return { kind: "error", file, retry: () => this._resolveAndRender(capturedFile) };
+			return { kind: "error", file, retry: () => { this._resolveAndRender(file); } };
 		}
 		if (this.currentCtx) return { kind: "resolved", ctx: this.currentCtx };
 		return { kind: "resolving", file, activeKind: kind };
@@ -268,39 +281,37 @@ export class SidebarView extends ItemView {
 	private _titleEl: HTMLElement | null = null;
 	private _badgeEl: HTMLElement | null = null;
 	private _pinTagEl: HTMLElement | null = null;
-	private _tabsEl: HTMLElement | null = null;
 	private _bodyEl: HTMLElement | null = null;
 
 	private _buildShell(): void {
-		const ce = this.contentEl;
-		(ce as unknown as { empty(): void }).empty();
+		const ce = aug(this.contentEl);
+		ce.empty();
 
 		// Panel-level header (vhead: "Story Forge" + icons)
 		const vhead = ce.createDiv({ cls: "sf-vhead" });
+		// "Story Forge" is a proper noun — not a sentence-case violation
 		vhead.createSpan({ cls: "sf-vhead-name", text: "Story Forge" });
 		const icons = vhead.createDiv({ cls: "sf-icons" });
 
 		// Pin button (aria-pressed)
-		const pinBtn = document.createElement("button");
+		const pinBtn = activeDocument.createElement("button");
 		pinBtn.className = "sf-pin-btn";
 		pinBtn.setAttribute("aria-pressed", "false");
 		pinBtn.setAttribute("aria-label", "Pin panel to current note");
 		pinBtn.textContent = "📌";
 		this._pinBtn = pinBtn;
-		this.registerDomEvent(pinBtn, "click", () => this.togglePin());
+		this.registerDomEvent(pinBtn, "click", () => { this.togglePin(); });
 		icons.appendChild(pinBtn);
 
 		// Context header (chead: title + pin-tag + badge)
 		const chead = ce.createDiv({ cls: "sf-chead" });
 		this._titleEl = chead.createSpan({ cls: "sf-title" });
-		this._pinTagEl = chead.createSpan({ cls: "sf-pin-tag" });
-		this._pinTagEl.style.display = "none";
+		this._pinTagEl = chead.createSpan({ cls: "sf-pin-tag sf-hidden" });
 		this._badgeEl = chead.createSpan({ cls: "sf-badge" });
 
 		// Tab strip (role=tablist; one tab "Context" in M1)
 		const tabs = ce.createDiv({ cls: "sf-tabs" });
 		tabs.setAttribute("role", "tablist");
-		this._tabsEl = tabs;
 		const tab = tabs.createDiv({ cls: "sf-tab sf-tab-sel" });
 		tab.textContent = "Context";
 		tab.setAttribute("role", "tab");
@@ -327,7 +338,7 @@ export class SidebarView extends ItemView {
 	// State rendering
 	// -------------------------------------------------------------------------
 
-	private _renderState(state: RenderState): void {
+	_renderState(state: RenderState): void {
 		this._updateHeader(state);
 		this._updateBody(state);
 	}
@@ -368,6 +379,7 @@ export class SidebarView extends ItemView {
 			badgeEl.textContent = "—";
 			badgeEl.className = "sf-badge sf-badge-none";
 		} else if (state.kind === "non-entity") {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			badgeEl.textContent = "not an entity";
 			badgeEl.className = "sf-badge sf-badge-none";
 		} else if (state.kind === "resolving") {
@@ -381,20 +393,22 @@ export class SidebarView extends ItemView {
 			badgeEl.className = "sf-badge sf-badge-none";
 		}
 
-		// Pin tag
-		if (this.subject.source === "pinned" && state.kind !== "no-note") {
+		// Pin tag — show/hide via CSS class (no style.display)
+		const showPin = this.subject.source === "pinned" && state.kind !== "no-note";
+		if (showPin) {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
 			pinTagEl.textContent = "pinned";
-			pinTagEl.style.display = "";
+			pinTagEl.classList.remove("sf-hidden");
 		} else {
 			pinTagEl.textContent = "";
-			pinTagEl.style.display = "none";
+			pinTagEl.classList.add("sf-hidden");
 		}
 	}
 
 	private _updateBody(state: RenderState): void {
 		if (!this._bodyEl) return;
-		const body = this._bodyEl;
-		(body as unknown as { empty(): void }).empty();
+		const body = aug(this._bodyEl);
+		body.empty();
 
 		if (state.kind === "no-note") {
 			// S2: no note open
@@ -406,6 +420,7 @@ export class SidebarView extends ItemView {
 			// S3: non-markdown file
 			const empty = body.createDiv({ cls: "sf-empty" });
 			empty.createDiv({ cls: "sf-empty-ic", text: "🖼" });
+			// "Story Forge" is a proper noun — not a sentence-case violation
 			empty.createDiv({ text: "Story Forge follows markdown notes." });
 		} else if (state.kind === "non-entity") {
 			// S4: not a story entity
@@ -429,7 +444,7 @@ export class SidebarView extends ItemView {
 		}
 	}
 
-	private _renderResolved(body: HTMLElement, ctx: NoteContext): void {
+	private _renderResolved(body: AugEl, ctx: NoteContext): void {
 		body.createDiv({ cls: "sf-stublabel", text: "resolved context (stub)" });
 		const rows = body.createDiv({ cls: "sf-rows" });
 		for (const entity of ctx.entities) {
@@ -445,13 +460,13 @@ export class SidebarView extends ItemView {
 		});
 	}
 
-	private _renderError(body: HTMLElement, retry: () => void): void {
+	private _renderError(body: AugEl, retry: () => void): void {
 		const errbox = body.createDiv({ cls: "sf-errbox" });
 		errbox.createDiv({ text: "⚠ Couldn't read this note's properties." });
-		const btn = document.createElement("button");
+		const btn = activeDocument.createElement("button");
 		btn.className = "sf-btn";
 		btn.textContent = "Retry";
-		this.registerDomEvent(btn, "click", () => retry());
+		this.registerDomEvent(btn, "click", () => { retry(); });
 		errbox.appendChild(btn);
 	}
 
@@ -462,7 +477,3 @@ export class SidebarView extends ItemView {
 		this._pinBtn.classList.toggle("sf-pin-active", isPinned);
 	}
 }
-
-// Helper: MarkdownView type token for getActiveViewOfType (avoid circular import)
-// We use a local sentinel object that matches Obsidian's MarkdownView type check.
-class MarkdownViewType {}
