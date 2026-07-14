@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-07-13 |
-| **Current Phase** | Ready |
-| **Last Updated** | 2026-07-13 |
+| **Current Phase** | Implemented |
+| **Last Updated** | 2026-07-14 |
 
 ## Documents
 
@@ -32,6 +32,7 @@
 | 2026-07-13 | PRD approved → proceed to SDD | Requirements + mockups reviewed and accepted |
 | 2026-07-13 | SDD ADR-1…6 confirmed → proceed to PLAN | Store=mason clone; single tabbed ItemView + subject abstraction; metadataCache-only scoping (backlinks→M3); tag-first classification; active-leaf-change+debounce+onLayoutReady; persist only on store mutations |
 | 2026-07-13 | PLAN complete → spec Ready | 4 phases, 15 tasks; P1 View store ∥ P2 Scoping → P3 Panel shell → P4 Integration/E2E; all PRD ACs mapped |
+| 2026-07-14 | Implementation complete | M1 shipped on branch feat/001-core-infrastructure (25 commits, not yet merged to main). Delivered: ViewStore (src/store/) with fail-closed defaults; ScopingService + engine-free NoteContext (src/scoping/); SidebarView panel shell with follow/pin/S2–S9 state machine + a11y (src/views/); main.ts wiring (shared PluginDataPort, ribbon+command, settings/views read-modify-write). 172 unit tests; gates green (test/lint/typecheck/schema:check/build). Deferred: tsconfig.test.json + mock fidelity (TaskList #5); manual GUI live-testing checklist (docs/live-testing.md) pending maintainer pass. Drift resolved: minAppVersion held at 1.5.7 (CON-1); no detach-leaves on unload (obsidianmd guidance); constants→pluginConstants rename accepted. |
 
 ## Context
 
