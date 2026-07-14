@@ -10,8 +10,8 @@
  * T4.2: registered handler count returns to baseline after cleanup; view state cleared on close
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { App, Plugin, WorkspaceLeaf } from "obsidian";
+import { describe, it, expect, vi } from "vitest";
+import { App, WorkspaceLeaf, TFile } from "obsidian";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { StoryForgeData } from "store/types";
 
@@ -157,17 +157,24 @@ describe("StoryForgePlugin — clobber guards", () => {
 });
 
 // ---------------------------------------------------------------------------
-// (d) onunload — detach sidebar
+// (d) onunload — clean unload WITHOUT detaching leaves
 // ---------------------------------------------------------------------------
 
-describe("StoryForgePlugin.onunload — cleanup", () => {
-	it("detachLeavesOfType is called with SIDEBAR_VIEW_TYPE on unload", async () => {
+describe("StoryForgePlugin.onunload — clean unload", () => {
+	it("runs the plugin unload without error", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
-		plugin.onunload();
-		expect(plugin.app.workspace.detachLeavesOfType).toHaveBeenCalledWith(
-			SIDEBAR_VIEW_TYPE,
-		);
+		// Simulate Obsidian unloading the plugin (Component cleanup). Must not throw.
+		expect(() => { plugin._runCleanup(); }).not.toThrow();
+	});
+
+	it("does NOT detach leaves on unload (obsidianmd guidance — preserve layout)", async () => {
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+		plugin._runCleanup();
+		// The plugin must not reset the user's panel layout by detaching leaves;
+		// Obsidian releases registered views natively.
+		expect(plugin.app.workspace.detachLeavesOfType).not.toHaveBeenCalled();
 	});
 });
 
@@ -197,46 +204,146 @@ describe("StoryForgePlugin — layout-ready gating", () => {
 // ---------------------------------------------------------------------------
 
 describe("StoryForgePlugin T4.2 — lifecycle cleanup", () => {
-	it("SidebarView listeners are registered via registerEvent (tracked)", async () => {
-		const { plugin } = await makePlugin();
+	// Total live workspace + metadataCache event registrations for an App.
+	function liveHandlerCount(app: App): number {
+		let n = 0;
+		for (const cbs of app.workspace._eventRegistrations.values()) n += cbs.length;
+		const mc = app.metadataCache as unknown as {
+			_eventRegistrations: Map<string, unknown[]>;
+		};
+		for (const cbs of mc._eventRegistrations.values()) n += cbs.length;
+		return n;
+	}
 
-		// Provide a leaf for the view factory
-		const leaf = new WorkspaceLeaf();
-		plugin.app.workspace.getRightLeaf.mockReturnValue(leaf);
-
-		await plugin.onload();
-
-		// Build a sidebar view via the registered factory
+	function makeViewViaFactory(
+		plugin: InstanceType<typeof import("main").default>,
+		leaf: WorkspaceLeaf,
+	): import("views/SidebarView").SidebarView {
 		const factoryCall = plugin.registerView.mock.calls.find(
 			(c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE,
 		);
 		expect(factoryCall).toBeDefined();
-		const factory = factoryCall?.[1] as (leaf: WorkspaceLeaf) => import("views/SidebarView").SidebarView;
-		const view = factory(leaf);
+		const factory = factoryCall?.[1] as (
+			leaf: WorkspaceLeaf,
+		) => import("views/SidebarView").SidebarView;
+		return factory(leaf);
+	}
 
-		// Open the view (registers workspace events)
-		await view.onOpen();
-
-		// registerEvent should have been called (for active-leaf-change + metadataCache)
-		expect(view.registerEvent).toHaveBeenCalled();
-	});
-
-	it("SidebarView.onClose clears resolved context state", async () => {
-		const { plugin } = await makePlugin();
+	it("SidebarView listeners are registered via registerEvent (tracked)", async () => {
+		const { plugin, app } = await makePlugin();
 		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
 		plugin.app.workspace.getRightLeaf.mockReturnValue(leaf);
 		await plugin.onload();
 
-		const factoryCall = plugin.registerView.mock.calls.find(
-			(c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE,
-		);
-		const factory = factoryCall?.[1] as (leaf: WorkspaceLeaf) => import("views/SidebarView").SidebarView;
-		const view = factory(leaf);
-
+		const view = makeViewViaFactory(plugin, leaf);
 		await view.onOpen();
+
+		// registerEvent should have been called (active-leaf-change + metadataCache).
+		expect(view.registerEvent).toHaveBeenCalled();
+	});
+
+	it("open→close→unload releases every listener (handler count returns to baseline)", async () => {
+		const { plugin, app } = await makePlugin();
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		plugin.app.workspace.getRightLeaf.mockReturnValue(leaf);
+		await plugin.onload();
+
+		const baseline = liveHandlerCount(app);
+
+		const view = makeViewViaFactory(plugin, leaf);
+		await view.onOpen();
+
+		// Opening the view must actually register handlers (else the test can't prove release).
+		expect(liveHandlerCount(app)).toBeGreaterThan(baseline);
+
+		// Close the view (SidebarView teardown) then unload the component
+		// (Obsidian releases registered listeners). After both, no listener leaks.
+		await view.onClose();
+		(view as unknown as { _unload(): void })._unload();
+
+		expect(liveHandlerCount(app)).toBe(baseline);
+	});
+
+	it("repeated open→close→unload cycles do not grow the handler count", async () => {
+		const { plugin, app } = await makePlugin();
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		plugin.app.workspace.getRightLeaf.mockReturnValue(leaf);
+		await plugin.onload();
+
+		const baseline = liveHandlerCount(app);
+
+		for (let i = 0; i < 3; i++) {
+			const view = makeViewViaFactory(plugin, leaf);
+			await view.onOpen();
+			await view.onClose();
+			(view as unknown as { _unload(): void })._unload();
+		}
+
+		// No accumulation across cycles — a leaked listener would grow this.
+		expect(liveHandlerCount(app)).toBe(baseline);
+	});
+
+	it("a metadataCache 'changed' handler is not fired after unload (proves release)", async () => {
+		const { plugin, app } = await makePlugin();
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		plugin.app.workspace.getRightLeaf.mockReturnValue(leaf);
+		await plugin.onload();
+
+		const view = makeViewViaFactory(plugin, leaf);
+		await view.onOpen();
+
+		// Spy on the view's re-resolve path via _renderState so we can detect a
+		// stale handler firing. After unload, triggering the event must be a no-op.
+		const renderSpy = vi.spyOn(
+			view as unknown as { _renderState: (s: unknown) => void },
+			"_renderState",
+		);
+
+		await view.onClose();
+		(view as unknown as { _unload(): void })._unload();
+		renderSpy.mockClear();
+
+		// Fire the metadataCache event after unload — no live handler should run.
+		const mc = app.metadataCache as unknown as {
+			_trigger(event: string, ...args: unknown[]): void;
+		};
+		const f = new TFile();
+		mc._trigger("changed", f);
+
+		expect(renderSpy).not.toHaveBeenCalled();
+	});
+
+	it("SidebarView.onClose clears DOM and resolved-context state", async () => {
+		const { plugin, app } = await makePlugin();
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		plugin.app.workspace.getRightLeaf.mockReturnValue(leaf);
+		await plugin.onload();
+
+		const view = makeViewViaFactory(plugin, leaf);
+		await view.onOpen();
+
+		// Seed internal state so we can prove onClose clears it.
+		const tv = view as unknown as {
+			currentCtx: unknown;
+			lastError: unknown;
+			subject: { file: TFile | null; source: string };
+		};
+		tv.currentCtx = { activeFile: new TFile(), activeKind: "scene", entities: [], backlinks: [], resolvedAt: 1 };
+		tv.lastError = new Error("stale");
+		tv.subject = { file: new TFile(), source: "pinned" };
+
 		await view.onClose();
 
-		// contentEl should be cleared (empty) after close
+		// DOM cleared…
 		expect(view.contentEl.children.length).toBe(0);
+		// …and internal state reset so a re-opened view starts clean.
+		expect(tv.currentCtx).toBeNull();
+		expect(tv.lastError).toBeNull();
+		expect(tv.subject).toEqual({ file: null, source: "follow" });
 	});
 });
