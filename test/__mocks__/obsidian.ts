@@ -21,6 +21,18 @@
 
 import { vi } from "vitest";
 
+// --- Obsidian globals not present in jsdom ---
+
+/**
+ * activeDocument — Obsidian's popout-window-aware document reference.
+ * In tests (jsdom) there is only one document, so we expose it as a global
+ * to match Obsidian's runtime API without requiring @types/obsidian changes.
+ */
+if (typeof globalThis.activeDocument === "undefined") {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+	(globalThis as any).activeDocument = document;
+}
+
 // --- Core types ---
 
 export interface TagCache {
@@ -521,8 +533,14 @@ class DropdownComponent {
  *
  * Tracks setViewState calls so tests can assert the view type was set.
  * The `view` field shape matches ItemView/MarkdownView.
+ *
+ * `app` is stored on the leaf so that ItemView (which calls super(leaf)) can
+ * access it via this.leaf.app — matching real Obsidian's View.app getter.
  */
 export class WorkspaceLeaf {
+	/** App context — set by tests so ItemView.app resolves correctly. */
+	app: App = new App();
+
 	view: {
 		getViewType: ReturnType<typeof vi.fn>;
 		file: TFile | null;
@@ -548,9 +566,8 @@ export class WorkspaceLeaf {
 /**
  * ItemView — abstract base class for sidebar panels.
  *
- * Constructor shape mirrors real Obsidian: new ItemView(leaf) where leaf
- * is a WorkspaceLeaf. The `app` must be passed separately in the mock
- * because we don't have a real plugin context.
+ * Constructor shape mirrors real Obsidian: new ItemView(leaf) — `app` is
+ * accessed via `leaf.app` (set by the real Obsidian View base class).
  *
  * `containerEl` follows the real Obsidian 2-child convention:
  *   containerEl.children[0] = header area
@@ -572,10 +589,11 @@ export class ItemView extends Component {
 	/** The content area where subclasses render. */
 	contentEl: HTMLElement;
 
-	constructor(leaf: WorkspaceLeaf, app?: App) {
+	constructor(leaf: WorkspaceLeaf) {
 		super();
 		this.leaf = leaf;
-		this.app = app ?? new App();
+		// Mirror real Obsidian: app comes from leaf.app (set by the plugin runtime)
+		this.app = leaf.app;
 
 		// Build containerEl with two children (header + content)
 		this.containerEl = makeObsidianEl("div");
