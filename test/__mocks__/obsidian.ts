@@ -61,14 +61,30 @@ export interface CachedMetadata {
 
 // --- App & Workspace ---
 
+/** Shape of the EventRef a Workspace/metadataCache `on()` call returns. */
+interface MockEventRef {
+	e: string;
+	fn: (...args: unknown[]) => void;
+	/** The emitter the ref came from — used by cleanup to call its `off`. */
+	_emitter?: { off: (ref: MockEventRef) => void };
+}
+
 export class Component {
+	/**
+	 * Cleanup functions accumulated via the register* helpers. Running them
+	 * (via _unload / _runCleanup) releases every listener/timer — mirroring the
+	 * real Obsidian Component lifecycle, so tests can prove nothing leaks.
+	 */
+	protected _cleanupFns: Array<() => unknown> = [];
+
 	/**
 	 * registerDomEvent — tracks registration AND wires the real DOM listener.
 	 *
 	 * The real Obsidian registerDomEvent attaches the listener AND stores it for
 	 * cleanup on unload. The mock does the same: addEventListener is called so
 	 * tests can dispatch real DOM events (click, keydown, etc.), and the call is
-	 * tracked by vi.fn() so tests can assert it was used.
+	 * tracked by vi.fn() so tests can assert it was used. The removeEventListener
+	 * is queued as a cleanup so unload genuinely detaches the DOM handler.
 	 */
 	registerDomEvent = vi.fn(
 		<K extends keyof HTMLElementEventMap>(
@@ -77,18 +93,41 @@ export class Component {
 			listener: (ev: HTMLElementEventMap[K]) => void,
 		): void => {
 			el.addEventListener(type, listener as EventListener);
+			this._cleanupFns.push(() => {
+				el.removeEventListener(type, listener as EventListener);
+			});
 		},
 	);
 
-	registerInterval = vi.fn();
+	registerInterval = vi.fn((id: number): number => {
+		this._cleanupFns.push(() => { clearInterval(id); });
+		return id;
+	});
 
 	/**
-	 * registerEvent — tracks that events are registered through the Obsidian API.
-	 * Returns the EventRef it was passed (mirrors real Obsidian API).
+	 * registerEvent — tracks that events are registered through the Obsidian API
+	 * AND queues the matching `off` so unload releases the workspace/metadataCache
+	 * listener. Returns the EventRef it was passed (mirrors real Obsidian).
+	 *
+	 * This is what makes leak tests genuine: a listener wired via registerEvent is
+	 * released on cleanup, but one wired raw (bypassing registerEvent) is not.
 	 */
 	registerEvent = vi.fn(
-		(eventRef: unknown): unknown => eventRef,
+		(eventRef: unknown): unknown => {
+			const ref = eventRef as MockEventRef | null;
+			if (ref?._emitter) {
+				this._cleanupFns.push(() => { ref._emitter!.off(ref); });
+			}
+			return eventRef;
+		},
 	);
+
+	/** Run and clear every queued cleanup — simulates Obsidian unloading the component. */
+	_unload(): void {
+		const fns = this._cleanupFns;
+		this._cleanupFns = [];
+		for (const fn of fns) fn();
+	}
 }
 
 /**
@@ -106,16 +145,24 @@ export class Workspace {
 		(
 			event: string,
 			callback: (...args: unknown[]) => void,
-		): { e: string; fn: typeof callback } => {
+		): MockEventRef => {
 			if (!this._eventRegistrations.has(event)) {
 				this._eventRegistrations.set(event, []);
 			}
 			this._eventRegistrations.get(event)!.push(callback);
-			return { e: event, fn: callback };
+			// _emitter back-ref lets Component.registerEvent queue this.off(ref).
+			return { e: event, fn: callback, _emitter: this };
 		},
 	);
 
-	off = vi.fn();
+	/** Remove a previously-registered callback (called on component unload). */
+	off = vi.fn((ref: MockEventRef): void => {
+		const list = this._eventRegistrations.get(ref.e);
+		if (!list) return;
+		const idx = list.indexOf(ref.fn);
+		if (idx !== -1) list.splice(idx, 1);
+		if (list.length === 0) this._eventRegistrations.delete(ref.e);
+	});
 
 	/**
 	 * When true, onLayoutReady() STORES callbacks instead of invoking them
@@ -213,22 +260,38 @@ export class App {
 		getFirstLinkpathDest: vi.fn(
 			(_linkpath: string, _sourcePath: string): TFile | null => null,
 		),
-		on: vi.fn(
-			(
-				event: string,
-				callback: (...args: unknown[]) => void,
-			): { e: string; fn: typeof callback } => {
-				return { e: event, fn: callback };
-			},
-		),
-		/** Trigger metadataCache event (used in tests). */
-		_trigger: function(event: string, ...args: unknown[]): void {
-			// Collect callbacks registered via on()
-			const onMock = this.on as ReturnType<typeof vi.fn>;
-			const calls = onMock.mock.calls as Array<[string, (...args: unknown[]) => void]>;
-			for (const [evName, cb] of calls) {
-				if (evName === event) cb(...args);
+		/** Live registrations (event → callbacks). Cleared by off() on unload. */
+		_eventRegistrations: new Map<string, Array<(...args: unknown[]) => void>>(),
+		on: vi.fn(function(
+			this: { _eventRegistrations: Map<string, Array<(...args: unknown[]) => void>>; off: (ref: MockEventRef) => void },
+			event: string,
+			callback: (...args: unknown[]) => void,
+		): MockEventRef {
+			if (!this._eventRegistrations.has(event)) {
+				this._eventRegistrations.set(event, []);
 			}
+			this._eventRegistrations.get(event)!.push(callback);
+			return { e: event, fn: callback, _emitter: this };
+		}),
+		/** Remove a previously-registered callback (called on component unload). */
+		off: vi.fn(function(
+			this: { _eventRegistrations: Map<string, Array<(...args: unknown[]) => void>> },
+			ref: MockEventRef,
+		): void {
+			const list = this._eventRegistrations.get(ref.e);
+			if (!list) return;
+			const idx = list.indexOf(ref.fn);
+			if (idx !== -1) list.splice(idx, 1);
+			if (list.length === 0) this._eventRegistrations.delete(ref.e);
+		}),
+		/** Trigger metadataCache event — fires only LIVE registrations. */
+		_trigger: function(
+			this: { _eventRegistrations: Map<string, Array<(...args: unknown[]) => void>> },
+			event: string,
+			...args: unknown[]
+		): void {
+			const callbacks = this._eventRegistrations.get(event) ?? [];
+			for (const cb of callbacks) cb(...args);
 		},
 	};
 }
@@ -238,7 +301,6 @@ export class App {
 export class Plugin extends Component {
 	app: App;
 	manifest = { id: "test-plugin", name: "Test Plugin", version: "0.0.0" };
-	private _cleanupFns: Array<() => unknown> = [];
 
 	constructor(app?: App) {
 		super();
@@ -256,9 +318,13 @@ export class Plugin extends Component {
 		this._cleanupFns.push(fn);
 	});
 
-	/** Simulate Obsidian calling all registered cleanup functions (for testing onunload). */
+	/**
+	 * Simulate Obsidian calling all registered cleanup functions (for testing
+	 * onunload). Runs register() callbacks AND any register*Event cleanups —
+	 * mirrors the real Plugin/Component unload releasing every listener.
+	 */
 	_runCleanup(): void {
-		for (const fn of this._cleanupFns) fn();
+		this._unload();
 	}
 }
 
