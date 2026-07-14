@@ -29,8 +29,17 @@ npm run build         # tsc check + esbuild production build
 npm test              # vitest unit tests
 npm run lint          # eslint (obsidianmd rules) + stylelint
 npm run typecheck     # tsc --noEmit
+npm run schema:check  # verify _forge frontmatter schema is in sync (gate)
 npm run dev           # esbuild watch — redeploys into test/StoryForge/ vault
 ```
+
+## Changing the `_forge` schema
+
+FileClasses (`test/StoryForge/00 Meta/FileClasses/`), entity/scene templates
+(`00 Meta/Templates/`), and the human property reference (`00 Meta/Schema/`) must stay in sync;
+`npm run schema:check` is the gate. **Before editing any of them, read
+`docs/schema-change-runbook.md`** — it lists exactly what to update for add/rename/remove and the
+ripple into the XDD spec.
 
 ## Memory & context
 
