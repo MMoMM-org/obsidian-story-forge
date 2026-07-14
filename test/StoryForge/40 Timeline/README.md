@@ -4,26 +4,26 @@ name: "40 Timeline — README"
 tags: [meta/doc]
 ---
 
-# 40 Timeline/ — Chronologie
+# 40 Timeline/ — Chronology
 
-> Die **serienweite** Zeitachse: wann etwas passiert, in welcher Reihenfolge. **Write-Zone:** read-only — Änderungen werden vorgeschlagen, nicht direkt geschrieben (wie `30 Canon/`). `/continuity-check` liest diese Zone für die Reihenfolge-Prüfung.
+> The **series-wide** timeline: when something happens, in what order. **Write-zone:** read-only — changes are proposed, not written directly (like `30 Canon/`). `/continuity-check` reads this zone for the order check.
 
-## Zeit-Modell: eine Achse, zwei Formen
+## Time model: one axis, two forms
 
-Die Story rechnet **relativ**, nicht in absoluten Kalenderdaten — das tut die meiste Fiction (Buch 2 heißt „die erste Woche", kein konkretes Datum). Das Feld `day` einer Szene liegt auf **einer** Zeitachse und hat je nach `flashback` zwei Formen:
+The story counts **relatively**, not in absolute calendar dates — as most fiction does (book 2 is "the first week", not a concrete date). A scene's `day` field sits on **one** timeline and, depending on `flashback`, takes two forms:
 
-- **Gegenwart** — `day: "<n> <Wochentag>"`, z. B. `"4 Freitag"`. `n` ist ein **serienweit fortlaufender** Tageszähler (Lücken erlaubt, wenn ein Tag keine Szene hat). Der erste Gegenwarts-Tag der Serie ist `1`.
-- **Rückblende** — `flashback: true`, `day: "vor <N> Jahren|Monaten|Wochen|Tagen"` (z. B. `"vor 3 Jahren"`). Sortiert als **negativer Offset** vor der Gegenwart; ohne solche Angabe fällt die Rückblende auf `order` zurück.
+- **Present** — `day: "<n> <weekday>"`, e.g. `"4 Friday"`. `n` is a **series-wide running** day counter (gaps allowed when a day has no scene). The first present-day of the series is `1`.
+- **Flashback** — `flashback: true`, `day: "<N> years|months|weeks|days ago"` (e.g. `"3 years ago"`). Sorted as a **negative offset** before the present; without such a value, the flashback falls back to `order`.
 
-## Wie Szenen andocken
+## How scenes dock in
 
-Szene-Frontmatter: `day` (Zeitachse, Formen s. o.), `flashback` (bool), `order` (Lese-/Feinreihenfolge innerhalb desselben Zeitpunkts). Eine Chronik-Ansicht sortiert Rückblenden (fernste zuerst) → Gegenwart nach `n`. Das Rendern übernimmt der Referenz-/Chronik-Viewer (DESIGN §7); bis ein dedizierter Viewer steht, trägt das Modell schon die Reihenfolge-Prüfung von `/continuity-check`.
+Scene frontmatter: `day` (timeline, forms as above), `flashback` (bool), `order` (reading/fine order within the same point in time). A chronicle view sorts flashbacks (furthest first) → present by `n`. Rendering is handled by the reference/chronicle viewer (DESIGN §7); until a dedicated viewer exists, the model already carries the order check of `/continuity-check`.
 
-## Calendarium (optional, später)
+## Calendarium (optional, later)
 
-Ein absolutes, gregorianisches Calendarium bräuchte einen **Anker**: Tag 1 = ein konkretes Datum. Weil die Story relativ zählt, ist dieser Anker eine Story-Entscheidung des Autors — bis dahin ist das relative Modell oben die Quelle der Wahrheit.
+An absolute, Gregorian Calendarium would need an **anchor**: day 1 = a concrete date. Because the story counts relatively, this anchor is a story decision by the author — until then, the relative model above is the source of truth.
 
-## Verwandt
+## Related
 
-- `00 Meta/Prozesse/Continuity-Check.md` — nutzt diese Zone für die Zeitprüfung.
-- `00 Meta/Prozesse/Szene-Anlegen.md` — das `day`-Feld der Szene.
+- `00 Meta/Processes/Continuity-Check.md` — uses this zone for the time check.
+- `00 Meta/Processes/Create-Scene.md` — the scene's `day` field.

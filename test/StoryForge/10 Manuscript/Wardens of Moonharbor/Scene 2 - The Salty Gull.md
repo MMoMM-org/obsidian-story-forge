@@ -20,6 +20,10 @@ plotlines:
 arc: "Mara gathers allies"
 beat: ""
 wordcount: null
+prev:
+  - "[[Scene 1 - The Extinguished Fire]]"
+next:
+  - "[[Scene 3 - The Black Cliffs]]"
 series: "Forge"
 tags: [manuscript/scene]
 ---
