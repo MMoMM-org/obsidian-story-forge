@@ -189,6 +189,11 @@ export class SidebarView extends ItemView {
 	async onClose(): Promise<void> {
 		this._debouncedFollow.cancel();
 		aug(this.contentEl).empty();
+		// Clear resolved-context cache and subject so a re-opened view starts
+		// clean (no stale entities/error/pin carried across a close→open cycle).
+		this.currentCtx = null;
+		this.lastError = null;
+		this.subject = { file: null, source: "follow" };
 	}
 
 	// -------------------------------------------------------------------------
