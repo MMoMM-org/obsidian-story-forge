@@ -50,9 +50,33 @@ export interface CachedMetadata {
 // --- App & Workspace ---
 
 export class Component {
-	registerDomEvent = vi.fn();
+	/**
+	 * registerDomEvent — tracks registration AND wires the real DOM listener.
+	 *
+	 * The real Obsidian registerDomEvent attaches the listener AND stores it for
+	 * cleanup on unload. The mock does the same: addEventListener is called so
+	 * tests can dispatch real DOM events (click, keydown, etc.), and the call is
+	 * tracked by vi.fn() so tests can assert it was used.
+	 */
+	registerDomEvent = vi.fn(
+		<K extends keyof HTMLElementEventMap>(
+			el: HTMLElement,
+			type: K,
+			listener: (ev: HTMLElementEventMap[K]) => void,
+		): void => {
+			el.addEventListener(type, listener as EventListener);
+		},
+	);
+
 	registerInterval = vi.fn();
-	registerEvent = vi.fn();
+
+	/**
+	 * registerEvent — tracks that events are registered through the Obsidian API.
+	 * Returns the EventRef it was passed (mirrors real Obsidian API).
+	 */
+	registerEvent = vi.fn(
+		(eventRef: unknown): unknown => eventRef,
+	);
 }
 
 /**
