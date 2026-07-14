@@ -155,6 +155,8 @@ export class Workspace {
 
 	revealLeaf = vi.fn((_leaf: WorkspaceLeaf): void => {});
 
+	detachLeavesOfType = vi.fn((_type: string): void => {});
+
 	getActiveViewOfType = vi.fn(
 		<T>(_type: new (...args: unknown[]) => T): T | null => null,
 	);
@@ -249,6 +251,7 @@ export class Plugin extends Component {
 	addStatusBarItem = vi.fn(() => ({ setText: vi.fn() }));
 	addCommand = vi.fn();
 	addSettingTab = vi.fn();
+	registerView = vi.fn((_type: string, _factory: (leaf: WorkspaceLeaf) => unknown): void => {});
 	register = vi.fn((fn: () => unknown) => {
 		this._cleanupFns.push(fn);
 	});
