@@ -12,6 +12,7 @@
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"test:live": "vitest run --config vitest.live.config.ts",
+		"schema:gen": "node scripts/schema-gen.mjs",
 		"schema:check": "node scripts/schema-check.mjs",
 		"lint": "eslint src/ && stylelint styles.css",
 		"lint:css": "stylelint styles.css",

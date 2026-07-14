@@ -2,11 +2,11 @@
 type: location
 name: ""
 aliases: []
-world: ""           # parent world / realm "[[..]]" (hierarchy)
-locationType: ""    # world | realm | area | landmark | building | room
+world: ""           # "[[Location]]"
+locationType: world        # world | realm | area | landmark | building | room
 region: ""
-inhabitants: []     # ["[[Character]]"]
-first_appearance: ""  # "[[scene note]]"
+inhabitants: []           # ["[[Character]]"]
+first_appearance: ""
 series: "Forge"
 tags: [canon/location]
 ---

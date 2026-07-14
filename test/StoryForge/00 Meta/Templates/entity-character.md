@@ -3,24 +3,24 @@ type: character
 name: ""
 aliases: []
 nickname: ""
-role: ""            # protagonist | deuteragonist | antagonist | supporting | minor
-status: alive       # alive | dead | missing | unknown
+role: protagonist        # protagonist | deuteragonist | antagonist | supporting | minor
+status: alive        # alive | dead | missing | unknown
 age: null
 gender: male        # male | female | diverse | nonbinary
 occupation: ""
-height: null              # cm — hard physical facts are continuity-checkable
+height: null
 build: ""
 hair: ""
 eyes: ""
-distinctive_features: []  # ["signature, recurring identifiers"]
-tagline: ""         # one-line hook
-portrait: ""        # image link (optional)
-significant_other: []   # [[..]]  spouse / love interest
-family: []              # [[..]]  parents, children, siblings (role in prose)
-friends: []             # [[..]]
-allies: []              # [[..]]
-enemies: []             # [[..]]
-first_appearance: ""  # "[[scene note]]"
+distinctive_features: []
+tagline: ""
+portrait: ""
+significant_other: []           # ["[[Character]]"]
+family: []           # ["[[Character]]"]
+friends: []           # ["[[Character]]"]
+allies: []           # ["[[Character]]"]
+enemies: []           # ["[[Character]]"]
+first_appearance: ""
 series: "Forge"
 tags: [canon/character]
 ---
@@ -33,7 +33,7 @@ tags: [canon/character]
 
 ## Appearance
 
-**Größe** `VIEW[{height}][text]` cm · **Statur** `VIEW[{build}][text]` · **Haare** `VIEW[{hair}][text]` · **Augen** `VIEW[{eyes}][text]`
+**Height** `VIEW[{height}][text]` cm · **Build** `VIEW[{build}][text]` · **Hair** `VIEW[{hair}][text]` · **Eyes** `VIEW[{eyes}][text]`
 
 `VIEW[{portrait}][image]`
 

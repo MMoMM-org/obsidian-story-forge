@@ -1,13 +1,27 @@
 # Schema-change runbook
 
-> How to propagate a change to the `_forge` frontmatter schema through every
-> dependent artifact so `npm run schema:check` stays green. Read this before
-> touching FileClasses, entity/scene templates, or property references. Any
-> Claude Code instance (or human) can follow it standalone.
+> How to change the story frontmatter schema so `npm run schema:check` stays green.
+> Read this before touching the schema. Any Claude Code instance (or human) can follow
+> it standalone.
 
-## Source of truth (`test/StoryForge/00 Meta/`)
+## Canonical source — `schema/*.json` (generated types)
 
-Every entity type has **three artifacts that must stay in sync**:
+The schema is canonical in **`schema/<type>.json`** (see `schema/README.md`). For a
+**migrated** type you do NOT hand-edit the vault artifacts — you edit the JSON and run
+`npm run schema:gen`, which regenerates the Template, FileClass, and human doc; then
+`npm run schema:check`.
+
+All entity types are generated from `schema/`: `scene`, `character`, `character-fantasy`,
+`location`, `object`, `lore`.
+
+The flow is `edit schema/<type>.json → npm run schema:gen → npm run schema:check`; the rename /
+seed-note / XDD ripple below still applies. The rest of this runbook describes the underlying
+three-artifact contract — what the generator produces. (A template's note **body** is author
+content: preserved across regeneration, not generated.)
+
+## The three artifacts (`test/StoryForge/00 Meta/`)
+
+Every entity type has **three artifacts that must stay in sync** (generated for migrated types):
 
 1. **FileClass** (metadata-menu, enforced schema): `00 Meta/FileClasses/fc-<type>.md`
    - What matters is `fields:` — each field has a `name:` (**this is the Property**) and an
@@ -35,24 +49,25 @@ Types: `character` (+ `character-fantasy`, FileClass only), `location`, `object`
 
 ## Checklist by change type
 
-- **ADD a property** (e.g. `flashback` to scene):
-  1. Template `scene.md`: add the frontmatter key with a default + comment.
-  2. `fc-scene.md`: add a `fields:` entry (`name: flashback`, a suitable `type:`, an `id:`) and
-     add that `id` to `fieldsOrder`.
-  3. `00 Meta/Schema/scene.md`: add `### \`flashback\`` with meaning, allowed values, and whether
-     it is a `[[wikilink]]` relation.
-  4. Optionally populate seed notes (`10 Manuscript/`, `30 Canon/`, `20 Planning/`) with the new
+All entity types are generated from `schema/<type>.json`, so every change starts in the JSON —
+then `npm run schema:gen` rewrites the vault artifacts. **Never hand-edit the generated Template /
+FileClass / Schema doc**; the next `schema:gen` overwrites them.
+
+- **ADD a property** (e.g. a `mood` field on scene):
+  1. `schema/scene.json`: add a field object — `{ "name": "mood", "type": "…", "description": "…" }`
+     (type vocabulary in `schema/README.md`).
+  2. `npm run schema:gen && npm run schema:check`.
+  3. Optionally populate seed notes (`10 Manuscript/`, `30 Canon/`, `20 Planning/`) with the new
      field so the test data exercises it.
-- **RENAME a property** (its `name` changes): rename it in all three (template key, FileClass
-  `name:`, Schema `### \`...\``), then update **every seed note** using the old key.
-  Find them: `rg 'oldName:' test/StoryForge`.
-- **REMOVE a property**: delete from template, FileClass (`fields` + `fieldsOrder`), and the
-  Schema doc; remove it from seed notes.
-- **CHANGE a value list** (Select options): update the FileClass `valuesList` **and** the
-  enumeration in the Schema doc; check seed values. (`schema:check` does not validate values, but
-  they must stay coherent.)
-- **RENAME a field `id:` only** (no `name:` change): touch only `id` + `fieldsOrder` — nothing
-  else. Not a schema change.
+- **RENAME a property** (its `name` changes): change `name` in `schema/<type>.json`, regenerate,
+  then update **every seed note** using the old key (`rg 'oldName:' test/StoryForge`) and the XDD
+  spec (below).
+- **REMOVE a property**: delete the field from `schema/<type>.json`, regenerate, and remove it
+  from the seed notes.
+- **CHANGE a value list** (`select` options): edit the field's `values` array in
+  `schema/<type>.json`, regenerate, and check seed values. (`schema:check` does not validate
+  values, but they must stay coherent.)
+- **FileClass `id:`s** are generated (`<prefix>-<name>`) and internal — never hand-edit them.
 
 ## Ripple into the XDD spec (only for property-NAME changes, not `id`)
 
