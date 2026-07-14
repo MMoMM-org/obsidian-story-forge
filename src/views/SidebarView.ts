@@ -227,20 +227,63 @@ export class SidebarView extends ItemView {
 			return;
 		}
 
+		this.setSubject(file, "follow");
+
+		// A null/absent metadata cache means the note is pre-index or unreadable:
+		// render the S9 error state (with Retry), NOT S4. Only when the cache is
+		// present do we classify (unknown ⇒ S4) or resolve (⇒ S6/S7). This is the
+		// only place that distinguishes "not an entity" from "couldn't read".
+		const cache = this.app.metadataCache.getFileCache(file);
+		if (!cache) {
+			console.debug(
+				"[StoryForge] metadata cache null for",
+				file.path,
+				"— rendering error state",
+			);
+			this.lastError = new Error("Metadata cache unavailable");
+			this.currentCtx = null;
+			this._renderState({
+				kind: "error",
+				file,
+				retry: () => { this._resolveAndRender(file); },
+			});
+			return;
+		}
+
 		// Classify and render appropriate state
 		const kind = this.scoping.classify(file);
 		if (kind === "unknown") {
-			this.setSubject(file, "follow");
 			this._renderState({ kind: "non-entity", file, activeKind: kind });
 			return;
 		}
 
-		this.setSubject(file, "follow");
 		this._renderState({ kind: "resolving", file, activeKind: kind });
 		this._resolveAndRender(file);
 	}
 
 	private _resolveAndRender(file: TFile): void {
+		// Guard: a null/absent metadata cache means the note is pre-index or
+		// unreadable — this is the S9 error case, distinct from a present-but-
+		// empty cache (which resolves to S4/S6/S7 via classify/resolve).
+		// ScopingService.resolve() is intentionally non-throwing (Phase 2), so
+		// the view must detect the unreadable case here rather than via a throw.
+		const cache = this.app.metadataCache.getFileCache(file);
+		if (!cache) {
+			this.lastError = new Error("Metadata cache unavailable");
+			this.currentCtx = null;
+			console.debug(
+				"[StoryForge] metadata cache null for",
+				file.path,
+				"— rendering error state",
+			);
+			this._renderState({
+				kind: "error",
+				file,
+				retry: () => { this._resolveAndRender(file); },
+			});
+			return;
+		}
+
 		try {
 			const ctx = this.scoping.resolve(file);
 			this.currentCtx = ctx;
@@ -263,11 +306,14 @@ export class SidebarView extends ItemView {
 		const { file } = this.subject;
 		if (!file) return { kind: "no-note" };
 		if (file.extension !== "md") return { kind: "non-md", file };
-		const kind = this.scoping.classify(file);
-		if (kind === "unknown") return { kind: "non-entity", file, activeKind: kind };
+		// A recorded error (incl. null metadata cache) takes precedence over
+		// classification, which would otherwise report an unreadable note as
+		// "not an entity" (S4) instead of the error state (S9).
 		if (this.lastError) {
 			return { kind: "error", file, retry: () => { this._resolveAndRender(file); } };
 		}
+		const kind = this.scoping.classify(file);
+		if (kind === "unknown") return { kind: "non-entity", file, activeKind: kind };
 		if (this.currentCtx) return { kind: "resolved", ctx: this.currentCtx };
 		return { kind: "resolving", file, activeKind: kind };
 	}

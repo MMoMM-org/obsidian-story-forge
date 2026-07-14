@@ -380,6 +380,88 @@ describe("SidebarView: state rendering", () => {
 });
 
 // ---------------------------------------------------------------------------
+// S9 via the follow pipeline: null metadata cache → error state (not S6-empty)
+// ---------------------------------------------------------------------------
+
+describe("SidebarView: null metadata cache routes to S9 (not S6)", () => {
+	let app: App;
+	let ownLeaf: WorkspaceLeaf;
+	let view: SidebarView;
+
+	beforeEach(async () => {
+		vi.useFakeTimers();
+		app = makeApp();
+		ownLeaf = new WorkspaceLeaf();
+		ownLeaf.app = app;
+		ownLeaf.view.getViewType = vi.fn(() => SIDEBAR_VIEW_TYPE);
+		ownLeaf.setViewState = vi.fn(async (s: { type: string }) => {
+			ownLeaf.view.getViewType = vi.fn(() => s.type);
+		});
+		view = new SidebarView(ownLeaf);
+		await view.onOpen();
+	});
+
+	afterEach(async () => {
+		await view.onClose();
+		vi.useRealTimers();
+	});
+
+	function makeMdLeaf(file: TFile): WorkspaceLeaf {
+		const leaf = new WorkspaceLeaf();
+		leaf.view.getViewType = vi.fn(() => "markdown");
+		leaf.view.file = file;
+		return leaf;
+	}
+
+	it("null getFileCache on a markdown note → S9 error box + Retry (not S6)", () => {
+		const file = makeMdFile("Broken note");
+		// Metadata cache is null (pre-index / unreadable).
+		app.metadataCache.getFileCache = vi.fn(() => null);
+
+		app.workspace._trigger("active-leaf-change", makeMdLeaf(file));
+		vi.advanceTimersByTime(300);
+
+		const body = getBody(view);
+		// S9, not S6: error box present, no "resolved context (stub)" label.
+		expect(body.querySelector(".sf-errbox")).not.toBeNull();
+		expect(body.textContent).toContain("⚠ Couldn't read this note's properties.");
+		expect(body.querySelector(".sf-stublabel")).toBeNull();
+
+		const btn = body.querySelector(".sf-btn") as HTMLButtonElement | null;
+		expect(btn).not.toBeNull();
+		expect(btn?.textContent).toBe("Retry");
+	});
+
+	it("Retry re-runs the pipeline: once the cache is readable, resolves to S6/S7", () => {
+		const file = makeMdFile("Recovering note");
+		app.metadataCache.getFileCache = vi.fn(() => null);
+
+		app.workspace._trigger("active-leaf-change", makeMdLeaf(file));
+		vi.advanceTimersByTime(300);
+
+		// Now the cache becomes readable (a character note).
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		const resolveSpy = vi.spyOn(
+			(view as unknown as { scoping: { resolve: (f: TFile) => unknown } }).scoping,
+			"resolve",
+		);
+
+		const btn = getBody(view).querySelector(".sf-btn") as HTMLButtonElement;
+		btn.click();
+
+		// Retry re-runs resolve for the same file and reaches the resolved (S6/S7) state.
+		expect(resolveSpy).toHaveBeenCalledWith(file);
+		const body = getBody(view);
+		expect(body.querySelector(".sf-stublabel")).not.toBeNull();
+		expect(body.querySelector(".sf-errbox")).toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
 // StubContextTab tests
 // ---------------------------------------------------------------------------
 
