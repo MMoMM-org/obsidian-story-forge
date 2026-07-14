@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: View store"
-status: pending
+status: completed
 version: "1.0"
 phase: 1
 ---
@@ -29,7 +29,7 @@ phase: 1
 
 Establishes the persistent view-configuration store that consent/enable state (M2+) will use.
 
-- [ ] **T1.1 View-record model & fail-closed defaults** `[activity: domain-modeling]` `[parallel: true]`
+- [x] **T1.1 View-record model & fail-closed defaults** `[activity: domain-modeling]` `[parallel: true]`
 
   1. Prime: Read the data-model + ADR-1 `[ref: SDD/Building Block View — Application Data Models]` `[ref: SDD/ADR-1]`
   2. Test (RED): `applyDefaults` fills missing → `{provenance:"curated", enabled:false, okayed:null, source:"", engine:"bases", command:false}`; malformed `okayed` (number/string/`{}`/missing checksum) → `null`; unknown `engine` → `"bases"`; `provenance` other than "imported" → "curated".
@@ -37,7 +37,7 @@ Establishes the persistent view-configuration store that consent/enable state (M
   4. Validate: unit tests pass; lint; typecheck.
   - Success: malformed record coerces to disabled + not-consented `[ref: PRD/Feature 4]`; shape matches SDD `[ref: SDD/ADR-1]`.
 
-- [ ] **T1.2 ViewStore (load / upsert / delete)** `[activity: data-architecture]` `[parallel: true]`
+- [x] **T1.2 ViewStore (load / upsert / delete)** `[activity: data-architecture]` `[parallel: true]`
 
   1. Prime: Review the store API + persist discipline `[ref: SDD/Building Block View — Internal API]` `[ref: SDD/ADR-6]`
   2. Test (RED): `getViews()` maps every entry through defaults; `setRecord(id, rec)` round-trips after reload; sibling `settings` preserved on write; `deleteRecord(id)` removes it and absent id is a safe no-op; save fires exactly once per mutation (via fake `PluginDataPort`).
@@ -45,6 +45,6 @@ Establishes the persistent view-configuration store that consent/enable state (M
   4. Validate: unit tests pass; lint; typecheck.
   - Success: round-trip + preserve-settings + delete-no-op `[ref: PRD/Feature 4]`; no persist outside mutations `[ref: SDD/ADR-6]`.
 
-- [ ] **T1.3 Phase Validation** `[activity: validate]`
+- [x] **T1.3 Phase Validation** `[activity: validate]`
 
   - Run all Phase 1 tests; `npm run lint`, `npm run typecheck`. Verify the record shape and fail-closed behaviour match SDD ADR-1 and PRD Feature 4.
