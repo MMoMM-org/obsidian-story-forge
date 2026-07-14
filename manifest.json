@@ -2,7 +2,7 @@
 	"id": "story-forge",
 	"name": "Story Forge",
 	"version": "0.1.0",
-	"minAppVersion": "1.7.2",
+	"minAppVersion": "1.5.7",
 	"description": "Property-driven reference panels that follow the active note, showing linked story entities and their fields in the sidebar.",
 	"author": "Marcus Breiden",
 	"authorUrl": "https://www.mmomm.org",
