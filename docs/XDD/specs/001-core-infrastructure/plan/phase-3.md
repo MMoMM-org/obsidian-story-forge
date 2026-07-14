@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Sidebar panel shell"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 3
 ---
