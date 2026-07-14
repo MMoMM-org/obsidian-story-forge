@@ -14,6 +14,9 @@
  *   against `inputEl` / `toggleEl` / `buttonEl` / `selectEl`.
  * - Plugin: tracks register() callbacks; `_runCleanup()` simulates onunload.
  * - Notice: tracks instances via `Notice._instances` (reset with `Notice._reset()`).
+ * - ItemView: abstract base class for sidebar panels.
+ * - Workspace: full mock with event registration tracking.
+ * - debounce: controllable test debounce via vi.useFakeTimers().
  */
 
 import { vi } from "vitest";
@@ -52,6 +55,60 @@ export class Component {
 	registerEvent = vi.fn();
 }
 
+/**
+ * Workspace mock — faithful to the real Obsidian Workspace API shape.
+ *
+ * Tracks registered event listeners via on() so tests can assert
+ * "registered via registerEvent" by inspecting _eventRegistrations.
+ * onLayoutReady: calls the callback synchronously in the mock (no layout delay).
+ */
+export class Workspace {
+	/** Registered event name → callbacks (for test assertions). */
+	_eventRegistrations: Map<string, Array<(...args: unknown[]) => void>> = new Map();
+
+	on = vi.fn(
+		(
+			event: string,
+			callback: (...args: unknown[]) => void,
+		): { e: string; fn: typeof callback } => {
+			if (!this._eventRegistrations.has(event)) {
+				this._eventRegistrations.set(event, []);
+			}
+			this._eventRegistrations.get(event)!.push(callback);
+			return { e: event, fn: callback };
+		},
+	);
+
+	off = vi.fn();
+
+	/** Simulate layout-ready: calls cb immediately (tests don't have a real layout cycle). */
+	onLayoutReady = vi.fn((cb: () => void): void => {
+		cb();
+	});
+
+	getLeavesOfType = vi.fn((_type: string): WorkspaceLeaf[] => []);
+
+	getRightLeaf = vi.fn(
+		(_split: boolean): WorkspaceLeaf => new WorkspaceLeaf(),
+	);
+
+	revealLeaf = vi.fn((_leaf: WorkspaceLeaf): void => {});
+
+	getActiveViewOfType = vi.fn(
+		<T>(_type: new (...args: unknown[]) => T): T | null => null,
+	);
+
+	iterateAllLeaves = vi.fn((_cb: (leaf: WorkspaceLeaf) => void): void => {});
+
+	openLinkText = vi.fn(async (): Promise<void> => {});
+
+	/** Trigger a registered event (used in tests to simulate Obsidian events). */
+	_trigger(event: string, ...args: unknown[]): void {
+		const callbacks = this._eventRegistrations.get(event) ?? [];
+		for (const cb of callbacks) cb(...args);
+	}
+}
+
 export class App {
 	vault = {
 		getRoot: vi.fn(() => new TFolder()),
@@ -87,19 +144,29 @@ export class App {
 	fileManager = {
 		processFrontMatter: vi.fn(),
 	};
-	workspace = {
-		getActiveViewOfType: vi.fn(),
-		on: vi.fn(),
-		off: vi.fn(),
-		getLeavesOfType: vi.fn(() => []),
-		openLinkText: vi.fn(async () => {}),
-	};
+	workspace: Workspace = new Workspace();
 	metadataCache = {
 		getFileCache: vi.fn((_file: TFile): CachedMetadata | null => null),
 		getFirstLinkpathDest: vi.fn(
 			(_linkpath: string, _sourcePath: string): TFile | null => null,
 		),
-		on: vi.fn(),
+		on: vi.fn(
+			(
+				event: string,
+				callback: (...args: unknown[]) => void,
+			): { e: string; fn: typeof callback } => {
+				return { e: event, fn: callback };
+			},
+		),
+		/** Trigger metadataCache event (used in tests). */
+		_trigger: function(event: string, ...args: unknown[]): void {
+			// Collect callbacks registered via on()
+			const onMock = this.on as ReturnType<typeof vi.fn>;
+			const calls = onMock.mock.calls as Array<[string, (...args: unknown[]) => void]>;
+			for (const [evName, cb] of calls) {
+				if (evName === event) cb(...args);
+			}
+		},
 	};
 }
 
@@ -425,12 +492,89 @@ class DropdownComponent {
 
 // --- Views ---
 
-/** Minimal stub — tests construct plain objects shaped like WorkspaceLeaf. */
+/**
+ * WorkspaceLeaf mock — faithful to the real Obsidian WorkspaceLeaf shape.
+ *
+ * Tracks setViewState calls so tests can assert the view type was set.
+ * The `view` field shape matches ItemView/MarkdownView.
+ */
 export class WorkspaceLeaf {
-	view = {
+	view: {
+		getViewType: ReturnType<typeof vi.fn>;
+		file: TFile | null;
+	} = {
 		getViewType: vi.fn(() => "markdown"),
-		file: null as TFile | null,
+		file: null,
 	};
+
+	/**
+	 * setViewState — updates view.getViewType to return the new type.
+	 * Returns a resolved Promise to match the real API.
+	 */
+	setViewState = vi.fn(
+		async (state: { type: string; active?: boolean }): Promise<void> => {
+			this.view.getViewType = vi.fn(() => state.type);
+		},
+	);
+
+	/** detach — removes the leaf (no-op in mock). */
+	detach = vi.fn((): void => {});
+}
+
+/**
+ * ItemView — abstract base class for sidebar panels.
+ *
+ * Constructor shape mirrors real Obsidian: new ItemView(leaf) where leaf
+ * is a WorkspaceLeaf. The `app` must be passed separately in the mock
+ * because we don't have a real plugin context.
+ *
+ * `containerEl` follows the real Obsidian 2-child convention:
+ *   containerEl.children[0] = header area
+ *   containerEl.children[1] = contentEl (the writable area)
+ *
+ * Lifecycle:
+ *   onOpen()  — called when the view is first opened; override in subclass.
+ *   onClose() — called when the view is closed; override in subclass.
+ *
+ * registerEvent / registerDomEvent / registerInterval delegate to Component
+ * so they're tracked for cleanup assertions.
+ */
+export class ItemView extends Component {
+	leaf: WorkspaceLeaf;
+	app: App;
+
+	/** The outer container (header + content). */
+	containerEl: HTMLElement;
+	/** The content area where subclasses render. */
+	contentEl: HTMLElement;
+
+	constructor(leaf: WorkspaceLeaf, app?: App) {
+		super();
+		this.leaf = leaf;
+		this.app = app ?? new App();
+
+		// Build containerEl with two children (header + content)
+		this.containerEl = makeObsidianEl("div");
+		const headerEl = makeObsidianEl("div");
+		this.contentEl = makeObsidianEl("div");
+		this.containerEl.appendChild(headerEl);
+		this.containerEl.appendChild(this.contentEl);
+	}
+
+	// --- Abstract methods — subclasses MUST override ---
+	getViewType(): string {
+		return "";
+	}
+	getDisplayText(): string {
+		return "";
+	}
+	getIcon(): string {
+		return "";
+	}
+
+	// --- Lifecycle ---
+	async onOpen(): Promise<void> {}
+	async onClose(): Promise<void> {}
 }
 
 export class MarkdownView {
@@ -549,4 +693,66 @@ export function createMockFrontmatterLink(
 		original: displayText ? `[[${link}|${displayText}]]` : `[[${link}]]`,
 		displayText,
 	};
+}
+
+// --- Debounce utility ---
+
+/**
+ * debounce — mirrors the real Obsidian `debounce(fn, ms, resetTimer?)` util.
+ *
+ * Returns a debounced function with `.cancel()` and `.flush()` helpers so
+ * tests can control timing without relying on real timers.
+ *
+ * Works with both real and fake timers (vi.useFakeTimers()).
+ *
+ * Parameters:
+ *   fn         — the function to debounce
+ *   ms         — delay in milliseconds
+ *   resetTimer — if true (default), each call resets the timer
+ */
+export function debounce<T extends (...args: Parameters<T>) => void>(
+	fn: T,
+	ms: number,
+	resetTimer = true,
+): T & { cancel: () => void; flush: () => void } {
+	let timer: ReturnType<typeof setTimeout> | null = null;
+	let pending: { args: Parameters<T> } | null = null;
+
+	const debounced = (...args: Parameters<T>): void => {
+		pending = { args };
+		if (timer !== null && resetTimer) {
+			clearTimeout(timer);
+			timer = null;
+		}
+		if (timer === null) {
+			timer = setTimeout(() => {
+				timer = null;
+				const p = pending;
+				pending = null;
+				if (p) fn(...p.args);
+			}, ms);
+		}
+	};
+
+	debounced.cancel = (): void => {
+		if (timer !== null) {
+			clearTimeout(timer);
+			timer = null;
+		}
+		pending = null;
+	};
+
+	debounced.flush = (): void => {
+		if (timer !== null) {
+			clearTimeout(timer);
+			timer = null;
+		}
+		if (pending) {
+			const p = pending;
+			pending = null;
+			fn(...p.args);
+		}
+	};
+
+	return debounced as T & { cancel: () => void; flush: () => void };
 }
