@@ -20,6 +20,9 @@ plotlines:
 arc: "Mara faces the darkness"
 beat: ""
 wordcount: null
+prev:
+  - "[[Scene 2 - The Salty Gull]]"
+next: []
 series: "Forge"
 tags: [manuscript/scene]
 ---

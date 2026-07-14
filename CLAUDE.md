@@ -41,8 +41,8 @@ artifacts under `test/StoryForge/00 Meta/` — FileClasses, entity/scene Templat
 reference `Schema/` — are **generated** from it: edit the JSON, then `npm run schema:gen`.
 `npm run schema:check` is the gate. **Before changing the schema, read
 `docs/schema-change-runbook.md`** — it covers add/rename/remove, seed-note updates, and the
-ripple into the XDD spec. Migration is per type: `scene` is generated from `schema/scene.json`;
-the rest are still hand-maintained in the vault (kept green by `schema:check`) until migrated.
+ripple into the XDD spec. All six entity types (`scene`, `character`, `character-fantasy`,
+`location`, `object`, `lore`) are generated from `schema/<type>.json`.
 
 ## Memory & context
 

@@ -19,6 +19,9 @@ plotlines:
 arc: "Mara takes responsibility"
 beat: ""
 wordcount: null
+prev: []
+next:
+  - "[[Scene 2 - The Salty Gull]]"
 series: "Forge"
 tags: [manuscript/scene]
 ---
