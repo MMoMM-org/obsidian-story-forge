@@ -93,8 +93,8 @@ export function isNoteContext(value: unknown): value is NoteContext {
 	if (typeof value !== "object" || value === null) return false;
 	const v = value as Record<string, unknown>;
 	return (
-		"activeFile" in v &&
-		"activeKind" in v &&
+		v["activeFile"] != null &&
+		isEntityKind(v["activeKind"]) &&
 		Array.isArray(v["entities"]) &&
 		Array.isArray(v["backlinks"]) &&
 		typeof v["resolvedAt"] === "number"

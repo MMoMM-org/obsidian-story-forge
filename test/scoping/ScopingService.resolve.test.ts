@@ -230,6 +230,8 @@ describe("ScopingService.resolve", () => {
 		expect(ghost).toBeDefined();
 		expect(ghost?.unresolved).toBe(true);
 		expect(ghost?.kind).toBe<EntityKind>("unknown");
+		// The stub TFile carries the attempted link text as its path.
+		expect(ghost?.file.path).toBe("Ghost Character");
 
 		const resolved = ctx.entities.find((e) => e.field === "location");
 		expect(resolved).toBeDefined();
