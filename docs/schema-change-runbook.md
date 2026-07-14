@@ -49,24 +49,25 @@ Types: `character` (+ `character-fantasy`, FileClass only), `location`, `object`
 
 ## Checklist by change type
 
-- **ADD a property** (e.g. `flashback` to scene):
-  1. Template `scene.md`: add the frontmatter key with a default + comment.
-  2. `fc-scene.md`: add a `fields:` entry (`name: flashback`, a suitable `type:`, an `id:`) and
-     add that `id` to `fieldsOrder`.
-  3. `00 Meta/Schema/scene.md`: add `### \`flashback\`` with meaning, allowed values, and whether
-     it is a `[[wikilink]]` relation.
-  4. Optionally populate seed notes (`10 Manuscript/`, `30 Canon/`, `20 Planning/`) with the new
+All entity types are generated from `schema/<type>.json`, so every change starts in the JSON —
+then `npm run schema:gen` rewrites the vault artifacts. **Never hand-edit the generated Template /
+FileClass / Schema doc**; the next `schema:gen` overwrites them.
+
+- **ADD a property** (e.g. a `mood` field on scene):
+  1. `schema/scene.json`: add a field object — `{ "name": "mood", "type": "…", "description": "…" }`
+     (type vocabulary in `schema/README.md`).
+  2. `npm run schema:gen && npm run schema:check`.
+  3. Optionally populate seed notes (`10 Manuscript/`, `30 Canon/`, `20 Planning/`) with the new
      field so the test data exercises it.
-- **RENAME a property** (its `name` changes): rename it in all three (template key, FileClass
-  `name:`, Schema `### \`...\``), then update **every seed note** using the old key.
-  Find them: `rg 'oldName:' test/StoryForge`.
-- **REMOVE a property**: delete from template, FileClass (`fields` + `fieldsOrder`), and the
-  Schema doc; remove it from seed notes.
-- **CHANGE a value list** (Select options): update the FileClass `valuesList` **and** the
-  enumeration in the Schema doc; check seed values. (`schema:check` does not validate values, but
-  they must stay coherent.)
-- **RENAME a field `id:` only** (no `name:` change): touch only `id` + `fieldsOrder` — nothing
-  else. Not a schema change.
+- **RENAME a property** (its `name` changes): change `name` in `schema/<type>.json`, regenerate,
+  then update **every seed note** using the old key (`rg 'oldName:' test/StoryForge`) and the XDD
+  spec (below).
+- **REMOVE a property**: delete the field from `schema/<type>.json`, regenerate, and remove it
+  from the seed notes.
+- **CHANGE a value list** (`select` options): edit the field's `values` array in
+  `schema/<type>.json`, regenerate, and check seed values. (`schema:check` does not validate
+  values, but they must stay coherent.)
+- **FileClass `id:`s** are generated (`<prefix>-<name>`) and internal — never hand-edit them.
 
 ## Ripple into the XDD spec (only for property-NAME changes, not `id`)
 
