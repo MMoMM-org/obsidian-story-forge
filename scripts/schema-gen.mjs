@@ -70,12 +70,15 @@ function fcField(f, prefix) {
       break;
     case 'relation':
       type = 'File';
-      optionsBlock = `    options:\n      dvQueryString: ${query(f.relation)}`;
+      optionsBlock = `    options:\n      dvQueryString: ${f.query ?? query(f.relation)}`;
       break;
     case 'list':
-      if (f.relation) {
+      if (f.relation || f.query) {
         type = 'MultiFile';
-        optionsBlock = `    options:\n      dvQueryString: ${query(f.relation)}`;
+        optionsBlock = `    options:\n      dvQueryString: ${f.query ?? query(f.relation)}`;
+      } else if (f.valuesFrom) {
+        type = 'Multi';
+        optionsBlock = `    options:\n      sourceType: ValuesListNotePath\n      valuesList: {}\n      valuesListNotePath: ${f.valuesFrom}`;
       } else {
         type = 'Multi';
         optionsBlock = '    options:\n      sourceType: ValuesList\n      valuesList: {}';
@@ -104,7 +107,7 @@ filesPaths:
   - ${s.folder}
 bookmarksGroups:
 excludes:
-extends:
+extends:${s.extends ? ` fc-${s.extends}` : ''}
 savedViews: []
 favoriteView:
 fieldsOrder:
@@ -140,19 +143,18 @@ function tplLine(f, tag) {
   }
 }
 
-function genTemplate(s) {
+// The frontmatter is generated from the schema; the note BODY (prose scaffolding,
+// meta-bind display lines) is author content — preserve it when regenerating, and
+// only emit a minimal default body when the template does not exist yet.
+function genTemplate(s, existingBody) {
   const fm = s.fields.map((f) => tplLine(f, s.tag)).join('\n');
   const nameField = s.fields.find((f) => f.name === 'title' || f.name === 'name');
   const heading = nameField ? `# %${nameField.name}%` : `# ${cap(s.entity)}`;
-  return `---
-${fm}
----
-
-${heading}
-
-<!-- Prose below. Facts belong in the frontmatter above / in Canon, not here.
-     Link entities with [[wikilinks]] so the reference panel and continuity checks resolve them. -->
-`;
+  const body =
+    existingBody != null && existingBody.trim()
+      ? existingBody
+      : `\n${heading}\n\n<!-- Prose below. Facts belong in the frontmatter above / in Canon, not here.\n     Link entities with [[wikilinks]] so the reference panel and continuity checks resolve them. -->\n`;
+  return `---\n${fm}\n---\n${body}`;
 }
 
 // ── human reference doc ─────────────────────────────────────────────────────
@@ -192,7 +194,10 @@ for (const file of files.sort()) {
   written.push(`FileClasses/fc-${s.entity}.md`);
 
   if (s.hasTemplate !== false) {
-    writeFileSync(join(OUT.templates, tplName), genTemplate(s));
+    const tplPath = join(OUT.templates, tplName);
+    const prior = existsSync(tplPath) ? readFileSync(tplPath, 'utf8') : null;
+    const bodyMatch = prior && prior.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
+    writeFileSync(tplPath, genTemplate(s, bodyMatch ? bodyMatch[1] : null));
     written.push(`Templates/${tplName}`);
   }
 

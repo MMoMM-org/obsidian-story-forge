@@ -65,11 +65,13 @@ doc note:
 
 ## Migration status
 
-Canonical schema is being adopted type by type. Migrated types are generated from here;
-the rest are still hand-maintained in the vault (and kept green by `schema:check`).
+All entity types are generated from here:
 
-- ✅ `scene`
-- ⏳ `character`, `character-fantasy`, `location`, `object`, `lore` — to migrate next.
+- ✅ `scene`, `character`, `character-fantasy`, `location`, `object`, `lore`.
+
+Note the generator owns the frontmatter; a template's note **body** (prose scaffolding,
+meta-bind display lines) is author content — it is preserved across regeneration, and a
+minimal default body is emitted only when a template does not exist yet.
 
 ## Cross-repo flow
 

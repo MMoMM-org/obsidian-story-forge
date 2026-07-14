@@ -2,9 +2,9 @@
 type: lore
 name: ""
 aliases: []
-scope: ""           # world rule | concept | faction | custom
-related: []         # ["[[..]]"]
-first_appearance: ""  # "[[scene note]]"
+scope: world rule        # world rule | concept | faction | custom
+related: []
+first_appearance: ""
 series: "Forge"
 tags: [canon/lore]
 ---
