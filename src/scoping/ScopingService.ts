@@ -9,7 +9,7 @@
  * ADR-4: tag-first classification; frontmatter `type` as fallback.
  */
 
-import { getAllTags, type App, type TFile } from "obsidian";
+import { TFile, getAllTags, type App } from "obsidian";
 import {
 	isEntityKind,
 	type EntityKind,
@@ -63,7 +63,7 @@ export class ScopingService {
 		}
 
 		// 2. Frontmatter type fallback
-		const t = cache.frontmatter?.["type"];
+		const t: unknown = cache.frontmatter?.["type"];
 		if (isEntityKind(t)) return t;
 
 		return "unknown";
@@ -109,19 +109,15 @@ export class ScopingService {
 			);
 
 			if (!targetFile) {
-				// Unresolved link: mark it, but we still need a TFile placeholder.
-				// Per the spec, unresolved:true is set and resolution continues.
-				// We use a minimal placeholder so the entity is still included.
+				// Unresolved link: mark it, include a TFile stub so consumers can
+				// read the attempted link path. Resolution continues (ADR-3).
 				//
-				// The placeholder carries only the path derived from the link text —
-				// it should NOT be used for further resolution.
-				const placeholder = Object.create(null) as TFile;
-				Object.defineProperty(placeholder, "path", {
-					value: fmLink.link,
-					writable: false,
-					enumerable: true,
-					configurable: false,
-				});
+				// Object.create is used to build a stub with the correct prototype
+				// without constructing a full vault-backed TFile; the path carries
+				// the link text so callers know what was referenced.
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+				const placeholder: TFile = Object.create(TFile.prototype);
+				placeholder.path = fmLink.link;
 
 				entities.push({
 					file: placeholder,
