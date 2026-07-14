@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Scoping service"
-status: pending
+status: completed
 version: "1.0"
 phase: 2
 ---
@@ -30,7 +30,7 @@ phase: 2
 
 Establishes the note → classified-entity-context capability every later view consumes.
 
-- [ ] **T2.1 NoteContext model & classification** `[activity: domain-modeling]` `[parallel: true]`
+- [x] **T2.1 NoteContext model & classification** `[activity: domain-modeling]` `[parallel: true]`
 
   1. Prime: Read the data models + ADR-4 + the classify example `[ref: SDD/ADR-4]` `[ref: SDD/Implementation Examples]`
   2. Test (RED): `classify` returns the right `EntityKind` for each canon tag (`#canon/character|location|object|lore`), `#manuscript/scene` → `scene`, `#planning/plotline` → `plotline`; falls back to frontmatter `type` when no tag; returns `unknown` when neither present.
@@ -38,7 +38,7 @@ Establishes the note → classified-entity-context capability every later view c
   4. Validate: unit tests pass over fixture metadata (no live Obsidian); lint; typecheck.
   - Success: correct classification incl. tag-first/`type`-fallback `[ref: PRD/Feature 3]` `[ref: SDD/ADR-4]`.
 
-- [ ] **T2.2 Outgoing-relation resolver** `[activity: domain-modeling]` `[parallel: true]`
+- [x] **T2.2 Outgoing-relation resolver** `[activity: domain-modeling]` `[parallel: true]`
 
   1. Prime: Review the resolve flow + ADR-3 `[ref: SDD/Runtime View]` `[ref: SDD/ADR-3]`
   2. Test (RED): a scene fixture resolves `pov`/`characters`/`location`/`plotlines` to `ResolvedEntity[]` each carrying `field` + classified `kind`; a link with no target file → `unresolved:true` and resolution continues; `backlinks` is empty (`[]`); the resolver runs purely from fixture metadata (no Obsidian instance).
@@ -46,6 +46,6 @@ Establishes the note → classified-entity-context capability every later view c
   4. Validate: unit tests pass; lint; typecheck.
   - Success: resolve produces field+kind entities; unresolved marked; testable without Obsidian `[ref: PRD/Feature 3]`; `NoteContext` matches the engine-free contract `[ref: SDD/ADR-3]`.
 
-- [ ] **T2.3 Phase Validation** `[activity: validate]`
+- [x] **T2.3 Phase Validation** `[activity: validate]`
 
   - Run all Phase 2 tests; lint; typecheck. Verify `NoteContext` shape is engine-free and backlinks seam is empty per SDD ADR-3.
