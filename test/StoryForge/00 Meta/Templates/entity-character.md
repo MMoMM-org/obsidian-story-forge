@@ -33,7 +33,7 @@ tags: [canon/character]
 
 ## Appearance
 
-**Größe** `VIEW[{height}][text]` cm · **Statur** `VIEW[{build}][text]` · **Haare** `VIEW[{hair}][text]` · **Augen** `VIEW[{eyes}][text]`
+**Height** `VIEW[{height}][text]` cm · **Build** `VIEW[{build}][text]` · **Hair** `VIEW[{hair}][text]` · **Eyes** `VIEW[{eyes}][text]`
 
 `VIEW[{portrait}][image]`
 
