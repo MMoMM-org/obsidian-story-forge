@@ -46,13 +46,10 @@ export default class StoryForgePlugin extends Plugin {
 		this.addSettingTab(new SettingsTab(this.app, this));
 	}
 
-	// Detach the sidebar leaf on unload so it doesn't persist a stale view
-	// after the plugin is disabled. The linter warns against this pattern
-	// (it resets the leaf position) but M1 spec requires it (T4.1-d).
-	// eslint-disable-next-line obsidianmd/detach-leaves
-	onunload(): void {
-		this.app.workspace.detachLeavesOfType(SIDEBAR_VIEW_TYPE);
-	}
+	// No onunload override: Obsidian releases registered views and the
+	// Component base auto-cleans every listener wired via register*/registerEvent.
+	// Detaching leaves here would reset the user's panel layout (obsidianmd
+	// guidance), so we deliberately do NOT do it.
 
 	// ---------------------------------------------------------------------------
 	// Settings — read-modify-write to preserve sibling `views` in data.json
