@@ -20,6 +20,8 @@ import type { ConsentGate } from "../../src/consent/ConsentGate";
 import type { ViewImporter } from "../../src/import/ViewImporter";
 import type { RegisterCommandCallback } from "../../src/import/types";
 
+type RemoveCommandCallback = (viewId: string) => void;
+
 // ---------------------------------------------------------------------------
 // Factories
 // ---------------------------------------------------------------------------
@@ -95,6 +97,7 @@ function makeTab(
 	gate: ConsentGate,
 	importer: ViewImporter,
 	registerCommand: RegisterCommandCallback = noop,
+	removeCommand: RemoveCommandCallback = () => {},
 ): SettingsTab {
 	// PluginSettingTab requires a plugin with settings + saveSettings
 	const plugin = {
@@ -103,7 +106,7 @@ function makeTab(
 		settings: { exampleSetting: "" },
 		saveSettings: vi.fn(async () => {}),
 	};
-	return new SettingsTab(app, plugin as never, store, registry, gate, importer, registerCommand);
+	return new SettingsTab(app, plugin as never, store, registry, gate, importer, registerCommand, removeCommand);
 }
 
 /**
@@ -372,6 +375,33 @@ describe("SettingsTab — Views section", () => {
 		const newContainer = await renderTab(tab);
 		expect(newContainer.textContent).toContain("Keep Me");
 		expect(newContainer.textContent).not.toContain("Remove Me");
+	});
+
+	it("clicking Remove calls the injected removeCommand callback with the view id", async () => {
+		const store = makeStore({ "v-cmd": makeRecord({ enabled: false, commandName: "Cmd View" }) });
+		const removeCommand = vi.fn();
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter(), noop, removeCommand);
+		const container = await renderTab(tab);
+
+		const removeBtn = findButton(container, "Remove");
+		expect(removeBtn).not.toBeNull();
+		removeBtn!.click();
+
+		await vi.waitFor(() => expect(removeCommand).toHaveBeenCalledWith("v-cmd"));
+	});
+
+	it("clicking Remove on a view with no registered command does not throw", async () => {
+		// removeCommand is a no-op (the default); this proves the call is safe
+		const store = makeStore({ "v-no-cmd": makeRecord({ enabled: false, commandName: "No Cmd View" }) });
+		const removeCommand = vi.fn(); // will be called but it's a no-op at the plugin level
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter(), noop, removeCommand);
+		const container = await renderTab(tab);
+
+		const removeBtn = findButton(container, "Remove");
+		expect(removeBtn).not.toBeNull();
+		// Must not throw regardless of whether a command was registered
+		expect(() => removeBtn!.click()).not.toThrow();
+		await vi.waitFor(() => expect(removeCommand).toHaveBeenCalledWith("v-no-cmd"));
 	});
 
 	// -------------------------------------------------------------------------
