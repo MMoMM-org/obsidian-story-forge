@@ -164,6 +164,33 @@ describe("Seed note parse — scene-debug-dvjs.md (DataviewJS)", () => {
 	});
 });
 
+describe("Seed note parse — mutation guard (negative path)", () => {
+	it("throws ImportError(ENGINE_MISMATCH) when DQL seed content is mutated to use a dataviewjs fence", async () => {
+		// Read the real DQL seed note — valid on disk.
+		const realContent = readFileSync(resolve(VAULT_ROOT, DQL_PATH), "utf8");
+		// Corrupt ONLY an in-memory copy: swap the fence language so the declared
+		// sf-engine: dataview-dql now contradicts the dataviewjs fence. The real
+		// file on disk is untouched; this test validates that parse() catches the
+		// mismatch rather than silently accepting bad content.
+		const corruptedContent = realContent.replace(/^```dataview\s*$/m, "```dataviewjs");
+
+		const app = new App();
+		const store = {
+			getViews: vi.fn(async () => ({})),
+			setRecord: vi.fn(async () => {}),
+		} as unknown as import("store/ViewStore").ViewStore;
+		const importer = new ViewImporter(app, store);
+
+		const file = makeFile(DQL_PATH);
+		const fm = parseFrontmatter(realContent); // frontmatter is still dataview-dql
+		wireVaultRead(app, file, corruptedContent); // body now has a dataviewjs fence
+		wireCache(app, file, fm);
+
+		await expect(importer.parse(file)).rejects.toBeInstanceOf(ImportError);
+		await expect(importer.parse(file)).rejects.toMatchObject({ code: "ENGINE_MISMATCH" });
+	});
+});
+
 describe("Seed note contract — both notes together", () => {
 	it("each seed note has sf-view: true and sf-version: 1", () => {
 		for (const p of [DQL_PATH, DVJS_PATH]) {
