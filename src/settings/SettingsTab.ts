@@ -10,6 +10,9 @@ import type { ViewImporter } from "import/ViewImporter";
 import { ImportPickerModal } from "import/ImportPickerModal";
 import type { RegisterCommandCallback } from "import/types";
 
+/** Callback injected from main.ts to remove a view's command palette entry on deletion. */
+export type RemoveCommandCallback = (viewId: string) => void;
+
 export class SettingsTab extends PluginSettingTab {
 	plugin: MyPlugin;
 	private readonly header: HeaderSection;
@@ -18,6 +21,7 @@ export class SettingsTab extends PluginSettingTab {
 	private readonly gate: ConsentGate;
 	private readonly importer: ViewImporter;
 	private readonly registerCommand: RegisterCommandCallback;
+	private readonly removeCommand: RemoveCommandCallback;
 
 	constructor(
 		app: App,
@@ -27,6 +31,7 @@ export class SettingsTab extends PluginSettingTab {
 		gate: ConsentGate,
 		importer: ViewImporter,
 		registerCommand: RegisterCommandCallback,
+		removeCommand: RemoveCommandCallback,
 	) {
 		super(app, plugin);
 		this.plugin = plugin;
@@ -36,6 +41,7 @@ export class SettingsTab extends PluginSettingTab {
 		this.gate = gate;
 		this.importer = importer;
 		this.registerCommand = registerCommand;
+		this.removeCommand = removeCommand;
 	}
 
 	display(): void {
@@ -191,6 +197,7 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private _removeView(id: string): void {
+		this.removeCommand(id);
 		void this.store
 			.deleteRecord(id)
 			.then(() => this.displayAsync())

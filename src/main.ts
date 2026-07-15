@@ -113,6 +113,7 @@ export default class StoryForgePlugin extends Plugin {
 			gate,
 			importer,
 			registerCommand,
+			(viewId) => { this._removeViewCommand(viewId); },
 		));
 	}
 
