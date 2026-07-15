@@ -93,7 +93,7 @@ Each phase is a separate file. Tasks follow red-green-refactor: **Prime** (conte
 - [x] [Phase 2: View import & parsing](phase-2.md)
 - [x] [Phase 3: Query engines & registry](phase-3.md)
 - [x] [Phase 4: Panel & settings integration](phase-4.md)
-- [ ] [Phase 5: Integration & validation](phase-5.md)
+- [x] [Phase 5: Integration & validation](phase-5.md)
 
 ---
 

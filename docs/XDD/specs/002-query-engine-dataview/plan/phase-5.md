@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Integration & validation"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 5
 ---
@@ -86,7 +86,7 @@ Validates the fully integrated M2 feature through cross-component integration te
   4. Validate: seed notes parse without `ImportError` (unit test); `npm run schema:check` passes; `npm run dev` deploys to `test/StoryForge/` without errors; manual checklist items documented with reproduction steps.
   - Success: at least one `sf-view:true` note per engine type exists in the test vault `[ref: PRD/Assumptions — "test vault has at least one sf-view:true note for each engine type"]`; all 16 states (S11–S26) are mapped to either an automated test or a manual checklist step `[ref: PRD/Success Metrics — Engagement]`; seed notes are valid per the view-definition format `[ref: SDD/ADR-6]`.
 
-- [ ] **T5.3 Full gate** `[activity: validate]`
+- [x] **T5.3 Full gate** `[activity: validate]`
 
   1. Prime: Re-read `[ref: PRD/Feature 1–4 — all 29 acceptance criteria]` and the Coverage map in `plan/README.md`. Re-read `[ref: SDD/Acceptance Criteria (EARS)]`. Re-read `[ref: SDD/Quality Requirements]`.
   2. Test (GREEN → verify all green):
@@ -115,7 +115,7 @@ Validates the fully integrated M2 feature through cross-component integration te
 
   - Success: all six commands exit 0 `[ref: SDD/Quality Requirements — Portability/Reliability]`; all 29 PRD ACs map to ≥1 task and ≥1 test `[ref: PRD/Success Metrics — Quality]`; zero unhandled exceptions from any Dataview adapter path `[ref: SDD/Quality Requirements — Reliability]`; DataviewJS never executes before `okayed` is recorded (confirmed by unit test + integration test both asserting this property) `[ref: SDD/Quality Requirements — Security]`.
 
-- [ ] **T5.4 Phase Validation** `[activity: validate]`
+- [x] **T5.4 Phase Validation** `[activity: validate]`
 
   - Confirm: `npm test` green (unit + integration); `npm run build` green; `npm run lint` green; `npm run typecheck` green; `npm run typecheck:test` green; `npm run schema:check` green.
   - Confirm: live-vault checklist completed (all AUTO items confirmed by test suite; all manual items documented with reproduction steps).
