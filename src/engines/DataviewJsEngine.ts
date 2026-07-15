@@ -23,15 +23,13 @@ import { readFencedBlock } from "import/fencedBlock";
 /**
  * Read whether DataviewJS is enabled in Dataview's settings.
  *
- * Uses the same `app as any` approach as getDataviewApi — this is considered
- * part of the same single sanctioned access pattern (CON-8 / ADR-2).
+ * Delegates to getDataviewApi() — no additional any-cast here (CON-8).
+ * Returns false when Dataview is absent or the setting is not configured.
  */
 export function isDvJsEnabled(app: App): boolean {
-	// Part of the single sanctioned any-cast pattern (CON-8 / ADR-2):
-	// reading Dataview-internal settings via the plugin registry.
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-	const enabled: unknown = (app as any).plugins?.plugins?.["dataview"]?.api?.settings?.enableDataviewJs;
-	return enabled === true;
+	const dvApi = getDataviewApi(app);
+	// The shim types settings as optional — narrow to boolean
+	return dvApi?.settings?.enableDataviewJs === true;
 }
 
 export class DataviewJsEngine implements QueryEngine {
