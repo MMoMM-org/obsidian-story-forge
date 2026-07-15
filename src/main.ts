@@ -7,7 +7,7 @@ import { SidebarView, activateView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE, ICON } from "pluginConstants";
 import type { WorkspaceLeaf } from "obsidian";
 import { EngineRegistry } from "engines/QueryEngine";
-import { buildEngineRegistry } from "engines/EngineRegistry";
+import { buildEngineRegistry, getDvSettings } from "engines/EngineRegistry";
 import { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { ViewImporter } from "import/ViewImporter";
@@ -18,7 +18,7 @@ export default class StoryForgePlugin extends Plugin {
 	store!: ViewStore;
 
 	/** Tracks view-id → command-palette id for registered view commands. */
-	_commandIds: Map<string, string> = new Map();
+	readonly _commandIds: Map<string, string> = new Map();
 
 	async onload(): Promise<void> {
 		// Build the single shared data port — both store and settings use it.
@@ -37,24 +37,17 @@ export default class StoryForgePlugin extends Plugin {
 		const nativeEngine = new NativeScopingEngine();
 		const registry = new EngineRegistry([]);
 
-		// DvSettingsReader: reads enableDataviewJs from Dataview's settings.
-		// Uses the same sanctioned any-cast path as getDataviewApi (CON-8).
+		// DvSettingsReader: wraps getDvSettings (CON-8 any-cast isolated to
+		// src/engines/EngineRegistry.ts). Re-read on every call — no cache.
 		const dvSettings = {
-			isDvJsEnabled: (): boolean => {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-				const dv = (this.app as any).plugins?.plugins?.["dataview"];
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-				return dv?.api?.settings?.enableDataviewJs === true;
-			},
+			isDvJsEnabled: (): boolean => getDvSettings(this.app).enableDataviewJs,
 		};
 
 		const gate = new ConsentGate(this.app, registry, dvSettings, this.store);
 		const importer = new ViewImporter(this.app, this.store);
 
-		// registerCommand callback passed to SettingsTab/BindModal.
-		const registerCommand: RegisterCommandCallback = (viewId, commandName) => {
-			this._registerViewCommand(viewId, commandName);
-		};
+		// registerCommand + removeCommand callbacks passed to SettingsTab/BindModal.
+		const registerCommand: RegisterCommandCallback = this._registerViewCommand.bind(this);
 
 		// Register the sidebar panel view type — inject all M2 deps via closure.
 		this.registerView(
@@ -113,7 +106,7 @@ export default class StoryForgePlugin extends Plugin {
 			gate,
 			importer,
 			registerCommand,
-			(viewId) => { this._removeViewCommand(viewId); },
+			this._removeViewCommand.bind(this),
 		));
 	}
 

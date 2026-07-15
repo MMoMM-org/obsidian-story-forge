@@ -374,7 +374,7 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 		expect(tv.nativeEngine).not.toBeNull();
 	});
 
-	it("addSettingTab is called with 7-arg SettingsTab (typecheck no longer throws)", async () => {
+	it("addSettingTab is called with 8-arg SettingsTab (registerCommand + removeCommand injected)", async () => {
 		const { plugin } = await makePlugin();
 		// If SettingsTab construction fails (wrong arg count) onload would throw —
 		// so simply proving onload completes without error proves the fix.
