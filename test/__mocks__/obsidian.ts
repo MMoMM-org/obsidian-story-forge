@@ -382,10 +382,17 @@ export class Modal {
 		this.contentEl = augmentEl(document.createElement("div"));
 	}
 	open = vi.fn(() => {
+		// Mirror real Obsidian: mount contentEl into document.body so tests can
+		// query the DOM to find buttons / text content.
+		document.body.appendChild(this.contentEl);
 		this.onOpen();
 	});
 	close = vi.fn(() => {
 		this.onClose();
+		// Remove contentEl from body on close (mirrors real Obsidian teardown).
+		if (this.contentEl.parentNode) {
+			this.contentEl.parentNode.removeChild(this.contentEl);
+		}
 	});
 	onOpen(): void {}
 	onClose(): void {}
@@ -802,6 +809,22 @@ export class Events {
 	off = vi.fn();
 	trigger = vi.fn();
 }
+
+// --- Platform ---
+
+/**
+ * Platform — mirrors the real Obsidian Platform object.
+ *
+ * isMobile / isDesktop are mutable so tests can override them per-test:
+ *   (Platform as { isMobile: boolean }).isMobile = true;
+ *
+ * The ConsentGate tests use vi.mock("obsidian") to override Platform globally.
+ * When NOT using vi.mock, tests can mutate Platform directly.
+ */
+export const Platform = {
+	isMobile: false,
+	isDesktop: true,
+};
 
 // --- Utilities ---
 
