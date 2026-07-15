@@ -60,3 +60,361 @@
 	color: var(--text-muted);
 	font-size: var(--font-small);
 }
+
+/* ===========================================================================
+ * Sidebar panel — follows the active note (mockups.html S1–S9 is the visual
+ * source of truth). The mockup used hard-coded dark colors for its standalone
+ * preview; here every colour comes from an Obsidian theme token so the panel
+ * renders correctly in light and dark themes and honours custom themes.
+ * Per-entity-kind hues are exposed as CSS variables so a theme / Style Settings
+ * can override them.
+ * =========================================================================== */
+
+.workspace-leaf-content[data-type="story-forge-panel"] {
+	/* Entity-kind accent hues — overridable by themes / Style Settings. */
+	--sf-kind-character: #8a7cf0;
+	--sf-kind-location: #4ea3a3;
+	--sf-kind-scene: #5aa0c9;
+	--sf-kind-object: #c9975a;
+	--sf-kind-lore: #b06cd0;
+	--sf-kind-plotline: #d0795a;
+}
+
+/* contentEl (== .view-content) — let the panel own its own layout + padding. */
+.workspace-leaf-content[data-type="story-forge-panel"] .view-content {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	font-size: var(--font-ui-small);
+}
+
+/* --- Panel-level header (vhead): plugin identity + icons ------------------ */
+.sf-vhead {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 10px;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-vhead-name {
+	flex: 1;
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	font-weight: var(--font-semibold);
+	color: var(--text-faint);
+}
+
+.sf-icons {
+	display: flex;
+	gap: 6px;
+}
+
+.sf-pin-btn {
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-faint);
+	font-size: 13px;
+	line-height: 1;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.sf-pin-btn:hover {
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+}
+
+.sf-pin-btn.sf-pin-active {
+	color: var(--text-accent);
+	background: var(--background-modifier-hover);
+}
+
+.sf-pin-btn:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* --- Context header (chead): note title + pin tag + entity badge ---------- */
+.sf-chead {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 9px 11px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-title {
+	flex: 1;
+	min-width: 0;
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sf-title-none {
+	color: var(--text-faint);
+	font-weight: var(--font-normal);
+}
+
+.sf-pin-tag {
+	flex: 0 0 auto;
+	font-size: 10px;
+	color: var(--text-accent);
+	border: 1px solid var(--text-accent);
+	border-radius: var(--radius-s);
+	padding: 0 5px;
+	opacity: 0.85;
+}
+
+.sf-badge {
+	flex: 0 0 auto;
+	font-size: 10px;
+	text-transform: lowercase;
+	padding: 1px 8px;
+	border-radius: 10px;
+	white-space: nowrap;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+.sf-badge-none {
+	background: transparent;
+	color: var(--text-faint);
+	border: 1px solid var(--background-modifier-border);
+}
+
+.sf-badge-character {
+	color: var(--sf-kind-character);
+	background: color-mix(in srgb, var(--sf-kind-character) 16%, transparent);
+}
+
+.sf-badge-location {
+	color: var(--sf-kind-location);
+	background: color-mix(in srgb, var(--sf-kind-location) 16%, transparent);
+}
+
+.sf-badge-scene {
+	color: var(--sf-kind-scene);
+	background: color-mix(in srgb, var(--sf-kind-scene) 16%, transparent);
+}
+
+.sf-badge-object {
+	color: var(--sf-kind-object);
+	background: color-mix(in srgb, var(--sf-kind-object) 16%, transparent);
+}
+
+.sf-badge-lore {
+	color: var(--sf-kind-lore);
+	background: color-mix(in srgb, var(--sf-kind-lore) 16%, transparent);
+}
+
+.sf-badge-plotline {
+	color: var(--sf-kind-plotline);
+	background: color-mix(in srgb, var(--sf-kind-plotline) 16%, transparent);
+}
+
+/* --- Tab strip ----------------------------------------------------------- */
+.sf-tabs {
+	display: flex;
+	gap: 2px;
+	padding: 6px 8px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-tab {
+	font-size: 12px;
+	padding: 5px 11px;
+	border-radius: var(--radius-s) var(--radius-s) 0 0;
+	color: var(--text-muted);
+	cursor: default;
+}
+
+.sf-tab-sel {
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	box-shadow: inset 0 -2px 0 var(--interactive-accent);
+}
+
+.sf-tab:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/* --- Body / tabpanel ------------------------------------------------------ */
+.sf-body {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+}
+
+/* Empty states (S2/S3/S4) */
+.sf-empty {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 8px 6px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.sf-empty-ic {
+	font-size: 22px;
+	opacity: 0.7;
+}
+
+.sf-empty-lead {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+/* Resolved-context stub (S6/S7) */
+.sf-stublabel {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-faint);
+}
+
+.sf-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	font-size: 12.5px;
+}
+
+.sf-row {
+	display: flex;
+	gap: 6px;
+	align-items: baseline;
+}
+
+.sf-f {
+	flex: 0 0 auto;
+	min-width: 96px;
+	color: var(--text-muted);
+}
+
+.sf-lnk {
+	min-width: 0;
+	color: var(--text-accent);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sf-k {
+	margin-left: auto;
+	flex: 0 0 auto;
+	font-size: 10px;
+	color: var(--text-faint);
+}
+
+.sf-appears {
+	margin-top: 2px;
+	padding-top: 7px;
+	border-top: 1px dashed var(--background-modifier-border);
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
+/* Resolving state (S5) — shimmer skeleton */
+.sf-resolving {
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
+.sf-skel {
+	height: 11px;
+	border-radius: 5px;
+	background: linear-gradient(
+		90deg,
+		var(--background-modifier-border) 25%,
+		var(--background-modifier-hover) 37%,
+		var(--background-modifier-border) 63%
+	);
+	background-size: 400% 100%;
+	animation: sf-shimmer 1.4s ease-in-out infinite;
+}
+
+.sf-skel:nth-of-type(2) {
+	width: 92%;
+}
+
+.sf-skel:nth-of-type(3) {
+	width: 64%;
+}
+
+.sf-skel:nth-of-type(4) {
+	width: 80%;
+}
+
+@keyframes sf-shimmer {
+	0% {
+		background-position: 100% 0;
+	}
+
+	100% {
+		background-position: 0 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sf-skel {
+		animation: none;
+	}
+}
+
+/* Error state (S9) */
+.sf-errbox {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 10px;
+	border: 1px solid var(--background-modifier-error-border, var(--background-modifier-border));
+	border-radius: var(--radius-m);
+	background: var(--background-modifier-error);
+	color: var(--text-error);
+	font-size: 12.5px;
+}
+
+.sf-btn {
+	align-self: flex-start;
+	padding: 3px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--interactive-normal);
+	color: var(--text-normal);
+	font-size: 12px;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.sf-btn:hover {
+	background: var(--interactive-hover);
+}
+
+.sf-btn:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Utility */
+.sf-hidden {
+	display: none !important;
+}
