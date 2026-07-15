@@ -28,12 +28,44 @@ import { vi } from "vitest";
  * In tests (jsdom) there is only one document, so we expose it as a global
  * to match Obsidian's runtime API without requiring @types/obsidian changes.
  */
-if (typeof globalThis.activeDocument === "undefined") {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-	(globalThis as any).activeDocument = document;
+if (typeof (globalThis as Record<string, unknown>).activeDocument === "undefined") {
+	(globalThis as Record<string, unknown>).activeDocument = document;
+}
+
+// --- Global type augmentations (mirrors real obsidian @types/obsidian globals) ---
+
+declare global {
+	/** Obsidian's popout-window-aware document reference. */
+	const activeDocument: Document;
+
+	interface HTMLElement {
+		createEl(tag: string, opts?: { text?: string; cls?: string; type?: string; placeholder?: string; value?: string; href?: string; attr?: Record<string, string>; title?: string }): HTMLElement;
+		createDiv(opts?: { cls?: string; text?: string }): HTMLDivElement;
+		createSpan(opts?: { cls?: string; text?: string }): HTMLSpanElement;
+		empty(): void;
+		addClass(...classes: string[]): void;
+		removeClass(...classes: string[]): void;
+		toggleClass(cls: string, force?: boolean): void;
+		setText(text: string): void;
+	}
 }
 
 // --- Core types ---
+
+/** Matches the real Obsidian PluginManifest interface. */
+export type PluginManifest = {
+	id: string;
+	name: string;
+	version: string;
+	minAppVersion: string;
+	author?: string;
+	authorUrl?: string;
+	description?: string;
+	[k: string]: unknown;
+};
+
+/** Matches the real Obsidian IconName type (a string alias). */
+export type IconName = string;
 
 export interface TagCache {
 	tag: string;
@@ -64,7 +96,8 @@ export interface CachedMetadata {
 /** Shape of the EventRef a Workspace/metadataCache `on()` call returns. */
 interface MockEventRef {
 	e: string;
-	fn: (...args: unknown[]) => void;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	fn: (...args: any[]) => any;
 	/** The emitter the ref came from — used by cleanup to call its `off`. */
 	_emitter?: { off: (ref: MockEventRef) => void };
 }
@@ -139,12 +172,14 @@ export class Component {
  */
 export class Workspace {
 	/** Registered event name → callbacks (for test assertions). */
-	_eventRegistrations: Map<string, Array<(...args: unknown[]) => void>> = new Map();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	_eventRegistrations: Map<string, Array<(...args: any[]) => any>> = new Map();
 
 	on = vi.fn(
 		(
 			event: string,
-			callback: (...args: unknown[]) => void,
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			callback: (...args: any[]) => any,
 		): MockEventRef => {
 			if (!this._eventRegistrations.has(event)) {
 				this._eventRegistrations.set(event, []);
@@ -159,7 +194,8 @@ export class Workspace {
 	off = vi.fn((ref: MockEventRef): void => {
 		const list = this._eventRegistrations.get(ref.e);
 		if (!list) return;
-		const idx = list.indexOf(ref.fn);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const idx = list.indexOf(ref.fn as (...args: any[]) => any);
 		if (idx !== -1) list.splice(idx, 1);
 		if (list.length === 0) this._eventRegistrations.delete(ref.e);
 	});
@@ -205,7 +241,7 @@ export class Workspace {
 	detachLeavesOfType = vi.fn((_type: string): void => {});
 
 	getActiveViewOfType = vi.fn(
-		<T>(_type: new (...args: unknown[]) => T): T | null => null,
+		<T extends { file?: TFile | null }>(_type: new (...args: unknown[]) => T): T | null => null,
 	);
 
 	iterateAllLeaves = vi.fn((_cb: (leaf: WorkspaceLeaf) => void): void => {});
@@ -261,11 +297,14 @@ export class App {
 			(_linkpath: string, _sourcePath: string): TFile | null => null,
 		),
 		/** Live registrations (event → callbacks). Cleared by off() on unload. */
-		_eventRegistrations: new Map<string, Array<(...args: unknown[]) => void>>(),
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		_eventRegistrations: new Map<string, Array<(...args: any[]) => any>>(),
 		on: vi.fn(function(
-			this: { _eventRegistrations: Map<string, Array<(...args: unknown[]) => void>>; off: (ref: MockEventRef) => void },
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			this: { _eventRegistrations: Map<string, Array<(...args: any[]) => any>>; off: (ref: MockEventRef) => void },
 			event: string,
-			callback: (...args: unknown[]) => void,
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			callback: (...args: any[]) => any,
 		): MockEventRef {
 			if (!this._eventRegistrations.has(event)) {
 				this._eventRegistrations.set(event, []);
@@ -275,7 +314,8 @@ export class App {
 		}),
 		/** Remove a previously-registered callback (called on component unload). */
 		off: vi.fn(function(
-			this: { _eventRegistrations: Map<string, Array<(...args: unknown[]) => void>> },
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			this: { _eventRegistrations: Map<string, Array<(...args: any[]) => any>> },
 			ref: MockEventRef,
 		): void {
 			const list = this._eventRegistrations.get(ref.e);
@@ -286,7 +326,8 @@ export class App {
 		}),
 		/** Trigger metadataCache event — fires only LIVE registrations. */
 		_trigger: function(
-			this: { _eventRegistrations: Map<string, Array<(...args: unknown[]) => void>> },
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			this: { _eventRegistrations: Map<string, Array<(...args: any[]) => any>> },
 			event: string,
 			...args: unknown[]
 		): void {
@@ -300,7 +341,7 @@ export class App {
 
 export class Plugin extends Component {
 	app: App;
-	manifest = { id: "test-plugin", name: "Test Plugin", version: "0.0.0" };
+	manifest: PluginManifest = { id: "test-plugin", name: "Test Plugin", version: "0.0.0", minAppVersion: "1.5.7" };
 
 	constructor(app?: App) {
 		super();
@@ -308,8 +349,11 @@ export class Plugin extends Component {
 	}
 
 	loadData = vi.fn(async () => ({}));
-	saveData = vi.fn(async () => {});
-	addRibbonIcon = vi.fn(() => document.createElement("div"));
+	saveData = vi.fn(async (_data?: unknown) => {});
+	addRibbonIcon = vi.fn(
+		(_icon: string, _title: string, _cb: (e: MouseEvent) => unknown): HTMLElement =>
+			document.createElement("div"),
+	);
 	addStatusBarItem = vi.fn(() => ({ setText: vi.fn() }));
 	addCommand = vi.fn();
 	addSettingTab = vi.fn();
@@ -846,15 +890,16 @@ export function createMockFrontmatterLink(
  *   ms         — delay in milliseconds
  *   resetTimer — if true (default), each call resets the timer
  */
-export function debounce<T extends (...args: Parameters<T>) => void>(
-	fn: T,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function debounce<T extends unknown[], R = void>(
+	fn: (...args: T) => R,
 	ms: number,
 	resetTimer = true,
-): T & { cancel: () => void; flush: () => void } {
+): ((...args: T) => void) & { cancel: () => void; flush: () => void } {
 	let timer: ReturnType<typeof setTimeout> | null = null;
-	let pending: { args: Parameters<T> } | null = null;
+	let pending: { args: T } | null = null;
 
-	const debounced = (...args: Parameters<T>): void => {
+	const debounced = (...args: T): void => {
 		pending = { args };
 		if (timer !== null && resetTimer) {
 			clearTimeout(timer);
@@ -890,5 +935,6 @@ export function debounce<T extends (...args: Parameters<T>) => void>(
 		}
 	};
 
-	return debounced as T & { cancel: () => void; flush: () => void };
+	return debounced as ((...args: T) => void) & { cancel: () => void; flush: () => void };
 }
+

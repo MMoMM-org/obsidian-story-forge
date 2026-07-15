@@ -22,7 +22,6 @@ async function makePlugin(): Promise<{
 }> {
 	const { default: StoryForgePlugin } = await import("main");
 	const app = new App();
-	// @ts-expect-error — Plugin constructor accepts app in tests
 	const plugin = new StoryForgePlugin(app) as InstanceType<typeof StoryForgePlugin>;
 	return { plugin, app };
 }
