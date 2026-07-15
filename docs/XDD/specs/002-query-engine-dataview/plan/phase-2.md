@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: View import & parsing"
-status: pending
+status: completed
 version: "1.0"
 phase: 2
 ---
@@ -41,7 +41,7 @@ phase: 2
 
 Establishes the vault-scanning, view-definition parsing, and ViewRecord creation pipeline that populates the ViewStore for the import flow.
 
-- [ ] **T2.1 View-definition parser** `[activity: domain-modeling]`
+- [x] **T2.1 View-definition parser** `[activity: domain-modeling]`
 
   1. Prime: Read `[ref: SDD/Interface Specifications — ViewDefinition + ViewImporter]` (the full `ViewDefinition` shape and `ViewImporter.parse()` contract). Read `[ref: SDD/ADR-6]` (validation rules, engine inference, `sf-version` integer requirement). Read `[ref: SDD/Implementation Examples — ViewImporter.parse()]` (illustrative implementation). Read `src/store/types.ts` (`isEngine` helper, `ViewRecord.engine` discriminant values). Read Phase 1's `src/import/fencedBlock.ts` to understand the extractor API.
   2. Test (RED): `parse(file)` returns a `ViewDefinition` with `engine:"dataviewjs"` when the fenced block language is `dataviewjs`; returns `engine:"dataview-dql"` when language is `dataview`; throws `ImportError("NO_QUERY_BLOCK", ...)` when `readFencedBlock` returns null due to zero matching blocks; throws `ImportError("MULTIPLE_QUERY_BLOCKS", "View definitions must contain exactly one query block")` when the note contains more than one fenced `dataview`/`dataviewjs` block; throws `ImportError("INVALID_FRONTMATTER", ...)` when `sf-version` is missing; throws `ImportError("INVALID_FRONTMATTER", ...)` when `sf-version` is a string or float (not an integer); throws `ImportError("INVALID_FRONTMATTER", ...)` when `sf-name` is missing or empty; throws `ImportError("ENGINE_MISMATCH", ...)` when `sf-engine` frontmatter contradicts the fence language tag; `sf-name` defaults to `file.basename` when frontmatter field is absent (per SDD interface spec note); `checksum` on the returned `ViewDefinition` matches `computeChecksum(block.body)`.
@@ -49,7 +49,7 @@ Establishes the vault-scanning, view-definition parsing, and ViewRecord creation
   4. Validate: unit tests pass (all `ImportError` codes + happy paths); `npm run lint`; `npm run typecheck`; `npm run typecheck:test`.
   - Success: parser enforces exactly-one-block rule with human-readable messages `[ref: SDD/EARS F3 — "NO_QUERY_BLOCK" / "MULTIPLE_QUERY_BLOCKS"]` `[ref: PRD/AC-F3.3]` `[ref: PRD/AC-F3.4]`; `sf-version` integer enforcement is strict `[ref: SDD/ADR-9 — "sf-version must be an integer"]`; engine inferred from fence language `[ref: SDD/ADR-6]`.
 
-- [ ] **T2.2 ViewImporter — toRecord + duplicate guard** `[activity: data-architecture]`
+- [x] **T2.2 ViewImporter — toRecord + duplicate guard** `[activity: data-architecture]`
 
   1. Prime: Read `[ref: SDD/Interface Specifications — ViewRecord mapping from ViewDefinition]` (the table mapping `ViewDefinition` fields to `ViewRecord` fields). Read `[ref: SDD/ADR-9]` (store-generated id; `source` = vault path; no UUID to vault; `enabled:false` safe default). Read `src/store/ViewStore.ts` (`setRecord`, `getViews`). Read `src/store/types.ts` (`ViewRecord` shape: `provenance`, `enabled`, `okayed`, `source`, `engine`, `command`, `description`, `commandName`).
   2. Test (RED): `toRecord(def)` returns a `ViewRecord` with `provenance:"imported"`, `enabled:false`, `okayed:null`, `source === def.sourcePath`, `engine === def.engine`, `command === def.command`, `commandName === def.name`, `description === def.description` (or undefined); the generated id is a non-empty string different from `def.sourcePath`; calling `toRecord` twice on the same `def` produces different ids (store-generated uniqueness); duplicate check — `importToStore(def)` calls `store.getViews()`, finds an existing record whose `source === def.sourcePath`, and throws `ImportError("DUPLICATE", "View already imported")` without calling `setRecord`; non-duplicate path calls `store.setRecord(newId, record)` exactly once; `setRecord` is never called with `okayed` set (must be null at import time).
@@ -57,7 +57,7 @@ Establishes the vault-scanning, view-definition parsing, and ViewRecord creation
   4. Validate: unit tests pass; `npm run lint`; `npm run typecheck`; `npm run typecheck:test`.
   - Success: imported ViewRecord is always `enabled:false, okayed:null` (ADR-5 safe default) `[ref: SDD/EARS F3 — "create a ViewRecord with ... enabled:false, okayed:null"]` `[ref: PRD/AC-F3.2]`; duplicate source path blocked `[ref: SDD/EARS F3 — "already imported indicator"]` `[ref: PRD/AC-F3.5]`; `provenance:"imported"` `[ref: SDD/ADR-9]`.
 
-- [ ] **T2.3 Auto-scan discovery** `[activity: backend]`
+- [x] **T2.3 Auto-scan discovery** `[activity: backend]`
 
   1. Prime: Read `[ref: SDD/Interface Specifications — ViewImporter — scanVault()]` (returns `TFile[]`). Read `[ref: SDD/ADR-6]` (scan `metadataCache` for `sf-view:true`; no vault reads at scan time). Read `test/__mocks__/obsidian.ts` (how `metadataCache.iterateAllFiles` and `getFileCache` are mocked).
   2. Test (RED): `scanVault()` returns all `TFile` objects whose `CachedMetadata.frontmatter["sf-view"]` equals `true`; excludes files where `sf-view` is absent, `false`, or a non-boolean truthy value; excludes files already present in `store.getViews()` (paths already imported) so the picker shows only unimported notes; returns an empty array when no vault notes have `sf-view:true`; does not call `app.vault.read()` (verified by spy — scan is cache-only).
@@ -65,7 +65,7 @@ Establishes the vault-scanning, view-definition parsing, and ViewRecord creation
   4. Validate: unit tests pass; `npm run lint`; `npm run typecheck`; `npm run typecheck:test`.
   - Success: scan uses `metadataCache` only, no vault reads `[ref: SDD/ADR-6]`; picker only shows unimported notes `[ref: SDD/EARS F3 — "listing all vault notes whose CachedMetadata contains sf-view:true"]` `[ref: PRD/AC-F3.1]`; already-imported paths excluded `[ref: PRD/AC-F3.5]`.
 
-- [ ] **T2.4 Phase Validation** `[activity: validate]`
+- [x] **T2.4 Phase Validation** `[activity: validate]`
 
   - Run `npm test` (all Phase 2 tests pass). Run `npm run lint`. Run `npm run typecheck`. Run `npm run typecheck:test`.
   - Verify: all five `ImportError` codes are exercised by tests; `scanVault()` is verified to call zero `vault.read()` via spy; `toRecord` produces deterministic shape with non-deterministic id; `importToStore` is idempotent on duplicate (throws, no double-write). All `[ref: SDD/ADR-6]`, `[ref: SDD/ADR-9]`, `[ref: PRD/Feature 3]` acceptance criteria covered.

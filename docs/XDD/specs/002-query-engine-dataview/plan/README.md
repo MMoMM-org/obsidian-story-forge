@@ -90,7 +90,7 @@ Each phase is a separate file. Tasks follow red-green-refactor: **Prime** (conte
 **Dependency graph:** Phase 1 → (Phase 2 ∥ Phase 3) → Phase 4 → Phase 5.
 
 - [x] [Phase 1: Consent & checksum foundation](phase-1.md)
-- [ ] [Phase 2: View import & parsing](phase-2.md)
+- [x] [Phase 2: View import & parsing](phase-2.md)
 - [ ] [Phase 3: Query engines & registry](phase-3.md)
 - [ ] [Phase 4: Panel & settings integration](phase-4.md)
 - [ ] [Phase 5: Integration & validation](phase-5.md)
