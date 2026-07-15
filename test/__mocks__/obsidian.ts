@@ -382,10 +382,17 @@ export class Modal {
 		this.contentEl = augmentEl(document.createElement("div"));
 	}
 	open = vi.fn(() => {
+		// Mirror real Obsidian: mount contentEl into document.body so tests can
+		// query the DOM to find buttons / text content.
+		document.body.appendChild(this.contentEl);
 		this.onOpen();
 	});
 	close = vi.fn(() => {
 		this.onClose();
+		// Remove contentEl from body on close (mirrors real Obsidian teardown).
+		if (this.contentEl.parentNode) {
+			this.contentEl.parentNode.removeChild(this.contentEl);
+		}
 	});
 	onOpen(): void {}
 	onClose(): void {}
