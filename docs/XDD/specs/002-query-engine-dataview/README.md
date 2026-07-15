@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-07-15 |
-| **Current Phase** | PLAN |
+| **Current Phase** | Ready |
 | **Last Updated** | 2026-07-15 |
 | **PRD Completed** | 2026-07-15 |
 
@@ -15,7 +15,7 @@
 |----------|--------|-------|
 | requirements.md | completed | M2 PRD — Dataview adapter, consent gate, user-import flow |
 | solution.md | completed | M2 SDD — QueryEngine adapter, consent/checksum module, import parser, engine registry; ADR-1…9; mockups.html S11–S26 |
-| plan/ | in_progress | 5 phases: P1 Foundation → (P2 Import ∥ P3 Engines) → P4 Integration → P5 Validation |
+| plan/ | completed | 5 phases, 23 tasks: P1 Foundation → (P2 Import ∥ P3 Engines) → P4 Integration → P5 Validation; all 29 ACs mapped |
 
 **Status values**: `pending` | `in_progress` | `completed` | `skipped`
 
@@ -35,6 +35,7 @@
 | 2026-07-15 | SDD ADR-1…9 confirmed | Engine registry (wired-only) + separate native fallback; feature-detect app.plugins.plugins.dataview.api on onLayoutReady + api-ready late-join (min 0.5.31); subject-scoping via filePath; sha256 raw-bytes checksum via node:crypto (DataviewJS desktop-only); DataviewJS full-disclosure + OR-drift re-consent, DQL light, no enable-once; sf-view note + one fenced block, auto-scan import; Component-teardown leak-free; extend SettingsTab; store-generated view id (source=path) |
 | 2026-07-15 | SDD correction: query text read fresh from `source` note (never persisted, no M1 ViewRecord change); native fallback is NOT the `bases` slot (registry wired-only, may be empty) | Resolves the two flagged inconsistencies; keeps M1 contract intact |
 | 2026-07-15 | Open Q#2 resolved (view-id = store-generated, data.json only); Q#3 (tab overflow = ellipsis+title) and Q#4 (sf-version = integer) fixed in ADR-9 | Preserves frontmatter-truth/read-only; sf-version integer forced by M1 okayed.version:number |
+| 2026-07-15 | PLAN complete → spec Ready | 5 phases, 23 tasks; P1 Foundation → (P2 Import ∥ P3 Engines) → P4 Integration → P5 Validation; all 29 PRD ACs mapped; ready for /implement |
 
 ## Context
 
