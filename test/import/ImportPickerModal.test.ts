@@ -11,6 +11,7 @@
  * - BindModal: pre-fills label from def.name; checkbox for command registration;
  *   cancel: no rollback (view stays in store); confirm with command: calls
  *   registerCommand callback; confirm without: does not call it.
+ *   On confirm: persists the tab label to ViewRecord.commandName via setRecord.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -115,7 +116,7 @@ describe("ImportPickerModal — file listing", () => {
 		const file2 = makeFile("views/b.md", "View B");
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file1, file2]);
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -127,7 +128,7 @@ describe("ImportPickerModal — file listing", () => {
 	it("shows an empty state message when scanVault() returns no files", async () => {
 		vi.spyOn(importer, "scanVault").mockResolvedValue([]);
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -139,7 +140,7 @@ describe("ImportPickerModal — file listing", () => {
 		const file = makeFile("_forge/views/characters-in-scene.md");
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -183,7 +184,7 @@ describe("ImportPickerModal — confirm calls parse then importToStore in order"
 			return "new-id";
 		});
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		// Select the file and confirm
@@ -203,7 +204,7 @@ describe("ImportPickerModal — confirm calls parse then importToStore in order"
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
 		vi.spyOn(importer, "importToStore").mockResolvedValue("new-id");
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -221,7 +222,7 @@ describe("ImportPickerModal — confirm calls parse then importToStore in order"
 		vi.spyOn(importer, "parse").mockResolvedValue(def);
 		const importSpy = vi.spyOn(importer, "importToStore").mockResolvedValue("new-id");
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -260,7 +261,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 			new ImportError("NO_QUERY_BLOCK", "No query block found"),
 		);
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -281,7 +282,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 			),
 		);
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -301,7 +302,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 			new ImportError("NO_QUERY_BLOCK", "No query block found"),
 		);
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		const closeSpy = vi.spyOn(modal, "close");
 		modal.open();
 
@@ -323,7 +324,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 		);
 		const importSpy = vi.spyOn(importer, "importToStore");
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -334,6 +335,25 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 		});
 
 		expect(importSpy).not.toHaveBeenCalled();
+	});
+
+	// W1: non-ImportError from parse shows "Import failed: unexpected error" and keeps modal open
+	it("shows 'Import failed: unexpected error' and does NOT close when parse throws a plain Error", async () => {
+		const file = makeFile("views/bad.md");
+		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
+		vi.spyOn(importer, "parse").mockRejectedValue(new Error("disk full"));
+
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const closeSpy = vi.spyOn(modal, "close");
+		modal.open();
+
+		await waitForButton("Next →");
+		findButton(document.body, "Next →")!.click();
+
+		await vi.waitFor(() => {
+			expect(document.body.textContent).toContain("Import failed: unexpected error");
+		});
+		expect(closeSpy).not.toHaveBeenCalled();
 	});
 });
 
@@ -366,7 +386,7 @@ describe("ImportPickerModal — importToStore duplicate error", () => {
 			new ImportError("DUPLICATE", "View already imported"),
 		);
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -386,7 +406,7 @@ describe("ImportPickerModal — importToStore duplicate error", () => {
 			new ImportError("DUPLICATE", "View already imported"),
 		);
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		const closeSpy = vi.spyOn(modal, "close");
 		modal.open();
 
@@ -397,6 +417,27 @@ describe("ImportPickerModal — importToStore duplicate error", () => {
 			expect(document.body.textContent).toContain("already imported");
 		});
 
+		expect(closeSpy).not.toHaveBeenCalled();
+	});
+
+	// W1: non-ImportError from importToStore shows "Import failed: unexpected error" and keeps modal open
+	it("shows 'Import failed: unexpected error' and does NOT close when importToStore throws a plain Error", async () => {
+		const file = makeFile("views/bad2.md");
+		const def = makeDef({ sourcePath: "views/bad2.md" });
+		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
+		vi.spyOn(importer, "parse").mockResolvedValue(def);
+		vi.spyOn(importer, "importToStore").mockRejectedValue(new Error("disk full"));
+
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const closeSpy = vi.spyOn(modal, "close");
+		modal.open();
+
+		await waitForButton("Next →");
+		findButton(document.body, "Next →")!.click();
+
+		await vi.waitFor(() => {
+			expect(document.body.textContent).toContain("Import failed: unexpected error");
+		});
 		expect(closeSpy).not.toHaveBeenCalled();
 	});
 });
@@ -428,7 +469,7 @@ describe("ImportPickerModal — success path", () => {
 		vi.spyOn(importer, "parse").mockResolvedValue(def);
 		vi.spyOn(importer, "importToStore").mockResolvedValue("new-id");
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		const closeSpy = vi.spyOn(modal, "close");
 		modal.open();
 
@@ -447,7 +488,7 @@ describe("ImportPickerModal — success path", () => {
 		vi.spyOn(importer, "parse").mockResolvedValue(def);
 		vi.spyOn(importer, "importToStore").mockResolvedValue("new-id");
 
-		const modal = new ImportPickerModal(app, importer, vi.fn());
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -461,15 +502,96 @@ describe("ImportPickerModal — success path", () => {
 });
 
 // ---------------------------------------------------------------------------
+// ImportPickerModal — W2 lifecycle: closed before scanVault resolves
+// ---------------------------------------------------------------------------
+
+describe("ImportPickerModal — lifecycle guard (W2)", () => {
+	let app: App;
+	let store: ViewStore;
+	let importer: ViewImporter;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		app = new App();
+		store = makeStore();
+		importer = makeImporter(app, store);
+	});
+
+	afterEach(() => {
+		document.body.innerHTML = "";
+	});
+
+	it("renders no rows and does not throw when modal is closed before scanVault resolves", async () => {
+		// scanVault never resolves during test
+		let resolveScan!: (files: TFile[]) => void;
+		vi.spyOn(importer, "scanVault").mockReturnValue(
+			new Promise<TFile[]>((res) => { resolveScan = res; }),
+		);
+
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		modal.open();
+
+		// Close immediately (before scan resolves)
+		modal.close();
+
+		// Now resolve the scan — the guard should prevent DOM writes
+		resolveScan([makeFile("views/a.md")]);
+
+		// Give any microtasks a chance to settle
+		await vi.waitFor(() => {
+			// No rows should have been rendered (modal was closed)
+			const rows = document.body.querySelectorAll(".sf-picker-row");
+			expect(rows.length).toBe(0);
+		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// ImportPickerModal — W3: empty list disables Next →
+// ---------------------------------------------------------------------------
+
+describe("ImportPickerModal — empty list disables Next → (W3)", () => {
+	let app: App;
+	let store: ViewStore;
+	let importer: ViewImporter;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		app = new App();
+		store = makeStore();
+		importer = makeImporter(app, store);
+	});
+
+	afterEach(() => {
+		document.body.innerHTML = "";
+	});
+
+	it("Next → is disabled when scanVault() returns no files", async () => {
+		vi.spyOn(importer, "scanVault").mockResolvedValue([]);
+
+		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		modal.open();
+
+		await vi.waitFor(() => {
+			const nextBtn = findButton(document.body, "Next →") as HTMLButtonElement | null;
+			expect(nextBtn).not.toBeNull();
+			expect(nextBtn?.disabled).toBe(true);
+		});
+	});
+});
+
+// ---------------------------------------------------------------------------
 // BindModal — pre-fills sf-name as tab label
 // ---------------------------------------------------------------------------
 
 describe("BindModal — pre-fills tab label from def.name (ADR-6)", () => {
 	let app: App;
+	let store: ViewStore;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		app = new App();
+		store = makeStore();
 	});
 
 	afterEach(() => {
@@ -478,7 +600,7 @@ describe("BindModal — pre-fills tab label from def.name (ADR-6)", () => {
 
 	it("tab label input is pre-filled with def.name", async () => {
 		const def = makeDef({ name: "Characters in Scene" });
-		const modal = new BindModal(app, "view-id", def, vi.fn());
+		const modal = new BindModal(app, "view-id", def, store, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -493,7 +615,7 @@ describe("BindModal — pre-fills tab label from def.name (ADR-6)", () => {
 
 	it("shows the view name in the modal content", async () => {
 		const def = makeDef({ name: "My Custom View" });
-		const modal = new BindModal(app, "view-id", def, vi.fn());
+		const modal = new BindModal(app, "view-id", def, store, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -508,10 +630,12 @@ describe("BindModal — pre-fills tab label from def.name (ADR-6)", () => {
 
 describe("BindModal — command registration checkbox", () => {
 	let app: App;
+	let store: ViewStore;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		app = new App();
+		store = makeStore();
 	});
 
 	afterEach(() => {
@@ -520,7 +644,7 @@ describe("BindModal — command registration checkbox", () => {
 
 	it("offers a checkbox for command palette registration", async () => {
 		const def = makeDef();
-		const modal = new BindModal(app, "view-id", def, vi.fn());
+		const modal = new BindModal(app, "view-id", def, store, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -532,14 +656,12 @@ describe("BindModal — command registration checkbox", () => {
 	it("does NOT call registerCommand when command checkbox is unchecked on confirm", async () => {
 		const def = makeDef();
 		const registerCommand = vi.fn();
-		const modal = new BindModal(app, "view-id", def, registerCommand);
+		const modal = new BindModal(app, "view-id", def, store, registerCommand);
 		modal.open();
 
 		// Ensure the command checkbox is unchecked (default or explicitly unchecked)
 		await vi.waitFor(() => {
 			const checkboxes = document.body.querySelectorAll<HTMLInputElement>("input[type=checkbox]");
-			// Find the command-related checkbox (last one or one associated with command label)
-			// Uncheck all checkboxes to ensure command is not registered
 			for (const cb of checkboxes) {
 				if (cb.dataset["role"] === "command" || cb.closest("[data-role=command]")) {
 					cb.checked = false;
@@ -551,17 +673,14 @@ describe("BindModal — command registration checkbox", () => {
 		await waitForButton("Done");
 		findButton(document.body, "Done")!.click();
 
-		await vi.waitFor(() => {
-			// Modal should close (Done was clicked)
-		});
-
-		expect(registerCommand).not.toHaveBeenCalled();
+		// S1: replace empty waitFor with a meaningful condition
+		await vi.waitFor(() => expect(registerCommand).not.toHaveBeenCalled());
 	});
 
 	it("calls registerCommand(id, commandName) when command checkbox is checked on confirm", async () => {
 		const def = makeDef({ name: "Characters in Scene" });
 		const registerCommand = vi.fn();
-		const modal = new BindModal(app, "view-id", def, registerCommand);
+		const modal = new BindModal(app, "view-id", def, store, registerCommand);
 		modal.open();
 
 		// Check the command checkbox
@@ -587,7 +706,7 @@ describe("BindModal — command registration checkbox", () => {
 	it("registerCommand receives the view id as first argument", async () => {
 		const def = makeDef();
 		const registerCommand = vi.fn();
-		const modal = new BindModal(app, "my-view-id", def, registerCommand);
+		const modal = new BindModal(app, "my-view-id", def, store, registerCommand);
 		modal.open();
 
 		// Check the command checkbox
@@ -605,6 +724,89 @@ describe("BindModal — command registration checkbox", () => {
 
 		await vi.waitFor(() => {
 			expect(registerCommand).toHaveBeenCalledWith("my-view-id", expect.any(String));
+		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// BindModal — S5: confirm persists tab label to ViewRecord.commandName
+// ---------------------------------------------------------------------------
+
+describe("BindModal — confirm persists tab label to store (S5)", () => {
+	let app: App;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		app = new App();
+	});
+
+	afterEach(() => {
+		document.body.innerHTML = "";
+	});
+
+	it("calls store.setRecord with the default tab label (def.name) when Done is clicked", async () => {
+		const existingRecord: ViewRecord = {
+			provenance: "imported",
+			enabled: false,
+			okayed: null,
+			source: "views/chars.md",
+			engine: "dataviewjs",
+			command: false,
+		};
+		const store = makeStore({ "view-id": existingRecord });
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+
+		const def = makeDef({ name: "Characters in Scene" });
+		const modal = new BindModal(app, "view-id", def, store, vi.fn());
+		modal.open();
+
+		await waitForButton("Done");
+		findButton(document.body, "Done")!.click();
+
+		await vi.waitFor(() => {
+			expect(setRecordSpy).toHaveBeenCalledWith(
+				"view-id",
+				expect.objectContaining({ commandName: "Characters in Scene" }),
+			);
+		});
+	});
+
+	it("persists the user-edited tab label when Done is clicked with a modified value", async () => {
+		const existingRecord: ViewRecord = {
+			provenance: "imported",
+			enabled: false,
+			okayed: null,
+			source: "views/chars.md",
+			engine: "dataviewjs",
+			command: false,
+		};
+		const store = makeStore({ "view-id": existingRecord });
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+
+		const def = makeDef({ name: "Characters in Scene" });
+		const modal = new BindModal(app, "view-id", def, store, vi.fn());
+		modal.open();
+
+		// Edit the tab label
+		await vi.waitFor(() => {
+			const inputs = document.body.querySelectorAll<HTMLInputElement>("input[type=text]");
+			const tabInput = Array.from(inputs).find(
+				(el) => el.value === "Characters in Scene",
+			);
+			if (!tabInput) throw new Error("tab label input not found");
+			tabInput.value = "My Custom Label";
+			// Dispatch input event so the modal tracks the change
+			tabInput.dispatchEvent(new Event("input"));
+		});
+
+		await waitForButton("Done");
+		findButton(document.body, "Done")!.click();
+
+		await vi.waitFor(() => {
+			expect(setRecordSpy).toHaveBeenCalledWith(
+				"view-id",
+				expect.objectContaining({ commandName: "My Custom Label" }),
+			);
 		});
 	});
 });
@@ -630,7 +832,7 @@ describe("BindModal — cancel: no rollback", () => {
 	it("cancel closes the bind modal without calling registerCommand", async () => {
 		const def = makeDef();
 		const registerCommand = vi.fn();
-		const modal = new BindModal(app, "view-id", def, registerCommand);
+		const modal = new BindModal(app, "view-id", def, store, registerCommand);
 		const closeSpy = vi.spyOn(modal, "close");
 		modal.open();
 
@@ -658,16 +860,14 @@ describe("BindModal — cancel: no rollback", () => {
 		const deleteRecordSpy = vi.spyOn(populatedStore, "deleteRecord");
 
 		const def = makeDef();
-		const modal = new BindModal(app, "view-id", def, vi.fn());
+		const modal = new BindModal(app, "view-id", def, populatedStore, vi.fn());
 		modal.open();
 
 		await waitForButton("Back");
 		findButton(document.body, "Back")!.click();
 
 		await vi.waitFor(() => {
-			// Just ensure the modal closed, not that anything was deleted
+			expect(deleteRecordSpy).not.toHaveBeenCalled();
 		});
-
-		expect(deleteRecordSpy).not.toHaveBeenCalled();
 	});
 });
