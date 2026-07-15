@@ -26,7 +26,9 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 **Trigger**: Dataview plugin not installed or disabled in the test vault.
 
-**Coverage**: [AUTO] — `test/integration/m2-flows.test.ts` > "Native fallback when Dataview absent" — `buildEngineRegistry(app)` with no Dataview returns an empty registry; `SidebarView._renderResolved` renders the S11 engine-missing placeholder and native entity context without crashing.
+**Coverage**: [AUTO] `test/integration/m2-flows.test.ts`:
+- `"buildEngineRegistry returns empty registry when Dataview absent"` — confirms the registry is empty when Dataview is not present.
+- `"SidebarView with empty registry renders S11 engine-missing and calls nativeEngine.render (no crash)"` — confirms the panel renders the S11 state and native entity context without crashing.
 
 **Manual step**: [ ] Disable the Dataview community plugin in `test/StoryForge/.obsidian/plugins/`; reload Obsidian; open the Story Forge sidebar panel; confirm the S11 "engine missing" banner renders and the native entity context (scene/character fields) is still visible below it. Re-enable Dataview when done.
 
@@ -36,7 +38,8 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 **Trigger**: A DataviewJS view tab is selected; `okayed` is null — consent never given.
 
-**Coverage**: [AUTO] — `test/integration/m2-flows.test.ts` > "DataviewJS full flow" — after `importToStore`, `ConsentGate.evaluate()` returns `not-consented`; the panel renders the S12 state before any modal interaction; code is NOT executing at this point.
+**Coverage**: [AUTO] `test/integration/m2-flows.test.ts`:
+- `"executeJs is NOT called before okayed is written; after Enable it is called with subject path"` — asserts that code is NOT executing in the pre-consent (S12) state; the test asserts `executeJs` is not called until after Enable is clicked and `okayed` is written.
 
 ---
 
@@ -64,7 +67,8 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 **Trigger**: The source note was deleted after import; `evaluate()` returns `not-consented` with a source-missing reason.
 
-**Coverage**: [AUTO] — `test/integration/m2-flows.test.ts` > "Source missing after import" — vault mock returns null for the note path; `evaluate()` returns `{status: "not-consented", reason: "source-missing"}`; S15 error state is asserted in the panel render.
+**Coverage**: [AUTO] `test/integration/m2-flows.test.ts`:
+- `"evaluate returns not-consented when source note is deleted after consent was granted"` — vault mock returns null for the note path; `evaluate()` returns the source-missing not-consented variant.
 
 **Manual step**: [ ] Import `characters-in-scene.md`; then delete the file from the vault; re-open the panel tab; confirm the S15 "source missing" error box appears with a Retry button.
 
@@ -74,7 +78,8 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 **Trigger**: The view exists in the store but `enabled: false` (user toggled it off via the kill-switch in settings).
 
-**Coverage**: [AUTO] — `test/integration/m2-flows.test.ts` > "Kill-switch preserves okayed" — after Disable, `enabled: false`, `okayed` unchanged; the panel renders the S16 disabled placeholder.
+**Coverage**: [AUTO] `test/integration/m2-flows.test.ts`:
+- `"disabling a consented view keeps okayed intact; re-enabling returns consented without modal"` — after Disable, `enabled: false`, `okayed` unchanged; re-enabling immediately returns `consented` without opening a modal.
 
 ---
 
@@ -82,7 +87,8 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 **Trigger**: A DataviewJS view is active; the live checksum of the fenced block differs from `okayed.checksum`.
 
-**Coverage**: [AUTO] — `test/integration/m2-flows.test.ts` > "Re-consent on checksum drift" — after editing the fenced block bytes, `evaluate()` returns `{status: "drift", reason: "checksum"}`; S17 state asserted before re-consent flow.
+**Coverage**: [AUTO] `test/integration/m2-flows.test.ts`:
+- `"evaluate returns drift/checksum after fenced block body changes; re-consent restores consented"` — after editing the fenced block bytes, `evaluate()` returns `{status: "drift", reason: "checksum"}`; S17 state is exercised before re-consent; after `requestReConsent()` and Enable, `evaluate()` returns `consented` again.
 
 **Manual step**: [ ] Import and consent `scene-debug-dvjs.md`; edit the `dataviewjs` fenced block body (add a comment line); save and switch back to the panel tab; confirm S17 "re-consent required" banner appears with "Review & Re-enable…" button and that code is NOT executing.
 
@@ -92,7 +98,8 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 **Trigger**: A DQL view tab is selected; `okayed` is null — the one-time light confirm has not been given.
 
-**Coverage**: [AUTO] — `test/integration/m2-flows.test.ts` > "DQL light-confirm flow" — after `importToStore`, `evaluate()` returns `not-consented`; S18 state asserted before Enable is clicked.
+**Coverage**: [AUTO] `test/integration/m2-flows.test.ts`:
+- `"DQL import → light-confirm Enable → consented → dvApi.execute called with subject path"` — the pre-Enable state (S18) is exercised when `evaluate()` returns `not-consented` before `requestConsent()` is called; after Enable, `dvApi.execute` is called with the subject path.
 
 **Manual step**: [ ] Import `characters-in-scene.md` without consenting; select its panel tab; confirm S18 "Enable…" button appears and DQL is not yet executing.
 
@@ -124,7 +131,8 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 **Trigger**: S19 "Next →" selected on a DQL view (`characters-in-scene.md`).
 
-**Coverage**: [AUTO] — `test/integration/m2-flows.test.ts` > "DQL light-confirm flow" — `requestConsent()` opens light-confirm modal; Enable click writes `okayed`; `evaluate()` then returns `consented`.
+**Coverage**: [AUTO] `test/integration/m2-flows.test.ts`:
+- `"DQL import → light-confirm Enable → consented → dvApi.execute called with subject path"` — `requestConsent()` opens the light-confirm modal; Enable click writes `okayed`; `evaluate()` then returns `consented`; `dvApi.execute` is called with the correct subject path.
 
 **Manual step**: [ ] From S19, select `characters-in-scene.md` and click "Next →"; confirm the S21 light confirm modal shows the DQL source, a read-only note, and NO security warning banner; click "Enable" to proceed.
 
@@ -144,7 +152,8 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 **Trigger**: S17 "Review & Re-enable…" clicked; same layout as S20 but with a "Query changed" warning banner at the top.
 
-**Coverage**: [AUTO] — `test/integration/m2-flows.test.ts` > "Re-consent on checksum drift" — `requestReConsent()` is called; after Enable, `evaluate()` returns `consented` again.
+**Coverage**: [AUTO] `test/integration/m2-flows.test.ts`:
+- `"evaluate returns drift/checksum after fenced block body changes; re-consent restores consented"` — `requestReConsent()` is invoked; after Enable, `evaluate()` returns `consented` again.
 
 **Manual step**: [ ] After triggering S17 (see S17 manual step), click "Review & Re-enable…"; confirm S23 modal shows the "Query changed" warning banner at the top; confirm Cancel is auto-focused; click Enable and verify the panel transitions back to S13/S14 (loading then result).
 
@@ -178,7 +187,9 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 **Trigger**: A view in the store references a Dataview engine, but the Dataview plugin is not installed.
 
-**Coverage**: [AUTO] — `test/integration/m2-flows.test.ts` > "Native fallback when Dataview absent" — registry is empty; `SidebarView._renderResolved` renders the engine-missing state (S11 in panel, S26 in settings row).
+**Coverage**: [AUTO] `test/integration/m2-flows.test.ts`:
+- `"buildEngineRegistry returns empty registry when Dataview absent"` — registry is empty when Dataview is not present.
+- `"ConsentGate returns engine-missing when registry is empty"` — `evaluate()` returns `engine-missing` for a view whose engine is not available in the registry.
 
 **Manual step**: [ ] Disable the Dataview plugin; open Settings → Story Forge → Manage Views; confirm both rows show S26 "Engine unavailable" badge; confirm no crash or unhandled exception occurs; re-enable Dataview when done.
 
@@ -188,19 +199,19 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 | State | Description | Coverage |
 |---|---|---|
-| S11 | Engine missing | [AUTO] m2-flows: native fallback test + [Manual] |
-| S12 | Consent required (DataviewJS) | [AUTO] m2-flows: full-flow test |
+| S11 | Engine missing | [AUTO] `"buildEngineRegistry returns empty registry when Dataview absent"` + `"SidebarView with empty registry renders S11 engine-missing and calls nativeEngine.render (no crash)"` + [Manual] |
+| S12 | Consent required (DataviewJS) | [AUTO] `"executeJs is NOT called before okayed is written; after Enable it is called with subject path"` |
 | S13 | Loading | [Manual] |
 | S14 | Result rendered | [Manual] |
-| S15 | Error / source missing | [AUTO] m2-flows: source-missing test |
-| S16 | Disabled | [AUTO] m2-flows: kill-switch test |
-| S17 | Re-consent required | [AUTO] m2-flows: checksum-drift test |
-| S18 | DQL light-confirm pending | [AUTO] m2-flows: DQL-flow test |
+| S15 | Error / source missing | [AUTO] `"evaluate returns not-consented when source note is deleted after consent was granted"` |
+| S16 | Disabled | [AUTO] `"disabling a consented view keeps okayed intact; re-enabling returns consented without modal"` |
+| S17 | Re-consent required | [AUTO] `"evaluate returns drift/checksum after fenced block body changes; re-consent restores consented"` |
+| S18 | DQL light-confirm pending | [AUTO] `"DQL import → light-confirm Enable → consented → dvApi.execute called with subject path"` |
 | S19 | Import picker modal | [Manual] |
 | S20 | Full disclosure modal (DataviewJS) | [Manual] |
-| S21 | Light confirm modal (DQL) | [AUTO] m2-flows: DQL-flow test + [Manual] |
+| S21 | Light confirm modal (DQL) | [AUTO] `"DQL import → light-confirm Enable → consented → dvApi.execute called with subject path"` + [Manual] |
 | S22 | Bind modal | [Manual] |
-| S23 | Re-consent modal (DataviewJS) | [AUTO] m2-flows: re-consent test + [Manual] |
+| S23 | Re-consent modal (DataviewJS) | [AUTO] `"evaluate returns drift/checksum after fenced block body changes; re-consent restores consented"` + [Manual] |
 | S24 | Settings row — Enabled | [Manual] |
 | S25 | Settings row — Disabled / Consent-required | [Manual] |
-| S26 | Settings row — Engine missing | [AUTO] m2-flows: native fallback test + [Manual] |
+| S26 | Settings row — Engine missing | [AUTO] `"buildEngineRegistry returns empty registry when Dataview absent"` + `"ConsentGate returns engine-missing when registry is empty"` + [Manual] |
