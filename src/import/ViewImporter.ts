@@ -10,9 +10,8 @@
  * @ref SDD/ADR-9 (store-generated id; source = vault path; no UUID to vault)
  */
 
-import { TFile } from "obsidian";
-import type { App } from "obsidian";
-import { readFencedBlock } from "import/fencedBlock";
+import type { App, TFile } from "obsidian";
+import { extractQueryBlocks, readNoteContent } from "import/fencedBlock";
 import { computeChecksum } from "consent/checksum";
 import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
@@ -62,9 +61,9 @@ export class ViewImporter {
 	 * @ref SDD/ADR-6; SDD/Implementation Examples — ViewImporter.parse()
 	 */
 	async parse(file: TFile): Promise<ViewDefinition> {
-		// 1. Read the single fenced block via the Phase 1 extractor.
-		//    readFencedBlock returns null for 0 or >1 matching blocks.
-		//    We distinguish 0 vs >1 to throw the right error code.
+		// 1. Read the note content ONCE and derive the single query block.
+		//    _readBlock reuses the shared extractQueryBlocks (single source of
+		//    truth) to distinguish 0 (NO_QUERY_BLOCK) vs >1 (MULTIPLE_QUERY_BLOCKS).
 		const block = await this._readBlock(file);
 
 		// 2. Read frontmatter from metadataCache — no extra vault.read().
@@ -239,65 +238,32 @@ export class ViewImporter {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Read the single fenced block from `file`, distinguishing 0-block (NO_QUERY_BLOCK)
-	 * from >1-block (MULTIPLE_QUERY_BLOCKS) cases.
+	 * Read the single fenced block from `file`, distinguishing 0-block
+	 * (NO_QUERY_BLOCK) from >1-block (MULTIPLE_QUERY_BLOCKS) cases.
 	 *
-	 * readFencedBlock returns null for BOTH 0 and >1 blocks (per its contract).
-	 * We detect the >1 case by re-reading the raw content and counting matching
-	 * language tags so we can throw the correct ImportError code.
+	 * Reads the note content ONCE via `readNoteContent`, then derives both the
+	 * block count and the single block from the shared `extractQueryBlocks`
+	 * helper (single source of truth — same parser `readFencedBlock` uses).
 	 */
 	private async _readBlock(
 		file: TFile,
 	): Promise<{ lang: string; body: string }> {
-		const block = await readFencedBlock(this.app, file.path);
-		if (block !== null) {
-			return block;
-		}
-
-		// Determine whether zero or multiple blocks are present.
-		// readFencedBlock already read the file; re-read on the error path to count.
-		const abstractFile = this.app.vault.getAbstractFileByPath(file.path);
-		// If the file doesn't exist at all, treat as NO_QUERY_BLOCK.
-		if (!(abstractFile instanceof TFile)) {
+		const content = await readNoteContent(this.app, file.path);
+		// Missing note (or non-TFile path) → no query block.
+		if (content === null) {
 			throw new ImportError("NO_QUERY_BLOCK", "No query block found");
 		}
 
-		const content = await this.app.vault.read(abstractFile);
-		const count = this._countQueryBlocks(content);
-		if (count > 1) {
+		const blocks = extractQueryBlocks(content);
+		if (blocks.length === 0) {
+			throw new ImportError("NO_QUERY_BLOCK", "No query block found");
+		}
+		if (blocks.length > 1) {
 			throw new ImportError(
 				"MULTIPLE_QUERY_BLOCKS",
 				"View definitions must contain exactly one query block",
 			);
 		}
-		throw new ImportError("NO_QUERY_BLOCK", "No query block found");
-	}
-
-	/**
-	 * Count the number of top-level dataview/dataviewjs fenced blocks in `content`.
-	 * Mirrors the logic in fencedBlock.ts extractQueryBlocks, kept minimal here.
-	 */
-	private _countQueryBlocks(content: string): number {
-		const lines = content.split("\n");
-		const queryLangs = new Set(["dataview", "dataviewjs"]);
-		let count = 0;
-		let i = 0;
-		while (i < lines.length) {
-			const openMatch = lines[i]!.match(/^```([a-zA-Z][a-zA-Z0-9-]*)[ \t\r]*$/);
-			if (!openMatch) {
-				i++;
-				continue;
-			}
-			const lang = openMatch[1]!;
-			const isQuery = queryLangs.has(lang);
-			// Scan forward to closing fence.
-			let j = i + 1;
-			while (j < lines.length && !/^```[ \t\r]*$/.test(lines[j]!)) {
-				j++;
-			}
-			if (isQuery) count++;
-			i = j < lines.length ? j + 1 : j;
-		}
-		return count;
+		return blocks[0]!;
 	}
 }

@@ -55,6 +55,25 @@ export async function readFencedBlock(
 	return blocks[0]!;
 }
 
+/**
+ * readNoteContent — read the byte-exact content of the note at `sourcePath`,
+ * or null if the path does not resolve to a TFile.
+ *
+ * Exposed so callers (e.g. ViewImporter.parse) can read the note ONCE and then
+ * derive both the query-block count and the single block from the same content
+ * via `extractQueryBlocks`, avoiding a second vault.read on the error path.
+ */
+export async function readNoteContent(
+	app: App,
+	sourcePath: string,
+): Promise<string | null> {
+	const abstractFile = app.vault.getAbstractFileByPath(sourcePath);
+	if (!(abstractFile instanceof TFile)) {
+		return null;
+	}
+	return app.vault.read(abstractFile);
+}
+
 // ---------------------------------------------------------------------------
 // Internal parser
 // ---------------------------------------------------------------------------
@@ -63,6 +82,10 @@ export async function readFencedBlock(
  * Extract all TOP-LEVEL fenced blocks whose language tag is "dataview" or
  * "dataviewjs" from `content`. Returns each as {lang, body} where body is the
  * raw text between the opening and closing fence delimiters, byte-exact.
+ *
+ * Exported as the single source of truth for the "exactly one query block"
+ * rule: both `readFencedBlock` (here) and `ViewImporter.parse` derive their
+ * block count / single-block extraction from this one parser.
  *
  * The parser walks the content line-by-line, tracking the open/close of ANY
  * ```-fenced block. A fence found while already inside a block is treated as
@@ -75,7 +98,7 @@ export async function readFencedBlock(
  * any trailing CR. The body is reconstructed by slicing the original content
  * between recorded byte offsets — no CRLF normalisation.
  */
-function extractQueryBlocks(
+export function extractQueryBlocks(
 	content: string,
 ): Array<{ lang: string; body: string }> {
 	const blocks: Array<{ lang: string; body: string }> = [];
