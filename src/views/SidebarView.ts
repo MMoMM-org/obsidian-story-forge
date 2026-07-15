@@ -117,6 +117,9 @@ export class SidebarView extends ItemView {
 	private currentEngine: QueryEngine | null = null;
 	// M2: the ViewRecord currently rendered (selected view tab)
 	private currentRecord: ViewRecord | null = null;
+	// M2: generation counter — incremented on every _renderResolved entry to
+	// detect stale async dispatches and bail before mutating DOM/currentEngine.
+	private _renderGen = 0;
 
 	// Debounced follow function — coalesces rapid active-leaf-change events.
 	private readonly _debouncedFollow: ReturnType<
@@ -553,20 +556,36 @@ export class SidebarView extends ItemView {
 	 *      "engine-missing"      → S11
 	 *      "dvjs-off"            → S15 variant
 	 */
+	/**
+	 * ADR-7 preamble: teardown the current engine, clear the DOM, null the ref.
+	 * Called at the top of EVERY dispatch branch so the body is always clean
+	 * before any new content is painted. Prevents stale DOM bleed and engine leaks.
+	 */
+	private _prepareBody(body: AugEl): void {
+		this.currentEngine?.teardown();
+		this.currentEngine = null;
+		body.empty();
+	}
+
 	private async _renderResolved(body: AugEl, ctx: NoteContext): Promise<void> {
-		// No registry/consentGate injected (pre-T4.4 construction) → native fallback
+		// TODO(T4.4): delete legacy path once main.ts is rewired
+		// No registry/consentGate injected (pre-T4.4 construction) → legacy stub
 		if (!this.registry || !this.consentGate || !this.nativeEngine) {
 			this._renderResolvedLegacy(body, ctx);
 			return;
 		}
 
+		// Generation guard (FIX 3): stamp before any await so that stale dispatches
+		// bail after their own awaits rather than clobbering a newer render.
+		const gen = ++this._renderGen;
+
 		const view = this.currentRecord;
 
 		// No view tab selected → native fallback
 		if (!view) {
-			this.currentEngine?.teardown();
-			body.empty();
+			this._prepareBody(body);
 			await this.nativeEngine.render(null, ctx, body);
+			if (gen !== this._renderGen) return;
 			this.currentEngine = this.nativeEngine;
 			return;
 		}
@@ -574,50 +593,65 @@ export class SidebarView extends ItemView {
 		// Look up wired engine; undefined means Dataview absent or unwired kind
 		const engine = this.registry.get(view.engine);
 		if (!engine) {
-			// S11 engine-missing — ADR-7: teardown → empty → repaint hint → native render
-			this.currentEngine?.teardown();
-			body.empty();
+			// S11 engine-missing — ADR-7: _prepareBody → repaint hint → native render
+			this._prepareBody(body);
 			this._renderEngineMissing(body, view.engine);   // S11 hint repainted after empty
 			await this.nativeEngine.render(view, ctx, body);
+			if (gen !== this._renderGen) return;
 			this.currentEngine = this.nativeEngine;
 			return;
 		}
 
 		// Evaluate consent state for this view
 		const decision = await this.consentGate.evaluate(view);
+		if (gen !== this._renderGen) return;
 
 		switch (decision.status) {
 			case "consented":
-				// ADR-7: teardown → empty → render (exact order per spec)
-				this.currentEngine?.teardown();
-				body.empty();
+				// ADR-7: _prepareBody → loading → render (teardown+empty inside _prepareBody)
+				this._prepareBody(body);
 				// Show loading state (S13) synchronously before the async engine.render call
 				this._renderLoading(body);
-				await engine.render(view, ctx, body);
-				this.currentEngine = engine;
+				try {
+					await engine.render(view, ctx, body);
+					if (gen !== this._renderGen) return;
+					this.currentEngine = engine;
+				} catch (err) {
+					if (gen !== this._renderGen) return;
+					const error = err instanceof Error ? err : new Error("Engine render failed");
+					console.debug("[StoryForge] engine render error:", error.message);
+					this._renderEngineError(body, error);
+					this.currentEngine = null;
+				}
 				break;
 
 			case "not-consented":
+				this._prepareBody(body);
 				this._renderConsentRequired(body, view);     // S12
 				break;
 
 			case "drift":
-				this._renderReConsentRequired(body, view);   // S17
+				this._prepareBody(body);
+				this._renderReconsentRequired(body, view);   // S17
 				break;
 
 			case "disabled":
+				this._prepareBody(body);
 				this._renderDisabled(body);                  // S16
 				break;
 
 			case "platform-restricted":
+				this._prepareBody(body);
 				this._renderPlatformRestriction(body);       // S11 variant
 				break;
 
 			case "engine-missing":
+				this._prepareBody(body);
 				this._renderEngineMissing(body, view.engine); // S11
 				break;
 
 			case "dvjs-off":
+				this._prepareBody(body);
 				this._renderDvJsOff(body);                   // S15 variant
 				break;
 
@@ -632,6 +666,7 @@ export class SidebarView extends ItemView {
 	/**
 	 * Legacy _renderResolved — used when no EngineRegistry/ConsentGate were injected
 	 * (M1 stub path; removed after T4.4 main.ts rewire).
+	 * TODO(T4.4): delete this method once main.ts is rewired
 	 */
 	private _renderResolvedLegacy(body: AugEl, ctx: NoteContext): void {
 		body.createDiv({ cls: "sf-stublabel", text: "resolved context (stub)" });
@@ -729,12 +764,25 @@ export class SidebarView extends ItemView {
 	 * S17 — Re-consent required (query drifted since last enable).
 	 * Code is NOT executing.
 	 */
-	private _renderReConsentRequired(body: AugEl, _view: ViewRecord): void {
+	private _renderReconsentRequired(body: AugEl, _view: ViewRecord): void {
 		const banner = body.createDiv({ cls: "sf-reconsent-required sf-warnbanner" });
 		banner.createDiv({ text: "Query changed since you last enabled this view." });
 		banner.createDiv({
 			cls: "sf-hint",
 			text: "The code is paused until you re-review it.",
+		});
+	}
+
+	/**
+	 * Engine render error — shown when engine.render() rejects.
+	 * Uses XSS-safe createDiv text option — never innerHTML.
+	 */
+	private _renderEngineError(body: AugEl, _err: Error): void {
+		const errbox = body.createDiv({ cls: "sf-engine-error sf-errbox" });
+		errbox.createDiv({ text: "⚠ Query render failed." });
+		errbox.createDiv({
+			cls: "sf-hint",
+			text: "The engine encountered an error. Check the view source and try again.",
 		});
 	}
 
