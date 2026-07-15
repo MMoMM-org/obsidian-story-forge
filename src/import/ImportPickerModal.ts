@@ -17,9 +17,10 @@ import type { ViewImporter } from "import/ViewImporter";
 import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
 import { BindModal } from "import/BindModal";
+import type { RegisterCommandCallback } from "import/types";
+import type { ViewStore } from "store/ViewStore";
 
-/** Callback type injected from main.ts / SettingsTab to register a command palette entry. */
-export type RegisterCommandCallback = (viewId: string, commandName: string) => void;
+export type { RegisterCommandCallback } from "import/types";
 
 /**
  * ImportPickerModal — Modal subclass.
@@ -27,20 +28,25 @@ export type RegisterCommandCallback = (viewId: string, commandName: string) => v
  * Constructor dependencies (injected, not grabbed from globals):
  *   - app: App (passed to super)
  *   - importer: ViewImporter (stateless service)
+ *   - store: ViewStore (passed to BindModal for commandName persistence)
  *   - registerCommand: RegisterCommandCallback (passed through to BindModal)
  *
  * T4.2/T4.4 callers construct this as:
- *   new ImportPickerModal(app, importer, (id, name) => plugin.addCommand({...}))
+ *   new ImportPickerModal(app, importer, store, (id, name) => plugin.addCommand({...}))
  */
 export class ImportPickerModal extends Modal {
 	private selectedFile: TFile | null = null;
 	private errorEl: HTMLElement | null = null;
 	private listEl: HTMLElement | null = null;
+	private nextBtnEl: HTMLElement | null = null;
 	private files: TFile[] = [];
+	/** True once onClose() fires — guards async tail after scanVault resolves. */
+	private _closed = false;
 
 	constructor(
 		app: App,
 		private readonly importer: ViewImporter,
+		private readonly store: ViewStore,
 		private readonly registerCommand: RegisterCommandCallback,
 	) {
 		super(app);
@@ -51,7 +57,12 @@ export class ImportPickerModal extends Modal {
 	}
 
 	onClose(): void {
+		this._closed = true;
 		this.contentEl.empty();
+		// Null out refs so any in-flight _loadFiles tail sees a closed state
+		this.listEl = null;
+		this.errorEl = null;
+		this.nextBtnEl = null;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -79,6 +90,8 @@ export class ImportPickerModal extends Modal {
 		const cancelBtn = footEl.createEl("button", { text: "Cancel" });
 		const nextBtn = footEl.createEl("button", { text: "Next →" });
 
+		this.nextBtnEl = nextBtn;
+
 		cancelBtn.addEventListener("click", () => this.close());
 		nextBtn.addEventListener("click", () => void this._onConfirm());
 
@@ -87,8 +100,9 @@ export class ImportPickerModal extends Modal {
 	}
 
 	private async _loadFiles(): Promise<void> {
-		if (!this.listEl) return;
 		this.files = await this.importer.scanVault();
+		// Guard: modal may have been closed while scan was in-flight
+		if (this._closed) return;
 		this._renderFileList();
 	}
 
@@ -101,9 +115,14 @@ export class ImportPickerModal extends Modal {
 				text: "No views to import — add sf-view: true to a vault note to make it available here.",
 				cls: "sf-picker-empty",
 			});
+			// W3: disable Next → when there is nothing to import
+			if (this.nextBtnEl) {
+				(this.nextBtnEl as HTMLButtonElement).disabled = true;
+			}
 			return;
 		}
 
+		let isFirst = true;
 		for (const file of this.files) {
 			const row = this.listEl.createEl("div", { cls: "sf-picker-row" });
 			row.createEl("div", { text: file.basename, cls: "sf-picker-name" });
@@ -118,10 +137,11 @@ export class ImportPickerModal extends Modal {
 				row.classList.add("is-selected");
 			});
 
-			// Auto-select the first file
-			if (this.files.indexOf(file) === 0) {
+			// S2: auto-select the first file using a boolean instead of O(n) indexOf
+			if (isFirst) {
 				this.selectedFile = file;
 				row.classList.add("is-selected");
+				isFirst = false;
 			}
 		}
 	}
@@ -139,6 +159,7 @@ export class ImportPickerModal extends Modal {
 	}
 
 	private async _onConfirm(): Promise<void> {
+		if (this._closed) return;
 		if (!this.selectedFile) return;
 		this._clearError();
 
@@ -149,6 +170,8 @@ export class ImportPickerModal extends Modal {
 			if (err instanceof ImportError) {
 				this._showError(err.message);
 			} else {
+				// W1: log the real error before showing the user-facing message
+				console.error(err);
 				this._showError("Import failed: unexpected error");
 			}
 			return;
@@ -161,6 +184,8 @@ export class ImportPickerModal extends Modal {
 			if (err instanceof ImportError) {
 				this._showError(err.message);
 			} else {
+				// W1: log the real error before showing the user-facing message
+				console.error(err);
 				this._showError("Import failed: unexpected error");
 			}
 			return;
@@ -168,7 +193,7 @@ export class ImportPickerModal extends Modal {
 
 		// Success: close picker, open bind modal
 		this.close();
-		const bindModal = new BindModal(this.app, viewId, def, this.registerCommand);
+		const bindModal = new BindModal(this.app, viewId, def, this.store, this.registerCommand);
 		bindModal.open();
 	}
 }

@@ -4,9 +4,11 @@
  * Opened by ImportPickerModal after a successful importToStore.
  * Pre-fills the tab label from def.name (sf-name ADR-6).
  * Offers a checkbox to register a command palette entry.
- * On confirm: invokes the injected registerCommand callback only if checked.
+ * On confirm: persists the (possibly-edited) tab label to ViewRecord.commandName
+ * via store.setRecord; invokes the injected registerCommand callback only if
+ * the command checkbox is checked.
  * On cancel (Back): closes without rollback — the view is already in the store
- * (disabled by default, ADR-5 safe default); no store write happens here.
+ * (disabled by default, ADR-5 safe default); no store write happens on cancel.
  *
  * @ref SDD/Runtime View — Flow C (bind step)
  * @ref SDD/Cross-Cutting Concepts — User Interface S22
@@ -18,26 +20,29 @@
 import { Modal } from "obsidian";
 import type { App } from "obsidian";
 import type { ViewDefinition } from "import/ViewDefinition";
-import type { RegisterCommandCallback } from "import/ImportPickerModal";
+import type { RegisterCommandCallback } from "import/types";
+import type { ViewStore } from "store/ViewStore";
 
 /**
  * BindModal — Modal subclass.
  *
  * Constructor signature for T4.2/T4.4 callers:
- *   new BindModal(app, viewId, def, (id, name) => plugin.addCommand({...}))
+ *   new BindModal(app, viewId, def, store, (id, name) => plugin.addCommand({...}))
  *
- * The `registerCommand` callback is called only when the user checks "Register
- * as command" and confirms. It is NOT called on cancel (no rollback, no side-
- * effects from the bind step).
+ * On confirm: calls store.setRecord to persist the commandName (editable tab
+ * label), then calls registerCommand if the checkbox is checked.
+ * On cancel (Back): closes with no store writes and no registerCommand call.
  */
 export class BindModal extends Modal {
 	private commandCheckboxEl: HTMLInputElement | null = null;
 	private cmdInputEl: HTMLInputElement | null = null;
+	private tabInputEl: HTMLInputElement | null = null;
 
 	constructor(
 		app: App,
 		private readonly viewId: string,
 		private readonly def: ViewDefinition,
+		private readonly store: ViewStore,
 		private readonly registerCommand: RegisterCommandCallback,
 	) {
 		super(app);
@@ -81,6 +86,8 @@ export class BindModal extends Modal {
 		tabInputEl.className = "sf-bind-input";
 		tabRow.appendChild(tabInputEl);
 
+		this.tabInputEl = tabInputEl;
+
 		tabCheckbox.addEventListener("change", () => {
 			tabInputEl.disabled = !tabCheckbox.checked;
 		});
@@ -117,13 +124,23 @@ export class BindModal extends Modal {
 		const doneBtn = footEl.createEl("button", { text: "Done" });
 
 		backBtn.addEventListener("click", () => this.close());
-		doneBtn.addEventListener("click", () => this._onConfirm());
+		doneBtn.addEventListener("click", () => void this._onConfirm());
 	}
 
-	private _onConfirm(): void {
+	private async _onConfirm(): Promise<void> {
+		// S5: persist the (possibly-edited) tab label to ViewRecord.commandName
+		const commandName = this.tabInputEl?.value ?? this.def.name;
+		const views = await this.store.getViews();
+		const existing = views[this.viewId];
+		if (existing) {
+			await this.store.setRecord(this.viewId, { ...existing, commandName });
+		}
+
+		// Register command if checkbox is checked
 		if (this.commandCheckboxEl?.checked && this.cmdInputEl) {
 			this.registerCommand(this.viewId, this.cmdInputEl.value);
 		}
+
 		this.close();
 	}
 }
