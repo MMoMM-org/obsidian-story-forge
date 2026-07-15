@@ -86,7 +86,9 @@ export class ConsentGate {
 			return { status: "disabled" };
 		}
 
-		// 2. Platform-restricted — DataviewJS requires node:crypto; mobile can't run it
+		// 2. Platform-restricted — Dataview itself blocks DataviewJS execution on
+		//    mobile, so DataviewJS views cannot render there. (The checksum is
+		//    cross-platform via Web Crypto, so it is NOT the restriction reason.)
 		if (record.engine === "dataviewjs" && Platform.isMobile) {
 			return { status: "platform-restricted" };
 		}

@@ -121,7 +121,8 @@ describe("ConsentGate.evaluate()", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		(Platform as { isMobile: boolean }).isMobile = false;
+		(Platform as { isMobile: boolean; isDesktop: boolean }).isMobile = false;
+		(Platform as { isMobile: boolean; isDesktop: boolean }).isDesktop = true;
 		registry = makeRegistry();
 		dvSettings = makeDvSettings(true);
 		store = makeStore();
@@ -284,6 +285,29 @@ describe("ConsentGate.evaluate()", () => {
 			}),
 		);
 		expect(result).toEqual({ status: "consented" });
+	});
+
+	// Cross-platform: DQL must evaluate (incl. checksum) on mobile (C-1/C-2) -
+
+	it("DQL on mobile reaches the checksum step and returns 'consented' WITHOUT crashing (C-2)", async () => {
+		// The dataviewjs platform guard does NOT shield DQL, so a consented DQL
+		// view on mobile reaches step 7 (computeChecksum). The checksum is
+		// cross-platform (Web Crypto), so this must NOT throw. A desktop-only
+		// node:crypto checksum would have crashed here — this test guards C-1.
+		(Platform as { isMobile: boolean; isDesktop: boolean }).isMobile = true;
+		(Platform as { isMobile: boolean; isDesktop: boolean }).isDesktop = false;
+		const correctChecksum = await computeChecksum(DQL_BODY);
+		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const evaluatePromise = gate.evaluate(
+			makeRecord({
+				engine: "dataview-dql",
+				okayed: { version: 0, checksum: correctChecksum },
+			}),
+		);
+
+		await expect(evaluatePromise).resolves.toEqual({ status: "consented" });
 	});
 
 	// Decision order verification ---------------------------------------
