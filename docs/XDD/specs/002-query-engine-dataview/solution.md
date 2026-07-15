@@ -130,9 +130,9 @@ graph TB
     Panel --> ER[EngineRegistry]
     Panel --> CG[ConsentGate]
     Panel --> Store[ViewStore]
+    Panel --> NAT[NativeScopingEngine fallback]
     ER --> DQL[DataviewDqlEngine]
     ER --> DVJ[DataviewJsEngine]
-    ER --> NAT[NativeScopingEngine]
     DQL --> DV[(Dataview plugin)]
     DVJ --> DV
     DVJ --> Crypto[node:crypto]
@@ -206,9 +206,9 @@ graph LR
     ST --> VS
     ST --> CG
     ST --> VI[ViewImporter]
+    SV --> NAT[NativeScopingEngine fallback]
     ER --> DQL[DataviewDqlEngine]
     ER --> DVJ[DataviewJsEngine]
-    ER --> NAT[NativeScopingEngine]
     DVJ --> CS[checksum.ts]
     CG --> CS
     VI --> CS
@@ -222,7 +222,7 @@ graph LR
 ```
 .
 ├── src/
-│   ├── main.ts                         # MODIFY: construct EngineRegistry + ConsentGate; inject into SidebarView + SettingsTab; register late-join dataview:api-ready listener
+│   ├── main.ts                         # MODIFY: construct NativeScopingEngine (fallback) + EngineRegistry (wired engines only) + ConsentGate; inject into SidebarView + SettingsTab; register late-join dataview:api-ready listener
 │   ├── engines/
 │   │   ├── QueryEngine.ts              # NEW: QueryEngine interface + EngineRegistry class
 │   │   ├── DataviewDqlEngine.ts        # NEW: DQL adapter (dvApi.execute + Component lifecycle)
@@ -232,7 +232,8 @@ graph LR
 │   │   ├── checksum.ts                 # NEW: SHA-256 over raw fenced-block bytes; desktop-only (node:crypto)
 │   │   └── ConsentGate.ts             # NEW: ConsentDecision logic; DataviewJS full-disclosure modal; DQL light-confirm; drift detection
 │   ├── import/
-│   │   └── ViewImporter.ts             # NEW: auto-scan picker; vault-note parser → ViewDefinition → ViewRecord; duplicate guard
+│   │   ├── ViewImporter.ts             # NEW: auto-scan picker; vault-note parser → ViewDefinition → ViewRecord; duplicate guard
+│   │   └── fencedBlock.ts              # NEW: readFencedBlock(app, sourcePath) — shared extractor used by engines + ConsentGate + ViewImporter; returns null if the note is missing
 │   ├── types/
 │   │   └── dataview.d.ts               # NEW: minimal Dataview API shim (NOT an npm dep; local type declarations only)
 │   ├── views/
@@ -275,7 +276,14 @@ export interface QueryEngine {
    * Render view content into `el`, scoped to `ctx.activeFile`.
    * Must be idempotent: called after teardown() leaves `el` empty.
    *
-   * @param view  The resolved, consented ViewRecord.
+   * The query text is NOT carried on the ViewRecord. The engine reads the
+   * single fenced block from the note at `view.source` (via vault read /
+   * metadataCache) at render time; that freshly-read text is the query it
+   * executes. The same freshly-read bytes are what ConsentGate hashes, which
+   * is what makes re-consent-on-drift work (edit the note → bytes change →
+   * checksum drifts → re-consent). (ADR-3/ADR-4)
+   *
+   * @param view  The resolved, consented ViewRecord (carries `source` path only).
    * @param ctx   The panel subject's NoteContext (from ScopingService).
    * @param el    Empty container element owned by SidebarView.
    */
@@ -290,12 +298,20 @@ export interface QueryEngine {
 }
 
 /**
- * EngineRegistry — maps a ViewRecord.engine discriminant to the engine
+ * EngineRegistry — maps a ViewRecord.engine discriminant to the WIRED engine
  * instance responsible for rendering views of that kind.
  *
+ * The registry holds ONLY real, wired engines:
+ *   - "dataview-dql"  → DataviewDqlEngine   (registered only when Dataview is present + version-ok)
+ *   - "dataviewjs"    → DataviewJsEngine    (registered only when Dataview is present + version-ok)
+ * The "bases" slot is intentionally UNWIRED in M2 (Won't-have; M4 fills it) —
+ * get("bases") returns undefined.
+ *
+ * The registry is ALLOWED TO BE EMPTY (e.g. Dataview absent). It does NOT hold
+ * the native fallback: NativeScopingEngine is held separately by SidebarView
+ * and always exists independently of the registry (see the render pipeline).
+ *
  * Constructed in main.ts; injected into SidebarView and ConsentGate.
- * Absent engines are the expected case when Dataview is not installed;
- * callers fall back to NativeScopingEngine (always present).
  */
 export class EngineRegistry {
   private readonly map: Map<ViewRecord["engine"], QueryEngine>;
@@ -304,14 +320,13 @@ export class EngineRegistry {
     this.map = new Map(engines.map((e) => [e.kind, e]));
   }
 
-  /** Returns the engine for the given kind, or undefined if absent. */
+  /**
+   * Returns the wired engine for the given kind, or undefined if none is wired
+   * (Dataview absent for a dataview-* kind, or the unwired "bases" kind).
+   * Callers fall back to the separately-held NativeScopingEngine.
+   */
   get(kind: ViewRecord["engine"]): QueryEngine | undefined {
     return this.map.get(kind);
-  }
-
-  /** Convenience: returns the always-present native fallback. */
-  native(): NativeScopingEngine {
-    return this.map.get("bases") as NativeScopingEngine; // NativeScopingEngine registered under "bases" slot is never absent
   }
 }
 ```
@@ -381,8 +396,14 @@ export interface ConsentGate {
   /**
    * Evaluate the current consent state for a view.
    * Called on every render; does NOT open any modal.
+   *
+   * Reads the single fenced block fresh from the note at `record.source` and
+   * checksums those bytes, comparing against `record.okayed.checksum`. This is
+   * the same fresh read the engine executes, so drift is detected against the
+   * exact bytes that would run. Returns "not-consented" (source-missing variant)
+   * if the note at `record.source` no longer resolves. (ADR-3/ADR-4)
    */
-  evaluate(record: ViewRecord, currentSource: string): Promise<ConsentDecision>;
+  evaluate(record: ViewRecord): Promise<ConsentDecision>;
 
   /**
    * Open the full DataviewJS disclosure modal (S20) or DQL light confirm (S21).
@@ -452,9 +473,14 @@ export interface ViewDefinition {
   description?: string;
   /** sf-command frontmatter field (becomes ViewRecord.command). */
   command: boolean;
-  /** Raw source string of the fenced query block body (for checksum + execution). */
+  /**
+   * Raw source string of the fenced query block body, as read at import time.
+   * TRANSIENT — used only to preview the query and derive `checksum` during
+   * import. It is NOT persisted onto the ViewRecord; at render/consent time the
+   * block is re-read fresh from the note at `sourcePath` (ADR-3/ADR-4).
+   */
   querySource: string;
-  /** Pre-computed checksum over querySource bytes (sha256: prefixed). */
+  /** Checksum over querySource bytes at import time (sha256: prefixed); shown in the import preview, not persisted until consent. */
   checksum: Checksum;
 }
 
@@ -561,9 +587,14 @@ No schema change to `data.json`. M1 `ViewRecord` already includes every field M2
   protocol: in-process async
   data_flow: "Query source + filePath=ctx.activeFile.path → rendered DOM via Dataview's Component"
 
+- from: SidebarView (native fallback)
+  to: NativeScopingEngine.render()
+  protocol: in-process async
+  data_flow: "NoteContext.entities → entity-context DOM; used when no wired engine matches view.engine (Dataview absent or unwired 'bases')"
+
 - seam (deferred to M4):
   to: Bases engine
-  detection: engine discriminant "bases" — EngineRegistry.get("bases") returns undefined in M2; falls through to NativeScopingEngine
+  detection: engine discriminant "bases" — EngineRegistry.get("bases") returns undefined in M2 (unwired slot); SidebarView renders the native fallback + an 'engine coming in M4' hint
 ```
 
 ### Implementation Examples
@@ -572,23 +603,34 @@ No schema change to `data.json`. M1 `ViewRecord` already includes every field M2
 
 ```typescript
 // src/views/SidebarView.ts — _renderResolved replacement (illustrative)
-// Actual implementation will access injected registry and currentRecord.
+// Actual implementation will access the injected registry, the separately-held
+// nativeEngine fallback, and currentRecord.
 private async _renderResolved(body: AugEl, ctx: NoteContext): Promise<void> {
   const view = this.currentRecord; // the enabled, consented ViewRecord for the active tab
   if (!view) {
-    // No view selected — render native context via NativeScopingEngine
-    await this.registry.native().render(view ?? null, ctx, body);
+    // No view selected — render native context via the NativeScopingEngine
+    // fallback, which is held on SidebarView, NOT in the EngineRegistry.
+    this.currentEngine?.teardown();
+    body.empty();
+    await this.nativeEngine.render(null, ctx, body);
+    this.currentEngine = this.nativeEngine;
     return;
   }
 
   const engine = this.registry.get(view.engine);
   if (!engine) {
-    // Engine absent (Dataview not installed) — render S11 state
-    this._renderEngineMissing(body, view.engine);
+    // No wired engine for this kind:
+    //   - dataview-* kind → Dataview absent/version-low → S11 "engine missing"
+    //   - "bases" kind    → unwired in M2 → S11 "engine coming in M4" hint
+    // In both cases the native fallback still renders entity context below the hint.
+    this._renderEngineMissing(body, view.engine); // S11 (kind-specific copy)
+    this.currentEngine?.teardown();
+    await this.nativeEngine.render(view, ctx, body);
+    this.currentEngine = this.nativeEngine;
     return;
   }
 
-  const decision = await this.consentGate.evaluate(view, view.source);
+  const decision = await this.consentGate.evaluate(view);
   switch (decision.status) {
     case "consented":
       this.currentEngine?.teardown();              // (1) teardown previous
@@ -632,6 +674,12 @@ export class DataviewDqlEngine implements QueryEngine {
     const dvApi = getDataviewApi(this.app); // the single sanctioned any-cast
     if (!dvApi) { el.createDiv({ text: "Dataview not available" }); return; }
 
+    // The query text is NOT on the ViewRecord. Read the single fenced block
+    // from the view-definition note at `view.source` at render time. The same
+    // bytes are what ConsentGate hashed for the consent check that gated this
+    // render. (ADR-3/ADR-4)
+    const querySource = await readFencedBlock(this.app, view.source); // → raw DQL text
+
     this.component = new Component();
     this.component.load();
 
@@ -639,7 +687,7 @@ export class DataviewDqlEngine implements QueryEngine {
     // NOT the view-definition note's path (view.source).
     // This makes `this` / `FROM` in DQL resolve to the subject. (ADR-3)
     await dvApi.execute(
-      view.source,          // the DQL source stored in ViewRecord (read at import time)
+      querySource,          // DQL text freshly read from the note at view.source
       el,
       this.component,
       ctx.activeFile.path,  // subject path — sets DQL origin
@@ -653,13 +701,13 @@ export class DataviewDqlEngine implements QueryEngine {
 }
 ```
 
-**Note for implementers:** `view.source` in the above example holds the DQL source string, not the vault path. At import time, `ViewImporter.parse()` extracts the fenced block body into `ViewDefinition.querySource`; `toRecord()` stores it. `ViewRecord.source` carries the vault note path. The engine receives the query source via a separate field on an extended record type, or the implementation may keep query source in a separate store. The SDD records the intent; the exact field name is for the implementer to decide consistently.
+**Note for implementers:** `ViewRecord.source` is the view-definition note's vault path (the M1 "vault path" meaning) — it never holds query text. The query is read fresh from that note's single fenced block at render time via a shared `readFencedBlock(app, source)` helper (the same extractor `ViewImporter.parse()` uses). Reading fresh is deliberate: it is what makes drift detection sound — the bytes the engine executes and the bytes `ConsentGate` hashes are one and the same, so any edit to the note surfaces as a checksum drift. No query text is stored in `data.json`; no new ViewRecord field; no M1 contract change.
 
 #### Example: Consent drift detection (why: shows the OR-drift rule — either version or checksum change independently triggers re-consent)
 
 ```typescript
 // src/consent/ConsentGate.ts — evaluate() (illustrative)
-async evaluate(record: ViewRecord, querySource: string): Promise<ConsentDecision> {
+async evaluate(record: ViewRecord): Promise<ConsentDecision> {
   if (!record.enabled) return { status: "disabled" };
   if (record.engine === "dataviewjs" && Platform.isMobile) return { status: "platform-restricted" };
 
@@ -669,6 +717,11 @@ async evaluate(record: ViewRecord, querySource: string): Promise<ConsentDecision
   if (record.engine === "dataviewjs" && !isDvJsEnabled(this.app)) return { status: "dvjs-off" };
 
   if (!record.okayed) return { status: "not-consented" };
+
+  // Read the fenced block fresh from the note at record.source; if the note no
+  // longer resolves, treat as not-consented (source-missing → S15 variant).
+  const querySource = await readFencedBlock(this.app, record.source);
+  if (querySource === null) return { status: "not-consented" };
 
   // Drift: version OR checksum independently triggers re-consent (ADR-5 Rule 4)
   const currentChecksum = await computeChecksum(querySource);
@@ -729,8 +782,10 @@ sequenceDiagram
     participant WS as workspace
     participant MC as metadataCache
     participant ER as EngineRegistry
+    participant SV as SidebarView
 
-    Main->>Main: construct EngineRegistry(engines=[DQL, DVJ, Native])
+    Main->>Main: construct NativeScopingEngine (fallback, held on SidebarView)
+    Main->>Main: construct EngineRegistry(engines=[]) — wired engines only
     Main->>Main: construct ConsentGate(registry, store)
     Main->>WS: onLayoutReady(callback)
     WS-->>Main: layout ready
@@ -739,7 +794,7 @@ sequenceDiagram
         Main->>ER: register DataviewDqlEngine + DataviewJsEngine
     else absent or version too low
         Main->>Main: log console.debug("Dataview absent or version < 0.5.31")
-        Note over ER: only NativeScopingEngine registered
+        Note over ER: registry stays EMPTY; native fallback still on SidebarView
     end
     Main->>MC: registerEvent("dataview:api-ready", lateJoinHandler)
     Note over MC: late-join: fires if Dataview loads AFTER Story Forge
@@ -767,12 +822,14 @@ sequenceDiagram
     SV->>SV: classify(file) → "scene"
     SV->>SV: resolve(file) → NoteContext{activeFile: chapter-01.md}
     SV->>VS: getViews() → {tabId: ViewRecord}
-    SV->>CG: evaluate(record, querySource)
+    SV->>CG: evaluate(record)
+    Note over CG: reads fenced block fresh from record.source; checksums it
     CG-->>SV: {status: "consented"}
+    SV->>E: registry.get(record.engine) → engine (or none → native fallback)
     SV->>E: currentEngine.teardown()
     SV->>SV: body.empty()
     SV->>E: engine.render(record, ctx, el)
-    Note over E: dvApi.execute(source, el, component, "chapter-01.md")
+    Note over E: read fenced block from record.source → dvApi.execute(queryText, el, component, "chapter-01.md")
     E-->>SV: resolved DOM
     SV->>SV: currentEngine = engine
 ```
@@ -808,9 +865,10 @@ sequenceDiagram
     SV->>SV: tab appears (S16 "Disabled" or S12 "Consent required")
     Writer->>SV: click "Review & Enable" (S12 → S20)
     SV->>CG: requestConsent(id, record)
-    CG->>CG: open full disclosure modal (S20): name, description, source, JS source, checksum
+    CG->>CG: read fenced block fresh from record.source (JS text + path)
+    CG->>CG: open full disclosure modal (S20): name, description, source path, JS text, checksum
     Writer->>CG: click "Enable"
-    CG->>CG: computeChecksum(querySource) → "sha256:..."
+    CG->>CG: computeChecksum(freshly-read JS text) → "sha256:..."
     CG->>VS: setRecord(id, {...record, enabled:true, okayed:{version, checksum}})
     CG-->>SV: true (consent granted)
     SV->>SV: re-evaluate → {status:"consented"} → render (S14)
@@ -830,8 +888,9 @@ sequenceDiagram
     Writer->>MC: edits "my-characters-view.md" in vault
     MC-->>SV: metadataCache "changed" event
     SV->>SV: re-resolve → ctx unchanged
-    SV->>CG: evaluate(record, newQuerySource)
-    CG->>CG: computeChecksum(newQuerySource) → new hash
+    SV->>CG: evaluate(record)
+    CG->>CG: read fenced block fresh from record.source → new bytes
+    CG->>CG: computeChecksum(new bytes) → new hash
     CG->>CG: record.okayed.checksum ≠ new hash → drift
     CG-->>SV: {status: "drift", reason: "checksum"}
     SV->>SV: currentEngine.teardown()
@@ -849,7 +908,7 @@ sequenceDiagram
 
 ### Flow E — Native fallback when Dataview is absent
 
-When `EngineRegistry.get("dataview-dql")` or `EngineRegistry.get("dataviewjs")` returns `undefined` (Dataview not installed), `SidebarView._renderResolved` renders the S11 engine-missing state for that tab. Simultaneously, the `NativeScopingEngine` (registered under the `"bases"` slot as the always-present fallback) continues to render entity-context from `NoteContext.entities` — the M1 scoping layer is unaffected. Writers without Dataview see entity relations resolved from frontmatter links; they cannot run DQL or DataviewJS views.
+When `EngineRegistry.get("dataview-dql")` or `EngineRegistry.get("dataviewjs")` returns `undefined` (Dataview not installed), `SidebarView._renderResolved` renders the S11 engine-missing state for that tab. Simultaneously, the `NativeScopingEngine` — held directly on `SidebarView`, NOT in the registry — continues to render entity-context from `NoteContext.entities`, so the M1 scoping layer is unaffected. The same fallback path handles the unwired `"bases"` kind (Won't-have in M2): `get("bases")` returns undefined, and the tab shows the native context plus an "engine coming in M4" hint. Writers without Dataview see entity relations resolved from frontmatter links; they cannot run DQL or DataviewJS views.
 
 ### Error Handling
 
@@ -957,9 +1016,9 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
 
 ## Architecture Decisions
 
-- [x] **ADR-1 — QueryEngine interface + EngineRegistry discriminant dispatch.** A `QueryEngine` interface (`kind`, `render(view, ctx, el): Promise<void>`, `teardown(): void`) behind the M1 `ContextTab` seam; three concrete engines: `DataviewDqlEngine`, `DataviewJsEngine`, `NativeScopingEngine`. An `EngineRegistry` (discriminant→engine map) is constructed in `main.ts` and injected into `SidebarView`. `SidebarView._renderResolved` dispatches to `registry.get(record.engine)`; falls back to native rendering when the engine is absent.
-  - Rationale: the `engine` discriminant already exists in `ViewRecord` (M1); a registry map over it is the most direct, framework-free design. Each engine is independently testable. Adding a new engine in M4 (Bases) requires only implementing `QueryEngine` and registering it — no change to `SidebarView`.
-  - Trade-offs: the registry is constructed eagerly (all three engines instantiated at startup); engines for absent plugins waste negligible memory and are harmless.
+- [x] **ADR-1 — QueryEngine interface + EngineRegistry (wired engines only) + separately-held native fallback.** A `QueryEngine` interface (`kind`, `render(view, ctx, el): Promise<void>`, `teardown(): void`) behind the M1 `ContextTab` seam. The `EngineRegistry` maps a `ViewRecord.engine` discriminant to a WIRED engine only: `"dataview-dql" → DataviewDqlEngine` and `"dataviewjs" → DataviewJsEngine`, registered **only when Dataview is present and version-ok**. The `"bases"` slot stays UNWIRED in M2 (Won't-have; M4 fills it) → `get("bases")` returns undefined. The registry MAY BE EMPTY (Dataview absent). `NativeScopingEngine` is NOT a registry entry; it is a fallback renderer held directly on `SidebarView` and always available. Dispatch in `SidebarView._renderResolved`: look up `registry.get(view.engine)`; if a wired engine is returned, render with it (after the consent check); if none (Dataview absent for a `dataview-*` kind, or the unwired `"bases"` kind), render with `NativeScopingEngine` and surface the matching state — S11 "engine missing / Dataview not installed" for `dataview-*`, an "engine coming in M4" hint for `"bases"`.
+  - Rationale: the `engine` discriminant already exists in `ViewRecord` (M1); a registry map over the wired engines is the most direct, framework-free design. Keeping the native fallback out of the registry avoids conflating "a real wired engine" with "the always-there fallback" and lets the registry be legitimately empty. Each engine is independently testable. Adding Bases in M4 requires only implementing `QueryEngine` and registering it under `"bases"` — no change to `SidebarView`.
+  - Trade-offs: the two Dataview engines are constructed eagerly when Dataview is present; the fallback and dispatch add one branch. Both negligible.
   - User confirmed: Yes (2026-07-15)
 
 - [x] **ADR-2 — Feature detection via `app.plugins.plugins["dataview"].api` + `workspace.onLayoutReady` + late-join listener.** The Dataview API is read from `(app as any).plugins.plugins["dataview"]?.api` — the single sanctioned `any` cast (CON-8). Detection is gated on `workspace.onLayoutReady`. A legacy `metadataCache.on("dataview:api-ready")` listener (via `registerEvent`) handles late-loading. The API is re-checked on each render (Dataview can be disabled at runtime). Min Dataview version: **0.5.31** (guarded via `dvApi.version.satisfies(">=0.5.31")`). Note: 0.5.68 is the currently-installed version; 0.5.31 is the minimum supported.
@@ -967,12 +1026,12 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
   - Trade-offs: the `any` cast is unavoidable for cross-plugin access; isolating it to one function contains the unsafe surface.
   - User confirmed: Yes (2026-07-15)
 
-- [x] **ADR-3 — Subject scoping via `filePath` argument (resolved spike).** Pass `ctx.activeFile.path` (bare vault-relative path, no query string) as the `filePath` argument to `dvApi.execute(source, el, component, filePath)` and `dvApi.executeJs(source, el, component, filePath)`. This sets `DataviewInlineApi.currentFilePath` inside the Dataview renderer: `dv.current()` (DataviewJS) and `this`/origin (DQL) resolve to the subject note. View authors use `dv.current()` in DataviewJS and `this` in DQL — never `getActiveFile()`, never a `window.*` global. Edge case: `dv.current()` returns `{}` (not a throw) if the subject is not yet indexed.
+- [x] **ADR-3 — Subject scoping via `filePath` argument (resolved spike); query read fresh from `source`.** The query text is never stored on the ViewRecord: at render time the engine reads the single fenced block from the note at `view.source` and passes those bytes as the first argument to `dvApi.execute(queryText, el, component, filePath)` / `dvApi.executeJs(queryText, el, component, filePath)`. The `filePath` argument is `ctx.activeFile.path` (bare vault-relative path, no query string) — the panel SUBJECT's path, not the view-note's path. This sets `DataviewInlineApi.currentFilePath` inside the Dataview renderer: `dv.current()` (DataviewJS) and `this`/origin (DQL) resolve to the subject note. View authors use `dv.current()` in DataviewJS and `this` in DQL — never `getActiveFile()`, never a `window.*` global. Edge case: `dv.current()` returns `{}` (not a throw) if the subject is not yet indexed.
   - Rationale: verified from Dataview source (installed v0.5.68): `DataviewInlineApi.currentFilePath = filePath`; `dv.current() = index.pages.get(currentFilePath)`. No variable injection into query source; no vault-note contamination.
   - Trade-offs: if the subject note is not indexed by Dataview, `dv.current()` returns `{}`; authors must guard for this. The alternative (variable injection into query source) would break arbitrary DataviewJS code; `filePath` is the correct API.
   - User confirmed: Yes (2026-07-15)
 
-- [x] **ADR-4 — Consent/checksum module cloned from markdown-mason `disclosure.ts`.** SHA-256 over the **raw bytes** of the fenced block's source (byte-exact — CRLF ≠ LF), computed via `node:crypto`. Output format: `"sha256:<64-char hex>"`. DataviewJS engine is **desktop-only** (mobile has no `node:crypto` AND Dataview blocks DataviewJS on mobile). DQL and native fallback run on all platforms. Fail-closed: `parseOkayed` already rejects malformed `okayed` → null → not consented (M1). Consent grant writes `okayed:{version, checksum}` + `enabled:true` in one `setRecord` call.
+- [x] **ADR-4 — Consent/checksum module cloned from markdown-mason `disclosure.ts`.** SHA-256 over the **raw bytes** of the fenced block's source (byte-exact — CRLF ≠ LF), computed via `node:crypto`. Output format: `"sha256:<64-char hex>"`. The hashed bytes are ALWAYS read fresh from the note at `record.source` at consent/evaluate/render time — the exact same bytes the engine will execute — so drift detection is sound and no query text is persisted in `data.json`. If the note at `record.source` no longer resolves, `evaluate()` returns not-consented (source-missing → S15 variant). DataviewJS engine is **desktop-only** (mobile has no `node:crypto` AND Dataview blocks DataviewJS on mobile). DQL and native fallback run on all platforms. Fail-closed: `parseOkayed` already rejects malformed `okayed` → null → not consented (M1). Consent grant writes `okayed:{version, checksum}` + `enabled:true` in one `setRecord` call.
   - Rationale: proven pattern from the sibling plugin; byte-exact hash ensures any editing of the view definition note triggers re-consent; importing `node:crypto` as a dynamic import guards the mobile code path.
   - Trade-offs: byte-exact means CRLF files re-consent on LF normalisation (Windows editors); acceptable — writers should use LF. The desktop-only restriction on DataviewJS is independently enforced by Dataview itself; this is belt-and-suspenders.
   - User confirmed: Yes (2026-07-15)
@@ -1015,8 +1074,8 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
 
 ### F1 — Dataview adapter
 
-- [ ] WHEN Dataview is installed and a DQL view is enabled and consented, THE SYSTEM SHALL execute the DQL source via `dvApi.execute(source, el, component, ctx.activeFile.path)` and display the result in the tab body.
-- [ ] WHEN Dataview is installed and a DataviewJS view is enabled and consented, THE SYSTEM SHALL execute the DataviewJS source via `dvApi.executeJs(source, el, component, ctx.activeFile.path)` and display the result in the tab body.
+- [ ] WHEN Dataview is installed and a DQL view is enabled and consented, THE SYSTEM SHALL read the fenced block fresh from the note at `view.source` and execute it via `dvApi.execute(queryText, el, component, ctx.activeFile.path)`, displaying the result in the tab body.
+- [ ] WHEN Dataview is installed and a DataviewJS view is enabled and consented, THE SYSTEM SHALL read the fenced block fresh from the note at `view.source` and execute it via `dvApi.executeJs(queryText, el, component, ctx.activeFile.path)`, displaying the result in the tab body.
 - [ ] WHEN Dataview is not installed, THE SYSTEM SHALL detect this at `workspace.onLayoutReady` and render the S11 engine-missing state for any Dataview-engine view tab — not a crash, not a blank pane.
 - [ ] WHEN Dataview is not installed, THE SYSTEM SHALL continue to resolve and display entity context via `ScopingService` (the M1 native fallback) unaffected.
 - [ ] WHEN Dataview is installed but `enableDataviewJs` is false, THE SYSTEM SHALL render the "DataviewJS disabled in Dataview settings" prompt (S15 variant) for DataviewJS-engine tabs instead of silently failing.
