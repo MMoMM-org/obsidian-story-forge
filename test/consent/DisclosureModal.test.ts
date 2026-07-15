@@ -293,6 +293,28 @@ describe("ConsentGate.requestConsent — DQL (S21)", () => {
 		await promise;
 	});
 
+	it("DQL light-confirm (S21) shows the query source, the declarative/read-only note, and NO security warning", async () => {
+		// Locks in the authoritative mockup S21 behaviour: the DQL query source
+		// IS displayed (with a declarative/read-only note and no DataviewJS
+		// security warning). This is intentional and correct per mockups.html S21.
+		const { store } = makeStore();
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const record = makeRecord({ engine: "dataview-dql" });
+
+		const promise = gate.requestConsent("id-dql", record);
+		await waitForButton("Cancel");
+
+		// (1) DQL query source IS rendered
+		expect(document.body.textContent).toContain(DQL_BODY.trim());
+		// (2) declarative / read-only note IS shown
+		expect(document.body.textContent?.toLowerCase()).toMatch(/declarative|read-only/);
+		// (3) DataviewJS security warning is NOT shown (ADR-5 Rule 3)
+		expect(document.body.textContent).not.toContain("vault access");
+
+		findButton(document.body, "Cancel")?.click();
+		await promise;
+	});
+
 	it("DQL modal does NOT show the JavaScript vault-access warning", async () => {
 		const { store } = makeStore();
 		const gate = new ConsentGate(app, registry, dvSettings, store);
