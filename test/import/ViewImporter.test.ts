@@ -403,6 +403,36 @@ describe("ViewImporter.parse()", () => {
 
 		await expect(importer.parse(file)).resolves.toMatchObject({ engine: "dataviewjs" });
 	});
+
+	it("does NOT throw ENGINE_MISMATCH when sf-engine is a non-string value (silently ignored)", async () => {
+		const file = makeFile("views/nonstring-engine.md");
+		const content = [
+			"---",
+			"sf-view: true",
+			"sf-version: 1",
+			"sf-name: Non-string Engine",
+			"sf-engine: 42",
+			"---",
+			"",
+			"```dataviewjs",
+			"dv.list([])",
+			"```",
+		].join("\n");
+		wireVaultRead(app, file, content);
+		wireCache(app, file, {
+			"sf-view": true,
+			"sf-version": 1,
+			"sf-name": "Non-string Engine",
+			// Non-string sf-engine — intentionally ignored (only string values
+			// are cross-checked; a number never triggers ENGINE_MISMATCH).
+			"sf-engine": 42,
+		});
+
+		// parse() must RESOLVE to a valid ViewDefinition; engine is inferred
+		// from the fence language, not the ignored non-string sf-engine field.
+		const def = await importer.parse(file);
+		expect(def.engine).toBe("dataviewjs");
+	});
 });
 
 // ---------------------------------------------------------------------------
