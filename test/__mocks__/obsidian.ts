@@ -155,6 +155,21 @@ export class Component {
 		},
 	);
 
+	/**
+	 * load() — mirroring the real Obsidian Component.load().
+	 * The real Component.load() calls onload() and sets _loaded=true.
+	 * In tests, this is a no-op spy so assertions can verify it was called.
+	 */
+	load = vi.fn((): void => {});
+
+	/**
+	 * unload() — mirror of the real Obsidian Component.unload().
+	 * Calls _unload() to run cleanup functions (same as the real implementation).
+	 */
+	unload = vi.fn((): void => {
+		this._unload();
+	});
+
 	/** Run and clear every queued cleanup — simulates Obsidian unloading the component. */
 	_unload(): void {
 		const fns = this._cleanupFns;
@@ -808,6 +823,64 @@ export class Events {
 	on = vi.fn();
 	off = vi.fn();
 	trigger = vi.fn();
+}
+
+// ---------------------------------------------------------------------------
+// Dataview API mock (T3.2 — engine registry tests)
+//
+// A minimal test double faithful to Dataview v0.5.68:
+//   - execute / executeJs are vi.fn() spies (return resolved Promise)
+//   - version.satisfies returns true (passing the >=0.5.31 gate by default)
+//   - settings.enableDataviewJs defaults to false (safe default)
+//
+// Wired into App.plugins.plugins["dataview"].api so getDataviewApi() is
+// testable. Tests can override individual vi.fn() mocks per-test:
+//   dvApi.version.satisfies = vi.fn(() => false)  // simulate old version
+//   dvApi.settings.enableDataviewJs = false       // simulate DVJS disabled
+//   delete (app as any).plugins.plugins["dataview"]  // simulate absent Dataview
+// ---------------------------------------------------------------------------
+
+/** Minimal Dataview API test double (v0.5.68 shape). */
+export interface MockDataviewApi {
+	execute: ReturnType<typeof vi.fn>;
+	executeJs: ReturnType<typeof vi.fn>;
+	version: { satisfies: ReturnType<typeof vi.fn> };
+	settings: { enableDataviewJs: boolean };
+}
+
+/**
+ * Create a fresh Dataview API test double.
+ * By default version.satisfies returns true and enableDataviewJs is false.
+ */
+export function createMockDataviewApi(overrides?: Partial<{
+	satisfies: boolean;
+	enableDataviewJs: boolean;
+}>): MockDataviewApi {
+	return {
+		execute: vi.fn(async () => {}),
+		executeJs: vi.fn(async () => {}),
+		version: {
+			satisfies: vi.fn(() => overrides?.satisfies ?? true),
+		},
+		settings: {
+			enableDataviewJs: overrides?.enableDataviewJs ?? false,
+		},
+	};
+}
+
+/**
+ * Wire a MockDataviewApi onto an App instance at the standard plugin slot.
+ * After calling this, getDataviewApi(app) will return the mock api.
+ *
+ * To simulate Dataview absent: delete (app as any).plugins.
+ */
+export function wireDataviewApi(app: App, api: MockDataviewApi): void {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const anyApp = app as any;
+	if (!anyApp.plugins) {
+		anyApp.plugins = { plugins: {} };
+	}
+	anyApp.plugins.plugins["dataview"] = { api };
 }
 
 // --- Platform ---
