@@ -803,6 +803,22 @@ export class Events {
 	trigger = vi.fn();
 }
 
+// --- Platform ---
+
+/**
+ * Platform — mirrors the real Obsidian Platform object.
+ *
+ * isMobile / isDesktop are mutable so tests can override them per-test:
+ *   (Platform as { isMobile: boolean }).isMobile = true;
+ *
+ * The ConsentGate tests use vi.mock("obsidian") to override Platform globally.
+ * When NOT using vi.mock, tests can mutate Platform directly.
+ */
+export const Platform = {
+	isMobile: false,
+	isDesktop: true,
+};
+
 // --- Utilities ---
 
 export function normalizePath(path: string): string {
