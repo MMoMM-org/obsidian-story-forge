@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Integration & validation"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 5
 ---
@@ -35,7 +35,7 @@ phase: 5
 
 Validates the fully integrated M2 feature through cross-component integration tests, a live-vault seed + checklist, and a gate pass confirming 100% PRD coverage.
 
-- [ ] **T5.1 Integration & E2E tests** `[activity: testing]`
+- [x] **T5.1 Integration & E2E tests** `[activity: testing]`
 
   1. Prime: Read all four phase files (phase-1.md through phase-4.md) to understand the full component surface. Read `[ref: SDD/Runtime View — Flows A–E]` (the five sequenced flows to exercise). Read `[ref: PRD/Success Metrics — Tracking Requirements]` (the verification event table — each row in that table should map to one or more integration tests). Read `test/__mocks__/obsidian.ts` (`_runCleanup()`, Modal mock, Component mock, metadataCache mock — understand what integration-level setup is available).
   2. Test (RED): Write integration test files in `test/engines/`, `test/consent/`, `test/import/` that exercise the cross-component flows:
