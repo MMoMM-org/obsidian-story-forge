@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-07-15 |
-| **Current Phase** | SDD |
+| **Current Phase** | PLAN |
 | **Last Updated** | 2026-07-15 |
 | **PRD Completed** | 2026-07-15 |
 
@@ -15,7 +15,7 @@
 |----------|--------|-------|
 | requirements.md | completed | M2 PRD — Dataview adapter, consent gate, user-import flow |
 | solution.md | completed | M2 SDD — QueryEngine adapter, consent/checksum module, import parser, engine registry; ADR-1…9; mockups.html S11–S26 |
-| plan/ | pending | — |
+| plan/ | in_progress | 5 phases: P1 Foundation → (P2 Import ∥ P3 Engines) → P4 Integration → P5 Validation |
 
 **Status values**: `pending` | `in_progress` | `completed` | `skipped`
 
