@@ -103,4 +103,24 @@ describe("readFencedBlock", () => {
 		const result = await readFencedBlock(app, "views/empty-block.md");
 		expect(result).toEqual({ lang: "dataview", body: "" });
 	});
+
+	it("ignores a query-lang fence line INSIDE a non-query block body (W-1)", async () => {
+		// A ```text block whose body contains a line-start "```dataview" (e.g.
+		// documentation of a query) must NOT be counted as a query block. The
+		// parser must skip the body of any non-query fence. Only the real,
+		// top-level dataview block below it counts → exactly one → real block.
+		const content =
+			"# View\n\n" +
+			"```text\n" +
+			"```dataview\n" +
+			"LIST\n" +
+			"```\n" +
+			"\n" +
+			"```dataview\n" +
+			"REAL QUERY\n" +
+			"```\n";
+		const app = makeApp(content);
+		const result = await readFencedBlock(app, "views/nested.md");
+		expect(result).toEqual({ lang: "dataview", body: "REAL QUERY\n" });
+	});
 });
