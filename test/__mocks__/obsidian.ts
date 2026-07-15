@@ -651,10 +651,6 @@ class ButtonComponent {
 		this.buttonEl.classList.add("mod-warning");
 		return this;
 	});
-	setDestructive = vi.fn(() => {
-		this.buttonEl.classList.add("mod-destructive");
-		return this;
-	});
 	setIcon = vi.fn(() => this);
 	setTooltip = vi.fn((text: string) => {
 		this.buttonEl.setAttribute("aria-label", text);

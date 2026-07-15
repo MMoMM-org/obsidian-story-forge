@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { App, PluginSettingTab, augmentEl } from "../__mocks__/obsidian";
+import { App } from "../__mocks__/obsidian";
 import { SettingsTab } from "../../src/settings/SettingsTab";
 import { ViewStore } from "../../src/store/ViewStore";
 import { EngineRegistry } from "../../src/engines/QueryEngine";
@@ -113,19 +113,6 @@ function makeTab(
 async function renderTab(tab: SettingsTab): Promise<HTMLElement> {
 	await tab.displayAsync();
 	return tab.containerEl;
-}
-
-/**
- * Helper: find a Setting row by its name text.
- */
-function findSettingByName(container: HTMLElement, name: string): HTMLElement | null {
-	const allSettings = container.querySelectorAll("[data-setting-name]");
-	for (const el of allSettings) {
-		if (el.getAttribute("data-setting-name") === name) {
-			return el as HTMLElement;
-		}
-	}
-	return null;
 }
 
 /**
@@ -243,6 +230,28 @@ describe("SettingsTab — Views section", () => {
 		expect(enableBtn).not.toBeNull();
 		enableBtn!.click();
 		await vi.waitFor(() => expect(gate.requestConsent).toHaveBeenCalledWith("v1", expect.objectContaining({ engine: "dataview-dql" })));
+	});
+
+	it("dismissed consent (requestConsent returns false) does not call store.setRecord and row stays S25", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed: null, engine: "dataviewjs", commandName: "JS View" }) });
+		const registry = makeRegistryWith("dataviewjs");
+		const gate = makeConsentGate();
+		// Stub requestConsent to return false (user cancelled)
+		vi.mocked(gate.requestConsent).mockResolvedValue(false);
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		const tab = makeTab(app, store, registry, gate, makeImporter());
+		const container = await renderTab(tab);
+
+		const enableBtn = findButton(container, "Enable");
+		expect(enableBtn).not.toBeNull();
+		enableBtn!.click();
+
+		// Wait for requestConsent to be called then ensure no re-render happened
+		await vi.waitFor(() => expect(gate.requestConsent).toHaveBeenCalled());
+		// No store write on cancel
+		expect(setRecordSpy).not.toHaveBeenCalled();
+		// Row is still S25 — Enable button still present (no re-render occurred)
+		expect(findButton(container, "Enable")).not.toBeNull();
 	});
 
 	// -------------------------------------------------------------------------
