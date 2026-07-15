@@ -39,15 +39,17 @@ import {
 } from "../__mocks__/obsidian";
 
 import { ConsentGate } from "consent/ConsentGate";
-import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
+import type { EngineRegistryLike, DvSettingsReader, ConsentDecision } from "consent/ConsentGate";
 import { computeChecksum } from "consent/checksum";
 import { ViewImporter, ImportError } from "import/ViewImporter";
 import { ViewStore } from "store/ViewStore";
 import { EngineRegistry } from "engines/QueryEngine";
+import type { QueryEngine } from "engines/QueryEngine";
 import { buildEngineRegistry } from "engines/EngineRegistry";
 import { DataviewDqlEngine } from "engines/DataviewDqlEngine";
 import { DataviewJsEngine } from "engines/DataviewJsEngine";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
+import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { ViewRecord } from "store/types";
 import type { NoteContext } from "scoping/NoteContext";
@@ -410,6 +412,77 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 		const decision = await gate.evaluate(record);
 		expect(decision.status).toBe("engine-missing");
 	});
+
+	it("SidebarView with empty registry renders S11 engine-missing and calls nativeEngine.render (no crash)", async () => {
+		// This is the integration test for SDD Flow E: the actual render pipeline,
+		// not just individual components.
+		//
+		// Wire: real EngineRegistry (empty) + mock ConsentGate returning engine-missing
+		// + mock NativeScopingEngine + real SidebarView constructor
+		// (signature: leaf + registry + consentGate + nativeEngine — per T4.1)
+		const app = new App();
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		// Mark the leaf as the view's own leaf type so _doFollow guards pass
+		leaf.view.getViewType = vi.fn(() => SIDEBAR_VIEW_TYPE);
+
+		const emptyRegistry = new EngineRegistry([]);
+		const nativeEngine = {
+			kind: "native" as const,
+			teardown: vi.fn(),
+			render: vi.fn(async () => {}),
+		} as unknown as NativeScopingEngine;
+
+		// ConsentGate returns engine-missing (Dataview absent)
+		const mockGate = {
+			evaluate: vi.fn(async (): Promise<ConsentDecision> => ({ status: "engine-missing" })),
+			requestConsent: vi.fn(async () => false),
+			requestReConsent: vi.fn(async () => false),
+		} as unknown as ConsentGate;
+
+		// Construct SidebarView with the injected deps (T4.1 constructor signature)
+		const view = new SidebarView(leaf, emptyRegistry, mockGate, nativeEngine);
+		await view.onOpen();
+
+		// Set a currentRecord so the dispatch path reaches the engine lookup
+		const record: ViewRecord = {
+			provenance: "imported",
+			enabled: true,
+			okayed: { version: 1, checksum: "sha256:" + "a".repeat(64) },
+			source: "views/chars.md",
+			engine: "dataview-dql",
+			command: false,
+		};
+
+		const ctx: NoteContext = {
+			activeFile: createMockTFile({ path: "notes/scene1.md", basename: "scene1" }),
+			activeKind: "scene",
+			entities: [],
+			backlinks: [],
+			resolvedAt: Date.now(),
+		};
+
+		// Access the internal render entry point (same idiom as engineDispatch.test.ts)
+		const privateView = view as unknown as {
+			currentRecord: ViewRecord | null;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		privateView.currentRecord = record;
+
+		const body = view.contentEl.querySelector(".sf-body") as HTMLElement;
+		expect(body).not.toBeNull();
+
+		// Drive the render pipeline — must not throw
+		await expect(privateView._renderResolved(body, ctx)).resolves.not.toThrow();
+
+		// (a) S11 engine-missing element is in the DOM
+		expect(body.querySelector(".sf-engine-missing")).not.toBeNull();
+
+		// (b) native fallback ran (nativeEngine.render was called)
+		expect(nativeEngine.render).toHaveBeenCalled();
+
+		await view.onClose();
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -596,6 +669,11 @@ describe("Flow 5 — Re-consent on version drift", () => {
 // ---------------------------------------------------------------------------
 
 describe("Flow 6 — Kill-switch preserves okayed", () => {
+	afterEach(() => {
+		// Clear any stale modal DOM so button-count assertions start clean
+		document.body.innerHTML = "";
+	});
+
 	it("disabling a consented view keeps okayed intact; re-enabling returns consented without modal", async () => {
 		const originalBody = "LIST FROM #canon\n";
 		const checksum = await computeChecksum(originalBody);
@@ -652,6 +730,12 @@ describe("Flow 6 — Kill-switch preserves okayed", () => {
 		// If okayed had been wiped, we'd get not-consented here — proving
 		// the kill-switch preserved okayed and no re-consent is needed.
 		expect(decisionAfterReenable.status).toBe("consented");
+
+		// Explicit no-modal assertion: evaluate() alone sufficed — no DisclosureModal
+		// was opened at any point. The DisclosureModal.open() mounts buttons into
+		// document.body; zero buttons proves no modal was presented.
+		// (afterEach clears body between tests so count is clean)
+		expect(document.body.querySelectorAll("button").length).toBe(0);
 	});
 });
 
