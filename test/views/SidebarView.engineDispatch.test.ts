@@ -421,15 +421,32 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 		const ctx = makeNoteContext(file);
 		const record = makeViewRecord();
 
+		// Set a previous engine to verify teardown order (ADR-7)
+		const previousEngine = makeMockEngine("dataview-dql");
+		const callOrder: string[] = [];
+		previousEngine.teardown.mockImplementation(() => { callOrder.push("teardown"); });
+		nativeEngine.render.mockImplementation(async () => { callOrder.push("render"); });
+
 		const privateView = view as unknown as {
+			currentEngine: QueryEngine | null;
 			currentRecord: ViewRecord | null;
 			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
 		};
+		privateView.currentEngine = previousEngine;
 		privateView.currentRecord = record;
 
 		const body = getBody(view);
+		const bodyAugEl = body as unknown as { empty: () => void };
+		const origEmpty = bodyAugEl.empty.bind(bodyAugEl);
+		bodyAugEl.empty = vi.fn(() => {
+			callOrder.push("empty");
+			origEmpty();
+		});
+
 		await privateView._renderResolved(body, ctx);
 
+		// ADR-7: teardown → empty → render (enforced in native fallback branch too)
+		expect(callOrder).toEqual(["teardown", "empty", "render"]);
 		expect(body.querySelector(".sf-engine-missing")).not.toBeNull();
 		expect(nativeEngine.render).toHaveBeenCalled();
 	});
