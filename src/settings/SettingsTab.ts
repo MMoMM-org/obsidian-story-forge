@@ -133,11 +133,10 @@ export class SettingsTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setName(displayName)
 				.setDesc(`Engine ${record.engine} is missing or not installed — install Dataview to use this view.`)
-				.addButton((btn) =>
-					btn
-						.setButtonText("Remove")
-												.onClick(() => this._removeView(id)),
-				);
+				.addButton((btn) => {
+					btn.setButtonText("Remove").onClick(() => this._removeView(id));
+					btn.buttonEl.classList.add("mod-warning");
+				});
 			return;
 		}
 
@@ -151,11 +150,10 @@ export class SettingsTab extends PluginSettingTab {
 						.setButtonText("Disable")
 						.onClick(() => this._disableView(id, record)),
 				)
-				.addButton((btn) =>
-					btn
-						.setButtonText("Remove")
-												.onClick(() => this._removeView(id)),
-				);
+				.addButton((btn) => {
+					btn.setButtonText("Remove").onClick(() => this._removeView(id));
+					btn.buttonEl.classList.add("mod-warning");
+				});
 		} else {
 			// S25 — Disabled / Consent required
 			new Setting(containerEl)
@@ -167,11 +165,10 @@ export class SettingsTab extends PluginSettingTab {
 						.setCta()
 						.onClick(() => this._enableView(id, record)),
 				)
-				.addButton((btn) =>
-					btn
-						.setButtonText("Remove")
-												.onClick(() => this._removeView(id)),
-				);
+				.addButton((btn) => {
+					btn.setButtonText("Remove").onClick(() => this._removeView(id));
+					btn.buttonEl.classList.add("mod-warning");
+				});
 		}
 	}
 
@@ -182,18 +179,21 @@ export class SettingsTab extends PluginSettingTab {
 	private _disableView(id: string, record: ViewRecord): void {
 		void this.store
 			.setRecord(id, { ...record, enabled: false })
-			.then(() => this.displayAsync());
+			.then(() => this.displayAsync())
+			.catch((err) => console.error("[StoryForge] view action failed", err));
 	}
 
 	private _enableView(id: string, record: ViewRecord): void {
 		void this.gate
 			.requestConsent(id, record)
-			.then(() => this.displayAsync());
+			.then((granted) => granted ? this.displayAsync() : Promise.resolve())
+			.catch((err) => console.error("[StoryForge] view action failed", err));
 	}
 
 	private _removeView(id: string): void {
 		void this.store
 			.deleteRecord(id)
-			.then(() => this.displayAsync());
+			.then(() => this.displayAsync())
+			.catch((err) => console.error("[StoryForge] view action failed", err));
 	}
 }
