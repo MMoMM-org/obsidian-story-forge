@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Panel & settings integration"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 4
 ---
@@ -75,7 +75,7 @@ Wires all M2 components into the existing `SidebarView`, `SettingsTab`, and `mai
   4. Validate: unit tests pass (error display; duplicate path; bind invokes callback); `npm run lint`; `npm run typecheck`; `npm run typecheck:test`.
   - Success: picker lists all unimported `sf-view:true` notes `[ref: SDD/EARS F3]` `[ref: PRD/AC-F3.1]`; import errors shown inline, no ViewRecord created `[ref: PRD/AC-F3.3]` `[ref: PRD/AC-F3.4]`; bind pre-fills `sf-name` `[ref: PRD/AC-F3.6]`; after bind, tab appears in correct initial state `[ref: PRD/AC-F3.7]`.
 
-- [ ] **T4.4 main.ts wiring** `[activity: integration]`
+- [x] **T4.4 main.ts wiring** `[activity: integration]`
 
   1. Prime: Read `src/main.ts` in full (current M1 state). Read `[ref: SDD/Runtime View — Flow A]` (startup sequence: construct → `onLayoutReady` → detect Dataview → register late-join listener). Read `[ref: SDD/ADR-2]` (late-join via `registerEvent`). Read `[ref: SDD/Building Block View — Components diagram]` (wiring map). Read `[ref: SDD/Cross-Cutting Concepts — Lifecycle / Leaks]` (all events via `register*`). Read `[ref: SDD/Implementation Gotchas — Component.load() before dvApi]`.
   2. Test (RED): `onload` constructs `NativeScopingEngine`, `EngineRegistry` (empty initially), `ConsentGate`, and passes them to `SidebarView` and `SettingsTab` constructors; `onload` registers the late-join `dataview:api-ready` listener via `this.registerEvent(this.app.metadataCache.on("dataview:api-ready", ...))` so it is auto-cleaned on unload; after `workspace.onLayoutReady`: if Dataview present+version-ok, `buildEngineRegistry(app)` is called and the registry is populated; if Dataview absent, registry stays empty; late-join handler calls `buildEngineRegistry(app)` and updates the registry; `registerCommand` callback passed to `BindModal` calls `this.addCommand` and stores the command id; `removeCommand` is called when `store.deleteRecord` removes a view that had a registered command (verified via mock `addCommand`/`removeCommand` spy).
@@ -83,7 +83,7 @@ Wires all M2 components into the existing `SidebarView`, `SettingsTab`, and `mai
   4. Validate: unit tests pass (wiring: injected dependencies reach `SidebarView` via mock; late-join listener is registered via `registerEvent`; `_runCleanup()` from `test/__mocks__/obsidian.ts` shows the listener is cleaned up on unload); `npm run lint`; `npm run typecheck`; `npm run typecheck:test`.
   - Success: `main.ts` is thin (no business logic, wiring only) `[ref: SDD/Solution Strategy — "thin-main.ts / injected-dependency convention"]`; late-join listener auto-cleaned on unload `[ref: SDD/ADR-2]` `[ref: SDD/Cross-Cutting Concepts — Lifecycle / Leaks]`; Dataview engines available after late-join without plugin reload `[ref: SDD/EARS F1 — "THE SYSTEM SHALL register the Dataview engines via the dataview:api-ready listener"]` `[ref: PRD/AC-F1.8]`; plugin reload restores all views from `data.json` `[ref: PRD/AC-F4.6]`.
 
-- [ ] **T4.5 Phase Validation** `[activity: validate]`
+- [x] **T4.5 Phase Validation** `[activity: validate]`
 
   - Run `npm test` (all Phase 4 tests pass). Run `npm run lint`. Run `npm run typecheck`. Run `npm run typecheck:test`. Run `npm run build` (confirm production bundle builds without errors).
   - Verify: `onClose` teardown confirmed by test; teardown → empty → render order confirmed by spy sequence; `_runCleanup()` confirms late-join listener is registered and auto-cleaned; import picker error messages are exactly `"No query block found"` and `"View definitions must contain exactly one query block"` (string-match in test); no `innerHTML` with user-supplied data anywhere in new UI code (ESLint `no-unsanitized` or manual audit). All `[ref: SDD/ADR-1]`, `[ref: SDD/ADR-7]`, `[ref: SDD/ADR-8]`, `[ref: PRD/Feature 1]`, `[ref: PRD/Feature 3]`, `[ref: PRD/Feature 4]` acceptance criteria covered.
