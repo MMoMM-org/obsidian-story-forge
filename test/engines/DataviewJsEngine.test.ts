@@ -111,7 +111,7 @@ describe("DataviewJsEngine", () => {
 
 			await engine.render(makeView(), makeCtx(), el);
 
-			expect(el.textContent).toBeTruthy();
+			expect(el.textContent).toContain("JavaScript queries are disabled");
 			expect(dvApi.executeJs).not.toHaveBeenCalled();
 		});
 	});
@@ -124,7 +124,7 @@ describe("DataviewJsEngine", () => {
 
 			await engine.render(makeView(), makeCtx(), el);
 
-			expect(el.textContent).toBeTruthy();
+			expect(el.textContent).toContain("source missing");
 			expect(dvApi.executeJs).not.toHaveBeenCalled();
 		});
 	});
@@ -206,6 +206,43 @@ describe("DataviewJsEngine", () => {
 
 			expect(secondComponent).toBeDefined();
 			expect(secondComponent).not.toBe(firstComponent);
+		});
+	});
+
+	describe("error self-cleanup (W1)", () => {
+		it("unloads Component when dvApi.executeJs throws (no leak)", async () => {
+			const dvApi = createMockDataviewApi({ satisfies: true, enableDataviewJs: true });
+			wireDataviewApi(app, dvApi);
+			vi.mocked(readFencedBlock).mockResolvedValue({ lang: "dataviewjs", body: "dv.list()" });
+
+			let capturedComponent: { load: ReturnType<typeof vi.fn>; unload: ReturnType<typeof vi.fn> } | undefined;
+			vi.mocked(dvApi.executeJs).mockImplementation(async (_body, _el, comp) => {
+				capturedComponent = comp as typeof capturedComponent;
+				throw new Error("dv error");
+			});
+
+			await expect(engine.render(makeView(), makeCtx(), el)).rejects.toThrow("dv error");
+
+			expect(capturedComponent).toBeDefined();
+			expect(capturedComponent!.unload).toHaveBeenCalled();
+		});
+
+		it("creates a fresh Component on subsequent render after executeJs error", async () => {
+			const dvApi = createMockDataviewApi({ satisfies: true, enableDataviewJs: true });
+			wireDataviewApi(app, dvApi);
+			vi.mocked(readFencedBlock).mockResolvedValue({ lang: "dataviewjs", body: "dv.list()" });
+			vi.mocked(dvApi.executeJs).mockRejectedValue(new Error("dv error"));
+
+			await expect(engine.render(makeView(), makeCtx(), el)).rejects.toThrow("dv error");
+
+			// Second render should succeed and create a fresh Component
+			vi.mocked(dvApi.executeJs).mockResolvedValue(undefined);
+			el.empty();
+
+			await engine.render(makeView(), makeCtx(), el);
+			const freshComponent = vi.mocked(dvApi.executeJs).mock.calls[0]?.[2] as { load: ReturnType<typeof vi.fn> };
+			expect(freshComponent).toBeDefined();
+			expect(freshComponent.load).toHaveBeenCalled();
 		});
 	});
 

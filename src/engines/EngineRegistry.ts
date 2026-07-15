@@ -35,7 +35,7 @@ export function getDataviewApi(app: App): DataviewApi | undefined {
 	const api: unknown = (app as any).plugins?.plugins?.["dataview"]?.api;
 	if (!api || typeof api !== "object") return undefined;
 	const typed = api as DataviewApi;
-	if (!typed.version.satisfies(">=0.5.31")) return undefined;
+	if (!typed.version?.satisfies?.(">=0.5.31")) return undefined;
 	return typed;
 }
 

@@ -10,7 +10,7 @@
  *  - registered engines have correct kind discriminants
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { App, createMockDataviewApi, wireDataviewApi } from "../__mocks__/obsidian";
 import { getDataviewApi, buildEngineRegistry } from "engines/EngineRegistry";
 import { EngineRegistry } from "engines/QueryEngine";
@@ -55,6 +55,22 @@ describe("getDataviewApi", () => {
 		const result = getDataviewApi(app);
 
 		expect(result).toBeUndefined();
+	});
+
+	it("returns undefined (not a throw) when api has no version property (W3)", () => {
+		// Wire an api object that is present but has NO version property
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(app as any).plugins = {
+			plugins: {
+				dataview: {
+					api: { execute: vi.fn(), executeJs: vi.fn(), settings: {} },
+				},
+			},
+		};
+
+		// Must return undefined gracefully, not throw
+		expect(() => getDataviewApi(app)).not.toThrow();
+		expect(getDataviewApi(app)).toBeUndefined();
 	});
 
 	it("calls version.satisfies with '>=0.5.31'", () => {

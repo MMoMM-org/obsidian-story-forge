@@ -77,7 +77,16 @@ export class DataviewJsEngine implements QueryEngine {
 		this.component.load();
 
 		// KEY: filePath is the PANEL SUBJECT's path, NOT view.source (ADR-3)
-		await dvApi.executeJs(block.body, el, this.component, ctx.activeFile.path);
+		try {
+			await dvApi.executeJs(block.body, el, this.component, ctx.activeFile.path);
+		} catch (err) {
+			// Self-clean the loaded Component so it is never leaked on error (W1).
+			// teardown() will not be called by the caller after a throw, so we must
+			// unload here before re-throwing.
+			this.component?.unload();
+			this.component = null;
+			throw err;
+		}
 	}
 
 	/**
