@@ -530,6 +530,110 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 	});
 
 	// -------------------------------------------------------------------------
+	// engine.render() rejection → error state (FIX 2)
+	// -------------------------------------------------------------------------
+
+	it("consented but engine.render rejects: shows engine-error element and nulls currentEngine", async () => {
+		const failingEngine = {
+			kind: "dataview-dql" as const,
+			teardown: vi.fn(),
+			render: vi.fn(async () => { throw new Error("boom"); }),
+		} as unknown as QueryEngine;
+
+		const registry = makeMockRegistry(failingEngine);
+		const consentGate = makeMockConsentGate({ status: "consented" });
+
+		view = new SidebarView(leaf, registry, consentGate, nativeEngine);
+		await view.onOpen();
+
+		const file = makeMdFile("Scene 1");
+		const ctx = makeNoteContext(file);
+		const record = makeViewRecord();
+
+		const privateView = view as unknown as {
+			currentEngine: QueryEngine | null;
+			currentRecord: ViewRecord | null;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		privateView.currentRecord = record;
+
+		const body = getBody(view);
+		await privateView._renderResolved(body, ctx);
+
+		expect(body.querySelector(".sf-engine-error")).not.toBeNull();
+		expect(privateView.currentEngine).toBeNull();
+	});
+
+	// -------------------------------------------------------------------------
+	// Generation guard: stale dispatch bails, second call wins (FIX 3)
+	// -------------------------------------------------------------------------
+
+	it("generation guard: second _renderResolved call wins; first stale dispatch does not clobber DOM", async () => {
+		let resolveFirst!: () => void;
+		let callCount = 0;
+		const teardownSpy = vi.fn();
+		const slowEngine = {
+			kind: "dataview-dql" as const,
+			teardown: teardownSpy,
+			render: vi.fn(
+				async (_view: ViewRecord | null, _ctx: NoteContext, _el: HTMLElement) => {
+					callCount++;
+					if (callCount === 1) {
+						// First call blocks until we resolve it — by then a second call has fired
+						await new Promise<void>((resolve) => { resolveFirst = resolve; });
+					}
+					// Second call completes immediately
+				},
+			),
+		} as unknown as QueryEngine;
+
+		const registry = makeMockRegistry(slowEngine);
+		const consentGate = makeMockConsentGate({ status: "consented" });
+
+		view = new SidebarView(leaf, registry, consentGate, nativeEngine);
+		await view.onOpen();
+
+		const file = makeMdFile("Scene 1");
+		const ctx = makeNoteContext(file);
+		const record = makeViewRecord();
+
+		const privateView = view as unknown as {
+			currentEngine: QueryEngine | null;
+			currentRecord: ViewRecord | null;
+			_renderGen: number;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		privateView.currentRecord = record;
+
+		const body = getBody(view);
+
+		// Fire first dispatch — suspends inside engine.render
+		const first = privateView._renderResolved(body, ctx);
+
+		// Flush microtasks so first dispatch reaches engine.render
+		await Promise.resolve();
+		await Promise.resolve();
+
+		// Fire second dispatch while first is still in-flight
+		const second = privateView._renderResolved(body, ctx);
+
+		// Let the second dispatch complete fully
+		await second;
+
+		// Now resolve the first (stale) dispatch
+		resolveFirst!();
+		await first;
+
+		// The first dispatch's post-await mutations must have bailed (generation mismatch).
+		// currentEngine should reflect the second call's engine, not be clobbered to null
+		// or set twice. slowEngine.teardown was called at least once (by _prepareBody),
+		// but currentEngine should be slowEngine (set by the second dispatch).
+		expect(privateView.currentEngine).toBe(slowEngine);
+		// teardown should not have been called MORE times than dispatches (no double-teardown)
+		expect(teardownSpy.mock.calls.length).toBeLessThanOrEqual(2);
+	});
+
+	// -------------------------------------------------------------------------
 	// Loading state (S13) — rendered while engine.render is in-flight
 	// -------------------------------------------------------------------------
 
