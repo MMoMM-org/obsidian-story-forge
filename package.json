@@ -8,6 +8,7 @@
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"typecheck": "tsc --noEmit",
+		"typecheck:test": "tsc --noEmit -p tsconfig.test.json",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
