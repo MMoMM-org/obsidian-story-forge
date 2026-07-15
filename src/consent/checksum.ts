@@ -1,15 +1,16 @@
 /**
  * checksum.ts — byte-exact SHA-256 over fenced block source.
  *
- * Desktop-only: uses node:crypto via a dynamic import so the mobile bundle
- * is never broken. Call sites must guard with Platform.isDesktop.
+ * Cross-platform: uses the Web Crypto API (`crypto.subtle.digest`), which is
+ * available on desktop Electron AND mobile webviews. DQL views use this
+ * checksum for consent/drift and must run on all platforms — a desktop-only
+ * checksum would crash DQL on mobile (ADR-4, corrected 2026-07-15).
  *
  * Output format: "sha256:<64-char lowercase hex>"
  * CRLF vs LF: NOT normalised — byte-exact by design (ADR-4).
  *
  * @ref SDD/Interface Specifications — Checksum
- * @ref SDD/ADR-4 (byte-exact, CRLF ≠ LF, dynamic import, desktop-only)
- * @ref SDD/Implementation Gotchas (node:crypto must be a dynamic import)
+ * @ref SDD/ADR-4 (byte-exact SHA-256 via Web Crypto, CRLF ≠ LF, cross-platform)
  */
 
 /**
@@ -25,14 +26,13 @@ export type Checksum = `sha256:${string}`;
  * - Encoding: UTF-8 bytes (via TextEncoder).
  * - CRLF vs LF: NOT normalised — CRLF ≠ LF by design.
  * - Output: "sha256:<64-char hex>".
- * - node:crypto is imported dynamically so the mobile bundle never imports it.
- *
- * @throws Error if node:crypto is unavailable (mobile guard should prevent this).
+ * - Uses the cross-platform Web Crypto API (`crypto.subtle.digest`).
  */
-export async function computeChecksum(source: string): Promise<string> {
-	// eslint-disable-next-line import/no-nodejs-modules -- dynamic import: mobile bundle never executes this path; call sites guard with Platform.isDesktop (ADR-4, CON-7)
-	const { createHash } = await import("node:crypto");
+export async function computeChecksum(source: string): Promise<Checksum> {
 	const bytes = new TextEncoder().encode(source);
-	const hash = createHash("sha256").update(bytes).digest("hex");
-	return `sha256:${hash}`;
+	const digest = await crypto.subtle.digest("SHA-256", bytes);
+	const hex = [...new Uint8Array(digest)]
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
+	return `sha256:${hex}`;
 }
