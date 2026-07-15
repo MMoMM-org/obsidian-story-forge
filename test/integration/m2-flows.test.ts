@@ -27,7 +27,7 @@
  * @ref SDD/ADR-2 (late-join listener auto-cleaned)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
 	App,
 	TFile,
@@ -44,7 +44,6 @@ import { computeChecksum } from "consent/checksum";
 import { ViewImporter, ImportError } from "import/ViewImporter";
 import { ViewStore } from "store/ViewStore";
 import { EngineRegistry } from "engines/QueryEngine";
-import type { QueryEngine } from "engines/QueryEngine";
 import { buildEngineRegistry } from "engines/EngineRegistry";
 import { DataviewDqlEngine } from "engines/DataviewDqlEngine";
 import { DataviewJsEngine } from "engines/DataviewJsEngine";
@@ -433,7 +432,9 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 			render: vi.fn(async () => {}),
 		} as unknown as NativeScopingEngine;
 
-		// ConsentGate returns engine-missing (Dataview absent)
+		// mockGate is set up but NEVER called — the registry-miss short-circuit
+		// in _renderResolved returns before reaching consentGate.evaluate().
+		// This is the registry-miss branch (S11), not the consent engine-missing path.
 		const mockGate = {
 			evaluate: vi.fn(async (): Promise<ConsentDecision> => ({ status: "engine-missing" })),
 			requestConsent: vi.fn(async () => false),
@@ -474,6 +475,9 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 
 		// Drive the render pipeline — must not throw
 		await expect(privateView._renderResolved(body, ctx)).resolves.not.toThrow();
+
+		// consentGate.evaluate() is NEVER called — the registry-miss path short-circuits
+		expect(mockGate.evaluate).not.toHaveBeenCalled();
 
 		// (a) S11 engine-missing element is in the DOM
 		expect(body.querySelector(".sf-engine-missing")).not.toBeNull();
