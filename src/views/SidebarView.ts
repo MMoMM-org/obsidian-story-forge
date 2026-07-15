@@ -574,9 +574,10 @@ export class SidebarView extends ItemView {
 		// Look up wired engine; undefined means Dataview absent or unwired kind
 		const engine = this.registry.get(view.engine);
 		if (!engine) {
-			// S11 engine-missing — also render native fallback below the hint
-			this._renderEngineMissing(body, view.engine);
+			// S11 engine-missing — ADR-7: teardown → empty → repaint hint → native render
 			this.currentEngine?.teardown();
+			body.empty();
+			this._renderEngineMissing(body, view.engine);   // S11 hint repainted after empty
 			await this.nativeEngine.render(view, ctx, body);
 			this.currentEngine = this.nativeEngine;
 			return;
