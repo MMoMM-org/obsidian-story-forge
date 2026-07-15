@@ -186,8 +186,10 @@ describe("ScopingService.resolve", () => {
 		const ctx = service.resolve(sceneFile);
 
 		expect(ctx.entities).toHaveLength(2);
-		expect(ctx.entities[0].field).toBe("characters");
-		expect(ctx.entities[1].field).toBe("characters");
+		const e0 = ctx.entities[0];
+		const e1 = ctx.entities[1];
+		expect(e0?.field).toBe("characters");
+		expect(e1?.field).toBe("characters");
 	});
 
 	// -------------------------------------------------------------------------

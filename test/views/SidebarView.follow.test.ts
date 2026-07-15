@@ -169,7 +169,7 @@ describe("SidebarView: follow lifecycle", () => {
 		}));
 
 		// Pin the subject
-		(view as unknown as { subject: { source: string } }).subject = {
+		(view as unknown as { subject: { file: unknown; source: string } }).subject = {
 			file,
 			source: "pinned",
 		};
