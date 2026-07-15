@@ -305,22 +305,6 @@ describe("ConsentGate.evaluate()", () => {
 		expect(result).toEqual({ status: "engine-missing" });
 	});
 
-	// T1.3 stubs --------------------------------------------------------
-
-	it("requestConsent is a stub returning false at T1.3", async () => {
-		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
-		const result = await gate.requestConsent("test-id", makeRecord({ okayed: null }));
-		expect(result).toBe(false);
-	});
-
-	it("requestReConsent is a stub returning false at T1.3", async () => {
-		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
-		const result = await gate.requestReConsent(
-			"test-id",
-			makeRecord({ okayed: { version: 1, checksum: "sha256:abc" } }),
-		);
-		expect(result).toBe(false);
-	});
+	// requestConsent / requestReConsent modal behaviour is tested in
+	// test/consent/DisclosureModal.test.ts (T1.4).
 });

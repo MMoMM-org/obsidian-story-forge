@@ -14,6 +14,7 @@ import { Platform, TFile } from "obsidian";
 import type { App } from "obsidian";
 import { readFencedBlock } from "import/fencedBlock";
 import { computeChecksum } from "consent/checksum";
+import { DisclosureModal } from "consent/DisclosureModal";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 
@@ -136,22 +137,76 @@ export class ConsentGate {
 
 	/**
 	 * Open the full DataviewJS disclosure modal (S20) or DQL light confirm (S21).
+	 * On "Enable": reads fenced block fresh, computes checksum, writes
+	 * okayed:{version,checksum}+enabled:true via store.setRecord() in ONE call.
+	 * On Cancel/Escape: no write.
 	 *
-	 * STUB at T1.3 — completed in T1.4 (DisclosureModal).
-	 * Returns false (user did not consent) until T1.4 implements the modal.
+	 * @returns true if the user granted consent; false if dismissed.
 	 */
-	async requestConsent(_id: string, _record: ViewRecord): Promise<boolean> {
-		return false;
+	async requestConsent(id: string, record: ViewRecord): Promise<boolean> {
+		return this._openModal(id, record, false);
 	}
 
 	/**
-	 * Open the re-consent modal (S23 for DataviewJS; light-confirm for DQL).
+	 * Open the re-consent modal (S23 for DataviewJS; same light-confirm for DQL).
+	 * Triggered when evaluate() returns { status: "drift" }.
+	 * Same write semantics as requestConsent.
 	 *
-	 * STUB at T1.3 — completed in T1.4 (DisclosureModal).
-	 * Returns false (user did not re-consent) until T1.4 implements the modal.
+	 * @returns true if the user re-granted consent; false if dismissed.
 	 */
-	async requestReConsent(_id: string, _record: ViewRecord): Promise<boolean> {
-		return false;
+	async requestReConsent(id: string, record: ViewRecord): Promise<boolean> {
+		return this._openModal(id, record, true);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Modal dispatch (shared by requestConsent and requestReConsent)
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Open the appropriate modal variant, await the user's decision, and if
+	 * "Enable" was clicked: read the fenced block fresh, compute its checksum,
+	 * and write okayed+enabled to the store in a single setRecord call (ADR-4).
+	 */
+	private async _openModal(
+		id: string,
+		record: ViewRecord,
+		isDrift: boolean,
+	): Promise<boolean> {
+		const variant =
+			record.engine === "dataviewjs" ? "dataviewjs-full" : "dql-light";
+
+		// Read the fenced block fresh to populate the modal and compute checksum.
+		// If the source is missing, we cannot show the modal — fail-closed.
+		const block = await readFencedBlock(this.app, record.source);
+		if (block === null) {
+			return false;
+		}
+
+		const checksum = await computeChecksum(block.body);
+		const version = this._readVersion(record.source);
+
+		const modal = new DisclosureModal(this.app, variant, {
+			name: record.commandName ?? record.source,
+			description: record.description,
+			sourcePath: record.source,
+			source: block.body,
+			checksum,
+			isDrift,
+		});
+
+		const granted = await modal.present();
+
+		if (granted) {
+			// Single setRecord call with okayed+enabled:true (ADR-4/ADR-5)
+			await this.store.setRecord(id, {
+				...record,
+				enabled: true,
+				okayed: { version, checksum },
+			});
+		}
+		// On Cancel: no write, no state mutation
+
+		return granted;
 	}
 
 	// ---------------------------------------------------------------------------
