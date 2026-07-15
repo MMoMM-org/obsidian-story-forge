@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — query engine mockups (M2)</title>
+<style>
+  :root{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --accent-dim:#5b4fb0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    --warn:#e0a34a; --error-bg:#2a1f1f;
+    --char:#8a7cf0; --loc:#4ea3a3; --scene:#5aa0c9;
+    --dql:#5aa0c9; --dvjs:#c98b5a; --missing:#9a5a5a;
+    --overlay:rgba(0,0,0,.62);
+    --modal:#252525; --modal-border:#3e3e3e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:26px 0 12px}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:78ch}
+  .sub code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .legend{color:var(--muted);font-size:12.5px;max-width:78ch;margin:0 0 22px}
+  .legend b{color:var(--text)}
+  .gallery{display:flex;flex-wrap:wrap;gap:26px 22px;align-items:flex-start}
+  figure{margin:0;width:300px}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px}
+  figcaption b{color:var(--text);font-weight:600}
+  figcaption .m2{color:var(--accent)}
+  .note{font-size:11px;color:var(--faint);margin-top:6px}
+
+  /* ── Panel chrome (same as M1) ── */
+  .panel{width:300px;min-height:236px;background:var(--panel);
+    border:1px solid var(--border);border-radius:8px;overflow:hidden;
+    display:flex;flex-direction:column;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .vhead{display:flex;align-items:center;gap:8px;padding:7px 10px;
+    background:var(--header);border-bottom:1px solid var(--border)}
+  .vhead .name{font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--faint);font-weight:600;flex:1}
+  .icons{display:flex;gap:6px}
+  .icons span{width:20px;height:20px;display:grid;place-items:center;border-radius:4px;
+    color:var(--faint);font-size:12px}
+  .icons span.on{color:var(--accent)}
+  .icons span.pin.active{color:var(--accent);background:rgba(124,108,240,.15)}
+
+  .chead{display:flex;align-items:center;gap:8px;padding:9px 11px;border-bottom:1px solid var(--border)}
+  .chead .title{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;flex:1}
+  .badge{font-size:10px;text-transform:lowercase;padding:1px 8px;border-radius:10px;
+    background:var(--pill);color:var(--pill-text);white-space:nowrap}
+  .badge.none{background:transparent;color:var(--faint);border:1px solid var(--border-2)}
+  .badge.character{background:rgba(138,124,240,.16);color:var(--char)}
+  .badge.location{background:rgba(78,163,163,.16);color:var(--loc)}
+  .badge.scene{background:rgba(90,160,201,.16);color:var(--scene)}
+  .badge.dql{background:rgba(90,160,201,.16);color:var(--dql)}
+  .badge.dvjs{background:rgba(201,139,90,.16);color:var(--dvjs)}
+  .badge.missing{background:rgba(154,90,90,.16);color:var(--missing)}
+
+  .tabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--border)}
+  .tabs .tab{font-size:12px;padding:5px 11px;border-radius:6px 6px 0 0;color:var(--muted)}
+  .tabs .tab.sel{background:var(--panel-2);color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+
+  .body{padding:12px;flex:1;display:flex;flex-direction:column;gap:8px}
+  .empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;color:var(--muted);gap:8px;padding:8px 6px}
+  .empty .ic{font-size:22px;opacity:.7}
+  .empty .lead{color:var(--text);font-weight:600}
+  .empty .hint{font-size:12px;color:var(--faint)}
+  .empty a{color:var(--accent);text-decoration:none}
+
+  .skel{height:11px;border-radius:5px;background:linear-gradient(90deg,#2a2a2a,#333,#2a2a2a)}
+  .resolving{color:var(--faint);font-size:12px}
+  .errbox{background:var(--error-bg);border:1px solid #4a3030;border-radius:6px;padding:10px;
+    color:#e6c9a0;font-size:12.5px;display:flex;flex-direction:column;gap:8px}
+  .btn{align-self:flex-start;font-size:12px;padding:3px 12px;border:1px solid var(--border-2);
+    border-radius:5px;color:var(--text);background:var(--panel-2);cursor:pointer}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.danger{background:transparent;border-color:#6b3030;color:#e6b3a0}
+
+  /* ── Query result table ── */
+  .qtable{width:100%;border-collapse:collapse;font-size:12px}
+  .qtable th{color:var(--faint);font-weight:600;text-transform:uppercase;font-size:10px;
+    letter-spacing:.04em;padding:0 6px 4px 0;border-bottom:1px solid var(--border);text-align:left}
+  .qtable td{padding:4px 6px 4px 0;border-bottom:1px solid var(--border-2);color:var(--text);vertical-align:middle}
+  .qtable tr:last-child td{border-bottom:none}
+  .qlnk{color:var(--accent);text-decoration:none}
+
+  /* ── Consent CTA block ── */
+  .cta-block{background:var(--panel-2);border:1px solid var(--border-2);border-radius:6px;
+    padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+  .cta-block .cta-title{font-weight:600;color:var(--text);font-size:12.5px}
+  .cta-block .cta-body{font-size:12px;color:var(--muted)}
+  .cta-block .cta-warn{font-size:11px;color:var(--warn)}
+
+  /* ── Warn banner (re-consent) ── */
+  .warnbanner{background:rgba(224,163,74,.10);border:1px solid rgba(224,163,74,.30);
+    border-radius:6px;padding:8px 10px;font-size:12px;color:var(--warn);
+    display:flex;flex-direction:column;gap:6px}
+
+  table{border-collapse:collapse;font-size:12.5px;margin-top:4px}
+  th,td{text-align:left;padding:5px 14px 5px 0;color:var(--muted);border-bottom:1px solid var(--border)}
+  th{color:var(--text)}
+  .rev{margin-top:20px;max-width:82ch}
+
+  /* ── Modals ── */
+  .modal-wrap{position:relative;width:100%;margin:0}
+  .modal-scene{background:var(--bg);border:1px solid var(--border);border-radius:8px;
+    overflow:hidden;position:relative}
+  .modal-overlay{position:absolute;inset:0;background:var(--overlay);display:flex;
+    align-items:center;justify-content:center;z-index:10}
+  .modal{background:var(--modal);border:1px solid var(--modal-border);border-radius:10px;
+    width:272px;display:flex;flex-direction:column;gap:0;box-shadow:0 8px 32px rgba(0,0,0,.6);
+    overflow:hidden}
+  .modal-head{padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+  .modal-head .mtitle{font-weight:700;font-size:14px;color:var(--text)}
+  .modal-head .msub{font-size:12px;color:var(--muted);margin-top:2px}
+  .modal-body{padding:12px 16px;display:flex;flex-direction:column;gap:10px;max-height:260px;overflow-y:auto}
+  .modal-foot{padding:10px 16px 14px;border-top:1px solid var(--border);
+    display:flex;gap:8px;justify-content:flex-end}
+
+  /* import picker list */
+  .pick-search{width:100%;background:var(--panel-2);border:1px solid var(--border-2);
+    border-radius:5px;padding:5px 9px;font-size:12.5px;color:var(--text);outline:none}
+  .pick-list{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+  .pick-row{display:flex;align-items:flex-start;gap:8px;padding:7px 8px;
+    border-radius:6px;cursor:pointer;border:1px solid transparent}
+  .pick-row:hover,.pick-row.sel{background:rgba(124,108,240,.08);border-color:var(--border-2)}
+  .pick-row.imported{opacity:.55}
+  .pick-info{flex:1;display:flex;flex-direction:column;gap:2px}
+  .pick-name{font-size:12.5px;font-weight:600;color:var(--text)}
+  .pick-desc{font-size:11px;color:var(--muted)}
+  .pick-path{font-size:10px;color:var(--faint)}
+  .pick-meta{display:flex;gap:5px;align-items:center;margin-top:2px}
+  .already{font-size:10px;color:var(--faint);font-style:italic}
+
+  /* full disclosure source block */
+  .src-pre{background:var(--panel-2);border:1px solid var(--border-2);border-radius:5px;
+    padding:8px;font:12px/1.45 "Fira Mono",Consolas,monospace;color:#a8d8a0;
+    overflow-y:auto;max-height:88px;white-space:pre-wrap;word-break:break-all}
+  .checksum{font:11px/1.4 "Fira Mono",Consolas,monospace;color:var(--faint);
+    background:var(--panel-2);padding:3px 6px;border-radius:4px;word-break:break-all}
+  .sec-warn{background:rgba(224,163,74,.10);border:1px solid rgba(224,163,74,.30);
+    border-radius:6px;padding:8px 10px;font-size:12px;color:var(--warn)}
+
+  /* bind checkboxes */
+  .bind-group{display:flex;flex-direction:column;gap:10px}
+  .bind-row{display:flex;flex-direction:column;gap:4px}
+  .bind-check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text)}
+  .bind-check input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px}
+  .bind-input{margin-left:21px;background:var(--panel-2);border:1px solid var(--border-2);
+    border-radius:5px;padding:4px 8px;font-size:12px;color:var(--text);width:calc(100% - 21px)}
+
+  /* settings rows */
+  .settings-frame{width:100%;background:var(--panel);border:1px solid var(--border);
+    border-radius:8px;overflow:hidden;font-size:13px}
+  .settings-head{padding:9px 14px;background:var(--header);border-bottom:1px solid var(--border);
+    font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:600}
+  .setting-row{display:flex;align-items:center;gap:10px;padding:10px 14px;
+    border-bottom:1px solid var(--border-2)}
+  .setting-row:last-child{border-bottom:none}
+  .sr-info{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+  .sr-name{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .sr-path{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sr-badges{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+  .sr-actions{display:flex;gap:6px;align-items:center;flex-shrink:0}
+  .toggle{width:32px;height:18px;border-radius:9px;display:inline-block;
+    background:var(--border-2);position:relative;flex-shrink:0}
+  .toggle::after{content:"";position:absolute;left:3px;top:3px;width:12px;height:12px;
+    border-radius:50%;background:var(--faint);transition:transform .15s}
+  .toggle.on{background:var(--accent)}
+  .toggle.on::after{transform:translateX(14px);background:#fff}
+  .smol-btn{font-size:11px;padding:2px 9px;border:1px solid var(--border-2);
+    border-radius:4px;color:var(--muted);background:transparent;cursor:pointer;white-space:nowrap}
+  .smol-btn.remove{border-color:#4a3030;color:var(--missing)}
+  .badge.consent-req{background:rgba(224,163,74,.15);color:var(--warn);border:1px solid rgba(224,163,74,.25)}
+  .badge.engine-miss{background:rgba(154,90,90,.15);color:var(--missing);border:1px solid rgba(154,90,90,.25)}
+</style>
+</head>
+<body>
+  <h1>Story Forge — query engine mockups (M2)</h1>
+  <p class="sub">Visual source of truth for the Dataview query engine, consent gate, import/bind modals, and
+  settings rows. Rendered in the Obsidian dark-sidebar palette. Engine badges: <span class="badge dql">dql</span>
+  = declarative, read-only; <span class="badge dvjs">dataviewjs</span> = arbitrary JavaScript, consent-gated.</p>
+  <p class="legend">
+    <b>Panel body states (S11–S18):</b> use the M1 panel chrome (vhead + chead + tabs + body). The active tab
+    is "Characters in Scene" (a DataviewJS or DQL view). &nbsp;
+    <b>Modals (S19–S23):</b> floating cards overlay a dimmed background.&nbsp;
+    <b>Settings rows (S24–S26):</b> the Manage Views list inside the plugin settings tab.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>Panel body states (M2)</h2>
+  <div class="gallery">
+
+    <!-- S11 Engine missing -->
+    <figure>
+      <figcaption><b>S11 · Engine missing</b> — Dataview not installed</figcaption>
+      <div class="panel">
+        <div class="vhead"><span class="name">Story Forge</span>
+          <div class="icons"><span class="on">⇅</span><span class="pin">📌</span></div></div>
+        <div class="chead"><span class="title">Scene 1 - The Extinguished…</span><span class="badge scene">scene</span></div>
+        <div class="tabs">
+          <div class="tab sel">Characters in Scene</div>
+          <div class="tab">Context</div>
+        </div>
+        <div class="body"><div class="empty">
+          <div class="ic">⚙</div>
+          <div class="lead">Dataview not installed</div>
+          <div>This view requires the <b>Dataview</b> community plugin.</div>
+          <div class="hint"><a href="#">→ Install Dataview</a></div>
+          <div class="hint" style="margin-top:4px">The <b>Context</b> tab is still available via the native engine.</div>
+        </div></div>
+      </div>
+      <div class="note">Other tabs (native engine) remain usable. Only this Dataview-backed view is blocked.</div>
+    </figure>
+
+    <!-- S12 Consent required (DataviewJS) -->
+    <figure>
+      <figcaption><b>S12 · Consent required</b> — DataviewJS, not yet enabled</figcaption>
+      <div class="panel">
+        <div class="vhead"><span class="name">Story Forge</span>
+          <div class="icons"><span class="on">⇅</span><span class="pin">📌</span></div></div>
+        <div class="chead"><span class="title">Scene 1 - The Extinguished…</span><span class="badge scene">scene</span></div>
+        <div class="tabs">
+          <div class="tab sel">Characters in Scene</div>
+          <div class="tab">Context</div>
+        </div>
+        <div class="body">
+          <div class="cta-block">
+            <div class="cta-title">Review &amp; Enable</div>
+            <div class="cta-body">This view runs <b>DataviewJS</b> — arbitrary JavaScript with full vault access. The code is not running yet.</div>
+            <div class="cta-warn">⚠ Review the source and checksum before enabling.</div>
+            <div class="btn" style="margin-top:4px">Review &amp; Enable…</div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Code is NOT executing. "Review &amp; Enable…" opens S20 (full disclosure modal).</div>
+    </figure>
+
+    <!-- S13 Loading -->
+    <figure>
+      <figcaption><b>S13 · Loading</b> — query executing</figcaption>
+      <div class="panel">
+        <div class="vhead"><span class="name">Story Forge</span>
+          <div class="icons"><span class="on">⇅</span><span class="pin">📌</span></div></div>
+        <div class="chead"><span class="title">Scene 1 - The Extinguished…</span><span class="badge scene">scene</span></div>
+        <div class="tabs">
+          <div class="tab sel">Characters in Scene</div>
+          <div class="tab">Context</div>
+        </div>
+        <div class="body">
+          <div class="resolving">querying…</div>
+          <div class="skel" style="width:88%"></div>
+          <div class="skel" style="width:60%;margin-top:6px"></div>
+          <div class="skel" style="width:76%;margin-top:6px"></div>
+          <div class="skel" style="width:50%;margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="note">Debounced on note switch; skeleton rows mirror expected result height.</div>
+    </figure>
+
+    <!-- S14 Result -->
+    <figure>
+      <figcaption><b>S14 · Result</b> — DQL table rendered</figcaption>
+      <div class="panel">
+        <div class="vhead"><span class="name">Story Forge</span>
+          <div class="icons"><span class="on">⇅</span><span class="pin">📌</span></div></div>
+        <div class="chead"><span class="title">Scene 1 - The Extinguished…</span><span class="badge scene">scene</span></div>
+        <div class="tabs">
+          <div class="tab sel">Characters in Scene</div>
+          <div class="tab">Context</div>
+        </div>
+        <div class="body" style="gap:4px">
+          <table class="qtable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a class="qlnk" href="#">Mara Stoneway</a></td>
+                <td style="color:var(--muted)">pov</td>
+                <td style="color:var(--muted)">alive</td>
+              </tr>
+              <tr>
+                <td><a class="qlnk" href="#">Tobias Ferro</a></td>
+                <td style="color:var(--muted)">ally</td>
+                <td style="color:var(--muted)">alive</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="font-size:11px;color:var(--faint);margin-top:4px">2 results · <span class="badge dql" style="font-size:10px">dql</span></div>
+        </div>
+      </div>
+      <div class="note">Entity names are Obsidian wikilinks — clicking opens or navigates to the note.</div>
+    </figure>
+
+    <!-- S15 Error -->
+    <figure>
+      <figcaption><b>S15 · Error</b> — query failed</figcaption>
+      <div class="panel">
+        <div class="vhead"><span class="name">Story Forge</span>
+          <div class="icons"><span class="on">⇅</span><span class="pin">📌</span></div></div>
+        <div class="chead"><span class="title">Scene 1 - The Extinguished…</span><span class="badge scene">scene</span></div>
+        <div class="tabs">
+          <div class="tab sel">Characters in Scene</div>
+          <div class="tab">Context</div>
+        </div>
+        <div class="body"><div class="errbox">
+          <div>⚠ Query failed — source note may be missing or the DQL is invalid.</div>
+          <div style="font-size:11px;color:var(--faint)">_forge/views/characters-in-scene.md not found</div>
+          <div class="btn">Retry</div>
+        </div></div>
+      </div>
+    </figure>
+
+    <!-- S16 Disabled -->
+    <figure>
+      <figcaption><b>S16 · Disabled</b> — view killed in settings</figcaption>
+      <div class="panel">
+        <div class="vhead"><span class="name">Story Forge</span>
+          <div class="icons"><span class="on">⇅</span><span class="pin">📌</span></div></div>
+        <div class="chead"><span class="title">Scene 1 - The Extinguished…</span><span class="badge scene">scene</span></div>
+        <div class="tabs">
+          <div class="tab sel">Characters in Scene</div>
+          <div class="tab">Context</div>
+        </div>
+        <div class="body"><div class="empty">
+          <div class="ic">○</div>
+          <div class="lead">View disabled</div>
+          <div class="hint">Enable this view in settings to run it.<br><a href="#">→ Settings</a></div>
+        </div></div>
+      </div>
+    </figure>
+
+    <!-- S17 Re-consent required -->
+    <figure>
+      <figcaption><b>S17 · Re-consent required</b> — DataviewJS changed since last enable</figcaption>
+      <div class="panel">
+        <div class="vhead"><span class="name">Story Forge</span>
+          <div class="icons"><span class="on">⇅</span><span class="pin">📌</span></div></div>
+        <div class="chead"><span class="title">Scene 1 - The Extinguished…</span><span class="badge scene">scene</span></div>
+        <div class="tabs">
+          <div class="tab sel">Characters in Scene</div>
+          <div class="tab">Context</div>
+        </div>
+        <div class="body">
+          <div class="warnbanner">
+            <div><b>Query changed</b> since you last enabled this view.</div>
+            <div style="font-size:11px">The code is paused until you re-review it.</div>
+            <div class="btn" style="margin-top:2px;align-self:flex-start">Review &amp; Re-enable…</div>
+          </div>
+        </div>
+      </div>
+      <div class="note">"Review &amp; Re-enable…" opens S23 (re-consent modal). Code is NOT running.</div>
+    </figure>
+
+    <!-- S18 DQL light-confirm pending -->
+    <figure>
+      <figcaption><b>S18 · Light confirm pending</b> — DQL awaiting one-time confirm</figcaption>
+      <div class="panel">
+        <div class="vhead"><span class="name">Story Forge</span>
+          <div class="icons"><span class="on">⇅</span><span class="pin">📌</span></div></div>
+        <div class="chead"><span class="title">Scene 1 - The Extinguished…</span><span class="badge scene">scene</span></div>
+        <div class="tabs">
+          <div class="tab sel">Characters in Scene</div>
+          <div class="tab">Context</div>
+        </div>
+        <div class="body">
+          <div class="cta-block">
+            <div class="cta-title">Enable this view?</div>
+            <div class="cta-body">This is a <b>DQL</b> view — declarative and read-only. It does not run arbitrary code.</div>
+            <div class="btn" style="margin-top:4px">Enable…</div>
+          </div>
+        </div>
+      </div>
+      <div class="note">"Enable…" opens S21 (light confirm modal). DQL is lower-risk than DataviewJS.</div>
+    </figure>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>Modals (M2)</h2>
+  <p class="legend">Each modal floats over a dimmed vault background. The <b>Cancel / Back</b>
+  button is always the safe default and is first / auto-focused.</p>
+  <div class="gallery">
+
+    <!-- S19 Import picker -->
+    <figure style="width:320px">
+      <figcaption><b>S19 · Import picker</b> — vault notes with <code>sf-view: true</code></figcaption>
+      <div class="modal-scene" style="height:360px;background:var(--panel-2)">
+        <div class="modal-overlay">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="mtitle">Import a view</div>
+              <div class="msub">Notes in your vault marked <code>sf-view: true</code></div>
+            </div>
+            <div class="modal-body" style="padding-top:10px">
+              <input class="pick-search" type="text" placeholder="Search views…" value="char">
+              <div class="pick-list">
+                <div class="pick-row sel">
+                  <div class="pick-info">
+                    <div class="pick-name">Characters in Scene</div>
+                    <div class="pick-desc">Lists pov + characters of the active scene note</div>
+                    <div class="pick-meta"><span class="badge dvjs">dataviewjs</span></div>
+                    <div class="pick-path">_forge/views/characters-in-scene.md</div>
+                  </div>
+                </div>
+                <div class="pick-row imported">
+                  <div class="pick-info">
+                    <div class="pick-name">Character Arcs</div>
+                    <div class="pick-desc">Arc timeline for a character note</div>
+                    <div class="pick-meta"><span class="badge dql">dql</span></div>
+                    <div class="pick-path">_forge/views/character-arcs.md</div>
+                  </div>
+                  <div class="already">already imported</div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn">Cancel</button>
+              <button class="btn primary">Next →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Rows show: view name, description, engine badge (dql/dataviewjs), source path. "Already imported" row is dimmed. Cancel is auto-focused.</div>
+    </figure>
+
+    <!-- S20 Full disclosure (DataviewJS) -->
+    <figure style="width:320px">
+      <figcaption><b>S20 · Full disclosure</b> — DataviewJS consent gate</figcaption>
+      <div class="modal-scene" style="height:480px;background:var(--panel-2)">
+        <div class="modal-overlay">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="mtitle">Characters in Scene</div>
+              <div class="msub">Lists pov + characters of the active scene note</div>
+              <div style="font-size:11px;color:var(--faint);margin-top:3px">_forge/views/characters-in-scene.md</div>
+            </div>
+            <div class="modal-body">
+              <div style="font-size:12px;color:var(--muted)">Source <span class="badge dvjs" style="font-size:10px">dataviewjs</span></div>
+              <pre class="src-pre">const page = dv.current();
+const chars = [page.pov, ...(page.characters || [])];
+dv.table(["Name","Role"],
+  chars.filter(Boolean).map(c =>
+    [dv.fileLink(c.path), c.role || "—"]));</pre>
+              <div>
+                <div style="font-size:11px;color:var(--faint);margin-bottom:3px">SHA-256 checksum</div>
+                <div class="checksum">a3f82c…d91e04</div>
+              </div>
+              <div class="sec-warn">⚠ This view runs <b>JavaScript with full vault access</b>. Only enable views whose source you have read and trust. You will be re-prompted if the code changes.</div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn primary" autofocus>Cancel</button>
+              <button class="btn danger">Enable</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Cancel is the primary (auto-focused) button. "Enable" is right-aligned but styled danger. Checksum is byte-exact SHA-256 of the view source.</div>
+    </figure>
+
+    <!-- S21 Light confirm (DQL) -->
+    <figure style="width:320px">
+      <figcaption><b>S21 · Light confirm</b> — DQL view, one-time enable</figcaption>
+      <div class="modal-scene" style="height:340px;background:var(--panel-2)">
+        <div class="modal-overlay">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="mtitle">Character Arcs</div>
+              <div class="msub">Arc timeline for a character note</div>
+              <div style="font-size:11px;color:var(--faint);margin-top:3px">_forge/views/character-arcs.md</div>
+            </div>
+            <div class="modal-body">
+              <div style="font-size:12px;color:var(--muted)">Query <span class="badge dql" style="font-size:10px">dql</span></div>
+              <pre class="src-pre" style="max-height:60px">TABLE arc-start, arc-end, arc-summary
+FROM "Characters"
+WHERE file.name = this.file.name
+SORT arc-start ASC</pre>
+              <div style="font-size:12px;color:var(--muted);background:var(--panel-2);
+                border:1px solid var(--border-2);border-radius:5px;padding:8px 10px">
+                DQL is <b>declarative and read-only</b> — it cannot modify your vault or run arbitrary code.
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn" autofocus>Cancel</button>
+              <button class="btn primary">Enable</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">No security warning for DQL. Cancel auto-focused. "Enable" is the affirmative action.</div>
+    </figure>
+
+    <!-- S22 Bind -->
+    <figure style="width:320px">
+      <figcaption><b>S22 · Bind</b> — sidebar tab and command registration</figcaption>
+      <div class="modal-scene" style="height:340px;background:var(--panel-2)">
+        <div class="modal-overlay">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="mtitle">Bind view</div>
+              <div class="msub">Characters in Scene</div>
+            </div>
+            <div class="modal-body">
+              <div class="bind-group">
+                <div class="bind-row">
+                  <label class="bind-check">
+                    <input type="checkbox" checked>
+                    Show as tab in sidebar
+                  </label>
+                  <input class="bind-input" type="text" value="Characters in Scene" placeholder="Tab label">
+                </div>
+                <div class="bind-row">
+                  <label class="bind-check">
+                    <input type="checkbox">
+                    Register as command
+                  </label>
+                  <input class="bind-input" type="text" value="Story Forge: Characters in Scene" placeholder="Command name" disabled style="opacity:.45">
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn" autofocus>Back</button>
+              <button class="btn primary">Done</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Sidebar tab is checked by default. Command field is disabled when its checkbox is unchecked. "Back" returns to S19/S20/S21.</div>
+    </figure>
+
+    <!-- S23 Re-consent (DataviewJS) -->
+    <figure style="width:320px">
+      <figcaption><b>S23 · Re-consent</b> — DataviewJS changed since last enable</figcaption>
+      <div class="modal-scene" style="height:500px;background:var(--panel-2)">
+        <div class="modal-overlay">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="mtitle">Characters in Scene</div>
+              <div class="msub">Lists pov + characters of the active scene note</div>
+              <div style="font-size:11px;color:var(--faint);margin-top:3px">_forge/views/characters-in-scene.md</div>
+            </div>
+            <div class="modal-body">
+              <div class="warnbanner" style="margin-bottom:2px">
+                ⚠ <b>Query changed since you last enabled this view.</b> Review the new source before re-enabling.
+              </div>
+              <div style="font-size:12px;color:var(--muted)">New source <span class="badge dvjs" style="font-size:10px">dataviewjs</span></div>
+              <pre class="src-pre">const page = dv.current();
+const chars = [page.pov, ...(page.characters || [])];
+dv.table(["Name","Role","Status"],
+  chars.filter(Boolean).map(c =>
+    [dv.fileLink(c.path), c.role || "—", c.status || "—"]));</pre>
+              <div>
+                <div style="font-size:11px;color:var(--faint);margin-bottom:3px">New SHA-256 checksum</div>
+                <div class="checksum">b7d14a…c02f91</div>
+              </div>
+              <div class="sec-warn">⚠ This view runs <b>JavaScript with full vault access</b>. Review the changed source before re-enabling.</div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn primary" autofocus>Cancel</button>
+              <button class="btn danger">Re-enable</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Same layout as S20 but with the "Query changed" warning banner at the top. Cancel is auto-focused.</div>
+    </figure>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>Settings rows — Manage Views (M2)</h2>
+  <p class="legend">The <b>Manage Views</b> section inside the Story Forge settings tab. Each row is one
+  imported view. Three sub-variants are shown.</p>
+  <div class="gallery">
+
+    <!-- S24 Enabled -->
+    <figure style="width:440px">
+      <figcaption><b>S24 · Settings row — Enabled</b></figcaption>
+      <div class="settings-frame">
+        <div class="settings-head">Manage Views</div>
+        <div class="setting-row">
+          <div class="sr-info">
+            <div class="sr-name">Characters in Scene</div>
+            <div class="sr-badges"><span class="badge dvjs">dataviewjs</span></div>
+            <div class="sr-path">_forge/views/characters-in-scene.md</div>
+          </div>
+          <div class="sr-actions">
+            <div class="toggle on" title="Enabled"></div>
+            <button class="smol-btn remove">Remove</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info">
+            <div class="sr-name">Character Arcs</div>
+            <div class="sr-badges"><span class="badge dql">dql</span></div>
+            <div class="sr-path">_forge/views/character-arcs.md</div>
+          </div>
+          <div class="sr-actions">
+            <div class="toggle on" title="Enabled"></div>
+            <button class="smol-btn remove">Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="note">Toggle ON = enabled. Remove deletes the view from the store (with confirmation).</div>
+    </figure>
+
+    <!-- S25 Disabled / consent-required -->
+    <figure style="width:440px">
+      <figcaption><b>S25 · Settings row — Disabled &amp; Consent-required</b></figcaption>
+      <div class="settings-frame">
+        <div class="settings-head">Manage Views</div>
+        <!-- sub-variant A: toggled off -->
+        <div class="setting-row">
+          <div class="sr-info">
+            <div class="sr-name">Characters in Scene</div>
+            <div class="sr-badges"><span class="badge dvjs">dataviewjs</span></div>
+            <div class="sr-path">_forge/views/characters-in-scene.md</div>
+          </div>
+          <div class="sr-actions">
+            <div class="toggle" title="Disabled"></div>
+            <button class="smol-btn">Re-enable</button>
+            <button class="smol-btn remove">Remove</button>
+          </div>
+        </div>
+        <!-- sub-variant B: consent required (source changed) -->
+        <div class="setting-row">
+          <div class="sr-info">
+            <div class="sr-name">Character Arcs</div>
+            <div class="sr-badges"><span class="badge dql">dql</span><span class="badge consent-req">consent required</span></div>
+            <div class="sr-path">_forge/views/character-arcs.md</div>
+          </div>
+          <div class="sr-actions">
+            <button class="smol-btn">Review</button>
+            <button class="smol-btn remove">Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="note">Sub-variant A: toggle OFF → "Re-enable" re-enables immediately (no new consent if source unchanged). Sub-variant B: "consent required" badge + "Review" opens S20/S21.</div>
+    </figure>
+
+    <!-- S26 Engine missing -->
+    <figure style="width:440px">
+      <figcaption><b>S26 · Settings row — Engine unavailable</b></figcaption>
+      <div class="settings-frame">
+        <div class="settings-head">Manage Views</div>
+        <div class="setting-row">
+          <div class="sr-info">
+            <div class="sr-name">Characters in Scene</div>
+            <div class="sr-badges"><span class="badge dvjs">dataviewjs</span><span class="badge engine-miss">engine unavailable</span></div>
+            <div class="sr-path">_forge/views/characters-in-scene.md</div>
+          </div>
+          <div class="sr-actions">
+            <button class="smol-btn remove">Remove</button>
+          </div>
+        </div>
+        <div class="setting-row" style="padding-top:8px;padding-bottom:8px">
+          <div style="font-size:12px;color:var(--faint);display:flex;align-items:center;gap:7px">
+            <span>⚙</span>
+            <span>Dataview is not installed. <a href="#" style="color:var(--accent);text-decoration:none">Install Dataview</a> to run these views.</span>
+          </div>
+        </div>
+      </div>
+      <div class="note">No toggle or Re-enable when engine is missing — only Remove. A hint row explains the missing dependency.</div>
+    </figure>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="rev">
+    <h2>State → trigger index</h2>
+    <table>
+      <tr><th>State</th><th>Trigger</th></tr>
+      <tr><td>S11 Engine missing</td><td>View tab selected; Dataview plugin not detected in the vault</td></tr>
+      <tr><td>S12 Consent required (DataviewJS)</td><td>DataviewJS view tab selected; <code>okayed</code> is null — consent never given</td></tr>
+      <tr><td>S13 Loading</td><td>Consented view active; query dispatched, awaiting result (debounced on note switch)</td></tr>
+      <tr><td>S14 Result</td><td>Query returned rows; engine rendered them into the tab body</td></tr>
+      <tr><td>S15 Error</td><td>Query threw or source note is missing; errbox + Retry shown</td></tr>
+      <tr><td>S16 Disabled</td><td>View exists in store but <code>enabled: false</code>; tab body shows disabled placeholder</td></tr>
+      <tr><td>S17 Re-consent required</td><td>DataviewJS view active; live checksum ≠ stored <code>okayed.checksum</code></td></tr>
+      <tr><td>S18 DQL light-confirm pending</td><td>DQL view tab selected; <code>okayed</code> is null — one-time light confirm not yet given</td></tr>
+      <tr><td>S19 Import picker modal</td><td>User clicks "Import view" in settings; modal lists vault notes with <code>sf-view: true</code></td></tr>
+      <tr><td>S20 Full disclosure modal (DataviewJS)</td><td>S19 "Next →" on a DataviewJS view; shows source, checksum, security warning</td></tr>
+      <tr><td>S21 Light confirm modal (DQL)</td><td>S19 "Next →" on a DQL view; shows DQL source, read-only note, no security warning</td></tr>
+      <tr><td>S22 Bind modal</td><td>S20 or S21 "Enable" pressed; user chooses sidebar tab label and optional command name</td></tr>
+      <tr><td>S23 Re-consent modal (DataviewJS)</td><td>S17 "Review &amp; Re-enable…" clicked; same as S20 plus "Query changed" warning banner</td></tr>
+      <tr><td>S24 Settings row — Enabled</td><td>View in store with <code>enabled: true</code> and checksum current</td></tr>
+      <tr><td>S25 Settings row — Disabled / Consent-required</td><td>A: <code>enabled: false</code> (user toggled off); B: live checksum ≠ stored checksum (consent stale)</td></tr>
+      <tr><td>S26 Settings row — Engine missing</td><td>View in store references Dataview engine; Dataview plugin not installed</td></tr>
+    </table>
+
+    <h2>Revision history</h2>
+    <table>
+      <tr><th>Date</th><th>Version</th><th>Change</th></tr>
+      <tr><td>2026-07-15</td><td>v1</td><td>Initial M2 mockups (S11–S26): engine states, consent/import/bind modals, settings rows</td></tr>
+    </table>
+  </div>
+</body>
+</html>
