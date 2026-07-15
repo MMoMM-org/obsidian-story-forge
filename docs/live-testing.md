@@ -28,7 +28,7 @@ RUN** cannot be verified headlessly — the GUI must be open in Obsidian.
 | 1b. Close the panel; run command "Story Forge: Open panel" | Same panel re-opens | PARTIAL — `test/main.test.ts > addCommand registers 'open-panel'` asserts the command is registered; actual reveal is GUI-only |
 | 1c. Trigger the ribbon or command a second time when panel is already open | No duplicate panel created; existing panel is revealed | AUTO — `test/views/SidebarView.registration.test.ts > activateView > calling activateView twice → only one leaf created` |
 
-Status: ⏳ pending manual (1a, 1b, 1c visual confirm)
+Status: ✅ verified by maintainer 2026-07-15 (1a, 1b, 1c)
 
 ---
 
@@ -72,7 +72,7 @@ Status: AUTO ✓
 | 5a. Open `10 Manuscript/Wardens of Moonharbor/Scene 1 - The Extinguished Fire.md` | Panel badge shows "scene"; body shows stub with resolved entities: Mara Stoneway (pov), Mara Stoneway + Tobias Ferro (characters), Moonharbor Lighthouse (location), The Dying Light (plotlines) | PARTIAL — `test/views/SidebarView.rendering.test.ts > S6/S7 resolved context > renders resolved context stub with entity rows` verifies the rendering shape; `test/scoping/ScopingService.resolve.test.ts` verifies entity extraction from frontmatterLinks. GUI wiring of both into the live panel requires manual check. |
 | 5b. Title shows "The Extinguished Fire" | | AUTO — rendering tests cover title update |
 
-Status: PARTIAL — ⏳ pending manual (visual confirm in vault)
+Status: ✅ verified by maintainer 2026-07-15 (badge + entity rows visible in vault)
 
 ---
 
@@ -83,7 +83,7 @@ Status: PARTIAL — ⏳ pending manual (visual confirm in vault)
 | 6a. Open `30 Canon/31 Characters/Mara Stoneway.md` | Badge shows "character"; body shows resolved context stub (relations from her frontmatter) | PARTIAL — same as item 5; character classification tested in `test/scoping/ScopingService.classify.test.ts > classifies character tag` |
 | 6b. Header title shows "Mara Stoneway" | | AUTO — rendering tests cover title update |
 
-Status: PARTIAL — ⏳ pending manual
+Status: ✅ verified by maintainer 2026-07-15 (character badge + rows visible)
 
 ---
 
@@ -107,7 +107,7 @@ Status: AUTO ✓ (DOM behaviour verified; visual confirm is nice-to-have)
 | 8b. Saving settings after a view record is written does not erase the record | | AUTO — `test/main.test.ts > clobber guards > saveSettings does NOT drop the views map` |
 | 8c. Settings persist across reload | | AUTO — `test/main.test.ts > settings persist across reload > settings loaded from data.json are reflected in plugin.settings` |
 
-Status: PARTIAL — ⏳ pending manual (live data.json persistence in real Obsidian)
+Status: PARTIAL — ⏳ not run in the 2026-07-15 pass (needs `store.setRecord` from the dev console; no M1 UI creates a record). Low risk — round-trip + clobber guards are unit-tested.
 
 ---
 
@@ -128,7 +128,7 @@ Status: AUTO ✓
 | 10a. Disable the plugin from Settings → Community Plugins | No JS console errors; no orphaned event listeners (devtools Memory/Listeners panel) | PARTIAL — `test/main.test.ts > T4.2 lifecycle cleanup > SidebarView listeners are registered via registerEvent (tracked)` asserts listeners go through registerEvent (so Obsidian cleans them up); `test/views/SidebarView.registration.test.ts > all listeners registered via registerEvent` verifies the same at view level; `test/views/SidebarView.follow.test.ts > onClose cancels the debounced follow function` confirms debounce cancel. Visual console check in Obsidian is GUI-only. |
 | 10b. Plugin does NOT detach leaves on unload (preserves user layout per obsidianmd guidance; Obsidian releases the registered view type natively) | Sidebar view type is unregistered by Obsidian; the leaf position is preserved for the next load | AUTO — `test/main.test.ts > does NOT detach leaves on unload (obsidianmd guidance — preserve layout)` |
 
-Status: PARTIAL — ⏳ pending manual (console error check)
+Status: PARTIAL — ⏳ not run in the 2026-07-15 pass (needs a DevTools console/listener inspection on disable). Low risk — all listeners are registerEvent-tracked and cleanup is unit-tested.
 
 ---
 
@@ -160,17 +160,19 @@ Status: PARTIAL — ⏳ pending manual (console error check)
 
 ## Items requiring a manual run
 
-The following items have no automated equivalent and MUST be verified by the
-maintainer in a live Obsidian session with `test/StoryForge/` as the vault:
+The following items have no automated equivalent and require a live Obsidian
+session with `test/StoryForge/` as the vault:
 
-- [ ] 1a. Ribbon icon opens the panel visually
-- [ ] 1b. Command palette "Story Forge: Open panel" opens the panel
-- [ ] 5 (visual). Scene 1 shows badge "scene" and the entity rows for pov/characters/location/plotlines
-- [ ] 6 (visual). Mara Stoneway shows badge "character" and her entity rows
-- [ ] 8 (live storage). `store.setRecord` + plugin reload → record still present in `data.json`
-- [ ] 10 (console). Disabling plugin produces no JS console errors and leaves no listeners
+- [x] 1a. Ribbon icon opens the panel visually — verified 2026-07-15
+- [x] 1b. Command palette "Story Forge: Open panel" opens the panel — verified 2026-07-15
+- [x] 5 (visual). Scene 1 shows badge "scene" and the entity rows for pov/characters/location/plotlines — verified 2026-07-15
+- [x] 6 (visual). Mara Stoneway shows badge "character" and her entity rows — verified 2026-07-15
+- [ ] 8 (live storage). `store.setRecord` + plugin reload → record still present in `data.json` — **not run** (dev-console only; no M1 UI creates a record; low risk, unit-tested)
+- [ ] 10 (console). Disabling plugin produces no JS console errors and leaves no listeners — **not run** (DevTools inspection; low risk, listeners are registerEvent-tracked)
 
-> **Note:** This checklist was authored by the implementer running in a headless
-> environment. The automated test results above are real (168 tests passing as of
-> the T4.4 gate run). The GUI items are genuinely untested at the UI layer and
-> require the maintainer to open Obsidian and walk through each step.
+> **Note:** The normal-use GUI pass (open panel, follow, states S2–S9, resolved
+> entity rows, pin/unpin, styling) was walked through and verified by the
+> maintainer on 2026-07-15. The two remaining unchecked items are technical
+> checks (dev-console record persistence; DevTools listener inspection) that a
+> normal-use pass does not cover — both are low-risk and structurally covered by
+> the automated suite (172 tests). Automated results above are real.
