@@ -52,7 +52,7 @@ Validates the fully integrated M2 feature through cross-component integration te
   4. Validate: `npm test` passes with all integration tests green; `npm run typecheck:test` passes; `npm run lint` passes.
   - Success: all five SDD runtime flows covered by at least one integration test `[ref: SDD/Runtime View — Flows A–E]`; DataviewJS never executes before `okayed` is written (assertion in the full-flow test) `[ref: SDD/Quality Requirements — Correctness]`; checksum re-consent fires on any byte change `[ref: SDD/Quality Requirements — Correctness]` `[ref: PRD/AC-F2.4]`; late-join listener is auto-cleaned `[ref: SDD/ADR-2]`.
 
-- [ ] **T5.2 Live-vault seed + checklist** `[activity: validate]`
+- [x] **T5.2 Live-vault seed + checklist** `[activity: validate]`
 
   1. Prime: Read M1 plan `docs/XDD/specs/001-core-infrastructure/plan/phase-4.md` (the live-testing pattern and checklist format to mirror). Read mockups.html (all states S11–S26 — the checklist must reference each). Read `test/StoryForge/` directory structure to place seed notes correctly. Read `[ref: PRD/Success Metrics — Key Performance Indicators]` (the adoption/engagement criteria to verify).
   2. Test (RED): Seed notes must be parseable by `ViewImporter.parse()` — write unit tests (or extend existing import tests) that call `parse()` on the actual seed note paths in the test vault and assert no `ImportError` is thrown. Seed notes must have correct frontmatter schema — run `npm run schema:check` (must pass).
