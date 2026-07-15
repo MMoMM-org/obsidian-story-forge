@@ -379,6 +379,7 @@ export class Plugin extends Component {
 	);
 	addStatusBarItem = vi.fn(() => ({ setText: vi.fn() }));
 	addCommand = vi.fn();
+	removeCommand = vi.fn((_id: string): void => {});
 	addSettingTab = vi.fn();
 	registerView = vi.fn((_type: string, _factory: (leaf: WorkspaceLeaf) => unknown): void => {});
 	register = vi.fn((fn: () => unknown) => {
