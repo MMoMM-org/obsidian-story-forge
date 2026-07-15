@@ -6,11 +6,12 @@
  * and metadataCache.on('changed'), debounced to DEBOUNCE_MS.
  *
  * M1 implementation: panel shell + state rendering (S2–S9).
- * M2: query-engine integration.
+ * M2: query-engine integration (engine dispatch in _renderResolved; ADR-7).
  * M3: drill-in navigation (S10), backlinks seam.
  *
  * ADR-2: registerEvent/registerDomEvent for all listeners — no raw addEventListener.
  * ADR-5: guard own-leaf focus; first resolve deferred to onLayoutReady.
+ * ADR-7: teardown → body.empty() → engine.render order on every dispatch branch.
  */
 
 import {
@@ -25,6 +26,10 @@ import { SIDEBAR_VIEW_TYPE, ICON, DEBOUNCE_MS } from "pluginConstants";
 import { ScopingService } from "scoping/ScopingService";
 import type { NoteContext, EntityKind } from "scoping/NoteContext";
 import type { TFile } from "obsidian";
+import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
+import type { ConsentGate } from "consent/ConsentGate";
+import type { NativeScopingEngine } from "engines/NativeScopingEngine";
+import type { ViewRecord } from "store/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -103,14 +108,38 @@ export class SidebarView extends ItemView {
 	private currentCtx: NoteContext | null = null;
 	private lastError: Error | null = null;
 
+	// M2: injected engine dependencies (optional — absent when constructed from main.ts pre-T4.4)
+	private registry: EngineRegistry | null;
+	private consentGate: ConsentGate | null;
+	private nativeEngine: NativeScopingEngine | null;
+
+	// M2: tracks the engine currently rendered into the panel body (ADR-7 teardown)
+	private currentEngine: QueryEngine | null = null;
+	// M2: the ViewRecord currently rendered (selected view tab)
+	private currentRecord: ViewRecord | null = null;
+
 	// Debounced follow function — coalesces rapid active-leaf-change events.
 	private readonly _debouncedFollow: ReturnType<
 		typeof debounce<[WorkspaceLeaf | null], void>
 	>;
 
-	constructor(leaf: WorkspaceLeaf) {
+	/**
+	 * @param leaf        - Obsidian workspace leaf
+	 * @param registry    - M2: injected EngineRegistry (optional until T4.4 main.ts rewire)
+	 * @param consentGate - M2: injected ConsentGate (optional until T4.4 main.ts rewire)
+	 * @param nativeEngine - M2: injected NativeScopingEngine fallback (optional until T4.4)
+	 */
+	constructor(
+		leaf: WorkspaceLeaf,
+		registry?: EngineRegistry,
+		consentGate?: ConsentGate,
+		nativeEngine?: NativeScopingEngine,
+	) {
 		super(leaf);
 		this.scoping = new ScopingService(this.app);
+		this.registry = registry ?? null;
+		this.consentGate = consentGate ?? null;
+		this.nativeEngine = nativeEngine ?? null;
 		this._debouncedFollow = debounce(
 			(l: WorkspaceLeaf | null) => { this._doFollow(l); },
 			DEBOUNCE_MS,
@@ -188,11 +217,15 @@ export class SidebarView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this._debouncedFollow.cancel();
+		// ADR-7: teardown the current engine before clearing the DOM
+		this.currentEngine?.teardown();
+		this.currentEngine = null;
 		aug(this.contentEl).empty();
 		// Clear resolved-context cache and subject so a re-opened view starts
 		// clean (no stale entities/error/pin carried across a close→open cycle).
 		this.currentCtx = null;
 		this.lastError = null;
+		this.currentRecord = null;
 		this.subject = { file: null, source: "follow" };
 	}
 
@@ -493,15 +526,113 @@ export class SidebarView extends ItemView {
 			body.createDiv({ cls: "sf-skel" });
 			body.createDiv({ cls: "sf-skel" });
 		} else if (state.kind === "resolved") {
-			// S6/S7: resolved context (stub)
-			this._renderResolved(body, state.ctx);
+			// S6/S7: resolved context — delegates to engine dispatch (async, fire-and-forget here)
+			void this._renderResolved(body, state.ctx);
 		} else if (state.kind === "error") {
 			// S9: error with Retry button
 			this._renderError(body, state.retry);
 		}
 	}
 
-	private _renderResolved(body: AugEl, ctx: NoteContext): void {
+	/**
+	 * Engine dispatch — replaces the M1 stub with full M2 logic.
+	 *
+	 * ADR-7 teardown order: teardown → body.empty() → engine.render.
+	 * This order is maintained in EVERY branch.
+	 *
+	 * Decision tree:
+	 *   1. No currentRecord → native fallback (no view tab selected)
+	 *   2. No wired engine in registry → S11 engine-missing + native fallback
+	 *   3. No injected registry/consentGate → native fallback (pre-M2 construction)
+	 *   4. ConsentDecision:
+	 *      "consented"           → teardown → empty → engine.render (S14)
+	 *      "not-consented"       → S12
+	 *      "drift"               → S17
+	 *      "disabled"            → S16
+	 *      "platform-restricted" → S11 variant
+	 *      "engine-missing"      → S11
+	 *      "dvjs-off"            → S15 variant
+	 */
+	private async _renderResolved(body: AugEl, ctx: NoteContext): Promise<void> {
+		// No registry/consentGate injected (pre-T4.4 construction) → native fallback
+		if (!this.registry || !this.consentGate || !this.nativeEngine) {
+			this._renderResolvedLegacy(body, ctx);
+			return;
+		}
+
+		const view = this.currentRecord;
+
+		// No view tab selected → native fallback
+		if (!view) {
+			this.currentEngine?.teardown();
+			body.empty();
+			await this.nativeEngine.render(null, ctx, body);
+			this.currentEngine = this.nativeEngine;
+			return;
+		}
+
+		// Look up wired engine; undefined means Dataview absent or unwired kind
+		const engine = this.registry.get(view.engine);
+		if (!engine) {
+			// S11 engine-missing — also render native fallback below the hint
+			this._renderEngineMissing(body, view.engine);
+			this.currentEngine?.teardown();
+			await this.nativeEngine.render(view, ctx, body);
+			this.currentEngine = this.nativeEngine;
+			return;
+		}
+
+		// Evaluate consent state for this view
+		const decision = await this.consentGate.evaluate(view);
+
+		switch (decision.status) {
+			case "consented":
+				// ADR-7: teardown → empty → render (exact order per spec)
+				this.currentEngine?.teardown();
+				body.empty();
+				// Show loading state (S13) synchronously before the async engine.render call
+				this._renderLoading(body);
+				await engine.render(view, ctx, body);
+				this.currentEngine = engine;
+				break;
+
+			case "not-consented":
+				this._renderConsentRequired(body, view);     // S12
+				break;
+
+			case "drift":
+				this._renderReConsentRequired(body, view);   // S17
+				break;
+
+			case "disabled":
+				this._renderDisabled(body);                  // S16
+				break;
+
+			case "platform-restricted":
+				this._renderPlatformRestriction(body);       // S11 variant
+				break;
+
+			case "engine-missing":
+				this._renderEngineMissing(body, view.engine); // S11
+				break;
+
+			case "dvjs-off":
+				this._renderDvJsOff(body);                   // S15 variant
+				break;
+
+			default: {
+				// Exhaustive guard — satisfies TypeScript's never check
+				const _exhaustive: never = decision;
+				console.debug("[StoryForge] unhandled consent decision", _exhaustive);
+			}
+		}
+	}
+
+	/**
+	 * Legacy _renderResolved — used when no EngineRegistry/ConsentGate were injected
+	 * (M1 stub path; removed after T4.4 main.ts rewire).
+	 */
+	private _renderResolvedLegacy(body: AugEl, ctx: NoteContext): void {
 		body.createDiv({ cls: "sf-stublabel", text: "resolved context (stub)" });
 		const rows = body.createDiv({ cls: "sf-rows" });
 		for (const entity of ctx.entities) {
@@ -514,6 +645,107 @@ export class SidebarView extends ItemView {
 		body.createDiv({
 			cls: "sf-appears",
 			text: "appears in: — (M3)",
+		});
+	}
+
+	// ---------------------------------------------------------------------------
+	// Panel state renderers (S11–S18)
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * S11 — Engine missing or platform restriction.
+	 * Matches kind-specific copy: dataview-* shows "Dataview not installed";
+	 * "bases" shows "engine coming in M4" hint.
+	 */
+	private _renderEngineMissing(body: AugEl, kind: ViewRecord["engine"]): void {
+		const empty = body.createDiv({ cls: "sf-engine-missing sf-empty" });
+		empty.createDiv({ cls: "sf-empty-ic", text: "⚙" });
+		if (kind === "bases") {
+			empty.createDiv({ cls: "sf-empty-lead", text: "Engine coming in M4" });
+			empty.createDiv({ text: "The Bases engine is not yet available." });
+		} else {
+			empty.createDiv({ cls: "sf-empty-lead", text: "Dataview not installed" });
+			empty.createDiv({ text: "This view requires the Dataview community plugin." });
+		}
+	}
+
+	/**
+	 * S12 — Consent required (DataviewJS full-disclosure gate).
+	 * Code is NOT executing.
+	 */
+	private _renderConsentRequired(body: AugEl, _view: ViewRecord): void {
+		const block = body.createDiv({ cls: "sf-consent-required sf-cta-block" });
+		block.createDiv({ cls: "sf-cta-title", text: "Review & Enable" });
+		block.createDiv({
+			cls: "sf-cta-body",
+			text: "This view runs DataviewJS — arbitrary JavaScript with full vault access. The code is not running yet.",
+		});
+		block.createDiv({
+			cls: "sf-cta-warn",
+			text: "⚠ Review the source and checksum before enabling.",
+		});
+	}
+
+	/**
+	 * S13 — Loading (query executing).
+	 * Rendered synchronously before engine.render() resolves.
+	 */
+	private _renderLoading(body: AugEl): void {
+		const el = body.createDiv({ cls: "sf-loading sf-resolving", text: "querying…" });
+		el.createDiv({ cls: "sf-skel" });
+		el.createDiv({ cls: "sf-skel" });
+		el.createDiv({ cls: "sf-skel" });
+	}
+
+	/**
+	 * S15 variant — DataviewJS disabled in Dataview settings.
+	 */
+	private _renderDvJsOff(body: AugEl): void {
+		const errbox = body.createDiv({ cls: "sf-dvjs-off sf-errbox" });
+		errbox.createDiv({
+			text: "⚠ DataviewJS is disabled in Dataview settings.",
+		});
+		errbox.createDiv({
+			cls: "sf-hint",
+			text: "Enable DataviewJS in the Dataview plugin settings to run this view.",
+		});
+	}
+
+	/**
+	 * S16 — View disabled (kill-switch active).
+	 */
+	private _renderDisabled(body: AugEl): void {
+		const empty = body.createDiv({ cls: "sf-disabled sf-empty" });
+		empty.createDiv({ cls: "sf-empty-ic", text: "○" });
+		empty.createDiv({ cls: "sf-empty-lead", text: "View disabled" });
+		empty.createDiv({
+			cls: "sf-hint",
+			text: "Enable this view in settings to run it.",
+		});
+	}
+
+	/**
+	 * S17 — Re-consent required (query drifted since last enable).
+	 * Code is NOT executing.
+	 */
+	private _renderReConsentRequired(body: AugEl, _view: ViewRecord): void {
+		const banner = body.createDiv({ cls: "sf-reconsent-required sf-warnbanner" });
+		banner.createDiv({ text: "Query changed since you last enabled this view." });
+		banner.createDiv({
+			cls: "sf-hint",
+			text: "The code is paused until you re-review it.",
+		});
+	}
+
+	/**
+	 * S11 variant — Platform restriction (DataviewJS on mobile).
+	 */
+	private _renderPlatformRestriction(body: AugEl): void {
+		const empty = body.createDiv({ cls: "sf-platform-restricted sf-empty" });
+		empty.createDiv({ cls: "sf-empty-ic", text: "⚙" });
+		empty.createDiv({ cls: "sf-empty-lead", text: "Not available on mobile" });
+		empty.createDiv({
+			text: "DataviewJS views are not available on mobile devices.",
 		});
 	}
 
