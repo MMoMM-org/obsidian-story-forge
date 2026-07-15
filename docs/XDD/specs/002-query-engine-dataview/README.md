@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-07-15 |
-| **Current Phase** | PRD |
+| **Current Phase** | SDD |
 | **Last Updated** | 2026-07-15 |
 | **PRD Completed** | 2026-07-15 |
 
@@ -14,7 +14,7 @@
 | Document | Status | Notes |
 |----------|--------|-------|
 | requirements.md | completed | M2 PRD — Dataview adapter, consent gate, user-import flow |
-| solution.md | pending | — |
+| solution.md | in_progress | M2 SDD — QueryEngine adapter, consent/checksum module, import parser, engine registry; resolves the DataviewJS scoping spike |
 | plan/ | pending | — |
 
 **Status values**: `pending` | `in_progress` | `completed` | `skipped`
@@ -30,6 +30,7 @@
 | 2026-07-15 | Consent bundle: DQL ungated (light confirm only); NO "enable-once" (Enable/Disable only); re-consent on version-OR-checksum drift | DQL is declarative/read-only; views re-render continuously so enable-once is wrong UX; OR-drift is the safer re-consent trigger |
 | 2026-07-15 | Imported views managed by extending the existing SettingsTab (view list S22–S26) | Simplest for M2; dedicated manage-views modal/catalog deferred to M4 |
 | 2026-07-15 | Open SDD spike: DataviewJS scoping-injection (how a DVJS view targets the panel subject vs dv.current()) | Genuine API unknown; resolve during SDD, not a PRD blocker |
+| 2026-07-15 | PRD approved → proceed to SDD | 29 Gherkin ACs across F1–F4; exit criteria mapped; 4 open questions deferred to SDD |
 
 ## Context
 
