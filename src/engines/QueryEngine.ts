@@ -65,17 +65,10 @@ export interface QueryEngine {
  * Constructed in main.ts; injected into SidebarView and ConsentGate.
  */
 export class EngineRegistry {
-	private readonly map: Map<ViewRecord["engine"], QueryEngine>;
+	private map: Map<ViewRecord["engine"], QueryEngine>;
 
 	constructor(engines: QueryEngine[]) {
-		this.map = new Map(
-			engines
-				.filter(
-					(e): e is QueryEngine & { kind: ViewRecord["engine"] } =>
-						e.kind !== "native",
-				)
-				.map((e) => [e.kind, e]),
-		);
+		this.map = this._buildMap(engines);
 	}
 
 	/**
@@ -85,5 +78,28 @@ export class EngineRegistry {
 	 */
 	get(kind: ViewRecord["engine"]): QueryEngine | undefined {
 		return this.map.get(kind);
+	}
+
+	/**
+	 * Replace the registry contents post-construction (used by the late-join
+	 * "dataview:api-ready" handler in main.ts to populate an initially-empty
+	 * registry without reconstructing the object injected into SidebarView).
+	 *
+	 * Called at most twice per plugin lifecycle: once in onLayoutReady and once
+	 * from the late-join listener. Never called by engines themselves.
+	 */
+	replace(engines: QueryEngine[]): void {
+		this.map = this._buildMap(engines);
+	}
+
+	private _buildMap(engines: QueryEngine[]): Map<ViewRecord["engine"], QueryEngine> {
+		return new Map(
+			engines
+				.filter(
+					(e): e is QueryEngine & { kind: ViewRecord["engine"] } =>
+						e.kind !== "native",
+				)
+				.map((e) => [e.kind, e]),
+		);
 	}
 }

@@ -14,6 +14,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { App, createMockDataviewApi, wireDataviewApi } from "../__mocks__/obsidian";
 import { getDataviewApi, buildEngineRegistry } from "engines/EngineRegistry";
 import { EngineRegistry } from "engines/QueryEngine";
+import { NativeScopingEngine } from "engines/NativeScopingEngine";
 
 describe("getDataviewApi", () => {
 	let app: App;
@@ -151,5 +152,53 @@ describe("buildEngineRegistry", () => {
 		const registry = buildEngineRegistry(app);
 
 		expect(registry.get("bases")).toBeUndefined();
+	});
+});
+
+describe("EngineRegistry.replace (late-join post-construction update)", () => {
+	it("replace populates an initially-empty registry (late-join case)", () => {
+		const registry = new EngineRegistry([]);
+		expect(registry.get("dataview-dql")).toBeUndefined();
+
+		const app = new App();
+		const dvApi = createMockDataviewApi({ satisfies: true });
+		wireDataviewApi(app, dvApi);
+
+		const built = buildEngineRegistry(app);
+		const engines = (["dataview-dql", "dataviewjs"] as const)
+			.map((k) => built.get(k))
+			.filter((e): e is NonNullable<typeof e> => e !== undefined);
+
+		registry.replace(engines);
+
+		expect(registry.get("dataview-dql")).toBeDefined();
+		expect(registry.get("dataviewjs")).toBeDefined();
+	});
+
+	it("replace with empty array clears the registry", () => {
+		const app = new App();
+		const dvApi = createMockDataviewApi({ satisfies: true });
+		wireDataviewApi(app, dvApi);
+
+		const registry = buildEngineRegistry(app);
+		expect(registry.get("dataview-dql")).toBeDefined();
+
+		registry.replace([]);
+
+		expect(registry.get("dataview-dql")).toBeUndefined();
+		expect(registry.get("dataviewjs")).toBeUndefined();
+	});
+
+	it("replace does not include the native sentinel in the map", () => {
+		// NativeScopingEngine has kind="native" — not a ViewRecord.engine value.
+		// replace() must filter it out just like the constructor does.
+		const native = new NativeScopingEngine();
+		const registry = new EngineRegistry([]);
+
+		registry.replace([native]);
+
+		// "native" is not a valid ViewRecord["engine"] kind; map stays empty
+		expect(registry.get("bases")).toBeUndefined();
+		expect(registry.get("dataview-dql")).toBeUndefined();
 	});
 });
