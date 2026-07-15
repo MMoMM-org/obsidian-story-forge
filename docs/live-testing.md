@@ -107,7 +107,7 @@ Status: AUTO ✓ (DOM behaviour verified; visual confirm is nice-to-have)
 | 8b. Saving settings after a view record is written does not erase the record | | AUTO — `test/main.test.ts > clobber guards > saveSettings does NOT drop the views map` |
 | 8c. Settings persist across reload | | AUTO — `test/main.test.ts > settings persist across reload > settings loaded from data.json are reflected in plugin.settings` |
 
-Status: PARTIAL — ⏳ not run in the 2026-07-15 pass (needs `store.setRecord` from the dev console; no M1 UI creates a record). Low risk — round-trip + clobber guards are unit-tested.
+Status: ✅ verified by maintainer 2026-07-15 — `store.setRecord("console-test", …)` wrote `{ views: { "console-test": … } }` to `data.json`; survived "Reload app without saving" (`getViews()` still returned it); `deleteRecord` removed it, leaving `{ views: {} }`.
 
 ---
 
@@ -128,7 +128,7 @@ Status: AUTO ✓
 | 10a. Disable the plugin from Settings → Community Plugins | No JS console errors; no orphaned event listeners (devtools Memory/Listeners panel) | PARTIAL — `test/main.test.ts > T4.2 lifecycle cleanup > SidebarView listeners are registered via registerEvent (tracked)` asserts listeners go through registerEvent (so Obsidian cleans them up); `test/views/SidebarView.registration.test.ts > all listeners registered via registerEvent` verifies the same at view level; `test/views/SidebarView.follow.test.ts > onClose cancels the debounced follow function` confirms debounce cancel. Visual console check in Obsidian is GUI-only. |
 | 10b. Plugin does NOT detach leaves on unload (preserves user layout per obsidianmd guidance; Obsidian releases the registered view type natively) | Sidebar view type is unregistered by Obsidian; the leaf position is preserved for the next load | AUTO — `test/main.test.ts > does NOT detach leaves on unload (obsidianmd guidance — preserve layout)` |
 
-Status: PARTIAL — ⏳ not run in the 2026-07-15 pass (needs a DevTools console/listener inspection on disable). Low risk — all listeners are registerEvent-tracked and cleanup is unit-tested.
+Status: ✅ verified by maintainer 2026-07-15 — disabling the plugin removed the panel with no console errors; re-enabling restored it (ribbon/command work again).
 
 ---
 
@@ -167,12 +167,11 @@ session with `test/StoryForge/` as the vault:
 - [x] 1b. Command palette "Story Forge: Open panel" opens the panel — verified 2026-07-15
 - [x] 5 (visual). Scene 1 shows badge "scene" and the entity rows for pov/characters/location/plotlines — verified 2026-07-15
 - [x] 6 (visual). Mara Stoneway shows badge "character" and her entity rows — verified 2026-07-15
-- [ ] 8 (live storage). `store.setRecord` + plugin reload → record still present in `data.json` — **not run** (dev-console only; no M1 UI creates a record; low risk, unit-tested)
-- [ ] 10 (console). Disabling plugin produces no JS console errors and leaves no listeners — **not run** (DevTools inspection; low risk, listeners are registerEvent-tracked)
+- [x] 8 (live storage). `store.setRecord` + plugin reload → record still present in `data.json` — verified 2026-07-15 (write → reload → still present → `deleteRecord` clean)
+- [x] 10 (console). Disabling plugin produces no JS console errors and leaves no listeners — verified 2026-07-15 (clean disable/enable, no errors)
 
-> **Note:** The normal-use GUI pass (open panel, follow, states S2–S9, resolved
-> entity rows, pin/unpin, styling) was walked through and verified by the
-> maintainer on 2026-07-15. The two remaining unchecked items are technical
-> checks (dev-console record persistence; DevTools listener inspection) that a
-> normal-use pass does not cover — both are low-risk and structurally covered by
-> the automated suite (172 tests). Automated results above are real.
+> **Note:** The full GUI pass — open panel, follow, states S2–S9, resolved entity
+> rows, pin/unpin, styling, **live `data.json` record persistence across reload**,
+> and **clean disable/enable** — was walked through and verified by the maintainer
+> on 2026-07-15. All checklist items pass. Automated results above are real
+> (172 tests).
