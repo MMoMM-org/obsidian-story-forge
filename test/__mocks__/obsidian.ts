@@ -553,7 +553,7 @@ export class PluginSettingTab {
  * TextComponent — exposes `inputEl` so tests can set value and fire events
  * directly. Bound via `addText(cb => cb.onChange(...))` in production code.
  */
-class TextComponent {
+export class TextComponent {
 	inputEl: HTMLInputElement;
 	_onChange?: (value: string) => void;
 
@@ -578,7 +578,7 @@ class TextComponent {
 }
 
 /** ToggleComponent — exposes `toggleEl` so tests can click to flip state. */
-class ToggleComponent {
+export class ToggleComponent {
 	toggleEl: HTMLElement;
 	_value = false;
 	_onChange?: (value: boolean) => void;
@@ -605,7 +605,7 @@ class ToggleComponent {
 }
 
 /** ButtonComponent — exposes `buttonEl` so tests can dispatch real clicks. */
-class ButtonComponent {
+export class ButtonComponent {
 	buttonEl: HTMLButtonElement;
 	_onClick?: () => void;
 
@@ -641,7 +641,7 @@ class ButtonComponent {
  * DropdownComponent — exposes `selectEl` (an HTMLSelectElement) so tests can
  * set the value and dispatch a change event.
  */
-class DropdownComponent {
+export class DropdownComponent {
 	selectEl: HTMLSelectElement;
 	_onChange?: (value: string) => void;
 
