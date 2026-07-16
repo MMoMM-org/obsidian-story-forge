@@ -590,10 +590,8 @@ export class SidebarView extends ItemView {
 	 * then selects the named tab. Safe to call after activateView() opens the panel.
 	 */
 	async selectView(viewId: string): Promise<void> {
-		// Reload views from store if the target view is not yet cached
-		if (!this.store || (!(viewId in this._views))) {
-			await this._reloadViews();
-		}
+		if (!this.store) return;
+		if (!(viewId in this._views)) await this._reloadViews();
 		this._selectTab(viewId);
 	}
 
