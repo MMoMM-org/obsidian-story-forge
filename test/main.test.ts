@@ -520,4 +520,69 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 		expect(() => p._removeViewCommand("nonexistent-view")).not.toThrow();
 		expect(plugin.removeCommand).not.toHaveBeenCalled();
 	});
+
+	it("Bug D1: command callback fires activateView then calls selectView on the live SidebarView", async () => {
+		// This test exercises the ACTUAL _registerViewCommand callback path —
+		// the end-to-end flow the user reported broken.
+		const { plugin, app } = await makePlugin();
+
+		// Seed the store with view "v1" so _reloadViews() returns it from the real ViewStore.
+		// This avoids a race where background _reloadViews calls overwrite _views with {}.
+		const v1Record: import("store/types").ViewRecord = {
+			provenance: "imported",
+			enabled: true,
+			okayed: { version: 1, checksum: "sha256:abc" },
+			source: "_forge/views/v1.md",
+			engine: "dataview-dql",
+			command: true,
+			commandName: "My View",
+		};
+		plugin.loadData.mockResolvedValue({ views: { "v1": v1Record } });
+
+		await plugin.onload();
+
+		// Create a real SidebarView via the factory (mirrors how Obsidian creates it)
+		const factoryCall = plugin.registerView.mock.calls.find(
+			(c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE,
+		);
+		expect(factoryCall).toBeDefined();
+		const factory = factoryCall![1] as (leaf: WorkspaceLeaf) => import("views/SidebarView").SidebarView;
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		const view = factory(leaf);
+		await view.onOpen();
+		// Drain background _reloadViews tasks so _views is populated from the store
+		await new Promise((r) => setTimeout(r, 0));
+
+		// Wire the leaf so the command callback finds the live SidebarView.
+		// getLeavesOfType returns [leaf], and leaf.view === view.
+		(leaf as unknown as { view: typeof view }).view = view;
+		app.workspace.getLeavesOfType.mockReturnValue([leaf]);
+
+		// Stub revealLeaf so activateView's reveal-only path (existing leaf) returns quickly
+		app.workspace.revealLeaf.mockResolvedValue(undefined);
+
+		// Register the command for "v1" and capture its callback
+		let capturedCallback: (() => void) | undefined;
+		plugin.addCommand.mockImplementation((cmd: { id: string; name: string; callback?: () => void }) => {
+			if (cmd.id === "view-v1") capturedCallback = cmd.callback;
+			return { id: cmd.id };
+		});
+
+		const p = plugin as unknown as {
+			_registerViewCommand: (viewId: string, commandName: string) => void;
+		};
+		p._registerViewCommand("v1", "My View");
+
+		expect(capturedCallback).toBeDefined();
+
+		// Invoke the command callback — it awaits activateView then selectView
+		capturedCallback!();
+
+		// Wait for selectedViewId to become "v1" (selectView is async and fire-and-forget)
+		const pvAfter = view as unknown as { selectedViewId: string | null };
+		await vi.waitFor(() => {
+			expect(pvAfter.selectedViewId).toBe("v1");
+		}, { timeout: 2000 });
+	});
 });
