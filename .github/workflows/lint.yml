@@ -30,3 +30,7 @@ jobs:
             - run: npm test
             - run: npm run lint
             - run: npm run typecheck:test
+            # Guards the hand-written Obsidian mock against the real obsidian API:
+            # a fictional method on the mock (e.g. metadataCache.iterateAllFiles)
+            # becomes a compile error here instead of a runtime crash in Obsidian.
+            - run: npm run typecheck:mock
