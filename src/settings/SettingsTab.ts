@@ -24,6 +24,12 @@ export class SettingsTab extends PluginSettingTab {
 	private readonly removeCommand: RemoveCommandCallback;
 	/** Store unsubscribe handle — set when tab is open, null when hidden. */
 	private _unsubscribeStore: (() => void) | null = null;
+	/**
+	 * Monotonic generation counter for re-entrancy guard.
+	 * Each call to displayAsync() increments this and captures its own gen value.
+	 * After the async boundary (getViews await), a stale call bails if superseded.
+	 */
+	private _displayGen = 0;
 
 	constructor(
 		app: App,
@@ -63,6 +69,11 @@ export class SettingsTab extends PluginSettingTab {
 	 * triggered by actions like Disable/Remove which call displayAsync() directly).
 	 */
 	async displayAsync(): Promise<void> {
+		// Re-entrancy guard: capture generation before the first async boundary.
+		// Any call that arrives while we are awaiting getViews() will increment
+		// _displayGen, making our captured gen stale — we bail before painting rows.
+		const gen = ++this._displayGen;
+
 		// Subscribe to store changes to live-refresh the Views list.
 		// Guard: only subscribe once per open session; hide() clears the handle.
 		if (!this._unsubscribeStore) {
@@ -90,14 +101,14 @@ export class SettingsTab extends PluginSettingTab {
 					}),
 			);
 
-		await this._renderViewsSection();
+		await this._renderViewsSection(gen);
 	}
 
 	// ---------------------------------------------------------------------------
 	// Views section
 	// ---------------------------------------------------------------------------
 
-	private async _renderViewsSection(): Promise<void> {
+	private async _renderViewsSection(gen: number): Promise<void> {
 		const { containerEl } = this;
 
 		new Setting(containerEl)
@@ -122,6 +133,11 @@ export class SettingsTab extends PluginSettingTab {
 			);
 
 		const views = await this.store.getViews();
+
+		// Re-entrancy guard: a newer displayAsync() call has superseded us — bail
+		// before appending any view rows to avoid doubled or stale rows.
+		if (gen !== this._displayGen) return;
+
 		const entries = Object.entries(views);
 
 		if (entries.length === 0) {
@@ -200,24 +216,26 @@ export class SettingsTab extends PluginSettingTab {
 	// ---------------------------------------------------------------------------
 
 	private _disableView(id: string, record: ViewRecord): void {
+		// Re-render is driven by the store observer (subscribe → displayAsync).
+		// No manual displayAsync() call — avoids concurrent double-render (Bug B).
 		void this.store
 			.setRecord(id, { ...record, enabled: false })
-			.then(() => this.displayAsync())
 			.catch((err) => console.error("[StoryForge] view action failed", err));
 	}
 
 	private _enableView(id: string, record: ViewRecord): void {
+		// On consent grant, requestConsent calls store.setRecord which fires the
+		// observer → re-render. On cancel nothing changed → no re-render needed.
 		void this.gate
 			.requestConsent(id, record)
-			.then((granted) => granted ? this.displayAsync() : Promise.resolve())
 			.catch((err) => console.error("[StoryForge] view action failed", err));
 	}
 
 	private _removeView(id: string): void {
 		this.removeCommand(id);
+		// Re-render is driven by the store observer (subscribe → displayAsync).
 		void this.store
 			.deleteRecord(id)
-			.then(() => this.displayAsync())
 			.catch((err) => console.error("[StoryForge] view action failed", err));
 	}
 }
