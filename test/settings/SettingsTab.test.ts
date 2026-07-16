@@ -424,12 +424,17 @@ describe("SettingsTab — Views section", () => {
 /**
  * A fake ViewStore that supports subscribe/_fire the same way SidebarView.tabs
  * uses it, but also has getViews() backed by a mutable _views bag.
+ *
+ * setRecord/deleteRecord mutate the backing store AND fire subscribers — mirroring
+ * the real ViewStore._notify() calls so action-handler re-renders are observer-driven.
  */
 function makeFakeStoreForTab(
 	initial: Record<string, ViewRecord> = {},
 ): ViewStore & { _views: Record<string, ViewRecord>; _fire: () => void } {
 	let views = { ...initial };
 	const subscribers = new Set<() => void>();
+
+	function fire(): void { for (const cb of subscribers) cb(); }
 
 	const store = {
 		async getViews(): Promise<Record<string, ViewRecord>> {
@@ -439,11 +444,19 @@ function makeFakeStoreForTab(
 			subscribers.add(cb);
 			return () => { subscribers.delete(cb); };
 		},
-		async setRecord(_id: string, _rec: ViewRecord): Promise<void> {},
-		async deleteRecord(_id: string): Promise<void> {},
+		async setRecord(id: string, rec: ViewRecord): Promise<void> {
+			views = { ...views, [id]: rec };
+			fire();
+		},
+		async deleteRecord(id: string): Promise<void> {
+			const next = { ...views };
+			delete next[id];
+			views = next;
+			fire();
+		},
 		get _views() { return views; },
 		set _views(v: Record<string, ViewRecord>) { views = v; },
-		_fire(): void { for (const cb of subscribers) cb(); },
+		_fire(): void { fire(); },
 		get _subscriberCount(): number { return subscribers.size; },
 	} as unknown as ViewStore & { _views: Record<string, ViewRecord>; _fire: () => void };
 
@@ -544,5 +557,217 @@ describe("SettingsTab — Bug A: store subscription refreshes views list", () =>
 		await vi.waitFor(() => {
 			expect(tab.containerEl.textContent).toContain("Newly Imported");
 		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Bug B — no duplicate rows after action handlers trigger two concurrent renders
+// ---------------------------------------------------------------------------
+
+/**
+ * Count view rows by counting `.setting` elements that appear AFTER the
+ * "Views" heading and "Import view" Settings rows — i.e. actual view entries.
+ *
+ * The Settings mock adds a `data-setting-name` attribute to each Setting's
+ * container div. We look for settings whose name matches one of the known
+ * view display names (commandName/source).
+ */
+function countViewRows(container: HTMLElement, viewNames: string[]): number {
+	let count = 0;
+	const settings = container.querySelectorAll("[data-setting-name]");
+	for (const s of settings) {
+		const name = s.getAttribute("data-setting-name") ?? "";
+		if (viewNames.includes(name)) count++;
+	}
+	return count;
+}
+
+describe("SettingsTab — Bug B: no duplicate rows on concurrent displayAsync()", () => {
+	let app: App;
+
+	beforeEach(() => {
+		app = makeApp();
+	});
+
+	// -------------------------------------------------------------------------
+	// No-doubling test — Disable action triggers both the store observer AND
+	// (before the fix) a manual displayAsync() call → two renders → doubled rows.
+	// After the fix, the _displayGen guard coalesces to a single render.
+	// -------------------------------------------------------------------------
+
+	it("clicking Disable produces exactly one row per view (no duplication)", async () => {
+		const store = makeFakeStoreForTab({
+			"v1": makeRecord({ enabled: true, commandName: "Alpha View", engine: "dataview-dql" }),
+			"v2": makeRecord({ enabled: true, commandName: "Beta View", engine: "dataview-dql" }),
+		});
+		const tab = makeTab(
+			app,
+			store as unknown as ViewStore,
+			makeRegistryWith("dataview-dql"),
+			makeConsentGate(),
+			makeImporter(),
+		);
+		await tab.displayAsync();
+
+		// Confirm two rows rendered initially
+		expect(countViewRows(tab.containerEl, ["Alpha View", "Beta View"])).toBe(2);
+
+		// Click Disable on v1 — this mutates the store (fires observer) AND
+		// previously also called displayAsync() manually → double render.
+		const disableBtn = findButton(tab.containerEl, "Disable");
+		expect(disableBtn).not.toBeNull();
+		disableBtn!.click();
+
+		// Wait for the re-render triggered by the store observer
+		await vi.waitFor(() => {
+			// v1 should now show Enable (was disabled), v2 still shows Disable
+			expect(findButton(tab.containerEl, "Enable")).not.toBeNull();
+		});
+
+		// Each view must appear exactly once — no doubled rows
+		expect(countViewRows(tab.containerEl, ["Alpha View", "Beta View"])).toBe(2);
+	});
+
+	// -------------------------------------------------------------------------
+	// Concurrent-render test — fire displayAsync() twice rapidly; the _displayGen
+	// guard must ensure only one final set of rows is painted.
+	// -------------------------------------------------------------------------
+
+	it("two concurrent displayAsync() calls coalesce to a single render (no doubled rows)", async () => {
+		const store = makeFakeStoreForTab({
+			"v1": makeRecord({ commandName: "Solo View", engine: "dataview-dql" }),
+		});
+		const tab = makeTab(
+			app,
+			store as unknown as ViewStore,
+			makeRegistryWith("dataview-dql"),
+			makeConsentGate(),
+			makeImporter(),
+		);
+
+		// Fire two concurrent renders without awaiting the first
+		const p1 = tab.displayAsync();
+		const p2 = tab.displayAsync();
+		await Promise.all([p1, p2]);
+
+		// Exactly one row for the single view — not two
+		expect(countViewRows(tab.containerEl, ["Solo View"])).toBe(1);
+	});
+
+	// -------------------------------------------------------------------------
+	// Remove — observer-driven refresh: removed view disappears
+	// -------------------------------------------------------------------------
+
+	it("clicking Remove removes the view from the list (observer-driven, no manual displayAsync needed)", async () => {
+		const store = makeFakeStoreForTab({
+			"keep": makeRecord({ commandName: "Keep This", engine: "dataview-dql" }),
+			"gone": makeRecord({ commandName: "Gone View", engine: "dataview-dql" }),
+		});
+		const removeCommand = vi.fn();
+		const tab = makeTab(
+			app,
+			store as unknown as ViewStore,
+			makeRegistryWith("dataview-dql"),
+			makeConsentGate(),
+			makeImporter(),
+			noop,
+			removeCommand,
+		);
+		await tab.displayAsync();
+
+		// Find "Gone View" row and click its Remove button
+		const allSettings = tab.containerEl.querySelectorAll("[data-setting-name]");
+		let removeBtnForGone: HTMLButtonElement | null = null;
+		for (const s of allSettings) {
+			if (s.getAttribute("data-setting-name") === "Gone View") {
+				const btns = s.querySelectorAll("button");
+				for (const btn of btns) {
+					if (btn.textContent?.trim() === "Remove") {
+						removeBtnForGone = btn as HTMLButtonElement;
+						break;
+					}
+				}
+				break;
+			}
+		}
+		expect(removeBtnForGone).not.toBeNull();
+		removeBtnForGone!.click();
+
+		await vi.waitFor(() => {
+			expect(tab.containerEl.textContent).not.toContain("Gone View");
+		});
+		expect(tab.containerEl.textContent).toContain("Keep This");
+		expect(countViewRows(tab.containerEl, ["Keep This"])).toBe(1);
+	});
+
+	// -------------------------------------------------------------------------
+	// Disable — observer-driven: disabled view shows Enable button afterward
+	// -------------------------------------------------------------------------
+
+	it("clicking Disable updates the row to show Enable button (observer-driven re-render)", async () => {
+		const store = makeFakeStoreForTab({
+			"v1": makeRecord({ enabled: true, commandName: "Toggle View", engine: "dataview-dql" }),
+		});
+		const tab = makeTab(
+			app,
+			store as unknown as ViewStore,
+			makeRegistryWith("dataview-dql"),
+			makeConsentGate(),
+			makeImporter(),
+		);
+		await tab.displayAsync();
+
+		expect(findButton(tab.containerEl, "Disable")).not.toBeNull();
+		expect(findButton(tab.containerEl, "Enable")).toBeNull();
+
+		findButton(tab.containerEl, "Disable")!.click();
+
+		await vi.waitFor(() => {
+			expect(findButton(tab.containerEl, "Enable")).not.toBeNull();
+		});
+		expect(findButton(tab.containerEl, "Disable")).toBeNull();
+		// Still exactly one row
+		expect(countViewRows(tab.containerEl, ["Toggle View"])).toBe(1);
+	});
+
+	// -------------------------------------------------------------------------
+	// Enable (consent granted) — observer-driven: ConsentGate.requestConsent
+	// calls store.setRecord on grant which fires the observer → re-render.
+	// -------------------------------------------------------------------------
+
+	it("clicking Enable with consent granted updates the row to Disable (observer-driven re-render)", async () => {
+		// ConsentGate stub that calls store.setRecord to simulate a grant
+		const store = makeFakeStoreForTab({
+			"v1": makeRecord({ enabled: false, commandName: "Enable Me", engine: "dataview-dql" }),
+		});
+
+		const gate: ConsentGate = {
+			evaluate: vi.fn(async () => ({ status: "not-consented" as const })),
+			requestConsent: vi.fn(async (id: string, record: ViewRecord) => {
+				// On grant the real ConsentGate calls store.setRecord — simulate that
+				await (store as unknown as ViewStore).setRecord(id, { ...record, enabled: true, okayed: { version: 1, checksum: "sha256:abc" } });
+				return true;
+			}),
+			requestReConsent: vi.fn(async () => true),
+		} as unknown as ConsentGate;
+
+		const tab = makeTab(
+			app,
+			store as unknown as ViewStore,
+			makeRegistryWith("dataview-dql"),
+			gate,
+			makeImporter(),
+		);
+		await tab.displayAsync();
+
+		expect(findButton(tab.containerEl, "Enable")).not.toBeNull();
+
+		findButton(tab.containerEl, "Enable")!.click();
+
+		await vi.waitFor(() => {
+			expect(findButton(tab.containerEl, "Disable")).not.toBeNull();
+		});
+		expect(findButton(tab.containerEl, "Enable")).toBeNull();
+		expect(countViewRows(tab.containerEl, ["Enable Me"])).toBe(1);
 	});
 });
