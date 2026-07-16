@@ -576,6 +576,44 @@ dv.table(["Name","Role","Status"],
       <div class="note">Same layout as S20 but with the "Query changed" warning banner at the top. Cancel is auto-focused.</div>
     </figure>
 
+    <!-- S27 Edit view -->
+    <figure style="width:320px">
+      <figcaption><b>S27 · Edit view</b> — rename sidebar tab and change command binding</figcaption>
+      <div class="modal-scene" style="height:340px;background:var(--panel-2)">
+        <div class="modal-overlay">
+          <div class="modal">
+            <div class="modal-head">
+              <div class="mtitle">Edit view</div>
+              <div class="msub">Characters in Scene</div>
+            </div>
+            <div class="modal-body">
+              <div class="bind-group">
+                <div class="bind-row">
+                  <label class="bind-check">
+                    <input type="checkbox" checked>
+                    Show as tab in sidebar
+                  </label>
+                  <input class="bind-input" type="text" value="Characters" placeholder="Tab label">
+                </div>
+                <div class="bind-row">
+                  <label class="bind-check">
+                    <input type="checkbox" checked>
+                    Register as command
+                  </label>
+                  <input class="bind-input" type="text" value="Story Forge: Characters in Scene" placeholder="Command name">
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn" autofocus>Cancel</button>
+              <button class="btn primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Opened from the Settings row "Edit" button. Lets you rename the sidebar tab label and add / rename / remove the command binding after import. Both fields seeded with the view's current values (here the command binding already exists and is enabled). Cancel makes no changes.</div>
+    </figure>
+
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -597,6 +635,7 @@ dv.table(["Name","Role","Status"],
           </div>
           <div class="sr-actions">
             <div class="toggle on" title="Enabled"></div>
+            <button class="smol-btn">Edit</button>
             <button class="smol-btn remove">Remove</button>
           </div>
         </div>
@@ -608,11 +647,12 @@ dv.table(["Name","Role","Status"],
           </div>
           <div class="sr-actions">
             <div class="toggle on" title="Enabled"></div>
+            <button class="smol-btn">Edit</button>
             <button class="smol-btn remove">Remove</button>
           </div>
         </div>
       </div>
-      <div class="note">Toggle ON = enabled. Remove deletes the view from the store (with confirmation).</div>
+      <div class="note">Toggle ON = enabled. Edit opens S27 (rename tab label, change command binding). Remove deletes the view from the store (with confirmation).</div>
     </figure>
 
     <!-- S25 Disabled / consent-required -->
@@ -630,6 +670,7 @@ dv.table(["Name","Role","Status"],
           <div class="sr-actions">
             <div class="toggle" title="Disabled"></div>
             <button class="smol-btn">Re-enable</button>
+            <button class="smol-btn">Edit</button>
             <button class="smol-btn remove">Remove</button>
           </div>
         </div>
@@ -642,11 +683,12 @@ dv.table(["Name","Role","Status"],
           </div>
           <div class="sr-actions">
             <button class="smol-btn">Review</button>
+            <button class="smol-btn">Edit</button>
             <button class="smol-btn remove">Remove</button>
           </div>
         </div>
       </div>
-      <div class="note">Sub-variant A: toggle OFF → "Re-enable" re-enables immediately (no new consent if source unchanged). Sub-variant B: "consent required" badge + "Review" opens S20/S21.</div>
+      <div class="note">Sub-variant A: toggle OFF → "Re-enable" re-enables immediately (no new consent if source unchanged). Sub-variant B: "consent required" badge + "Review" opens S20/S21. Edit (both rows) opens S27 to rename the tab label or change the command binding.</div>
     </figure>
 
     <!-- S26 Engine missing -->
@@ -697,12 +739,14 @@ dv.table(["Name","Role","Status"],
       <tr><td>S24 Settings row — Enabled</td><td>View in store with <code>enabled: true</code> and checksum current</td></tr>
       <tr><td>S25 Settings row — Disabled / Consent-required</td><td>A: <code>enabled: false</code> (user toggled off); B: live checksum ≠ stored checksum (consent stale)</td></tr>
       <tr><td>S26 Settings row — Engine missing</td><td>View in store references Dataview engine; Dataview plugin not installed</td></tr>
+      <tr><td>S27 Edit view</td><td>Settings row "Edit" clicked; rename the sidebar tab label and add/change/remove the view's command binding</td></tr>
     </table>
 
     <h2>Revision history</h2>
     <table>
       <tr><th>Date</th><th>Version</th><th>Change</th></tr>
       <tr><td>2026-07-15</td><td>v1</td><td>Initial M2 mockups (S11–S26): engine states, consent/import/bind modals, settings rows</td></tr>
+      <tr><td>2026-07-16</td><td>v2</td><td>Stage 2 (M2 flow): added S27 Edit view modal and "Edit" buttons on S24/S25 settings rows</td></tr>
     </table>
   </div>
 </body>
