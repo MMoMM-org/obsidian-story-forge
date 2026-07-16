@@ -17,6 +17,7 @@ import { computeChecksum } from "consent/checksum";
 import { DisclosureModal } from "consent/DisclosureModal";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
+import type { ViewDefinition } from "import/ViewDefinition";
 
 // ---------------------------------------------------------------------------
 // ConsentDecision union
@@ -160,6 +161,30 @@ export class ConsentGate {
 		return this._openModal(id, record, true);
 	}
 
+	/**
+	 * Evaluate consent on an in-memory ViewDefinition WITHOUT writing the store.
+	 *
+	 * Used by the import flow to consent-gate a parsed definition before a
+	 * ViewRecord (and its store id) exists. Presents the same disclosure modal
+	 * as the store-writing path; returns the consent tokens on grant so the
+	 * caller can persist them when it writes the record, or null on
+	 * cancel/dismiss or missing source (fail-closed).
+	 */
+	async requestConsentForDef(
+		def: ViewDefinition,
+		isDrift = false,
+	): Promise<{ version: number; checksum: string } | null> {
+		return this._presentConsentModal(
+			{
+				source: def.sourcePath,
+				engine: def.engine,
+				name: def.name,
+				description: def.description,
+			},
+			isDrift,
+		);
+	}
+
 	// ---------------------------------------------------------------------------
 	// Modal dispatch (shared by requestConsent and requestReConsent)
 	// ---------------------------------------------------------------------------
@@ -174,23 +199,65 @@ export class ConsentGate {
 		record: ViewRecord,
 		isDrift: boolean,
 	): Promise<boolean> {
-		const variant =
-			record.engine === "dataviewjs" ? "dataviewjs-full" : "dql-light";
+		const tokens = await this._presentConsentModal(
+			{
+				source: record.source,
+				engine: record.engine,
+				name: record.commandName ?? record.source,
+				description: record.description,
+			},
+			isDrift,
+		);
 
-		// Read the fenced block fresh to populate the modal and compute checksum.
-		// If the source is missing, we cannot show the modal — fail-closed.
-		const block = await readFencedBlock(this.app, record.source);
-		if (block === null) {
+		if (tokens === null) {
+			// On Cancel / missing source: no write, no state mutation
 			return false;
 		}
 
+		// Single setRecord call with okayed+enabled:true (ADR-4/ADR-5)
+		await this.store.setRecord(id, {
+			...record,
+			enabled: true,
+			okayed: tokens,
+		});
+		return true;
+	}
+
+	/**
+	 * Modal-presentation core shared by the store-writing consent paths and the
+	 * store-less import path (requestConsentForDef).
+	 *
+	 * Reads the fenced block fresh from `fields.source`; if it is missing, fails
+	 * closed (returns null — the modal is never shown). Otherwise computes the
+	 * checksum and version, presents the DisclosureModal, and returns the consent
+	 * tokens on grant or null on cancel/dismiss. Never writes the store.
+	 */
+	private async _presentConsentModal(
+		fields: {
+			source: string;
+			engine: ViewRecord["engine"];
+			name: string;
+			description?: string;
+		},
+		isDrift: boolean,
+	): Promise<{ version: number; checksum: string } | null> {
+		const variant =
+			fields.engine === "dataviewjs" ? "dataviewjs-full" : "dql-light";
+
+		// Read the fenced block fresh to populate the modal and compute checksum.
+		// If the source is missing, we cannot show the modal — fail-closed.
+		const block = await readFencedBlock(this.app, fields.source);
+		if (block === null) {
+			return null;
+		}
+
 		const checksum = await computeChecksum(block.body);
-		const version = this._readVersion(record.source);
+		const version = this._readVersion(fields.source);
 
 		const modal = new DisclosureModal(this.app, variant, {
-			name: record.commandName ?? record.source,
-			description: record.description,
-			sourcePath: record.source,
+			name: fields.name,
+			description: fields.description,
+			sourcePath: fields.source,
 			source: block.body,
 			checksum,
 			isDrift,
@@ -198,17 +265,7 @@ export class ConsentGate {
 
 		const granted = await modal.present();
 
-		if (granted) {
-			// Single setRecord call with okayed+enabled:true (ADR-4/ADR-5)
-			await this.store.setRecord(id, {
-				...record,
-				enabled: true,
-				okayed: { version, checksum },
-			});
-		}
-		// On Cancel: no write, no state mutation
-
-		return granted;
+		return granted ? { version, checksum } : null;
 	}
 
 	// ---------------------------------------------------------------------------
