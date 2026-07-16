@@ -14,7 +14,9 @@ import { ConsentGate } from "consent/ConsentGate";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
+import type { ViewDefinition } from "import/ViewDefinition";
 import { computeChecksum } from "consent/checksum";
+import { DisclosureModal } from "consent/DisclosureModal";
 
 // ---------------------------------------------------------------------------
 // Platform mock — reset per-test
@@ -331,4 +333,107 @@ describe("ConsentGate.evaluate()", () => {
 
 	// requestConsent / requestReConsent modal behaviour is tested in
 	// test/consent/DisclosureModal.test.ts (T1.4).
+});
+
+// ---------------------------------------------------------------------------
+// requestConsentForDef — no-write, def-based consent path (T-S2.1)
+// ---------------------------------------------------------------------------
+
+function makeDef(overrides: Partial<ViewDefinition> = {}): ViewDefinition {
+	return {
+		sourcePath: "views/my-view.md",
+		engine: "dataviewjs",
+		version: 3,
+		name: "My View",
+		description: "A view",
+		command: false,
+		querySource: DV_JS_BODY,
+		checksum: `sha256:${"0".repeat(64)}`,
+		...overrides,
+	};
+}
+
+describe("ConsentGate.requestConsentForDef()", () => {
+	let registry: EngineRegistryLike;
+	let dvSettings: DvSettingsReader;
+	let store: ViewStore;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		vi.restoreAllMocks();
+		registry = makeRegistry();
+		dvSettings = makeDvSettings(true);
+		store = makeStore();
+	});
+
+	it("returns {version, checksum} on grant WITHOUT writing the store", async () => {
+		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(true);
+		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT, 3);
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const expectedChecksum = await computeChecksum(DV_JS_BODY);
+		const result = await gate.requestConsentForDef(makeDef());
+
+		expect(result).toEqual({ version: 3, checksum: expectedChecksum });
+		expect(store.setRecord).not.toHaveBeenCalled();
+	});
+
+	it("returns null when the modal is cancelled — no store write", async () => {
+		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(false);
+		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT, 3);
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.requestConsentForDef(makeDef());
+
+		expect(result).toBeNull();
+		expect(store.setRecord).not.toHaveBeenCalled();
+	});
+
+	it("returns null when the source note is missing (readFencedBlock → null)", async () => {
+		const presentSpy = vi.spyOn(DisclosureModal.prototype, "present");
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.requestConsentForDef(makeDef());
+
+		expect(result).toBeNull();
+		expect(presentSpy).not.toHaveBeenCalled();
+		expect(store.setRecord).not.toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// requestConsent — write path regression (T-S2.1 refactor guard)
+// ---------------------------------------------------------------------------
+
+describe("ConsentGate.requestConsent() write path", () => {
+	let registry: EngineRegistryLike;
+	let dvSettings: DvSettingsReader;
+	let store: ViewStore;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		vi.restoreAllMocks();
+		registry = makeRegistry();
+		dvSettings = makeDvSettings(true);
+		store = makeStore();
+	});
+
+	it("still writes okayed+enabled:true and returns true on grant", async () => {
+		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(true);
+		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT, 7);
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const record = makeRecord({ okayed: null });
+
+		const expectedChecksum = await computeChecksum(DV_JS_BODY);
+		const granted = await gate.requestConsent("id-1", record);
+
+		expect(granted).toBe(true);
+		expect(store.setRecord).toHaveBeenCalledTimes(1);
+		expect(store.setRecord).toHaveBeenCalledWith("id-1", {
+			...record,
+			enabled: true,
+			okayed: { version: 7, checksum: expectedChecksum },
+		});
+	});
 });
