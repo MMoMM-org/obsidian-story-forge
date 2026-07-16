@@ -12,6 +12,20 @@
  *  - if readFencedBlock returns null → renders source-missing message, no dvApi.execute
  *  - re-reads getDataviewApi on every render (not cached)
  *  - if Dataview absent → renders engine-missing message, no dvApi.execute
+ *  - [[this]] substitution (T3.3-this):
+ *    - [[this]] is replaced with [[<path-without-md>]] of the active note before execute
+ *    - query with NO [[this]] is passed through unchanged
+ *    - [[this note]] (different note name) is NOT altered
+ *    - multiple [[this]] occurrences are all replaced
+ *    - filePath (4th arg) is still ctx.activeFile.path regardless of substitution
+ *
+ * NOTE on [[this]] runtime behavior: Dataview does NOT treat [[this]] as a
+ * self-reference at query time — it resolves it as a link to a note literally
+ * named "this", which is always empty. This substitution happens on the
+ * plugin side (before dvApi.execute) to make the contract real. Our mocks
+ * cannot verify Dataview's runtime resolution; these tests assert the
+ * SUBSTITUTION ITSELF — that [[this]] in the query body is rewritten to the
+ * active note's full-path wikilink before the query reaches Dataview.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -244,5 +258,82 @@ describe("DataviewDqlEngine", () => {
 		// Second render: Dataview now present → should call dvApi.execute
 		await engine.render(makeView(), makeCtx(), el);
 		expect(dvApi.execute).toHaveBeenCalled();
+	});
+
+	describe("[[this]] substitution (T3.3-this)", () => {
+		it("replaces [[this]] with full-path wikilink of active note before execute", async () => {
+			const dvApi = createMockDataviewApi({ satisfies: true });
+			wireDataviewApi(app, dvApi);
+			vi.mocked(readFencedBlock).mockResolvedValue({
+				lang: "dataview",
+				body: "TABLE file.name AS Character\nFROM [[this]]\nWHERE contains(tags, \"canon/character\")",
+			});
+
+			const ctx = makeCtx("10 Manuscript/Scenes/Scene 1 - The Extinguished Fire.md");
+			await engine.render(makeView(), ctx, el);
+
+			const calledBody = vi.mocked(dvApi.execute).mock.calls[0]?.[0] as string;
+			// [[this]] must be replaced with the active note's full-path wikilink (no .md extension)
+			expect(calledBody).toContain("[[10 Manuscript/Scenes/Scene 1 - The Extinguished Fire]]");
+			expect(calledBody).not.toContain("[[this]]");
+		});
+
+		it("passes ctx.activeFile.path unchanged as the 4th arg even after [[this]] substitution", async () => {
+			const dvApi = createMockDataviewApi({ satisfies: true });
+			wireDataviewApi(app, dvApi);
+			vi.mocked(readFencedBlock).mockResolvedValue({
+				lang: "dataview",
+				body: "LIST FROM [[this]]",
+			});
+
+			const ctx = makeCtx("Scenes/Scene 1.md");
+			await engine.render(makeView(), ctx, el);
+
+			const callArgs = vi.mocked(dvApi.execute).mock.calls[0];
+			// 4th arg must remain the original path WITH .md extension (filePath)
+			expect(callArgs?.[3]).toBe("Scenes/Scene 1.md");
+		});
+
+		it("passes query through unchanged when body contains no [[this]]", async () => {
+			const dvApi = createMockDataviewApi({ satisfies: true });
+			wireDataviewApi(app, dvApi);
+			const originalBody = "TABLE file.name FROM [[Scene 1 - The Extinguished Fire]]\nWHERE contains(tags, \"canon/character\")";
+			vi.mocked(readFencedBlock).mockResolvedValue({ lang: "dataview", body: originalBody });
+
+			await engine.render(makeView(), makeCtx("Scenes/Scene 1.md"), el);
+
+			const calledBody = vi.mocked(dvApi.execute).mock.calls[0]?.[0] as string;
+			expect(calledBody).toBe(originalBody);
+		});
+
+		it("does NOT alter [[this note]] — only the exact [[this]] token is matched", async () => {
+			const dvApi = createMockDataviewApi({ satisfies: true });
+			wireDataviewApi(app, dvApi);
+			const originalBody = "LIST FROM [[this note]]";
+			vi.mocked(readFencedBlock).mockResolvedValue({ lang: "dataview", body: originalBody });
+
+			await engine.render(makeView(), makeCtx("Scenes/Scene 1.md"), el);
+
+			const calledBody = vi.mocked(dvApi.execute).mock.calls[0]?.[0] as string;
+			expect(calledBody).toBe(originalBody);
+		});
+
+		it("replaces ALL occurrences of [[this]] in the query (global substitution)", async () => {
+			const dvApi = createMockDataviewApi({ satisfies: true });
+			wireDataviewApi(app, dvApi);
+			vi.mocked(readFencedBlock).mockResolvedValue({
+				lang: "dataview",
+				body: "LIST FROM [[this]]\nWHERE outgoing([[this]]) > 0",
+			});
+
+			const ctx = makeCtx("Notes/My Note.md");
+			await engine.render(makeView(), ctx, el);
+
+			const calledBody = vi.mocked(dvApi.execute).mock.calls[0]?.[0] as string;
+			// Both occurrences replaced
+			expect(calledBody).not.toContain("[[this]]");
+			const matches = calledBody.match(/\[\[Notes\/My Note\]\]/g);
+			expect(matches).toHaveLength(2);
+		});
 	});
 });
