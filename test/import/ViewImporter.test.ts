@@ -607,9 +607,7 @@ describe("ViewImporter.scanVault()", () => {
 		const file2 = makeFile("views/b.md", "b");
 		const file3 = makeFile("views/c.md", "c");
 
-		vi.mocked(app.metadataCache.iterateAllFiles).mockImplementation((cb) => {
-			for (const f of [file1, file2, file3]) cb(f);
-		});
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([file1, file2, file3]);
 		vi.mocked(app.metadataCache.getFileCache).mockImplementation((f: TFile) => {
 			if (f.path === "views/a.md") return { frontmatter: { "sf-view": true } };
 			if (f.path === "views/b.md") return { frontmatter: { "sf-view": false } };
@@ -629,7 +627,7 @@ describe("ViewImporter.scanVault()", () => {
 	it("excludes files where sf-view is absent", async () => {
 		const file = makeFile("views/no-flag.md");
 
-		vi.mocked(app.metadataCache.iterateAllFiles).mockImplementation((cb) => cb(file));
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([file]);
 		vi.mocked(app.metadataCache.getFileCache).mockReturnValue({ frontmatter: {} });
 
 		const store = makeStore();
@@ -640,7 +638,7 @@ describe("ViewImporter.scanVault()", () => {
 	it("excludes files where sf-view is a non-boolean truthy value (string 'true')", async () => {
 		const file = makeFile("views/truthy.md");
 
-		vi.mocked(app.metadataCache.iterateAllFiles).mockImplementation((cb) => cb(file));
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([file]);
 		vi.mocked(app.metadataCache.getFileCache).mockReturnValue({
 			frontmatter: { "sf-view": "true" },
 		});
@@ -653,7 +651,7 @@ describe("ViewImporter.scanVault()", () => {
 	it("excludes files where sf-view is a number 1 (non-boolean-truthy)", async () => {
 		const file = makeFile("views/num.md");
 
-		vi.mocked(app.metadataCache.iterateAllFiles).mockImplementation((cb) => cb(file));
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([file]);
 		vi.mocked(app.metadataCache.getFileCache).mockReturnValue({
 			frontmatter: { "sf-view": 1 },
 		});
@@ -666,7 +664,7 @@ describe("ViewImporter.scanVault()", () => {
 	it("excludes paths already present in store.getViews() (already imported)", async () => {
 		const file = makeFile("views/imported.md");
 
-		vi.mocked(app.metadataCache.iterateAllFiles).mockImplementation((cb) => cb(file));
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([file]);
 		vi.mocked(app.metadataCache.getFileCache).mockReturnValue({
 			frontmatter: { "sf-view": true },
 		});
@@ -687,9 +685,7 @@ describe("ViewImporter.scanVault()", () => {
 	});
 
 	it("returns an empty array when no vault notes have sf-view:true", async () => {
-		vi.mocked(app.metadataCache.iterateAllFiles).mockImplementation((_cb) => {
-			// no files
-		});
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([]);
 
 		const store = makeStore();
 		importer = new ViewImporter(app, store);
@@ -699,7 +695,7 @@ describe("ViewImporter.scanVault()", () => {
 	it("does NOT call app.vault.read() — scan is cache-only", async () => {
 		const file = makeFile("views/cache-only.md");
 
-		vi.mocked(app.metadataCache.iterateAllFiles).mockImplementation((cb) => cb(file));
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([file]);
 		vi.mocked(app.metadataCache.getFileCache).mockReturnValue({
 			frontmatter: { "sf-view": true },
 		});

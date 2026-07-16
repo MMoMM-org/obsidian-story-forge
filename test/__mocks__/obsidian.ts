@@ -311,14 +311,6 @@ export class App {
 		getFirstLinkpathDest: vi.fn(
 			(_linkpath: string, _sourcePath: string): TFile | null => null,
 		),
-		/**
-		 * iterateAllFiles — iterate over every TFile in the vault cache.
-		 * Default: no-op (no files). Override per-test:
-		 *   vi.mocked(app.metadataCache.iterateAllFiles).mockImplementation(cb => {
-		 *     for (const f of files) cb(f);
-		 *   })
-		 */
-		iterateAllFiles: vi.fn((_cb: (file: TFile) => void): void => {}),
 		/** Live registrations (event → callbacks). Cleared by off() on unload. */
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		_eventRegistrations: new Map<string, Array<(...args: any[]) => any>>(),

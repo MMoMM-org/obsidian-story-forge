@@ -22,15 +22,6 @@ export { ImportError } from "import/ViewDefinition";
 export type { ViewDefinition } from "import/ViewDefinition";
 
 /**
- * Minimal interface extension so TypeScript knows about `iterateAllFiles`,
- * which is present on Obsidian's MetadataCache but not typed in @types/obsidian.
- * Using `unknown` to stay safely typed without `any` (ADR, CON-8).
- */
-interface MetadataCacheWithIterate {
-	iterateAllFiles(cb: (file: TFile) => void): void;
-}
-
-/**
  * ViewImporter — stateless service.
  *
  * Injected dependencies: `app` (for vault + metadataCache) and `store` (for
@@ -202,8 +193,8 @@ export class ViewImporter {
 	 * Return all vault notes whose CachedMetadata has sf-view === true (strict
 	 * boolean), excluding any paths already present in the store.
 	 *
-	 * Uses metadataCache.iterateAllFiles + getFileCache — NO vault.read() calls.
-	 * (ADR-6: auto-scan is cache-only.)
+	 * Uses vault.getMarkdownFiles() + metadataCache.getFileCache — NO vault.read()
+	 * calls. (ADR-6: auto-scan is cache-only.)
 	 *
 	 * @ref SDD/ADR-6 — metadataCache-only scan; no vault reads at scan time
 	 */
@@ -214,23 +205,14 @@ export class ViewImporter {
 			Object.values(views).map((r) => r.source),
 		);
 
-		const result: TFile[] = [];
-		// iterateAllFiles is present on Obsidian MetadataCache at runtime but not
-		// in @types/obsidian. Cast to the minimal typed interface we defined above.
-		(this.app.metadataCache as unknown as MetadataCacheWithIterate).iterateAllFiles(
-			(file: TFile) => {
-				// Strict boolean true — exclude absent, false, or non-boolean truthy.
-				const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-				if (fm?.["sf-view"] !== true) return;
+		return this.app.vault.getMarkdownFiles().filter((file) => {
+			// Strict boolean true — exclude absent, false, or non-boolean truthy.
+			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+			if (fm?.["sf-view"] !== true) return false;
 
-				// Exclude already-imported paths.
-				if (importedSources.has(file.path)) return;
-
-				result.push(file);
-			},
-		);
-
-		return result;
+			// Exclude already-imported paths.
+			return !importedSources.has(file.path);
+		});
 	}
 
 	// -------------------------------------------------------------------------
