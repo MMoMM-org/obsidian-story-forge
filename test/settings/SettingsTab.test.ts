@@ -582,7 +582,7 @@ function countViewRows(container: HTMLElement, viewNames: string[]): number {
 	return count;
 }
 
-describe("SettingsTab — Bug B: no duplicate rows on concurrent displayAsync()", () => {
+describe("SettingsTab — Bug B: _displayGen guard coalesces concurrent displayAsync() calls", () => {
 	let app: App;
 
 	beforeEach(() => {
@@ -590,12 +590,49 @@ describe("SettingsTab — Bug B: no duplicate rows on concurrent displayAsync()"
 	});
 
 	// -------------------------------------------------------------------------
-	// No-doubling test — Disable action triggers both the store observer AND
-	// (before the fix) a manual displayAsync() call → two renders → doubled rows.
-	// After the fix, the _displayGen guard coalesces to a single render.
+	// No-doubling test — faithfully reproduces the pre-fix race:
+	//   render A starts (enters displayAsync, increments gen, clears container)
+	//   render B starts concurrently (increments gen again, clears container)
+	//   both await getViews(); render A's gen is now stale → it bails
+	//   render B paints the single correct set of rows
+	//
+	// Without the `if (gen !== this._displayGen) return;` guard both renders
+	// append rows → 2 rows per view. This test FAILS if the guard is removed.
 	// -------------------------------------------------------------------------
 
-	it("clicking Disable produces exactly one row per view (no duplication)", async () => {
+	it("two concurrent renders produce exactly one row per view (no duplication)", async () => {
+		const store = makeFakeStoreForTab({
+			"v1": makeRecord({ enabled: true, commandName: "Alpha View", engine: "dataview-dql" }),
+			"v2": makeRecord({ enabled: true, commandName: "Beta View", engine: "dataview-dql" }),
+		});
+		const tab = makeTab(
+			app,
+			store as unknown as ViewStore,
+			makeRegistryWith("dataview-dql"),
+			makeConsentGate(),
+			makeImporter(),
+		);
+
+		// Start render A without awaiting — it is suspended at getViews().
+		// Start render B immediately — this is the pre-fix double-trigger:
+		// the old code's manual displayAsync() call + the store observer both
+		// fired displayAsync() after a mutation. Both renders are in flight at once.
+		const p1 = tab.displayAsync();
+		const p2 = tab.displayAsync();
+		await Promise.all([p1, p2]);
+
+		// Each view must appear exactly once — the guard suppressed the stale render.
+		expect(countViewRows(tab.containerEl, ["Alpha View", "Beta View"])).toBe(2);
+	});
+
+	// -------------------------------------------------------------------------
+	// Disable action — manually reproduce the pre-fix double-trigger:
+	//   render A starts (fired manually to simulate the old manual call)
+	//   click Disable → store.setRecord fires observer → render B starts
+	//   both in flight; guard must discard render A
+	// -------------------------------------------------------------------------
+
+	it("Disable action race (manual render + observer render) produces exactly one row per view", async () => {
 		const store = makeFakeStoreForTab({
 			"v1": makeRecord({ enabled: true, commandName: "Alpha View", engine: "dataview-dql" }),
 			"v2": makeRecord({ enabled: true, commandName: "Beta View", engine: "dataview-dql" }),
@@ -609,56 +646,46 @@ describe("SettingsTab — Bug B: no duplicate rows on concurrent displayAsync()"
 		);
 		await tab.displayAsync();
 
-		// Confirm two rows rendered initially
-		expect(countViewRows(tab.containerEl, ["Alpha View", "Beta View"])).toBe(2);
-
-		// Click Disable on v1 — this mutates the store (fires observer) AND
-		// previously also called displayAsync() manually → double render.
+		// Grab the Disable button reference BEFORE starting render A (render A's
+		// synchronous containerEl.empty() would detach it from the DOM immediately).
 		const disableBtn = findButton(tab.containerEl, "Disable");
 		expect(disableBtn).not.toBeNull();
-		disableBtn!.click();
 
-		// Wait for the re-render triggered by the store observer
+		// Simulate the pre-fix double-trigger:
+		//   render A starts (old manual call equivalent) — suspended at getViews()
+		//   then click Disable → store.setRecord → observer fires render B
+		// Both renders are in flight concurrently.
+		const p1 = tab.displayAsync(); // render A
+		disableBtn!.click();           // render B via store.setRecord → observer
+
+		// Wait for both renders to settle
+		await p1;
 		await vi.waitFor(() => {
-			// v1 should now show Enable (was disabled), v2 still shows Disable
+			// v1 disabled → Enable button appears
 			expect(findButton(tab.containerEl, "Enable")).not.toBeNull();
 		});
 
-		// Each view must appear exactly once — no doubled rows
+		// Each view must appear exactly once — not four rows
 		expect(countViewRows(tab.containerEl, ["Alpha View", "Beta View"])).toBe(2);
 	});
+});
 
-	// -------------------------------------------------------------------------
-	// Concurrent-render test — fire displayAsync() twice rapidly; the _displayGen
-	// guard must ensure only one final set of rows is painted.
-	// -------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Observer-driven refresh — single render per action (no concurrent renders).
+// These tests verify the observer path produces correct UI state changes.
+// They do NOT catch the _displayGen guard regression — see Bug B above for that.
+// ---------------------------------------------------------------------------
 
-	it("two concurrent displayAsync() calls coalesce to a single render (no doubled rows)", async () => {
-		const store = makeFakeStoreForTab({
-			"v1": makeRecord({ commandName: "Solo View", engine: "dataview-dql" }),
-		});
-		const tab = makeTab(
-			app,
-			store as unknown as ViewStore,
-			makeRegistryWith("dataview-dql"),
-			makeConsentGate(),
-			makeImporter(),
-		);
+describe("SettingsTab — observer-driven refresh via store subscriber", () => {
+	let app: App;
 
-		// Fire two concurrent renders without awaiting the first
-		const p1 = tab.displayAsync();
-		const p2 = tab.displayAsync();
-		await Promise.all([p1, p2]);
-
-		// Exactly one row for the single view — not two
-		expect(countViewRows(tab.containerEl, ["Solo View"])).toBe(1);
+	beforeEach(() => {
+		app = makeApp();
 	});
 
-	// -------------------------------------------------------------------------
-	// Remove — observer-driven refresh: removed view disappears
-	// -------------------------------------------------------------------------
+	// Observer path: Remove → deleteRecord fires subscriber → view disappears
 
-	it("clicking Remove removes the view from the list (observer-driven, no manual displayAsync needed)", async () => {
+	it("clicking Remove removes the view from the list", async () => {
 		const store = makeFakeStoreForTab({
 			"keep": makeRecord({ commandName: "Keep This", engine: "dataview-dql" }),
 			"gone": makeRecord({ commandName: "Gone View", engine: "dataview-dql" }),
@@ -700,11 +727,9 @@ describe("SettingsTab — Bug B: no duplicate rows on concurrent displayAsync()"
 		expect(countViewRows(tab.containerEl, ["Keep This"])).toBe(1);
 	});
 
-	// -------------------------------------------------------------------------
-	// Disable — observer-driven: disabled view shows Enable button afterward
-	// -------------------------------------------------------------------------
+	// Observer path: Disable → setRecord fires subscriber → row shows Enable
 
-	it("clicking Disable updates the row to show Enable button (observer-driven re-render)", async () => {
+	it("clicking Disable updates the row to show Enable button", async () => {
 		const store = makeFakeStoreForTab({
 			"v1": makeRecord({ enabled: true, commandName: "Toggle View", engine: "dataview-dql" }),
 		});
@@ -726,16 +751,13 @@ describe("SettingsTab — Bug B: no duplicate rows on concurrent displayAsync()"
 			expect(findButton(tab.containerEl, "Enable")).not.toBeNull();
 		});
 		expect(findButton(tab.containerEl, "Disable")).toBeNull();
-		// Still exactly one row
 		expect(countViewRows(tab.containerEl, ["Toggle View"])).toBe(1);
 	});
 
-	// -------------------------------------------------------------------------
-	// Enable (consent granted) — observer-driven: ConsentGate.requestConsent
-	// calls store.setRecord on grant which fires the observer → re-render.
-	// -------------------------------------------------------------------------
+	// Observer path: Enable (consent granted) → ConsentGate calls setRecord →
+	// subscriber fires → row shows Disable
 
-	it("clicking Enable with consent granted updates the row to Disable (observer-driven re-render)", async () => {
+	it("clicking Enable with consent granted updates the row to Disable", async () => {
 		// ConsentGate stub that calls store.setRecord to simulate a grant
 		const store = makeFakeStoreForTab({
 			"v1": makeRecord({ enabled: false, commandName: "Enable Me", engine: "dataview-dql" }),
