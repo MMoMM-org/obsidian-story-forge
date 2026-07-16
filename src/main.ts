@@ -102,7 +102,6 @@ export default class StoryForgePlugin extends Plugin {
 			this.app,
 			this,
 			this.store,
-			registry,
 			gate,
 			importer,
 			registerCommand,
