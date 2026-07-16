@@ -4,7 +4,6 @@ import { type App, PluginSettingTab, Setting } from "obsidian";
 import { HeaderSection } from "./HeaderSection";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
-import { EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { ViewImporter } from "import/ViewImporter";
 import { ImportPickerModal } from "import/ImportPickerModal";
@@ -19,7 +18,6 @@ export class SettingsTab extends PluginSettingTab {
 	plugin: MyPlugin;
 	private readonly header: HeaderSection;
 	private readonly store: ViewStore;
-	private readonly registry: EngineRegistry;
 	private readonly gate: ConsentGate;
 	private readonly importer: ViewImporter;
 	private readonly registerCommand: RegisterCommandCallback;
@@ -37,7 +35,6 @@ export class SettingsTab extends PluginSettingTab {
 		app: App,
 		plugin: MyPlugin,
 		store: ViewStore,
-		registry: EngineRegistry,
 		gate: ConsentGate,
 		importer: ViewImporter,
 		registerCommand: RegisterCommandCallback,
@@ -47,7 +44,6 @@ export class SettingsTab extends PluginSettingTab {
 		this.plugin = plugin;
 		this.header = new HeaderSection({ plugin });
 		this.store = store;
-		this.registry = registry;
 		this.gate = gate;
 		this.importer = importer;
 		this.registerCommand = registerCommand;
@@ -166,6 +162,10 @@ export class SettingsTab extends PluginSettingTab {
 		if (gen !== this._displayGen) return;
 
 		for (const { id, record, status } of rows) {
+			// The enabled projection (evaluate({ ...record, enabled: true })) can
+			// never short-circuit to "disabled", so this guard is defensive only —
+			// it narrows `status` for _renderViewRow without an `as` cast.
+			if (status === "disabled") continue;
 			this._renderViewRow(containerEl, id, record, status);
 		}
 	}
@@ -192,7 +192,7 @@ export class SettingsTab extends PluginSettingTab {
 		containerEl: HTMLElement,
 		id: string,
 		record: ViewRecord,
-		decision: ConsentDecision["status"],
+		decision: Exclude<ConsentDecision["status"], "disabled">,
 	): void {
 		const displayName = record.commandName ?? record.source;
 		const engine = record.engine;
@@ -247,11 +247,17 @@ export class SettingsTab extends PluginSettingTab {
 			} else if (decision === "not-consented") {
 				setting.setDesc(`Engine: ${engine} · Disabled`);
 				this._addButton(setting, "Enable", () => this._enableView(id, record), true);
-			} else {
+			} else if (decision === "consented") {
 				// S25a — consented but disabled → Re-enable immediately (no fresh
 				// consent needed: source unchanged).
 				setting.setDesc(`Engine: ${engine} · Disabled`);
 				this._addButton(setting, "Re-enable", () => this._reEnableView(id, record));
+			} else {
+				// Exhaustive guard — satisfies TypeScript's never check. All engine
+				// gate statuses (engine-missing/dvjs-off/platform-restricted) are
+				// handled above; "disabled" is excluded from the param type.
+				const _exhaustive: never = decision;
+				console.debug("[StoryForge] unhandled consent decision", _exhaustive);
 			}
 		}
 

@@ -14,7 +14,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "../__mocks__/obsidian";
 import { SettingsTab } from "../../src/settings/SettingsTab";
 import { ViewStore } from "../../src/store/ViewStore";
-import { EngineRegistry } from "../../src/engines/QueryEngine";
 import type { ViewRecord } from "../../src/store/types";
 import type { ConsentGate } from "../../src/consent/ConsentGate";
 import type { ViewImporter } from "../../src/import/ViewImporter";
@@ -43,19 +42,6 @@ function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 	return new ViewStore(port);
 }
 
-function makeEmptyRegistry(): EngineRegistry {
-	return new EngineRegistry([]);
-}
-
-function makeRegistryWith(...kinds: ViewRecord["engine"][]): EngineRegistry {
-	const engines = kinds.map((kind) => ({
-		kind,
-		render: vi.fn(async () => {}),
-		teardown: vi.fn(),
-	}));
-	return new EngineRegistry(engines);
-}
-
 function makeConsentGate(): ConsentGate {
 	return {
 		evaluate: vi.fn(async () => ({ status: "not-consented" as const })),
@@ -74,7 +60,6 @@ function makeGateWithDecision(
 		| "consented"
 		| "not-consented"
 		| "drift"
-		| "disabled"
 		| "platform-restricted"
 		| "engine-missing"
 		| "dvjs-off",
@@ -120,7 +105,6 @@ function makeRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
 function makeTab(
 	app: App,
 	store: ViewStore,
-	registry: EngineRegistry,
 	gate: ConsentGate,
 	importer: ViewImporter,
 	registerCommand: RegisterCommandCallback = noop,
@@ -133,7 +117,7 @@ function makeTab(
 		settings: { exampleSetting: "" },
 		saveSettings: vi.fn(async () => {}),
 	};
-	return new SettingsTab(app, plugin as never, store, registry, gate, importer, registerCommand, removeCommand);
+	return new SettingsTab(app, plugin as never, store, gate, importer, registerCommand, removeCommand);
 }
 
 /**
@@ -173,7 +157,7 @@ describe("SettingsTab — Views section", () => {
 
 	it("display() renders a 'Views' heading section", async () => {
 		const store = makeStore();
-		const tab = makeTab(app, store, makeEmptyRegistry(), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		const text = container.textContent ?? "";
@@ -182,7 +166,7 @@ describe("SettingsTab — Views section", () => {
 
 	it("renders empty-state message when no views are imported", async () => {
 		const store = makeStore();
-		const tab = makeTab(app, store, makeEmptyRegistry(), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		const text = container.textContent ?? "";
@@ -191,7 +175,7 @@ describe("SettingsTab — Views section", () => {
 
 	it("does not show empty-state when at least one view exists", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true }) });
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		const text = container.textContent ?? "";
@@ -204,8 +188,7 @@ describe("SettingsTab — Views section", () => {
 
 	it("renders S24 row with Disable action for an enabled view", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, commandName: "My DQL View" }) });
-		const registry = makeRegistryWith("dataview-dql");
-		const tab = makeTab(app, store, registry, makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		// Should show name and have a Disable button
@@ -215,8 +198,7 @@ describe("SettingsTab — Views section", () => {
 
 	it("S24 row shows engine type in description", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataview-dql", commandName: "DQL View" }) });
-		const registry = makeRegistryWith("dataview-dql");
-		const tab = makeTab(app, store, registry, makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		const text = container.textContent ?? "";
@@ -229,8 +211,7 @@ describe("SettingsTab — Views section", () => {
 
 	it("renders S25 row with Enable action for disabled view with okayed:null", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed: null, commandName: "DQL View" }) });
-		const registry = makeRegistryWith("dataview-dql");
-		const tab = makeTab(app, store, registry, makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		expect(findButton(container, "Enable")).not.toBeNull();
@@ -238,9 +219,8 @@ describe("SettingsTab — Views section", () => {
 
 	it("clicking Enable for DataviewJS view calls consentGate.requestConsent", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed: null, engine: "dataviewjs", commandName: "JS View" }) });
-		const registry = makeRegistryWith("dataviewjs");
 		const gate = makeConsentGate();
-		const tab = makeTab(app, store, registry, gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		const enableBtn = findButton(container, "Enable");
@@ -251,9 +231,8 @@ describe("SettingsTab — Views section", () => {
 
 	it("clicking Enable for DQL view calls consentGate.requestConsent", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed: null, engine: "dataview-dql", commandName: "DQL View" }) });
-		const registry = makeRegistryWith("dataview-dql");
 		const gate = makeConsentGate();
-		const tab = makeTab(app, store, registry, gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		const enableBtn = findButton(container, "Enable");
@@ -264,12 +243,11 @@ describe("SettingsTab — Views section", () => {
 
 	it("dismissed consent (requestConsent returns false) does not call store.setRecord and row stays S25", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed: null, engine: "dataviewjs", commandName: "JS View" }) });
-		const registry = makeRegistryWith("dataviewjs");
 		const gate = makeConsentGate();
 		// Stub requestConsent to return false (user cancelled)
 		vi.mocked(gate.requestConsent).mockResolvedValue(false);
 		const setRecordSpy = vi.spyOn(store, "setRecord");
-		const tab = makeTab(app, store, registry, gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		const enableBtn = findButton(container, "Enable");
@@ -291,8 +269,7 @@ describe("SettingsTab — Views section", () => {
 	it("renders S26 row when engine is absent from registry", async () => {
 		// The gate reports engine-missing (the real gate checks the registry).
 		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataview-dql", commandName: "Missing Engine View" }) });
-		const registry = makeEmptyRegistry(); // no engines wired
-		const tab = makeTab(app, store, registry, makeGateWithDecision("engine-missing"), makeImporter());
+		const tab = makeTab(app, store, makeGateWithDecision("engine-missing"), makeImporter());
 		const container = await renderTab(tab);
 
 		const text = container.textContent ?? "";
@@ -304,8 +281,7 @@ describe("SettingsTab — Views section", () => {
 
 	it("S26 row description mentions engine missing", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataview-dql", commandName: "No Engine View" }) });
-		const registry = makeEmptyRegistry();
-		const tab = makeTab(app, store, registry, makeGateWithDecision("engine-missing"), makeImporter());
+		const tab = makeTab(app, store, makeGateWithDecision("engine-missing"), makeImporter());
 		const container = await renderTab(tab);
 
 		const text = container.textContent ?? "";
@@ -322,9 +298,8 @@ describe("SettingsTab — Views section", () => {
 		const store = makeStore({
 			"v1": makeRecord({ enabled: true, okayed, engine: "dataview-dql", commandName: "Active View" }),
 		});
-		const registry = makeRegistryWith("dataview-dql");
 		const setRecordSpy = vi.spyOn(store, "setRecord");
-		const tab = makeTab(app, store, registry, makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		const disableBtn = findButton(container, "Disable");
@@ -344,7 +319,7 @@ describe("SettingsTab — Views section", () => {
 	it("clicking Remove calls store.deleteRecord with the view id", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: false, commandName: "Remove Me" }) });
 		const deleteRecordSpy = vi.spyOn(store, "deleteRecord");
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		const removeBtn = findButton(container, "Remove");
@@ -356,7 +331,7 @@ describe("SettingsTab — Views section", () => {
 
 	it("Remove does not call any vault write API", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: false, commandName: "Remove Me" }) });
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		const removeBtn = findButton(container, "Remove");
@@ -373,7 +348,7 @@ describe("SettingsTab — Views section", () => {
 			"v2": makeRecord({ enabled: false, commandName: "Remove Me" }),
 		});
 		const deleteRecordSpy = vi.spyOn(store, "deleteRecord");
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		// Find the setting row for "Remove Me" and click its Remove button
@@ -411,7 +386,7 @@ describe("SettingsTab — Views section", () => {
 	it("clicking Remove calls the injected removeCommand callback with the view id", async () => {
 		const store = makeStore({ "v-cmd": makeRecord({ enabled: false, commandName: "Cmd View" }) });
 		const removeCommand = vi.fn();
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter(), noop, removeCommand);
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter(), noop, removeCommand);
 		const container = await renderTab(tab);
 
 		const removeBtn = findButton(container, "Remove");
@@ -425,7 +400,7 @@ describe("SettingsTab — Views section", () => {
 		// removeCommand is a no-op (the default); this proves the call is safe
 		const store = makeStore({ "v-no-cmd": makeRecord({ enabled: false, commandName: "No Cmd View" }) });
 		const removeCommand = vi.fn(); // will be called but it's a no-op at the plugin level
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter(), noop, removeCommand);
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter(), noop, removeCommand);
 		const container = await renderTab(tab);
 
 		const removeBtn = findButton(container, "Remove");
@@ -441,7 +416,7 @@ describe("SettingsTab — Views section", () => {
 
 	it("renders an 'Import view' button", async () => {
 		const store = makeStore();
-		const tab = makeTab(app, store, makeEmptyRegistry(), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		expect(findButton(container, "Import view")).not.toBeNull();
@@ -503,7 +478,7 @@ describe("SettingsTab — Bug A: store subscription refreshes views list", () =>
 
 	it("after display(), firing the store subscriber re-renders a newly added view without calling display() again", async () => {
 		const store = makeFakeStoreForTab({});
-		const tab = makeTab(app, store as unknown as ViewStore, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store as unknown as ViewStore, makeConsentGate(), makeImporter());
 		// Open the tab (call display)
 		await tab.displayAsync();
 
@@ -527,7 +502,7 @@ describe("SettingsTab — Bug A: store subscription refreshes views list", () =>
 
 	it("hide() unsubscribes so a post-hide store fire does NOT re-render", async () => {
 		const store = makeFakeStoreForTab({ "v1": makeRecord({ commandName: "View 1" }) });
-		const tab = makeTab(app, store as unknown as ViewStore, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store as unknown as ViewStore, makeConsentGate(), makeImporter());
 
 		await tab.displayAsync();
 		expect((store as unknown as { _subscriberCount: number })._subscriberCount).toBe(1);
@@ -553,7 +528,7 @@ describe("SettingsTab — Bug A: store subscription refreshes views list", () =>
 
 	it("repeated display() calls do not create multiple subscriptions (no double-subscribe)", async () => {
 		const store = makeFakeStoreForTab({});
-		const tab = makeTab(app, store as unknown as ViewStore, makeEmptyRegistry(), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store as unknown as ViewStore, makeConsentGate(), makeImporter());
 
 		await tab.displayAsync();
 		await tab.displayAsync();
@@ -568,7 +543,7 @@ describe("SettingsTab — Bug A: store subscription refreshes views list", () =>
 		// A regression where hide() forgets to null the handle OR the guard were inverted
 		// would leave _subscriberCount at 0 (missed re-subscribe) or 2 (double-subscribe).
 		const store = makeFakeStoreForTab({ "v1": makeRecord({ commandName: "View 1" }) });
-		const tab = makeTab(app, store as unknown as ViewStore, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store as unknown as ViewStore, makeConsentGate(), makeImporter());
 
 		// Open → hide → reopen
 		await tab.displayAsync();
@@ -639,7 +614,6 @@ describe("SettingsTab — Bug B: _displayGen guard coalesces concurrent displayA
 		const tab = makeTab(
 			app,
 			store as unknown as ViewStore,
-			makeRegistryWith("dataview-dql"),
 			makeConsentGate(),
 			makeImporter(),
 		);
@@ -671,7 +645,6 @@ describe("SettingsTab — Bug B: _displayGen guard coalesces concurrent displayA
 		const tab = makeTab(
 			app,
 			store as unknown as ViewStore,
-			makeRegistryWith("dataview-dql"),
 			makeConsentGate(),
 			makeImporter(),
 		);
@@ -725,7 +698,6 @@ describe("SettingsTab — observer-driven refresh via store subscriber", () => {
 		const tab = makeTab(
 			app,
 			store as unknown as ViewStore,
-			makeRegistryWith("dataview-dql"),
 			makeConsentGate(),
 			makeImporter(),
 			noop,
@@ -769,7 +741,6 @@ describe("SettingsTab — observer-driven refresh via store subscriber", () => {
 		const tab = makeTab(
 			app,
 			store as unknown as ViewStore,
-			makeRegistryWith("dataview-dql"),
 			makeConsentGate(),
 			makeImporter(),
 		);
@@ -809,7 +780,6 @@ describe("SettingsTab — observer-driven refresh via store subscriber", () => {
 		const tab = makeTab(
 			app,
 			store as unknown as ViewStore,
-			makeRegistryWith("dataview-dql"),
 			gate,
 			makeImporter(),
 		);
@@ -841,7 +811,7 @@ describe("SettingsTab — T-S2.5 drift-aware row states", () => {
 	it("enabled+consented → Disable + Edit + Remove (no Review/Enable)", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, commandName: "Enabled View" }) });
 		const gate = makeGateWithDecision("consented");
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		expect(findButton(container, "Disable")).not.toBeNull();
@@ -856,7 +826,7 @@ describe("SettingsTab — T-S2.5 drift-aware row states", () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed, commandName: "Disabled View" }) });
 		const gate = makeGateWithDecision("consented");
 		const setRecordSpy = vi.spyOn(store, "setRecord");
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		const reEnableBtn = findButton(container, "Re-enable");
@@ -877,7 +847,7 @@ describe("SettingsTab — T-S2.5 drift-aware row states", () => {
 	it("disabled+drift → Review + Edit + Remove; Review calls requestReConsent", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed: { version: 1, checksum: "x" }, commandName: "Drifted View" }) });
 		const gate = makeGateWithDecision("drift");
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		const reviewBtn = findButton(container, "Review");
@@ -894,7 +864,7 @@ describe("SettingsTab — T-S2.5 drift-aware row states", () => {
 	it("disabled+not-consented → Enable + Edit + Remove; Enable calls requestConsent", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed: null, commandName: "Never Consented" }) });
 		const gate = makeGateWithDecision("not-consented");
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		const enableBtn = findButton(container, "Enable");
@@ -911,7 +881,7 @@ describe("SettingsTab — T-S2.5 drift-aware row states", () => {
 	it("enabled+drift → Review + Edit + Remove; Review calls requestReConsent", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, okayed: { version: 1, checksum: "x" }, commandName: "Enabled Drift" }) });
 		const gate = makeGateWithDecision("drift");
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		const reviewBtn = findButton(container, "Review");
@@ -928,7 +898,7 @@ describe("SettingsTab — T-S2.5 drift-aware row states", () => {
 	it("enabled+not-consented → Review + Disable + Edit + Remove; Review calls requestConsent", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, okayed: null, commandName: "Enabled No Consent" }) });
 		const gate = makeGateWithDecision("not-consented");
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		const reviewBtn = findButton(container, "Review");
@@ -946,7 +916,7 @@ describe("SettingsTab — T-S2.5 drift-aware row states", () => {
 	it("dvjs-off → Edit + Remove (no toggle)", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataviewjs", commandName: "DvJs Off View" }) });
 		const gate = makeGateWithDecision("dvjs-off");
-		const tab = makeTab(app, store, makeRegistryWith("dataviewjs"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		expect(findButton(container, "Edit")).not.toBeNull();
@@ -959,7 +929,7 @@ describe("SettingsTab — T-S2.5 drift-aware row states", () => {
 	it("platform-restricted → Edit + Remove (no toggle)", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataviewjs", commandName: "Mobile Restricted View" }) });
 		const gate = makeGateWithDecision("platform-restricted");
-		const tab = makeTab(app, store, makeRegistryWith("dataviewjs"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		expect(findButton(container, "Edit")).not.toBeNull();
@@ -971,7 +941,7 @@ describe("SettingsTab — T-S2.5 drift-aware row states", () => {
 	it("engine-missing → Remove only (no Edit — non-vacuous assert)", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataview-dql", commandName: "Missing Engine" }) });
 		const gate = makeGateWithDecision("engine-missing");
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		expect(findButton(container, "Remove")).not.toBeNull();
@@ -1000,7 +970,7 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 			.spyOn(BindModal.prototype, "present")
 			.mockResolvedValue({ label: "New Label", registerCommand: true, commandName: "Story Forge: New Label" });
 
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter(), registerCommand, removeCommand);
+		const tab = makeTab(app, store, gate, makeImporter(), registerCommand, removeCommand);
 		const container = await renderTab(tab);
 
 		const editBtn = findButton(container, "Edit");
@@ -1023,7 +993,7 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		const removeCommand = vi.fn();
 		vi.spyOn(BindModal.prototype, "present").mockResolvedValue({ label: "Renamed", registerCommand: false, commandName: "Story Forge: Renamed" });
 
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter(), registerCommand, removeCommand);
+		const tab = makeTab(app, store, gate, makeImporter(), registerCommand, removeCommand);
 		const container = await renderTab(tab);
 
 		findButton(container, "Edit")!.click();
@@ -1038,7 +1008,7 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		const setRecordSpy = vi.spyOn(store, "setRecord");
 		const presentSpy = vi.spyOn(BindModal.prototype, "present").mockResolvedValue(null);
 
-		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter());
 		const container = await renderTab(tab);
 
 		findButton(container, "Edit")!.click();
@@ -1074,7 +1044,7 @@ describe("SettingsTab — T-S2.5 re-entrancy holds across the evaluate await", (
 			requestReConsent: vi.fn(async () => true),
 		} as unknown as ConsentGate;
 
-		const tab = makeTab(app, store as unknown as ViewStore, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const tab = makeTab(app, store as unknown as ViewStore, gate, makeImporter());
 
 		const p1 = tab.displayAsync();
 		const p2 = tab.displayAsync();
