@@ -17,7 +17,7 @@ phase: 5
 - `[ref: SDD/Risks and Technical Debt]` (gotchas to verify in integration)
 - `[ref: SDD/Runtime View — Flows A–E]` (all five flows exercised in integration tests)
 - `[ref: PRD/Success Metrics — Tracking Requirements]` (the verification event table)
-- `[ref: PRD/Feature 1–4 — all 29 acceptance criteria]`
+- `[ref: PRD/Feature 1–4 — all 31 acceptance criteria]`
 - M1 plan `docs/XDD/specs/001-core-infrastructure/plan/phase-4.md` — mirrors live-testing pattern and checklist format
 
 **Key Decisions**:
@@ -88,7 +88,7 @@ Validates the fully integrated M2 feature through cross-component integration te
 
 - [x] **T5.3 Full gate** `[activity: validate]`
 
-  1. Prime: Re-read `[ref: PRD/Feature 1–4 — all 29 acceptance criteria]` and the Coverage map in `plan/README.md`. Re-read `[ref: SDD/Acceptance Criteria (EARS)]`. Re-read `[ref: SDD/Quality Requirements]`.
+  1. Prime: Re-read `[ref: PRD/Feature 1–4 — all 31 acceptance criteria]` and the Coverage map in `plan/README.md`. Re-read `[ref: SDD/Acceptance Criteria (EARS)]`. Re-read `[ref: SDD/Quality Requirements]`.
   2. Test (GREEN → verify all green):
 
      Run each command and confirm zero failures:
@@ -107,13 +107,13 @@ Validates the fully integrated M2 feature through cross-component integration te
 
      | PRD Feature | AC count | Mapped tasks |
      |---|---|---|
-     | F1 — Dataview adapter | 9 | T3.2, T3.3, T3.4, T4.1, T4.4 |
-     | F2 — Consent gate | 12 | T1.2, T1.3, T1.4, T2.2, T4.1 |
+     | F1 — Dataview adapter | 7 | T3.2, T3.3, T3.4, T4.1, T4.4 |
+     | F2 — Consent gate | 11 | T1.2, T1.3, T1.4, T2.2, T4.1 |
      | F3 — User-import flow | 7 | T2.1, T2.2, T2.3, T4.3 |
      | F4 — View management | 6 | T4.2, T4.4 |
-     | **Total** | **29** | all covered |
+     | **Total** | **31** | all covered |
 
-  - Success: all six commands exit 0 `[ref: SDD/Quality Requirements — Portability/Reliability]`; all 29 PRD ACs map to ≥1 task and ≥1 test `[ref: PRD/Success Metrics — Quality]`; zero unhandled exceptions from any Dataview adapter path `[ref: SDD/Quality Requirements — Reliability]`; DataviewJS never executes before `okayed` is recorded (confirmed by unit test + integration test both asserting this property) `[ref: SDD/Quality Requirements — Security]`.
+  - Success: all six commands exit 0 `[ref: SDD/Quality Requirements — Portability/Reliability]`; all 31 PRD ACs map to ≥1 task and ≥1 test `[ref: PRD/Success Metrics — Quality]`; zero unhandled exceptions from any Dataview adapter path `[ref: SDD/Quality Requirements — Reliability]`; DataviewJS never executes before `okayed` is recorded (confirmed by unit test + integration test both asserting this property) `[ref: SDD/Quality Requirements — Security]`.
 
 - [x] **T5.4 Phase Validation** `[activity: validate]`
 

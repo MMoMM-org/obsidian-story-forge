@@ -33,7 +33,7 @@ version: "1.0"
 *GATE: Read all files in this section before starting any implementation.*
 
 **Specification**:
-- `docs/XDD/specs/002-query-engine-dataview/requirements.md` — PRD (F1–F4, 29 Gherkin ACs)
+- `docs/XDD/specs/002-query-engine-dataview/requirements.md` — PRD (F1–F4, 31 Gherkin ACs)
 - `docs/XDD/specs/002-query-engine-dataview/solution.md` — SDD (components, interfaces, ADR-1…9, runtime flows, EARS ACs)
 - `docs/XDD/specs/002-query-engine-dataview/mockups.html` — UI source of truth (states S11–S26)
 - `docs/XDD/specs/001-core-infrastructure/solution.md` — M1 SDD (seams: ViewRecord, ViewStore, NoteContext, SidebarView)
