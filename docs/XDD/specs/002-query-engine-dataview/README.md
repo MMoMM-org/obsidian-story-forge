@@ -15,7 +15,7 @@
 |----------|--------|-------|
 | requirements.md | completed | M2 PRD — Dataview adapter, consent gate, user-import flow |
 | solution.md | completed | M2 SDD — QueryEngine adapter, consent/checksum module, import parser, engine registry; ADR-1…9; mockups.html S11–S26 |
-| plan/ | completed | 5 phases, 23 tasks: P1 Foundation → (P2 Import ∥ P3 Engines) → P4 Integration → P5 Validation; all 29 ACs mapped |
+| plan/ | completed | 5 phases, 23 tasks: P1 Foundation → (P2 Import ∥ P3 Engines) → P4 Integration → P5 Validation; all 31 ACs mapped |
 
 **Status values**: `pending` | `in_progress` | `completed` | `skipped`
 
@@ -36,7 +36,7 @@
 | 2026-07-15 | SDD correction: query text read fresh from `source` note (never persisted, no M1 ViewRecord change); native fallback is NOT the `bases` slot (registry wired-only, may be empty) | Resolves the two flagged inconsistencies; keeps M1 contract intact |
 | 2026-07-15 | Open Q#2 resolved (view-id = store-generated, data.json only); Q#3 (tab overflow = ellipsis+title) and Q#4 (sf-version = integer) fixed in ADR-9 | Preserves frontmatter-truth/read-only; sf-version integer forced by M1 okayed.version:number |
 | 2026-07-15 | PLAN complete → spec Ready | 5 phases, 23 tasks; P1 Foundation → (P2 Import ∥ P3 Engines) → P4 Integration → P5 Validation; all 29 PRD ACs mapped; ready for /implement |
-| 2026-07-15 | Implementation complete | M2 shipped on branch `feat/002-query-engine-dataview` (HEAD 212ca97). All 5 phases green: consent/checksum, import parser, query engines & registry, panel/settings integration, integration + live-vault validation. **413 tests** pass; six gates green (test, lint, typecheck, typecheck:test, schema:check, build). Every task passed tdd-guardian → spec-compliance → code-quality. Open follow-up: reconcile PRD AC count (plan says 29; requirements.md has 31 — coverage complete either way). |
+| 2026-07-15 | Implementation complete | M2 shipped on branch `feat/002-query-engine-dataview` (HEAD 212ca97). All 5 phases green: consent/checksum, import parser, query engines & registry, panel/settings integration, integration + live-vault validation. **413 tests** pass; six gates green (test, lint, typecheck, typecheck:test, schema:check, build). Every task passed tdd-guardian → spec-compliance → code-quality. PRD AC count reconciled to 31 (F1=7, F2=11, F3=7, F4=6) — plan docs corrected from an earlier 29; historical PRD/PLAN log rows left as-is. |
 
 ## Context
 
