@@ -151,8 +151,10 @@
   .bind-row{display:flex;flex-direction:column;gap:4px}
   .bind-check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text)}
   .bind-check input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px}
+  .bind-label{font-size:12.5px;color:var(--text)}
   .bind-input{margin-left:21px;background:var(--panel-2);border:1px solid var(--border-2);
     border-radius:5px;padding:4px 8px;font-size:12px;color:var(--text);width:calc(100% - 21px)}
+  .bind-input--flush{margin-left:0;width:100%}
 
   /* settings rows */
   .settings-frame{width:100%;background:var(--panel);border:1px solid var(--border);
@@ -514,11 +516,8 @@ SORT arc-start ASC</pre>
             <div class="modal-body">
               <div class="bind-group">
                 <div class="bind-row">
-                  <label class="bind-check">
-                    <input type="checkbox" checked>
-                    Show as tab in sidebar
-                  </label>
-                  <input class="bind-input" type="text" value="Characters in Scene" placeholder="Tab label">
+                  <div class="bind-label">Sidebar tab label</div>
+                  <input class="bind-input bind-input--flush" type="text" value="Characters in Scene" placeholder="Tab label">
                 </div>
                 <div class="bind-row">
                   <label class="bind-check">
@@ -536,7 +535,7 @@ SORT arc-start ASC</pre>
           </div>
         </div>
       </div>
-      <div class="note">Sidebar tab is checked by default. Command field is disabled when its checkbox is unchecked. "Back" returns to S19/S20/S21.</div>
+      <div class="note">Every imported view appears as a sidebar tab; the tab label is always set (seeded from the view name). Command field is disabled when its checkbox is unchecked. "Back" returns to S19/S20/S21.</div>
     </figure>
 
     <!-- S23 Re-consent (DataviewJS) -->
@@ -589,11 +588,8 @@ dv.table(["Name","Role","Status"],
             <div class="modal-body">
               <div class="bind-group">
                 <div class="bind-row">
-                  <label class="bind-check">
-                    <input type="checkbox" checked>
-                    Show as tab in sidebar
-                  </label>
-                  <input class="bind-input" type="text" value="Characters" placeholder="Tab label">
+                  <div class="bind-label">Sidebar tab label</div>
+                  <input class="bind-input bind-input--flush" type="text" value="Characters" placeholder="Tab label">
                 </div>
                 <div class="bind-row">
                   <label class="bind-check">

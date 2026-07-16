@@ -1,11 +1,15 @@
 /**
  * BindModal — sidebar tab + command registration step (S22).
  *
- * A PURE UI step: it collects the tab label, "show as tab" choice, whether to
- * register a command, and the command name — then RESOLVES that result to the
- * caller. It performs NO side-effects (no store write, no command registration);
- * the caller owns the commit. This makes it reusable by both the import flow
- * (ImportPickerModal) and Settings "Edit".
+ * A PURE UI step: it collects the tab label, whether to register a command, and
+ * the command name — then RESOLVES that result to the caller. It performs NO
+ * side-effects (no store write, no command registration); the caller owns the
+ * commit. This makes it reusable by both the import flow (ImportPickerModal) and
+ * Settings "Edit".
+ *
+ * Every imported view IS a sidebar tab (SidebarView renders one tab per store
+ * record), so there is no "show as tab" choice: the tab label is always set.
+ * Only the command binding is optional.
  *
  * Use present() — NOT open() — to get the Promise<BindResult | null>. The
  * promise resolves with the result object on "Done", or null on "Back" /
@@ -25,8 +29,6 @@ import type { App } from "obsidian";
 export interface BindSeed {
 	/** Default tab-label value (sf-name, ADR-6). */
 	name: string;
-	/** "Show as tab" checkbox default (defaults to true). */
-	showAsTab?: boolean;
 	/** "Register as command" checkbox default (defaults to false). */
 	registerCommand?: boolean;
 	/** Command-name input default (defaults to "Story Forge: " + name). */
@@ -92,7 +94,6 @@ export class BindModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 
-		const showAsTab = this.seed.showAsTab ?? true;
 		const registerCommand = this.seed.registerCommand ?? false;
 		const commandName = this.seed.commandName ?? `Story Forge: ${this.seed.name}`;
 
@@ -101,29 +102,20 @@ export class BindModal extends Modal {
 
 		const bodyEl = el.createEl("div", { cls: "sf-bind-body" });
 
-		// Tab label row — uses HTMLInputElement via activeDocument.createElement
+		// Tab label row — every imported view is a sidebar tab, so the label is
+		// always present and enabled (no checkbox gates it).
 		const tabRow = bodyEl.createEl("div", { cls: "sf-bind-row" });
 
-		const tabCheckbox = activeDocument.createElement("input");
-		tabCheckbox.type = "checkbox";
-		tabCheckbox.checked = showAsTab;
-		tabCheckbox.className = "sf-bind-checkbox";
-		tabRow.appendChild(tabCheckbox);
-		tabRow.createEl("span", { text: "Show as tab in sidebar", cls: "sf-bind-label" });
+		tabRow.createEl("span", { text: "Sidebar tab label", cls: "sf-bind-label" });
 
 		const tabInputEl = activeDocument.createElement("input");
 		tabInputEl.type = "text";
 		tabInputEl.value = this.seed.name;
 		tabInputEl.placeholder = "Tab label";
 		tabInputEl.className = "sf-bind-input";
-		tabInputEl.disabled = !showAsTab;
 		tabRow.appendChild(tabInputEl);
 
 		this.tabInputEl = tabInputEl;
-
-		tabCheckbox.addEventListener("change", () => {
-			tabInputEl.disabled = !tabCheckbox.checked;
-		});
 
 		// Command registration row
 		const cmdRow = bodyEl.createEl("div", { cls: "sf-bind-row" });
