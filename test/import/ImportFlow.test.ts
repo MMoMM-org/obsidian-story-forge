@@ -162,4 +162,26 @@ describe("runImportFlow — deferred-atomic one-flow", () => {
 		expect(Notice._instances[0]!.message).toBe("View already imported");
 		expect(registerCommand).not.toHaveBeenCalled();
 	});
+
+	it("UNEXPECTED error: plain Error surfaces a generic Notice and returns without throwing", async () => {
+		const tokens = { version: 1, checksum: "sha256:abc" };
+		const gate = makeGate(tokens);
+		const importer = {
+			importToStore: vi.fn(async () => {
+				throw new Error("disk full");
+			}),
+		} as unknown as ViewImporter;
+		vi.spyOn(BindModal.prototype, "present").mockResolvedValue(makeBindResult());
+		// The catch branch logs the real error; suppress it for this test only.
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(
+			runImportFlow({ app, importer, gate, registerCommand }, makeDef()),
+		).resolves.toBeUndefined();
+
+		expect(Notice._instances).toHaveLength(1);
+		expect(Notice._instances[0]!.message).toBe("Import failed: unexpected error");
+		expect(registerCommand).not.toHaveBeenCalled();
+		expect(errorSpy).toHaveBeenCalledTimes(1);
+	});
 });
