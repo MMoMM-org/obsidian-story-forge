@@ -163,15 +163,26 @@ export class ViewImporter {
 	 *
 	 * - Checks store.getViews() for an existing record whose source matches
 	 *   def.sourcePath; throws ImportError("DUPLICATE") without writing if found.
+	 *   Duplicate detection runs FIRST, before any store write.
 	 * - Generates a new UUID via crypto.randomUUID() (Web Crypto, all platforms).
+	 * - Builds the record via toRecord(def), then applies optional `opts`
+	 *   overrides so the one-flow import can commit a fully-formed record
+	 *   atomically. With NO opts the written record is byte-identical to the
+	 *   default (enabled:false, okayed:null, commandName:def.name; ADR-9, ADR-5).
 	 * - Calls store.setRecord(newId, record) exactly once.
-	 * - Never sets okayed on the record (ADR-9, ADR-5 safe default).
 	 *
 	 * @returns The newly-assigned view id.
 	 * @ref SDD/Key Decisions — duplicate detection, store-generated id
 	 */
-	async importToStore(def: ViewDefinition): Promise<string> {
-		// Duplicate detection: check existing source paths.
+	async importToStore(
+		def: ViewDefinition,
+		opts?: {
+			okayed?: { version: number; checksum: string } | null;
+			enabled?: boolean;
+			commandName?: string;
+		},
+	): Promise<string> {
+		// Duplicate detection: check existing source paths (before any write).
 		const views = await this.store.getViews();
 		for (const rec of Object.values(views)) {
 			if (rec.source === def.sourcePath) {
@@ -181,6 +192,15 @@ export class ViewImporter {
 
 		const newId = crypto.randomUUID();
 		const record = this.toRecord(def);
+		if (opts?.enabled !== undefined) {
+			record.enabled = opts.enabled;
+		}
+		if (opts?.okayed !== undefined) {
+			record.okayed = opts.okayed;
+		}
+		if (opts?.commandName !== undefined) {
+			record.commandName = opts.commandName;
+		}
 		await this.store.setRecord(newId, record);
 		return newId;
 	}
