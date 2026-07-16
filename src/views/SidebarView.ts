@@ -33,6 +33,17 @@ import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Sentinel data-view-id for the built-in Context tab.
+ * Store view-ids must never equal this value (ViewImporter generates UUIDs,
+ * so collisions are impossible in practice).
+ */
+const CTX_TAB_ID = "__context__";
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -244,7 +255,10 @@ export class SidebarView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this._debouncedFollow.cancel();
-		// Stage 1: unsubscribe from store (idempotent alongside this.register cleanup)
+		// Stage 1: unsubscribe from store. Two paths call this:
+		// onClose handles leaf-detach; Component.unload() handles plugin-unload
+		// (via the fn queued in this.register). Both call unsubscribe; the second
+		// is a safe no-op because Set.delete on a removed entry is harmless.
 		this._unsubscribeStore?.();
 		this._unsubscribeStore = null;
 		// ADR-7: teardown the current engine before clearing the DOM
@@ -443,7 +457,7 @@ export class SidebarView extends ItemView {
 			const target = (e.target as HTMLElement).closest(".sf-tab");
 			if (!target) return;
 			const viewId = target.getAttribute("data-view-id");
-			this._selectTab(viewId === "__context__" ? null : viewId);
+			this._selectTab(viewId === CTX_TAB_ID ? null : viewId);
 		});
 
 		// Delegated keyboard handler on the strip (registered once)
@@ -475,7 +489,7 @@ export class SidebarView extends ItemView {
 			}
 			if (next) {
 				const viewId = next.getAttribute("data-view-id");
-				this._selectTab(viewId === "__context__" ? null : viewId);
+				this._selectTab(viewId === CTX_TAB_ID ? null : viewId);
 				next.focus();
 			}
 		});
@@ -517,7 +531,7 @@ export class SidebarView extends ItemView {
 		const ctxEl = strip.createDiv({ cls: "sf-tab" });
 		ctxEl.textContent = "Context";
 		ctxEl.setAttribute("role", "tab");
-		ctxEl.setAttribute("data-view-id", "__context__");
+		ctxEl.setAttribute("data-view-id", CTX_TAB_ID);
 		ctxEl.title = "Context";
 
 		// Reconcile: if selected view is gone, fall back to Context
@@ -546,7 +560,7 @@ export class SidebarView extends ItemView {
 		for (const tab of tabs) {
 			const viewId = tab.getAttribute("data-view-id");
 			const isSelected =
-				viewId === "__context__"
+				viewId === CTX_TAB_ID
 					? this.selectedViewId === null
 					: viewId === this.selectedViewId;
 			tab.setAttribute("aria-selected", isSelected ? "true" : "false");
@@ -594,10 +608,34 @@ export class SidebarView extends ItemView {
 
 		this._renderTabs();
 
-		// Re-render body when selection changed or the selected record changed
-		if (this.currentRecord !== prevRecord) {
+		// Re-render body only when the selected view's render-relevant state changed.
+		// getViews() returns fresh objects on every call, so an identity check would
+		// always fire and flash the panel on unrelated imports/removes. Value-compare
+		// the four fields that affect which engine branch runs (source, engine, enabled,
+		// okayed). Also fires when selection changed (null↔non-null).
+		if (!this._renderRelevantEqual(prevRecord, this.currentRecord)) {
 			this._rerenderBody();
 		}
+	}
+
+	/**
+	 * Returns true when two ViewRecord snapshots are identical for rendering purposes:
+	 * same source, engine, enabled flag, and okayed slot (version + checksum).
+	 * Both null → equal. One null → not equal (selection gained/lost).
+	 */
+	private _renderRelevantEqual(
+		a: ViewRecord | null,
+		b: ViewRecord | null,
+	): boolean {
+		if (a === null && b === null) return true;
+		if (a === null || b === null) return false;
+		if (a.source !== b.source) return false;
+		if (a.engine !== b.engine) return false;
+		if (a.enabled !== b.enabled) return false;
+		// Compare okayed slot field-by-field (both null → equal; mixed → not equal)
+		if (a.okayed === null && b.okayed === null) return true;
+		if (a.okayed === null || b.okayed === null) return false;
+		return a.okayed.version === b.okayed.version && a.okayed.checksum === b.okayed.checksum;
 	}
 
 	// -------------------------------------------------------------------------
