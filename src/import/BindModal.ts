@@ -1,14 +1,15 @@
 /**
  * BindModal — sidebar tab + command registration step (S22).
  *
- * Opened by ImportPickerModal after a successful importToStore.
- * Pre-fills the tab label from def.name (sf-name ADR-6).
- * Offers a checkbox to register a command palette entry.
- * On confirm: persists the (possibly-edited) tab label to ViewRecord.commandName
- * via store.setRecord; invokes the injected registerCommand callback only if
- * the command checkbox is checked.
- * On cancel (Back): closes without rollback — the view is already in the store
- * (disabled by default, ADR-5 safe default); no store write happens on cancel.
+ * A PURE UI step: it collects the tab label, "show as tab" choice, whether to
+ * register a command, and the command name — then RESOLVES that result to the
+ * caller. It performs NO side-effects (no store write, no command registration);
+ * the caller owns the commit. This makes it reusable by both the import flow
+ * (ImportPickerModal) and Settings "Edit".
+ *
+ * Use present() — NOT open() — to get the Promise<BindResult | null>. The
+ * promise resolves with the result object on "Done", or null on "Back" /
+ * dismiss / close without Done. This mirrors DisclosureModal.present().
  *
  * @ref SDD/Runtime View — Flow C (bind step)
  * @ref SDD/Cross-Cutting Concepts — User Interface S22
@@ -19,33 +20,58 @@
 
 import { Modal } from "obsidian";
 import type { App } from "obsidian";
-import type { ViewDefinition } from "import/ViewDefinition";
-import type { RegisterCommandCallback } from "import/types";
-import type { ViewStore } from "store/ViewStore";
+
+/** Values used to pre-fill the BindModal inputs. */
+export interface BindSeed {
+	/** Default tab-label value (sf-name, ADR-6). */
+	name: string;
+	/** "Show as tab" checkbox default (defaults to true). */
+	showAsTab?: boolean;
+	/** "Register as command" checkbox default (defaults to false). */
+	registerCommand?: boolean;
+	/** Command-name input default (defaults to "Story Forge: " + name). */
+	commandName?: string;
+}
+
+/** The result the user confirmed via "Done". */
+export interface BindResult {
+	/** The (possibly-edited) tab-label input value. */
+	label: string;
+	/** Whether the "Register as command" checkbox is checked. */
+	registerCommand: boolean;
+	/** The command-name input value. */
+	commandName: string;
+}
 
 /**
  * BindModal — Modal subclass.
  *
- * Constructor signature for T4.2/T4.4 callers:
- *   new BindModal(app, viewId, def, store, (id, name) => plugin.addCommand({...}))
- *
- * On confirm: calls store.setRecord to persist the commandName (editable tab
- * label), then calls registerCommand if the checkbox is checked.
- * On cancel (Back): closes with no store writes and no registerCommand call.
+ * Constructor: new BindModal(app, seed).
+ * On "Done": resolves the BindResult and closes.
+ * On "Back"/dismiss: resolves null.
  */
 export class BindModal extends Modal {
 	private commandCheckboxEl: HTMLInputElement | null = null;
 	private cmdInputEl: HTMLInputElement | null = null;
 	private tabInputEl: HTMLInputElement | null = null;
 
+	/** Resolve handle for the present() promise; nulled after first resolve. */
+	private _resolve: ((result: BindResult | null) => void) | null = null;
+
 	constructor(
 		app: App,
-		private readonly viewId: string,
-		private readonly def: ViewDefinition,
-		private readonly store: ViewStore,
-		private readonly registerCommand: RegisterCommandCallback,
+		private readonly seed: BindSeed,
 	) {
 		super(app);
+	}
+
+	/** Open the modal and return a promise that resolves with the user's result (or null). */
+	present(): Promise<BindResult | null> {
+		const promise = new Promise<BindResult | null>((resolve) => {
+			this._resolve = resolve;
+		});
+		this.open();
+		return promise;
 	}
 
 	onOpen(): void {
@@ -53,6 +79,8 @@ export class BindModal extends Modal {
 	}
 
 	onClose(): void {
+		// Dismiss without Done resolves null (resolve-once guards double-resolve).
+		this._resolveOnce(null);
 		this.contentEl.empty();
 	}
 
@@ -64,8 +92,12 @@ export class BindModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 
+		const showAsTab = this.seed.showAsTab ?? true;
+		const registerCommand = this.seed.registerCommand ?? false;
+		const commandName = this.seed.commandName ?? `Story Forge: ${this.seed.name}`;
+
 		el.createEl("h2", { text: "Bind view" });
-		el.createEl("p", { text: this.def.name, cls: "sf-bind-name" });
+		el.createEl("p", { text: this.seed.name, cls: "sf-bind-name" });
 
 		const bodyEl = el.createEl("div", { cls: "sf-bind-body" });
 
@@ -74,16 +106,17 @@ export class BindModal extends Modal {
 
 		const tabCheckbox = activeDocument.createElement("input");
 		tabCheckbox.type = "checkbox";
-		tabCheckbox.checked = true;
+		tabCheckbox.checked = showAsTab;
 		tabCheckbox.className = "sf-bind-checkbox";
 		tabRow.appendChild(tabCheckbox);
 		tabRow.createEl("span", { text: "Show as tab in sidebar", cls: "sf-bind-label" });
 
 		const tabInputEl = activeDocument.createElement("input");
 		tabInputEl.type = "text";
-		tabInputEl.value = this.def.name;
+		tabInputEl.value = this.seed.name;
 		tabInputEl.placeholder = "Tab label";
 		tabInputEl.className = "sf-bind-input";
+		tabInputEl.disabled = !showAsTab;
 		tabRow.appendChild(tabInputEl);
 
 		this.tabInputEl = tabInputEl;
@@ -97,7 +130,7 @@ export class BindModal extends Modal {
 
 		const cmdCheckbox = activeDocument.createElement("input");
 		cmdCheckbox.type = "checkbox";
-		cmdCheckbox.checked = false;
+		cmdCheckbox.checked = registerCommand;
 		cmdCheckbox.className = "sf-bind-checkbox";
 		cmdCheckbox.dataset["role"] = "command";
 		cmdRow.appendChild(cmdCheckbox);
@@ -105,10 +138,10 @@ export class BindModal extends Modal {
 
 		const cmdInputEl = activeDocument.createElement("input");
 		cmdInputEl.type = "text";
-		cmdInputEl.value = `Story Forge: ${this.def.name}`;
+		cmdInputEl.value = commandName;
 		cmdInputEl.placeholder = "Command name";
 		cmdInputEl.className = "sf-bind-input";
-		cmdInputEl.disabled = true;
+		cmdInputEl.disabled = !registerCommand;
 		cmdRow.appendChild(cmdInputEl);
 
 		this.commandCheckboxEl = cmdCheckbox;
@@ -123,24 +156,32 @@ export class BindModal extends Modal {
 		const backBtn = footEl.createEl("button", { text: "Back" });
 		const doneBtn = footEl.createEl("button", { text: "Done" });
 
-		backBtn.addEventListener("click", () => this.close());
-		doneBtn.addEventListener("click", () => void this._onConfirm());
+		backBtn.addEventListener("click", () => {
+			this._resolveOnce(null);
+			this.close();
+		});
+		doneBtn.addEventListener("click", () => this._onConfirm());
 	}
 
-	private async _onConfirm(): Promise<void> {
-		// S5: persist the (possibly-edited) tab label to ViewRecord.commandName
-		const commandName = this.tabInputEl?.value ?? this.def.name;
-		const views = await this.store.getViews();
-		const existing = views[this.viewId];
-		if (existing) {
-			await this.store.setRecord(this.viewId, { ...existing, commandName });
-		}
-
-		// Register command if checkbox is checked
-		if (this.commandCheckboxEl?.checked && this.cmdInputEl) {
-			this.registerCommand(this.viewId, this.cmdInputEl.value);
-		}
-
+	private _onConfirm(): void {
+		const result: BindResult = {
+			label: this.tabInputEl?.value ?? this.seed.name,
+			registerCommand: this.commandCheckboxEl?.checked ?? false,
+			commandName: this.cmdInputEl?.value ?? `Story Forge: ${this.seed.name}`,
+		};
+		this._resolveOnce(result);
 		this.close();
+	}
+
+	// ---------------------------------------------------------------------------
+	// Promise helpers
+	// ---------------------------------------------------------------------------
+
+	/** Resolve the promise exactly once; subsequent calls are no-ops. */
+	private _resolveOnce(result: BindResult | null): void {
+		if (this._resolve === null) return;
+		const r = this._resolve;
+		this._resolve = null;
+		r(result);
 	}
 }

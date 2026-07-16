@@ -191,9 +191,18 @@ export class ImportPickerModal extends Modal {
 			return;
 		}
 
-		// Success: close picker, open bind modal
+		// Success: close picker, open bind modal.
+		// NOTE (T-S2.3): BindModal is now a pure UI step seeded from the def; it
+		// resolves a result instead of committing. Wiring the result back into
+		// store.setRecord / registerCommand is owned by T-S2.4 — here we only keep
+		// the build green by seeding + presenting. The picker's own store /
+		// registerCommand deps are retained for that follow-up.
+		void viewId;
 		this.close();
-		const bindModal = new BindModal(this.app, viewId, def, this.store, this.registerCommand);
-		bindModal.open();
+		const bindModal = new BindModal(this.app, {
+			name: def.name,
+			registerCommand: def.command,
+		});
+		void bindModal.present();
 	}
 }
