@@ -9,7 +9,10 @@
  *     Resolves the result object when "Done" is clicked.
  *     Resolves null on "Back" or on dismiss/close without Done.
  * - Seeded values pre-fill inputs (tab label = seed.name; command name default;
- *   checkboxes default per seed).
+ *   command checkbox defaults per seed).
+ * - Every imported view is a sidebar tab: the tab-label input is always present
+ *   and enabled (no "show as tab" checkbox gates it). Only the command binding
+ *   is optional.
  * - No persistence happens (there is no store to write to).
  *
  * @ref SDD/Runtime View — Flow C (bind step)
@@ -47,15 +50,6 @@ function commandCheckbox(modal: BindModal): HTMLInputElement {
 		'input[data-role="command"]',
 	);
 	if (!el) throw new Error("command checkbox not found");
-	return el;
-}
-
-function tabCheckbox(modal: BindModal): HTMLInputElement {
-	// The first checkbox in the body is the "Show as tab" checkbox.
-	const el = modal.contentEl.querySelector<HTMLInputElement>(
-		'.sf-bind-checkbox:not([data-role="command"])',
-	);
-	if (!el) throw new Error("tab checkbox not found");
 	return el;
 }
 
@@ -98,11 +92,13 @@ describe("BindModal", () => {
 		modal.close();
 	});
 
-	it("defaults 'Show as tab' checked and command checkbox unchecked", () => {
+	it("defaults command checkbox unchecked and always enables the tab label", () => {
 		const modal = new BindModal(app, { name: "My View" });
 		void modal.present();
 
-		expect(tabCheckbox(modal).checked).toBe(true);
+		// The tab label is always present and enabled — there is no checkbox
+		// gating it (every imported view is a sidebar tab).
+		expect(tabLabelInput(modal).disabled).toBe(false);
 		expect(commandCheckbox(modal).checked).toBe(false);
 		// command-name input disabled until the command checkbox is checked
 		expect(commandNameInput(modal).disabled).toBe(true);
@@ -110,22 +106,20 @@ describe("BindModal", () => {
 		modal.close();
 	});
 
-	it("honours seed overrides for checkboxes and command name", () => {
+	it("honours seed overrides for the command checkbox and command name", () => {
 		const modal = new BindModal(app, {
 			name: "Seeded",
-			showAsTab: false,
 			registerCommand: true,
 			commandName: "Custom command",
 		});
 		void modal.present();
 
-		expect(tabCheckbox(modal).checked).toBe(false);
 		expect(commandCheckbox(modal).checked).toBe(true);
 		expect(commandNameInput(modal).value).toBe("Custom command");
 		// command name enabled because the checkbox seeded true
 		expect(commandNameInput(modal).disabled).toBe(false);
-		// tab label disabled because showAsTab seeded false
-		expect(tabLabelInput(modal).disabled).toBe(true);
+		// tab label is always enabled regardless of seed
+		expect(tabLabelInput(modal).disabled).toBe(false);
 
 		modal.close();
 	});
