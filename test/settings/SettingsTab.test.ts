@@ -19,6 +19,7 @@ import type { ViewRecord } from "../../src/store/types";
 import type { ConsentGate } from "../../src/consent/ConsentGate";
 import type { ViewImporter } from "../../src/import/ViewImporter";
 import type { RegisterCommandCallback } from "../../src/import/types";
+import { BindModal } from "../../src/import/BindModal";
 
 type RemoveCommandCallback = (viewId: string) => void;
 
@@ -58,6 +59,32 @@ function makeRegistryWith(...kinds: ViewRecord["engine"][]): EngineRegistry {
 function makeConsentGate(): ConsentGate {
 	return {
 		evaluate: vi.fn(async () => ({ status: "not-consented" as const })),
+		requestConsent: vi.fn(async () => true),
+		requestReConsent: vi.fn(async () => true),
+	} as unknown as ConsentGate;
+}
+
+/**
+ * A ConsentGate whose evaluate() resolves a fixed decision status. Used by the
+ * drift-aware row tests: the row-state decision is made via the enabled
+ * projection `gate.evaluate({ ...record, enabled: true })`.
+ */
+function makeGateWithDecision(
+	status:
+		| "consented"
+		| "not-consented"
+		| "drift"
+		| "disabled"
+		| "platform-restricted"
+		| "engine-missing"
+		| "dvjs-off",
+): ConsentGate {
+	return {
+		evaluate: vi.fn(async () =>
+			status === "drift"
+				? ({ status: "drift" as const, reason: "checksum" as const })
+				: ({ status } as { status: typeof status }),
+		),
 		requestConsent: vi.fn(async () => true),
 		requestReConsent: vi.fn(async () => true),
 	} as unknown as ConsentGate;
@@ -262,10 +289,10 @@ describe("SettingsTab — Views section", () => {
 	// -------------------------------------------------------------------------
 
 	it("renders S26 row when engine is absent from registry", async () => {
-		// Registry has no engines registered — dataview-dql is absent
+		// The gate reports engine-missing (the real gate checks the registry).
 		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataview-dql", commandName: "Missing Engine View" }) });
 		const registry = makeEmptyRegistry(); // no engines wired
-		const tab = makeTab(app, store, registry, makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, registry, makeGateWithDecision("engine-missing"), makeImporter());
 		const container = await renderTab(tab);
 
 		const text = container.textContent ?? "";
@@ -278,7 +305,7 @@ describe("SettingsTab — Views section", () => {
 	it("S26 row description mentions engine missing", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataview-dql", commandName: "No Engine View" }) });
 		const registry = makeEmptyRegistry();
-		const tab = makeTab(app, store, registry, makeConsentGate(), makeImporter());
+		const tab = makeTab(app, store, registry, makeGateWithDecision("engine-missing"), makeImporter());
 		const container = await renderTab(tab);
 
 		const text = container.textContent ?? "";
@@ -371,10 +398,14 @@ describe("SettingsTab — Views section", () => {
 		// Wait for deleteRecord to be called
 		await vi.waitFor(() => expect(deleteRecordSpy).toHaveBeenCalledWith("v2"));
 
-		// Re-render
-		const newContainer = await renderTab(tab);
-		expect(newContainer.textContent).toContain("Keep Me");
-		expect(newContainer.textContent).not.toContain("Remove Me");
+		// Re-render (the observer already re-rendered; this asserts convergence).
+		await renderTab(tab);
+		await vi.waitFor(() => {
+			// Wait for the stable painted state — observer + manual render both fire
+			// displayAsync(); the gen guard coalesces them to one final paint.
+			expect(tab.containerEl.textContent).toContain("Keep Me");
+		});
+		expect(tab.containerEl.textContent).not.toContain("Remove Me");
 	});
 
 	it("clicking Remove calls the injected removeCommand callback with the view id", async () => {
@@ -721,9 +752,11 @@ describe("SettingsTab — observer-driven refresh via store subscriber", () => {
 		removeBtnForGone!.click();
 
 		await vi.waitFor(() => {
-			expect(tab.containerEl.textContent).not.toContain("Gone View");
+			// Wait for the repaint (positive stable state) so we don't sample the
+			// transient empty window between containerEl.empty() and the async paint.
+			expect(tab.containerEl.textContent).toContain("Keep This");
 		});
-		expect(tab.containerEl.textContent).toContain("Keep This");
+		expect(tab.containerEl.textContent).not.toContain("Gone View");
 		expect(countViewRows(tab.containerEl, ["Keep This"])).toBe(1);
 	});
 
@@ -791,5 +824,262 @@ describe("SettingsTab — observer-driven refresh via store subscriber", () => {
 		});
 		expect(findButton(tab.containerEl, "Enable")).toBeNull();
 		expect(countViewRows(tab.containerEl, ["Enable Me"])).toBe(1);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T-S2.5 — drift-aware rows + Edit + Review
+// ---------------------------------------------------------------------------
+
+describe("SettingsTab — T-S2.5 drift-aware row states", () => {
+	let app: App;
+
+	beforeEach(() => {
+		app = makeApp();
+	});
+
+	it("enabled+consented → Disable + Edit + Remove (no Review/Enable)", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: true, commandName: "Enabled View" }) });
+		const gate = makeGateWithDecision("consented");
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		expect(findButton(container, "Disable")).not.toBeNull();
+		expect(findButton(container, "Edit")).not.toBeNull();
+		expect(findButton(container, "Remove")).not.toBeNull();
+		expect(findButton(container, "Review")).toBeNull();
+		expect(findButton(container, "Enable")).toBeNull();
+	});
+
+	it("disabled+consented → Re-enable + Edit + Remove; Re-enable is immediate (no modal, no requestConsent)", async () => {
+		const okayed = { version: 1, checksum: "sha256:abc" };
+		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed, commandName: "Disabled View" }) });
+		const gate = makeGateWithDecision("consented");
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		const reEnableBtn = findButton(container, "Re-enable");
+		expect(reEnableBtn).not.toBeNull();
+		expect(findButton(container, "Edit")).not.toBeNull();
+		expect(findButton(container, "Remove")).not.toBeNull();
+
+		reEnableBtn!.click();
+
+		await vi.waitFor(() =>
+			expect(setRecordSpy).toHaveBeenCalledWith("v1", expect.objectContaining({ enabled: true })),
+		);
+		// S25a: Re-enable must NOT open the consent modal (source unchanged)
+		expect(gate.requestConsent).not.toHaveBeenCalled();
+		expect(gate.requestReConsent).not.toHaveBeenCalled();
+	});
+
+	it("disabled+drift → Review + Edit + Remove; Review calls requestReConsent", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed: { version: 1, checksum: "x" }, commandName: "Drifted View" }) });
+		const gate = makeGateWithDecision("drift");
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		const reviewBtn = findButton(container, "Review");
+		expect(reviewBtn).not.toBeNull();
+		expect(findButton(container, "Edit")).not.toBeNull();
+		expect(findButton(container, "Remove")).not.toBeNull();
+
+		reviewBtn!.click();
+		await vi.waitFor(() =>
+			expect(gate.requestReConsent).toHaveBeenCalledWith("v1", expect.objectContaining({ commandName: "Drifted View" })),
+		);
+	});
+
+	it("disabled+not-consented → Enable + Edit + Remove; Enable calls requestConsent", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: false, okayed: null, commandName: "Never Consented" }) });
+		const gate = makeGateWithDecision("not-consented");
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		const enableBtn = findButton(container, "Enable");
+		expect(enableBtn).not.toBeNull();
+		expect(findButton(container, "Edit")).not.toBeNull();
+		expect(findButton(container, "Remove")).not.toBeNull();
+
+		enableBtn!.click();
+		await vi.waitFor(() =>
+			expect(gate.requestConsent).toHaveBeenCalledWith("v1", expect.objectContaining({ commandName: "Never Consented" })),
+		);
+	});
+
+	it("enabled+drift → Review + Edit + Remove; Review calls requestReConsent", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: true, okayed: { version: 1, checksum: "x" }, commandName: "Enabled Drift" }) });
+		const gate = makeGateWithDecision("drift");
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		const reviewBtn = findButton(container, "Review");
+		expect(reviewBtn).not.toBeNull();
+		expect(findButton(container, "Edit")).not.toBeNull();
+		expect(findButton(container, "Remove")).not.toBeNull();
+
+		reviewBtn!.click();
+		await vi.waitFor(() =>
+			expect(gate.requestReConsent).toHaveBeenCalledWith("v1", expect.objectContaining({ commandName: "Enabled Drift" })),
+		);
+	});
+
+	it("enabled+not-consented → Review + Disable + Edit + Remove; Review calls requestConsent", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: true, okayed: null, commandName: "Enabled No Consent" }) });
+		const gate = makeGateWithDecision("not-consented");
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		const reviewBtn = findButton(container, "Review");
+		expect(reviewBtn).not.toBeNull();
+		expect(findButton(container, "Disable")).not.toBeNull();
+		expect(findButton(container, "Edit")).not.toBeNull();
+		expect(findButton(container, "Remove")).not.toBeNull();
+
+		reviewBtn!.click();
+		await vi.waitFor(() =>
+			expect(gate.requestConsent).toHaveBeenCalledWith("v1", expect.objectContaining({ commandName: "Enabled No Consent" })),
+		);
+	});
+
+	it("dvjs-off → Edit + Remove (no toggle)", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataviewjs", commandName: "DvJs Off View" }) });
+		const gate = makeGateWithDecision("dvjs-off");
+		const tab = makeTab(app, store, makeRegistryWith("dataviewjs"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		expect(findButton(container, "Edit")).not.toBeNull();
+		expect(findButton(container, "Remove")).not.toBeNull();
+		expect(findButton(container, "Disable")).toBeNull();
+		expect(findButton(container, "Enable")).toBeNull();
+		expect((container.textContent ?? "").toLowerCase()).toContain("disabled in dataview settings");
+	});
+
+	it("platform-restricted → Edit + Remove (no toggle)", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataviewjs", commandName: "Mobile Restricted View" }) });
+		const gate = makeGateWithDecision("platform-restricted");
+		const tab = makeTab(app, store, makeRegistryWith("dataviewjs"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		expect(findButton(container, "Edit")).not.toBeNull();
+		expect(findButton(container, "Remove")).not.toBeNull();
+		expect(findButton(container, "Disable")).toBeNull();
+		expect(findButton(container, "Enable")).toBeNull();
+	});
+
+	it("engine-missing → Remove only (no Edit — non-vacuous assert)", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: true, engine: "dataview-dql", commandName: "Missing Engine" }) });
+		const gate = makeGateWithDecision("engine-missing");
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		expect(findButton(container, "Remove")).not.toBeNull();
+		expect(findButton(container, "Edit")).toBeNull();
+		expect(findButton(container, "Disable")).toBeNull();
+		expect(findButton(container, "Enable")).toBeNull();
+		expect(findButton(container, "Review")).toBeNull();
+	});
+});
+
+describe("SettingsTab — T-S2.5 Edit action", () => {
+	let app: App;
+
+	beforeEach(() => {
+		app = makeApp();
+		vi.restoreAllMocks();
+	});
+
+	it("clicking Edit opens BindModal and, on Done with registerCommand:true, writes label+command and registers the command", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: true, command: false, commandName: "Old Label" }) });
+		const gate = makeGateWithDecision("consented");
+		const registerCommand = vi.fn();
+		const removeCommand = vi.fn();
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		const presentSpy = vi
+			.spyOn(BindModal.prototype, "present")
+			.mockResolvedValue({ label: "New Label", registerCommand: true, commandName: "Story Forge: New Label" });
+
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter(), registerCommand, removeCommand);
+		const container = await renderTab(tab);
+
+		const editBtn = findButton(container, "Edit");
+		expect(editBtn).not.toBeNull();
+		editBtn!.click();
+
+		await vi.waitFor(() => expect(presentSpy).toHaveBeenCalled());
+		await vi.waitFor(() =>
+			expect(setRecordSpy).toHaveBeenCalledWith("v1", expect.objectContaining({ commandName: "New Label", command: true })),
+		);
+		await vi.waitFor(() =>
+			expect(registerCommand).toHaveBeenCalledWith("v1", "Story Forge: New Label"),
+		);
+	});
+
+	it("Edit with registerCommand:false on a previously-command record calls removeCommand and NOT registerCommand", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: true, command: true, commandName: "Had Command" }) });
+		const gate = makeGateWithDecision("consented");
+		const registerCommand = vi.fn();
+		const removeCommand = vi.fn();
+		vi.spyOn(BindModal.prototype, "present").mockResolvedValue({ label: "Renamed", registerCommand: false, commandName: "Story Forge: Renamed" });
+
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter(), registerCommand, removeCommand);
+		const container = await renderTab(tab);
+
+		findButton(container, "Edit")!.click();
+
+		await vi.waitFor(() => expect(removeCommand).toHaveBeenCalledWith("v1"));
+		expect(registerCommand).not.toHaveBeenCalled();
+	});
+
+	it("Edit cancelled (present resolves null) does not write the store", async () => {
+		const store = makeStore({ "v1": makeRecord({ enabled: true, command: false, commandName: "Unchanged" }) });
+		const gate = makeGateWithDecision("consented");
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		const presentSpy = vi.spyOn(BindModal.prototype, "present").mockResolvedValue(null);
+
+		const tab = makeTab(app, store, makeRegistryWith("dataview-dql"), gate, makeImporter());
+		const container = await renderTab(tab);
+
+		findButton(container, "Edit")!.click();
+
+		await vi.waitFor(() => expect(presentSpy).toHaveBeenCalled());
+		// allow any (non-existent) follow-up microtasks to flush
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(setRecordSpy).not.toHaveBeenCalled();
+	});
+});
+
+describe("SettingsTab — T-S2.5 re-entrancy holds across the evaluate await", () => {
+	let app: App;
+
+	beforeEach(() => {
+		app = makeApp();
+	});
+
+	it("two concurrent renders produce exactly one row per view even with an async evaluate", async () => {
+		const store = makeFakeStoreForTab({
+			"v1": makeRecord({ enabled: true, commandName: "Alpha View", engine: "dataview-dql" }),
+			"v2": makeRecord({ enabled: true, commandName: "Beta View", engine: "dataview-dql" }),
+		});
+		// evaluate resolves after a microtask so a superseded render is in flight
+		// while decisions are being gathered — the gen guard must still bail it.
+		const gate = {
+			evaluate: vi.fn(async () => {
+				await Promise.resolve();
+				return { status: "consented" as const };
+			}),
+			requestConsent: vi.fn(async () => true),
+			requestReConsent: vi.fn(async () => true),
+		} as unknown as ConsentGate;
+
+		const tab = makeTab(app, store as unknown as ViewStore, makeRegistryWith("dataview-dql"), gate, makeImporter());
+
+		const p1 = tab.displayAsync();
+		const p2 = tab.displayAsync();
+		await Promise.all([p1, p2]);
+
+		expect(countViewRows(tab.containerEl, ["Alpha View", "Beta View"])).toBe(2);
 	});
 });
