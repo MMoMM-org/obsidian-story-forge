@@ -65,6 +65,10 @@ import type {
 	Notice as MockNotice,
 	Setting as MockSetting,
 	PluginSettingTab as MockPluginSettingTab,
+	ButtonComponent as MockButtonComponent,
+	ToggleComponent as MockToggleComponent,
+	TextComponent as MockTextComponent,
+	DropdownComponent as MockDropdownComponent,
 	ItemView as MockItemView,
 	MarkdownView as MockMarkdownView,
 	Editor as MockEditor,
@@ -83,10 +87,16 @@ import type {
  * test-only helpers such as `_trigger`, `_runCleanup`, `_eventRegistrations`,
  * `_deferLayoutReady`, `_layoutReadyCbs`, `_flushLayoutReady`, `_unload`,
  * `_cleanupFns` — these are test scaffolding and must not appear on the real type.
+ *
+ * Note: `undefined` is also excluded.  When a mock class uses polymorphic
+ * `this` in a vi.fn() generic (e.g. `Mock<() => this>`), TypeScript can
+ * produce `undefined` as a spurious member of the indexed-access distribution.
+ * This does not correspond to any real key and must be stripped before the
+ * Exclude comparison or the guard produces a false `{ FICTIONAL: undefined }`.
  */
 type PublicKeys<T> = {
 	[K in keyof T]: K extends `_${string}` ? never : K;
-}[keyof T];
+}[keyof T] & (string | symbol);
 
 /**
  * Keys that are on Mock but not on Real (after excluding `_`-prefixed keys).
@@ -163,6 +173,10 @@ const _modalOk: AssertNoFiction<MockModal, Modal> = true;
 const _noticeOk: AssertNoFiction<MockNoticeAllowlisted, Notice> = true;
 const _settingOk: AssertNoFiction<MockSetting, Setting> = true;
 const _pluginSettingTabOk: AssertNoFiction<MockPluginSettingTabAllowlisted, PluginSettingTab> = true;
+const _buttonComponentOk: AssertNoFiction<MockButtonComponent, ButtonComponent> = true;
+const _toggleComponentOk: AssertNoFiction<MockToggleComponent, ToggleComponent> = true;
+const _textComponentOk: AssertNoFiction<MockTextComponent, TextComponent> = true;
+const _dropdownComponentOk: AssertNoFiction<MockDropdownComponent, DropdownComponent> = true;
 const _itemViewOk: AssertNoFiction<MockItemViewAllowlisted, ItemView> = true;
 const _markdownViewOk: AssertNoFiction<MockMarkdownView, MarkdownView> = true;
 const _editorOk: AssertNoFiction<MockEditor, Editor> = true;
@@ -182,6 +196,11 @@ const _eventsOk: AssertNoFiction<MockEvents, Events> = true;
 
 type MockVault = MockApp["vault"];
 type MockMetadataCache = MockApp["metadataCache"];
+
+// App class top-level keys (vault, fileManager, workspace, metadataCache) must
+// all be present on the real App so a fictional top-level App property (e.g.
+// a made-up `app.doThing()`) would be caught.
+const _appOk: AssertNoFiction<MockApp, App> = true;
 
 /**
  * MetadataCache allowlist:
