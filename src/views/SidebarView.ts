@@ -940,7 +940,7 @@ export class SidebarView extends ItemView {
 	 * S12 — Consent required (DataviewJS full-disclosure gate).
 	 * Code is NOT executing.
 	 */
-	private _renderConsentRequired(body: AugEl, _view: ViewRecord): void {
+	private _renderConsentRequired(body: AugEl, view: ViewRecord): void {
 		const block = body.createDiv({ cls: "sf-consent-required sf-cta-block" });
 		block.createDiv({ cls: "sf-cta-title", text: "Review & Enable" });
 		block.createDiv({
@@ -951,6 +951,21 @@ export class SidebarView extends ItemView {
 			cls: "sf-cta-warn",
 			text: "⚠ Review the source and checksum before enabling.",
 		});
+		// Real CTA only when a gate is injected AND a view tab is selected.
+		// Context tab (id null) or pre-M2 construction (no gate) → text-only.
+		const gate = this.consentGate;
+		const id = this.selectedViewId;
+		if (gate && id) {
+			const btn = activeDocument.createElement("button");
+			btn.className = "sf-cta-btn sf-btn";
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Enable" reads as a proper action label here
+			btn.textContent = "Review & Enable";
+			// Plain addEventListener (not registerDomEvent): the body is emptied and
+			// rebuilt on every render, so per-render registration would leak (cleanups
+			// only run on unload). This element is GC'd when body.empty() runs.
+			btn.addEventListener("click", () => { void gate.requestConsent(id, view); });
+			block.appendChild(btn);
+		}
 	}
 
 	/**
@@ -995,13 +1010,24 @@ export class SidebarView extends ItemView {
 	 * S17 — Re-consent required (query drifted since last enable).
 	 * Code is NOT executing.
 	 */
-	private _renderReconsentRequired(body: AugEl, _view: ViewRecord): void {
+	private _renderReconsentRequired(body: AugEl, view: ViewRecord): void {
 		const banner = body.createDiv({ cls: "sf-reconsent-required sf-warnbanner" });
 		banner.createDiv({ text: "Query changed since you last enabled this view." });
 		banner.createDiv({
 			cls: "sf-hint",
 			text: "The code is paused until you re-review it.",
 		});
+		// Real CTA only when a gate is injected AND a view tab is selected.
+		const gate = this.consentGate;
+		const id = this.selectedViewId;
+		if (gate && id) {
+			const btn = activeDocument.createElement("button");
+			btn.className = "sf-cta-btn sf-btn";
+			btn.textContent = "Re-review";
+			// Plain addEventListener (see _renderConsentRequired): GC'd on next body.empty().
+			btn.addEventListener("click", () => { void gate.requestReConsent(id, view); });
+			banner.appendChild(btn);
+		}
 	}
 
 	/**
