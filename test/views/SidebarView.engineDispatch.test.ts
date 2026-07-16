@@ -682,6 +682,105 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 		resolveRender!();
 		await renderPromise;
 	});
+
+	// -------------------------------------------------------------------------
+	// Bug C — loading node removed after render resolves (success path)
+	// -------------------------------------------------------------------------
+
+	it("Bug C: .sf-loading is REMOVED from body after engine.render resolves (success)", async () => {
+		const engine = makeMockEngine("dataview-dql");
+		// engine.render is a no-op — just resolves, doesn't add DOM content
+		const registry = makeMockRegistry(engine);
+		const consentGate = makeMockConsentGate({ status: "consented" });
+
+		view = new SidebarView(leaf, registry, consentGate, nativeEngine);
+		await view.onOpen();
+
+		const file = makeMdFile("Scene 1");
+		const ctx = makeNoteContext(file);
+		const record = makeViewRecord();
+
+		const privateView = view as unknown as {
+			currentRecord: ViewRecord | null;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		privateView.currentRecord = record;
+
+		const body = getBody(view);
+		await privateView._renderResolved(body, ctx);
+
+		// Loading must be gone after render completes
+		expect(body.querySelector(".sf-loading")).toBeNull();
+	});
+
+	it("Bug C: .sf-loading is REMOVED when engine.render rejects (error path)", async () => {
+		const failEngine = {
+			kind: "dataview-dql" as const,
+			teardown: vi.fn(),
+			render: vi.fn(async () => { throw new Error("render failed"); }),
+		} as unknown as QueryEngine;
+
+		const registry = makeMockRegistry(failEngine);
+		const consentGate = makeMockConsentGate({ status: "consented" });
+
+		view = new SidebarView(leaf, registry, consentGate, nativeEngine);
+		await view.onOpen();
+
+		const file = makeMdFile("Scene 1");
+		const ctx = makeNoteContext(file);
+		const record = makeViewRecord();
+
+		const privateView = view as unknown as {
+			currentRecord: ViewRecord | null;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		privateView.currentRecord = record;
+
+		const body = getBody(view);
+		await privateView._renderResolved(body, ctx);
+
+		// Loading must be gone; error element must be present
+		expect(body.querySelector(".sf-loading")).toBeNull();
+		expect(body.querySelector(".sf-engine-error")).not.toBeNull();
+	});
+
+	it("Bug C: engine output coexists with no loading node after render (engine-appended content stays)", async () => {
+		const engine = {
+			kind: "dataview-dql" as const,
+			teardown: vi.fn(),
+			render: vi.fn(async (_view: ViewRecord | null, _ctx: NoteContext, el: HTMLElement) => {
+				// Simulate engine appending output to the body
+				const output = document.createElement("div");
+				output.className = "engine-output";
+				output.textContent = "query result";
+				el.appendChild(output);
+			}),
+		} as unknown as QueryEngine;
+
+		const registry = makeMockRegistry(engine);
+		const consentGate = makeMockConsentGate({ status: "consented" });
+
+		view = new SidebarView(leaf, registry, consentGate, nativeEngine);
+		await view.onOpen();
+
+		const file = makeMdFile("Scene 1");
+		const ctx = makeNoteContext(file);
+		const record = makeViewRecord();
+
+		const privateView = view as unknown as {
+			currentRecord: ViewRecord | null;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		privateView.currentRecord = record;
+
+		const body = getBody(view);
+		await privateView._renderResolved(body, ctx);
+
+		// Loading gone; engine output remains
+		expect(body.querySelector(".sf-loading")).toBeNull();
+		expect(body.querySelector(".engine-output")).not.toBeNull();
+		expect(body.querySelector(".engine-output")!.textContent).toBe("query result");
+	});
 });
 
 // ---------------------------------------------------------------------------

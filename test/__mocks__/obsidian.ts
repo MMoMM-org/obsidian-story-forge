@@ -246,6 +246,8 @@ export class Workspace {
 
 	revealLeaf = vi.fn((_leaf: WorkspaceLeaf): void => {});
 
+	getActiveFile = vi.fn((): TFile | null => null);
+
 	detachLeavesOfType = vi.fn((_type: string): void => {});
 
 	getActiveViewOfType = vi.fn(

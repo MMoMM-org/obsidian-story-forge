@@ -22,6 +22,8 @@ export class SettingsTab extends PluginSettingTab {
 	private readonly importer: ViewImporter;
 	private readonly registerCommand: RegisterCommandCallback;
 	private readonly removeCommand: RemoveCommandCallback;
+	/** Store unsubscribe handle — set when tab is open, null when hidden. */
+	private _unsubscribeStore: (() => void) | null = null;
 
 	constructor(
 		app: App,
@@ -48,11 +50,26 @@ export class SettingsTab extends PluginSettingTab {
 		void this.displayAsync();
 	}
 
+	hide(): void {
+		this._unsubscribeStore?.();
+		this._unsubscribeStore = null;
+	}
+
 	/**
 	 * Async render entrypoint — awaitable in tests, called fire-and-forget by
 	 * the synchronous display() that Obsidian's PluginSettingTab contract requires.
+	 *
+	 * Subscribe to store on first call (guard against double-subscribe on re-renders
+	 * triggered by actions like Disable/Remove which call displayAsync() directly).
 	 */
 	async displayAsync(): Promise<void> {
+		// Subscribe to store changes to live-refresh the Views list.
+		// Guard: only subscribe once per open session; hide() clears the handle.
+		if (!this._unsubscribeStore) {
+			this._unsubscribeStore = this.store.subscribe(() => {
+				void this.displayAsync();
+			});
+		}
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass("sf-settings");

@@ -244,11 +244,15 @@ export class SidebarView extends ItemView {
 				}),
 			);
 
-			// Initial resolution based on the current active view
+			// Initial resolution: try active MarkdownView first (avoids needing
+			// getActiveFile when a markdown note was already focused). Fall back to
+			// getActiveFile() which returns the last-focused file even when the
+			// sidebar steal has already moved focus away from it (Bug D2 fix).
 			const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
-			if (mdView?.file) {
-				this._resolveAndRender(mdView.file);
-				this.subject = { file: mdView.file, source: "follow" };
+			const seedFile = mdView?.file ?? this.app.workspace.getActiveFile();
+			if (seedFile && seedFile.extension === "md") {
+				this.subject = { file: seedFile, source: "follow" };
+				this._resolveAndRender(seedFile);
 			}
 		});
 	}
@@ -580,6 +584,20 @@ export class SidebarView extends ItemView {
 	}
 
 	/**
+	 * selectView — public entry point for the command-palette callback.
+	 *
+	 * Ensures views are loaded (reloads if _views is empty or the id is missing),
+	 * then selects the named tab. Safe to call after activateView() opens the panel.
+	 */
+	async selectView(viewId: string): Promise<void> {
+		// Reload views from store if the target view is not yet cached
+		if (!this.store || (!(viewId in this._views))) {
+			await this._reloadViews();
+		}
+		this._selectTab(viewId);
+	}
+
+	/**
 	 * _rerenderBody — re-render only the body using the current _computeState().
 	 * Does NOT rebuild the shell or tab strip.
 	 */
@@ -826,9 +844,13 @@ export class SidebarView extends ItemView {
 				try {
 					await engine.render(view, ctx, body);
 					if (gen !== this._renderGen) return;
+					// Bug C fix: remove the loading node so it doesn't persist above the output
+					body.querySelector(".sf-loading")?.remove();
 					this.currentEngine = engine;
 				} catch (err) {
 					if (gen !== this._renderGen) return;
+					// Bug C fix: remove loading node before showing the error
+					body.querySelector(".sf-loading")?.remove();
 					const error = err instanceof Error ? err : new Error("Engine render failed");
 					console.debug("[StoryForge] engine render error:", error.message);
 					this._renderEngineError(body, error);
