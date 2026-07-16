@@ -10,6 +10,6 @@ Lists all canon characters linked from the active scene note.
 ```dataview
 TABLE file.name AS Character
 FROM [[this]]
-WHERE contains(tags, "#canon/character")
+WHERE contains(tags, "canon/character")
 SORT file.name ASC
 ```

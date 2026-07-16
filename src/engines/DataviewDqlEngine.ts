@@ -36,13 +36,23 @@ export class DataviewDqlEngine implements QueryEngine {
 			return;
 		}
 
+		// Substitute [[this]] → [[<active-note-path-without-.md>]] (T3.3-this).
+		// Dataview does NOT treat the literal [[this]] token as a self-reference —
+		// it resolves it as a link to a note actually named "this", which is always
+		// empty. We rewrite the exact token [[this]] to the full-path wikilink of
+		// the active note (without .md extension) so Dataview resolves it correctly.
+		// Limitation: [[this|alias]] and [[this#heading]] are NOT substituted; only
+		// the exact [[this]] token is matched. Use the literal note name for those.
+		const activeLink = "[[" + ctx.activeFile.path.replace(/\.md$/, "") + "]]";
+		const queryBody = block.body.replace(/\[\[this\]\]/g, activeLink);
+
 		// Component lifecycle: new Component + load() BEFORE passing to dvApi (ADR-7 / implementation gotcha)
 		this.component = new Component();
 		this.component.load();
 
 		// KEY: filePath is the PANEL SUBJECT's path, NOT view.source (ADR-3)
 		try {
-			await dvApi.execute(block.body, el, this.component, ctx.activeFile.path);
+			await dvApi.execute(queryBody, el, this.component, ctx.activeFile.path);
 		} catch (err) {
 			// Self-clean the loaded Component so it is never leaked on error (W1).
 			// teardown() will not be called by the caller after a throw, so we must
