@@ -126,7 +126,7 @@ export class SettingsTab extends PluginSettingTab {
 						new ImportPickerModal(
 							this.app,
 							this.importer,
-							this.store,
+							this.gate,
 							this.registerCommand,
 						).open();
 					}),
