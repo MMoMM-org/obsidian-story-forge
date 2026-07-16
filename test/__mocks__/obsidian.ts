@@ -32,24 +32,6 @@ if (typeof (globalThis as Record<string, unknown>).activeDocument === "undefined
 	(globalThis as Record<string, unknown>).activeDocument = document;
 }
 
-// --- Global type augmentations (mirrors real obsidian @types/obsidian globals) ---
-
-declare global {
-	/** Obsidian's popout-window-aware document reference. */
-	const activeDocument: Document;
-
-	interface HTMLElement {
-		createEl(tag: string, opts?: { text?: string; cls?: string; type?: string; placeholder?: string; value?: string; href?: string; attr?: Record<string, string>; title?: string }): HTMLElement;
-		createDiv(opts?: { cls?: string; text?: string }): HTMLDivElement;
-		createSpan(opts?: { cls?: string; text?: string }): HTMLSpanElement;
-		empty(): void;
-		addClass(...classes: string[]): void;
-		removeClass(...classes: string[]): void;
-		toggleClass(cls: string, force?: boolean): void;
-		setText(text: string): void;
-	}
-}
-
 // --- Core types ---
 
 /** Matches the real Obsidian PluginManifest interface. */

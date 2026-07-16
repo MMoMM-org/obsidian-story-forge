@@ -27,6 +27,9 @@ test/*/.obsidian/workspace*
 # Test coverage
 coverage/
 
+# Temporary declaration files emitted by typecheck:mock (step 1 of mock guard)
+.typecheck-mock-tmp/
+
 # Sourcemaps
 *.map
 
