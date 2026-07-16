@@ -8,7 +8,9 @@ import { EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { ViewImporter } from "import/ViewImporter";
 import { ImportPickerModal } from "import/ImportPickerModal";
+import { BindModal } from "import/BindModal";
 import type { RegisterCommandCallback } from "import/types";
+import type { ConsentDecision } from "consent/ConsentGate";
 
 /** Callback injected from main.ts to remove a view's command palette entry on deletion. */
 export type RemoveCommandCallback = (viewId: string) => void;
@@ -148,67 +150,139 @@ export class SettingsTab extends PluginSettingTab {
 			return;
 		}
 
-		for (const [id, record] of entries) {
-			this._renderViewRow(containerEl, id, record);
+		// Gather row-state decisions BEFORE painting so the paint stays synchronous
+		// and the gen guard stays effective. Each row's TRUE consent state is read
+		// via the enabled projection — evaluate() short-circuits to `disabled` when
+		// enabled:false, so we must ask "what would the state be if enabled?".
+		const rows = await Promise.all(
+			entries.map(async ([id, record]) => {
+				const decision = await this.gate.evaluate({ ...record, enabled: true });
+				return { id, record, status: decision.status };
+			}),
+		);
+
+		// Re-entrancy guard AGAIN: a store change during evaluate() must not paint
+		// stale rows (preserves Bug-1 discipline across the new async boundary).
+		if (gen !== this._displayGen) return;
+
+		for (const { id, record, status } of rows) {
+			this._renderViewRow(containerEl, id, record, status);
 		}
 	}
 
 	/**
-	 * Render a single view row. State is determined at render time:
-	 *   S26 — registry.get(engine) === undefined → engine missing
-	 *   S24 — enabled:true → Disable action
-	 *   S25 — enabled:false → Enable action (routes through consentGate.requestConsent)
+	 * Render a single view row. State is driven by `decision` — the consent-gate
+	 * status computed from the ENABLED PROJECTION (so a disabled row still reveals
+	 * whether its consent is fresh / drifted / never-given). Mockups S24–S27.
+	 *
+	 *   engine-missing        → Remove only (no Edit, no toggle) — S26.
+	 *   dvjs-off              → Edit + Remove.
+	 *   platform-restricted   → Edit + Remove.
+	 *   otherwise, branch on record.enabled × {consented|drift|not-consented}:
+	 *     enabled  consented       → Disable + Edit + Remove — S24.
+	 *     enabled  drift           → Review(reConsent) + Edit + Remove — S25b.
+	 *     enabled  not-consented   → Review(consent) + Disable + Edit + Remove.
+	 *     disabled consented       → Re-enable (immediate) + Edit + Remove — S25a.
+	 *     disabled drift           → Review(reConsent) + Edit + Remove — S25b.
+	 *     disabled not-consented   → Enable(consent, CTA) + Edit + Remove.
+	 *
+	 * Every non-engine-missing row also gets an Edit button (opens S27 BindModal).
 	 */
 	private _renderViewRow(
 		containerEl: HTMLElement,
 		id: string,
 		record: ViewRecord,
+		decision: ConsentDecision["status"],
 	): void {
-		const engineMissing = this.registry.get(record.engine) === undefined;
 		const displayName = record.commandName ?? record.source;
+		const engine = record.engine;
 
-		if (engineMissing) {
-			// S26 — Engine missing
-			new Setting(containerEl)
-				.setName(displayName)
-				.setDesc(`Engine ${record.engine} is missing or not installed — install Dataview to use this view.`)
-				.addButton((btn) => {
-					btn.setButtonText("Remove").onClick(() => this._removeView(id));
-					btn.buttonEl.classList.add("mod-warning");
-				});
+		const setting = new Setting(containerEl).setName(displayName);
+
+		// S26 — Engine missing: Remove only, no Edit, no toggle.
+		if (decision === "engine-missing") {
+			setting.setDesc(
+				`Engine ${engine} is missing or not installed — install Dataview to use this view.`,
+			);
+			this._addRemoveButton(setting, id);
 			return;
 		}
 
-		if (record.enabled) {
-			// S24 — Enabled
-			new Setting(containerEl)
-				.setName(displayName)
-				.setDesc(`Engine: ${record.engine} · Enabled`)
-				.addButton((btn) =>
-					btn
-						.setButtonText("Disable")
-						.onClick(() => this._disableView(id, record)),
-				)
-				.addButton((btn) => {
-					btn.setButtonText("Remove").onClick(() => this._removeView(id));
-					btn.buttonEl.classList.add("mod-warning");
-				});
-		} else {
-			// S25 — Disabled / Consent required
-			new Setting(containerEl)
-				.setName(displayName)
-				.setDesc(`Engine: ${record.engine} · Disabled`)
-				.addButton((btn) =>
-					btn
-						.setButtonText("Enable")
-						.setCta()
-						.onClick(() => this._enableView(id, record)),
-				)
-				.addButton((btn) => {
-					btn.setButtonText("Remove").onClick(() => this._removeView(id));
-					btn.buttonEl.classList.add("mod-warning");
-				});
+		if (decision === "dvjs-off") {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'DataviewJS' and 'Dataview' are proper product names
+			setting.setDesc("DataviewJS is disabled in Dataview settings.");
+			this._addEditButton(setting, id, record);
+			this._addRemoveButton(setting, id);
+			return;
 		}
+
+		if (decision === "platform-restricted") {
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'DataviewJS' is a proper product name
+			setting.setDesc("DataviewJS is not available on mobile.");
+			this._addEditButton(setting, id, record);
+			this._addRemoveButton(setting, id);
+			return;
+		}
+
+		// Remaining decisions: consented | not-consented | drift.
+		if (record.enabled) {
+			if (decision === "drift") {
+				// S25b — enabled but source changed → re-consent required.
+				setting.setDesc(`Engine: ${engine} · Consent required (source changed)`);
+				this._addButton(setting, "Review", () => this._reviewView(id, record));
+			} else if (decision === "not-consented") {
+				setting.setDesc(`Engine: ${engine} · Consent required`);
+				this._addButton(setting, "Review", () => this._enableView(id, record));
+				this._addButton(setting, "Disable", () => this._disableView(id, record));
+			} else {
+				// S24 — consented + enabled.
+				setting.setDesc(`Engine: ${engine} · Enabled`);
+				this._addButton(setting, "Disable", () => this._disableView(id, record));
+			}
+		} else {
+			if (decision === "drift") {
+				// S25b — disabled + source changed → re-consent required.
+				setting.setDesc(`Engine: ${engine} · Consent required (source changed)`);
+				this._addButton(setting, "Review", () => this._reviewView(id, record));
+			} else if (decision === "not-consented") {
+				setting.setDesc(`Engine: ${engine} · Disabled`);
+				this._addButton(setting, "Enable", () => this._enableView(id, record), true);
+			} else {
+				// S25a — consented but disabled → Re-enable immediately (no fresh
+				// consent needed: source unchanged).
+				setting.setDesc(`Engine: ${engine} · Disabled`);
+				this._addButton(setting, "Re-enable", () => this._reEnableView(id, record));
+			}
+		}
+
+		this._addEditButton(setting, id, record);
+		this._addRemoveButton(setting, id);
+	}
+
+	/** Add a plain (or CTA) action button whose click is fire-and-forget. */
+	private _addButton(
+		setting: Setting,
+		label: string,
+		onClick: () => void,
+		cta = false,
+	): void {
+		setting.addButton((btn) => {
+			btn.setButtonText(label).onClick(onClick);
+			if (cta) btn.setCta();
+		});
+	}
+
+	/** Add the Edit button (opens S27 BindModal). */
+	private _addEditButton(setting: Setting, id: string, record: ViewRecord): void {
+		this._addButton(setting, "Edit", () => this._editView(id, record));
+	}
+
+	/** Add the Remove button (mod-warning) — present on every row. */
+	private _addRemoveButton(setting: Setting, id: string): void {
+		setting.addButton((btn) => {
+			btn.setButtonText("Remove").onClick(() => this._removeView(id));
+			btn.buttonEl.classList.add("mod-warning");
+		});
 	}
 
 	// ---------------------------------------------------------------------------
@@ -229,6 +303,64 @@ export class SettingsTab extends PluginSettingTab {
 		void this.gate
 			.requestConsent(id, record)
 			.catch((err) => console.error("[StoryForge] view action failed", err));
+	}
+
+	/**
+	 * S25a — Re-enable a disabled-but-consented view IMMEDIATELY. The source is
+	 * unchanged (decision === "consented"), so no fresh consent is required.
+	 * The store write fires the observer → re-render.
+	 */
+	private _reEnableView(id: string, record: ViewRecord): void {
+		void this.store
+			.setRecord(id, { ...record, enabled: true })
+			.catch((err) => console.error("[StoryForge] view action failed", err));
+	}
+
+	/**
+	 * S25b — Review a drifted view: opens the re-consent modal. On grant,
+	 * requestReConsent writes the store → observer → re-render.
+	 */
+	private _reviewView(id: string, record: ViewRecord): void {
+		void this.gate
+			.requestReConsent(id, record)
+			.catch((err) => console.error("[StoryForge] view action failed", err));
+	}
+
+	/**
+	 * S27 — Edit a view's sidebar tab label and command binding. Opens the
+	 * BindModal seeded with current values; on Done, writes the new label +
+	 * command flag and reconciles the palette command entry. Cancel = no change.
+	 * The store write fires the observer → re-render (label updates live).
+	 */
+	private _editView(id: string, record: ViewRecord): void {
+		void this._editViewAsync(id, record).catch((err) =>
+			console.error("[StoryForge] view action failed", err),
+		);
+	}
+
+	private async _editViewAsync(id: string, record: ViewRecord): Promise<void> {
+		const seedName = record.commandName ?? record.source;
+		const seed = {
+			name: seedName,
+			registerCommand: record.command,
+			commandName: `Story Forge: ${seedName}`,
+		};
+		const result = await new BindModal(this.app, seed).present();
+		if (!result) return; // cancelled — no change
+
+		await this.store.setRecord(id, {
+			...record,
+			commandName: result.label,
+			command: result.registerCommand,
+		});
+
+		// Reconcile the palette command entry.
+		if (result.registerCommand) {
+			this.removeCommand(id); // no-op if none; ensures rename replaces old entry
+			this.registerCommand(id, result.commandName);
+		} else if (record.command) {
+			this.removeCommand(id);
+		}
 	}
 
 	private _removeView(id: string): void {
