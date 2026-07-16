@@ -122,12 +122,24 @@ export default class StoryForgePlugin extends Plugin {
 	/**
 	 * Register a command palette entry for a view.
 	 * Public for test access; aliased as the registerCommand callback passed to SettingsTab.
+	 *
+	 * Bug D1 fix: after activating the panel, locate the live SidebarView and
+	 * call selectView(viewId) so the correct tab is selected.
 	 */
 	_registerViewCommand(viewId: string, commandName: string): void {
 		const cmd = this.addCommand({
 			id: `view-${viewId}`,
 			name: commandName,
-			callback: () => { void activateView(this.app); },
+			callback: () => {
+				void (async () => {
+					await activateView(this.app);
+					const leaves = this.app.workspace.getLeavesOfType(SIDEBAR_VIEW_TYPE);
+					const leaf = leaves[0];
+					if (leaf?.view instanceof SidebarView) {
+						await leaf.view.selectView(viewId);
+					}
+				})();
+			},
 		});
 		if (cmd) {
 			this._commandIds.set(viewId, cmd.id);

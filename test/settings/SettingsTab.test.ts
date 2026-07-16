@@ -416,3 +416,106 @@ describe("SettingsTab — Views section", () => {
 		expect(findButton(container, "Import view")).not.toBeNull();
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Bug A — store subscriber re-renders the Views section without calling display() again
+// ---------------------------------------------------------------------------
+
+/**
+ * A fake ViewStore that supports subscribe/_fire the same way SidebarView.tabs
+ * uses it, but also has getViews() backed by a mutable _views bag.
+ */
+function makeFakeStoreForTab(
+	initial: Record<string, ViewRecord> = {},
+): ViewStore & { _views: Record<string, ViewRecord>; _fire: () => void } {
+	let views = { ...initial };
+	const subscribers = new Set<() => void>();
+
+	const store = {
+		async getViews(): Promise<Record<string, ViewRecord>> {
+			return { ...views };
+		},
+		subscribe(cb: () => void): () => void {
+			subscribers.add(cb);
+			return () => { subscribers.delete(cb); };
+		},
+		async setRecord(_id: string, _rec: ViewRecord): Promise<void> {},
+		async deleteRecord(_id: string): Promise<void> {},
+		get _views() { return views; },
+		set _views(v: Record<string, ViewRecord>) { views = v; },
+		_fire(): void { for (const cb of subscribers) cb(); },
+		get _subscriberCount(): number { return subscribers.size; },
+	} as unknown as ViewStore & { _views: Record<string, ViewRecord>; _fire: () => void };
+
+	return store;
+}
+
+describe("SettingsTab — Bug A: store subscription refreshes views list", () => {
+	let app: App;
+
+	beforeEach(() => {
+		app = makeApp();
+	});
+
+	it("after display(), firing the store subscriber re-renders a newly added view without calling display() again", async () => {
+		const store = makeFakeStoreForTab({});
+		const tab = makeTab(app, store as unknown as ViewStore, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+		// Open the tab (call display)
+		await tab.displayAsync();
+
+		// No views yet — empty state shown
+		expect(tab.containerEl.textContent).toContain("No views imported yet");
+
+		// Add a view to the store (simulating an import) and fire the subscriber
+		(store as unknown as { _views: Record<string, ViewRecord> })._views = {
+			"new-v1": makeRecord({ commandName: "Imported View" }),
+		};
+		store._fire();
+
+		// Wait for async re-render triggered by subscriber
+		await vi.waitFor(() => {
+			expect(tab.containerEl.textContent).toContain("Imported View");
+		});
+
+		// The empty-state message must be gone
+		expect(tab.containerEl.textContent).not.toContain("No views imported yet");
+	});
+
+	it("hide() unsubscribes so a post-hide store fire does NOT re-render", async () => {
+		const store = makeFakeStoreForTab({ "v1": makeRecord({ commandName: "View 1" }) });
+		const tab = makeTab(app, store as unknown as ViewStore, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+
+		await tab.displayAsync();
+		expect((store as unknown as { _subscriberCount: number })._subscriberCount).toBe(1);
+
+		// Hide the tab — should unsubscribe
+		tab.hide();
+
+		expect((store as unknown as { _subscriberCount: number })._subscriberCount).toBe(0);
+
+		// Change the store and fire — no re-render should happen
+		const displayAsyncSpy = vi.spyOn(tab, "displayAsync");
+		(store as unknown as { _views: Record<string, ViewRecord> })._views = {
+			"v1": makeRecord({ commandName: "View 1" }),
+			"v2": makeRecord({ commandName: "Should Not Appear" }),
+		};
+		store._fire();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(displayAsyncSpy).not.toHaveBeenCalled();
+		expect(tab.containerEl.textContent).not.toContain("Should Not Appear");
+	});
+
+	it("repeated display() calls do not create multiple subscriptions (no double-subscribe)", async () => {
+		const store = makeFakeStoreForTab({});
+		const tab = makeTab(app, store as unknown as ViewStore, makeEmptyRegistry(), makeConsentGate(), makeImporter());
+
+		await tab.displayAsync();
+		await tab.displayAsync();
+		await tab.displayAsync();
+
+		// Only one subscriber at a time — not 3
+		expect((store as unknown as { _subscriberCount: number })._subscriberCount).toBe(1);
+	});
+});
