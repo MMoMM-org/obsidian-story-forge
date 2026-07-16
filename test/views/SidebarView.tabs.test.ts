@@ -431,6 +431,42 @@ describe("SidebarView tabs: live refresh on store change", () => {
 		expect(() => getTabByViewId(view, "v2")).not.toThrow();
 	});
 
+	it("importing an unrelated view does NOT re-render the currently selected view (no spurious flash)", async () => {
+		// v1 is selected and rendered; importing v2 should rebuild tabs but NOT re-run v1's engine.
+		const engine = makeMockEngine();
+		const registry = makeMockRegistry(engine);
+		const consentGate = makeMockConsentGate({ status: "consented" });
+		const store = makeFakeStore({ v1: makeViewRecord({ commandName: "View A", source: "_forge/views/v1.md" }) });
+		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
+		await view.onOpen();
+
+		// Set resolved context so selecting v1 triggers an engine render
+		const file = makeMdFile("Scene 1");
+		const ctx = makeNoteContext(file);
+		const pv = view as unknown as { currentCtx: NoteContext | null; subject: { file: TFile | null; source: string } };
+		pv.currentCtx = ctx;
+		pv.subject = { file, source: "follow" };
+		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: { type: "scene" } }));
+
+		// Select v1 → engine.render called once
+		getTabByViewId(view, "v1").click();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(engine.render).toHaveBeenCalledTimes(1);
+
+		// Import v2 — v1's source/engine/enabled/okayed are UNCHANGED
+		store._views = {
+			v1: makeViewRecord({ commandName: "View A", source: "_forge/views/v1.md" }),
+			v2: makeViewRecord({ commandName: "View B", source: "_forge/views/v2.md" }),
+		};
+		store._fire();
+		await new Promise((r) => setTimeout(r, 0));
+
+		// Two tabs now visible (v1 + v2 + Context = 3)
+		expect(getTabs(view).length).toBe(3);
+		// But v1's engine must NOT have been called again (no spurious re-render)
+		expect(engine.render).toHaveBeenCalledTimes(1);
+	});
+
 	it("removed selected view falls back to Context + body updates + selectedViewId reset", async () => {
 		// Use a disabled view so selecting it shows S16 — gives a body marker we can
 		// later assert is gone, proving the body actually re-rendered on fallback.
