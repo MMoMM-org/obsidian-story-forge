@@ -588,6 +588,70 @@ describe("ViewImporter.importToStore()", () => {
 			expect(rec.okayed).toBeNull();
 		}
 	});
+
+	// -------------------------------------------------------------------------
+	// T-S2.2 — optional consent/enable/label opts (one-flow atomic import)
+	// -------------------------------------------------------------------------
+
+	it("writes exactly ONE record carrying okayed/enabled/commandName when opts are passed", async () => {
+		const store = makeStore();
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		importer = new ViewImporter(app, store);
+
+		const okayed = { version: 7, checksum: "sha256:deadbeef" };
+		const id = await importer.importToStore(sampleDef, {
+			okayed,
+			enabled: true,
+			commandName: "X",
+		});
+
+		expect(setRecordSpy).toHaveBeenCalledTimes(1);
+		const [calledId, calledRec] = setRecordSpy.mock.calls[0]!;
+		expect(calledId).toBe(id);
+		expect(calledRec.okayed).toEqual(okayed);
+		expect(calledRec.enabled).toBe(true);
+		expect(calledRec.commandName).toBe("X");
+	});
+
+	it("no-opts import still writes enabled:false, okayed:null, commandName:def.name", async () => {
+		const store = makeStore();
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		importer = new ViewImporter(app, store);
+
+		await importer.importToStore(sampleDef);
+
+		expect(setRecordSpy).toHaveBeenCalledTimes(1);
+		const [, calledRec] = setRecordSpy.mock.calls[0]!;
+		expect(calledRec.enabled).toBe(false);
+		expect(calledRec.okayed).toBeNull();
+		expect(calledRec.commandName).toBe(sampleDef.name);
+	});
+
+	it("throws DUPLICATE without calling setRecord even when opts are passed", async () => {
+		const existingRecord: ViewRecord = {
+			provenance: "imported",
+			enabled: false,
+			okayed: null,
+			source: "views/sample.md",
+			engine: "dataviewjs",
+			command: false,
+		};
+		const store = makeStore({ "existing-id": existingRecord });
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		importer = new ViewImporter(app, store);
+
+		await expect(
+			importer.importToStore(sampleDef, {
+				okayed: { version: 1, checksum: "sha256:abc" },
+				enabled: true,
+				commandName: "X",
+			}),
+		).rejects.toMatchObject({
+			code: "DUPLICATE",
+			message: "View already imported",
+		});
+		expect(setRecordSpy).not.toHaveBeenCalled();
+	});
 });
 
 // ---------------------------------------------------------------------------
