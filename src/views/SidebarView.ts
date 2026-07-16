@@ -30,6 +30,7 @@ import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { ViewRecord } from "store/types";
+import type { ViewStore } from "store/ViewStore";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -113,6 +114,9 @@ export class SidebarView extends ItemView {
 	private consentGate: ConsentGate | null;
 	private nativeEngine: NativeScopingEngine | null;
 
+	// Stage 1: injected ViewStore (optional — absent → Context-only mode)
+	private store: ViewStore | null;
+
 	// M2: tracks the engine currently rendered into the panel body (ADR-7 teardown)
 	private currentEngine: QueryEngine | null = null;
 	// M2: the ViewRecord currently rendered (selected view tab)
@@ -120,6 +124,13 @@ export class SidebarView extends ItemView {
 	// M2: generation counter — incremented on every _renderResolved entry to
 	// detect stale async dispatches and bail before mutating DOM/currentEngine.
 	private _renderGen = 0;
+
+	// Stage 1: selected tab state
+	private selectedViewId: string | null = null;           // null = Context tab
+	private _views: Record<string, ViewRecord> = {};        // cached from store
+	private _tabsEl: HTMLElement | null = null;             // tab strip element
+	private _unsubscribeStore: (() => void) | null = null;  // store unsubscribe handle
+	private _tabsGen = 0;                                   // async-load guard
 
 	// Debounced follow function — coalesces rapid active-leaf-change events.
 	private readonly _debouncedFollow: ReturnType<
@@ -131,18 +142,21 @@ export class SidebarView extends ItemView {
 	 * @param registry    - M2: injected EngineRegistry (optional until T4.4 main.ts rewire)
 	 * @param consentGate - M2: injected ConsentGate (optional until T4.4 main.ts rewire)
 	 * @param nativeEngine - M2: injected NativeScopingEngine fallback (optional until T4.4)
+	 * @param store       - Stage 1: injected ViewStore for live tab population (optional)
 	 */
 	constructor(
 		leaf: WorkspaceLeaf,
 		registry?: EngineRegistry,
 		consentGate?: ConsentGate,
 		nativeEngine?: NativeScopingEngine,
+		store?: ViewStore,
 	) {
 		super(leaf);
 		this.scoping = new ScopingService(this.app);
 		this.registry = registry ?? null;
 		this.consentGate = consentGate ?? null;
 		this.nativeEngine = nativeEngine ?? null;
+		this.store = store ?? null;
 		this._debouncedFollow = debounce(
 			(l: WorkspaceLeaf | null) => { this._doFollow(l); },
 			DEBOUNCE_MS,
@@ -182,6 +196,16 @@ export class SidebarView extends ItemView {
 		this._buildShell();
 		this._renderState({ kind: "no-note" });
 
+		// Stage 1: wire store subscription for live tab refresh
+		if (this.store) {
+			const unsubscribe = this.store.subscribe(() => { void this._reloadViews(); });
+			this._unsubscribeStore = unsubscribe;
+			// Register with Component so it's also released on unload (ADR-2)
+			this.register(unsubscribe);
+			// Initial populate
+			void this._reloadViews();
+		}
+
 		// Defer first resolve to layout-ready (ADR-5)
 		this.app.workspace.onLayoutReady(() => {
 			// Wire up active-leaf-change (via registerEvent)
@@ -220,6 +244,9 @@ export class SidebarView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this._debouncedFollow.cancel();
+		// Stage 1: unsubscribe from store (idempotent alongside this.register cleanup)
+		this._unsubscribeStore?.();
+		this._unsubscribeStore = null;
 		// ADR-7: teardown the current engine before clearing the DOM
 		this.currentEngine?.teardown();
 		this.currentEngine = null;
@@ -230,6 +257,10 @@ export class SidebarView extends ItemView {
 		this.lastError = null;
 		this.currentRecord = null;
 		this.subject = { file: null, source: "follow" };
+		// Stage 1: reset tab state
+		this.selectedViewId = null;
+		this._views = {};
+		this._tabsEl = null;
 	}
 
 	// -------------------------------------------------------------------------
@@ -402,29 +433,171 @@ export class SidebarView extends ItemView {
 		this._pinTagEl = chead.createSpan({ cls: "sf-pin-tag sf-hidden" });
 		this._badgeEl = chead.createSpan({ cls: "sf-badge" });
 
-		// Tab strip (role=tablist; one tab "Context" in M1)
+		// Tab strip (role=tablist) — Stage 1: delegated handlers registered once here
 		const tabs = ce.createDiv({ cls: "sf-tabs" });
 		tabs.setAttribute("role", "tablist");
-		const tab = tabs.createDiv({ cls: "sf-tab sf-tab-sel" });
-		tab.textContent = "Context";
-		tab.setAttribute("role", "tab");
-		tab.setAttribute("aria-selected", "true");
-		tab.setAttribute("tabindex", "0");
+		this._tabsEl = tabs;
 
-		// Arrow key navigation for tabs (only one tab in M1, handler present)
+		// Delegated click handler on the strip (registered once — avoids per-rebuild leak)
+		this.registerDomEvent(tabs, "click", (e: MouseEvent) => {
+			const target = (e.target as HTMLElement).closest(".sf-tab");
+			if (!target) return;
+			const viewId = target.getAttribute("data-view-id");
+			this._selectTab(viewId === "__context__" ? null : viewId);
+		});
+
+		// Delegated keyboard handler on the strip (registered once)
 		this.registerDomEvent(tabs, "keydown", (e: KeyboardEvent) => {
-			if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-				// M1: only one tab; focus stays on current tab
-				(e.target as HTMLElement).focus();
-				e.preventDefault();
+			if (
+				e.key !== "ArrowLeft" &&
+				e.key !== "ArrowRight" &&
+				e.key !== "Home" &&
+				e.key !== "End"
+			) {
+				return;
+			}
+			e.preventDefault();
+			const allTabs: HTMLElement[] = Array.from(
+				this._tabsEl?.querySelectorAll<HTMLElement>(".sf-tab") ?? [],
+			);
+			if (allTabs.length === 0) return;
+			const current = (e.target as HTMLElement).closest(".sf-tab");
+			const idx = current ? allTabs.indexOf(current as HTMLElement) : -1;
+			let next: HTMLElement | null = null;
+			if (e.key === "Home") {
+				next = allTabs[0] ?? null;
+			} else if (e.key === "End") {
+				next = allTabs[allTabs.length - 1] ?? null;
+			} else if (e.key === "ArrowRight") {
+				next = allTabs[(idx + 1) % allTabs.length] ?? null;
+			} else {
+				next = allTabs[(idx - 1 + allTabs.length) % allTabs.length] ?? null;
+			}
+			if (next) {
+				const viewId = next.getAttribute("data-view-id");
+				this._selectTab(viewId === "__context__" ? null : viewId);
+				next.focus();
 			}
 		});
+
+		// Initial tab render (Context-only until store loads)
+		this._renderTabs();
 
 		// Body / tabpanel
 		const body = ce.createDiv({ cls: "sf-body" });
 		body.setAttribute("role", "tabpanel");
 		body.setAttribute("aria-live", "polite");
 		this._bodyEl = body;
+	}
+
+	// -------------------------------------------------------------------------
+	// Stage 1: Tab management
+	// -------------------------------------------------------------------------
+
+	/**
+	 * _renderTabs — idempotent; empties the strip and rebuilds all tabs.
+	 * Views first, Context last. Reconciles stale selectedViewId.
+	 */
+	private _renderTabs(): void {
+		if (!this._tabsEl) return;
+		const strip = aug(this._tabsEl);
+		strip.empty();
+
+		// One tab per view
+		for (const [id, rec] of Object.entries(this._views)) {
+			const label = rec.commandName ?? this._sourceBasename(rec.source);
+			const tabEl = strip.createDiv({ cls: "sf-tab" });
+			tabEl.textContent = label;
+			tabEl.setAttribute("role", "tab");
+			tabEl.setAttribute("data-view-id", id);
+			tabEl.title = label;
+		}
+
+		// Context tab (always last)
+		const ctxEl = strip.createDiv({ cls: "sf-tab" });
+		ctxEl.textContent = "Context";
+		ctxEl.setAttribute("role", "tab");
+		ctxEl.setAttribute("data-view-id", "__context__");
+		ctxEl.title = "Context";
+
+		// Reconcile: if selected view is gone, fall back to Context
+		if (this.selectedViewId !== null && !(this.selectedViewId in this._views)) {
+			this.selectedViewId = null;
+			this.currentRecord = null;
+		}
+
+		this._syncTabSelection();
+	}
+
+	/** Extract the basename (no extension) from a vault path. */
+	private _sourceBasename(source: string): string {
+		const name = source.split("/").pop() ?? source;
+		return name.endsWith(".md") ? name.slice(0, -3) : name;
+	}
+
+	/**
+	 * _syncTabSelection — sets aria-selected, sf-tab-sel, and roving tabindex
+	 * on every tab in the strip. Exactly one tab is always selected (Context is
+	 * the guaranteed fallback).
+	 */
+	private _syncTabSelection(): void {
+		if (!this._tabsEl) return;
+		const tabs = Array.from(this._tabsEl.querySelectorAll<HTMLElement>(".sf-tab"));
+		for (const tab of tabs) {
+			const viewId = tab.getAttribute("data-view-id");
+			const isSelected =
+				viewId === "__context__"
+					? this.selectedViewId === null
+					: viewId === this.selectedViewId;
+			tab.setAttribute("aria-selected", isSelected ? "true" : "false");
+			tab.classList.toggle("sf-tab-sel", isSelected);
+			tab.setAttribute("tabindex", isSelected ? "0" : "-1");
+		}
+	}
+
+	/**
+	 * _selectTab — set selectedViewId + re-point currentRecord, sync UI, re-render body.
+	 */
+	private _selectTab(viewId: string | null): void {
+		this.selectedViewId = viewId;
+		this.currentRecord = viewId !== null ? (this._views[viewId] ?? null) : null;
+		this._syncTabSelection();
+		this._rerenderBody();
+	}
+
+	/**
+	 * _rerenderBody — re-render only the body using the current _computeState().
+	 * Does NOT rebuild the shell or tab strip.
+	 */
+	private _rerenderBody(): void {
+		this._renderState(this._computeState());
+	}
+
+	/**
+	 * _reloadViews — async guard via _tabsGen; fetches fresh views from store,
+	 * re-points currentRecord, rebuilds tabs, and re-renders body when needed.
+	 */
+	private async _reloadViews(): Promise<void> {
+		if (!this.store) return;
+		const gen = ++this._tabsGen;
+		const views = await this.store.getViews();
+		if (gen !== this._tabsGen) return; // stale load
+
+		const prevRecord = this.currentRecord;
+		this._views = views;
+
+		// Re-point currentRecord so enable/disable of selected view is reflected live
+		this.currentRecord =
+			this.selectedViewId !== null
+				? (this._views[this.selectedViewId] ?? null)
+				: null;
+
+		this._renderTabs();
+
+		// Re-render body when selection changed or the selected record changed
+		if (this.currentRecord !== prevRecord) {
+			this._rerenderBody();
+		}
 	}
 
 	// -------------------------------------------------------------------------

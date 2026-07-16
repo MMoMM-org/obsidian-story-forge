@@ -200,6 +200,103 @@ describe("ViewStore.deleteRecord", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Change observer — subscribe / _notify
+// ---------------------------------------------------------------------------
+
+describe("ViewStore.subscribe — fires after setRecord", () => {
+  it("calls the subscriber after setRecord", async () => {
+    const port = fakePort({});
+    const store = new ViewStore(port);
+    const calls: number[] = [];
+    store.subscribe(() => { calls.push(1); });
+    await store.setRecord("v1", rec());
+    expect(calls.length).toBe(1);
+  });
+
+  it("calls the subscriber after deleteRecord", async () => {
+    const port = fakePort({ views: { v1: rec() } });
+    const store = new ViewStore(port);
+    const calls: number[] = [];
+    store.subscribe(() => { calls.push(1); });
+    await store.deleteRecord("v1");
+    expect(calls.length).toBe(1);
+  });
+
+  it("subscriber sees committed state (saveCount===1) at call time", async () => {
+    const port = fakePort({});
+    const store = new ViewStore(port);
+    let saveCountAtNotify = -1;
+    store.subscribe(() => { saveCountAtNotify = port.saveCount; });
+    await store.setRecord("v1", rec());
+    expect(saveCountAtNotify).toBe(1);
+  });
+
+  it("subscriber reads committed views (getViews returns new record) at call time", async () => {
+    const port = fakePort({});
+    const store = new ViewStore(port);
+    let viewsPromise: Promise<Record<string, unknown>> | null = null;
+    store.subscribe(() => {
+      viewsPromise = store.getViews();
+    });
+    await store.setRecord("v1", rec({ source: "check" }));
+    // subscriber was called synchronously after persist — resolve its getViews()
+    expect(viewsPromise).not.toBeNull();
+    const views = await viewsPromise!;
+    expect(views["v1"]).toBeDefined();
+    expect((views["v1"] as { source: string }).source).toBe("check");
+  });
+
+  it("unsubscribe stops future notifications", async () => {
+    const port = fakePort({});
+    const store = new ViewStore(port);
+    const calls: number[] = [];
+    const unsub = store.subscribe(() => { calls.push(1); });
+    await store.setRecord("v1", rec());
+    unsub();
+    await store.setRecord("v2", rec());
+    expect(calls.length).toBe(1);
+  });
+
+  it("a throwing subscriber does NOT prevent persist (saveCount still 1)", async () => {
+    const port = fakePort({});
+    const store = new ViewStore(port);
+    store.subscribe(() => { throw new Error("bad subscriber"); });
+    // should not throw
+    await expect(store.setRecord("v1", rec())).resolves.toBeUndefined();
+    expect(port.saveCount).toBe(1);
+  });
+
+  it("a throwing subscriber does NOT prevent sibling subscribers from firing", async () => {
+    const port = fakePort({});
+    const store = new ViewStore(port);
+    store.subscribe(() => { throw new Error("bad subscriber"); });
+    const sibling: number[] = [];
+    store.subscribe(() => { sibling.push(1); });
+    await store.setRecord("v1", rec());
+    expect(sibling.length).toBe(1);
+  });
+
+  it("does NOT fire subscribers during getViews (read path)", async () => {
+    const port = fakePort({ views: { v1: rec() } });
+    const store = new ViewStore(port);
+    const calls: number[] = [];
+    store.subscribe(() => { calls.push(1); });
+    await store.getViews();
+    expect(calls.length).toBe(0);
+  });
+
+  it("fires subscribers once per setRecord call even when called multiple times", async () => {
+    const port = fakePort({});
+    const store = new ViewStore(port);
+    let count = 0;
+    store.subscribe(() => { count++; });
+    await store.setRecord("v1", rec());
+    await store.setRecord("v2", rec());
+    expect(count).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Persistence discipline (ADR-6)
 // ---------------------------------------------------------------------------
 

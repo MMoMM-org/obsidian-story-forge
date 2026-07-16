@@ -10,9 +10,30 @@ import { applyDefaults, type PluginDataPort, type StoryForgeData, type ViewRecor
 
 export class ViewStore {
   private readonly port: PluginDataPort;
+  private readonly _subscribers = new Set<() => void>();
 
   constructor(port: PluginDataPort) {
     this.port = port;
+  }
+
+  /**
+   * Subscribe to view-store mutations. Returns an unsubscribe function.
+   * The callback fires AFTER persist so getViews() returns committed state.
+   */
+  subscribe(cb: () => void): () => void {
+    this._subscribers.add(cb);
+    return () => { this._subscribers.delete(cb); };
+  }
+
+  /** Iterate a copy of the subscriber set; swallow per-subscriber errors. */
+  private _notify(): void {
+    for (const cb of [...this._subscribers]) {
+      try {
+        cb();
+      } catch (e) {
+        console.error("[StoryForge] view subscriber failed", e);
+      }
+    }
   }
 
   /**
@@ -38,6 +59,7 @@ export class ViewStore {
     const views = data.views ?? {};
     views[id] = rec;
     await this.port.save({ ...data, views });
+    this._notify();
   }
 
   /**
@@ -49,6 +71,7 @@ export class ViewStore {
     const views = data.views ?? {};
     delete views[id];
     await this.port.save({ ...data, views });
+    this._notify();
   }
 
   // ---------------------------------------------------------------------------

@@ -138,6 +138,17 @@ export class Component {
 	);
 
 	/**
+	 * register — mirrors the real Obsidian Component.register(cb).
+	 * Queues `cb` in _cleanupFns so it runs when the component is unloaded.
+	 * This is the same behaviour as Plugin.register (which existed here before
+	 * Component.register was promoted); Plugin's override is kept for now so
+	 * existing test assertions on Plugin.register still pass.
+	 */
+	register = vi.fn((fn: () => unknown): void => {
+		this._cleanupFns.push(fn);
+	});
+
+	/**
 	 * load() — mirroring the real Obsidian Component.load().
 	 * The real Component.load() calls onload() and sets _loaded=true.
 	 * In tests, this is a no-op spy so assertions can verify it was called.
