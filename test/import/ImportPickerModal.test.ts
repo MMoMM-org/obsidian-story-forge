@@ -1,17 +1,17 @@
 /**
- * Tests for ImportPickerModal (T4.3) — import picker + bind modal.
+ * Tests for ImportPickerModal (T4.3, rewired T-S2.4) — vault view picker.
  *
- * SDD/Flow C: scanVault → picker → parse → importToStore → bind → tab.
- * PRD AC-F3.1, AC-F3.3, AC-F3.4, AC-F3.6, AC-F3.7.
+ * SDD/Flow C: scanVault → picker → parse → (delegate to runImportFlow).
+ * PRD AC-F3.1, AC-F3.3, AC-F3.4.
  *
  * Test strategy:
- * - ImportPickerModal: lists TFile results from scanVault(); on confirm: parse
- *   then importToStore in that order; shows errors inline without closing; on
- *   success closes and opens BindModal.
- * - BindModal: pre-fills label from def.name; checkbox for command registration;
- *   cancel: no rollback (view stays in store); confirm with command: calls
- *   registerCommand callback; confirm without: does not call it.
- *   On confirm: persists the tab label to ViewRecord.commandName via setRecord.
+ * - ImportPickerModal: lists TFile results from scanVault(); on confirm it
+ *   PARSES the selected file; parse errors stay shown inline WITHOUT closing and
+ *   WITHOUT starting the flow; on a successful parse it closes and delegates to
+ *   runImportFlow. The picker no longer imports/commits itself — the flow does.
+ * - The flow's first step (gate.requestConsentForDef) is spied on to prove the
+ *   flow was (or was not) started, and to short-circuit it (null → abort) so no
+ *   real consent/bind modals open during the picker tests.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -22,6 +22,7 @@ import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
 import { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
+import type { ConsentGate } from "consent/ConsentGate";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -66,6 +67,17 @@ function makeImporter(app: App, store: ViewStore): ViewImporter {
 }
 
 /**
+ * A ConsentGate mock whose only used method is requestConsentForDef — the
+ * flow's first step. Default: resolves null so the flow aborts before opening
+ * any real consent/bind modal. Tests spy on it to prove the flow started.
+ */
+function makeGate(): ConsentGate {
+	return {
+		requestConsentForDef: vi.fn(async () => null),
+	} as unknown as ConsentGate;
+}
+
+/**
  * Find a button by its label text within a root element.
  */
 function findButton(root: ParentNode, label: string): HTMLButtonElement | null {
@@ -98,12 +110,14 @@ describe("ImportPickerModal — file listing", () => {
 	let app: App;
 	let store: ViewStore;
 	let importer: ViewImporter;
+	let gate: ConsentGate;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		app = new App();
 		store = makeStore();
 		importer = makeImporter(app, store);
+		gate = makeGate();
 	});
 
 	afterEach(() => {
@@ -115,7 +129,7 @@ describe("ImportPickerModal — file listing", () => {
 		const file2 = makeFile("views/b.md", "View B");
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file1, file2]);
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -127,7 +141,7 @@ describe("ImportPickerModal — file listing", () => {
 	it("shows an empty state message when scanVault() returns no files", async () => {
 		vi.spyOn(importer, "scanVault").mockResolvedValue([]);
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -139,7 +153,7 @@ describe("ImportPickerModal — file listing", () => {
 		const file = makeFile("_forge/views/characters-in-scene.md");
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -149,51 +163,25 @@ describe("ImportPickerModal — file listing", () => {
 });
 
 // ---------------------------------------------------------------------------
-// ImportPickerModal — confirm: parse then importToStore order
+// ImportPickerModal — confirm: parse then delegate to runImportFlow
 // ---------------------------------------------------------------------------
 
-describe("ImportPickerModal — confirm calls parse then importToStore in order", () => {
+describe("ImportPickerModal — confirm parses then starts the flow", () => {
 	let app: App;
 	let store: ViewStore;
 	let importer: ViewImporter;
+	let gate: ConsentGate;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		app = new App();
 		store = makeStore();
 		importer = makeImporter(app, store);
+		gate = makeGate();
 	});
 
 	afterEach(() => {
 		document.body.innerHTML = "";
-	});
-
-	it("calls parse before importToStore (order enforced)", async () => {
-		const file = makeFile("views/chars.md");
-		const def = makeDef();
-		const callOrder: string[] = [];
-
-		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
-		vi.spyOn(importer, "parse").mockImplementation(async () => {
-			callOrder.push("parse");
-			return def;
-		});
-		vi.spyOn(importer, "importToStore").mockImplementation(async () => {
-			callOrder.push("importToStore");
-			return "new-id";
-		});
-
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
-		modal.open();
-
-		// Select the file and confirm
-		await waitForButton("Next →");
-		const nextBtn = findButton(document.body, "Next →")!;
-		nextBtn.click();
-
-		await vi.waitFor(() => {
-			expect(callOrder).toEqual(["parse", "importToStore"]);
-		});
 	});
 
 	it("calls parse with the selected file", async () => {
@@ -201,9 +189,8 @@ describe("ImportPickerModal — confirm calls parse then importToStore in order"
 		const def = makeDef();
 		const parseSpy = vi.spyOn(importer, "parse").mockResolvedValue(def);
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
-		vi.spyOn(importer, "importToStore").mockResolvedValue("new-id");
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -214,22 +201,25 @@ describe("ImportPickerModal — confirm calls parse then importToStore in order"
 		});
 	});
 
-	it("calls importToStore with the parsed definition", async () => {
+	it("starts the flow (gate.requestConsentForDef) with the parsed def, and does NOT importToStore itself", async () => {
 		const file = makeFile("views/chars.md");
 		const def = makeDef();
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
 		vi.spyOn(importer, "parse").mockResolvedValue(def);
-		const importSpy = vi.spyOn(importer, "importToStore").mockResolvedValue("new-id");
+		const importSpy = vi.spyOn(importer, "importToStore");
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
 		findButton(document.body, "Next →")!.click();
 
+		// The flow's first step is invoked with the parsed def (gate → null → abort).
 		await vi.waitFor(() => {
-			expect(importSpy).toHaveBeenCalledWith(def);
+			expect(gate.requestConsentForDef).toHaveBeenCalledWith(def);
 		});
+		// The picker must NOT commit — that is deferred to the flow's end.
+		expect(importSpy).not.toHaveBeenCalled();
 	});
 });
 
@@ -241,12 +231,14 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 	let app: App;
 	let store: ViewStore;
 	let importer: ViewImporter;
+	let gate: ConsentGate;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		app = new App();
 		store = makeStore();
 		importer = makeImporter(app, store);
+		gate = makeGate();
 	});
 
 	afterEach(() => {
@@ -260,7 +252,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 			new ImportError("NO_QUERY_BLOCK", "No query block found"),
 		);
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -281,7 +273,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 			),
 		);
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -301,7 +293,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 			new ImportError("NO_QUERY_BLOCK", "No query block found"),
 		);
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		const closeSpy = vi.spyOn(modal, "close");
 		modal.open();
 
@@ -315,7 +307,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 		expect(closeSpy).not.toHaveBeenCalled();
 	});
 
-	it("does NOT call importToStore when parse throws", async () => {
+	it("does NOT start the flow (gate.requestConsentForDef) when parse throws", async () => {
 		const file = makeFile("views/bad.md");
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
 		vi.spyOn(importer, "parse").mockRejectedValue(
@@ -323,7 +315,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 		);
 		const importSpy = vi.spyOn(importer, "importToStore");
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
@@ -333,6 +325,8 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 			expect(document.body.textContent).toContain("No query block found");
 		});
 
+		// Parse error stays inline: the flow is not started and nothing is committed.
+		expect(gate.requestConsentForDef).not.toHaveBeenCalled();
 		expect(importSpy).not.toHaveBeenCalled();
 	});
 
@@ -342,7 +336,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
 		vi.spyOn(importer, "parse").mockRejectedValue(new Error("disk full"));
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		const closeSpy = vi.spyOn(modal, "close");
 		modal.open();
 
@@ -357,118 +351,34 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 });
 
 // ---------------------------------------------------------------------------
-// ImportPickerModal — importToStore duplicate error
-// ---------------------------------------------------------------------------
-
-describe("ImportPickerModal — importToStore duplicate error", () => {
-	let app: App;
-	let store: ViewStore;
-	let importer: ViewImporter;
-
-	beforeEach(() => {
-		vi.clearAllMocks();
-		app = new App();
-		store = makeStore();
-		importer = makeImporter(app, store);
-	});
-
-	afterEach(() => {
-		document.body.innerHTML = "";
-	});
-
-	it("shows 'already imported' message when importToStore throws DUPLICATE", async () => {
-		const file = makeFile("views/dupe.md");
-		const def = makeDef({ sourcePath: "views/dupe.md" });
-		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
-		vi.spyOn(importer, "parse").mockResolvedValue(def);
-		vi.spyOn(importer, "importToStore").mockRejectedValue(
-			new ImportError("DUPLICATE", "View already imported"),
-		);
-
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
-		modal.open();
-
-		await waitForButton("Next →");
-		findButton(document.body, "Next →")!.click();
-
-		await vi.waitFor(() => {
-			expect(document.body.textContent).toContain("already imported");
-		});
-	});
-
-	it("does NOT close the modal when importToStore throws DUPLICATE", async () => {
-		const file = makeFile("views/dupe.md");
-		const def = makeDef({ sourcePath: "views/dupe.md" });
-		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
-		vi.spyOn(importer, "parse").mockResolvedValue(def);
-		vi.spyOn(importer, "importToStore").mockRejectedValue(
-			new ImportError("DUPLICATE", "View already imported"),
-		);
-
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
-		const closeSpy = vi.spyOn(modal, "close");
-		modal.open();
-
-		await waitForButton("Next →");
-		findButton(document.body, "Next →")!.click();
-
-		await vi.waitFor(() => {
-			expect(document.body.textContent).toContain("already imported");
-		});
-
-		expect(closeSpy).not.toHaveBeenCalled();
-	});
-
-	// W1: non-ImportError from importToStore shows "Import failed: unexpected error" and keeps modal open
-	it("shows 'Import failed: unexpected error' and does NOT close when importToStore throws a plain Error", async () => {
-		const file = makeFile("views/bad2.md");
-		const def = makeDef({ sourcePath: "views/bad2.md" });
-		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
-		vi.spyOn(importer, "parse").mockResolvedValue(def);
-		vi.spyOn(importer, "importToStore").mockRejectedValue(new Error("disk full"));
-
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
-		const closeSpy = vi.spyOn(modal, "close");
-		modal.open();
-
-		await waitForButton("Next →");
-		findButton(document.body, "Next →")!.click();
-
-		await vi.waitFor(() => {
-			expect(document.body.textContent).toContain("Import failed: unexpected error");
-		});
-		expect(closeSpy).not.toHaveBeenCalled();
-	});
-});
-
-// ---------------------------------------------------------------------------
-// ImportPickerModal — success path: closes and opens BindModal
+// ImportPickerModal — success path: closes and delegates to the flow
 // ---------------------------------------------------------------------------
 
 describe("ImportPickerModal — success path", () => {
 	let app: App;
 	let store: ViewStore;
 	let importer: ViewImporter;
+	let gate: ConsentGate;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		app = new App();
 		store = makeStore();
 		importer = makeImporter(app, store);
+		gate = makeGate();
 	});
 
 	afterEach(() => {
 		document.body.innerHTML = "";
 	});
 
-	it("closes the picker modal after successful import", async () => {
+	it("closes the picker modal after a successful parse", async () => {
 		const file = makeFile("views/chars.md");
 		const def = makeDef();
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
 		vi.spyOn(importer, "parse").mockResolvedValue(def);
-		vi.spyOn(importer, "importToStore").mockResolvedValue("new-id");
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		const closeSpy = vi.spyOn(modal, "close");
 		modal.open();
 
@@ -480,22 +390,20 @@ describe("ImportPickerModal — success path", () => {
 		});
 	});
 
-	it("opens BindModal after successful import (BindModal title appears)", async () => {
+	it("starts the flow (gate.requestConsentForDef) after a successful parse", async () => {
 		const file = makeFile("views/chars.md");
 		const def = makeDef();
 		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
 		vi.spyOn(importer, "parse").mockResolvedValue(def);
-		vi.spyOn(importer, "importToStore").mockResolvedValue("new-id");
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await waitForButton("Next →");
 		findButton(document.body, "Next →")!.click();
 
-		// BindModal should appear with def.name
 		await vi.waitFor(() => {
-			expect(document.body.textContent).toContain("Characters in Scene");
+			expect(gate.requestConsentForDef).toHaveBeenCalledWith(def);
 		});
 	});
 });
@@ -508,12 +416,14 @@ describe("ImportPickerModal — lifecycle guard (W2)", () => {
 	let app: App;
 	let store: ViewStore;
 	let importer: ViewImporter;
+	let gate: ConsentGate;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		app = new App();
 		store = makeStore();
 		importer = makeImporter(app, store);
+		gate = makeGate();
 	});
 
 	afterEach(() => {
@@ -527,7 +437,7 @@ describe("ImportPickerModal — lifecycle guard (W2)", () => {
 			new Promise<TFile[]>((res) => { resolveScan = res; }),
 		);
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		// Close immediately (before scan resolves)
@@ -553,12 +463,14 @@ describe("ImportPickerModal — empty list disables Next → (W3)", () => {
 	let app: App;
 	let store: ViewStore;
 	let importer: ViewImporter;
+	let gate: ConsentGate;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		app = new App();
 		store = makeStore();
 		importer = makeImporter(app, store);
+		gate = makeGate();
 	});
 
 	afterEach(() => {
@@ -568,7 +480,7 @@ describe("ImportPickerModal — empty list disables Next → (W3)", () => {
 	it("Next → is disabled when scanVault() returns no files", async () => {
 		vi.spyOn(importer, "scanVault").mockResolvedValue([]);
 
-		const modal = new ImportPickerModal(app, importer, store, vi.fn());
+		const modal = new ImportPickerModal(app, importer, gate, vi.fn());
 		modal.open();
 
 		await vi.waitFor(() => {
@@ -580,10 +492,11 @@ describe("ImportPickerModal — empty list disables Next → (W3)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// NOTE (T-S2.3): BindModal's own contract tests moved to test/import/
-// BindModal.test.ts. BindModal is now a pure UI step (seed + present() →
-// result | null) with no store/registerCommand coupling, so the old
-// contract tests that lived here no longer apply. The ImportPickerModal tests
-// above ("opens BindModal after successful import") still cover the picker →
-// bind hand-off. Full result-wiring is owned by T-S2.4/T-S2.5.
+// NOTE (T-S2.4): the picker now PARSES then delegates to runImportFlow — it no
+// longer imports/commits or opens BindModal itself. The consent → bind → commit
+// → registerCommand sequence (incl. the DUPLICATE-race Notice) is covered by
+// test/import/ImportFlow.test.ts. BindModal's own pure-UI contract tests live in
+// test/import/BindModal.test.ts. The picker tests here cover only listing, the
+// parse step, inline parse errors (flow NOT started), and the delegation
+// hand-off (close + flow started) on a successful parse.
 // ---------------------------------------------------------------------------

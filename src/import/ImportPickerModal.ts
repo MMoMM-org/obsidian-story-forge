@@ -2,9 +2,10 @@
  * ImportPickerModal — vault view-definition picker (S19).
  *
  * Scans the vault for unimported sf-view:true notes via ViewImporter.scanVault(),
- * lets the user select one, then calls parse → importToStore in sequence.
- * Errors (parse / duplicate) are displayed inline; the modal stays open.
- * On success the modal closes and a BindModal is opened.
+ * lets the user select one, then PARSES it (S19: parse errors stay shown inline
+ * without closing). On a successful parse the picker closes and hands the parsed
+ * definition to runImportFlow, which owns the deferred-atomic consent → bind →
+ * commit sequence. The picker itself performs NO store write.
  *
  * @ref SDD/Runtime View — Flow C (import leg)
  * @ref SDD/Cross-Cutting Concepts — User Interface S19
@@ -16,9 +17,9 @@ import type { App, TFile } from "obsidian";
 import type { ViewImporter } from "import/ViewImporter";
 import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
-import { BindModal } from "import/BindModal";
+import { runImportFlow } from "import/ImportFlow";
 import type { RegisterCommandCallback } from "import/types";
-import type { ViewStore } from "store/ViewStore";
+import type { ConsentGate } from "consent/ConsentGate";
 
 export type { RegisterCommandCallback } from "import/types";
 
@@ -27,12 +28,12 @@ export type { RegisterCommandCallback } from "import/types";
  *
  * Constructor dependencies (injected, not grabbed from globals):
  *   - app: App (passed to super)
- *   - importer: ViewImporter (stateless service)
- *   - store: ViewStore (passed to BindModal for commandName persistence)
- *   - registerCommand: RegisterCommandCallback (passed through to BindModal)
+ *   - importer: ViewImporter (stateless service; the flow commits via it)
+ *   - gate: ConsentGate (the flow's first, no-write consent step)
+ *   - registerCommand: RegisterCommandCallback (passed through to the flow)
  *
- * T4.2/T4.4 callers construct this as:
- *   new ImportPickerModal(app, importer, store, (id, name) => plugin.addCommand({...}))
+ * On a successful parse the picker closes and delegates to runImportFlow — the
+ * picker no longer imports/commits itself (that is deferred to the flow's end).
  */
 export class ImportPickerModal extends Modal {
 	private selectedFile: TFile | null = null;
@@ -46,7 +47,7 @@ export class ImportPickerModal extends Modal {
 	constructor(
 		app: App,
 		private readonly importer: ViewImporter,
-		private readonly store: ViewStore,
+		private readonly gate: ConsentGate,
 		private readonly registerCommand: RegisterCommandCallback,
 	) {
 		super(app);
@@ -167,6 +168,8 @@ export class ImportPickerModal extends Modal {
 		try {
 			def = await this.importer.parse(this.selectedFile);
 		} catch (err) {
+			// S19: parse errors stay shown inline; the modal does NOT close and the
+			// import flow is NOT started.
 			if (err instanceof ImportError) {
 				this._showError(err.message);
 			} else {
@@ -177,32 +180,17 @@ export class ImportPickerModal extends Modal {
 			return;
 		}
 
-		let viewId: string;
-		try {
-			viewId = await this.importer.importToStore(def);
-		} catch (err) {
-			if (err instanceof ImportError) {
-				this._showError(err.message);
-			} else {
-				// W1: log the real error before showing the user-facing message
-				console.error(err);
-				this._showError("Import failed: unexpected error");
-			}
-			return;
-		}
-
-		// Success: close picker, open bind modal.
-		// NOTE (T-S2.3): BindModal is now a pure UI step seeded from the def; it
-		// resolves a result instead of committing. Wiring the result back into
-		// store.setRecord / registerCommand is owned by T-S2.4 — here we only keep
-		// the build green by seeding + presenting. The picker's own store /
-		// registerCommand deps are retained for that follow-up.
-		void viewId;
+		// Success: close the picker and hand the parsed def to the deferred-atomic
+		// flow (consent → bind → commit). The picker does not commit anything.
 		this.close();
-		const bindModal = new BindModal(this.app, {
-			name: def.name,
-			registerCommand: def.command,
-		});
-		void bindModal.present();
+		void runImportFlow(
+			{
+				app: this.app,
+				importer: this.importer,
+				gate: this.gate,
+				registerCommand: this.registerCommand,
+			},
+			def,
+		);
 	}
 }
