@@ -139,10 +139,6 @@ function makeFakeStore(
 	return store;
 }
 
-function getTabs(view: SidebarView): HTMLElement[] {
-	return Array.from(view.contentEl.querySelectorAll(".sf-tab")) as HTMLElement[];
-}
-
 function getTabByViewId(view: SidebarView, id: string): HTMLElement {
 	const el = view.contentEl.querySelector(`.sf-tab[data-view-id="${id}"]`) as HTMLElement | null;
 	if (!el) throw new Error(`Tab with data-view-id="${id}" not found`);
@@ -315,14 +311,11 @@ describe("SidebarView Bug D2: onOpen seeds the active file context", () => {
 		view = new SidebarView(leaf, undefined, undefined, nativeEngine);
 		await view.onOpen();
 
-		// Non-markdown file — do NOT seed subject (stay no-note)
-		const pv = view as unknown as { subject: { file: TFile | null; source: string } };
-		// The file should not be seeded as subject (it's not markdown)
-		// Either subject.file is null or the body shows non-md/no-note state
-		const body = view.contentEl.querySelector(".sf-body");
-		// Should not show a resolved/entity context — should be no-note or non-md
-		expect(body?.querySelector(".sf-resolving")).toBeNull();
-		expect(body?.querySelector(".sf-rows")).toBeNull();
+		// Non-markdown file — the extension === "md" guard must fire:
+		// subject.file must be null (NOT the image file).
+		// This assertion would FAIL if the guard at SidebarView.ts were removed.
+		const pvSubject = view as unknown as { subject: { file: TFile | null; source: string } };
+		expect(pvSubject.subject.file).toBeNull();
 	});
 
 	it("seeding active file does NOT break subsequent active-leaf-change follow behavior", async () => {
