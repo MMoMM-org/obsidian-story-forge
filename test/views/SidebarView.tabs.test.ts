@@ -337,21 +337,20 @@ describe("SidebarView tabs: tab selection + body re-render", () => {
 		expect(ctxTab.classList.contains("sf-tab-sel")).toBe(false);
 	});
 
-	it("clicking a view tab calls engine.render when ctx is resolved", async () => {
-		const store = makeFakeStore({ v1: makeViewRecord() });
+	it("clicking a view tab calls engine.render with the selected v1 record", async () => {
+		const v1Record = makeViewRecord({ source: "_forge/views/v1.md" });
+		const store = makeFakeStore({ v1: v1Record });
 		const registry = makeMockRegistry(engine);
 		const consentGate = makeMockConsentGate({ status: "consented" });
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 
-		// Simulate resolved context — classify must return a valid entity kind
-		// so _computeState returns { kind: "resolved" }. Provide type=scene.
+		// Simulate resolved context — type=scene so classify returns a valid kind
 		const file = makeMdFile("Scene 1");
 		const ctx = makeNoteContext(file);
 		const pv = view as unknown as { currentCtx: NoteContext | null; subject: { file: TFile | null; source: string } };
 		pv.currentCtx = ctx;
 		pv.subject = { file, source: "follow" };
-		// Provide frontmatter with type=scene so classify returns "scene"
 		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: { type: "scene" } }));
 
 		const tab = getTabByViewId(view, "v1");
@@ -359,7 +358,12 @@ describe("SidebarView tabs: tab selection + body re-render", () => {
 		// wait for async body re-render
 		await new Promise((r) => setTimeout(r, 0));
 
-		expect(engine.render).toHaveBeenCalled();
+		// Assert render was called with the v1 record specifically (not native/null)
+		expect(engine.render).toHaveBeenCalledWith(
+			expect.objectContaining({ source: "_forge/views/v1.md" }),
+			expect.any(Object),
+			expect.any(Object),
+		);
 	});
 
 	it("clicking a disabled view tab shows S16 (.sf-disabled) and does NOT call engine.render", async () => {
@@ -427,36 +431,73 @@ describe("SidebarView tabs: live refresh on store change", () => {
 		expect(() => getTabByViewId(view, "v2")).not.toThrow();
 	});
 
-	it("removed selected view falls back to Context + body updates", async () => {
-		const store = makeFakeStore({ v1: makeViewRecord({ commandName: "View A" }) });
-		const registry = makeMockRegistry();
-		const consentGate = makeMockConsentGate({ status: "consented" });
-		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
+	it("removed selected view falls back to Context + body updates + selectedViewId reset", async () => {
+		// Use a disabled view so selecting it shows S16 — gives a body marker we can
+		// later assert is gone, proving the body actually re-rendered on fallback.
+		const disabledGate = {
+			evaluate: vi.fn(async () => ({ status: "disabled" as const })),
+			requestConsent: vi.fn(async () => false),
+			requestReConsent: vi.fn(async () => false),
+		} as unknown as ReturnType<typeof makeMockConsentGate>;
+		const store = makeFakeStore({ v1: makeViewRecord({ commandName: "View A", enabled: false }) });
+		const registry = makeMockRegistry(makeMockEngine());
+		view = new SidebarView(leaf, registry, disabledGate, nativeEngine, store);
 		await view.onOpen();
 
-		// Select v1
+		// Set resolved context so engine dispatch runs
+		const file = makeMdFile("Scene 1");
+		const ctx = makeNoteContext(file);
+		const pv = view as unknown as {
+			currentCtx: NoteContext | null;
+			subject: { file: TFile | null; source: string };
+			selectedViewId: string | null;
+		};
+		pv.currentCtx = ctx;
+		pv.subject = { file, source: "follow" };
+		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: { type: "scene" } }));
+
+		// Select v1 — body shows S16 (.sf-disabled)
 		getTabByViewId(view, "v1").click();
-		await Promise.resolve();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(getBody(view).querySelector(".sf-disabled")).not.toBeNull();
 
 		// Remove v1 from store
 		store._views = {};
 		store._fire();
 		await new Promise((r) => setTimeout(r, 0));
 
-		// Context should now be selected
+		// Tab selection: Context should now be selected
 		const ctxTab = getContextTab(view);
 		expect(ctxTab.getAttribute("aria-selected")).toBe("true");
 		expect(ctxTab.classList.contains("sf-tab-sel")).toBe(true);
+
+		// selectedViewId must be reset to null
+		expect(pv.selectedViewId).toBeNull();
+
+		// Body must no longer show the removed view's S16 state
+		expect(getBody(view).querySelector(".sf-disabled")).toBeNull();
 	});
 
-	it("enable of selected disabled view flips body live (S16→no S16)", async () => {
-		const disabledGate = makeMockConsentGate({ status: "disabled" });
+	it("enable of selected disabled view flips body live (S16→S14 consented)", async () => {
+		// Gate returns "disabled" on the FIRST evaluate call, "consented" on the SECOND.
+		// First call: clicking v1 when it's disabled → S16.
+		// Second call: store fires with enabled record → _reloadViews re-points
+		// currentRecord → _rerenderBody → evaluate returns "consented" → S14.
+		const engine = makeMockEngine();
+		const gate = {
+			evaluate: vi.fn()
+				.mockResolvedValueOnce({ status: "disabled" as const })
+				.mockResolvedValueOnce({ status: "consented" as const }),
+			requestConsent: vi.fn(async () => false),
+			requestReConsent: vi.fn(async () => false),
+		} as unknown as ReturnType<typeof makeMockConsentGate>;
+
 		const store = makeFakeStore({ v1: makeViewRecord({ enabled: false }) });
-		const registry = makeMockRegistry(makeMockEngine());
-		view = new SidebarView(leaf, registry, disabledGate, nativeEngine, store);
+		const registry = makeMockRegistry(engine);
+		view = new SidebarView(leaf, registry, gate, nativeEngine, store);
 		await view.onOpen();
 
-		// Set resolved context — provide type=scene so classify succeeds
+		// Set resolved context so engine dispatch runs
 		const file = makeMdFile("Scene 1");
 		const ctx = makeNoteContext(file);
 		const pv = view as unknown as { currentCtx: NoteContext | null; subject: { file: TFile | null; source: string } };
@@ -464,33 +505,23 @@ describe("SidebarView tabs: live refresh on store change", () => {
 		pv.subject = { file, source: "follow" };
 		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: { type: "scene" } }));
 
-		// Select v1 (disabled — shows S16)
+		// Select v1 → first evaluate call → "disabled" → S16
 		getTabByViewId(view, "v1").click();
 		await new Promise((r) => setTimeout(r, 0));
 		expect(getBody(view).querySelector(".sf-disabled")).not.toBeNull();
 
-		// Enable the view in the store
-		// Now use consented gate
-		const enabledGate = makeMockConsentGate({ status: "consented" });
-		// We can't replace the gate on the view; but _reloadViews re-points currentRecord.
-		// The real test: after store fires with the enabled record, body re-renders.
-		// Since we can't easily swap the gate, verify the body is re-rendered when
-		// currentRecord re-points (the test verifies _reloadViews is called and
-		// triggers _rerenderBody).
+		// Update store to enabled record; store fires → _reloadViews → _rerenderBody
+		// → second evaluate call → "consented" → engine.render called → S14
 		store._views = { v1: makeViewRecord({ enabled: true }) };
 		store._fire();
 		await new Promise((r) => setTimeout(r, 0));
 
-		// With the consented gate (set on construction) the body should no longer show S16
-		// But this view was constructed with disabledGate — so it'll still show S16.
-		// The meaningful assertion is that _rerenderBody was called (body re-rendered).
-		// We check the body was re-rendered at all by verifying the sf-disabled element
-		// position didn't change (the DOM was rebuilt). Since the consent decision won't
-		// change without a gate swap, we just verify no crash and body exists.
-		expect(getBody(view)).not.toBeNull();
-		// The selected tab is still v1
-		const v1Tab = getTabByViewId(view, "v1");
-		expect(v1Tab.getAttribute("aria-selected")).toBe("true");
+		// S16 must be gone
+		expect(getBody(view).querySelector(".sf-disabled")).toBeNull();
+		// Engine must have rendered (S14 active)
+		expect(engine.render).toHaveBeenCalled();
+		// v1 tab still selected
+		expect(getTabByViewId(view, "v1").getAttribute("aria-selected")).toBe("true");
 	});
 });
 
@@ -631,17 +662,35 @@ describe("SidebarView tabs: onClose teardown", () => {
 		expect(Object.keys(pv._views).length).toBe(0);
 	});
 
-	it("no subscriber callbacks fire after onClose", async () => {
+	it("after onClose, store fire does NOT mutate the panel DOM (unsubscribe is effective)", async () => {
 		const store = makeFakeStore({ v1: makeViewRecord() });
 		const registry = makeMockRegistry();
 		const consentGate = makeMockConsentGate({ status: "consented" });
 		const view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
+
+		// _tabsEl is nulled on close; spy on _reloadViews to confirm it is not called.
+		// We can't directly spy on private _reloadViews, but we can observe its
+		// side-effect: tab count. After close, _tabsEl is null so getTabs returns [].
 		await view.onClose();
 
-		// Firing store should not cause errors (no callbacks)
-		store._views = { v2: makeViewRecord() };
-		expect(() => store._fire()).not.toThrow();
+		// After close, contentEl is empty (onClose calls aug(contentEl).empty())
+		// and _tabsEl is null. Tab count must be 0.
+		const tabCountAfterClose = getTabs(view).length;
+		expect(tabCountAfterClose).toBe(0);
+
+		// Fire store with a new view — subscriber must be dead, so no DOM mutation.
+		store._views = { v2: makeViewRecord({ commandName: "Should not appear" }) };
+		store._fire();
+		// Give any async _reloadViews a chance to run if it weren't unsubscribed
+		await new Promise((r) => setTimeout(r, 0));
+
+		// Tab count must still be 0 — _tabsEl is null so _renderTabs is a no-op
+		// even if _reloadViews were called, but the subscriber count being 0 means
+		// _reloadViews is never scheduled at all.
+		expect(getTabs(view).length).toBe(0);
+		// Subscriber set is empty (confirmed separately by the subscriber-count test)
+		expect((store as unknown as { _subscriberCount: number })._subscriberCount).toBe(0);
 	});
 });
 
