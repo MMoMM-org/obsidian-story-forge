@@ -518,4 +518,31 @@ describe("SettingsTab — Bug A: store subscription refreshes views list", () =>
 		// Only one subscriber at a time — not 3
 		expect((store as unknown as { _subscriberCount: number })._subscriberCount).toBe(1);
 	});
+
+	it("hide() → displayAsync() re-open cycle re-subscribes exactly once and store events still update the panel", async () => {
+		// This is the real Obsidian settings lifecycle: display() on open, hide() on close, display() on re-open.
+		// A regression where hide() forgets to null the handle OR the guard were inverted
+		// would leave _subscriberCount at 0 (missed re-subscribe) or 2 (double-subscribe).
+		const store = makeFakeStoreForTab({ "v1": makeRecord({ commandName: "View 1" }) });
+		const tab = makeTab(app, store as unknown as ViewStore, makeRegistryWith("dataview-dql"), makeConsentGate(), makeImporter());
+
+		// Open → hide → reopen
+		await tab.displayAsync();
+		tab.hide();
+		await tab.displayAsync();
+
+		// Exactly one live subscription — not 0 (would miss updates) and not 2 (would double-render)
+		expect((store as unknown as { _subscriberCount: number })._subscriberCount).toBe(1);
+
+		// A store event after re-open must still update the panel (the re-subscribed callback runs)
+		(store as unknown as { _views: Record<string, ViewRecord> })._views = {
+			"v1": makeRecord({ commandName: "View 1" }),
+			"v2": makeRecord({ commandName: "Newly Imported" }),
+		};
+		store._fire();
+
+		await vi.waitFor(() => {
+			expect(tab.containerEl.textContent).toContain("Newly Imported");
+		});
+	});
 });
