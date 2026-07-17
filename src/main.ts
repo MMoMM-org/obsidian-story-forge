@@ -1,4 +1,4 @@
-import { Plugin, Events } from "obsidian";
+import { Plugin, Events, Notice } from "obsidian";
 import { SettingsTab } from "settings/SettingsTab";
 import { DEFAULT_SETTINGS, type PluginSettings } from "types/index";
 import { ViewStore } from "store/ViewStore";
@@ -12,6 +12,12 @@ import { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
+
+/** Last path segment of a source path, with a trailing `.md` stripped. */
+function basenameNoMd(source: string): string {
+	const last = source.split("/").pop() ?? source;
+	return last.replace(/\.md$/, "");
+}
 
 export default class StoryForgePlugin extends Plugin {
 	settings: PluginSettings = DEFAULT_SETTINGS;
@@ -86,6 +92,10 @@ export default class StoryForgePlugin extends Plugin {
 		this.app.workspace.onLayoutReady(() => {
 			populateRegistry();
 
+			// Rebuild command-palette entries the user had turned on — Obsidian
+			// drops dynamically-added commands on reload. Fire-and-forget.
+			void this._restoreViewCommands();
+
 			// Late-join listener: fires if Dataview loads AFTER onLayoutReady.
 			// "dataview:api-ready" is a Dataview-emitted custom event not typed in
 			// @types/obsidian; cast to Events (the base class) to reach the generic
@@ -125,12 +135,22 @@ export default class StoryForgePlugin extends Plugin {
 	 * Bug D1 fix: after activating the panel, locate the live SidebarView and
 	 * call selectView(viewId) so the correct tab is selected.
 	 */
-	_registerViewCommand(viewId: string, commandName: string): void {
+	_registerViewCommand(viewId: string, name: string): void {
 		const cmd = this.addCommand({
 			id: `view-${viewId}`,
-			name: commandName,
+			name,
 			callback: () => {
 				void (async () => {
+					// Stale-command fail-safe: a command whose view was removed since
+					// registration must not silently activate the panel. Re-check the
+					// store and inform the user instead.
+					const views = await this.store.getViews();
+					if (!views[viewId]) {
+						// "Story Forge" is a proper noun (matches the ribbon label).
+						// eslint-disable-next-line obsidianmd/ui/sentence-case
+						new Notice("This Story Forge view no longer exists.");
+						return;
+					}
 					await activateView(this.app);
 					const leaves = this.app.workspace.getLeavesOfType(SIDEBAR_VIEW_TYPE);
 					const leaf = leaves[0];
@@ -140,8 +160,11 @@ export default class StoryForgePlugin extends Plugin {
 				})();
 			},
 		});
+		// Track the FULL prefixed id deterministically — Obsidian internally
+		// prefixes command ids with `${manifest.id}:`. removeCommand needs that
+		// full id; do NOT trust the object addCommand returns (bug c).
 		if (cmd) {
-			this._commandIds.set(viewId, cmd.id);
+			this._commandIds.set(viewId, `${this.manifest.id}:view-${viewId}`);
 		}
 	}
 
@@ -151,11 +174,29 @@ export default class StoryForgePlugin extends Plugin {
 	 * No-op when no command was registered for this viewId.
 	 */
 	_removeViewCommand(viewId: string): void {
-		const id = this._commandIds.get(viewId);
-		if (id !== undefined) {
+		if (this._commandIds.has(viewId)) {
+			// Remove via the reconstructed FULL prefixed id (equal to the map's
+			// stored value after _registerViewCommand, but reconstructed here so
+			// the removal never depends on what addCommand returned — bug c).
 			// eslint-disable-next-line obsidianmd/no-unsupported-api -- removeCommand @since 1.7.2; used only for dynamically-registered view commands; CON-1 keeps minAppVersion at 1.5.7 per SDD
-			this.removeCommand(id);
+			this.removeCommand(`${this.manifest.id}:view-${viewId}`);
 			this._commandIds.delete(viewId);
+		}
+	}
+
+	/**
+	 * Re-create command-palette entries for every view the user had turned on.
+	 * Obsidian drops dynamically-added commands on reload, so this runs at
+	 * layout-ready to rebuild them with their STABLE ids (so user hotkeys survive).
+	 * Falls back to the source's basename when no commandName was chosen.
+	 */
+	async _restoreViewCommands(): Promise<void> {
+		const views = await this.store.getViews();
+		for (const [id, rec] of Object.entries(views)) {
+			if (rec.command === true) {
+				const name = rec.commandName ?? basenameNoMd(rec.source);
+				this._registerViewCommand(id, name);
+			}
 		}
 	}
 

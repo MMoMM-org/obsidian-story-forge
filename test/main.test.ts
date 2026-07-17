@@ -473,10 +473,8 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 		expect(tv.registry.get("dataview-dql")).toBeDefined();
 	});
 
-	it("registerCommand callback calls addCommand and stores the command id", async () => {
+	it("registerCommand callback calls addCommand and stores the FULL prefixed id", async () => {
 		const { plugin } = await makePlugin();
-		const cmdId = "story-forge-view-cmd-abc";
-		plugin.addCommand.mockReturnValue({ id: cmdId });
 		await plugin.onload();
 
 		// Exercise the registered callback via the exposed _registerViewCommand method
@@ -489,13 +487,13 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 		expect(plugin.addCommand).toHaveBeenCalledWith(
 			expect.objectContaining({ id: expect.stringContaining("view-123") }),
 		);
-		expect(p._commandIds.get("view-123")).toBe(cmdId);
+		// Tracks the reconstructed `${manifest.id}:view-${viewId}` id, NOT the
+		// object addCommand returned (bug c).
+		expect(p._commandIds.get("view-123")).toBe("story-forge:view-view-123");
 	});
 
-	it("removeCommand is called when a view with a tracked command is removed", async () => {
+	it("removeCommand is called with the FULL prefixed id when a tracked view is removed", async () => {
 		const { plugin } = await makePlugin();
-		const cmdId = "story-forge-view-cmd-xyz";
-		plugin.addCommand.mockReturnValue({ id: cmdId });
 		await plugin.onload();
 
 		const p = plugin as unknown as {
@@ -504,10 +502,10 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 			_removeViewCommand: (viewId: string) => void;
 		};
 		p._registerViewCommand("view-xyz", "XYZ View");
-		expect(p._commandIds.get("view-xyz")).toBe(cmdId);
+		expect(p._commandIds.get("view-xyz")).toBe("story-forge:view-view-xyz");
 
 		p._removeViewCommand("view-xyz");
-		expect(plugin.removeCommand).toHaveBeenCalledWith(cmdId);
+		expect(plugin.removeCommand).toHaveBeenCalledWith("story-forge:view-view-xyz");
 		expect(p._commandIds.has("view-xyz")).toBe(false);
 	});
 
@@ -564,9 +562,9 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 
 		// Register the command for "v1" and capture its callback
 		let capturedCallback: (() => void) | undefined;
-		plugin.addCommand.mockImplementation((cmd: { id: string; name: string; callback?: () => void }) => {
+		plugin.addCommand.mockImplementation((cmd) => {
 			if (cmd.id === "view-v1") capturedCallback = cmd.callback;
-			return { id: cmd.id };
+			return { ...cmd, id: cmd.id };
 		});
 
 		const p = plugin as unknown as {
