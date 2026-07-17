@@ -44,7 +44,7 @@ type CommandPlugin = InstanceType<typeof import("main").default> & {
 	_registerViewCommand: (viewId: string, name: string) => void;
 	_removeViewCommand: (viewId: string) => void;
 	_restoreViewCommands: () => Promise<void>;
-	_commandIds: Map<string, string>;
+	_commandIds: Set<string>;
 };
 
 beforeEach(() => {
@@ -64,14 +64,14 @@ describe("StoryForgePlugin — _registerViewCommand", () => {
 		);
 	});
 
-	it("tracks the FULL prefixed id in _commandIds (reconstructed, not addCommand's return)", async () => {
+	it("tracks the viewId's presence in _commandIds (removeCommand reconstructs the full id)", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
 		const p = plugin as CommandPlugin;
 
 		p._registerViewCommand("v1", "My View");
 
-		expect(p._commandIds.get("v1")).toBe(`${FULL_PREFIX}view-v1`);
+		expect(p._commandIds.has("v1")).toBe(true);
 	});
 });
 
@@ -113,10 +113,14 @@ describe("StoryForgePlugin — _restoreViewCommands", () => {
 		await plugin.onload();
 		const p = plugin as CommandPlugin;
 
-		// onload fires _restoreViewCommands fire-and-forget; drain its microtasks
-		// before clearing so only the explicit call below is asserted.
-		await Promise.resolve();
-		await Promise.resolve();
+		// onload fires _restoreViewCommands fire-and-forget; wait for it to have
+		// registered the on-view command before clearing, so the drain does not
+		// silently depend on the exact async-chain depth of the store load.
+		await vi.waitFor(() =>
+			expect(plugin.addCommand).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "view-on" }),
+			),
+		);
 		vi.mocked(plugin.addCommand).mockClear();
 		await p._restoreViewCommands();
 
@@ -140,8 +144,14 @@ describe("StoryForgePlugin — _restoreViewCommands", () => {
 		await plugin.onload();
 		const p = plugin as CommandPlugin;
 
-		await Promise.resolve();
-		await Promise.resolve();
+		// Wait for the onload-triggered _restoreViewCommands to register the
+		// view command before clearing, rather than depending on a fixed
+		// microtask-tick count.
+		await vi.waitFor(() =>
+			expect(plugin.addCommand).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "view-nameless" }),
+			),
+		);
 		vi.mocked(plugin.addCommand).mockClear();
 		await p._restoreViewCommands();
 
