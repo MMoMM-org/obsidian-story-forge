@@ -130,6 +130,61 @@ describe("StoryForgePlugin — _restoreViewCommands", () => {
 		);
 	});
 
+	it("registers using commandLabel when present (prefers it over commandName and basename)", async () => {
+		const { plugin } = await makePlugin();
+		plugin.loadData.mockResolvedValue({
+			views: {
+				custom: record({
+					command: true,
+					commandName: "Tab",
+					commandLabel: "Custom Cmd",
+					source: "_forge/views/Ignored.md",
+				}),
+			},
+		});
+		await plugin.onload();
+		const p = plugin as CommandPlugin;
+
+		await vi.waitFor(() =>
+			expect(plugin.addCommand).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "view-custom" }),
+			),
+		);
+		vi.mocked(plugin.addCommand).mockClear();
+		await p._restoreViewCommands();
+
+		expect(plugin.addCommand).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "view-custom", name: "Custom Cmd" }),
+		);
+	});
+
+	it("falls back to commandName when commandLabel is absent", async () => {
+		const { plugin } = await makePlugin();
+		plugin.loadData.mockResolvedValue({
+			views: {
+				tabonly: record({
+					command: true,
+					commandName: "Tab Only",
+					source: "_forge/views/Ignored.md",
+				}),
+			},
+		});
+		await plugin.onload();
+		const p = plugin as CommandPlugin;
+
+		await vi.waitFor(() =>
+			expect(plugin.addCommand).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "view-tabonly" }),
+			),
+		);
+		vi.mocked(plugin.addCommand).mockClear();
+		await p._restoreViewCommands();
+
+		expect(plugin.addCommand).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "view-tabonly", name: "Tab Only" }),
+		);
+	});
+
 	it("falls back to the source basename (no .md) when commandName is absent", async () => {
 		const { plugin } = await makePlugin();
 		plugin.loadData.mockResolvedValue({

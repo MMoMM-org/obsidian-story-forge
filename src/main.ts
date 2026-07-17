@@ -194,7 +194,7 @@ export default class StoryForgePlugin extends Plugin {
 		const views = await this.store.getViews();
 		for (const [id, rec] of Object.entries(views)) {
 			if (rec.command === true) {
-				const name = rec.commandName ?? basenameNoMd(rec.source);
+				const name = rec.commandLabel ?? rec.commandName ?? basenameNoMd(rec.source);
 				this._registerViewCommand(id, name);
 			}
 		}

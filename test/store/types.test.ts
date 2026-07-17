@@ -217,8 +217,19 @@ describe("applyDefaults", () => {
     );
   });
 
+  it("preserves optional commandLabel", () => {
+    expect(applyDefaults({ commandLabel: "Open Cast List" }).commandLabel).toBe(
+      "Open Cast List",
+    );
+  });
+
   it("does not add description when absent", () => {
     const result = applyDefaults({});
     expect("description" in result).toBe(false);
+  });
+
+  it("does not add commandLabel when absent", () => {
+    const result = applyDefaults({});
+    expect("commandLabel" in result).toBe(false);
   });
 });

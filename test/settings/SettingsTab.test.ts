@@ -960,15 +960,16 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("clicking Edit opens BindModal and, on Done with registerCommand:true, writes label+command and registers the command", async () => {
+	it("clicking Edit opens BindModal and, on Done with registerCommand:true, writes label+commandLabel and registers with the COMMAND name (not the tab label)", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, command: false, commandName: "Old Label" }) });
 		const gate = makeGateWithDecision("consented");
 		const registerCommand = vi.fn();
 		const removeCommand = vi.fn();
 		const setRecordSpy = vi.spyOn(store, "setRecord");
+		// Tab label and command name are DISTINCT — this is the point-1 fix.
 		const presentSpy = vi
 			.spyOn(BindModal.prototype, "present")
-			.mockResolvedValue({ label: "New Label", registerCommand: true });
+			.mockResolvedValue({ label: "New Tab", registerCommand: true, commandName: "New Command" });
 
 		const tab = makeTab(app, store, gate, makeImporter(), registerCommand, removeCommand);
 		const container = await renderTab(tab);
@@ -978,14 +979,19 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		editBtn!.click();
 
 		await vi.waitFor(() => expect(presentSpy).toHaveBeenCalled());
+		// commandName = tab label; commandLabel = dedicated command name (distinct).
 		await vi.waitFor(() =>
-			expect(setRecordSpy).toHaveBeenCalledWith("v1", expect.objectContaining({ commandName: "New Label", command: true })),
+			expect(setRecordSpy).toHaveBeenCalledWith("v1", expect.objectContaining({
+				commandName: "New Tab",
+				command: true,
+				commandLabel: "New Command",
+			})),
 		);
-		// b1 regression guard: the command is named after the LABEL with NO
-		// "Story Forge: " prefix (Obsidian prefixes the plugin name automatically).
+		// point-1 regression guard: register with the COMMAND name, NOT the tab label.
 		await vi.waitFor(() =>
-			expect(registerCommand).toHaveBeenCalledWith("v1", "New Label"),
+			expect(registerCommand).toHaveBeenCalledWith("v1", "New Command"),
 		);
+		expect(registerCommand).not.toHaveBeenCalledWith("v1", "New Tab");
 	});
 
 	it("Edit with registerCommand:false on a previously-command record calls removeCommand and NOT registerCommand", async () => {
@@ -993,7 +999,7 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		const gate = makeGateWithDecision("consented");
 		const registerCommand = vi.fn();
 		const removeCommand = vi.fn();
-		vi.spyOn(BindModal.prototype, "present").mockResolvedValue({ label: "Renamed", registerCommand: false });
+		vi.spyOn(BindModal.prototype, "present").mockResolvedValue({ label: "Renamed", registerCommand: false, commandName: "Renamed" });
 
 		const tab = makeTab(app, store, gate, makeImporter(), registerCommand, removeCommand);
 		const container = await renderTab(tab);
@@ -1004,13 +1010,34 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		expect(registerCommand).not.toHaveBeenCalled();
 	});
 
-	it("Edit cancelled (present resolves null) does not write the store", async () => {
+	it("point-2 fix: uncheck removes the command even when record.command is STALE (false)", async () => {
+		// record.command is false (stale — captured before a concurrent register),
+		// but a command is actually registered. The OLD code skipped removeCommand
+		// because record.command was false; the fix removes UNCONDITIONALLY.
+		const store = makeStore({ "v1": makeRecord({ enabled: true, command: false, commandName: "Stale Record" }) });
+		const gate = makeGateWithDecision("consented");
+		const registerCommand = vi.fn();
+		const removeCommand = vi.fn();
+		vi.spyOn(BindModal.prototype, "present").mockResolvedValue({ label: "Stale Record", registerCommand: false, commandName: "Stale Record" });
+
+		const tab = makeTab(app, store, gate, makeImporter(), registerCommand, removeCommand);
+		const container = await renderTab(tab);
+
+		findButton(container, "Edit")!.click();
+
+		await vi.waitFor(() => expect(removeCommand).toHaveBeenCalledWith("v1"));
+		expect(registerCommand).not.toHaveBeenCalled();
+	});
+
+	it("Edit cancelled (present resolves null) does not write the store or touch commands", async () => {
 		const store = makeStore({ "v1": makeRecord({ enabled: true, command: false, commandName: "Unchanged" }) });
 		const gate = makeGateWithDecision("consented");
+		const registerCommand = vi.fn();
+		const removeCommand = vi.fn();
 		const setRecordSpy = vi.spyOn(store, "setRecord");
 		const presentSpy = vi.spyOn(BindModal.prototype, "present").mockResolvedValue(null);
 
-		const tab = makeTab(app, store, gate, makeImporter());
+		const tab = makeTab(app, store, gate, makeImporter(), registerCommand, removeCommand);
 		const container = await renderTab(tab);
 
 		findButton(container, "Edit")!.click();
@@ -1020,6 +1047,8 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(setRecordSpy).not.toHaveBeenCalled();
+		expect(removeCommand).not.toHaveBeenCalled();
+		expect(registerCommand).not.toHaveBeenCalled();
 	});
 });
 

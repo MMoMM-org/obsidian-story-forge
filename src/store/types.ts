@@ -30,6 +30,11 @@ export interface ViewRecord {
   description?: string;
   /** User-chosen palette label (optional). */
   commandName?: string;
+  /**
+   * Palette command display name (optional). Distinct from `commandName`,
+   * which is the sidebar tab label.
+   */
+  commandLabel?: string;
 }
 
 /**
@@ -104,6 +109,9 @@ export function applyDefaults(
   }
   if (raw?.commandName !== undefined) {
     base.commandName = raw.commandName;
+  }
+  if (raw?.commandLabel !== undefined) {
+    base.commandLabel = raw.commandLabel;
   }
 
   return base;
