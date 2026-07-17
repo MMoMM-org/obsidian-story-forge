@@ -78,6 +78,10 @@
 	--sf-kind-object: #c9975a;
 	--sf-kind-lore: #b06cd0;
 	--sf-kind-plotline: #d0795a;
+
+	/* Engine-badge accent hues (dql / dataviewjs) — overridable like the kinds. */
+	--sf-engine-dql: #5aa0c9;
+	--sf-engine-dvjs: #c98b5a;
 }
 
 /* contentEl (== .view-content) — let the panel own its own layout + padding. */
@@ -225,18 +229,35 @@
 }
 
 /* --- Tab strip ----------------------------------------------------------- */
+/* Overflow-scrolls horizontally when narrow so the last tab stays reachable
+ * (flex-wrap:nowrap + overflow-x:auto), with a thin, tasteful scrollbar. */
 .sf-tabs {
 	display: flex;
+	flex-wrap: nowrap;
 	gap: 2px;
 	padding: 6px 8px 0;
 	border-bottom: 1px solid var(--background-modifier-border);
+	overflow-x: auto;
+}
+
+/* Thin, tasteful scrollbar (Obsidian is Chromium — webkit pseudo-elements are
+ * fully supported; the scrollbar stays visible so overflow remains reachable). */
+.sf-tabs::-webkit-scrollbar {
+	height: 4px;
+}
+
+.sf-tabs::-webkit-scrollbar-thumb {
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-border);
 }
 
 .sf-tab {
+	flex: 0 0 auto;
 	font-size: 12px;
 	padding: 5px 11px;
 	border-radius: var(--radius-s) var(--radius-s) 0 0;
 	color: var(--text-muted);
+	white-space: nowrap;
 	cursor: default;
 }
 
@@ -417,4 +438,444 @@
 /* Utility */
 .sf-hidden {
 	display: none !important;
+}
+
+/* ===========================================================================
+ * Engine badges — dql / dataviewjs. Same color-mix pattern as the kind badges
+ * above; hues come from the --sf-engine-* vars so themes can override them.
+ * =========================================================================== */
+
+.sf-badge-dql {
+	color: var(--sf-engine-dql);
+	background: color-mix(in srgb, var(--sf-engine-dql) 16%, transparent);
+}
+
+.sf-badge-dvjs {
+	color: var(--sf-engine-dvjs);
+	background: color-mix(in srgb, var(--sf-engine-dvjs) 16%, transparent);
+}
+
+/* ===========================================================================
+ * Button modifiers — layered on .sf-btn (mockup .btn.primary / .btn.danger).
+ * Primary = affirmative (accent fill); danger = destructive / enable-JS (themed
+ * error treatment). Both inherit padding/radius/focus from the .sf-btn base.
+ * =========================================================================== */
+
+.sf-btn-primary {
+	border-color: var(--interactive-accent);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.sf-btn-primary:hover {
+	background: var(--interactive-accent-hover);
+}
+
+.sf-btn-danger {
+	border-color: var(--background-modifier-error-border, var(--background-modifier-border));
+	background: transparent;
+	color: var(--text-error);
+}
+
+.sf-btn-danger:hover {
+	background: var(--background-modifier-error);
+}
+
+/* ===========================================================================
+ * Panel body — engine states (S11–S18). The .sf-empty / .sf-errbox / .sf-btn
+ * base rules (above) carry the shared layout; these add the per-state chrome.
+ * =========================================================================== */
+
+/* S11 — engine missing / platform restriction (native <p> from the engines,
+ * and the .sf-empty variant painted by SidebarView). */
+.sf-engine-missing,
+.sf-source-missing,
+.sf-platform-restriction {
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+/* S11 (SidebarView) & S16 — .sf-empty variants keep the shared empty layout;
+ * no extra rules needed beyond the modifier hooks below for specificity. */
+.sf-platform-restricted {
+	color: var(--text-muted);
+}
+
+/* Shared secondary hint text (S11 / S15 / S16). */
+.sf-hint {
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
+/* S12 — consent-required marker (layout via .sf-cta-block base). */
+.sf-consent-required {
+	border-color: var(--background-modifier-border);
+}
+
+/* S16 — disabled marker (layout via .sf-empty base). */
+.sf-disabled {
+	color: var(--text-faint);
+}
+
+/* S17 — re-consent-required marker (layout via .sf-warnbanner base). */
+.sf-reconsent-required {
+	font-weight: var(--font-normal);
+}
+
+/* Engine render error (layout via .sf-errbox base). */
+.sf-engine-error {
+	color: var(--text-error);
+}
+
+/* S12 / S18 — consent CTA block. */
+.sf-cta-block {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.sf-cta-title {
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	font-size: 12.5px;
+}
+
+.sf-cta-body {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.sf-cta-warn {
+	font-size: 11px;
+	color: var(--text-warning, var(--text-accent));
+}
+
+.sf-cta-btn {
+	margin-top: 4px;
+}
+
+/* S13 — loading (query executing): shimmer skeleton rows below the label. */
+.sf-loading {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+/* S15 variant — DataviewJS disabled in Dataview settings (errbox chrome). */
+.sf-dvjs-off {
+	color: var(--text-error);
+}
+
+/* S17 — re-consent required warn banner. */
+.sf-warnbanner {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-modifier-error);
+	font-size: 12px;
+	color: var(--text-warning, var(--text-muted));
+}
+
+.sf-warnbanner .sf-btn {
+	margin-top: 2px;
+}
+
+/* ===========================================================================
+ * Native "Context" render — the always-available fallback engine's entity
+ * list (regression fix: previously unstyled). Mirrors the .sf-rows / .sf-row
+ * treatment used by the resolved-context stub.
+ * =========================================================================== */
+
+.sf-native-entities {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 12.5px;
+}
+
+.sf-entity-item {
+	display: flex;
+	gap: 4px;
+	align-items: baseline;
+}
+
+.sf-entity-field {
+	flex: 0 0 auto;
+	color: var(--text-muted);
+}
+
+.sf-entity-sep {
+	flex: 0 0 auto;
+	color: var(--text-faint);
+}
+
+.sf-entity-name {
+	min-width: 0;
+	color: var(--text-accent);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sf-entity-kind {
+	margin-left: auto;
+	flex: 0 0 auto;
+	font-size: 10px;
+	color: var(--text-faint);
+}
+
+/* ===========================================================================
+ * Disclosure modal (S20 / S21 / S23) — consent / re-consent gate. Rendered
+ * inside Obsidian's Modal content element; layout is owned here.
+ * =========================================================================== */
+
+.sf-disclosure-modal .sf-modal-head {
+	padding-bottom: 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-modal-title {
+	font-weight: var(--font-bold, var(--font-semibold));
+	font-size: 14px;
+	color: var(--text-normal);
+}
+
+.sf-modal-sub {
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.sf-modal-path {
+	margin-top: 3px;
+	font-size: 11px;
+	color: var(--text-faint);
+	word-break: break-all;
+}
+
+.sf-modal-body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-height: 260px;
+	padding: 12px 0;
+	overflow-y: auto;
+}
+
+.sf-modal-foot {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	padding-top: 10px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Drift warning banner (S23) — reuses the warn-banner colour treatment. */
+.sf-drift-banner {
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-modifier-error);
+	font-size: 12px;
+	color: var(--text-warning, var(--text-muted));
+}
+
+.sf-source-label {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+/* Scrollable source block — the raw query text (DQL or DataviewJS). */
+.sf-source-pre {
+	max-height: 88px;
+	margin: 0;
+	padding: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 12px;
+	line-height: 1.45;
+	white-space: pre-wrap;
+	word-break: break-all;
+	overflow-y: auto;
+}
+
+/* DQL light-confirm variant — shorter block (lower-risk source). */
+.sf-source-pre-light {
+	max-height: 60px;
+}
+
+.sf-checksum-section {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.sf-checksum-label {
+	font-size: 11px;
+	color: var(--text-faint);
+}
+
+.sf-checksum-value {
+	padding: 3px 6px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	line-height: 1.4;
+	word-break: break-all;
+}
+
+/* DataviewJS security warning (S20 / S23). */
+.sf-security-warn {
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-modifier-error);
+	font-size: 12px;
+	color: var(--text-warning, var(--text-muted));
+}
+
+/* DQL "declarative and read-only" note (S21). */
+.sf-dql-note {
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+/* ===========================================================================
+ * Import picker modal (S19) — vault notes flagged sf-view: true.
+ * =========================================================================== */
+
+.sf-picker-sub {
+	margin: 0 0 4px 0;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.sf-picker-error {
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-error-border, var(--background-modifier-border));
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-error);
+	color: var(--text-error);
+	font-size: 12px;
+}
+
+.sf-picker-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 2px;
+}
+
+.sf-picker-row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 7px 8px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.sf-picker-row:hover,
+.sf-picker-row.is-selected {
+	border-color: var(--background-modifier-border);
+	background: var(--background-modifier-hover);
+}
+
+.sf-picker-name {
+	font-size: 12.5px;
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.sf-picker-path {
+	font-size: 10px;
+	color: var(--text-faint);
+	word-break: break-all;
+}
+
+.sf-picker-empty {
+	margin: 0;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.sf-picker-foot {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	margin-top: 12px;
+}
+
+/* ===========================================================================
+ * Bind / edit view modal (S27) — tab label + command binding.
+ * =========================================================================== */
+
+.sf-bind-name {
+	margin: 0 0 12px 0;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.sf-bind-body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.sf-bind-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 7px;
+}
+
+.sf-bind-label {
+	font-size: 12.5px;
+	color: var(--text-normal);
+}
+
+.sf-bind-checkbox {
+	flex: 0 0 auto;
+	width: 14px;
+	height: 14px;
+	margin: 0;
+	accent-color: var(--interactive-accent);
+}
+
+.sf-bind-input {
+	flex: 1 1 100%;
+	min-width: 0;
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: 12px;
+}
+
+.sf-bind-foot {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+	margin-top: 14px;
 }
