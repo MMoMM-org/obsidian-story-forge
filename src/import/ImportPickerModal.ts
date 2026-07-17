@@ -4,8 +4,8 @@
  * Scans the vault for unimported sf-view:true notes via ViewImporter.scanVault(),
  * lets the user select one, then PARSES it (S19: parse errors stay shown inline
  * without closing). On a successful parse the picker closes and hands the parsed
- * definition to runImportFlow, which owns the deferred-atomic consent → bind →
- * commit sequence. The picker itself performs NO store write.
+ * definition to runImportFlow, which owns the consent → commit sequence (F2: no
+ * bind step). The picker itself performs NO store write.
  *
  * @ref SDD/Runtime View — Flow C (import leg)
  * @ref SDD/Cross-Cutting Concepts — User Interface S19
@@ -18,10 +18,7 @@ import type { ViewImporter } from "import/ViewImporter";
 import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
 import { runImportFlow } from "import/ImportFlow";
-import type { RegisterCommandCallback } from "import/types";
 import type { ConsentGate } from "consent/ConsentGate";
-
-export type { RegisterCommandCallback } from "import/types";
 
 /**
  * ImportPickerModal — Modal subclass.
@@ -30,7 +27,6 @@ export type { RegisterCommandCallback } from "import/types";
  *   - app: App (passed to super)
  *   - importer: ViewImporter (stateless service; the flow commits via it)
  *   - gate: ConsentGate (the flow's first, no-write consent step)
- *   - registerCommand: RegisterCommandCallback (passed through to the flow)
  *
  * On a successful parse the picker closes and delegates to runImportFlow — the
  * picker no longer imports/commits itself (that is deferred to the flow's end).
@@ -48,7 +44,6 @@ export class ImportPickerModal extends Modal {
 		app: App,
 		private readonly importer: ViewImporter,
 		private readonly gate: ConsentGate,
-		private readonly registerCommand: RegisterCommandCallback,
 	) {
 		super(app);
 	}
@@ -180,15 +175,14 @@ export class ImportPickerModal extends Modal {
 			return;
 		}
 
-		// Success: close the picker and hand the parsed def to the deferred-atomic
-		// flow (consent → bind → commit). The picker does not commit anything.
+		// Success: close the picker and hand the parsed def to the flow
+		// (consent → commit; F2: no bind step). The picker commits nothing.
 		this.close();
 		void runImportFlow(
 			{
 				app: this.app,
 				importer: this.importer,
 				gate: this.gate,
-				registerCommand: this.registerCommand,
 			},
 			def,
 		);
