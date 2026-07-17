@@ -14,6 +14,12 @@ import type { ConsentDecision } from "consent/ConsentGate";
 /** Callback injected from main.ts to remove a view's command palette entry on deletion. */
 export type RemoveCommandCallback = (viewId: string) => void;
 
+/** Last path segment of a source path, with a trailing `.md` stripped. */
+function basenameNoMd(source: string): string {
+	const last = source.split("/").pop() ?? source;
+	return last.replace(/\.md$/, "");
+}
+
 export class SettingsTab extends PluginSettingTab {
 	plugin: MyPlugin;
 	private readonly header: HeaderSection;
@@ -344,11 +350,10 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private async _editViewAsync(id: string, record: ViewRecord): Promise<void> {
-		const seedName = record.commandName ?? record.source;
+		const seedName = record.commandName ?? basenameNoMd(record.source);
 		const seed = {
 			name: seedName,
 			registerCommand: record.command,
-			commandName: `Story Forge: ${seedName}`,
 		};
 		const result = await new BindModal(this.app, seed).present();
 		if (!result) return; // cancelled — no change
@@ -359,10 +364,12 @@ export class SettingsTab extends PluginSettingTab {
 			command: result.registerCommand,
 		});
 
-		// Reconcile the palette command entry.
+		// Reconcile the palette command entry. The command is named after the tab
+		// label (no "Story Forge: " prefix — Obsidian prefixes the plugin name in
+		// the palette automatically).
 		if (result.registerCommand) {
-			this.removeCommand(id); // no-op if none; ensures rename replaces old entry
-			this.registerCommand(id, result.commandName);
+			this.removeCommand(id); // removeCommand-first handles a rename
+			this.registerCommand(id, result.label);
 		} else if (record.command) {
 			this.removeCommand(id);
 		}

@@ -968,7 +968,7 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		const setRecordSpy = vi.spyOn(store, "setRecord");
 		const presentSpy = vi
 			.spyOn(BindModal.prototype, "present")
-			.mockResolvedValue({ label: "New Label", registerCommand: true, commandName: "Story Forge: New Label" });
+			.mockResolvedValue({ label: "New Label", registerCommand: true });
 
 		const tab = makeTab(app, store, gate, makeImporter(), registerCommand, removeCommand);
 		const container = await renderTab(tab);
@@ -981,8 +981,10 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		await vi.waitFor(() =>
 			expect(setRecordSpy).toHaveBeenCalledWith("v1", expect.objectContaining({ commandName: "New Label", command: true })),
 		);
+		// b1 regression guard: the command is named after the LABEL with NO
+		// "Story Forge: " prefix (Obsidian prefixes the plugin name automatically).
 		await vi.waitFor(() =>
-			expect(registerCommand).toHaveBeenCalledWith("v1", "Story Forge: New Label"),
+			expect(registerCommand).toHaveBeenCalledWith("v1", "New Label"),
 		);
 	});
 
@@ -991,7 +993,7 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		const gate = makeGateWithDecision("consented");
 		const registerCommand = vi.fn();
 		const removeCommand = vi.fn();
-		vi.spyOn(BindModal.prototype, "present").mockResolvedValue({ label: "Renamed", registerCommand: false, commandName: "Story Forge: Renamed" });
+		vi.spyOn(BindModal.prototype, "present").mockResolvedValue({ label: "Renamed", registerCommand: false });
 
 		const tab = makeTab(app, store, gate, makeImporter(), registerCommand, removeCommand);
 		const container = await renderTab(tab);
