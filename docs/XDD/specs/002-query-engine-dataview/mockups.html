@@ -503,41 +503,6 @@ SORT arc-start ASC</pre>
       <div class="note">No security warning for DQL. Cancel auto-focused. "Enable" is the affirmative action.</div>
     </figure>
 
-    <!-- S22 Bind -->
-    <figure style="width:320px">
-      <figcaption><b>S22 · Bind</b> — sidebar tab and command registration</figcaption>
-      <div class="modal-scene" style="height:340px;background:var(--panel-2)">
-        <div class="modal-overlay">
-          <div class="modal">
-            <div class="modal-head">
-              <div class="mtitle">Bind view</div>
-              <div class="msub">Characters in Scene</div>
-            </div>
-            <div class="modal-body">
-              <div class="bind-group">
-                <div class="bind-row">
-                  <div class="bind-label">Sidebar tab label</div>
-                  <input class="bind-input bind-input--flush" type="text" value="Characters in Scene" placeholder="Tab label">
-                </div>
-                <div class="bind-row">
-                  <label class="bind-check">
-                    <input type="checkbox">
-                    Register as command
-                  </label>
-                  <input class="bind-input" type="text" value="Story Forge: Characters in Scene" placeholder="Command name" disabled style="opacity:.45">
-                </div>
-              </div>
-            </div>
-            <div class="modal-foot">
-              <button class="btn" autofocus>Back</button>
-              <button class="btn primary">Done</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="note">Every imported view appears as a sidebar tab; the tab label is always set (seeded from the view name). Command field is disabled when its checkbox is unchecked. "Back" returns to S19/S20/S21.</div>
-    </figure>
-
     <!-- S23 Re-consent (DataviewJS) -->
     <figure style="width:320px">
       <figcaption><b>S23 · Re-consent</b> — DataviewJS changed since last enable</figcaption>
@@ -596,7 +561,6 @@ dv.table(["Name","Role","Status"],
                     <input type="checkbox" checked>
                     Register as command
                   </label>
-                  <input class="bind-input" type="text" value="Story Forge: Characters in Scene" placeholder="Command name">
                 </div>
               </div>
             </div>
@@ -607,7 +571,7 @@ dv.table(["Name","Role","Status"],
           </div>
         </div>
       </div>
-      <div class="note">Opened from the Settings row "Edit" button. Lets you rename the sidebar tab label and add / rename / remove the command binding after import. Both fields seeded with the view's current values (here the command binding already exists and is enabled). Cancel makes no changes.</div>
+      <div class="note">Opened from the Settings row "Edit" button. Lets you rename the sidebar tab label and turn the command binding on / off after import. The command is named after the tab label; Obsidian shows it as "Story Forge: &lt;label&gt;" in the palette. Cancel makes no changes.</div>
     </figure>
 
   </div>
@@ -730,12 +694,11 @@ dv.table(["Name","Role","Status"],
       <tr><td>S19 Import picker modal</td><td>User clicks "Import view" in settings; modal lists vault notes with <code>sf-view: true</code></td></tr>
       <tr><td>S20 Full disclosure modal (DataviewJS)</td><td>S19 "Next →" on a DataviewJS view; shows source, checksum, security warning</td></tr>
       <tr><td>S21 Light confirm modal (DQL)</td><td>S19 "Next →" on a DQL view; shows DQL source, read-only note, no security warning</td></tr>
-      <tr><td>S22 Bind modal</td><td>S20 or S21 "Enable" pressed; user chooses sidebar tab label and optional command name</td></tr>
       <tr><td>S23 Re-consent modal (DataviewJS)</td><td>S17 "Review &amp; Re-enable…" clicked; same as S20 plus "Query changed" warning banner</td></tr>
       <tr><td>S24 Settings row — Enabled</td><td>View in store with <code>enabled: true</code> and checksum current</td></tr>
       <tr><td>S25 Settings row — Disabled / Consent-required</td><td>A: <code>enabled: false</code> (user toggled off); B: live checksum ≠ stored checksum (consent stale)</td></tr>
       <tr><td>S26 Settings row — Engine missing</td><td>View in store references Dataview engine; Dataview plugin not installed</td></tr>
-      <tr><td>S27 Edit view</td><td>Settings row "Edit" clicked; rename the sidebar tab label and add/change/remove the view's command binding</td></tr>
+      <tr><td>S27 Edit view</td><td>Settings row "Edit" clicked; rename the sidebar tab label and turn the view's command binding on/off (the command is named after the tab label)</td></tr>
     </table>
 
     <h2>Revision history</h2>
@@ -743,6 +706,7 @@ dv.table(["Name","Role","Status"],
       <tr><th>Date</th><th>Version</th><th>Change</th></tr>
       <tr><td>2026-07-15</td><td>v1</td><td>Initial M2 mockups (S11–S26): engine states, consent/import/bind modals, settings rows</td></tr>
       <tr><td>2026-07-16</td><td>v2</td><td>Stage 2 (M2 flow): added S27 Edit view modal and "Edit" buttons on S24/S25 settings rows</td></tr>
+      <tr><td>2026-07-17</td><td>v3</td><td>Mason-aligned import: import flow no longer has a bind step; retired S22 Bind modal; S27 command-name field removed (command name = tab label)</td></tr>
     </table>
   </div>
 </body>
