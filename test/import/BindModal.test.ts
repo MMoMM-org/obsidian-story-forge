@@ -1,18 +1,19 @@
 /**
  * Tests for BindModal — the tab/command bind step as a PURE UI step (T-S2.3).
  *
- * New contract (T-S2.3):
+ * New contract (T-S2.3, F3):
  * - Constructor is seed-only: new BindModal(app, seed) — no store, no viewId,
  *   no registerCommand callback. The modal performs NO side-effects; the caller
  *   owns the commit.
- * - present(): Promise<{ label; registerCommand; commandName } | null>.
+ * - present(): Promise<{ label; registerCommand } | null>.
  *     Resolves the result object when "Done" is clicked.
  *     Resolves null on "Back" or on dismiss/close without Done.
- * - Seeded values pre-fill inputs (tab label = seed.name; command name default;
- *   command checkbox defaults per seed).
+ * - Seeded values pre-fill inputs (tab label = seed.name; command checkbox
+ *   defaults per seed). There is NO "command name" input — the command is named
+ *   after the tab label by the caller.
  * - Every imported view is a sidebar tab: the tab-label input is always present
  *   and enabled (no "show as tab" checkbox gates it). Only the command binding
- *   is optional.
+ *   is optional (a bare on/off toggle).
  * - No persistence happens (there is no store to write to).
  *
  * @ref SDD/Runtime View — Flow C (bind step)
@@ -32,16 +33,6 @@ function tabLabelInput(modal: BindModal): HTMLInputElement {
 		".sf-bind-row .sf-bind-input",
 	);
 	if (!el) throw new Error("tab-label input not found");
-	return el;
-}
-
-function commandNameInput(modal: BindModal): HTMLInputElement {
-	const inputs = Array.from(
-		modal.contentEl.querySelectorAll<HTMLInputElement>(".sf-bind-input"),
-	);
-	// second .sf-bind-input is the command-name field
-	const el = inputs[1];
-	if (!el) throw new Error("command-name input not found");
 	return el;
 }
 
@@ -80,14 +71,11 @@ describe("BindModal", () => {
 		app = new App();
 	});
 
-	it("seeds tab label from seed.name and defaults command name", () => {
+	it("seeds tab label from seed.name", () => {
 		const modal = new BindModal(app, { name: "Characters in Scene" });
 		void modal.present();
 
 		expect(tabLabelInput(modal).value).toBe("Characters in Scene");
-		expect(commandNameInput(modal).value).toBe(
-			"Story Forge: Characters in Scene",
-		);
 
 		modal.close();
 	});
@@ -100,37 +88,31 @@ describe("BindModal", () => {
 		// gating it (every imported view is a sidebar tab).
 		expect(tabLabelInput(modal).disabled).toBe(false);
 		expect(commandCheckbox(modal).checked).toBe(false);
-		// command-name input disabled until the command checkbox is checked
-		expect(commandNameInput(modal).disabled).toBe(true);
 
 		modal.close();
 	});
 
-	it("honours seed overrides for the command checkbox and command name", () => {
+	it("honours the seed override for the command checkbox", () => {
 		const modal = new BindModal(app, {
 			name: "Seeded",
 			registerCommand: true,
-			commandName: "Custom command",
 		});
 		void modal.present();
 
 		expect(commandCheckbox(modal).checked).toBe(true);
-		expect(commandNameInput(modal).value).toBe("Custom command");
-		// command name enabled because the checkbox seeded true
-		expect(commandNameInput(modal).disabled).toBe(false);
 		// tab label is always enabled regardless of seed
 		expect(tabLabelInput(modal).disabled).toBe(false);
 
 		modal.close();
 	});
 
-	it("resolves the result object with label/registerCommand/commandName on Done", async () => {
+	it("resolves the result object with label/registerCommand on Done", async () => {
 		const modal = new BindModal(app, { name: "My View" });
 		const promise = modal.present();
 
 		// Edit the tab label
 		tabLabelInput(modal).value = "Renamed tab";
-		// Toggle the command checkbox on (enables the command-name field)
+		// Toggle the command checkbox on
 		const cmd = commandCheckbox(modal);
 		cmd.checked = true;
 		fireChange(cmd);
@@ -141,7 +123,6 @@ describe("BindModal", () => {
 		expect(result).toEqual({
 			label: "Renamed tab",
 			registerCommand: true,
-			commandName: "Story Forge: My View",
 		});
 	});
 

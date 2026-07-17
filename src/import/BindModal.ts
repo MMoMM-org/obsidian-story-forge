@@ -1,11 +1,10 @@
 /**
  * BindModal — sidebar tab + command registration step (S22).
  *
- * A PURE UI step: it collects the tab label, whether to register a command, and
- * the command name — then RESOLVES that result to the caller. It performs NO
- * side-effects (no store write, no command registration); the caller owns the
- * commit. This makes it reusable by both the import flow (ImportPickerModal) and
- * Settings "Edit".
+ * A PURE UI step: it collects the tab label and whether to register a command —
+ * then RESOLVES that result to the caller. It performs NO side-effects (no store
+ * write, no command registration); the caller owns the commit, and names the
+ * command after the tab label. This makes it reusable by Settings "Edit".
  *
  * Every imported view IS a sidebar tab (SidebarView renders one tab per store
  * record), so there is no "show as tab" choice: the tab label is always set.
@@ -31,8 +30,6 @@ export interface BindSeed {
 	name: string;
 	/** "Register as command" checkbox default (defaults to false). */
 	registerCommand?: boolean;
-	/** Command-name input default (defaults to "Story Forge: " + name). */
-	commandName?: string;
 }
 
 /** The result the user confirmed via "Done". */
@@ -41,8 +38,6 @@ export interface BindResult {
 	label: string;
 	/** Whether the "Register as command" checkbox is checked. */
 	registerCommand: boolean;
-	/** The command-name input value. */
-	commandName: string;
 }
 
 /**
@@ -54,7 +49,6 @@ export interface BindResult {
  */
 export class BindModal extends Modal {
 	private commandCheckboxEl: HTMLInputElement | null = null;
-	private cmdInputEl: HTMLInputElement | null = null;
 	private tabInputEl: HTMLInputElement | null = null;
 
 	/** Resolve handle for the present() promise; nulled after first resolve. */
@@ -95,7 +89,6 @@ export class BindModal extends Modal {
 		el.empty();
 
 		const registerCommand = this.seed.registerCommand ?? false;
-		const commandName = this.seed.commandName ?? `Story Forge: ${this.seed.name}`;
 
 		el.createEl("h2", { text: "Bind view" });
 		el.createEl("p", { text: this.seed.name, cls: "sf-bind-name" });
@@ -117,7 +110,9 @@ export class BindModal extends Modal {
 
 		this.tabInputEl = tabInputEl;
 
-		// Command registration row
+		// Command registration row — a bare on/off toggle. The command, when
+		// registered, is named after the tab label by the caller (no separate
+		// command-name input).
 		const cmdRow = bodyEl.createEl("div", { cls: "sf-bind-row" });
 
 		const cmdCheckbox = activeDocument.createElement("input");
@@ -128,20 +123,7 @@ export class BindModal extends Modal {
 		cmdRow.appendChild(cmdCheckbox);
 		cmdRow.createEl("span", { text: "Register as command", cls: "sf-bind-label" });
 
-		const cmdInputEl = activeDocument.createElement("input");
-		cmdInputEl.type = "text";
-		cmdInputEl.value = commandName;
-		cmdInputEl.placeholder = "Command name";
-		cmdInputEl.className = "sf-bind-input";
-		cmdInputEl.disabled = !registerCommand;
-		cmdRow.appendChild(cmdInputEl);
-
 		this.commandCheckboxEl = cmdCheckbox;
-		this.cmdInputEl = cmdInputEl;
-
-		cmdCheckbox.addEventListener("change", () => {
-			cmdInputEl.disabled = !cmdCheckbox.checked;
-		});
 
 		// Footer buttons
 		const footEl = el.createEl("div", { cls: "sf-bind-foot" });
@@ -159,7 +141,6 @@ export class BindModal extends Modal {
 		const result: BindResult = {
 			label: this.tabInputEl?.value ?? this.seed.name,
 			registerCommand: this.commandCheckboxEl?.checked ?? false,
-			commandName: this.cmdInputEl?.value ?? `Story Forge: ${this.seed.name}`,
 		};
 		this._resolveOnce(result);
 		this.close();
