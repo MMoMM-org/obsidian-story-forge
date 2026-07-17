@@ -125,7 +125,6 @@ export class SettingsTab extends PluginSettingTab {
 							this.app,
 							this.importer,
 							this.gate,
-							this.registerCommand,
 						).open();
 					}),
 			);

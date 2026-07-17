@@ -1,47 +1,42 @@
 /**
- * runImportFlow — deferred-atomic one-flow import (T-S2.4).
+ * runImportFlow — consent-then-commit import (T-S2.4, F2).
  *
- * Sequences the consent → bind → commit → register-command steps so that
- * NOTHING is committed to the store until the very end. Cancelling consent OR
- * going Back at the bind step aborts the flow with no store write and no
- * command registration.
+ * Import is pick → one consent gate → commit. The bind step was removed (F2):
+ * clicking outside the (former) bind modal restarted the whole flow, and the
+ * sibling markdown-mason plugin has no bind step either. Command binding is now
+ * a separate Settings action (Edit), not part of the import flow.
  *
  * Consent tokens are collected on an in-memory ViewDefinition (no store id yet)
- * via ConsentGate.requestConsentForDef; the bind step is a pure UI step
- * (BindModal.present) that resolves the label + command choice; only then does
- * ViewImporter.importToStore commit a single fully-formed record, and — if the
- * user asked — registerCommand wires the palette entry against the store id.
+ * via ConsentGate.requestConsentForDef; only when consent grants tokens does
+ * ViewImporter.importToStore commit a single fully-formed record. Cancelling
+ * consent aborts with no store write. The imported view's tab label defaults to
+ * its sf-name (def.name).
  *
- * @ref SDD/Runtime View — Flow C (import → consent → bind → commit)
+ * @ref SDD/Runtime View — Flow C (import → consent → commit)
  * @ref SDD/ADR-4/ADR-5 (consent tokens), ADR-9 (store-generated id)
  * @ref PRD/AC-F3.4, AC-F3.6, AC-F3.7
  */
 
 import { Notice } from "obsidian";
 import type { App } from "obsidian";
-import { BindModal } from "import/BindModal";
 import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
 import type { ViewImporter } from "import/ViewImporter";
 import type { ConsentGate } from "consent/ConsentGate";
-import type { RegisterCommandCallback } from "import/types";
 
 /** Dependencies injected into the import flow (all owned by main.ts). */
 export interface ImportFlowDeps {
 	app: App;
 	importer: ViewImporter;
 	gate: ConsentGate;
-	registerCommand: RegisterCommandCallback;
 }
 
 /**
- * Run the deferred-atomic import flow for a parsed view definition.
+ * Run the consent-then-commit import flow for a parsed view definition.
  *
- * Steps (nothing committed until step 3):
+ * Steps (nothing committed until step 2):
  *   1. Consent — requestConsentForDef; null (cancel / missing source) aborts.
- *   2. Bind — BindModal.present; null (Back / dismiss) aborts.
- *   3. Commit — importToStore with the consent tokens + bind label, once.
- *   4. Register command — only when the user checked "Register as command".
+ *   2. Commit — importToStore with the consent tokens + def.name label, once.
  *
  * A late DUPLICATE (race) from importToStore surfaces a Notice and returns.
  */
@@ -53,20 +48,13 @@ export async function runImportFlow(
 	const tokens = await deps.gate.requestConsentForDef(def);
 	if (tokens === null) return;
 
-	// 2. Bind (pure UI, no store write). Null = Back/dismiss → abort.
-	const bind = await new BindModal(deps.app, {
-		name: def.name,
-		registerCommand: def.command,
-	}).present();
-	if (bind === null) return;
-
-	// 3. Commit — single atomic write with the consent tokens + bind label.
-	let id: string;
+	// 2. Commit — single atomic write with the consent tokens. The tab label
+	// defaults to the view's sf-name; command binding happens later via Settings.
 	try {
-		id = await deps.importer.importToStore(def, {
+		await deps.importer.importToStore(def, {
 			okayed: tokens,
 			enabled: true,
-			commandName: bind.label,
+			commandName: def.name,
 		});
 	} catch (err) {
 		if (err instanceof ImportError) {
@@ -78,10 +66,5 @@ export async function runImportFlow(
 		console.error(err);
 		new Notice("Import failed: unexpected error");
 		return;
-	}
-
-	// 4. Register command palette entry only when requested.
-	if (bind.registerCommand) {
-		deps.registerCommand(id, bind.commandName);
 	}
 }
