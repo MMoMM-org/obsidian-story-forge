@@ -4,7 +4,8 @@
  * A PURE UI step: it collects the tab label and whether to register a command —
  * then RESOLVES that result to the caller. It performs NO side-effects (no store
  * write, no command registration); the caller owns the commit, and names the
- * command after the tab label. This makes it reusable by Settings "Edit".
+ * command using the dedicated command-name result (independent of the tab
+ * label). This makes it reusable by Settings "Edit".
  *
  * Every imported view IS a sidebar tab (SidebarView renders one tab per store
  * record), so there is no "show as tab" choice: the tab label is always set.
