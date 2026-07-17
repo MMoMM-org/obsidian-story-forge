@@ -176,10 +176,12 @@ export default class StoryForgePlugin extends Plugin {
 	 */
 	_removeViewCommand(viewId: string): void {
 		if (this._commandIds.has(viewId)) {
-			// Remove via the reconstructed FULL prefixed id so the removal never
-			// depends on what addCommand returned — bug c.
+			// removeCommand AUTO-PREFIXES the id with the plugin id (exactly like
+			// addCommand), so pass the LOCAL id `view-${viewId}`. Passing the
+			// already-prefixed `${manifest.id}:view-${viewId}` double-prefixes and
+			// silently removes nothing (verified live — bug c / uncheck-doesn't-remove).
 			// eslint-disable-next-line obsidianmd/no-unsupported-api -- removeCommand @since 1.7.2; used only for dynamically-registered view commands; CON-1 keeps minAppVersion at 1.5.7 per SDD
-			this.removeCommand(`${this.manifest.id}:view-${viewId}`);
+			this.removeCommand(`view-${viewId}`);
 			this._commandIds.delete(viewId);
 		}
 	}

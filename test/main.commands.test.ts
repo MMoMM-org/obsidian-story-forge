@@ -1,15 +1,18 @@
 /**
  * main.commands.test.ts — command-palette lifecycle tests (F1).
  *
- * Regression coverage for the command-id round-trip bug (bug c):
+ * Regression coverage for the command-id lifecycle bug (bug c / uncheck-doesn't-remove):
  *   - Obsidian internally prefixes command ids with `${manifest.id}:`.
- *   - removeCommand needs the FULL prefixed id, NOT the id addCommand returns.
+ *   - BOTH addCommand AND removeCommand auto-prefix, so removeCommand needs the
+ *     LOCAL id (`view-<id>`) — passing the already-prefixed id double-prefixes
+ *     and silently removes nothing (confirmed live against app.commands.commands).
  *   - Commands must be rebuilt on load (Obsidian drops dynamic commands on reload).
  *   - The palette name is the PLAIN view name (Obsidian adds "Story Forge: ").
  *
  * These tests instantiate StoryForgePlugin with the mock App and drive the
- * command methods directly. The mock's addCommand/removeCommand now model the
- * real prefixing behaviour so the round-trip is genuinely exercised.
+ * command methods directly. The mock's addCommand/removeCommand model the real
+ * auto-prefixing on BOTH sides, so a double-prefix regression fails end-to-end
+ * (the command stays in the registry).
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -45,6 +48,8 @@ type CommandPlugin = InstanceType<typeof import("main").default> & {
 	_removeViewCommand: (viewId: string) => void;
 	_restoreViewCommands: () => Promise<void>;
 	_commandIds: Set<string>;
+	/** Mock Plugin's internal command registry, keyed by the FULL prefixed id. */
+	_commands: Map<string, { id: string; name: string }>;
 };
 
 beforeEach(() => {
@@ -76,17 +81,23 @@ describe("StoryForgePlugin — _registerViewCommand", () => {
 });
 
 describe("StoryForgePlugin — _removeViewCommand (bug-c regression)", () => {
-	it("removes via the FULL prefixed id story-forge:view-v1", async () => {
+	it("removes via the LOCAL id view-v1 and the command actually leaves the registry", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
 		const p = plugin as CommandPlugin;
 
 		p._registerViewCommand("v1", "My View");
+		// addCommand stored it under the FULL prefixed id.
+		expect(p._commands.has("story-forge:view-v1")).toBe(true);
+
 		p._removeViewCommand("v1");
 
-		// The EXACT full id — a bare "view-v1" would fail this and leave the
-		// command (and its hotkey) dangling in the real palette.
-		expect(plugin.removeCommand).toHaveBeenCalledWith("story-forge:view-v1");
+		// removeCommand auto-prefixes, so the LOCAL id is correct. Passing the
+		// already-prefixed id would double-prefix and leave the command dangling.
+		expect(plugin.removeCommand).toHaveBeenCalledWith("view-v1");
+		// End-to-end: the command is genuinely gone from the registry. This is the
+		// assertion the double-prefix bug fails (the full id would remove nothing).
+		expect(p._commands.has("story-forge:view-v1")).toBe(false);
 		expect(p._commandIds.has("v1")).toBe(false);
 	});
 
