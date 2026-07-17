@@ -561,6 +561,7 @@ dv.table(["Name","Role","Status"],
                     <input type="checkbox" checked>
                     Register as command
                   </label>
+                  <input class="bind-input" type="text" value="Show scene cast" placeholder="Command name">
                 </div>
               </div>
             </div>
@@ -571,7 +572,7 @@ dv.table(["Name","Role","Status"],
           </div>
         </div>
       </div>
-      <div class="note">Opened from the Settings row "Edit" button. Lets you rename the sidebar tab label and turn the command binding on / off after import. The command is named after the tab label; Obsidian shows it as "Story Forge: &lt;label&gt;" in the palette. Cancel makes no changes.</div>
+      <div class="note">Opened from the Settings row "Edit" button. Lets you rename the sidebar tab label and turn the command binding on / off after import. The command name defaults to the tab label but is independently editable — the tab label and command name are separate. Obsidian shows the command as "Story Forge: &lt;command name&gt;" in the palette. Unchecking "Register as command" removes the command. Cancel makes no changes.</div>
     </figure>
 
   </div>
@@ -707,6 +708,7 @@ dv.table(["Name","Role","Status"],
       <tr><td>2026-07-15</td><td>v1</td><td>Initial M2 mockups (S11–S26): engine states, consent/import/bind modals, settings rows</td></tr>
       <tr><td>2026-07-16</td><td>v2</td><td>Stage 2 (M2 flow): added S27 Edit view modal and "Edit" buttons on S24/S25 settings rows</td></tr>
       <tr><td>2026-07-17</td><td>v3</td><td>Mason-aligned import: import flow no longer has a bind step; retired S22 Bind modal; S27 command-name field removed (command name = tab label)</td></tr>
+      <tr><td>2026-07-17</td><td>v4</td><td>S27 regained an independent, editable command-name field (command name decoupled from the tab label)</td></tr>
     </table>
   </div>
 </body>
