@@ -30,6 +30,8 @@ export interface BindSeed {
 	name: string;
 	/** "Register as command" checkbox default (defaults to false). */
 	registerCommand?: boolean;
+	/** Default command-name value (defaults to the tab label when absent). */
+	commandName?: string;
 }
 
 /** The result the user confirmed via "Done". */
@@ -38,6 +40,8 @@ export interface BindResult {
 	label: string;
 	/** Whether the "Register as command" checkbox is checked. */
 	registerCommand: boolean;
+	/** The (possibly-edited) command-name input value. */
+	commandName: string;
 }
 
 /**
@@ -50,6 +54,7 @@ export interface BindResult {
 export class BindModal extends Modal {
 	private commandCheckboxEl: HTMLInputElement | null = null;
 	private tabInputEl: HTMLInputElement | null = null;
+	private cmdInputEl: HTMLInputElement | null = null;
 
 	/** Resolve handle for the present() promise; nulled after first resolve. */
 	private _resolve: ((result: BindResult | null) => void) | null = null;
@@ -110,9 +115,8 @@ export class BindModal extends Modal {
 
 		this.tabInputEl = tabInputEl;
 
-		// Command registration row — a bare on/off toggle. The command, when
-		// registered, is named after the tab label by the caller (no separate
-		// command-name input).
+		// Command registration row — a checkbox that gates a dedicated
+		// command-name input. The command name is independent of the tab label.
 		const cmdRow = bodyEl.createEl("div", { cls: "sf-bind-row" });
 
 		const cmdCheckbox = activeDocument.createElement("input");
@@ -124,6 +128,29 @@ export class BindModal extends Modal {
 		cmdRow.createEl("span", { text: "Register as command", cls: "sf-bind-label" });
 
 		this.commandCheckboxEl = cmdCheckbox;
+
+		// Command-name input row — the palette command's display name (no
+		// "Story Forge: " prefix; Obsidian prefixes the plugin name in the
+		// palette automatically). Defaults to the tab label, still editable.
+		// Gated by the checkbox above.
+		const cmdInputRow = bodyEl.createEl("div", { cls: "sf-bind-row" });
+
+		cmdInputRow.createEl("span", { text: "Command name", cls: "sf-bind-label" });
+
+		const cmdInputEl = activeDocument.createElement("input");
+		cmdInputEl.type = "text";
+		cmdInputEl.value = this.seed.commandName ?? this.seed.name;
+		cmdInputEl.placeholder = "Command name";
+		cmdInputEl.className = "sf-bind-input";
+		cmdInputEl.disabled = !registerCommand;
+		cmdInputRow.appendChild(cmdInputEl);
+
+		this.cmdInputEl = cmdInputEl;
+
+		// Gate the command-name input on the checkbox.
+		cmdCheckbox.addEventListener("change", () => {
+			cmdInputEl.disabled = !cmdCheckbox.checked;
+		});
 
 		// Footer buttons
 		const footEl = el.createEl("div", { cls: "sf-bind-foot" });
@@ -141,6 +168,7 @@ export class BindModal extends Modal {
 		const result: BindResult = {
 			label: this.tabInputEl?.value ?? this.seed.name,
 			registerCommand: this.commandCheckboxEl?.checked ?? false,
+			commandName: this.cmdInputEl?.value ?? (this.seed.commandName ?? this.seed.name),
 		};
 		this._resolveOnce(result);
 		this.close();

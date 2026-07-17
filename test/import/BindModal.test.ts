@@ -44,6 +44,17 @@ function commandCheckbox(modal: BindModal): HTMLInputElement {
 	return el;
 }
 
+function commandNameInput(modal: BindModal): HTMLInputElement {
+	// Two `.sf-bind-input` text inputs exist (tab label, command name); the
+	// command-name input is the last one (its row follows the command checkbox).
+	const els = modal.contentEl.querySelectorAll<HTMLInputElement>(
+		".sf-bind-row .sf-bind-input",
+	);
+	const el = els[els.length - 1];
+	if (!el || els.length < 2) throw new Error("command-name input not found");
+	return el;
+}
+
 function buttonByText(modal: BindModal, text: string): HTMLButtonElement {
 	const btn = Array.from(
 		modal.contentEl.querySelectorAll<HTMLButtonElement>("button"),
@@ -106,7 +117,7 @@ describe("BindModal", () => {
 		modal.close();
 	});
 
-	it("resolves the result object with label/registerCommand on Done", async () => {
+	it("resolves the result object with label/registerCommand/commandName on Done", async () => {
 		const modal = new BindModal(app, { name: "My View" });
 		const promise = modal.present();
 
@@ -123,7 +134,69 @@ describe("BindModal", () => {
 		expect(result).toEqual({
 			label: "Renamed tab",
 			registerCommand: true,
+			commandName: "My View",
 		});
+	});
+
+	// -------------------------------------------------------------------------
+	// Command-name input — dedicated, independent of the tab label
+	// -------------------------------------------------------------------------
+
+	it("seeds the command-name input from seed.commandName", () => {
+		const modal = new BindModal(app, {
+			name: "Tab Label",
+			commandName: "Open Cast",
+		});
+		void modal.present();
+
+		expect(commandNameInput(modal).value).toBe("Open Cast");
+
+		modal.close();
+	});
+
+	it("falls back the command-name input to seed.name when commandName absent", () => {
+		const modal = new BindModal(app, { name: "Tab Label" });
+		void modal.present();
+
+		expect(commandNameInput(modal).value).toBe("Tab Label");
+
+		modal.close();
+	});
+
+	it("disables the command-name input until the checkbox is checked, then enables it", () => {
+		const modal = new BindModal(app, { name: "My View" });
+		void modal.present();
+
+		// Checkbox defaults unchecked → command-name input disabled.
+		expect(commandCheckbox(modal).checked).toBe(false);
+		expect(commandNameInput(modal).disabled).toBe(true);
+
+		// Check it → command-name input enabled.
+		const cmd = commandCheckbox(modal);
+		cmd.checked = true;
+		fireChange(cmd);
+		expect(commandNameInput(modal).disabled).toBe(false);
+
+		modal.close();
+	});
+
+	it("resolves result.commandName INDEPENDENT of result.label", async () => {
+		const modal = new BindModal(app, {
+			name: "Seed Name",
+			registerCommand: true,
+			commandName: "Seed Command",
+		});
+		const promise = modal.present();
+
+		// Edit tab label and command name to DIFFERENT values.
+		tabLabelInput(modal).value = "Distinct Tab";
+		commandNameInput(modal).value = "Distinct Command";
+
+		click(buttonByText(modal, "Done"));
+
+		const result = await promise;
+		expect(result?.label).toBe("Distinct Tab");
+		expect(result?.commandName).toBe("Distinct Command");
 	});
 
 	it("resolves null when Back is clicked", async () => {

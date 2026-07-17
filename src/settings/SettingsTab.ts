@@ -354,24 +354,26 @@ export class SettingsTab extends PluginSettingTab {
 		const seed = {
 			name: seedName,
 			registerCommand: record.command,
+			commandName: record.commandLabel ?? record.commandName ?? basenameNoMd(record.source),
 		};
 		const result = await new BindModal(this.app, seed).present();
 		if (!result) return; // cancelled — no change
 
 		await this.store.setRecord(id, {
 			...record,
-			commandName: result.label,
+			commandName: result.label,          // tab label
 			command: result.registerCommand,
+			commandLabel: result.commandName,    // persisted command name
 		});
 
-		// Reconcile the palette command entry. The command is named after the tab
-		// label (no "Story Forge: " prefix — Obsidian prefixes the plugin name in
-		// the palette automatically).
+		// Reconcile the palette command entry. removeCommand is idempotent, so
+		// remove UNCONDITIONALLY (fix: a stale record.command must not skip
+		// removal), then register with the dedicated command name (no
+		// "Story Forge: " prefix — Obsidian prefixes the plugin name in the
+		// palette automatically).
+		this.removeCommand(id);
 		if (result.registerCommand) {
-			this.removeCommand(id); // removeCommand-first handles a rename
-			this.registerCommand(id, result.label);
-		} else if (record.command) {
-			this.removeCommand(id);
+			this.registerCommand(id, result.commandName);
 		}
 	}
 
