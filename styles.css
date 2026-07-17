@@ -551,7 +551,7 @@
 
 .sf-cta-warn {
 	font-size: 11px;
-	color: var(--text-warning, var(--text-accent));
+	color: var(--text-warning, var(--text-muted));
 }
 
 .sf-cta-btn {
