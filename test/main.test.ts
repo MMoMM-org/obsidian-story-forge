@@ -480,16 +480,16 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 		// Exercise the registered callback via the exposed _registerViewCommand method
 		const p = plugin as unknown as {
 			_registerViewCommand: (viewId: string, commandName: string) => void;
-			_commandIds: Map<string, string>;
+			_commandIds: Set<string>;
 		};
-		p._registerViewCommand("view-123", "My View");
+		p._registerViewCommand("abc", "My View");
 
 		expect(plugin.addCommand).toHaveBeenCalledWith(
-			expect.objectContaining({ id: expect.stringContaining("view-123") }),
+			expect.objectContaining({ id: expect.stringContaining("view-abc") }),
 		);
-		// Tracks the reconstructed `${manifest.id}:view-${viewId}` id, NOT the
-		// object addCommand returned (bug c).
-		expect(p._commandIds.get("view-123")).toBe("story-forge:view-view-123");
+		// Tracks the viewId's presence; removeCommand reconstructs the full
+		// `${manifest.id}:view-${viewId}` id (bug c).
+		expect(p._commandIds.has("abc")).toBe(true);
 	});
 
 	it("removeCommand is called with the FULL prefixed id when a tracked view is removed", async () => {
@@ -498,15 +498,15 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 
 		const p = plugin as unknown as {
 			_registerViewCommand: (viewId: string, commandName: string) => void;
-			_commandIds: Map<string, string>;
+			_commandIds: Set<string>;
 			_removeViewCommand: (viewId: string) => void;
 		};
-		p._registerViewCommand("view-xyz", "XYZ View");
-		expect(p._commandIds.get("view-xyz")).toBe("story-forge:view-view-xyz");
+		p._registerViewCommand("xyz", "XYZ View");
+		expect(p._commandIds.has("xyz")).toBe(true);
 
-		p._removeViewCommand("view-xyz");
-		expect(plugin.removeCommand).toHaveBeenCalledWith("story-forge:view-view-xyz");
-		expect(p._commandIds.has("view-xyz")).toBe(false);
+		p._removeViewCommand("xyz");
+		expect(plugin.removeCommand).toHaveBeenCalledWith("story-forge:view-xyz");
+		expect(p._commandIds.has("xyz")).toBe(false);
 	});
 
 	it("_removeViewCommand is a no-op when viewId has no registered command", async () => {

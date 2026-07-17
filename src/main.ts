@@ -23,8 +23,8 @@ export default class StoryForgePlugin extends Plugin {
 	settings: PluginSettings = DEFAULT_SETTINGS;
 	store!: ViewStore;
 
-	/** Tracks view-id → command-palette id for registered view commands. */
-	readonly _commandIds: Map<string, string> = new Map();
+	/** Tracks which view-ids have a registered command-palette entry. */
+	readonly _commandIds: Set<string> = new Set();
 
 	async onload(): Promise<void> {
 		// Build the single shared data port — both store and settings use it.
@@ -160,11 +160,12 @@ export default class StoryForgePlugin extends Plugin {
 				})();
 			},
 		});
-		// Track the FULL prefixed id deterministically — Obsidian internally
-		// prefixes command ids with `${manifest.id}:`. removeCommand needs that
-		// full id; do NOT trust the object addCommand returns (bug c).
+		// Track the viewId's presence. removeCommand reconstructs the FULL
+		// prefixed id (`${manifest.id}:view-${viewId}`) deterministically, so the
+		// stored value is never read — a presence Set suffices. Do NOT trust the
+		// object addCommand returns (bug c).
 		if (cmd) {
-			this._commandIds.set(viewId, `${this.manifest.id}:view-${viewId}`);
+			this._commandIds.add(viewId);
 		}
 	}
 
@@ -175,9 +176,8 @@ export default class StoryForgePlugin extends Plugin {
 	 */
 	_removeViewCommand(viewId: string): void {
 		if (this._commandIds.has(viewId)) {
-			// Remove via the reconstructed FULL prefixed id (equal to the map's
-			// stored value after _registerViewCommand, but reconstructed here so
-			// the removal never depends on what addCommand returned — bug c).
+			// Remove via the reconstructed FULL prefixed id so the removal never
+			// depends on what addCommand returned — bug c.
 			// eslint-disable-next-line obsidianmd/no-unsupported-api -- removeCommand @since 1.7.2; used only for dynamically-registered view commands; CON-1 keeps minAppVersion at 1.5.7 per SDD
 			this.removeCommand(`${this.manifest.id}:view-${viewId}`);
 			this._commandIds.delete(viewId);
