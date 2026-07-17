@@ -349,14 +349,30 @@ export class App {
 
 // --- Plugin ---
 
+/**
+ * Structural subset of the real Obsidian Command: `id` and `name` are required,
+ * `callback` optional — matching addCommand's accepted/returned shape.
+ */
+export interface MockCommand {
+	id: string;
+	name: string;
+	callback?: () => void;
+}
+
 export class Plugin extends Component {
 	app: App;
-	manifest: PluginManifest = { id: "test-plugin", name: "Test Plugin", version: "0.0.0", minAppVersion: "1.5.7" };
+	manifest: PluginManifest = { id: "story-forge", name: "Story Forge", version: "0.0.0", minAppVersion: "1.5.7" };
 
 	constructor(app?: App) {
 		super();
 		this.app = app ?? new App();
 	}
+
+	/**
+	 * Internal command registry keyed by the FULL prefixed id (mirrors how real
+	 * Obsidian stores commands). Tests can inspect it to assert the id round-trip.
+	 */
+	_commands = new Map<string, MockCommand>();
 
 	loadData = vi.fn(async () => ({}));
 	saveData = vi.fn(async (_data?: unknown) => {});
@@ -365,8 +381,24 @@ export class Plugin extends Component {
 			document.createElement("div"),
 	);
 	addStatusBarItem = vi.fn(() => ({ setText: vi.fn() }));
-	addCommand = vi.fn();
-	removeCommand = vi.fn((_id: string): void => {});
+	/**
+	 * addCommand — mirrors real Obsidian: the passed id is internally prefixed
+	 * with `${manifest.id}:`. Returns the stored command object carrying the FULL
+	 * prefixed id, so any code that (wrongly) trusts the return value round-trips
+	 * the SAME prefixed id — while correct code reconstructs it deterministically.
+	 */
+	addCommand = vi.fn(
+		(spec: MockCommand): MockCommand => {
+			const fullId = `${this.manifest.id}:${spec.id}`;
+			const cmd = { ...spec, id: fullId };
+			this._commands.set(fullId, cmd);
+			return cmd;
+		},
+	);
+	/** removeCommand — deletes from the internal registry by the FULL prefixed id. */
+	removeCommand = vi.fn((fullId: string): void => {
+		this._commands.delete(fullId);
+	});
 	addSettingTab = vi.fn();
 	registerView = vi.fn((_type: string, _factory: (leaf: WorkspaceLeaf) => unknown): void => {});
 	register = vi.fn((fn: () => unknown) => {
