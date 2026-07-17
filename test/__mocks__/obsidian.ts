@@ -395,9 +395,14 @@ export class Plugin extends Component {
 			return cmd;
 		},
 	);
-	/** removeCommand — deletes from the internal registry by the FULL prefixed id. */
-	removeCommand = vi.fn((fullId: string): void => {
-		this._commands.delete(fullId);
+	/**
+	 * removeCommand — mirrors real Obsidian: the passed id is auto-prefixed with
+	 * `${manifest.id}:` (exactly like addCommand). So the caller must pass the
+	 * LOCAL id; passing an already-prefixed id double-prefixes and deletes nothing
+	 * (the real-world bug this models — a plain delete-by-arg mock hid it).
+	 */
+	removeCommand = vi.fn((commandId: string): void => {
+		this._commands.delete(`${this.manifest.id}:${commandId}`);
 	});
 	addSettingTab = vi.fn();
 	registerView = vi.fn((_type: string, _factory: (leaf: WorkspaceLeaf) => unknown): void => {});

@@ -487,12 +487,12 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 		expect(plugin.addCommand).toHaveBeenCalledWith(
 			expect.objectContaining({ id: expect.stringContaining("view-abc") }),
 		);
-		// Tracks the viewId's presence; removeCommand reconstructs the full
-		// `${manifest.id}:view-${viewId}` id (bug c).
+		// Tracks the viewId's presence; removeCommand passes the LOCAL id
+		// `view-${viewId}` (Obsidian auto-prefixes it) — bug c.
 		expect(p._commandIds.has("abc")).toBe(true);
 	});
 
-	it("removeCommand is called with the FULL prefixed id when a tracked view is removed", async () => {
+	it("removeCommand is called with the LOCAL id (Obsidian auto-prefixes) when a tracked view is removed", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
 
@@ -505,7 +505,9 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 		expect(p._commandIds.has("xyz")).toBe(true);
 
 		p._removeViewCommand("xyz");
-		expect(plugin.removeCommand).toHaveBeenCalledWith("story-forge:view-xyz");
+		// LOCAL id — removeCommand auto-prefixes; the already-prefixed id would
+		// double-prefix and remove nothing live.
+		expect(plugin.removeCommand).toHaveBeenCalledWith("view-xyz");
 		expect(p._commandIds.has("xyz")).toBe(false);
 	});
 
