@@ -28,7 +28,7 @@ export interface ViewRecord {
   command: boolean;
   /** Catalog blurb (optional). */
   description?: string;
-  /** User-chosen palette label (optional). */
+  /** User-chosen sidebar tab label (optional). */
   commandName?: string;
   /**
    * Palette command display name (optional). Distinct from `commandName`,

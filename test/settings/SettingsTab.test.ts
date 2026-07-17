@@ -1050,6 +1050,45 @@ describe("SettingsTab — T-S2.5 Edit action", () => {
 		expect(removeCommand).not.toHaveBeenCalled();
 		expect(registerCommand).not.toHaveBeenCalled();
 	});
+
+	it("Edit seeds the command-name input from commandLabel, taking priority over the tab-label commandName", async () => {
+		// A record with BOTH a persisted command name (commandLabel) AND a tab
+		// label (commandName). The BindModal seed.commandName MUST re-seed from
+		// commandLabel — NOT from the tab-label commandName. Swapping the `??`
+		// operands to `record.commandName ?? record.commandLabel` would re-seed
+		// the command name from the tab label, defeating persistence — this test
+		// fails in that case.
+		const store = makeStore({
+			"v1": makeRecord({
+				enabled: true,
+				command: true,
+				commandName: "Existing Tab",
+				commandLabel: "Existing Cmd Label",
+			}),
+		});
+		const gate = makeGateWithDecision("consented");
+
+		// Capture the seed passed to the BindModal constructor by reading it off
+		// the instance inside the present() spy (present() runs as `this` = modal).
+		let seededCommandName: string | undefined;
+		vi.spyOn(BindModal.prototype, "present").mockImplementation(function (
+			this: BindModal,
+		) {
+			seededCommandName = (this as unknown as { seed: { commandName?: string } })
+				.seed.commandName;
+			return Promise.resolve(null);
+		});
+
+		const tab = makeTab(app, store, gate, makeImporter());
+		const container = await renderTab(tab);
+
+		findButton(container, "Edit")!.click();
+
+		await vi.waitFor(() => expect(seededCommandName).toBeDefined());
+		// Priority assertion: commandLabel wins over the tab-label commandName.
+		expect(seededCommandName).toBe("Existing Cmd Label");
+		expect(seededCommandName).not.toBe("Existing Tab");
+	});
 });
 
 describe("SettingsTab — T-S2.5 re-entrancy holds across the evaluate await", () => {
