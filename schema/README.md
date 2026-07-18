@@ -7,16 +7,21 @@ every artifact below is **generated** from these JSON files.
 ## What it drives
 
 One `schema/<type>.json` per entity type. `npm run schema:gen` derives, into the test
-vault (`test/StoryForge/00 Meta/`), three artifacts per type:
+vault (`test/StoryForge/00 Meta/`), these artifacts:
 
-| Generated artifact | Purpose |
-|---|---|
-| `Templates/<type>.md` (or `entity-<type>.md`) | author-facing frontmatter surface |
-| `FileClasses/fc-<type>.md` | metadata-menu enforced schema |
-| `Schema/<type>.md` | human property reference (from the `description` fields) |
+| Generated artifact | Scope | Purpose |
+|---|---|---|
+| `Templates/<type>.md` (or `entity-<type>.md`) | per type | author-facing frontmatter surface |
+| `FileClasses/fc-<type>.md` | per type | metadata-menu enforced schema |
+| `Schema/<type>.md` | per type | human property reference (from the `description` fields) |
+| `Schema/<type>.json` | per type | raw machine schema (byte-identical to `schema/<type>.json`); the runtime enum source-of-truth vault scripts read |
+| `.obsidian/types.json` | vault-wide | Obsidian's property→widget-type registry, **merge-only** (schema keys added, foreign keys preserved). Local-only — `.obsidian/` is gitignored |
 
-`npm run schema:check` is the gate: it verifies those artifacts agree (doc headings ==
-template keys == FileClass field names, minus the `tags` classifier).
+`npm run schema:check` is the gate: it verifies the human doc agrees with the schema
+(doc headings == template keys == FileClass field names, minus the `tags` classifier),
+that `Schema/<type>.json` matches the canonical `schema/<type>.json`, and — when present
+— that `.obsidian/types.json` carries every schema-derived widget type (skipped when
+absent, e.g. a fresh clone / CI).
 
 ## The JSON format
 

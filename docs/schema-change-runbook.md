@@ -19,9 +19,12 @@ seed-note / XDD ripple below still applies. The rest of this runbook describes t
 three-artifact contract — what the generator produces. (A template's note **body** is author
 content: preserved across regeneration, not generated.)
 
-## The three artifacts (`test/StoryForge/00 Meta/`)
+## The generated artifacts (`test/StoryForge/00 Meta/`)
 
-Every entity type has **three artifacts that must stay in sync** (generated for migrated types):
+Every entity type has **three property-surface artifacts that must stay in sync** (generated for
+migrated types) — plus a machine-schema JSON (`Schema/<type>.json`, the runtime enum source vault
+scripts read) and the vault-wide, local-only `.obsidian/types.json` widget registry. See
+`schema/README.md` for the full artifact list; the three property-surface artifacts are:
 
 1. **FileClass** (metadata-menu, enforced schema): `00 Meta/FileClasses/fc-<type>.md`
    - What matters is `fields:` — each field has a `name:` (**this is the Property**) and an
