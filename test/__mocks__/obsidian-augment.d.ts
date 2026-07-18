@@ -33,6 +33,7 @@ declare global {
 		): HTMLElementTagNameMap[K];
 		createDiv(opts?: { cls?: string; text?: string }): HTMLDivElement;
 		createSpan(opts?: { cls?: string; text?: string }): HTMLSpanElement;
+		appendText(text: string): void;
 		empty(): void;
 		addClass(...classes: string[]): void;
 		removeClass(...classes: string[]): void;
