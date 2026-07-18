@@ -3,6 +3,7 @@ sf-view: true
 sf-version: 1
 sf-name: Characters in scene
 sf-engine: dataview-dql
+sf-description: Lists all canon characters linked from the active scene note.
 ---
 
 Lists all canon characters linked from the active scene note.
