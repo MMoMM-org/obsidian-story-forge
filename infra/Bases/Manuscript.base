@@ -1,0 +1,47 @@
+filters:
+  and:
+    - file.hasTag("manuscript/scene")
+properties:
+  order:
+    displayName: "#"
+  file.name:
+    displayName: Scene
+  beat:
+    displayName: Beat
+  status:
+    displayName: Status
+  pov:
+    displayName: POV
+  characters:
+    displayName: Characters
+  location:
+    displayName: Location
+  when:
+    displayName: When
+views:
+  - type: table
+    name: Scenes (reading order)
+    order:
+      - order
+      - file.name
+      - beat
+      - status
+      - pov
+      - characters
+      - location
+      - when
+    sort:
+      - property: order
+        direction: ASC
+  - type: table
+    name: Scenes by beat
+    groupBy:
+      property: beat
+      direction: ASC
+    order:
+      - order
+      - file.name
+      - status
+      - pov
+      - characters
+      - when
