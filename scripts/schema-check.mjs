@@ -117,6 +117,31 @@ for (const t of TYPES) {
     }
   }
 
+  // Q6a — the vault's machine-readable schema (00 Meta/Schema/<type>.json) must
+  // match the canonical schema/<type>.json (deep-equal). It is the runtime enum
+  // source-of-truth the QuickAdd status scripts read; drift → run schema:gen.
+  const canon = read(join('schema', `${t.type}.json`));
+  const vaultJson = read(join(SCHEMA, `${t.type}.json`));
+  if (canon === null) {
+    log.push(`✗ ${t.type}: missing canonical schema/${t.type}.json`);
+    errors++;
+  } else if (vaultJson === null) {
+    log.push(`✗ ${t.type}: missing machine schema 00 Meta/Schema/${t.type}.json (run schema:gen)`);
+    errors++;
+  } else {
+    let drift = false;
+    try {
+      drift = JSON.stringify(JSON.parse(canon)) !== JSON.stringify(JSON.parse(vaultJson));
+    } catch (e) {
+      log.push(`✗ ${t.type}: invalid JSON in machine schema — ${e.message}`);
+      errors++;
+    }
+    if (drift) {
+      log.push(`✗ ${t.type}: 00 Meta/Schema/${t.type}.json drifted from schema/${t.type}.json (run schema:gen)`);
+      errors++;
+    }
+  }
+
   // Cross-check: for character, the FileClass and the template must agree
   // (minus the exempt `tags` classifier).
   if (t.template && t.fileclass) {

@@ -186,7 +186,8 @@ Object.values(OUT).forEach(ensure);
 
 const written = [];
 for (const file of files.sort()) {
-  const s = JSON.parse(readFileSync(join(SCHEMA_DIR, file), 'utf8'));
+  const rawText = readFileSync(join(SCHEMA_DIR, file), 'utf8');
+  const s = JSON.parse(rawText);
   const prefix = s.idPrefix ?? s.entity[0];
   const tplName = s.template ?? (s.entity === 'scene' ? 'scene.md' : `entity-${s.entity}.md`);
 
@@ -203,6 +204,12 @@ for (const file of files.sort()) {
 
   writeFileSync(join(OUT.docs, `${s.entity}.md`), genDoc(s));
   written.push(`Schema/${s.entity}.md`);
+
+  // Q6a — raw machine-readable schema JSON in the vault. This is the runtime
+  // enum source-of-truth the QuickAdd status scripts read (`Schema/<type>.json
+  // → fields[name=status].values`); byte-identical to the canonical schema/*.json.
+  writeFileSync(join(OUT.docs, `${s.entity}.json`), rawText);
+  written.push(`Schema/${s.entity}.json`);
 }
 
 console.log(`schema-gen → ${VAULT}/00 Meta/\n`);
