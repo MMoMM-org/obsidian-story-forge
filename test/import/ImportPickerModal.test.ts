@@ -163,6 +163,258 @@ describe("ImportPickerModal — file listing", () => {
 });
 
 // ---------------------------------------------------------------------------
+// ImportPickerModal — S19 enriched rows: engine badge + description
+// ---------------------------------------------------------------------------
+
+describe("ImportPickerModal — enriched rows (S19)", () => {
+	let app: App;
+	let store: ViewStore;
+	let importer: ViewImporter;
+	let gate: ConsentGate;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		app = new App();
+		store = makeStore();
+		importer = makeImporter(app, store);
+		gate = makeGate();
+	});
+
+	afterEach(() => {
+		document.body.innerHTML = "";
+	});
+
+	it("renders a dataviewjs engine badge for a candidate parsed as dataviewjs", async () => {
+		const file = makeFile("views/dvjs.md");
+		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
+		vi.spyOn(importer, "parse").mockResolvedValue(makeDef({ engine: "dataviewjs" }));
+
+		const modal = new ImportPickerModal(app, importer, gate);
+		modal.open();
+
+		const badge = await vi.waitFor(() => {
+			const el = document.body.querySelector(".sf-badge.sf-badge-dvjs");
+			if (!el) throw new Error("dvjs badge not found");
+			return el;
+		});
+		expect(badge.textContent).toBe("dataviewjs");
+		expect(document.body.querySelector(".sf-badge-dql")).toBeNull();
+	});
+
+	it("renders a dql engine badge for a candidate parsed as dataview-dql", async () => {
+		const file = makeFile("views/dql.md");
+		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
+		vi.spyOn(importer, "parse").mockResolvedValue(makeDef({ engine: "dataview-dql" }));
+
+		const modal = new ImportPickerModal(app, importer, gate);
+		modal.open();
+
+		const badge = await vi.waitFor(() => {
+			const el = document.body.querySelector(".sf-badge.sf-badge-dql");
+			if (!el) throw new Error("dql badge not found");
+			return el;
+		});
+		expect(badge.textContent).toBe("dql");
+		expect(document.body.querySelector(".sf-badge-dvjs")).toBeNull();
+	});
+
+	it("renders the description in .sf-picker-sub when present", async () => {
+		const file = makeFile("views/desc.md");
+		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
+		vi.spyOn(importer, "parse").mockResolvedValue(
+			makeDef({ description: "Lists pov + characters" }),
+		);
+
+		const modal = new ImportPickerModal(app, importer, gate);
+		modal.open();
+
+		await vi.waitFor(() => {
+			const row = document.body.querySelector(".sf-picker-row");
+			if (!row) throw new Error("row not found");
+			const sub = row.querySelector(".sf-picker-sub");
+			expect(sub?.textContent).toBe("Lists pov + characters");
+		});
+	});
+
+	it("omits .sf-picker-sub when the description is empty/absent", async () => {
+		const file = makeFile("views/nodesc.md");
+		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
+		vi.spyOn(importer, "parse").mockResolvedValue(makeDef({ description: "" }));
+
+		const modal = new ImportPickerModal(app, importer, gate);
+		modal.open();
+
+		await vi.waitFor(() => {
+			const row = document.body.querySelector(".sf-picker-row");
+			if (!row) throw new Error("row not found");
+			return row;
+		});
+		const row = document.body.querySelector(".sf-picker-row")!;
+		expect(row.querySelector(".sf-picker-sub")).toBeNull();
+	});
+
+	it("uses def.name for the row name", async () => {
+		const file = makeFile("views/x.md", "x");
+		vi.spyOn(importer, "scanVault").mockResolvedValue([file]);
+		vi.spyOn(importer, "parse").mockResolvedValue(makeDef({ name: "Characters in Scene" }));
+
+		const modal = new ImportPickerModal(app, importer, gate);
+		modal.open();
+
+		await vi.waitFor(() => {
+			const name = document.body.querySelector(".sf-picker-name");
+			expect(name?.textContent).toBe("Characters in Scene");
+		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// ImportPickerModal — S19 search box filters rows
+// ---------------------------------------------------------------------------
+
+describe("ImportPickerModal — search filter (S19)", () => {
+	let app: App;
+	let store: ViewStore;
+	let importer: ViewImporter;
+	let gate: ConsentGate;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		app = new App();
+		store = makeStore();
+		importer = makeImporter(app, store);
+		gate = makeGate();
+	});
+
+	afterEach(() => {
+		document.body.innerHTML = "";
+	});
+
+	function visibleRows(): Element[] {
+		return Array.from(document.body.querySelectorAll(".sf-picker-row")).filter(
+			(r) => !r.classList.contains("sf-hidden"),
+		);
+	}
+
+	it("filters rows by name (case-insensitive) and restores on clear", async () => {
+		const fileA = makeFile("views/a.md", "a");
+		const fileB = makeFile("views/b.md", "b");
+		vi.spyOn(importer, "scanVault").mockResolvedValue([fileA, fileB]);
+		vi.spyOn(importer, "parse").mockImplementation(async (f: TFile) =>
+			f === fileA
+				? makeDef({ name: "Characters in Scene", description: "" })
+				: makeDef({ name: "Location Atlas", description: "" }),
+		);
+
+		const modal = new ImportPickerModal(app, importer, gate);
+		modal.open();
+
+		const search = await vi.waitFor(() => {
+			const el = document.body.querySelector(".sf-picker-search") as HTMLInputElement | null;
+			if (!el) throw new Error("search input not found");
+			if (document.body.querySelectorAll(".sf-picker-row").length !== 2) {
+				throw new Error("rows not ready");
+			}
+			return el;
+		});
+
+		search.value = "char";
+		search.dispatchEvent(new Event("input", { bubbles: true }));
+
+		expect(visibleRows().length).toBe(1);
+		expect(visibleRows()[0]!.textContent).toContain("Characters in Scene");
+
+		search.value = "";
+		search.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(visibleRows().length).toBe(2);
+	});
+
+	it("matches on description as well as name", async () => {
+		const fileA = makeFile("views/a.md", "a");
+		const fileB = makeFile("views/b.md", "b");
+		vi.spyOn(importer, "scanVault").mockResolvedValue([fileA, fileB]);
+		vi.spyOn(importer, "parse").mockImplementation(async (f: TFile) =>
+			f === fileA
+				? makeDef({ name: "Alpha", description: "pov and characters" })
+				: makeDef({ name: "Beta", description: "map of places" }),
+		);
+
+		const modal = new ImportPickerModal(app, importer, gate);
+		modal.open();
+
+		const search = await vi.waitFor(() => {
+			const el = document.body.querySelector(".sf-picker-search") as HTMLInputElement | null;
+			if (!el) throw new Error("search input not found");
+			if (document.body.querySelectorAll(".sf-picker-row").length !== 2) {
+				throw new Error("rows not ready");
+			}
+			return el;
+		});
+
+		search.value = "places";
+		search.dispatchEvent(new Event("input", { bubbles: true }));
+
+		expect(visibleRows().length).toBe(1);
+		expect(visibleRows()[0]!.textContent).toContain("Beta");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// ImportPickerModal — S19 per-candidate parse failure is tolerated
+// ---------------------------------------------------------------------------
+
+describe("ImportPickerModal — per-candidate parse failure (S19)", () => {
+	let app: App;
+	let store: ViewStore;
+	let importer: ViewImporter;
+	let gate: ConsentGate;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		app = new App();
+		store = makeStore();
+		importer = makeImporter(app, store);
+		gate = makeGate();
+	});
+
+	afterEach(() => {
+		document.body.innerHTML = "";
+	});
+
+	it("renders a plain row (name+path, no badge) for a candidate whose parse rejects, keeping other rows", async () => {
+		const bad = makeFile("views/bad.md", "Bad One");
+		const good = makeFile("views/good.md", "good");
+		vi.spyOn(importer, "scanVault").mockResolvedValue([bad, good]);
+		vi.spyOn(importer, "parse").mockImplementation(async (f: TFile) => {
+			if (f === bad) throw new ImportError("NO_QUERY_BLOCK", "No query block found");
+			return makeDef({ name: "Good View", engine: "dataview-dql" });
+		});
+
+		const modal = new ImportPickerModal(app, importer, gate);
+		modal.open();
+
+		await vi.waitFor(() => {
+			const rows = document.body.querySelectorAll(".sf-picker-row");
+			if (rows.length !== 2) throw new Error("both rows not rendered");
+			return rows;
+		});
+
+		const rows = Array.from(document.body.querySelectorAll(".sf-picker-row"));
+		const badRow = rows[0]!;
+		const goodRow = rows[1]!;
+
+		// Bad row: basename name, path, but no badge and no description.
+		expect(badRow.querySelector(".sf-picker-name")?.textContent).toBe("Bad One");
+		expect(badRow.textContent).toContain("views/bad.md");
+		expect(badRow.querySelector(".sf-badge")).toBeNull();
+
+		// Good row still renders fully.
+		expect(goodRow.querySelector(".sf-picker-name")?.textContent).toBe("Good View");
+		expect(goodRow.querySelector(".sf-badge-dql")).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
 // ImportPickerModal — confirm: parse then delegate to runImportFlow
 // ---------------------------------------------------------------------------
 

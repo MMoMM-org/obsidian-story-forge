@@ -34,9 +34,19 @@ import type { ConsentGate } from "consent/ConsentGate";
 export class ImportPickerModal extends Modal {
 	private selectedFile: TFile | null = null;
 	private errorEl: HTMLElement | null = null;
+	private searchEl: HTMLInputElement | null = null;
 	private listEl: HTMLElement | null = null;
 	private nextBtnEl: HTMLElement | null = null;
 	private files: TFile[] = [];
+	/**
+	 * Per-candidate parsed metadata, keyed by TFile. A candidate whose parse
+	 * threw is absent from this map and rendered as a plain (name+path) row.
+	 */
+	private meta = new Map<TFile, ViewDefinition>();
+	/** Row elements keyed by TFile, used by the search filter. */
+	private rowEls = new Map<TFile, HTMLElement>();
+	/** Lowercased search text used to match a row (name + description). */
+	private rowSearchText = new Map<TFile, string>();
 	/** True once onClose() fires — guards async tail after scanVault resolves. */
 	private _closed = false;
 
@@ -58,6 +68,7 @@ export class ImportPickerModal extends Modal {
 		// Null out refs so any in-flight _loadFiles tail sees a closed state
 		this.listEl = null;
 		this.errorEl = null;
+		this.searchEl = null;
 		this.nextBtnEl = null;
 	}
 
@@ -77,6 +88,14 @@ export class ImportPickerModal extends Modal {
 
 		// Error display area (hidden until an error occurs)
 		this.errorEl = el.createEl("div", { cls: "sf-picker-error sf-hidden" });
+
+		// Search box (S19): filters the list by view name + description.
+		this.searchEl = el.createEl("input", {
+			cls: "sf-picker-search",
+			type: "text",
+			placeholder: "Search views…",
+		});
+		this.searchEl.addEventListener("input", () => this._applyFilter());
 
 		// File list (populated asynchronously)
 		this.listEl = el.createEl("div", { cls: "sf-picker-list" });
@@ -99,12 +118,30 @@ export class ImportPickerModal extends Modal {
 		this.files = await this.importer.scanVault();
 		// Guard: modal may have been closed while scan was in-flight
 		if (this._closed) return;
+
+		// S19: enrich each candidate with parsed metadata (engine + description).
+		// A candidate whose parse throws is tolerated — it still gets a plain row
+		// (name + path only) and must NOT abort the whole list.
+		this.meta.clear();
+		for (const file of this.files) {
+			try {
+				const def = await this.importer.parse(file);
+				if (this._closed) return;
+				this.meta.set(file, def);
+			} catch (err) {
+				// Non-fatal per candidate: log and fall back to a plain row.
+				console.debug("Story Forge: could not parse view candidate", file.path, err);
+			}
+		}
+		if (this._closed) return;
 		this._renderFileList();
 	}
 
 	private _renderFileList(): void {
 		if (!this.listEl) return;
 		this.listEl.empty();
+		this.rowEls.clear();
+		this.rowSearchText.clear();
 
 		if (this.files.length === 0) {
 			this.listEl.createEl("p", {
@@ -120,9 +157,34 @@ export class ImportPickerModal extends Modal {
 
 		let isFirst = true;
 		for (const file of this.files) {
+			const def = this.meta.get(file);
+			const name = def?.name || file.basename;
+
 			const row = this.listEl.createEl("div", { cls: "sf-picker-row" });
-			row.createEl("div", { text: file.basename, cls: "sf-picker-name" });
+			row.createEl("div", { text: name, cls: "sf-picker-name" });
+
+			// Description (only when non-empty).
+			if (def?.description) {
+				row.createEl("div", { text: def.description, cls: "sf-picker-sub" });
+			}
+
+			// Engine badge — only for successfully-parsed candidates.
+			if (def) {
+				const isDvjs = def.engine === "dataviewjs";
+				row.createEl("span", {
+					text: isDvjs ? "dataviewjs" : "dql",
+					cls: `sf-badge ${isDvjs ? "sf-badge-dvjs" : "sf-badge-dql"}`,
+				});
+			}
+
 			row.createEl("div", { text: file.path, cls: "sf-picker-path" });
+
+			// Index the row for filtering (name + description, lowercased).
+			this.rowEls.set(file, row);
+			this.rowSearchText.set(
+				file,
+				`${name} ${def?.description ?? ""}`.toLowerCase(),
+			);
 
 			row.addEventListener("click", () => {
 				this.selectedFile = file;
@@ -139,6 +201,23 @@ export class ImportPickerModal extends Modal {
 				row.classList.add("is-selected");
 				isFirst = false;
 			}
+		}
+
+		// Re-apply any active filter after a rebuild.
+		this._applyFilter();
+	}
+
+	/**
+	 * S19: filter rows case-insensitively by view name + description substring.
+	 * Non-matching rows are hidden via `.sf-hidden`; clearing the box restores
+	 * all rows. Selection is left as-is even if the selected row is hidden.
+	 */
+	private _applyFilter(): void {
+		const query = (this.searchEl?.value ?? "").trim().toLowerCase();
+		for (const [file, row] of this.rowEls) {
+			const haystack = this.rowSearchText.get(file) ?? "";
+			const matches = query === "" || haystack.includes(query);
+			row.classList.toggle("sf-hidden", !matches);
 		}
 	}
 

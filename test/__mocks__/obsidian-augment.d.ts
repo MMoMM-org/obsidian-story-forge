@@ -16,8 +16,10 @@ declare global {
 	const activeDocument: Document;
 
 	interface HTMLElement {
-		createEl(
-			tag: string,
+		// Generic over the tag name, mirroring real obsidian.d.ts so createEl("input")
+		// resolves to HTMLInputElement (not a bare HTMLElement) under the test compile.
+		createEl<K extends keyof HTMLElementTagNameMap>(
+			tag: K,
 			opts?: {
 				text?: string;
 				cls?: string;
@@ -28,7 +30,7 @@ declare global {
 				attr?: Record<string, string>;
 				title?: string;
 			},
-		): HTMLElement;
+		): HTMLElementTagNameMap[K];
 		createDiv(opts?: { cls?: string; text?: string }): HTMLDivElement;
 		createSpan(opts?: { cls?: string; text?: string }): HTMLSpanElement;
 		empty(): void;
