@@ -23,6 +23,13 @@ that `Schema/<type>.json` matches the canonical `schema/<type>.json`, and — wh
 — that `.obsidian/types.json` carries every schema-derived widget type (skipped when
 absent, e.g. a fresh clone / CI).
 
+`schema:gen` also **deploys** the blueprint-managed vault infra from `infra/` (QuickAdd
+`Scripts/`, Obsidian `Bases/`, `dataview-views/`) into `00 Meta/{Scripts,Bases,dataview-views}`.
+It is schema-**coupled**: a `// @schema-enum <type>.<field>` marker injects the schema's current
+enum values into a script's fallback list, and `schema:check` verifies every `.base` column
+property + `hasTag()` filter exists in the schema (catching a renamed field/tag). The curated
+Base column/view *designs* are authored, not field-derived — that belongs to M4 (Bases + Codex).
+
 ## The JSON format
 
 ```jsonc
