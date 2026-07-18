@@ -37,7 +37,7 @@ version: "1.0"
 - **CON-4** — No network, no telemetry in M2.
 - **CON-5** — M2 scope: Dataview adapter + consent gate + user-import flow + Settings view list. No Bases engine (M4), no curated catalog (M4), no write-back (M6), no note panel (post-M3).
 - **CON-6** — **Dataview is a soft dependency**: feature-detected at runtime; Story Forge must load and function correctly with Dataview absent. The `engines.ts` module is the only place that references the Dataview API.
-- **CON-7** — **DataviewJS is desktop-only**: SHA-256 checksum uses `node:crypto`, which is unavailable on mobile. On any mobile platform, DataviewJS-engine tabs show a platform-restriction state without attempting execution. DQL and native fallback run on all platforms.
+- **CON-7** — **DataviewJS is desktop-only**: Dataview itself blocks DataviewJS execution on mobile, so DataviewJS-engine tabs show a platform-restriction state on any mobile platform without attempting execution. The SHA-256 checksum is NOT the restriction — it uses the cross-platform **Web Crypto API** (`crypto.subtle.digest`, async) and runs on all platforms (see ADR-4). DQL and native fallback run on all platforms.
 - **CON-8** — **Single sanctioned `app as any` cast**: the Dataview feature-detection read (`(app as any).plugins.plugins["dataview"]`) is the only permitted `any` cast in the entire codebase (M1 SDD Gotchas §). All other code uses `unknown` + narrowing.
 
 ## Implementation Context
@@ -48,7 +48,7 @@ version: "1.0"
 ```yaml
 - doc: docs/XDD/specs/002-query-engine-dataview/requirements.md
   relevance: CRITICAL
-  why: "The PRD this design satisfies — 29 Gherkin ACs across F1–F4"
+  why: "The PRD this design satisfies — 31 Gherkin ACs across F1–F4 (reconciled — see README log)"
 
 - doc: docs/XDD/specs/002-query-engine-dataview/README.md
   relevance: CRITICAL
@@ -75,7 +75,7 @@ version: "1.0"
 ```yaml
 - file: src/store/types.ts
   relevance: CRITICAL
-  why: "ViewRecord (provenance, enabled, okayed, source, engine, command, description, commandName); applyDefaults/parseOkayed/isEngine helpers"
+  why: "ViewRecord (provenance, enabled, okayed, source, engine, command, description, commandName=tab label, commandLabel=palette command name); applyDefaults/parseOkayed/isEngine helpers"
 
 - file: src/store/ViewStore.ts
   relevance: CRITICAL
@@ -103,7 +103,7 @@ version: "1.0"
 
 - file: package.json
   relevance: MEDIUM
-  why: "Build/test commands; no new runtime deps (node:crypto is built-in)"
+  why: "Build/test commands; no new runtime deps (checksum uses the built-in Web Crypto API)"
 ```
 
 #### External APIs
@@ -135,10 +135,9 @@ graph TB
     ER --> DVJ[DataviewJsEngine]
     DQL --> DV[(Dataview plugin)]
     DVJ --> DV
-    DVJ --> Crypto[node:crypto]
     NAT --> SC[ScopingService]
     CG --> CH[checksum.ts]
-    CH --> Crypto
+    CH --> Crypto[Web Crypto crypto.subtle]
     Store --> DJ[(data.json)]
     Panel --> VI[ViewImporter]
     VI --> MC[metadataCache]
@@ -221,6 +220,7 @@ graph LR
 
 ```
 .
+├── styles.css                          # MODIFY: Stage-3 UI CSS (view rows, badges, status pills, picker/consent/edit modals) — Obsidian auto-loads this repo-root file; not under src/
 ├── src/
 │   ├── main.ts                         # MODIFY: construct NativeScopingEngine (fallback) + EngineRegistry (wired engines only) + ConsentGate; inject into SidebarView + SettingsTab; register late-join dataview:api-ready listener
 │   ├── engines/
@@ -229,7 +229,7 @@ graph LR
 │   │   ├── DataviewJsEngine.ts         # NEW: DataviewJS adapter (dvApi.executeJs + Component lifecycle; desktop-only guard)
 │   │   └── NativeScopingEngine.ts      # NEW: native fallback renderer using NoteContext.entities
 │   ├── consent/
-│   │   ├── checksum.ts                 # NEW: SHA-256 over raw fenced-block bytes; desktop-only (node:crypto)
+│   │   ├── checksum.ts                 # NEW: SHA-256 over raw fenced-block bytes; cross-platform (Web Crypto, async)
 │   │   └── ConsentGate.ts             # NEW: ConsentDecision logic; DataviewJS full-disclosure modal; DQL light-confirm; drift detection
 │   ├── import/
 │   │   ├── ViewImporter.ts             # NEW: auto-scan picker; vault-note parser → ViewDefinition → ViewRecord; duplicate guard
@@ -269,8 +269,13 @@ graph LR
  * so Obsidian auto-cleans them on component.unload() (ADR-7).
  */
 export interface QueryEngine {
-  /** Discriminant matching ViewRecord.engine. */
-  readonly kind: ViewRecord["engine"];
+  /**
+   * Discriminant matching ViewRecord.engine, OR the literal "native" for the
+   * NativeScopingEngine fallback (which implements this same interface but is
+   * NOT held in the EngineRegistry — see ADR-1). The registry filters out any
+   * engine whose kind is "native" when building its map.
+   */
+  readonly kind: ViewRecord["engine"] | "native";
 
   /**
    * Render view content into `el`, scoped to `ctx.activeFile`.
@@ -283,11 +288,13 @@ export interface QueryEngine {
    * is what makes re-consent-on-drift work (edit the note → bytes change →
    * checksum drifts → re-consent). (ADR-3/ADR-4)
    *
-   * @param view  The resolved, consented ViewRecord (carries `source` path only).
+   * @param view  The resolved, consented ViewRecord (carries `source` path only)
+   *              — or **null** for the native fallback, which renders entity
+   *              context from `ctx` alone and needs no ViewRecord.
    * @param ctx   The panel subject's NoteContext (from ScopingService).
    * @param el    Empty container element owned by SidebarView.
    */
-  render(view: ViewRecord, ctx: NoteContext, el: HTMLElement): Promise<void>;
+  render(view: ViewRecord | null, ctx: NoteContext, el: HTMLElement): Promise<void>;
 
   /**
    * Unload the engine's Component and remove any DOM nodes it added to `el`.
@@ -328,6 +335,17 @@ export class EngineRegistry {
   get(kind: ViewRecord["engine"]): QueryEngine | undefined {
     return this.map.get(kind);
   }
+
+  /**
+   * Replace the registry contents post-construction — the late-join
+   * re-registration mutator. Used by the "dataview:api-ready" handler in
+   * main.ts to populate an initially-empty registry WITHOUT reconstructing the
+   * object already injected into SidebarView. Filters out any "native"-kind
+   * engine. Called at most twice per lifecycle (onLayoutReady + late-join).
+   */
+  replace(engines: QueryEngine[]): void {
+    this.map = /* rebuilt map, "native" kinds filtered out */ new Map(/* … */);
+  }
 }
 ```
 
@@ -360,6 +378,11 @@ export interface DataviewApi {
   version: {
     satisfies(range: string): boolean;
   };
+
+  /** Dataview settings — used for dvjs-off detection (isDvJsEnabled). */
+  settings?: {
+    enableDataviewJs?: boolean;
+  };
 }
 
 // Augmented App type for the single sanctioned any-cast (ADR-2, CON-8).
@@ -387,10 +410,27 @@ export type ConsentDecision =
   | { status: "dvjs-off" };            // enableDataviewJs:false in Dataview settings
 
 /**
+ * Reads whether DataviewJS is enabled in Dataview's settings. Injected so
+ * ConsentGate does not depend directly on the Dataview API (unit-testable seam).
+ * The production reader delegates to isDvJsEnabled(app) (DataviewJsEngine.ts).
+ */
+export interface DvSettingsReader {
+  isDvJsEnabled(): boolean;
+}
+
+/**
  * ConsentGate — evaluates consent state and drives the consent/re-consent modals.
  *
- * Injected into SidebarView (in-panel flows) and SettingsTab (view-list rows).
- * Constructed in main.ts with EngineRegistry and ViewStore references.
+ * Injected into SidebarView (in-panel flows), SettingsTab (view-list rows), and
+ * the import flow. Shipped as a CLASS (src/consent/ConsentGate.ts) whose
+ * constructor takes FOUR dependencies:
+ *
+ *   constructor(app: App, registry: EngineRegistryLike,
+ *               dvSettings: DvSettingsReader, store: ViewStore)
+ *
+ * The DvSettingsReader is the injected dvjs-off detection seam; the store is the
+ * write target for the store-writing consent paths (requestConsent /
+ * requestReConsent).
  */
 export interface ConsentGate {
   /**
@@ -421,6 +461,19 @@ export interface ConsentGate {
    * @returns true if the user re-granted consent; false if dismissed.
    */
   requestReConsent(id: string, record: ViewRecord): Promise<boolean>;
+
+  /**
+   * Store-LESS import-consent path: evaluate consent on an in-memory
+   * ViewDefinition BEFORE a ViewRecord (and its store id) exists. Presents the
+   * same disclosure modal as requestConsent, but writes NOTHING — it returns the
+   * consent tokens on grant so the import flow can persist them when it commits
+   * the record (Flow C), or null on cancel / dismiss / missing source
+   * (fail-closed). Used by ImportFlow.runImportFlow.
+   */
+  requestConsentForDef(
+    def: ViewDefinition,
+    isDrift?: boolean,
+  ): Promise<{ version: number; checksum: string } | null>;
 }
 ```
 
@@ -428,21 +481,22 @@ export interface ConsentGate {
 
 ```typescript
 // src/consent/checksum.ts
-// Desktop-only (node:crypto). Never imported on the mobile code path.
+// Cross-platform: uses the Web Crypto API (crypto.subtle.digest). Runs on
+// desktop AND mobile — DQL consent/drift must work on every platform.
 
 /**
  * Compute a SHA-256 checksum over the raw bytes of a fenced block's source.
  *
  * - Input: the raw content string of the fenced block body (between the
  *   opening and closing ``` delimiters, exclusive).
- * - Encoding: UTF-8 bytes.
+ * - Encoding: UTF-8 bytes (via TextEncoder).
  * - CRLF vs LF: NOT normalised — CRLF ≠ LF by design (byte-exact). This is
  *   a feature, not a bug: a CRLF edit triggers re-consent as intended.
  * - Output format: "sha256:<hex-digest>" (64 hex chars after the prefix).
- *
- * @throws Error if node:crypto is unavailable (mobile guard should prevent this).
+ * - Implementation: async, using the cross-platform Web Crypto API
+ *   (`crypto.subtle.digest("SHA-256", …)`) — NOT `node:crypto` (see ADR-4).
  */
-export function computeChecksum(source: string): string;
+export function computeChecksum(source: string): Promise<Checksum>;
 
 /**
  * Type alias for the "sha256:<hex>" checksum string.
@@ -526,7 +580,8 @@ export class ImportError extends Error {
       | "NO_QUERY_BLOCK"
       | "MULTIPLE_QUERY_BLOCKS"
       | "INVALID_FRONTMATTER"
-      | "ENGINE_MISMATCH",
+      | "ENGINE_MISMATCH"
+      | "DUPLICATE", // thrown by ViewImporter.importToStore when source already imported (or on a late race)
     message: string,
   ) {
     super(message);
@@ -542,12 +597,15 @@ The `toRecord()` conversion is specified here for implementers:
 |---|---|---|
 | `sourcePath` | `source` | Vault-relative path |
 | `engine` | `engine` | `"dataview-dql"` or `"dataviewjs"` |
-| `version` + `checksum` | `okayed` | **null** (not yet consented) |
-| `name` | `commandName` | Default tab/command label |
+| `version` + `checksum` | `okayed` | **null** at `toRecord()`; the atomic import commit sets it to the consent tokens (Flow C) |
+| `name` | `commandName` | Default **sidebar tab label** |
 | `description` | `description` | Optional catalog blurb |
 | `command` | `command` | true if sf-command:true |
+| — | `commandLabel` | **NOT set at import** — the independently-persisted **palette command name** is assigned later via the Settings "Edit" action (S27); until then commands fall back to `commandName` / source basename |
 | — | `provenance` | Always `"imported"` |
-| — | `enabled` | Always `false` (safe default, ADR-5) |
+| — | `enabled` | `false` at `toRecord()`; the atomic import commit sets it to `true` on consent (safe default, ADR-5) |
+
+**Note — two distinct name fields (shipped `ViewRecord`, `src/store/types.ts:31-37`):** `commandName` is the **sidebar tab label**; `commandLabel` is the **palette command name**, persisted independently. The Settings "Edit" action (S27) writes both; the import flow only ever sets `commandName`. Both are optional (`applyDefaults` passes them through only when present).
 
 The **store-generated id** is never derived from `sourcePath`. `ViewStore.setRecord(id, rec)` is called with a new UUID/nanoid; `rec.source` carries the path for display and duplicate detection (ADR-9).
 
@@ -581,6 +639,11 @@ No schema change to `data.json`. M1 `ViewRecord` already includes every field M2
   to: ViewImporter.scanVault() + ViewImporter.parse()
   protocol: in-process async
   data_flow: "Populate import picker; create ViewRecord on confirm"
+
+- from: main.ts
+  to: SettingsTab (registerCommand / removeCommand callbacks)
+  protocol: in-process callback injection
+  data_flow: "main.ts injects registerCommand(id, name) + removeCommand(id) into SettingsTab so the S27 Edit action can (re)register or remove a view's palette command with the LOCAL id view-${id} (see src/settings/SettingsTab.ts:47-64, src/main.ts:177-187)"
 
 - from: DataviewDqlEngine / DataviewJsEngine
   to: Dataview plugin dvApi.execute / dvApi.executeJs
@@ -758,7 +821,7 @@ async parse(file: TFile): Promise<ViewDefinition> {
   const block = blocks[0];
   const engine: "dataview-dql" | "dataviewjs" =
     block.lang === "dataviewjs" ? "dataviewjs" : "dataview-dql";
-  const checksum = computeChecksum(block.source); // desktop-only; mobile cannot import DataviewJS
+  const checksum = await computeChecksum(block.source); // async, Web Crypto — cross-platform (DQL imports run on mobile too)
   return {
     sourcePath: file.path,
     engine,
@@ -842,36 +905,42 @@ sequenceDiagram
 
 ---
 
-### Flow C — DataviewJS consent path (import → S12 → S20 → okayed → render)
+### Flow C — DataviewJS import consent path (picker → S20 → atomic commit → render)
+
+Shipped import is **pick → one consent gate → atomic commit** — there is no bind
+step (S22 was removed; clicking outside the former bind modal restarted the whole
+flow, and the sibling markdown-mason plugin has no bind step either). Consent runs on
+an in-memory `ViewDefinition` (no store id yet) via `ConsentGate.requestConsentForDef`;
+**nothing is written to the store until consent grants tokens**, at which point
+`ViewImporter.importToStore` commits a single fully-formed record whose tab label
+(`commandName`) defaults to `def.name` (the note's `sf-name`). Command binding is
+deferred to a separate Settings "Edit" action (S27). (Ships as `src/import/ImportFlow.ts`,
+`src/import/ImportPickerModal.ts`.)
 
 ```mermaid
 sequenceDiagram
     actor Writer
     participant ST as SettingsTab
+    participant PK as ImportPickerModal
     participant VI as ViewImporter
-    participant VS as ViewStore
     participant CG as ConsentGate
+    participant VS as ViewStore
     participant SV as SidebarView
 
-    Writer->>ST: click "Import view"
-    ST->>VI: scanVault() → [TFile, ...]
-    ST->>ST: open picker modal (S19)
-    Writer->>ST: select "my-characters-view.md"
-    ST->>VI: parse(file) → ViewDefinition
-    ST->>VI: toRecord(def) → ViewRecord{enabled:false, okayed:null, engine:"dataviewjs"}
-    ST->>VS: setRecord(newId, record)
-    ST->>ST: open bind modal (S22) — sf-name pre-fills label
-    Writer->>ST: confirm bind
-    SV->>SV: tab appears (S16 "Disabled" or S12 "Consent required")
-    Writer->>SV: click "Review & Enable" (S12 → S20)
-    SV->>CG: requestConsent(id, record)
-    CG->>CG: read fenced block fresh from record.source (JS text + path)
+    Writer->>ST: click "Import from vault"
+    ST->>PK: open picker modal (S19)
+    PK->>VI: scanVault() → [TFile, ...] (excludes already-imported)
+    Writer->>PK: select "my-characters-view.md" + Next
+    PK->>VI: parse(file) → ViewDefinition (in memory; no store write)
+    PK->>CG: runImportFlow → requestConsentForDef(def)
+    CG->>CG: read fenced block fresh from def.sourcePath (JS text + path)
     CG->>CG: open full disclosure modal (S20): name, description, source path, JS text, checksum
     Writer->>CG: click "Enable"
     CG->>CG: computeChecksum(freshly-read JS text) → "sha256:..."
-    CG->>VS: setRecord(id, {...record, enabled:true, okayed:{version, checksum}})
-    CG-->>SV: true (consent granted)
-    SV->>SV: re-evaluate → {status:"consented"} → render (S14)
+    CG-->>PK: tokens {version, checksum}  (null on cancel/missing source → abort, no write)
+    PK->>VI: importToStore(def, {okayed:tokens, enabled:true, commandName:def.name})
+    VI->>VS: setRecord(newId, record) — single atomic write
+    SV->>SV: tab appears, re-evaluate → {status:"consented"} → render (S14)
 ```
 
 ---
@@ -920,7 +989,7 @@ When `EngineRegistry.get("dataview-dql")` or `EngineRegistry.get("dataviewjs")` 
 | DataviewJS runtime error | Same as DQL — Dataview's renderer surfaces it inside `el` | Visible error inside tab |
 | DataviewJS sync infinite loop | Freezes Obsidian; **accepted limitation**, cannot be interrupted; disclosed at consent time (S20) | Accepted |
 | `view.source` note deleted from vault | `metadataCache.getFileCache` returns null for the source path; `ConsentGate.evaluate()` detects missing source via vault.getAbstractFileByPath; returns `{status:"not-consented"}` and renders S15 variant "Source missing" | S15 variant |
-| `computeChecksum()` on mobile | Guard: DataviewJS engine tab shows S11 platform-restriction; `checksum.ts` is never imported on the mobile code path | S11 variant |
+| DataviewJS view on mobile | `checksum.ts` runs fine (cross-platform Web Crypto); the DataviewJS engine tab shows S11 platform-restriction because Dataview blocks DataviewJS execution on mobile | S11 variant |
 | Import parse failure (0 or >1 blocks) | `ImportError` surfaced in the picker modal as a human-readable message; no ViewRecord created | Picker error state |
 | Duplicate import (source already in store) | Picker marks note with "already imported" indicator; import action is disabled | Picker duplicate state |
 | Dataview version < 0.5.31 | Engine not registered; S11 engine-missing with version hint | S11 |
@@ -931,8 +1000,8 @@ When `EngineRegistry.get("dataview-dql")` or `EngineRegistry.get("dataviewjs")` 
 
 - **Environment:** runs inside Obsidian (desktop + mobile) as a community plugin; no server, no build-time backend.
 - **Configuration:** no additional user configuration required for M2 beyond Dataview being installed. DataviewJS requires `enableDataviewJs: true` in Dataview's settings (default: false).
-- **Dependencies:** Obsidian ≥ 1.5.7; Dataview ≥ 0.5.31 (soft — absent is handled gracefully); `node:crypto` (built-in; available on desktop only).
-- **Performance:** consent evaluation is synchronous (one checksum compute per render); DQL/DataviewJS render time is determined by Dataview, not Story Forge.
+- **Dependencies:** Obsidian ≥ 1.5.7; Dataview ≥ 0.5.31 (soft — absent is handled gracefully); Web Crypto API (`crypto.subtle`, built-in on desktop + mobile — used for the checksum).
+- **Performance:** consent evaluation performs one async checksum compute (Web Crypto `crypto.subtle.digest`) per render; DQL/DataviewJS render time is determined by Dataview, not Story Forge.
 
 ### Multi-Component Coordination
 
@@ -956,11 +1025,12 @@ State inventory for reference:
 - **S19** Modal — import picker (auto-scan list)
 - **S20** Modal — full disclosure (DataviewJS)
 - **S21** Modal — light confirm (DQL)
-- **S22** Modal — bind (tab label + command assignment)
+- **S22** Modal — bind (tab label + command assignment) — **removed from the shipped import flow**; command binding now lives in the Settings "Edit" surface (S27). Import no longer opens a bind modal.
 - **S23** Modal — re-consent (DataviewJS)
 - **S24** Settings row — Enabled
 - **S25** Settings row — Disabled / Consent required
 - **S26** Settings row — Engine missing
+- **S27** Modal — Edit view (rename tab label + assign/unassign palette command) — the shipped command-binding surface, reached from a Settings view-row "Edit" action, NOT from import
 
 #### Component State Machine (view tab states)
 
@@ -1032,7 +1102,7 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
   - User confirmed: Yes (2026-07-15)
 
 - [x] **ADR-4 — Consent/checksum module cloned from markdown-mason `disclosure.ts`.** SHA-256 over the **raw bytes** of the fenced block's source (byte-exact — CRLF ≠ LF). Output format: `"sha256:<64-char hex>"`. **Checksum uses the Web Crypto API (`crypto.subtle.digest("SHA-256", …)`, async) — NOT `node:crypto` — so it works on ALL platforms** (desktop + mobile). This is required because **DQL** views are cross-platform and use the checksum for consent + drift detection; a desktop-only `node:crypto` checksum would crash the DQL consent path on mobile. (Correction, 2026-07-15: the earlier draft specified `node:crypto` and wrongly implied the checksum was desktop-only; caught in Phase 1 code review.) The hashed bytes are ALWAYS read fresh from the note at `record.source` at consent/evaluate/render time — the exact same bytes the engine will execute — so drift detection is sound and no query text is persisted in `data.json`. If the note at `record.source` no longer resolves, `evaluate()` returns not-consented (source-missing → S15 variant). The **DataviewJS engine** is **desktop-only** — because Dataview itself blocks DataviewJS execution on mobile (independent of the checksum). DQL and native fallback run on all platforms; `evaluate()` must NOT crash for a DQL record on mobile. Fail-closed: `parseOkayed` already rejects malformed `okayed` → null → not consented (M1). Consent grant writes `okayed:{version, checksum}` + `enabled:true` in one `setRecord` call.
-  - Rationale: proven pattern from the sibling plugin; byte-exact hash ensures any editing of the view definition note triggers re-consent; importing `node:crypto` as a dynamic import guards the mobile code path.
+  - Rationale: proven pattern from the sibling plugin; byte-exact hash ensures any editing of the view definition note triggers re-consent; importing `node:crypto` as a dynamic import guards the mobile code path. *(Correction: the shipped checksum uses the cross-platform Web Crypto API — `crypto.subtle.digest`, async — NOT a `node:crypto` dynamic import; the ADR-4 body above and `src/consent/checksum.ts` are the current truth.)*
   - Trade-offs: byte-exact means CRLF files re-consent on LF normalisation (Windows editors); acceptable — writers should use LF. The desktop-only restriction on DataviewJS is independently enforced by Dataview itself; this is belt-and-suspenders.
   - User confirmed: Yes (2026-07-15)
 
@@ -1065,7 +1135,7 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
 
 - **Performance:** consent evaluation (checksum compute) completes in < 5 ms for typical view sizes (< 10 KB source); DQL/DataviewJS render time is bounded by Dataview, not Story Forge; teardown + re-render on note switch completes within one debounce interval (~200 ms) exclusive of Dataview query time.
 - **Correctness:** DataviewJS never executes before `okayed` is recorded in `ViewStore` (verified by unit test); checksum re-consent fires on any single-byte change to the fenced block body (verified by unit test with CRLF and LF variants).
-- **Portability:** DQL and native fallback run on mobile (no `node:crypto`); DataviewJS engine path is guarded by `Platform.isMobile` before any `node:crypto` import; green `build`/`lint`/`typecheck`/`schema:check` on both desktop and mobile targets.
+- **Portability:** DQL and native fallback run on mobile (the checksum uses cross-platform Web Crypto, not `node:crypto`); DataviewJS **execution** is desktop-gated — the DataviewJS engine is guarded by `Platform.isMobile` (belt-and-suspenders alongside Dataview's own mobile block, see `src/engines/DataviewJsEngine.ts:44`) so it never calls `dvApi.executeJs` on mobile; green `build`/`lint`/`typecheck`/`schema:check` on both desktop and mobile targets.
 - **Reliability:** zero listener/timer leaks on plugin unload/panel close (asserted); corrupt/missing `okayed` never enables unconsented execution (fail-closed defaults from M1); no unhandled promise rejections from the Dataview adapter.
 - **Usability:** every view state (S11–S26) is explicitly rendered, never a blank pane; consent modals are keyboard-navigable (Obsidian Modal base); tab-label overflow truncates gracefully with full name on hover.
 - **Security:** no arbitrary code runs without an explicit `okayed` record; DataviewJS source is displayed verbatim in the disclosure modal; the checksum is shown to the writer (byte-exact verification); no external network calls from any M2 code path.
@@ -1079,7 +1149,7 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
 - [ ] WHEN Dataview is not installed, THE SYSTEM SHALL detect this at `workspace.onLayoutReady` and render the S11 engine-missing state for any Dataview-engine view tab — not a crash, not a blank pane.
 - [ ] WHEN Dataview is not installed, THE SYSTEM SHALL continue to resolve and display entity context via `ScopingService` (the M1 native fallback) unaffected.
 - [ ] WHEN Dataview is installed but `enableDataviewJs` is false, THE SYSTEM SHALL render the "DataviewJS disabled in Dataview settings" prompt (S15 variant) for DataviewJS-engine tabs instead of silently failing.
-- [ ] WHEN a DataviewJS-engine view is active on a mobile platform, THE SYSTEM SHALL render the platform-restriction state (S11 variant) and SHALL NOT attempt to import `node:crypto` or call `dvApi.executeJs`.
+- [ ] WHEN a DataviewJS-engine view is active on a mobile platform, THE SYSTEM SHALL render the platform-restriction state (S11 variant) and SHALL NOT call `dvApi.executeJs` (Dataview blocks DataviewJS on mobile; the checksum is cross-platform Web Crypto and is unaffected).
 - [ ] WHEN a DQL view is active and the active note changes, THE SYSTEM SHALL re-render the DQL query scoped to the new note's path without requiring user action.
 - [ ] WHEN Dataview loads after Story Forge (late-join), THE SYSTEM SHALL register the Dataview engines via the `dataview:api-ready` listener and make DQL/DataviewJS views available without a plugin reload.
 - [ ] WHEN Dataview's installed version is below 0.5.31, THE SYSTEM SHALL treat Dataview as absent (engine-missing state) and log a `console.debug` message with the version detail.
@@ -1097,7 +1167,7 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
 - [ ] WHEN a DQL view's fenced block source drifts, THE SYSTEM SHALL show the light re-confirm (S21) and SHALL NOT show the full disclosure modal.
 - [ ] WHEN any view has not been explicitly enabled, THE SYSTEM SHALL default to `enabled:false` and SHALL NOT execute any query.
 - [ ] WHEN the writer chooses "Remove" for a view in Settings, THE SYSTEM SHALL call `ViewStore.deleteRecord()` and SHALL NOT modify or delete the vault note that defined the view.
-- [ ] THE SYSTEM SHALL compute checksums over raw fenced block source bytes using SHA-256 via `node:crypto`, prefixed `sha256:`, with no CRLF normalisation (byte-exact).
+- [ ] THE SYSTEM SHALL compute checksums over raw fenced block source bytes using SHA-256 via the cross-platform Web Crypto API (`crypto.subtle.digest`), prefixed `sha256:`, with no CRLF normalisation (byte-exact).
 
 ### F3 — User-import flow
 
@@ -1106,8 +1176,8 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
 - [ ] WHEN a selected note has no fenced `dataview` or `dataviewjs` block, THE SYSTEM SHALL reject the import with the message "No query block found" and SHALL NOT create a ViewRecord.
 - [ ] WHEN a selected note has more than one fenced query block, THE SYSTEM SHALL reject the import with the message "View definitions must contain exactly one query block" and SHALL NOT create a ViewRecord.
 - [ ] WHEN a note is already present in the ViewStore (its path matches an existing `ViewRecord.source`), THE SYSTEM SHALL show a "already imported" indicator in the picker and SHALL prevent a duplicate import.
-- [ ] WHEN an import is confirmed, THE SYSTEM SHALL open the bind modal (S22) pre-filled with the `sf-name` value as the default tab label, and SHALL offer the option to register a command palette command.
-- [ ] WHEN the bind step completes, THE SYSTEM SHALL add a new tab to the sidebar panel in the "Disabled" or "Consent required" state depending on engine type.
+- [ ] WHEN the writer confirms a selection in the picker, THE SYSTEM SHALL present a single consent gate (S20 full disclosure for DataviewJS, S21 light confirm for DQL) on the in-memory `ViewDefinition` and SHALL write nothing to the store until consent is granted; on grant it SHALL commit one atomic record whose tab label defaults to the note's `sf-name`. (There is NO bind step — S22 was removed.)
+- [ ] WHEN the writer wants to rename the view's tab label or bind it to a command palette command, THE SYSTEM SHALL provide a separate Settings "Edit" action (S27), independent of the import flow, that persists the tab label (`commandName`) and the palette command name (`commandLabel`) and registers/removes the command.
 
 ### F4 — View management surface in Settings
 
@@ -1134,11 +1204,13 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
 ### Implementation Gotchas
 
 - **`filePath` must be a bare vault-relative path** — no `?no-dataview` query string suffix. Dataview will fail to resolve the note if a query string is appended.
+- **DQL rewrites the literal `[[this]]` token to the subject's full-path wikilink** — Dataview does NOT treat `[[this]]` as a self-reference (it resolves it as a link to a note literally named "this", which is always empty). Before calling `dvApi.execute`, `DataviewDqlEngine` (`src/engines/DataviewDqlEngine.ts:39-47`) replaces every exact `[[this]]` token in the DQL body with `[[<active-note-path-without-.md>]]` so it resolves to the subject. Limitation: only the exact `[[this]]` token is matched — `[[this|alias]]` and `[[this#heading]]` are NOT rewritten; authors must use the literal note name for those.
 - **DataviewJS checksum is over the block body, not the whole note** — only the content between the opening ` ```dataviewjs ` and closing ` ``` ` delimiters is hashed; frontmatter and prose changes do NOT trigger re-consent (by design — only query changes matter).
 - **`dvApi` can become `undefined` between startup and render** — Dataview can be disabled at runtime. Re-read `(app as any).plugins.plugins["dataview"]?.api` on each render; do not cache the API reference across renders.
 - **`sf-version` must be an integer in the vault note** — `okayed.version` is typed `number` in M1 and the checksum comparison requires numeric equality. Semver strings or floats in `sf-version` frontmatter must be rejected by `ViewImporter.parse()` with `ImportError("INVALID_FRONTMATTER", ...)`.
+- **Register AND remove palette commands with the LOCAL id `view-${viewId}`** — Obsidian auto-prefixes BOTH `addCommand` and `removeCommand` ids with the plugin id (`${manifest.id}:`). Pass the un-prefixed local id `view-${viewId}` to both; never hand-build the prefixed `${manifest.id}:view-${viewId}` — passing the already-prefixed id to `removeCommand` double-prefixes and silently removes nothing (verified live). See `src/main.ts:177-187`.
 - **Component must be `.load()`ed before passing to Dataview** — `new Component()` alone is not enough; `component.load()` must be called before `dvApi.execute()` / `dvApi.executeJs()`, otherwise Dataview's listener registration on the component silently fails.
-- **`node:crypto` must be a dynamic import** — static import of `node:crypto` breaks the mobile bundle. Use `const { createHash } = await import("node:crypto")` inside `computeChecksum()`, guarded by a `Platform.isDesktop` check at the call site.
+- **Checksum uses Web Crypto, not `node:crypto`** — `computeChecksum()` is `async` and calls `crypto.subtle.digest("SHA-256", …)` over `new TextEncoder().encode(source)`. This is cross-platform (desktop + mobile) and requires no dynamic import or platform guard — DQL consent/drift must work on mobile. (An earlier draft specified a desktop-only `node:crypto` import; that was reconciled to Web Crypto — see ADR-4.)
 
 ## Glossary
 
@@ -1165,7 +1237,8 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
 | filePath scoping | Passing `ctx.activeFile.path` as the `filePath` argument to Dataview's API so queries resolve to the panel subject | ADR-3 spike resolution |
 | Late-join listener | The `metadataCache.on("dataview:api-ready")` handler that re-registers Dataview engines if Dataview loads after Story Forge | ADR-2 |
 | Store-generated id | The UUID/nanoid key in `data.json`'s `views` map; never written to vault notes | ADR-9 |
-| Platform-restriction | The state shown for DataviewJS-engine tabs on mobile, where `node:crypto` and DataviewJS execution are both unavailable | ADR-4; S11 variant |
+| `commandName` vs `commandLabel` | On `ViewRecord`, `commandName` is the **sidebar tab label** and `commandLabel` is the **palette command name** (persisted independently). The names are counter-intuitive — `commandName` is NOT the command's name. Both are optional; the S27 Edit action writes both | `src/store/types.ts:31-37`; S27 |
+| Platform-restriction | The state shown for DataviewJS-engine tabs on mobile, where Dataview blocks DataviewJS execution (the checksum is cross-platform Web Crypto and is unaffected) | ADR-4; S11 variant |
 
 ### API/Interface Terms
 
@@ -1178,5 +1251,5 @@ Long `sf-name` values truncate with CSS `overflow: ellipsis` in the tab strip; t
 | `dataview:api-ready` | `metadataCache` event emitted by Dataview when its API is fully available; used for late-join engine registration | ADR-2 |
 | `sf-view: true` | Frontmatter field marking a vault note as a Story Forge view definition | ADR-6; `ViewImporter.scanVault()` |
 | `sf-version` | Integer frontmatter field on view-definition notes; maps to `okayed.version`; version drift triggers re-consent | ADR-6; ADR-9 |
-| `node:crypto` | Node.js built-in used for SHA-256 checksum; desktop-only; dynamically imported | ADR-4; CON-7 |
+| Web Crypto (`crypto.subtle`) | Cross-platform browser/Electron API used for the SHA-256 checksum (`crypto.subtle.digest`, async); runs on desktop AND mobile — replaces the earlier `node:crypto` plan | ADR-4; CON-7 |
 | `Component` | Obsidian base class for managing event listener lifecycles; each engine owns one instance | ADR-7 |

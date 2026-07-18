@@ -37,6 +37,7 @@
 | 2026-07-15 | Open Q#2 resolved (view-id = store-generated, data.json only); Q#3 (tab overflow = ellipsis+title) and Q#4 (sf-version = integer) fixed in ADR-9 | Preserves frontmatter-truth/read-only; sf-version integer forced by M1 okayed.version:number |
 | 2026-07-15 | PLAN complete → spec Ready | 5 phases, 23 tasks; P1 Foundation → (P2 Import ∥ P3 Engines) → P4 Integration → P5 Validation; all 29 PRD ACs mapped; ready for /implement |
 | 2026-07-15 | Implementation complete | M2 shipped on branch `feat/002-query-engine-dataview` (HEAD 212ca97). All 5 phases green: consent/checksum, import parser, query engines & registry, panel/settings integration, integration + live-vault validation. **413 tests** pass; six gates green (test, lint, typecheck, typecheck:test, schema:check, build). Every task passed tdd-guardian → spec-compliance → code-quality. PRD AC count reconciled to 31 (F1=7, F2=11, F3=7, F4=6) — plan docs corrected from an earlier 29; historical PRD/PLAN log rows left as-is. |
+| 2026-07-18 | Docs reconciled to shipped reality (mason-alignment) | Import bind step (S22) retired in PRD/SDD/plan/live-checklist — shipped import is picker → single consent (S20/S21) → atomic commit, with command binding moved to a separate Settings "Edit" action (S27). Checksum corrected to cross-platform Web Crypto (`crypto.subtle.digest`), not desktop-only `node:crypto`. SDD interfaces backfilled (`commandLabel`, render signature, `requestConsentForDef`, `[[this]]` rewrite, add/removeCommand LOCAL-id gotcha). Historical 29-AC log rows left as-is. |
 
 ## Context
 

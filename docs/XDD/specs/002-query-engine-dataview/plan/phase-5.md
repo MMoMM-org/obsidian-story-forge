@@ -77,7 +77,8 @@ Validates the fully integrated M2 feature through cross-component integration te
      - [ ] S18: DQL light-confirm pending — visible in panel when DQL not yet enabled
      - [ ] S19: Import picker — "Import view" in Settings; confirm both seed notes listed
      - [ ] S20: Full disclosure modal — import scene-debug-dvjs.md; open DataviewJS tab; click "Review & Enable"; verify source + checksum shown; cancel default-focused
-     - [ ] S22: Bind modal — after picker confirm; sf-name pre-filled; command checkbox present
+     - [ ] Import commit — after the single consent step (S20/S21) the view commits atomically with its tab label defaulting to sf-name; no bind modal appears
+     - [ ] S27: Edit view — Settings row "Edit"; rename the sidebar tab label and toggle the command binding on/off (independent, editable command name)
      - [ ] S23: Re-consent (DataviewJS) — edit scene-debug-dvjs.md fenced block; re-open panel tab; verify S17 then S23 on "Review changes"
      - [ ] S24: Enabled row in Settings — DQL view enabled; confirm row shows Enabled state + Disable action
      - [ ] S25: Disabled/Consent-required row — freshly imported DataviewJS; confirm row shows Enable action

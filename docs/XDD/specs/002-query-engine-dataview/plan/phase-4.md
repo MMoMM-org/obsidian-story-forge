@@ -23,7 +23,7 @@ phase: 4
 - `[ref: SDD/Runtime View — Flow A (startup)]`
 - `[ref: SDD/Runtime View — Flow B (render pipeline)]`
 - `[ref: SDD/Runtime View — Flow C (import → consent → render)]`
-- `[ref: SDD/Cross-Cutting Concepts — User Interface & UX]` (states S11–S18 in panel; S19/S22 modals; S24–S26 settings rows)
+- `[ref: SDD/Cross-Cutting Concepts — User Interface & UX]` (states S11–S18 in panel; S19–S21/S23 modals; S24–S27 settings rows + Edit view)
 - `[ref: SDD/Cross-Cutting Concepts — Lifecycle / Leaks]`
 - `[ref: PRD/Feature 1 — Dataview adapter]`
 - `[ref: PRD/Feature 3 — User-import flow]`
@@ -36,8 +36,8 @@ phase: 4
 - `main.ts` is kept thin: it constructs objects and wires them together; no business logic lives there.
 - The `dataview:api-ready` late-join listener is registered via `this.registerEvent(this.app.metadataCache.on("dataview:api-ready", ...))` in `main.ts` so it is auto-cleaned on plugin unload.
 - `SettingsTab` re-renders its view-list section by calling `display()` again (standard Obsidian pattern) — no reactive binding needed for M2.
-- Command registration/unregistration for bound views happens in `main.ts` via `this.addCommand` (on import bind) and `this.removeCommand` (on remove). Commands are stored with their registered id so they can be removed.
-- Import picker (S19) and bind modal (S22) are modal subclasses opened from `SettingsTab`.
+- Command registration/unregistration for bound views happens in `main.ts` via `this.addCommand` (when a command is enabled via the Settings "Edit"/S27 action) and `this.removeCommand` (on remove or when the command is toggled off). Commands are stored with their registered id so they can be removed. Note: `removeCommand` needs the LOCAL id — Obsidian auto-prefixes the plugin id.
+- Import picker (S19) is a modal subclass opened from `SettingsTab`. There is no bind modal in the import flow: the picker hands the parsed definition to `runImportFlow` (consent → atomic commit). Command binding is a separate Settings "Edit" action (S27), backed by a reusable `BindModal`.
 
 **Dependencies**:
 - Phase 1 (`ConsentGate` complete with `requestConsent` + `requestReConsent`).
@@ -67,13 +67,13 @@ Wires all M2 components into the existing `SidebarView`, `SettingsTab`, and `mai
   4. Validate: unit tests pass; `npm run lint`; `npm run typecheck`; `npm run typecheck:test`.
   - Success: each imported view shows name/engine/state `[ref: SDD/EARS F4 — "display a Views section listing each imported view"]` `[ref: PRD/AC-F4.1]`; engine-absent S26 state `[ref: PRD/AC-F4.2]`; DataviewJS Enable → full disclosure S20 `[ref: PRD/AC-F4.3]`; Disable preserves `okayed` `[ref: PRD/AC-F4.4]`; Remove → `deleteRecord`, vault note untouched `[ref: PRD/AC-F4.5]`.
 
-- [x] **T4.3 Import picker + bind modal** `[activity: frontend-ui]`
+- [x] **T4.3 Import picker + consent-commit flow** `[activity: frontend-ui]`
 
-  1. Prime: Read mockups.html states S19 (import picker) and S22 (bind modal). Read `[ref: SDD/Runtime View — Flow C]` (the import leg: scanVault → picker → parse → importToStore → bind → tab). Read `[ref: SDD/ADR-6]` (`sf-name` as default tab label). Read `[ref: SDD/ADR-9]` (store-generated id; never write to vault). Read `src/main.ts` (where `this.addCommand` lives — the bind step registers an optional command).
-  2. Test (RED): `ImportPickerModal` lists all `TFile` objects returned by `ViewImporter.scanVault()`; selecting a file and confirming calls `ViewImporter.parse(file)` then `ViewImporter.importToStore(def)`; if `parse` throws `ImportError`, the modal shows a human-readable error ("No query block found" / "View definitions must contain exactly one query block") and does NOT close; if `importToStore` throws duplicate `ImportError`, the modal shows "already imported" and does NOT close; after successful import, the modal closes and opens `BindModal`; `BindModal` pre-fills the tab label with `def.name` (`sf-name` value); `BindModal` offers a checkbox to register a command palette command; confirming bind without command registration: `store.setRecord` is already called by `importToStore` — bind step may update `commandName` via `store.setRecord`; confirming bind with command registration: calls the provided `registerCommand(id, commandName)` callback (injected — decouples from `this.addCommand`); cancel on bind modal: view is already in the store (was imported in picker) — no rollback, view stays but remains disabled.
-  3. Implement (GREEN): Create `src/import/ImportPickerModal.ts` — `Modal` subclass; shows a list of `TFile` entries from `scanVault()`; on confirm: calls `parse` then `importToStore`; handles errors inline; on success opens `BindModal`. Create `src/import/BindModal.ts` — `Modal` subclass; pre-fills tab label from `def.name`; checkbox for command; on confirm invokes the `registerCommand` callback if checked.
-  4. Validate: unit tests pass (error display; duplicate path; bind invokes callback); `npm run lint`; `npm run typecheck`; `npm run typecheck:test`.
-  - Success: picker lists all unimported `sf-view:true` notes `[ref: SDD/EARS F3]` `[ref: PRD/AC-F3.1]`; import errors shown inline, no ViewRecord created `[ref: PRD/AC-F3.3]` `[ref: PRD/AC-F3.4]`; bind pre-fills `sf-name` `[ref: PRD/AC-F3.6]`; after bind, tab appears in correct initial state `[ref: PRD/AC-F3.7]`.
+  1. Prime: Read mockups.html state S19 (import picker) and S20/S21 (the single consent step). Read `[ref: SDD/Runtime View — Flow C]` (the import leg: scanVault → picker → parse → consent → atomic commit → tab). Read `[ref: SDD/ADR-6]` (`sf-name` as default tab label). Read `[ref: SDD/ADR-9]` (store-generated id; never write to vault). Note: there is no bind step in the import flow — command binding is a separate Settings "Edit" action (S27, see T4.2).
+  2. Test (RED): `ImportPickerModal` lists all `TFile` objects returned by `ViewImporter.scanVault()`; selecting a file and confirming calls `ViewImporter.parse(file)`; if `parse` throws `ImportError`, the modal shows a human-readable error ("No query block found" / "View definitions must contain exactly one query block") and does NOT close; on a successful parse the modal closes and hands the parsed def to `runImportFlow`; `runImportFlow` calls `ConsentGate.requestConsentForDef(def)` (single consent gate — S20 for DataviewJS, S21 for DQL); a null/cancel result aborts with NO store write; on granted tokens `runImportFlow` calls `ViewImporter.importToStore(def, {okayed, enabled:true, commandName: def.name})` exactly once (tab label defaults to `sf-name`); a late duplicate `ImportError` from `importToStore` surfaces a `Notice` and commits nothing.
+  3. Implement (GREEN): Create `src/import/ImportPickerModal.ts` — `Modal` subclass; shows a list of `TFile` entries from `scanVault()`; on confirm: calls `parse`, handles parse errors inline; on success closes and delegates to `runImportFlow`. Create `src/import/ImportFlow.ts` — `runImportFlow(deps, def)`: consent (`requestConsentForDef`, null aborts) → atomic `importToStore` with the tokens + `def.name` label. (`BindModal` is created here too but is reused by the Settings "Edit"/S27 action, not by import.)
+  4. Validate: unit tests pass (error display; cancel-aborts-no-write; duplicate-race Notice); `npm run lint`; `npm run typecheck`; `npm run typecheck:test`.
+  - Success: picker lists all unimported `sf-view:true` notes `[ref: SDD/EARS F3]` `[ref: PRD/AC-F3.1]`; import errors shown inline, no ViewRecord created `[ref: PRD/AC-F3.3]` `[ref: PRD/AC-F3.4]`; committed tab label defaults to `sf-name` `[ref: PRD/AC-F3.6]`; after commit, tab appears in correct initial state `[ref: PRD/AC-F3.7]`.
 
 - [x] **T4.4 main.ts wiring** `[activity: integration]`
 

@@ -138,13 +138,23 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 
 ---
 
-### S22 — Bind modal
+### Import commit (no bind modal)
 
-**Trigger**: S20 or S21 "Enable" pressed; user chooses sidebar tab label and optional command name.
+**Trigger**: S20 or S21 "Enable" pressed. The import flow is picker → single consent → atomic commit; there is NO bind step (retired, mason-aligned).
 
 **Coverage**: Manual — requires modal interaction after consent.
 
-**Manual step**: [ ] After S21 Enable on `characters-in-scene.md`, confirm the S22 Bind modal appears; verify the tab label is pre-filled with "Characters in scene" (from `sf-name`); verify the command checkbox is present; complete the bind step and confirm the view appears in the panel.
+**Manual step**: [ ] After S21 Enable on `characters-in-scene.md`, confirm NO bind modal appears; the view commits immediately with its sidebar tab label defaulting to "Characters in scene" (from `sf-name`) and appears in the panel. (Command binding is set later via the S27 Edit view, below.)
+
+---
+
+### S27 — Edit view
+
+**Trigger**: User clicks "Edit" on a view row in Settings → Story Forge → Manage Views.
+
+**Coverage**: Manual — requires Obsidian settings UI.
+
+**Manual step**: [ ] Import and consent `characters-in-scene.md`; open Settings → Story Forge → Manage Views; click "Edit" on its row; rename the sidebar tab label (e.g. to "Cast") and confirm the panel tab label updates; toggle the command binding on and confirm an independent, editable command name field appears and a command palette entry is registered; toggle it off and confirm the command is removed.
 
 ---
 
@@ -210,7 +220,8 @@ Both notes are verified parseable by `ViewImporter.parse()` via `test/import/see
 | S19 | Import picker modal | [Manual] |
 | S20 | Full disclosure modal (DataviewJS) | [Manual] |
 | S21 | Light confirm modal (DQL) | [AUTO] `"DQL import → light-confirm Enable → consented → dvApi.execute called with subject path"` + [Manual] |
-| S22 | Bind modal | [Manual] |
+| — | Import commit (no bind modal) | [Manual] |
+| S27 | Edit view (rename tab label / toggle command) | [Manual] |
 | S23 | Re-consent modal (DataviewJS) | [AUTO] `"evaluate returns drift/checksum after fenced block body changes; re-consent restores consented"` + [Manual] |
 | S24 | Settings row — Enabled | [Manual] |
 | S25 | Settings row — Disabled / Consent-required | [Manual] |
