@@ -23,7 +23,8 @@ content: preserved across regeneration, not generated.)
 
 Every entity type has **three property-surface artifacts that must stay in sync** (generated for
 migrated types) — plus a machine-schema JSON (`Schema/<type>.json`, the runtime enum source vault
-scripts read) and the vault-wide, local-only `.obsidian/types.json` widget registry. See
+scripts read), the vault-wide, local-only `.obsidian/types.json` widget registry, and the deployed
+vault infra (`infra/` → `00 Meta/{Scripts,Bases,dataview-views}`, schema-coupled). See
 `schema/README.md` for the full artifact list; the three property-surface artifacts are:
 
 1. **FileClass** (metadata-menu, enforced schema): `00 Meta/FileClasses/fc-<type>.md`
