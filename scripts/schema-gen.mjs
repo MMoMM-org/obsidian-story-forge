@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deriveNativeTypes, diffTypes } from './schema-types-json.mjs';
+import { readInfra, injectEnums, schemaLookups } from './schema-infra.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -214,6 +215,20 @@ for (const file of files.sort()) {
   // → fields[name=status].values`); byte-identical to the canonical schema/*.json.
   writeFileSync(join(OUT.docs, `${s.entity}.json`), rawText);
   written.push(`Schema/${s.entity}.json`);
+}
+
+// ── Action 3 — deploy the schema-coupled vault infra (Scripts/Bases/dataview-views)
+// from infra/ into 00 Meta/, injecting schema-derived enum fallbacks. These land under
+// 00 Meta/ which IS tracked, so (unlike types.json) they are committed artifacts.
+const INFRA_SRC = join(ROOT, 'infra');
+if (existsSync(INFRA_SRC)) {
+  const { byType } = schemaLookups(allSchemas);
+  for (const { rel, content } of readInfra(INFRA_SRC)) {
+    const dest = join(META, rel);
+    ensure(dirname(dest));
+    writeFileSync(dest, injectEnums(content, byType));
+    written.push(rel.split(/[\\/]/).join('/'));
+  }
 }
 
 console.log(`schema-gen → ${VAULT}/00 Meta/\n`);

@@ -15,6 +15,7 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { deriveNativeTypes, diffTypes } from './schema-types-json.mjs';
+import { readInfra, injectEnums, baseRefErrors, schemaLookups } from './schema-infra.mjs';
 
 const args = process.argv.slice(2);
 const vaultIdx = args.indexOf('--vault');
@@ -164,6 +165,39 @@ for (const t of TYPES) {
   }
 }
 
+// Canonical schemas (read once) for the infra + types.json gates.
+const schemas = readdirSync('schema')
+  .filter((f) => f.endsWith('.json'))
+  .map((f) => JSON.parse(readFileSync(join('schema', f), 'utf8')));
+
+// ── Action 3 — vault infra deploy + schema-coupling gate. 00 Meta/ is tracked,
+// so this runs ALWAYS: the deployed infra must equal the enum-injected source,
+// and every .base property/tag/folder reference must exist in the schema.
+const INFRA_SRC = 'infra';
+if (existsSync(INFRA_SRC)) {
+  const { byType, fields, tags } = schemaLookups(schemas);
+  let infraOk = 0;
+  for (const { rel, content } of readInfra(INFRA_SRC)) {
+    const deployed = read(join(META, rel));
+    if (deployed === null) {
+      log.push(`✗ infra: missing 00 Meta/${rel} (run schema:gen)`);
+      errors++;
+    } else if (deployed !== injectEnums(content, byType)) {
+      log.push(`✗ infra: 00 Meta/${rel} drifted from infra/${rel} (run schema:gen)`);
+      errors++;
+    } else {
+      if (rel.endsWith('.base')) {
+        for (const e of baseRefErrors(content, { fields, tags })) {
+          log.push(`✗ infra: ${rel} — ${e}`);
+          errors++;
+        }
+      }
+      infraOk++;
+    }
+  }
+  if (infraOk) log.push(`✓ infra: ${infraOk} file(s) deployed + schema-coupled`);
+}
+
 // ── Action 2 — types.json drift gate (present-only; local dev-vault artifact) ──
 // .obsidian/ is gitignored, so types.json may be absent in a fresh clone / CI —
 // then SKIP (it is a local convenience for live testing). When present, it must
@@ -172,10 +206,6 @@ const TYPES_JSON = join(VAULT, '.obsidian', 'types.json');
 if (!existsSync(TYPES_JSON)) {
   log.push(`• types.json: not present in ${VAULT}/.obsidian — skipped (local-only artifact)`);
 } else {
-  const schemaDir = 'schema';
-  const schemas = readdirSync(schemaDir)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => JSON.parse(readFileSync(join(schemaDir, f), 'utf8')));
   const { derived, clashes } = deriveNativeTypes(schemas);
   for (const c of clashes) {
     log.push(`✗ types.json: cross-schema type clash — ${c}`);
