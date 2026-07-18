@@ -84,9 +84,13 @@ body {
 	--sf-kind-lore: #b06cd0;
 	--sf-kind-plotline: #d0795a;
 
-	/* Engine-badge accent hues (dql / dataviewjs) — overridable like the kinds. */
+	/* Engine-badge accent hues (dql / dataviewjs / bases) — overridable like the kinds. */
 	--sf-engine-dql: #5aa0c9;
 	--sf-engine-dvjs: #c98b5a;
+	--sf-engine-bases: #6bbf78;
+
+	/* Provenance chip — themable gold for the Official (curated) catalog origin. */
+	--sf-origin-official: #c9a95a;
 
 	/* Warn/caution amber — reads on both light and dark backgrounds. */
 	--sf-warn: #d99a2b;
@@ -461,6 +465,11 @@ body {
 .sf-badge-dvjs {
 	color: var(--sf-engine-dvjs);
 	background: color-mix(in srgb, var(--sf-engine-dvjs) 16%, transparent);
+}
+
+.sf-badge-bases {
+	color: var(--sf-engine-bases);
+	background: color-mix(in srgb, var(--sf-engine-bases) 16%, transparent);
 }
 
 /* ===========================================================================
@@ -896,4 +905,192 @@ body {
 	gap: 8px;
 	justify-content: flex-end;
 	margin-top: 14px;
+}
+
+/* ===========================================================================
+ * Manage Views — mason card rows (spec 003). The settings "Manage Views" list
+ * mirrors markdown-mason's Scripts-tab card aesthetic: one bordered card per
+ * imported view (mockups.html S28–S31). The standalone mockup used a dark
+ * preview palette; here every colour comes from an Obsidian theme token (see
+ * the mockup's token-mapping table) so cards render correctly in light AND
+ * dark themes. Status is never colour-only — always glyph + word.
+ * =========================================================================== */
+
+/* --- Toolbar (Import from vault / Import from repo) ----------------------- */
+.sf-views-toolbar {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 14px;
+}
+
+.sf-views-toolbar-btn {
+	padding: 4px 11px;
+	font-size: 12px;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.sf-views-toolbar-btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+/* --- View list + card ----------------------------------------------------- */
+.sf-view-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.sf-view-card {
+	position: relative;
+	padding: 11px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+/* Primary line: name → chip → kind pill → cmd pill → status → ver → toggle → ⋯.
+ * The status pill's margin-left:auto right-aligns everything after the left
+ * cluster; chips/pills stay left, status + ver + toggle + ⋯ go right. */
+.sf-view-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.sf-view-name {
+	min-width: 0;
+	overflow: hidden;
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* --- Provenance chip (bordered, muted) ------------------------------------ */
+.sf-view-chip {
+	flex: 0 0 auto;
+	padding: 0 7px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	font-size: 10px;
+	white-space: nowrap;
+}
+
+.sf-chip-imported {
+	color: var(--text-muted);
+}
+
+.sf-chip-official {
+	color: var(--sf-origin-official);
+	border-color: color-mix(in srgb, var(--sf-origin-official) 45%, transparent);
+}
+
+/* --- Command pill (view bound to a palette command) ----------------------- */
+.sf-view-cmd {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 4px;
+	padding: 1px 8px;
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+	color: var(--text-accent);
+	font-size: 10px;
+	white-space: nowrap;
+}
+
+/* --- Status pill (glyph + label; margin-left:auto pushes the right cluster) */
+.sf-view-status {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 5px;
+	margin-left: auto;
+	padding: 2px 8px;
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+.sf-view-status-ic {
+	font-size: 10px;
+	line-height: 1;
+}
+
+.sf-view-status-label {
+	line-height: 1;
+}
+
+/* Status modifiers — theme tokens keep contrast in light AND dark themes. */
+.sf-status-active {
+	color: var(--text-success);
+}
+
+.sf-status-consent {
+	color: var(--text-warning);
+}
+
+.sf-status-missing {
+	color: var(--text-error);
+}
+
+/* --- Version tag ---------------------------------------------------------- */
+.sf-view-ver {
+	flex: 0 0 auto;
+	color: var(--text-faint);
+	font-size: 10px;
+}
+
+/* --- ⋯ overflow-menu button (ghost) --------------------------------------- */
+.sf-view-menu-btn {
+	flex: 0 0 auto;
+	padding: 0 6px;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.sf-view-menu-btn:hover {
+	color: var(--text-normal);
+	background: transparent;
+	box-shadow: none;
+}
+
+.sf-view-menu-btn:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* --- Secondary line: description ------------------------------------------ */
+.sf-view-desc {
+	margin-top: 6px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/* --- Blocked / engine-missing inline recovery (mason blocked pattern) ----- */
+.sf-view-blocked {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 8px;
+}
+
+.sf-view-blocked-reason {
+	flex: 1;
+	color: var(--text-error);
+	font-size: 11.5px;
+}
+
+.sf-view-blocked-reason a {
+	color: var(--text-accent);
 }
