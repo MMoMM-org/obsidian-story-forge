@@ -61,6 +61,9 @@ List of `[[scene]]` links to the preceding scene(s) — the reading-order chain 
 ### `next`
 List of `[[scene]]` links to the following scene(s) — the reading-order chain to the neighbouring scene.
 
+### `notes`
+Text. Free-form author notes about the scene — scratch/annotations, working reminders. Not story prose.
+
 ### `series`
 Text. The series this scene belongs to.
 

@@ -18,6 +18,7 @@ beat: ""
 wordcount: null
 prev: []           # ["[[Scene]]"]
 next: []           # ["[[Scene]]"]
+notes: ""
 series: "Forge"
 tags: [manuscript/scene]
 ---

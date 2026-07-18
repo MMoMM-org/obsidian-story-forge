@@ -31,6 +31,7 @@ fieldsOrder:
   - s-wordcount
   - s-prev
   - s-next
+  - s-notes
   - s-series
 version: "3.0"
 fields:
@@ -148,6 +149,11 @@ fields:
       dvQueryString: dv.pages("#manuscript/scene")
     path: ""
     id: s-next
+  - name: notes
+    type: Input
+    options: {}
+    path: ""
+    id: s-notes
   - name: series
     type: Input
     options: {}

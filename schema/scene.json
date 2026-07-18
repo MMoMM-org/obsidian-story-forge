@@ -44,6 +44,8 @@
       "description": "List of `[[scene]]` links to the preceding scene(s) — the reading-order chain to the neighbouring scene. Fragile versus Longform's own ordering; provisional." },
     { "name": "next", "type": "list", "relation": "scene",
       "description": "List of `[[scene]]` links to the following scene(s) — the reading-order chain to the neighbouring scene." },
+    { "name": "notes", "type": "text",
+      "description": "Text. Free-form author notes about the scene — scratch/annotations, working reminders. Not story prose." },
     { "name": "series", "type": "text", "default": "Forge",
       "description": "Text. The series this scene belongs to." },
     { "name": "tags", "type": "tags",
