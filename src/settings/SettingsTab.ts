@@ -371,7 +371,7 @@ export class SettingsTab extends PluginSettingTab {
 				i.setTitle("Edit (rename & command)…").setIcon("pencil").onClick(() => this._editView(id, record)),
 			);
 		}
-		if (record.okayed !== null || decision === "drift") {
+		if (decision !== "engine-missing" && (record.okayed !== null || decision === "drift")) {
 			menu.addItem((i) =>
 				i.setTitle("Re-review consent…").setIcon("shield").onClick(() => this._reviewView(id, record)),
 			);
