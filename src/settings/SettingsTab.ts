@@ -1,5 +1,5 @@
 import type MyPlugin from "main";
-import { type App, PluginSettingTab, Setting } from "obsidian";
+import { type App, Menu, PluginSettingTab, Setting, ToggleComponent } from "obsidian";
 
 import { HeaderSection } from "./HeaderSection";
 import type { ViewStore } from "store/ViewStore";
@@ -19,6 +19,13 @@ function basenameNoMd(source: string): string {
 	const last = source.split("/").pop() ?? source;
 	return last.replace(/\.md$/, "");
 }
+
+/** Kind pill (engine badge) mapping — reuses the existing `.sf-badge-*` styles. */
+const KIND_BADGE: Record<ViewRecord["engine"], { cls: string; text: string }> = {
+	dataviewjs: { cls: "sf-badge-dvjs", text: "dataviewjs" },
+	"dataview-dql": { cls: "sf-badge-dql", text: "dql" },
+	bases: { cls: "sf-badge-bases", text: "bases" },
+};
 
 export class SettingsTab extends PluginSettingTab {
 	plugin: MyPlugin;
@@ -119,21 +126,24 @@ export class SettingsTab extends PluginSettingTab {
 			.setName("Views")
 			.setHeading();
 
-		// Import button at the top of the section
-		new Setting(containerEl)
-			.setName("Import a view from your vault")
-			.setDesc("Add an sf-view:true note from your vault to the view list.")
-			.addButton((btn) =>
-				btn
-					.setButtonText("Import view")
-					.onClick(() => {
-						new ImportPickerModal(
-							this.app,
-							this.importer,
-							this.gate,
-						).open();
-					}),
-			);
+		// Toolbar — Import from vault (active) + Import from repo (M4, disabled).
+		const toolbar = containerEl.createDiv({ cls: "sf-views-toolbar" });
+
+		const vaultBtn = toolbar.createEl("button", {
+			cls: "sf-views-toolbar-btn mod-cta",
+			text: "Import from vault",
+		});
+		vaultBtn.addEventListener("click", () => {
+			new ImportPickerModal(this.app, this.importer, this.gate).open();
+		});
+
+		const repoBtn = toolbar.createEl("button", {
+			cls: "sf-views-toolbar-btn",
+			text: "Import from repo",
+			title: "Coming in a future release",
+			attr: { "aria-label": "Coming in a future release" },
+		});
+		repoBtn.disabled = true;
 
 		const views = await this.store.getViews();
 
@@ -166,134 +176,216 @@ export class SettingsTab extends PluginSettingTab {
 		// stale rows (preserves Bug-1 discipline across the new async boundary).
 		if (gen !== this._displayGen) return;
 
+		const listEl = containerEl.createDiv({ cls: "sf-view-list" });
+
 		for (const { id, record, status } of rows) {
 			// The enabled projection (evaluate({ ...record, enabled: true })) can
 			// never short-circuit to "disabled", so this guard is defensive only —
 			// it narrows `status` for _renderViewRow without an `as` cast.
 			if (status === "disabled") continue;
-			this._renderViewRow(containerEl, id, record, status);
+			this._renderViewRow(listEl, id, record, status);
 		}
 	}
 
 	/**
-	 * Render a single view row. State is driven by `decision` — the consent-gate
-	 * status computed from the ENABLED PROJECTION (so a disabled row still reveals
-	 * whether its consent is fresh / drifted / never-given). Mockups S24–S27.
+	 * Render a single view card. State is driven by `decision` — the consent-gate
+	 * status from the ENABLED PROJECTION (so a disabled card still reveals whether
+	 * its consent is fresh / drifted / never-given). Mockups S28–S31.
 	 *
-	 *   engine-missing        → Remove only (no Edit, no toggle) — S26.
-	 *   dvjs-off              → Edit + Remove.
-	 *   platform-restricted   → Edit + Remove.
-	 *   otherwise, branch on record.enabled × {consented|drift|not-consented}:
-	 *     enabled  consented       → Disable + Edit + Remove — S24.
-	 *     enabled  drift           → Review(reConsent) + Edit + Remove — S25b.
-	 *     enabled  not-consented   → Review(consent) + Disable + Edit + Remove.
-	 *     disabled consented       → Re-enable (immediate) + Edit + Remove — S25a.
-	 *     disabled drift           → Review(reConsent) + Edit + Remove — S25b.
-	 *     disabled not-consented   → Enable(consent, CTA) + Edit + Remove.
-	 *
-	 * Every non-engine-missing row also gets an Edit button (opens S27 BindModal).
+	 * Card head order: name → provenance chip → kind pill → [command pill] →
+	 * status pill → [version] → [toggle] → ⋯ menu. Then a description line, and —
+	 * for engine-missing / dvjs-off / platform-restricted — a blocked-reason row.
 	 */
 	private _renderViewRow(
-		containerEl: HTMLElement,
+		listEl: HTMLElement,
 		id: string,
 		record: ViewRecord,
 		decision: Exclude<ConsentDecision["status"], "disabled">,
 	): void {
-		const displayName = record.commandName ?? record.source;
-		const engine = record.engine;
+		const cardEl = listEl.createDiv({ cls: "sf-view-card" });
+		const headEl = cardEl.createDiv({ cls: "sf-view-head" });
 
-		const setting = new Setting(containerEl).setName(displayName);
+		// 1. Name
+		headEl.createSpan({
+			cls: "sf-view-name",
+			text: record.commandName ?? basenameNoMd(record.source),
+		});
 
-		// S26 — Engine missing: Remove only, no Edit, no toggle.
+		// 2. Provenance chip
+		const isOfficial = record.provenance === "curated";
+		headEl.createSpan({
+			cls: `sf-view-chip ${isOfficial ? "sf-chip-official" : "sf-chip-imported"}`,
+			text: isOfficial ? "Official" : "Imported",
+		});
+
+		// 3. Kind pill (reuse engine badges)
+		const kind = KIND_BADGE[record.engine];
+		headEl.createSpan({ cls: `sf-badge ${kind.cls}`, text: kind.text });
+
+		// 4. Command pill — only when the view is bound to a palette command.
+		if (record.command === true) {
+			const cmd = headEl.createSpan({ cls: "sf-view-cmd", text: "command" });
+			cmd.title = record.commandLabel ?? record.commandName ?? "";
+		}
+
+		// 5. Status pill
+		this._buildStatusPill(headEl, record, decision);
+
+		// 6. Version — only when consent has been recorded.
+		if (record.okayed) {
+			headEl.createSpan({ cls: "sf-view-ver", text: `v${record.okayed.version}` });
+		}
+
+		// 7. Toggle — only for the safely-toggleable states.
+		if (decision === "consented" || decision === "not-consented") {
+			this._buildToggle(headEl, id, record, decision);
+		}
+
+		// 8. ⋯ overflow menu
+		const menuBtn = headEl.createEl("button", {
+			cls: "sf-view-menu-btn",
+			text: "⋯",
+			attr: { "aria-label": "More actions" },
+		});
+		menuBtn.addEventListener("click", (evt) => {
+			this._buildRowMenu(id, record, decision).showAtMouseEvent(evt);
+		});
+
+		// Description line (falls back to the source path).
+		cardEl.createDiv({
+			cls: "sf-view-desc",
+			text: record.description ?? record.source,
+		});
+
+		// Blocked-reason row for the engine/platform-unavailable states.
 		if (decision === "engine-missing") {
-			setting.setDesc(
-				`Engine ${engine} is missing or not installed — install Dataview to use this view.`,
-			);
-			this._addRemoveButton(setting, id);
-			return;
+			const blocked = cardEl.createDiv({ cls: "sf-view-blocked" });
+			const reason = blocked.createSpan({ cls: "sf-view-blocked-reason" });
+			reason.appendText("Dataview is not installed. ");
+			reason.createEl("a", {
+				// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'Dataview' is a proper product name
+				text: "Install Dataview",
+				href: "https://obsidian.md/plugins?id=dataview",
+			});
+			reason.appendText(" to run this view.");
+		} else if (decision === "dvjs-off") {
+			const blocked = cardEl.createDiv({ cls: "sf-view-blocked" });
+			blocked.createSpan({
+				cls: "sf-view-blocked-reason",
+				text: "DataviewJS is disabled in Dataview settings.",
+			});
+		} else if (decision === "platform-restricted") {
+			const blocked = cardEl.createDiv({ cls: "sf-view-blocked" });
+			blocked.createSpan({
+				cls: "sf-view-blocked-reason",
+				text: "DataviewJS is not available on mobile.",
+			});
 		}
-
-		if (decision === "dvjs-off") {
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'DataviewJS' and 'Dataview' are proper product names
-			setting.setDesc("DataviewJS is disabled in Dataview settings.");
-			this._addEditButton(setting, id, record);
-			this._addRemoveButton(setting, id);
-			return;
-		}
-
-		if (decision === "platform-restricted") {
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'DataviewJS' is a proper product name
-			setting.setDesc("DataviewJS is not available on mobile.");
-			this._addEditButton(setting, id, record);
-			this._addRemoveButton(setting, id);
-			return;
-		}
-
-		// Remaining decisions: consented | not-consented | drift.
-		if (record.enabled) {
-			if (decision === "drift") {
-				// S25b — enabled but source changed → re-consent required.
-				setting.setDesc(`Engine: ${engine} · Consent required (source changed)`);
-				this._addButton(setting, "Review", () => this._reviewView(id, record));
-			} else if (decision === "not-consented") {
-				setting.setDesc(`Engine: ${engine} · Consent required`);
-				this._addButton(setting, "Review", () => this._enableView(id, record));
-				this._addButton(setting, "Disable", () => this._disableView(id, record));
-			} else {
-				// S24 — consented + enabled.
-				setting.setDesc(`Engine: ${engine} · Enabled`);
-				this._addButton(setting, "Disable", () => this._disableView(id, record));
-			}
-		} else {
-			if (decision === "drift") {
-				// S25b — disabled + source changed → re-consent required.
-				setting.setDesc(`Engine: ${engine} · Consent required (source changed)`);
-				this._addButton(setting, "Review", () => this._reviewView(id, record));
-			} else if (decision === "not-consented") {
-				setting.setDesc(`Engine: ${engine} · Disabled`);
-				this._addButton(setting, "Enable", () => this._enableView(id, record), true);
-			} else if (decision === "consented") {
-				// S25a — consented but disabled → Re-enable immediately (no fresh
-				// consent needed: source unchanged).
-				setting.setDesc(`Engine: ${engine} · Disabled`);
-				this._addButton(setting, "Re-enable", () => this._reEnableView(id, record));
-			} else {
-				// Exhaustive guard — satisfies TypeScript's never check. All engine
-				// gate statuses (engine-missing/dvjs-off/platform-restricted) are
-				// handled above; "disabled" is excluded from the param type.
-				const _exhaustive: never = decision;
-				console.debug("[StoryForge] unhandled consent decision", _exhaustive);
-			}
-		}
-
-		this._addEditButton(setting, id, record);
-		this._addRemoveButton(setting, id);
 	}
 
-	/** Add a plain (or CTA) action button whose click is fire-and-forget. */
-	private _addButton(
-		setting: Setting,
-		label: string,
-		onClick: () => void,
-		cta = false,
+	/**
+	 * Status pill = icon glyph span + label span, plus a modifier class.
+	 * Mapping (plan §"Status pill mapping"):
+	 *   enabled & consented                → ● Active / sf-status-active
+	 *   !enabled & (consented|not-consented) → ○ Disabled / (none)
+	 *   drift OR (enabled & not-consented)  → ▲ Consent required / sf-status-consent
+	 *   engine-missing                      → ■ Engine unavailable / sf-status-missing
+	 *   dvjs-off | platform-restricted      → ○ Unavailable / (none)
+	 */
+	private _buildStatusPill(
+		headEl: HTMLElement,
+		record: ViewRecord,
+		decision: Exclude<ConsentDecision["status"], "disabled">,
 	): void {
-		setting.addButton((btn) => {
-			btn.setButtonText(label).onClick(onClick);
-			if (cta) btn.setCta();
+		let glyph = "○";
+		let label = "Disabled";
+		let modifier = "";
+
+		if (decision === "engine-missing") {
+			glyph = "■";
+			label = "Engine unavailable";
+			modifier = "sf-status-missing";
+		} else if (decision === "dvjs-off" || decision === "platform-restricted") {
+			glyph = "○";
+			label = "Unavailable";
+		} else if (decision === "drift" || (record.enabled && decision === "not-consented")) {
+			glyph = "▲";
+			label = "Consent required";
+			modifier = "sf-status-consent";
+		} else if (record.enabled && decision === "consented") {
+			glyph = "●";
+			label = "Active";
+			modifier = "sf-status-active";
+		} else {
+			// !enabled & (consented | not-consented) → Disabled.
+			glyph = "○";
+			label = "Disabled";
+		}
+
+		const pill = headEl.createSpan({
+			cls: modifier ? `sf-view-status ${modifier}` : "sf-view-status",
+		});
+		pill.createSpan({ cls: "sf-view-status-ic", text: glyph });
+		pill.createSpan({ cls: "sf-view-status-label", text: label });
+	}
+
+	/**
+	 * Toggle for the consented / not-consented states.
+	 *   ON  + consented     → _reEnableView (immediate, source unchanged)
+	 *   ON  + not-consented  → _enableView   (opens consent)
+	 *   OFF (either)         → _disableView
+	 */
+	private _buildToggle(
+		headEl: HTMLElement,
+		id: string,
+		record: ViewRecord,
+		decision: "consented" | "not-consented",
+	): void {
+		new ToggleComponent(headEl).setValue(record.enabled).onChange((value) => {
+			if (value) {
+				if (decision === "consented") this._reEnableView(id, record);
+				else this._enableView(id, record);
+			} else {
+				this._disableView(id, record);
+			}
 		});
 	}
 
-	/** Add the Edit button (opens S27 BindModal). */
-	private _addEditButton(setting: Setting, id: string, record: ViewRecord): void {
-		this._addButton(setting, "Edit", () => this._editView(id, record));
+	/**
+	 * Build the ⋯ overflow menu. View source is always first; Edit is present for
+	 * every state except engine-missing; Re-review is present when consent has
+	 * been recorded (okayed) or the source has drifted; Remove is always last,
+	 * after a separator.
+	 */
+	private _buildRowMenu(
+		id: string,
+		record: ViewRecord,
+		decision: Exclude<ConsentDecision["status"], "disabled">,
+	): Menu {
+		const menu = new Menu();
+		menu.addItem((i) =>
+			i.setTitle("View source").setIcon("file-search").onClick(() => this._viewSource(record)),
+		);
+		if (decision !== "engine-missing") {
+			menu.addItem((i) =>
+				i.setTitle("Edit (rename & command)…").setIcon("pencil").onClick(() => this._editView(id, record)),
+			);
+		}
+		if (record.okayed !== null || decision === "drift") {
+			menu.addItem((i) =>
+				i.setTitle("Re-review consent…").setIcon("shield").onClick(() => this._reviewView(id, record)),
+			);
+		}
+		menu.addSeparator();
+		menu.addItem((i) =>
+			i.setTitle("Remove").setIcon("trash").onClick(() => this._removeView(id)),
+		);
+		return menu;
 	}
 
-	/** Add the Remove button (mod-warning) — present on every row. */
-	private _addRemoveButton(setting: Setting, id: string): void {
-		setting.addButton((btn) => {
-			btn.setButtonText("Remove").onClick(() => this._removeView(id));
-			btn.buttonEl.classList.add("mod-warning");
-		});
+	/** Open the view's source note (⋯ → View source). */
+	private _viewSource(record: ViewRecord): void {
+		void this.app.workspace.openLinkText(record.source, "", false);
 	}
 
 	// ---------------------------------------------------------------------------

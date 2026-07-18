@@ -256,7 +256,13 @@ export class Workspace {
 
 	iterateAllLeaves = vi.fn((_cb: (leaf: WorkspaceLeaf) => void): void => {});
 
-	openLinkText = vi.fn(async (): Promise<void> => {});
+	openLinkText = vi.fn(
+		async (
+			_linktext: string,
+			_sourcePath: string,
+			_newLeaf?: boolean,
+		): Promise<void> => {},
+	);
 
 	/** Trigger a registered event (used in tests to simulate Obsidian events). */
 	_trigger(event: string, ...args: unknown[]): void {
@@ -562,6 +568,10 @@ export function augmentEl(el: HTMLElement): HTMLElement {
 		return span;
 	};
 
+	any["appendText"] = (text: string): void => {
+		el.appendChild(document.createTextNode(text));
+	};
+
 	any["empty"] = (): void => {
 		while (el.firstChild) el.removeChild(el.firstChild);
 	};
@@ -627,13 +637,21 @@ export class TextComponent {
 	});
 }
 
-/** ToggleComponent — exposes `toggleEl` so tests can click to flip state. */
+/**
+ * ToggleComponent — exposes `toggleEl` so tests can click to flip state.
+ *
+ * Mirrors the real Obsidian `new ToggleComponent(containerEl)`: the constructor
+ * appends `toggleEl` into the passed container so code that builds a toggle
+ * directly (not via `Setting.addToggle`) renders a switch tests can find. The
+ * arg is optional to keep the existing `Setting.addToggle` path (which passes
+ * none and appends the toggleEl itself) working unchanged.
+ */
 export class ToggleComponent {
 	toggleEl: HTMLElement;
 	_value = false;
 	_onChange?: (value: boolean) => void;
 
-	constructor() {
+	constructor(containerEl?: HTMLElement) {
 		this.toggleEl = document.createElement("div");
 		this.toggleEl.setAttribute("role", "switch");
 		this.toggleEl.addEventListener("click", () => {
@@ -641,6 +659,7 @@ export class ToggleComponent {
 			this.toggleEl.setAttribute("aria-checked", String(this._value));
 			this._onChange?.(this._value);
 		});
+		if (containerEl) containerEl.appendChild(this.toggleEl);
 	}
 
 	setValue = vi.fn((v: boolean) => {
@@ -830,15 +849,20 @@ export class Menu extends Component {
 		return this;
 	});
 
-	showAtMouseEvent = vi.fn((_evt: MouseEvent): this => {
+	/**
+	 * showAtMouseEvent / showAtPosition — real Obsidian prototype methods (not
+	 * instance arrows) so tests can `vi.spyOn(Menu.prototype, "showAtMouseEvent")`
+	 * and read the captured menu from `showSpy.mock.instances`.
+	 */
+	showAtMouseEvent(_evt: MouseEvent): this {
 		this._shown = true;
 		return this;
-	});
+	}
 
-	showAtPosition = vi.fn((_position: MenuPositionDef, _doc?: Document): this => {
+	showAtPosition(_position: MenuPositionDef, _doc?: Document): this {
 		this._shown = true;
 		return this;
-	});
+	}
 }
 
 // --- Views ---
