@@ -2,7 +2,7 @@
 // active scene's `characters` frontmatter list, via a suggester.
 module.exports = async ({ app, quickAddApi, obsidian }) => {
   const file = app.workspace.getActiveFile();
-  if (!file) return new obsidian.Notice("Keine aktive Notiz.");
+  if (!file) return new obsidian.Notice("No active note.");
   const chars = app.vault.getMarkdownFiles()
     .filter((f) => {
       const c = app.metadataCache.getFileCache(f);
@@ -10,7 +10,7 @@ module.exports = async ({ app, quickAddApi, obsidian }) => {
     })
     .map((f) => f.basename)
     .sort();
-  if (!chars.length) return new obsidian.Notice("Keine Canon-Charaktere gefunden.");
+  if (!chars.length) return new obsidian.Notice("No canon characters found.");
   const pick = await quickAddApi.suggester(chars, chars);
   if (!pick) return;
   await app.fileManager.processFrontMatter(file, (fm) => {

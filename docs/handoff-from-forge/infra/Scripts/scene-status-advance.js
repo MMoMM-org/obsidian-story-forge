@@ -17,7 +17,7 @@ async function sceneStatuses(app) {
 
 module.exports = async ({ app, obsidian }) => {
   const file = app.workspace.getActiveFile();
-  if (!file) return new obsidian.Notice("Keine aktive Notiz.");
+  if (!file) return new obsidian.Notice("No active note.");
   const STATUS = await sceneStatuses(app);
   await app.fileManager.processFrontMatter(file, (fm) => {
     const cur = fm.status;

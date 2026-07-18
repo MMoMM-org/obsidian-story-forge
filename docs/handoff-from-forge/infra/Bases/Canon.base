@@ -3,32 +3,32 @@ properties:
   file.name:
     displayName: Name
   role:
-    displayName: Rolle
+    displayName: Role
   status:
     displayName: Status
   age:
-    displayName: Alter
+    displayName: Age
   occupation:
-    displayName: Beruf
+    displayName: Occupation
   tagline:
-    displayName: Kurzbeschreibung
+    displayName: Tagline
   locationType:
-    displayName: Typ
+    displayName: Type
   region:
     displayName: Region
   inhabitants:
-    displayName: Bewohner
+    displayName: Inhabitants
   kind:
-    displayName: Art
+    displayName: Kind
   owner:
-    displayName: Besitzer
+    displayName: Owner
   scope:
-    displayName: Umfang
+    displayName: Scope
   related:
-    displayName: Verknüpft
+    displayName: Related
 views:
   - type: table
-    name: Charaktere
+    name: Characters
     filters: file.hasTag("canon/character")
     groupBy:
       property: role
@@ -41,14 +41,14 @@ views:
       - occupation
       - tagline
   - type: cards
-    name: Charaktere (Karten)
+    name: Characters (cards)
     filters: file.hasTag("canon/character")
     order:
       - file.name
       - portrait
       - tagline
   - type: table
-    name: Orte
+    name: Locations
     filters: file.hasTag("canon/location")
     order:
       - file.name
@@ -56,7 +56,7 @@ views:
       - region
       - inhabitants
   - type: table
-    name: Objekte
+    name: Objects
     filters: file.hasTag("canon/object")
     order:
       - file.name

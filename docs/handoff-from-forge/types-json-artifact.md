@@ -35,14 +35,13 @@ generate and gate `types.json` too.
 | `number`    | `number` |
 | `list` (with `relation` or `query`) | `multitext` |
 | `list` (plain text, e.g. `aliases`) | `multitext` — **except** reserved names below |
-| `tags`      | `tags` |
+| `tags`      | **excluded** — never emitted (see the rule below) |
 
 **Reserved names** — Obsidian fixes these regardless of the schema type (a `list`-typed
 `aliases` field must still be the special widget):
 
 ```
 aliases    -> aliases
-tags       -> tags
 cssclasses -> multitext
 ```
 
@@ -65,9 +64,10 @@ The generator must therefore:
 5. cross-type clash guard: if two `schema/*.json` files give the same property name different
    native types, that is fatal (the vault namespace can't hold both) — fail loudly.
 
-Note the `tags` **classifier** is not a FileClass field (it is the note's tag, handled by
-`tagNames`/`mapWithTag`); `schema:check` already excludes it. Keep excluding it here too, or
-map it to the native `tags` type explicitly — pick one and be consistent.
+**`tags` is excluded** (ruling Q2, 2026-07-18): the `tags` classifier is not a FileClass field
+(it is the note's tag, handled by `tagNames`/`mapWithTag`), Obsidian types it natively, and
+`schema:check` already excludes it — so never emit it into `types.json`. Skip any field whose
+`type` is `tags`. The reference `gen-types-json.py` enforces this with `SKIP = {"tags"}`.
 
 ## Reference algorithm (implement in `scripts/schema-gen.mjs` + `schema-check.mjs`)
 

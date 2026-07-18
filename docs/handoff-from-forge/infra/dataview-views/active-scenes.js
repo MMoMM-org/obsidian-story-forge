@@ -1,6 +1,10 @@
-// Shared Dataview view: renders scenes of the ACTIVE Longform draft.
-// Reads Longform's selectedDraftVaultPath so the table always follows whichever
-// draft is selected in the Longform pane (no hardcoded V1/V2).
+// Shared Dataview view: renders manuscript scenes as a table / list / timeline.
+//
+// If the Longform plugin is present, the view follows the ACTIVE draft (reads
+// Longform's selectedDraftVaultPath, so it tracks whichever draft is selected —
+// no hardcoded book/draft). If Longform is absent or has no active draft, it
+// gracefully falls back to ALL `#manuscript/scene` notes — the view is not a
+// hard Longform dependency.
 //
 // Usage from a note (dataviewjs):
 //   await dv.view("00 Meta/dataview-views/active-scenes", { mode: "all" })
@@ -13,6 +17,7 @@
 
 const inp = input ?? {};
 
+// Optional Longform coupling: resolve the active draft's scene folder, or null.
 let folder = null;
 try {
   const raw = await app.vault.adapter.read(app.vault.configDir + "/plugins/longform/data.json");
@@ -20,33 +25,33 @@ try {
   const idxFm = app.metadataCache.getFileCache(app.vault.getAbstractFileByPath(idxPath))?.frontmatter?.longform ?? {};
   folder = idxPath.slice(0, idxPath.lastIndexOf("/")) + "/" + (idxFm.sceneFolder ?? "");
 } catch (e) {
-  dv.paragraph("⚠️ Kein aktiver Longform-Draft gefunden (" + e.message + ").");
-  return;
+  // No Longform / no active draft — fall back to all manuscript scenes.
+  folder = null;
 }
 
 const beatVal = String(inp.value ?? "");
 const pages = dv.pages("#manuscript/scene")
-  .where(p => p.file.folder === folder)
+  .where(p => folder === null || p.file.folder === folder)
   .where(p => inp.mode !== "beat" || (p.beat && beatVal.includes(String(p.beat))))
   .sort(p => p.order, "asc");
 
 if (inp.view === "notes") {
   dv.list(pages.where(p => p.notes && String(p.notes).trim() !== "").map(p => `${p.file.link}: ${p.notes}`));
 } else if (inp.view === "status") {
-  dv.table(["#", "Kapitel", "Status"], pages.map(p => [p.order, p.file.link, p.status]));
+  dv.table(["#", "Chapter", "Status"], pages.map(p => [p.order, p.file.link, p.status]));
 } else if (inp.view === "timeline") {
-  // Eine Zeitachse: Rückblenden (leeres storyDay) VOR der Gegenwart, dann nach storyDay.
-  //   Gegenwart: storyDay = <n> -> sortiert nach n (serienweit fortlaufend).
-  //   Rückblende: storyDay leer -> Gruppe vor der Gegenwart, sortiert nach `order`.
+  // A single timeline: flashbacks (empty storyDay) BEFORE the present, then by storyDay.
+  //   Present:   storyDay = <n> -> sorted by n (series-wide, continuous).
+  //   Flashback: storyDay empty -> grouped before the present, sorted by `order`.
   const isFlash = p => p.storyDay === null || p.storyDay === undefined || p.storyDay === "";
   const rank = p => isFlash(p)
     ? { g: 0, k: p.order ?? 0, o: p.order ?? 0 }
     : { g: 1, k: Number(p.storyDay), o: p.order ?? 0 };
   const rows = pages.array().sort((a, b) => { const A = rank(a), B = rank(b); return (A.g - B.g) || (A.k - B.k) || (A.o - B.o); });
-  const when = p => String(p.when ?? "").trim() || (isFlash(p) ? "Rückblende" : "");
-  dv.table(["Zeit", "#", "Szene", "POV", "Ort"], rows.map(p => [when(p), p.order, p.file.link, p.pov, p.location]));
+  const when = p => String(p.when ?? "").trim() || (isFlash(p) ? "Flashback" : "");
+  dv.table(["When", "#", "Scene", "POV", "Location"], rows.map(p => [when(p), p.order, p.file.link, p.pov, p.location]));
 } else if (inp.mode === "beat") {
-  dv.table(["#", "Szene", "Wer", "Wo", "POV", "Zeit"], pages.map(p => [p.order, p.file.link, p.characters, p.location, p.pov, p.when]));
+  dv.table(["#", "Scene", "Who", "Where", "POV", "When"], pages.map(p => [p.order, p.file.link, p.characters, p.location, p.pov, p.when]));
 } else {
-  dv.table(["#", "Szene", "Beat", "Wer", "Wo", "POV", "Zeit"], pages.map(p => [p.order, p.file.link, p.beat, p.characters, p.location, p.pov, p.when]));
+  dv.table(["#", "Scene", "Beat", "Who", "Where", "POV", "When"], pages.map(p => [p.order, p.file.link, p.beat, p.characters, p.location, p.pov, p.when]));
 }

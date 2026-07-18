@@ -5,7 +5,7 @@ properties:
   order:
     displayName: "#"
   file.name:
-    displayName: Szene
+    displayName: Scene
   beat:
     displayName: Beat
   status:
@@ -13,14 +13,14 @@ properties:
   pov:
     displayName: POV
   characters:
-    displayName: Figuren
+    displayName: Characters
   location:
-    displayName: Ort
+    displayName: Location
   when:
-    displayName: Zeit
+    displayName: When
 views:
   - type: table
-    name: Szenen (Reihenfolge)
+    name: Scenes (reading order)
     order:
       - order
       - file.name
@@ -34,7 +34,7 @@ views:
       - property: order
         direction: ASC
   - type: table
-    name: Szenen nach Beat
+    name: Scenes by beat
     groupBy:
       property: beat
       direction: ASC

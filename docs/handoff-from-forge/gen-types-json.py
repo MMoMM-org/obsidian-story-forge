@@ -71,9 +71,12 @@ MM_TO_NATIVE = {
 # (a Multi-typed `aliases` field must still be the special "aliases" widget).
 RESERVED = {
     "aliases": "aliases",
-    "tags": "tags",
     "cssclasses": "multitext",
 }
+
+# Never emitted into types.json — Obsidian types these natively and schema:check
+# excludes the classifier. `tags` is the tag classifier, handled via tagNames.
+SKIP = {"tags"}
 
 VALID_NATIVE = {"text", "number", "checkbox", "date", "datetime",
                 "multitext", "tags", "aliases"}
@@ -97,6 +100,8 @@ def derive_fields(fileclass_dir):
             text, re.M,
         ):
             name = m.group("name").strip().strip('"').strip("'")
+            if name in SKIP:
+                continue
             tm = re.search(r"^\s*type:\s*(\S+)", m.group("body"), re.M)
             mm_type = tm.group(1).strip() if tm else "Input"
             native = RESERVED.get(name) or MM_TO_NATIVE.get(mm_type)
