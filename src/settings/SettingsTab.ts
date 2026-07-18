@@ -155,8 +155,8 @@ export class SettingsTab extends PluginSettingTab {
 
 		if (entries.length === 0) {
 			new Setting(containerEl)
-				// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'Import view' refers to the button name above
-				.setName("No views imported yet. Use 'Import view' to add a view.")
+				// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'Import from vault' refers to the button name above
+				.setName("No views imported yet. Use 'Import from vault' to add a view.")
 				.setDesc("");
 			return;
 		}
