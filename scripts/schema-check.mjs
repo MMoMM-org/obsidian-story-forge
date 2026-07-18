@@ -12,8 +12,9 @@
 //
 // Usage: node scripts/schema-check.mjs [--vault <path>]   (default test/StoryForge)
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { deriveNativeTypes, diffTypes } from './schema-types-json.mjs';
 
 const args = process.argv.slice(2);
 const vaultIdx = args.indexOf('--vault');
@@ -158,6 +159,52 @@ for (const t of TYPES) {
       if (fcExtra.length) {
         log.push(`  ⚠ ${t.type}: ${t.fileclass} fields absent from template → ${fcExtra.join(', ')}`);
         warnings++;
+      }
+    }
+  }
+}
+
+// ── Action 2 — types.json drift gate (present-only; local dev-vault artifact) ──
+// .obsidian/ is gitignored, so types.json may be absent in a fresh clone / CI —
+// then SKIP (it is a local convenience for live testing). When present, it must
+// carry every schema-derived widget type; run `npm run schema:gen` to sync.
+const TYPES_JSON = join(VAULT, '.obsidian', 'types.json');
+if (!existsSync(TYPES_JSON)) {
+  log.push(`• types.json: not present in ${VAULT}/.obsidian — skipped (local-only artifact)`);
+} else {
+  const schemaDir = 'schema';
+  const schemas = readdirSync(schemaDir)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => JSON.parse(readFileSync(join(schemaDir, f), 'utf8')));
+  const { derived, clashes } = deriveNativeTypes(schemas);
+  for (const c of clashes) {
+    log.push(`✗ types.json: cross-schema type clash — ${c}`);
+    errors++;
+  }
+  let types = null;
+  try {
+    const raw = JSON.parse(readFileSync(TYPES_JSON, 'utf8'));
+    types = raw && typeof raw.types === 'object' ? raw.types : null;
+    if (!types) {
+      log.push(`✗ types.json: malformed — missing 'types' object`);
+      errors++;
+    }
+  } catch (e) {
+    log.push(`✗ types.json: invalid JSON — ${e.message}`);
+    errors++;
+  }
+  if (types) {
+    const { added, conflicts } = diffTypes(derived, types);
+    if (added.length === 0 && conflicts.length === 0 && clashes.length === 0) {
+      log.push(`✓ types.json: ${Object.keys(derived).length} schema widget types in sync`);
+    } else {
+      for (const [name, native] of added) {
+        log.push(`✗ types.json: missing ${name} → ${native} (run schema:gen)`);
+        errors++;
+      }
+      for (const [name, old, native] of conflicts) {
+        log.push(`✗ types.json: ${name} is ${old}, schema wants ${native} (run schema:gen -- --force)`);
+        errors++;
       }
     }
   }
