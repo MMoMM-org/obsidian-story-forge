@@ -508,6 +508,15 @@ describe("SettingsTab — ⋯ overflow menu", () => {
 		expect(menuItemTitles(openRowMenu(card(container)))).toEqual(["View source", "Remove"]);
 	});
 
+	it("engine-missing WITH stored consent: still View source + Remove only (no Re-review, no Edit)", async () => {
+		const store = makeStore({ v1: makeRecord({ enabled: true, okayed: { version: 1, checksum: "sha256:abc" } }) });
+		const container = await renderTab(makeTab(app, store, makeGateWithDecision("engine-missing"), makeImporter()));
+		const titles = menuItemTitles(openRowMenu(card(container)));
+		expect(titles).toEqual(["View source", "Remove"]);
+		expect(titles).not.toContain("Re-review consent…");
+		expect(titles).not.toContain("Edit (rename & command)…");
+	});
+
 	it("View source onClick calls app.workspace.openLinkText with the source path", async () => {
 		const store = makeStore({ v1: makeRecord({ enabled: true, source: "views/foo.md", okayed: { version: 1, checksum: "x" } }) });
 		const container = await renderTab(makeTab(app, store, makeGateWithDecision("consented"), makeImporter()));
