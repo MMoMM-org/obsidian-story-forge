@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — Manage Views settings rows (mason card style)</title>
+<style>
+  /* Standalone preview palette. IMPLEMENTATION NOTE: every colour below maps to
+     an Obsidian theme token (var(--text-*), var(--background-*), --radius-*,
+     --size-*) exactly as mason does, so the real rows are light/dark-correct.
+     Hues here are only a legibility preview — see the token mapping in the notes. */
+  :root{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0;
+    --dql:#5aa0c9; --dvjs:#c98b5a; --bases:#6bbf78;
+    --success:#5cba7d; --warn:#e0a34a; --error:#d47a6a;
+    --imported:#8b98ab; --official:#c9a95a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:26px 0 12px}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:84ch}
+  .sub code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .legend{color:var(--muted);font-size:12.5px;max-width:84ch;margin:0 0 22px}
+  .legend b{color:var(--text)}
+  .gallery{display:flex;flex-wrap:wrap;gap:26px 22px;align-items:flex-start}
+  figure{margin:0}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px}
+  figcaption b{color:var(--text);font-weight:600}
+  .note{font-size:11px;color:var(--faint);margin-top:8px;max-width:60ch}
+  .note b{color:var(--muted)}
+
+  /* ── Settings frame + toolbar ── */
+  .frame{width:540px;background:var(--panel);border:1px solid var(--border);
+    border-radius:8px;padding:14px;font-size:13px}
+  .frame-head{font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--faint);font-weight:600;margin:0 0 10px}
+  .toolbar{display:flex;gap:8px;margin-bottom:14px}
+  .tbtn{font-size:12px;padding:4px 11px;border:1px solid var(--border-2);border-radius:5px;
+    color:var(--text);background:var(--panel-2);cursor:pointer;white-space:nowrap}
+  .tbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .tbtn.future{opacity:.45;cursor:not-allowed;color:var(--faint)}
+
+  /* ── The list + card (mason .mason-script-card equivalent) ── */
+  .vlist{display:flex;flex-direction:column;gap:8px}
+  .card{padding:11px 12px;border:1px solid var(--border-2);border-radius:8px;
+    background:var(--panel-2);position:relative}
+  .card-head{display:flex;align-items:center;gap:8px}
+  .v-name{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* provenance chip (bordered, muted) — reads ViewRecord.provenance */
+  .chip{font-size:10px;padding:0 7px;border-radius:5px;white-space:nowrap;
+    border:1px solid var(--border-2);color:var(--muted)}
+  .chip.imported{color:var(--imported);border-color:color-mix(in srgb,var(--imported) 40%,transparent)}
+  .chip.official{color:var(--official);border-color:color-mix(in srgb,var(--official) 45%,transparent)}
+
+  /* kind pill = engine (Story Forge addition) */
+  .kind{font-size:10px;text-transform:lowercase;padding:1px 8px;border-radius:10px;white-space:nowrap}
+  .kind.dvjs{background:color-mix(in srgb,var(--dvjs) 16%,transparent);color:var(--dvjs)}
+  .kind.dql{background:color-mix(in srgb,var(--dql) 16%,transparent);color:var(--dql)}
+  .kind.bases{background:color-mix(in srgb,var(--bases) 16%,transparent);color:var(--bases)}
+
+  /* command pill — shown when ViewRecord.command === true (view bound to a palette command) */
+  .cmd{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:1px 8px;border-radius:10px;
+    white-space:nowrap;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+
+  /* status pill (icon + label, never colour-only) — margin-left:auto shoves right cluster */
+  .status{display:inline-flex;align-items:center;gap:5px;margin-left:auto;
+    padding:2px 8px;border-radius:6px;background:var(--hover);color:var(--muted);font-size:11px}
+  .status .ic{font-size:10px;line-height:1}
+  .status.active   { color:var(--success) }
+  .status.consent  { color:var(--warn) }
+  .status.missing  { color:var(--error) }
+
+  .ver{color:var(--faint);font-size:10px}
+
+  /* toggle switch (Obsidian ToggleComponent equivalent; mason uses a raw checkbox) */
+  .toggle{width:30px;height:17px;border-radius:9px;display:inline-block;background:var(--border-2);
+    position:relative;flex-shrink:0}
+  .toggle::after{content:"";position:absolute;left:3px;top:3px;width:11px;height:11px;border-radius:50%;
+    background:var(--faint);transition:transform .15s}
+  .toggle.on{background:var(--accent)}
+  .toggle.on::after{transform:translateX(13px);background:#fff}
+
+  /* ⋯ overflow menu button (ghost) + rendered menu */
+  .menu-btn{padding:0 6px;background:transparent;border:none;box-shadow:none;color:var(--muted);
+    cursor:pointer;font-size:16px;line-height:1}
+  .menu-btn:hover{color:var(--text)}
+  .menu{position:absolute;right:10px;top:38px;z-index:5;min-width:168px;padding:4px;
+    background:#2a2a2a;border:1px solid var(--border-2);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .mi{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:5px;
+    font-size:12.5px;color:var(--text);cursor:pointer}
+  .mi:hover{background:var(--hover)}
+  .mi .mic{width:15px;text-align:center;color:var(--muted);font-size:12px}
+  .mi.danger{color:var(--error)} .mi.danger .mic{color:var(--error)}
+  .mi-sep{height:1px;background:var(--border-2);margin:4px 2px}
+
+  .v-desc{margin-top:6px;color:var(--muted);font-size:12px}
+
+  /* blocked / engine-missing inline recovery (mason .mason-script-blocked) */
+  .blocked{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .blocked-reason{color:var(--error);font-size:11.5px;flex:1}
+  .blocked-reason a{color:var(--accent);text-decoration:none}
+  .recovery{font-size:11px;padding:2px 9px;border:1px solid var(--border-2);border-radius:4px;
+    color:var(--muted);background:transparent;cursor:pointer;white-space:nowrap}
+
+  table{border-collapse:collapse;font-size:12.5px;margin-top:4px}
+  th,td{text-align:left;padding:5px 14px 5px 0;color:var(--muted);border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--text)}
+  .rev{margin-top:28px;max-width:92ch}
+</style>
+</head>
+<body>
+  <h1>Story Forge — Manage Views settings rows (mason card style)</h1>
+  <p class="sub">Redesign of the plugin-settings <b>Manage Views</b> list to markdown-mason's Scripts-tab
+  <b>card</b> aesthetic. Each imported view is a bordered card: primary line = name + provenance chip
+  (<span class="chip imported">Imported</span>/<span class="chip official">Official</span>) + kind pill (engine:
+  <span class="kind dvjs">dataviewjs</span>/<span class="kind dql">dql</span>/<span class="kind bases">bases</span>)
+  + a right-aligned <b>status pill</b> (icon + label) + a toggle + a single <b>⋯</b> menu; secondary line =
+  <b>description</b> of what the view does.</p>
+  <p class="legend">
+    <b>Everything in one Views place.</b> Enable/disable is the inline toggle; every verb — <b>View source</b>,
+    <b>Edit</b> (rename tab label + assign command, the existing Edit modal), <b>Re-review</b> (on drift),
+    <b>Remove</b> — is a <b>⋯</b> overflow-menu item, exactly like mason. Mason keeps command-assignment on a
+    separate Commands tab; Story Forge folds it into the row's <b>Edit</b> so there is one place. &nbsp;
+    <b>Colours:</b> every hue maps to an Obsidian theme token (status = <code>--text-success/-warning/-error</code>,
+    chips/pills via <code>color-mix</code> on themable hues) so rows are correct in light <i>and</i> dark themes;
+    status never relies on colour alone (always icon + word). &nbsp;<b>Scope now:</b> imported-only — the Official
+    catalog / Import-from-repo is M4 (button shown disabled). &nbsp;<b>Command pill:</b> a view that is also
+    bound to a palette command shows a <span class="cmd">⌘ command</span> pill (driven by
+    <code>ViewRecord.command</code>; its title is the command name). Toggle the binding in the row's Edit modal.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>S28 · Manage Views — enabled &amp; disabled cards</h2>
+  <div class="gallery">
+    <figure>
+      <figcaption><b>S28 · Enabled + disabled</b></figcaption>
+      <div class="frame">
+        <div class="frame-head">Manage Views</div>
+        <div class="toolbar">
+          <button class="tbtn primary">Import from vault</button>
+          <button class="tbtn future" title="Coming in a future release">Import from repo</button>
+        </div>
+        <div class="vlist">
+          <!-- enabled DataviewJS -->
+          <div class="card">
+            <div class="card-head">
+              <span class="v-name">Characters in scene</span>
+              <span class="chip imported">Imported</span>
+              <span class="kind dvjs">dataviewjs</span>
+              <span class="cmd" title="Command: Show scene cast">⌘ command</span>
+              <span class="status active"><span class="ic">●</span>Active</span>
+              <span class="ver">v1</span>
+              <span class="toggle on" title="Enabled"></span>
+              <button class="menu-btn" title="More actions">⋯</button>
+            </div>
+            <div class="v-desc">Lists all canon characters linked from the active scene note.</div>
+          </div>
+          <!-- disabled DQL -->
+          <div class="card">
+            <div class="card-head">
+              <span class="v-name">Character arcs</span>
+              <span class="chip imported">Imported</span>
+              <span class="kind dql">dql</span>
+              <span class="status"><span class="ic">○</span>Disabled</span>
+              <span class="ver">v1</span>
+              <span class="toggle" title="Disabled"></span>
+              <button class="menu-btn" title="More actions">⋯</button>
+            </div>
+            <div class="v-desc">Arc timeline for the active character note.</div>
+          </div>
+        </div>
+      </div>
+      <div class="note"><b>Primary line:</b> name → provenance chip → kind (engine) pill → status pill → version →
+      toggle → ⋯. Toggle flips enabled/disabled directly (source unchanged = no re-consent). Description sits on the
+      second line (replaces the old source-path line).</div>
+    </figure>
+
+    <!-- S28b: the ⋯ menu opened -->
+    <figure>
+      <figcaption><b>S28b · ⋯ overflow menu</b> (enabled DataviewJS row)</figcaption>
+      <div class="frame">
+        <div class="frame-head">Manage Views</div>
+        <div class="vlist">
+          <div class="card">
+            <div class="card-head">
+              <span class="v-name">Characters in scene</span>
+              <span class="chip imported">Imported</span>
+              <span class="kind dvjs">dataviewjs</span>
+              <span class="cmd" title="Command: Show scene cast">⌘ command</span>
+              <span class="status active"><span class="ic">●</span>Active</span>
+              <span class="ver">v1</span>
+              <span class="toggle on" title="Enabled"></span>
+              <button class="menu-btn" title="More actions">⋯</button>
+            </div>
+            <div class="v-desc">Lists all canon characters linked from the active scene note.</div>
+            <div class="menu">
+              <div class="mi"><span class="mic">🔍</span>View source</div>
+              <div class="mi"><span class="mic">✏️</span>Edit (rename &amp; command)…</div>
+              <div class="mi"><span class="mic">🛡</span>Re-review consent…</div>
+              <div class="mi-sep"></div>
+              <div class="mi danger"><span class="mic">🗑</span>Remove</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note"><b>⋯ menu (state-dependent):</b> <b>View source</b> always first (the source-disclosure);
+      <b>Edit</b> opens the existing modal to rename the sidebar tab label and turn the palette command on/off with
+      an independent command name; <b>Re-review consent</b> appears when the view has been consented (or on drift);
+      <b>Remove</b> always last. Enable/disable is NOT in the menu — it's the inline toggle.</div>
+    </figure>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>S29 · Consent required (source drifted)</h2>
+  <div class="gallery">
+    <figure>
+      <figcaption><b>S29 · Consent required</b> — live checksum ≠ stored</figcaption>
+      <div class="frame">
+        <div class="frame-head">Manage Views</div>
+        <div class="vlist">
+          <div class="card">
+            <div class="card-head">
+              <span class="v-name">Characters in scene</span>
+              <span class="chip imported">Imported</span>
+              <span class="kind dvjs">dataviewjs</span>
+              <span class="status consent"><span class="ic">▲</span>Consent required</span>
+              <span class="ver">v1</span>
+              <button class="menu-btn" title="More actions">⋯</button>
+            </div>
+            <div class="v-desc">Lists all canon characters linked from the active scene note.</div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Source changed since consent → amber <b>▲ Consent required</b> pill, <b>no toggle</b> (can't
+      enable stale code). The ⋯ menu's <b>Re-review consent…</b> opens the re-consent modal; on grant the pill flips
+      to <b>● Active</b>. View source + Remove still available.</div>
+    </figure>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>S30 · Engine unavailable (Dataview not installed)</h2>
+  <div class="gallery">
+    <figure>
+      <figcaption><b>S30 · Engine unavailable</b></figcaption>
+      <div class="frame">
+        <div class="frame-head">Manage Views</div>
+        <div class="vlist">
+          <div class="card">
+            <div class="card-head">
+              <span class="v-name">Characters in scene</span>
+              <span class="chip imported">Imported</span>
+              <span class="kind dvjs">dataviewjs</span>
+              <span class="status missing"><span class="ic">■</span>Engine unavailable</span>
+              <span class="ver">v1</span>
+              <button class="menu-btn" title="More actions">⋯</button>
+            </div>
+            <div class="v-desc">Lists all canon characters linked from the active scene note.</div>
+            <div class="blocked">
+              <span class="blocked-reason">Dataview is not installed. <a href="#">Install Dataview</a> to run this view.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Engine missing → red <b>■ Engine unavailable</b> pill, no toggle, and an inline reason row
+      (mason's blocked-recovery pattern) with an install link. The ⋯ menu reduces to <b>Remove</b> (and View source).</div>
+    </figure>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>S31 · Official row — M4 preview (not built now)</h2>
+  <div class="gallery">
+    <figure>
+      <figcaption><b>S31 · Official (M4 preview)</b></figcaption>
+      <div class="frame">
+        <div class="frame-head">Manage Views</div>
+        <div class="toolbar">
+          <button class="tbtn primary">Import from vault</button>
+          <button class="tbtn">Import from repo</button>
+        </div>
+        <div class="vlist">
+          <div class="card">
+            <div class="card-head">
+              <span class="v-name">Scene cast (official)</span>
+              <span class="chip official">Official</span>
+              <span class="kind dvjs">dataviewjs</span>
+              <span class="status active"><span class="ic">●</span>Active</span>
+              <span class="ver">v2</span>
+              <span class="toggle on" title="Enabled"></span>
+              <button class="menu-btn" title="More actions">⋯</button>
+            </div>
+            <div class="v-desc">Curated catalog view — shows the cast of the active scene.</div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Illustrative only — a <code>provenance:"curated"</code> row shows the gold <b>Official</b>
+      chip; the "Import from repo" button is enabled once the M4 catalog ships. Designed now so the chip styling is
+      settled; not implemented this milestone.</div>
+    </figure>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="rev">
+    <h2>State → trigger index</h2>
+    <table>
+      <tr><th>State</th><th>Trigger / meaning</th><th>Toggle</th><th>⋯ menu</th></tr>
+      <tr><td>S28 Active</td><td><code>enabled:true</code>, checksum current</td><td>ON</td><td>View source · Edit · Re-review · Remove</td></tr>
+      <tr><td>S28 Disabled</td><td><code>enabled:false</code>, consent still valid</td><td>OFF</td><td>View source · Edit · Re-review · Remove</td></tr>
+      <tr><td>S29 Consent required</td><td>live checksum ≠ stored <code>okayed.checksum</code></td><td>—</td><td>View source · Edit · <b>Re-review</b> · Remove</td></tr>
+      <tr><td>S30 Engine unavailable</td><td>view references Dataview; plugin not installed</td><td>—</td><td>View source · Remove (+ inline install hint)</td></tr>
+      <tr><td>S31 Official (M4)</td><td><code>provenance:"curated"</code> catalog view</td><td>ON</td><td>same as Active (not built now)</td></tr>
+    </table>
+
+    <h2>Token mapping (implementation is theme-token based, light/dark correct)</h2>
+    <table>
+      <tr><th>Element</th><th>Obsidian token</th></tr>
+      <tr><td>card bg / border</td><td><code>--background-secondary</code> / <code>--background-modifier-border</code></td></tr>
+      <tr><td>status ● Active</td><td><code>--text-success</code></td></tr>
+      <tr><td>status ▲ Consent required</td><td><code>--text-warning</code></td></tr>
+      <tr><td>status ■ Engine unavailable / blocked reason</td><td><code>--text-error</code></td></tr>
+      <tr><td>kind pill (dvjs/dql/bases)</td><td><code>color-mix(--sf-engine-* 16%, transparent)</code> (already global from the badge fix)</td></tr>
+      <tr><td>command pill</td><td><code>color-mix(--interactive-accent 16%, transparent)</code> / <code>--text-accent</code></td></tr>
+      <tr><td>Imported chip</td><td><code>--text-muted</code> on bordered chip</td></tr>
+      <tr><td>Official chip</td><td>a themable gold accent (<code>--sf-origin-official</code>)</td></tr>
+      <tr><td>⋯ ghost button</td><td>transparent → <code>--text-normal</code> on hover</td></tr>
+    </table>
+
+    <h2>Revision history</h2>
+    <table>
+      <tr><th>Date</th><th>Version</th><th>Change</th></tr>
+      <tr><td>2026-07-18</td><td>v1</td><td>Initial mason-style rows (origin + kind pills; superseded spec 002 S24–S26)</td></tr>
+      <tr><td>2026-07-18</td><td>v2</td><td>Adopted mason card layout + ⋯ overflow menu; secondary line = description (not source path); folded command-assign into per-row Edit; status pill icon+label with theme tokens (light/dark)</td></tr>
+      <tr><td>2026-07-18</td><td>v3</td><td>Added the command pill (⌘) on the card when the view is bound to a palette command (<code>ViewRecord.command</code>)</td></tr>
+    </table>
+  </div>
+</body>
+</html>
