@@ -1,5 +1,9 @@
 # Handoff bundle from `_forge` — schema SoT, vault infra, types.json generator
 
+> **2026-07-18 update:** StoryForge raised 6 decisions (`docs/handoff-to-forge.md`); `_forge`'s
+> answers are in **`RULINGS.md`**. All 6 are resolved and the bundle files here were updated to match
+> (English infra, Longform-optional view, tags excluded, `scene.notes` string/position). Re-pull.
+
 **Source:** the `_forge` schema-hub session, 2026-07-18. `_forge` and StoryForge cannot read each
 other's repos, so **every file referenced below is included in this bundle** — you need no external
 access to act on it.
@@ -36,8 +40,9 @@ that StoryForge's schema lacked. `_forge` adopted it canonically. Diff `schema/s
 bundle against StoryForge's — the delta is one field (and `series` default, see below):
 ```jsonc
 { "name": "notes", "type": "text",
-  "description": "Text. Free-form author notes about the scene — scratch/annotations, not story prose." }
+  "description": "Text. Free-form author notes about the scene — scratch/annotations, working reminders. Not story prose." }
 ```
+Canonical position: after `next`, before `series`/`tags` (see RULINGS.md Q1).
 Then `npm run schema:gen` + `schema:check`.
 
 ### 2. Add `types.json` as a 4th generated artifact

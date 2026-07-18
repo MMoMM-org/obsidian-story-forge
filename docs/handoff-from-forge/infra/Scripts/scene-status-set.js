@@ -17,7 +17,7 @@ async function sceneStatuses(app) {
 
 module.exports = async ({ app, quickAddApi, obsidian }) => {
   const file = app.workspace.getActiveFile();
-  if (!file) return new obsidian.Notice("Keine aktive Notiz.");
+  if (!file) return new obsidian.Notice("No active note.");
   const STATUS = await sceneStatuses(app);
   const pick = await quickAddApi.suggester(STATUS, STATUS);
   if (!pick) return;
