@@ -496,8 +496,8 @@ describe("SettingsTab — ⋯ overflow menu", () => {
 		expect(titles[titles.length - 1]).toBe("Remove");
 	});
 
-	it("drift: Re-review present even when okayed null-checks pass via drift branch", async () => {
-		const store = makeStore({ v1: makeRecord({ enabled: true, okayed: { version: 1, checksum: "x" } }) });
+	it("drift with okayed:null still shows Re-review (gated purely by the drift branch)", async () => {
+		const store = makeStore({ v1: makeRecord({ enabled: true, okayed: null }) });
 		const container = await renderTab(makeTab(app, store, makeGateWithDecision("drift"), makeImporter()));
 		expect(menuItemTitles(openRowMenu(card(container)))).toContain("Re-review consent…");
 	});
