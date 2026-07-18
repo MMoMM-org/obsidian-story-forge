@@ -1,0 +1,71 @@
+filters: file.inFolder("30 Canon")
+properties:
+  file.name:
+    displayName: Name
+  role:
+    displayName: Rolle
+  status:
+    displayName: Status
+  age:
+    displayName: Alter
+  occupation:
+    displayName: Beruf
+  tagline:
+    displayName: Kurzbeschreibung
+  locationType:
+    displayName: Typ
+  region:
+    displayName: Region
+  inhabitants:
+    displayName: Bewohner
+  kind:
+    displayName: Art
+  owner:
+    displayName: Besitzer
+  scope:
+    displayName: Umfang
+  related:
+    displayName: Verknüpft
+views:
+  - type: table
+    name: Charaktere
+    filters: file.hasTag("canon/character")
+    groupBy:
+      property: role
+      direction: ASC
+    order:
+      - file.name
+      - role
+      - status
+      - age
+      - occupation
+      - tagline
+  - type: cards
+    name: Charaktere (Karten)
+    filters: file.hasTag("canon/character")
+    order:
+      - file.name
+      - portrait
+      - tagline
+  - type: table
+    name: Orte
+    filters: file.hasTag("canon/location")
+    order:
+      - file.name
+      - locationType
+      - region
+      - inhabitants
+  - type: table
+    name: Objekte
+    filters: file.hasTag("canon/object")
+    order:
+      - file.name
+      - kind
+      - owner
+  - type: table
+    name: Lore
+    filters: file.hasTag("canon/lore")
+    order:
+      - file.name
+      - scope
+      - related

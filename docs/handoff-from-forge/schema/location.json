@@ -1,0 +1,31 @@
+{
+  "entity": "location",
+  "icon": "map-pin",
+  "folder": "30 Canon/32 Locations",
+  "tag": "canon/location",
+  "note": "Canonical note for a place, under `30 Canon/32 Locations/`. Machine source: `00 Meta/Templates/entity-location.md`.",
+  "idPrefix": "l",
+  "fields": [
+    { "name": "type", "type": "fixed", "value": "location",
+      "description": "Fixed classifier — always `location`. Set by the template; do not change it." },
+    { "name": "name", "type": "text",
+      "description": "Text. The location's canonical name. Should match the note title." },
+    { "name": "aliases", "type": "list",
+      "description": "List of text. Other names for the place." },
+    { "name": "world", "type": "relation", "relation": "location",
+      "description": "A single `[[Location]]` link to the parent place, forming a hierarchy (room → building → area → world). Leave empty for a top-level location. The hierarchical Locations view walks this chain." },
+    { "name": "locationType", "type": "select",
+      "values": ["world", "realm", "area", "landmark", "building", "room"],
+      "description": "Select — one of `world | realm | area | landmark | building | room`. The tier in the place hierarchy; pair it with `world` to nest correctly." },
+    { "name": "region", "type": "text",
+      "description": "Text. A human-readable region/address that need not be its own note." },
+    { "name": "inhabitants", "type": "list", "relation": "character",
+      "description": "List of `[[Character]]` links. Characters who live in or are strongly associated with this place. A typed relation — always wikilinks." },
+    { "name": "first_appearance", "type": "text",
+      "description": "Text — a `[[scene note]]` link. The scene where the location first appears." },
+    { "name": "series", "type": "text", "default": "{{SERIES_NAME}}",
+      "description": "Text. The series this canon belongs to." },
+    { "name": "tags", "type": "tags",
+      "description": "List. Always includes `canon/location` — how views and Bases select location notes." }
+  ]
+}

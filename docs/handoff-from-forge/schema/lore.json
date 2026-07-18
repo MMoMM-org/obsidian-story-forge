@@ -1,0 +1,27 @@
+{
+  "entity": "lore",
+  "icon": "book-open",
+  "folder": "30 Canon/34 Lore",
+  "tag": "canon/lore",
+  "note": "Canonical note for a world rule, concept, faction, or custom, under `30 Canon/34 Lore/`. Machine source: `00 Meta/Templates/entity-lore.md`.",
+  "idPrefix": "r",
+  "fields": [
+    { "name": "type", "type": "fixed", "value": "lore",
+      "description": "Fixed classifier — always `lore`. Set by the template; do not change it." },
+    { "name": "name", "type": "text",
+      "description": "Text. The lore entry's canonical name. Should match the note title." },
+    { "name": "aliases", "type": "list",
+      "description": "List of text. Other names for the concept." },
+    { "name": "scope", "type": "select",
+      "values": ["world rule", "concept", "faction", "custom"],
+      "description": "Select — e.g. `world rule | concept | faction | custom`. What kind of lore this is." },
+    { "name": "related", "type": "list", "query": "dv.pages('\"30 Canon\"')",
+      "description": "List of `[[wikilinks]]` to any related canon notes (characters, locations, objects, or other lore). A loose typed relation — always wikilinks — for cross-referencing." },
+    { "name": "first_appearance", "type": "text",
+      "description": "Text — a `[[scene note]]` link. The scene where the lore first surfaces." },
+    { "name": "series", "type": "text", "default": "{{SERIES_NAME}}",
+      "description": "Text. The series this canon belongs to." },
+    { "name": "tags", "type": "tags",
+      "description": "List. Always includes `canon/lore` — how views and Bases select lore notes." }
+  ]
+}
