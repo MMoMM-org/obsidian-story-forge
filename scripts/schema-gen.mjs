@@ -16,11 +16,13 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { deriveNativeTypes, diffTypes } from './schema-types-json.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const vIdx = args.indexOf('--vault');
 const VAULT = vIdx !== -1 ? args[vIdx + 1] : 'test/StoryForge';
+const FORCE = args.includes('--force'); // also overwrite conflicting types.json keys
 
 const SCHEMA_DIR = join(ROOT, 'schema');
 const META = join(ROOT, VAULT, '00 Meta');
@@ -185,9 +187,11 @@ if (!files.length) {
 Object.values(OUT).forEach(ensure);
 
 const written = [];
+const allSchemas = [];
 for (const file of files.sort()) {
   const rawText = readFileSync(join(SCHEMA_DIR, file), 'utf8');
   const s = JSON.parse(rawText);
+  allSchemas.push(s);
   const prefix = s.idPrefix ?? s.entity[0];
   const tplName = s.template ?? (s.entity === 'scene' ? 'scene.md' : `entity-${s.entity}.md`);
 
@@ -215,3 +219,43 @@ for (const file of files.sort()) {
 console.log(`schema-gen → ${VAULT}/00 Meta/\n`);
 console.log(written.map((w) => `  ✓ ${w}`).join('\n'));
 console.log(`\n${files.length} schema file(s) → ${written.length} artifact(s).`);
+
+// ── Action 2 — merge the schema-derived widget types into the vault's types.json ──
+// Local-only: .obsidian/ is gitignored, so this maintains the live test-vault
+// registry (correct editor widgets for live testing) but is not a tracked artifact.
+// Merge, never overwrite: existing keys survive (Breadcrumbs BC-*, Tasks, relations,
+// the reserved aliases/tags/cssclasses); only safe new keys are added; a differing
+// existing key is a CONFLICT — reported and KEPT unless --force. No key is removed.
+const OBSIDIAN = join(ROOT, VAULT, '.obsidian');
+const TYPES_JSON = join(OBSIDIAN, 'types.json');
+if (existsSync(OBSIDIAN)) {
+  const { derived, clashes } = deriveNativeTypes(allSchemas);
+  for (const c of clashes) console.error(`  ! cross-schema type clash — ${c}`);
+  const raw = existsSync(TYPES_JSON)
+    ? JSON.parse(readFileSync(TYPES_JSON, 'utf8'))
+    : { types: {} };
+  if (!raw.types || typeof raw.types !== 'object') {
+    console.error(`  ! malformed types.json (missing 'types' object): ${TYPES_JSON}`);
+  } else {
+    const { added, conflicts, unchanged } = diffTypes(derived, raw.types);
+    for (const [name, native] of added) raw.types[name] = native; // safe adds
+    if (FORCE) for (const [name, , native] of conflicts) raw.types[name] = native;
+    if (added.length || (FORCE && conflicts.length)) {
+      writeFileSync(TYPES_JSON, JSON.stringify(raw, null, 2) + '\n');
+    }
+    console.log(
+      `\ntypes.json (${VAULT}/.obsidian): ${Object.keys(derived).length} schema props` +
+        ` | +${added.length} added | ${conflicts.length} conflict(s)` +
+        `${FORCE ? ' forced' : ' kept'} | ${unchanged} unchanged`,
+    );
+    for (const [name, native] of added) console.log(`  + ${name}: ${native}`);
+    for (const [name, old, native] of conflicts) {
+      console.log(
+        `  ~ CONFLICT ${name}: types.json=${old} schema=${native}` +
+          `${FORCE ? ' → OVERWRITTEN' : ' → KEPT (schema:check flags it; rerun with -- --force to align)'}`,
+      );
+    }
+  }
+} else {
+  console.log(`\ntypes.json skipped — no .obsidian in ${VAULT} (local-only artifact)`);
+}
