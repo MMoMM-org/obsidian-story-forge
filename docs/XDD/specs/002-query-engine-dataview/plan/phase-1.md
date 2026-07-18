@@ -15,7 +15,7 @@ phase: 1
 - `[ref: SDD/Building Block View — Directory Map]` (`src/consent/`, `src/import/fencedBlock.ts`)
 - `[ref: SDD/Interface Specifications — Consent types + ConsentGate]`
 - `[ref: SDD/Interface Specifications — Checksum]`
-- `[ref: SDD/ADR-4]` (byte-exact SHA-256, `node:crypto` dynamic import, CRLF ≠ LF, desktop-only)
+- `[ref: SDD/ADR-4]` (byte-exact SHA-256, cross-platform Web Crypto `crypto.subtle.digest`, CRLF ≠ LF)
 - `[ref: SDD/ADR-5]` (consent policy: DataviewJS full disclosure always; DQL light confirm only; drift on version-OR-checksum)
 - `[ref: SDD/ADR-7]` (modal as standard Obsidian `Modal` subclass; focus trap inherited)
 - `[ref: SDD/Runtime View — Flow C (DataviewJS consent path)]`
@@ -50,11 +50,11 @@ Establishes the fenced-block extractor, byte-exact checksum, consent-gate logic,
 
 - [x] **T1.2 Checksum** `[activity: domain-modeling]`
 
-  1. Prime: Read `[ref: SDD/Interface Specifications — Checksum]` (the full `checksum.ts` spec). Read `[ref: SDD/ADR-4]` (byte-exact, CRLF ≠ LF, dynamic import, `"sha256:<hex>"` prefix). Read `[ref: SDD/Implementation Gotchas]` (`node:crypto` must be a dynamic import).
+  1. Prime: Read `[ref: SDD/Interface Specifications — Checksum]` (the full `checksum.ts` spec). Read `[ref: SDD/ADR-4]` (byte-exact, CRLF ≠ LF, `"sha256:<hex>"` prefix). Read `[ref: SDD/Implementation Gotchas]` (checksum uses cross-platform Web Crypto, not `node:crypto`).
   2. Test (RED): `computeChecksum("hello\n")` returns a string matching `/^sha256:[0-9a-f]{64}$/`; `computeChecksum("hello\r\n")` returns a different checksum than `computeChecksum("hello\n")` (CRLF ≠ LF); `computeChecksum("")` does not throw (empty source is valid); same input always produces the same output (deterministic); the `Checksum` type alias is exported.
   3. Implement (GREEN): Create `src/consent/checksum.ts` — export `computeChecksum(source: string): Promise<Checksum>` (async, using `crypto.subtle.digest("SHA-256", bytes)` — the cross-platform Web Crypto API, NOT `node:crypto`) and export the `Checksum = `sha256:${string}`` type alias. Encode source as UTF-8 bytes (`new TextEncoder().encode(source)`); SHA-256 digest; hex-encode; prefix `sha256:`.
   4. Validate: unit tests pass (including CRLF ≠ LF assertion); `npm run lint`; `npm run typecheck`; `npm run typecheck:test`.
-  - Success: checksum is byte-exact over raw bytes `[ref: SDD/ADR-4]` `[ref: SDD/EARS F2 — "THE SYSTEM SHALL compute checksums over raw fenced block source bytes using SHA-256 via node:crypto, prefixed sha256:, with no CRLF normalisation"]`; `[ref: PRD/AC-F2.12]`.
+  - Success: checksum is byte-exact over raw bytes `[ref: SDD/ADR-4]` `[ref: SDD/EARS F2 — "THE SYSTEM SHALL compute checksums over raw fenced block source bytes using SHA-256 via Web Crypto, prefixed sha256:, with no CRLF normalisation"]`; `[ref: PRD/AC-F2.12]`.
 
 - [x] **T1.3 ConsentGate — evaluate logic** `[activity: domain-modeling]`
 

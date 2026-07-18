@@ -134,7 +134,7 @@ The minimum for M2 to be valuable and to unblock M3: a Dataview adapter that run
   - [ ] Given a vault note selected in the picker lacks a fenced query block, When the writer confirms the import, Then the import is rejected with a clear error message ("No query block found"); no ViewRecord is created.
   - [ ] Given a vault note selected in the picker has more than one fenced query block, When the writer confirms the import, Then the import is rejected with a clear error message ("View definitions must contain exactly one query block"); no ViewRecord is created.
   - [ ] Given a vault note that is already imported (its path is already in a ViewRecord), When the writer selects it in the picker again, Then the picker shows a clear indicator that it is already imported and prevents a duplicate import.
-  - [ ] Given a view has been imported, When the bind step completes, Then the writer is prompted to assign the view to a sidebar tab label (the `sf-name` value is used as the default label); the option to register a command palette command is also offered.
+  - [ ] Given a view is selected in the picker, When the writer confirms it, Then the flow is pick → single consent → atomic commit (no import-time bind prompt); the sidebar tab label auto-defaults to the view's `sf-name`, and assigning or renaming a command palette command is a separate Settings "Edit" action (S27), not part of import.
   - [ ] Given a view has been imported and bound, When the writer opens the sidebar panel, Then a new tab appears for the view (initially in "Disabled" or "Consent required" state, depending on engine type).
 
 #### Feature 4 (F4): View management surface in Settings
@@ -190,11 +190,12 @@ The minimum for M2 to be valuable and to unblock M3: a Dataview adapter that run
 > - **S19** Modal — import picker
 > - **S20** Modal — full disclosure (DataviewJS)
 > - **S21** Modal — light confirm (DQL)
-> - **S22** Modal — bind (tab label + command)
+> - **S22** Modal — bind *(retired: import has no bind step; command binding moved to S27 Edit)*
 > - **S23** Modal — re-consent (DataviewJS)
 > - **S24** Settings row — Enabled
 > - **S25** Settings row — Disabled / Consent required
 > - **S26** Settings row — Engine missing
+> - **S27** Modal — Edit view (rename tab label + command binding)
 
 **User Flow:**
 
@@ -264,7 +265,8 @@ Measured via automated tests and a scripted live-vault checklist (no user analyt
 
 ### Constraints
 
-- Targets Obsidian `minAppVersion` 1.5.7; `isDesktopOnly: false` (mobile must work — no Node/Electron APIs in the core path; DataviewJS is desktop-only as a separate gate, not a manifest flag).
+- Targets Obsidian `minAppVersion` 1.5.7; `isDesktopOnly: false` (mobile must work — no Node/Electron APIs in the core path; DataviewJS **execution** is desktop-only as a separate gate, not a manifest flag).
+- The byte-exact SHA-256 checksum uses the cross-platform **Web Crypto API** (`crypto.subtle.digest`, async) — NOT `node:crypto` — so it runs on desktop and mobile alike. Only DataviewJS *execution* is desktop-gated; the checksum (and therefore the DQL light-confirm and the consent-drift path) must work on mobile (corrected — see SDD ADR-4).
 - Must satisfy Obsidian community-plugin submission rules (listener/timer cleanup via register hooks, `console.debug` only, XSS-safe DOM, no sample-plugin residue).
 - **Frontmatter-truth principle:** Story Forge never owns canonical story data. M2 is read-only with respect to story notes; it writes only to `data.json` (the ViewStore).
 - Dataview is a **soft dependency** — feature-detected at runtime; Story Forge must load and function without Dataview installed.
@@ -293,12 +295,12 @@ Measured via automated tests and a scripted live-vault checklist (no user analyt
 
 ## Open Questions
 
-Deferred — not blocking the PRD; resolved in the SDD phase or later:
+All four were resolved during the SDD phase — see the spec README decisions log for the full ADRs:
 
-- [ ] **DataviewJS scoping-injection:** how does a DataviewJS view target the panel's active subject (the note resolved by M1's ScopingService) vs Dataview's own `dv.current()` which returns the note where the DataviewJS block is embedded? This is a genuine API unknown requiring an SDD-phase technical spike before the SDD can specify the adapter interface.
-- [ ] **View-id scheme:** what is the stable identifier for a ViewRecord when the backing vault note is moved or renamed? Does the id track the note's path (fragile) or a UUID written into the note's frontmatter? Requires a decision in the SDD.
-- [ ] **Tab-label overflow policy:** when `sf-name` exceeds the sidebar tab width, is the label truncated with an ellipsis or abbreviated? Where does the full name appear on hover? Should be specified in the mockups (S14/S24); confirm with the maintainer if needed.
-- [ ] **View definition note format for `sf-version`:** the view-definition schema specifies `sf-version` as a frontmatter field, but is it a semver string, an integer, or a free-form string? The re-consent trigger fires on any change to this field; the SDD should fix the type.
+- [x] **DataviewJS scoping-injection:** how does a DataviewJS view target the panel's active subject (the note resolved by M1's ScopingService) vs Dataview's own `dv.current()` which returns the note where the DataviewJS block is embedded? This is a genuine API unknown requiring an SDD-phase technical spike before the SDD can specify the adapter interface. → resolved in ADR-3 (scoping-injection spike).
+- [x] **View-id scheme:** what is the stable identifier for a ViewRecord when the backing vault note is moved or renamed? Does the id track the note's path (fragile) or a UUID written into the note's frontmatter? Requires a decision in the SDD. → resolved in ADR-9 (store-generated id).
+- [x] **Tab-label overflow policy:** when `sf-name` exceeds the sidebar tab width, is the label truncated with an ellipsis or abbreviated? Where does the full name appear on hover? Should be specified in the mockups (S14/S24); confirm with the maintainer if needed. → resolved in ADR-9.
+- [x] **View definition note format for `sf-version`:** the view-definition schema specifies `sf-version` as a frontmatter field, but is it a semver string, an integer, or a free-form string? The re-consent trigger fires on any change to this field; the SDD should fix the type. → resolved in ADR-9/ADR-6 (`sf-version` is an integer).
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "Query Engine & Dataview — implementation plan"
-status: pending
+status: completed
 version: "1.0"
 ---
 
@@ -55,7 +55,7 @@ version: "1.0"
 - **ADR-1** `QueryEngine` interface + `EngineRegistry` (wired engines only) + separately-held `NativeScopingEngine` fallback. Registry may be empty; native fallback always exists on `SidebarView`.
 - **ADR-2** Feature detection via `(app as any).plugins.plugins["dataview"]?.api` + `workspace.onLayoutReady` + late-join `dataview:api-ready` listener. Re-check on every render.
 - **ADR-3** Subject scoping: `filePath = ctx.activeFile.path` (subject path, NOT view-note path). Query read fresh from `view.source` at render time — never stored on `ViewRecord`.
-- **ADR-4** SHA-256 over raw fenced-block bytes via `node:crypto` (dynamic import); byte-exact (CRLF ≠ LF); output `"sha256:<hex>"`. Desktop-only. Cloned from markdown-mason.
+- **ADR-4** SHA-256 over raw fenced-block bytes via Web Crypto (`crypto.subtle.digest`, async); byte-exact (CRLF ≠ LF); output `"sha256:<hex>"`. Cross-platform (desktop + mobile). Cloned from markdown-mason.
 - **ADR-5** Consent policy: DataviewJS → full disclosure always; DQL → light confirm only; re-consent on version-OR-checksum drift; kill-switch preserves `okayed`; safe-default disabled.
 - **ADR-6** View-definition format: `sf-view:true` vault note + exactly one fenced query block. `sf-version` integer required; engine inferred from fence language.
 - **ADR-7** Leak-free lifecycle: each engine owns one Obsidian `Component`; teardown order is teardown → `body.empty()` → render. `component.unload()` in `teardown()` + `SidebarView.onClose()`.
@@ -137,14 +137,14 @@ Each phase is a separate file. Tasks follow red-green-refactor: **Prime** (conte
 | | DQL drift → light re-confirm (S21) | T1.4 |
 | | Any unenabled view → `enabled:false`, no query | T1.3 |
 | | Remove → `deleteRecord`, vault note untouched | T2.2 |
-| | Byte-exact SHA-256 via `node:crypto`, `sha256:` prefix | T1.2 |
+| | Byte-exact SHA-256 via Web Crypto (`crypto.subtle.digest`), `sha256:` prefix | T1.2 |
 | **F3 — User-import flow** | Import picker lists `sf-view:true` notes from `metadataCache` | T2.3 |
 | | Import creates ViewRecord (`engine`, `provenance:"imported"`, `enabled:false`, `okayed:null`) | T2.2 |
 | | 0 fenced blocks → reject "No query block found" | T2.1 |
 | | >1 fenced blocks → reject "exactly one query block" | T2.1 |
 | | Already-imported path → "already imported" indicator | T2.2 |
-| | Bind step (S22): pre-fills `sf-name` as tab label, offers command registration | T4.3 |
-| | After bind → tab in "Disabled" or "Consent required" state | T4.1, T4.3 |
+| | Import = picker → single consent (S20/S21) → atomic commit; tab label defaults to `sf-name` | T4.3 |
+| | Command binding via Settings "Edit" (S27), separate from import | T4.2 |
 | **F4 — View management in Settings** | Settings "Views" section: name/engine/state per row | T4.2 |
 | | Engine absent → S26 row state | T4.2 |
 | | Enable action on DataviewJS row → opens S20 disclosure modal | T4.2 |
