@@ -70,7 +70,12 @@
  * can override them.
  * =========================================================================== */
 
-.workspace-leaf-content[data-type="story-forge-panel"] {
+/* Design tokens — declared on `body` (not `:root`) so they cascade to the panel
+ * leaf, the settings tab, AND the modals under `.modal-container` alike; Obsidian
+ * sets its theme classes on `body`, so this is the correct global-but-theme-aware
+ * scope. Entity-kind and engine-badge accent hues, plus the warn-banner amber —
+ * all overridable by themes / Style Settings. */
+body {
 	/* Entity-kind accent hues — overridable by themes / Style Settings. */
 	--sf-kind-character: #8a7cf0;
 	--sf-kind-location: #4ea3a3;
@@ -82,6 +87,9 @@
 	/* Engine-badge accent hues (dql / dataviewjs) — overridable like the kinds. */
 	--sf-engine-dql: #5aa0c9;
 	--sf-engine-dvjs: #c98b5a;
+
+	/* Warn/caution amber — reads on both light and dark backgrounds. */
+	--sf-warn: #d99a2b;
 }
 
 /* contentEl (== .view-content) — let the panel own its own layout + padding. */
@@ -570,17 +578,17 @@
 	color: var(--text-error);
 }
 
-/* S17 — re-consent required warn banner. */
+/* S17 — re-consent required warn banner (amber caution, not error). */
 .sf-warnbanner {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 	padding: 8px 10px;
-	border: 1px solid var(--background-modifier-border);
+	border: 1px solid color-mix(in srgb, var(--sf-warn) 30%, transparent);
 	border-radius: var(--radius-m);
-	background: var(--background-modifier-error);
+	background: color-mix(in srgb, var(--sf-warn) 12%, transparent);
 	font-size: 12px;
-	color: var(--text-warning, var(--text-muted));
+	color: var(--text-normal);
 }
 
 .sf-warnbanner .sf-btn {
@@ -680,14 +688,14 @@
 	border-top: 1px solid var(--background-modifier-border);
 }
 
-/* Drift warning banner (S23) — reuses the warn-banner colour treatment. */
+/* Drift warning banner (S23) — reuses the amber warn-banner colour treatment. */
 .sf-drift-banner {
 	padding: 8px 10px;
-	border: 1px solid var(--background-modifier-border);
+	border: 1px solid color-mix(in srgb, var(--sf-warn) 30%, transparent);
 	border-radius: var(--radius-m);
-	background: var(--background-modifier-error);
+	background: color-mix(in srgb, var(--sf-warn) 12%, transparent);
 	font-size: 12px;
-	color: var(--text-warning, var(--text-muted));
+	color: var(--text-normal);
 }
 
 .sf-source-label {
@@ -739,14 +747,14 @@
 	word-break: break-all;
 }
 
-/* DataviewJS security warning (S20 / S23). */
+/* DataviewJS security warning (S20 / S23) — amber caution, not error. */
 .sf-security-warn {
 	padding: 8px 10px;
-	border: 1px solid var(--background-modifier-border);
+	border: 1px solid color-mix(in srgb, var(--sf-warn) 30%, transparent);
 	border-radius: var(--radius-m);
-	background: var(--background-modifier-error);
+	background: color-mix(in srgb, var(--sf-warn) 12%, transparent);
 	font-size: 12px;
-	color: var(--text-warning, var(--text-muted));
+	color: var(--text-normal);
 }
 
 /* DQL "declarative and read-only" note (S21). */
