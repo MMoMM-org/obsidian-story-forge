@@ -50,6 +50,8 @@ import type {
 	TFile,
 	TFolder,
 	Events,
+	Menu,
+	MenuItem,
 } from "obsidian";
 
 // Import the bodyless mock shape emitted by step 1 of typecheck:mock.
@@ -75,6 +77,8 @@ import type {
 	TFile as MockTFile,
 	TFolder as MockTFolder,
 	Events as MockEvents,
+	Menu as MockMenu,
+	MenuItem as MockMenuItem,
 } from "../../.typecheck-mock-tmp/test/__mocks__/obsidian";
 
 // ---------------------------------------------------------------------------
@@ -183,6 +187,8 @@ const _editorOk: AssertNoFiction<MockEditor, Editor> = true;
 const _tfileOk: AssertNoFiction<MockTFile, TFile> = true;
 const _tfolderOk: AssertNoFiction<MockTFolder, TFolder> = true;
 const _eventsOk: AssertNoFiction<MockEvents, Events> = true;
+const _menuOk: AssertNoFiction<MockMenu, Menu> = true;
+const _menuItemOk: AssertNoFiction<MockMenuItem, MenuItem> = true;
 
 // ---------------------------------------------------------------------------
 // Object-literal shape guards (vault, metadataCache)

@@ -719,6 +719,128 @@ export class DropdownComponent {
 	});
 }
 
+// --- Menu ---
+
+/** Position accepted by Menu.showAtPosition (mirrors real MenuPositionDef). */
+export interface MenuPositionDef {
+	x: number;
+	y: number;
+	width?: number;
+	overlap?: boolean;
+	left?: boolean;
+}
+
+/**
+ * MenuItem — faithful to the real Obsidian MenuItem API.
+ *
+ * All setters are chainable (`this`) and record their value so tests can read
+ * back the item's title / icon / disabled state and invoke its onClick handler.
+ * Recorded state is exposed on `_`-prefixed fields (test scaffolding, mirroring
+ * the file's convention for test-only inspection surface).
+ */
+export class MenuItem {
+	/** Recorded title (last setTitle value). */
+	_title: string | DocumentFragment | null = null;
+	/** Recorded icon (last setIcon value; null clears it). */
+	_icon: IconName | null = null;
+	/** Recorded disabled flag. */
+	_disabled = false;
+	/** Recorded onClick handler, invocable by tests. */
+	_onClick?: (evt: MouseEvent | KeyboardEvent) => unknown;
+
+	setTitle = vi.fn((title: string | DocumentFragment): this => {
+		this._title = title;
+		return this;
+	});
+	setIcon = vi.fn((icon: IconName | null): this => {
+		this._icon = icon;
+		return this;
+	});
+	setDisabled = vi.fn((disabled: boolean): this => {
+		this._disabled = disabled;
+		return this;
+	});
+	onClick = vi.fn((cb: (evt: MouseEvent | KeyboardEvent) => unknown): this => {
+		this._onClick = cb;
+		return this;
+	});
+}
+
+/** A recorded item entry — flattens MenuItem state for order-inspection. */
+export interface MenuItemEntry {
+	kind: "item";
+	item: MenuItem;
+	/** The recorded title (string form; DocumentFragment left as-is). */
+	title: string | DocumentFragment | null;
+	icon: IconName | null;
+	disabled: boolean;
+	/** The recorded onClick handler (undefined until onClick() is called). */
+	onClickFn?: (evt: MouseEvent | KeyboardEvent) => unknown;
+}
+
+/** A recorded separator entry. */
+export interface MenuSeparatorEntry {
+	kind: "separator";
+}
+
+/** Ordered menu entry — item or separator, in insertion order. */
+export type MenuEntry = MenuItemEntry | MenuSeparatorEntry;
+
+/**
+ * Menu — faithful to the real Obsidian Menu API (constructor + addItem /
+ * addSeparator / showAtMouseEvent / showAtPosition, all chainable).
+ *
+ * Records items and separators in insertion order on `_entries` so tests can
+ * assert item/separator ordering. `_items` is a convenience view over the item
+ * entries only. `_shown` flips true once the menu is shown.
+ *
+ * Extends Component to mirror the real `class Menu extends Component`.
+ */
+export class Menu extends Component {
+	/** Ordered entries (items + separators) in insertion order. */
+	_entries: MenuEntry[] = [];
+	/** Whether the menu has been shown (showAtMouseEvent / showAtPosition). */
+	_shown = false;
+
+	/** Convenience view: only the item entries, in order. */
+	get _items(): MenuItemEntry[] {
+		return this._entries.filter(
+			(e): e is MenuItemEntry => e.kind === "item",
+		);
+	}
+
+	addItem = vi.fn((cb: (item: MenuItem) => unknown): this => {
+		const item = new MenuItem();
+		cb(item);
+		// Snapshot the recorded state AFTER the callback ran (the item is fully
+		// configured by then) so each entry reflects the item's final values.
+		this._entries.push({
+			kind: "item",
+			item,
+			title: item._title,
+			icon: item._icon,
+			disabled: item._disabled,
+			onClickFn: item._onClick,
+		});
+		return this;
+	});
+
+	addSeparator = vi.fn((): this => {
+		this._entries.push({ kind: "separator" });
+		return this;
+	});
+
+	showAtMouseEvent = vi.fn((_evt: MouseEvent): this => {
+		this._shown = true;
+		return this;
+	});
+
+	showAtPosition = vi.fn((_position: MenuPositionDef, _doc?: Document): this => {
+		this._shown = true;
+		return this;
+	});
+}
+
 // --- Views ---
 
 /**
