@@ -73,7 +73,7 @@ function renderOwner(el: HTMLElement, entities: ResolvedEntity[]): void {
 		return;
 	}
 
-	linkRow(bodyEl, owner.file.basename);
+	linkRow(bodyEl, owner.file.basename, { path: owner.file.path });
 }
 
 function renderAppearsIn(el: HTMLElement, backlinks: ResolvedEntity[]): void {
@@ -87,6 +87,6 @@ function renderAppearsIn(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 	}
 
 	for (const bl of scenes) {
-		linkRow(bodyEl, bl.file.basename);
+		linkRow(bodyEl, bl.file.basename, { path: bl.file.path });
 	}
 }

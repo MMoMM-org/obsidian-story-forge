@@ -173,8 +173,29 @@ export function relationRow(
 export interface LinkRowOptions {
 	/** Optional trailing tag label (e.g. "pov", "char", kind name). */
 	tag?: string;
+	/**
+	 * Optional target file path. When present, the link element carries a
+	 * `data-sf-link` attribute so SidebarView's delegated body handler can
+	 * resolve and route the click (T4.2). Unresolved links must NOT pass a path.
+	 */
+	path?: string;
 	/** Optional click handler (link-click wiring; default: none). */
 	onClick?: () => void;
+}
+
+/**
+ * Build a `.sf-lrow-lnk` span carrying focus + role affordances and, when a
+ * target `path` is given, a `data-sf-link` attribute for the delegated handler.
+ * Shared stamping helper so every emission site produces identical markup (T4.2).
+ */
+export function stampLinkEl(text: string, path?: string): HTMLElement {
+	const el = activeDocument.createElement("span");
+	el.className = "sf-lrow-lnk";
+	el.textContent = text;
+	el.setAttribute("tabindex", "0");
+	el.setAttribute("role", "link");
+	if (path !== undefined) el.setAttribute("data-sf-link", path);
+	return el;
 }
 
 /**
@@ -192,10 +213,10 @@ export function linkRow(
 ): HTMLElement {
 	const rowEl = asObs(container).createEl("div", { cls: "sf-lrow" });
 
-	// The link element — a span with role=link (drill-in; full wiring in T4)
-	const lnkEl = asObs(rowEl).createEl("span", { cls: "sf-lrow-lnk", text });
-	lnkEl.setAttribute("tabindex", "0");
-	lnkEl.setAttribute("role", "link");
+	// The link element — a span with role=link. When a target path is given it
+	// carries data-sf-link so the delegated body handler routes the click (T4.2).
+	const lnkEl = stampLinkEl(text, opts.path);
+	rowEl.appendChild(lnkEl);
 
 	if (opts.onClick) {
 		const handler = opts.onClick;

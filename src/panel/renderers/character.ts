@@ -18,8 +18,6 @@
  * @ref SDD/ADR-2 (pure DOM components; deps injected)
  */
 
-declare const activeDocument: Document;
-
 import {
 	section,
 	factRow,
@@ -28,6 +26,7 @@ import {
 	emptyLine,
 	portraitTile,
 	unresolvedEl,
+	stampLinkEl,
 } from "panel/components";
 import { kindFields } from "panel/kindFields";
 import { renderFactsSection } from "panel/renderers/shared";
@@ -152,7 +151,7 @@ function renderAppearsIn(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 
 	for (const bl of sceneLinks) {
 		const tag = bl.field === "pov" ? "pov" : "char";
-		linkRow(bodyEl, bl.file.basename, { tag });
+		linkRow(bodyEl, bl.file.basename, { tag, path: bl.file.path });
 	}
 }
 
@@ -167,7 +166,7 @@ function renderOwns(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 	}
 
 	for (const bl of owned) {
-		linkRow(bodyEl, bl.file.basename);
+		linkRow(bodyEl, bl.file.basename, { path: bl.file.path });
 	}
 }
 
@@ -226,12 +225,7 @@ function buildRelationLinkEls(
 	const els: HTMLElement[] = [];
 
 	for (const e of resolved) {
-		const span = activeDocument.createElement("span");
-		span.className = "sf-lrow-lnk";
-		span.textContent = e.file.basename;
-		span.setAttribute("tabindex", "0");
-		span.setAttribute("role", "link");
-		els.push(span);
+		els.push(stampLinkEl(e.file.basename, e.file.path));
 	}
 
 	for (const e of unresolved) {
@@ -243,12 +237,5 @@ function buildRelationLinkEls(
 
 /** Build simple link elements for a list of resolved backlinks. */
 function buildLinkEls(backlinks: ResolvedEntity[]): HTMLElement[] {
-	return backlinks.map((bl) => {
-		const span = activeDocument.createElement("span");
-		span.className = "sf-lrow-lnk";
-		span.textContent = bl.file.basename;
-		span.setAttribute("tabindex", "0");
-		span.setAttribute("role", "link");
-		return span;
-	});
+	return backlinks.map((bl) => stampLinkEl(bl.file.basename, bl.file.path));
 }

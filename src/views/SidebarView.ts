@@ -17,6 +17,7 @@
 import {
 	ItemView,
 	MarkdownView,
+	TFile,
 	type WorkspaceLeaf,
 	type App,
 	type IconName,
@@ -25,7 +26,7 @@ import {
 import { SIDEBAR_VIEW_TYPE, ICON, DEBOUNCE_MS } from "pluginConstants";
 import { ScopingService } from "scoping/ScopingService";
 import type { NoteContext, EntityKind } from "scoping/NoteContext";
-import type { TFile } from "obsidian";
+import type { PluginSettings } from "types/index";
 import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
@@ -47,8 +48,12 @@ const CTX_TAB_ID = "__context__";
 // Types
 // ---------------------------------------------------------------------------
 
-/** Whether the panel subject is tracking the active note or pinned to one. */
-export type SubjectSource = "follow" | "pinned";
+/**
+ * Whether the panel subject is tracking the active note, pinned to one, or
+ * drilled into via a link click (ADR-4). Both "pinned" and "drilled" suspend
+ * the active-leaf follow path.
+ */
+export type SubjectSource = "follow" | "pinned" | "drilled";
 
 /** The note the panel is currently showing context for. */
 export interface PanelSubject {
@@ -128,6 +133,15 @@ export class SidebarView extends ItemView {
 	// Stage 1: injected ViewStore (optional — absent → Context-only mode)
 	private store: ViewStore | null;
 
+	// T4.2: drill-in nav stack (in-memory; cleared on open-note and onClose).
+	// Push the current subject.file when drilling; Back pops back one level.
+	private navStack: TFile[] = [];
+
+	// T4.2: reads the live linkClickAction setting. Threaded as a getter (not a
+	// captured value) because main.ts reassigns this.settings on load — a captured
+	// reference would go stale. Defaults to "drill" when no getter is injected.
+	private readonly getLinkClickAction: () => PluginSettings["linkClickAction"];
+
 	// M2: tracks the engine currently rendered into the panel body (ADR-7 teardown)
 	private currentEngine: QueryEngine | null = null;
 	// M2: the ViewRecord currently rendered (selected view tab)
@@ -154,6 +168,9 @@ export class SidebarView extends ItemView {
 	 * @param consentGate - M2: injected ConsentGate (optional until T4.4 main.ts rewire)
 	 * @param nativeEngine - M2: injected NativeScopingEngine fallback (optional until T4.4)
 	 * @param store       - Stage 1: injected ViewStore for live tab population (optional)
+	 * @param getLinkClickAction - T4.2: reads the live linkClickAction setting
+	 *   (getter, not value — main.ts reassigns this.settings on load). Defaults
+	 *   to "drill" when absent (keeps existing constructor calls valid).
 	 */
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -161,6 +178,7 @@ export class SidebarView extends ItemView {
 		consentGate?: ConsentGate,
 		nativeEngine?: NativeScopingEngine,
 		store?: ViewStore,
+		getLinkClickAction?: () => PluginSettings["linkClickAction"],
 	) {
 		super(leaf);
 		this.scoping = new ScopingService(this.app);
@@ -168,6 +186,7 @@ export class SidebarView extends ItemView {
 		this.consentGate = consentGate ?? null;
 		this.nativeEngine = nativeEngine ?? null;
 		this.store = store ?? null;
+		this.getLinkClickAction = getLinkClickAction ?? ((): "drill" => "drill");
 		this._debouncedFollow = debounce(
 			(l: WorkspaceLeaf | null) => { this._doFollow(l); },
 			DEBOUNCE_MS,
@@ -275,6 +294,9 @@ export class SidebarView extends ItemView {
 		this.lastError = null;
 		this.currentRecord = null;
 		this.subject = { file: null, source: "follow" };
+		// T4.2: reset nav-stack + divergence state so a re-open starts clean.
+		this.navStack = [];
+		this._pinDiverged = false;
 		// Stage 1: reset tab state
 		this.selectedViewId = null;
 		this._views = {};
@@ -297,6 +319,8 @@ export class SidebarView extends ItemView {
 			// Pin — freeze subject
 			this.subject = { file: this.subject.file, source: "pinned" };
 		}
+		// Divergence is meaningless outside a fresh pin — reset on every toggle.
+		this._pinDiverged = false;
 		this._renderState(this._computeState());
 		this._updatePinButton();
 	}
@@ -313,10 +337,26 @@ export class SidebarView extends ItemView {
 		const viewType = leaf.view?.getViewType?.() ?? "";
 		if (viewType !== "markdown") return;
 
-		// Guard: pinned → ignore active-note changes
-		if (this.subject.source === "pinned") return;
+		const activeFile = (leaf.view as { file?: TFile | null }).file ?? null;
 
-		const file = (leaf.view as { file?: TFile | null }).file ?? null;
+		// Guard: pinned → don't re-subject, but record whether the editor has
+		// diverged from the pinned note so the S43 divergence hint can show.
+		if (this.subject.source === "pinned") {
+			const diverged =
+				activeFile !== null &&
+				this.subject.file !== null &&
+				activeFile.path !== this.subject.file.path;
+			if (diverged !== this._pinDiverged) {
+				this._pinDiverged = diverged;
+				this._renderState(this._computeState());
+			}
+			return;
+		}
+
+		// Guard: drilled → suspend the active-leaf follow (Back/Open-note resume it).
+		if (this.subject.source === "drilled") return;
+
+		const file = activeFile;
 		if (!file) {
 			this.setSubject(null, "follow");
 			this._renderState({ kind: "no-note" });
@@ -418,6 +458,12 @@ export class SidebarView extends ItemView {
 	// DOM shell
 	// -------------------------------------------------------------------------
 
+	/**
+	 * T4.2: true when pinned AND the editor's active note differs from the pinned
+	 * subject — drives the S43 divergence hint. Reset on pin/unpin.
+	 */
+	private _pinDiverged = false;
+
 	/** Header elements — stored as refs for pin button update. */
 	private _pinBtn: HTMLButtonElement | null = null;
 	private _titleEl: HTMLElement | null = null;
@@ -506,6 +552,131 @@ export class SidebarView extends ItemView {
 		body.setAttribute("role", "tabpanel");
 		body.setAttribute("aria-live", "polite");
 		this._bodyEl = body;
+
+		// T4.2: ONE delegated click handler on the persistent body element. It
+		// survives body.empty() (which only clears children, not the body's own
+		// listeners), so re-renders never leak per-link handlers. Cleaned up on
+		// unload via registerDomEvent (proven by the mock's _runCleanup).
+		this.registerDomEvent(body, "click", (e: MouseEvent) => {
+			this._onBodyActivate(e.target, e.metaKey || e.ctrlKey);
+		});
+		// Enter/Space activate the focused link / nav control (keyboard parity).
+		this.registerDomEvent(body, "keydown", (e: KeyboardEvent) => {
+			if (e.key !== "Enter" && e.key !== " ") return;
+			e.preventDefault();
+			this._onBodyActivate(e.target, e.metaKey || e.ctrlKey);
+		});
+	}
+
+	// -------------------------------------------------------------------------
+	// T4.2: delegated body activation (link drill/open + Back / Open-note nav)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Route a body click/keydown to the correct action. All body-click routing
+	 * lives here so the handler is registered exactly once (no per-render leak).
+	 *
+	 * @param target   The event target (a descendant of the body).
+	 * @param modifier True when Cmd/Ctrl was held (inverts the setting).
+	 */
+	private _onBodyActivate(target: EventTarget | null, modifier: boolean): void {
+		if (!(target instanceof HTMLElement)) return;
+
+		// Nav controls first (Back / Open-note chrome).
+		const nav = target.closest("[data-sf-nav]");
+		if (nav) {
+			const kind = nav.getAttribute("data-sf-nav");
+			if (kind === "back") this._navBack();
+			else if (kind === "open") this._openCurrentSubject();
+			return;
+		}
+
+		// Link rows — resolve the stamped path to a TFile within the body scope.
+		const linkEl = target.closest("[data-sf-link]");
+		if (!linkEl) return;
+		const path = linkEl.getAttribute("data-sf-link");
+		if (!path) return;
+		const file = this.app.vault.getAbstractFileByPath(path);
+		if (!(file instanceof TFile)) return;
+
+		// XOR the setting with the modifier: "drill" default drills on plain click
+		// and opens on modifier; "open" swaps both.
+		const action = this.getLinkClickAction();
+		const drill = action === "drill" ? !modifier : modifier;
+		if (drill) this._drillInto(file);
+		else this._openLink(file);
+	}
+
+	/**
+	 * Drill into `file`: push the current subject onto the nav stack, re-subject
+	 * with source "drilled" (follow suspended), and re-render.
+	 */
+	private _drillInto(file: TFile): void {
+		if (this.subject.file) this.navStack.push(this.subject.file);
+		this.setSubject(file, "drilled");
+		this._resolveOrClassify(file);
+		this._updatePinButton();
+	}
+
+	/** Back: pop the nav stack, re-subject to the prior note, resume follow if empty. */
+	private _navBack(): void {
+		const prev = this.navStack.pop();
+		if (!prev) return;
+		// Popped back to the drill origin (empty stack) → follow resumes;
+		// otherwise stay drilled at the intermediate level.
+		const source: SubjectSource = this.navStack.length === 0 ? "follow" : "drilled";
+		this.setSubject(prev, source);
+		this._resolveOrClassify(prev);
+		this._updatePinButton();
+	}
+
+	/** Open the current subject note in the editor and resume follow. */
+	private _openCurrentSubject(): void {
+		if (this.subject.file) this._openLink(this.subject.file);
+	}
+
+	/**
+	 * Open `file` in the editor via workspace.openLinkText, clear the nav stack,
+	 * and resume follow (ADR-4 open path).
+	 */
+	private _openLink(file: TFile): void {
+		const sourcePath = this.subject.file?.path ?? "";
+		void this.app.workspace.openLinkText(file.path, sourcePath, false);
+		this.navStack = [];
+		this.subject = { file: this.subject.file, source: "follow" };
+		this._updatePinButton();
+	}
+
+	/**
+	 * Re-render for a newly-subjected `file`: classify (unknown → S4) or resolve
+	 * (→ S6/S7). Mirrors the follow-pipeline branch so drilling into a non-entity
+	 * yields the existing S4 state.
+	 */
+	private _resolveOrClassify(file: TFile): void {
+		if (file.extension !== "md") {
+			this.currentCtx = null;
+			this._renderState({ kind: "non-md", file });
+			return;
+		}
+		const cache = this.app.metadataCache.getFileCache(file);
+		if (!cache) {
+			this.lastError = new Error("Metadata cache unavailable");
+			this.currentCtx = null;
+			this._renderState({
+				kind: "error",
+				file,
+				retry: () => { this._resolveAndRender(file); },
+			});
+			return;
+		}
+		const kind = this.scoping.classify(file);
+		if (kind === "unknown") {
+			this.currentCtx = null;
+			this.lastError = null;
+			this._renderState({ kind: "non-entity", file, activeKind: kind });
+			return;
+		}
+		this._resolveAndRender(file);
 	}
 
 	// -------------------------------------------------------------------------
@@ -730,6 +901,13 @@ export class SidebarView extends ItemView {
 		const body = aug(this._bodyEl);
 		body.empty();
 
+		// T4.2: nav chrome around the body content.
+		// - Back control (only while drilled with a non-empty stack)
+		// - S43 pinned-divergence hint (only when pinned + editor diverged)
+		// These are rendered directly into _bodyEl; the engine renders into a
+		// dedicated host div (below) so its body.empty() never wipes the chrome.
+		this._renderNavChrome(body, state);
+
 		if (state.kind === "no-note") {
 			// S2: no note open
 			const empty = body.createDiv({ cls: "sf-empty" });
@@ -756,12 +934,57 @@ export class SidebarView extends ItemView {
 			body.createDiv({ cls: "sf-skel" });
 			body.createDiv({ cls: "sf-skel" });
 		} else if (state.kind === "resolved") {
-			// S6/S7: resolved context — delegates to engine dispatch (async, fire-and-forget here)
-			void this._renderResolved(body, state.ctx);
+			// S6/S7: resolved context. The engine renders into its own host div so
+			// its internal body.empty() never clears the surrounding nav chrome.
+			const host = aug(body.createDiv({ cls: "sf-engine-host" }));
+			void this._renderResolved(host, state.ctx);
+			// "Open note" footer (S41) — always available when a subject is shown.
+			this._renderOpenNoteFooter(body);
 		} else if (state.kind === "error") {
 			// S9: error with Retry button
 			this._renderError(body, state.retry);
 		}
+	}
+
+	/**
+	 * T4.2: render the Back control and the S43 pinned-divergence hint at the top
+	 * of the body. Routed by the one delegated body handler via data-sf-nav.
+	 */
+	private _renderNavChrome(body: AugEl, state: RenderState): void {
+		// Back — only while drilled with somewhere to go back to (S41).
+		if (this.subject.source === "drilled" && this.navStack.length > 0) {
+			const bar = body.createDiv({ cls: "sf-navbar" });
+			const back = bar.createSpan({ cls: "sf-back" });
+			back.setAttribute("role", "button");
+			back.setAttribute("tabindex", "0");
+			back.setAttribute("data-sf-nav", "back");
+			// "‹ Back" — proper action label; sentence-case exempt like other nav.
+			// eslint-disable-next-line obsidianmd/ui/sentence-case
+			back.textContent = "‹ Back";
+		}
+
+		// S43 pinned-divergence hint — only when pinned AND the editor has moved
+		// to a different note than the pinned subject.
+		if (
+			this.subject.source === "pinned" &&
+			this._pinDiverged &&
+			state.kind !== "no-note"
+		) {
+			body.createDiv({
+				cls: "sf-pinhint",
+				text: "ⓘ Pinned — not following the active note.",
+			});
+		}
+	}
+
+	/** T4.2: render the "Open note" footer (S41) — opens the current subject. */
+	private _renderOpenNoteFooter(body: AugEl): void {
+		const foot = body.createDiv({ cls: "sf-opennote" });
+		foot.setAttribute("role", "button");
+		foot.setAttribute("tabindex", "0");
+		foot.setAttribute("data-sf-nav", "open");
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
+		foot.textContent = "⤷ Open note";
 	}
 
 	/**
