@@ -7,7 +7,8 @@
  * Sections (in order):
  *   1. Image tile  (optional: only when frontmatter.image is set)
  *   2. Facts       (kind/aliases/first_appearance; absent fields skipped)
- *   3. Owner       (single entity where field==="owner"; empty → "Unowned.")
+ *   3. Owner       (single entity where field==="owner"; unresolved → unresolvedEl;
+ *                   absent → "Unowned.")
  *   4. Appears in  (backlinks where kind==="scene"; incl. fuzzy:true — ADR-8)
  *
  * @ref mockups.html S37
@@ -16,12 +17,13 @@
 
 import {
 	section,
-	factRow,
 	linkRow,
 	emptyLine,
 	imageTile,
+	unresolvedEl,
 } from "panel/components";
 import { kindFields } from "panel/kindFields";
+import { renderFactsSection } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
 
@@ -52,16 +54,7 @@ export function renderObject(
 // ---------------------------------------------------------------------------
 
 function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): void {
-	const fields = kindFields("object").facts;
-	const presentFields = fields.filter((f) => frontmatter[f] !== undefined);
-	if (presentFields.length === 0) return;
-
-	const { bodyEl } = section(el, "Facts");
-	for (const field of presentFields) {
-		const value = frontmatter[field];
-		const display = Array.isArray(value) ? value.join(", ") : String(value);
-		factRow(bodyEl, field, display);
-	}
+	renderFactsSection(el, kindFields("object").facts, frontmatter);
 }
 
 function renderOwner(el: HTMLElement, entities: ResolvedEntity[]): void {
@@ -74,7 +67,13 @@ function renderOwner(el: HTMLElement, entities: ResolvedEntity[]): void {
 	}
 
 	// Owner is a single entity (per schema); render the first one
-	linkRow(bodyEl, ownerEntities[0]!.file.basename);
+	const owner = ownerEntities[0]!;
+	if (owner.unresolved) {
+		bodyEl.appendChild(unresolvedEl(owner.file.basename));
+		return;
+	}
+
+	linkRow(bodyEl, owner.file.basename);
 }
 
 function renderAppearsIn(el: HTMLElement, backlinks: ResolvedEntity[]): void {

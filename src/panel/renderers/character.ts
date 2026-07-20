@@ -30,6 +30,7 @@ import {
 	unresolvedEl,
 } from "panel/components";
 import { kindFields } from "panel/kindFields";
+import { renderFactsSection } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
 
@@ -94,16 +95,7 @@ function renderPortrait(
 }
 
 function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): void {
-	const fields = kindFields("character").facts;
-	const presentFields = fields.filter((f) => frontmatter[f] !== undefined);
-	if (presentFields.length === 0) return;
-
-	const { bodyEl } = section(el, "Facts");
-	for (const field of presentFields) {
-		const value = frontmatter[field];
-		const display = Array.isArray(value) ? value.join(", ") : String(value);
-		factRow(bodyEl, field, display);
-	}
+	renderFactsSection(el, kindFields("character").facts, frontmatter);
 }
 
 function renderFantasy(el: HTMLElement, frontmatter: Record<string, unknown>): void {

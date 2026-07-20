@@ -10,7 +10,7 @@
  *   3. Within        (breadcrumb from entities[field==="world"]; omitted at top-level)
  *   4. Inhabitants   (outgoing entities[field==="inhabitants"]; count badge)
  *   5. Scenes here   (backlinks where kind==="scene" && field==="location"; count badge)
- *   6. Child locations (optional: backlinks where kind==="location" && field==="world")
+ *   6. Locations     (optional: child-location backlinks where kind==="location" && field==="world")
  *
  * DV-2: The Within breadcrumb is a single level — we do NOT recurse the world chain.
  * ADR-7: location renderer.
@@ -23,13 +23,13 @@ declare const activeDocument: Document;
 
 import {
 	section,
-	factRow,
 	linkRow,
 	emptyLine,
 	imageTile,
 	unresolvedEl,
 } from "panel/components";
 import { kindFields } from "panel/kindFields";
+import { renderFactsSection } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
 
@@ -55,7 +55,7 @@ export function renderLocation(
 	renderWithin(el, basename, entities);
 	renderInhabitants(el, entities);
 	renderScenesHere(el, backlinks);
-	renderChildLocations(el, backlinks);
+	renderLocations(el, backlinks);
 }
 
 // ---------------------------------------------------------------------------
@@ -63,16 +63,7 @@ export function renderLocation(
 // ---------------------------------------------------------------------------
 
 function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): void {
-	const fields = kindFields("location").facts;
-	const presentFields = fields.filter((f) => frontmatter[f] !== undefined);
-	if (presentFields.length === 0) return;
-
-	const { bodyEl } = section(el, "Facts");
-	for (const field of presentFields) {
-		const value = frontmatter[field];
-		const display = Array.isArray(value) ? value.join(", ") : String(value);
-		factRow(bodyEl, field, display);
-	}
+	renderFactsSection(el, kindFields("location").facts, frontmatter);
 }
 
 function renderWithin(
@@ -152,7 +143,7 @@ function renderScenesHere(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 	}
 }
 
-function renderChildLocations(el: HTMLElement, backlinks: ResolvedEntity[]): void {
+function renderLocations(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 	const children = backlinks.filter(
 		(b) => b.kind === "location" && b.field === "world",
 	);
