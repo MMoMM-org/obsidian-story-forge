@@ -359,11 +359,11 @@ describe("renderLocation: Scenes here section", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Child locations section (optional: backlinks where kind==="location" && field==="world")
+// Locations section (optional: child-location backlinks where kind==="location" && field==="world")
 // ---------------------------------------------------------------------------
 
-describe("renderLocation: child locations section", () => {
-	it("renders child location backlinks when present", () => {
+describe("renderLocation: Locations section (child locations)", () => {
+	it("renders a 'Locations' section with child location backlinks when present", () => {
 		const childFile = createMockTFile({ basename: "Moonharbor Lighthouse" });
 		const ctx = makeLocCtx({
 			backlinks: [
@@ -373,7 +373,19 @@ describe("renderLocation: child locations section", () => {
 		const el = makeContainer();
 		renderLocation(ctx, el, makeDeps());
 
+		const labels = [...el.querySelectorAll(".sf-sec-label")];
+		expect(labels.some((l) => l.textContent === "Locations")).toBe(true);
+
 		const linkTexts = [...el.querySelectorAll(".sf-lrow-lnk")].map((l) => l.textContent);
 		expect(linkTexts).toContain("Moonharbor Lighthouse");
+	});
+
+	it("omits the Locations section when no child-location backlinks exist", () => {
+		const ctx = makeLocCtx({ backlinks: [] });
+		const el = makeContainer();
+		renderLocation(ctx, el, makeDeps());
+
+		const labels = [...el.querySelectorAll(".sf-sec-label")];
+		expect(labels.every((l) => l.textContent !== "Locations")).toBe(true);
 	});
 });

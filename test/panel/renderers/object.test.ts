@@ -200,6 +200,22 @@ describe("renderObject: Owner section (S37)", () => {
 
 		expect(el.textContent).toContain("Unowned.");
 	});
+
+	it("renders an unresolvedEl (not a linkRow) when owner entity is unresolved", () => {
+		const ghostFile = createMockTFile({ basename: "Unknown Owner", path: "Unknown Owner" });
+		const ctx = makeObjCtx({
+			entities: [
+				{ file: ghostFile, kind: "unknown", relation: "outgoing", field: "owner", unresolved: true },
+			],
+		});
+		const el = makeContainer();
+		renderObject(ctx, el, makeDeps());
+
+		const unresRows = el.querySelectorAll(".sf-unres");
+		expect(unresRows.length).toBeGreaterThan(0);
+		expect(unresRows[0]?.getAttribute("aria-disabled")).toBe("true");
+		expect(unresRows[0]?.textContent).toContain("Unknown Owner");
+	});
 });
 
 // ---------------------------------------------------------------------------
