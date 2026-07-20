@@ -229,10 +229,13 @@ already used); the 12 ASCII mockups live in `mockups.html`.
   links. *(mockups S36–S40)*
 - **Acceptance Criteria (Gherkin Format):**
   - [ ] Given a `location` note, When the Context tab renders, Then it shows facts, a
-    `world`-chain hierarchy breadcrumb (walked upward, cycle-safe), child locations
-    (reverse `world`), `inhabitants`, and "scenes here" (scenes whose `location` = this).
-  - [ ] Given a location's `world` chain contains a cycle or unresolved parent, When
-    the hierarchy renders, Then it terminates safely and marks the break point.
+    single-level `world` breadcrumb (immediate parent + current note — decision DV-2;
+    no recursive chain walk in M3), child locations (reverse `world`), `inhabitants`,
+    and "scenes here" (scenes whose `location` = this).
+  - [ ] Given a location's `world` points at an unresolved parent or forms a cycle,
+    When the breadcrumb renders, Then it stays bounded (a single level, so a cycle
+    cannot loop) and an unresolved parent renders as an unresolved row. *(Full
+    multi-level, break-point-marked ancestry is deferred per DV-2.)*
   - [ ] Given an `object` note, When the Context tab renders, Then it shows facts
     (`kind`), the `owner` (or "Unowned."), and "appears in" (fuzzy backlinks).
   - [ ] Given a `location` or `object` note with a non-empty `image` field, When the

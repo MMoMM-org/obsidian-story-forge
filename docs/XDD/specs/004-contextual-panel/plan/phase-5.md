@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Curated views, seed notes & validation"
-status: in_progress
+status: complete
 version: "1.0"
 phase: 5
 ---
@@ -61,7 +61,7 @@ validation for v0.1.
   5. Success:
      - [x] Every mockup state is demonstrable on the seed vault `[ref: SDD/Quality Requirements]`
 
-- [ ] **T5.3 Integration & live-vault validation** `[activity: validate]` `[ref: SDD/Acceptance Criteria]`
+- [x] **T5.3 Integration & live-vault validation** `[activity: validate]` `[ref: SDD/Acceptance Criteria]`
 
   1. Prime: the exit criterion (open any canon/scene note → right facts + appears-in, live) and
      the ground-truth assertions `[ref: SDD/Quality Requirements]` `[ref: PRD/Success Metrics]`.
@@ -75,5 +75,5 @@ validation for v0.1.
        && npm run schema:check && npm run build
      ```
   5. Success:
-     - [ ] All six gates green; every PRD AC (F1–F7) verified `[ref: PRD/Success Metrics]`
-     - [ ] Exit criterion met → tag v0.1 candidate `[ref: PRD/Vision]`
+     - [x] All six gates green; every PRD AC (F1–F7) verified `[ref: PRD/Success Metrics]`
+     - [x] Exit criterion met → tag v0.1 candidate `[ref: PRD/Vision]`
