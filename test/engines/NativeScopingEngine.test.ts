@@ -11,14 +11,15 @@
  *    - lore ctx      → "Related" section
  *    - plotline ctx  → "Scenes" section
  *    - book ctx      → "Scenes" section
- *    - unknown ctx   → flat fallback list (entity basename visible, no section headers)
+ *    - unknown ctx   → flat fallback list (entity basename visible, no kind-specific headers)
+ *    (character-fantasy notes classify as "character" at the scoping layer; no separate case needed)
  *  - onOpenLink: calls app.workspace.openLinkText
  *  - toggleCollapse: flips collapsed state and re-renders (collapsed section body hidden)
  *  - teardown(): empties the last rendered container
  *  - teardown(): safe to call before any render (no-op)
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { augmentEl, createMockTFile, App } from "../__mocks__/obsidian";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { NoteContext, ResolvedEntity, EntityKind } from "scoping/NoteContext";
@@ -165,16 +166,6 @@ describe("NativeScopingEngine", () => {
 
 		const text = el.textContent ?? "";
 		expect(text).toContain("Scenes");
-	});
-
-	it("character-fantasy activeKind → dispatches to character renderer (Relationships section)", async () => {
-		// character-fantasy is not a valid EntityKind — falls through to unknown fallback
-		// But let's test that character ctx is handled: the character renderer shows Relationships
-		const ctx = makeCtx("character");
-		await engine.render(null, ctx, el);
-
-		const text = el.textContent ?? "";
-		expect(text).toContain("Relationships");
 	});
 
 	it("unknown activeKind → renders flat fallback list with entity basenames", async () => {
