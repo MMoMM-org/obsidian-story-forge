@@ -18,6 +18,8 @@
  * @ref SDD/ADR-2 (pure DOM components; deps injected)
  */
 
+declare const activeDocument: Document;
+
 import {
 	section,
 	factRow,
@@ -27,8 +29,6 @@ import {
 	portraitTile,
 	unresolvedEl,
 } from "panel/components";
-
-declare const activeDocument: Document;
 import { kindFields } from "panel/kindFields";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
@@ -101,7 +101,8 @@ function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): voi
 	const { bodyEl } = section(el, "Facts");
 	for (const field of presentFields) {
 		const value = frontmatter[field];
-		factRow(bodyEl, field, String(value));
+		const display = Array.isArray(value) ? value.join(", ") : String(value);
+		factRow(bodyEl, field, display);
 	}
 }
 
@@ -120,7 +121,7 @@ function renderRelationships(el: HTMLElement, entities: ResolvedEntity[]): void 
 	const relationFields = kindFields("character").relations;
 
 	// Only fields that have at least one entity
-	const byField = groupByField(entities.filter((e) => !e.unresolved || e.field !== undefined));
+	const byField = groupByField(entities);
 	const unresolvedByField = groupUnresolvedByField(entities);
 
 	// Collect which fields are actually present

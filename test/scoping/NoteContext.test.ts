@@ -75,4 +75,9 @@ describe("isNoteContext", () => {
 			false,
 		);
 	});
+
+	it("rejects a context with a null or non-object frontmatter", () => {
+		expect(isNoteContext({ ...validContext(), frontmatter: null })).toBe(false);
+		expect(isNoteContext({ ...validContext(), frontmatter: "not-an-object" })).toBe(false);
+	});
 });

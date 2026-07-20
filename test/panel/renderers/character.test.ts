@@ -147,6 +147,16 @@ describe("renderCharacter: Facts section (S32)", () => {
 		const vals = [...el.querySelectorAll(".sf-frow-v")].map((v) => v.textContent);
 		expect(vals).toContain("Mara");
 	});
+
+	it("joins array fact values with ', ' (not the raw Array.toString comma)", () => {
+		const ctx = makeCharCtx({ frontmatter: { aliases: ["Mara", "Storm"] } });
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const vals = [...el.querySelectorAll(".sf-frow-v")].map((v) => v.textContent);
+		expect(vals).toContain("Mara, Storm");
+		expect(vals).not.toContain("Mara,Storm");
+	});
 });
 
 // ---------------------------------------------------------------------------
