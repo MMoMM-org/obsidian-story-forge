@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Schema foundation (plotline/book + image)"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 1
 ---
@@ -33,7 +33,7 @@ phase: 1
 Establishes the canonical data foundation: two new entity types and the optional image
 field, so the renderers in Phase 3 have facts to show and `classify()` can type them.
 
-- [ ] **T1.1 New schema types: `plotline` + `book`** `[activity: tooling]` `[ref: SDD/ADR-6]`
+- [x] **T1.1 New schema types: `plotline` + `book`** `[activity: tooling]` `[ref: SDD/ADR-6]` — done `333c19a`
 
   1. Prime: Read `docs/schema-change-runbook.md` (ADD-a-type) + `schema/scene.json` shape;
      confirm whether `scripts/schema-gen.mjs` enumerates types explicitly or globs
@@ -51,7 +51,7 @@ field, so the renderers in Phase 3 have facts to show and `classify()` can type 
      - [ ] `schema:gen` emits artifacts for both new types `[ref: PRD/F4]`
      - [ ] `schema:check` gate covers them `[ref: SDD/ADR-6]`
 
-- [ ] **T1.2 Optional `image` field on `object` + `location`** `[activity: tooling]` `[ref: SDD/ADR-7]`
+- [x] **T1.2 Optional `image` field on `object` + `location`** `[activity: tooling]` `[ref: SDD/ADR-7]` — done `419d8a8`
 
   1. Prime: Review `character.json` `portrait` field as the model `[ref: SDD/Data Storage Changes]`.
   2. Test: `object.json` and `location.json` document an optional `image`; `schema:check`
