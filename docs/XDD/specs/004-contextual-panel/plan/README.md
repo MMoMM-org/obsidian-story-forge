@@ -100,7 +100,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 - [x] [Phase 2: Reverse-relation resolution](phase-2.md)
 - [x] [Phase 3: Per-kind panel renderers](phase-3.md)
 - [x] [Phase 4: Navigation & settings](phase-4.md)
-- [ ] [Phase 5: Curated views, seed notes & validation](phase-5.md)
+- [x] [Phase 5: Curated views, seed notes & validation](phase-5.md)
 
 ---
 
