@@ -195,6 +195,21 @@ describe("renderPlotline: Scenes section (S40)", () => {
 		expect(el.textContent).toContain("No scenes in this plotline yet.");
 	});
 
+	it("renders unresolvedEl (not linkRow) for an unresolved scene backlink", () => {
+		const ghostFile = createMockTFile({ basename: "Ghost Scene", path: "Ghost Scene" });
+		const ctx = makePlotCtx({
+			backlinks: [
+				{ file: ghostFile, kind: "scene", relation: "backlink", field: "plotlines", unresolved: true },
+			],
+		});
+		const el = makeContainer();
+		renderPlotline(ctx, el, makeDeps());
+
+		expect(el.querySelector(".sf-unres")).not.toBeNull();
+		expect(el.querySelector(".sf-lrow-lnk")).toBeNull();
+		expect(el.querySelector(".sf-unres")?.textContent).toContain("Ghost Scene");
+	});
+
 	it("renders scenes in stable basename order (DV-3)", () => {
 		// Intentionally out of order — renderer must sort by basename
 		const scene3 = createMockTFile({ basename: "Scene 3 - Zed" });
