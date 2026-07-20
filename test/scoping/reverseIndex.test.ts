@@ -26,28 +26,8 @@ import type { EntityKind, ResolvedEntity } from "../../src/scoping/NoteContext";
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Build a CachedMetadata with just a tag (for target files). */
-function cacheWithTag(tag: string) {
-	return createMockCachedMetadata({ tags: [{ tag }] });
-}
-
-/**
- * A classify stub: maps tags to EntityKind.
- * Mirrors the logic in ScopingService.classify without importing it
- * (keeps the reverseIndex tests free of ScopingService coupling).
- */
+/** Classify stub: reads _mockKind set on the file by makeFile(). */
 function classify(file: TFile): EntityKind {
-	const tagMap: Array<[string, EntityKind]> = [
-		["#canon/character", "character"],
-		["#canon/location", "location"],
-		["#canon/object", "object"],
-		["#canon/lore", "lore"],
-		["#manuscript/scene", "scene"],
-		["#planning/plotline", "plotline"],
-		["#planning/book", "book"],
-	];
-	// Access metadataCache via closure — not ideal, but avoids App dependency here.
-	// Tests wire this through the app mock directly.
 	return (file as { _mockKind?: EntityKind })._mockKind ?? "unknown";
 }
 
@@ -280,7 +260,7 @@ describe("buildBacklinks", () => {
 	// Missing file guard — frontmatter link resolves to a missing file → skip
 	// -------------------------------------------------------------------------
 
-	it("skips a candidate whose frontmatter link resolves to a missing file and never throws", () => {
+	it("silently drops a frontmatterLinks entry when getFirstLinkpathDest returns null", () => {
 		const maraFile = makeFile("30 Canon/31 Characters/Mara Stoneway.md", "character");
 		const sceneFile = makeFile("10 Manuscript/Scene 4.md", "scene");
 
@@ -389,5 +369,30 @@ describe("buildBacklinks", () => {
 		expect(backlinks).toHaveLength(1);
 		expect(backlinks[0]?.fuzzy).toBe(true);
 		expect(backlinks[0]?.kind).toBe<EntityKind>("scene");
+	});
+
+	// -------------------------------------------------------------------------
+	// getFileCache null — candidate with resolvedLinks hit but no cache → skip
+	// -------------------------------------------------------------------------
+
+	it("skips a source file when getFileCache returns null and never throws", () => {
+		const maraFile = makeFile("30 Canon/31 Characters/Mara Stoneway.md", "character");
+		const sceneFile = makeFile("10 Manuscript/Scene 7.md", "scene");
+
+		// resolvedLinks hit: scene → Mara
+		wireResolvedLink(sceneFile.path, maraFile.path, 1);
+
+		// vault returns a valid TFile for the source path
+		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((path) => {
+			if (path === sceneFile.path) return sceneFile;
+			return null;
+		});
+
+		// getFileCache returns null for the source file — cache not yet indexed
+		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(null);
+
+		const backlinks = buildBacklinks(app, maraFile, "character", classify);
+
+		expect(backlinks).toHaveLength(0);
 	});
 });
