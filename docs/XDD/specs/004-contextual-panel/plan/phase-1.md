@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Schema foundation (plotline/book + image)"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 1
 ---
@@ -62,7 +62,7 @@ field, so the renderers in Phase 3 have facts to show and `classify()` can type 
   5. Success:
      - [ ] Both schemas carry an optional `image` field `[ref: PRD/F4]`
 
-- [ ] **T1.3 `EntityKind "book"` + `TAG_MAP` row** `[activity: domain-modeling]` `[ref: SDD/ADR-6]`
+- [x] **T1.3 `EntityKind "book"` + `TAG_MAP` row** `[activity: domain-modeling]` `[ref: SDD/ADR-6]` — done `72c745c`
 
   1. Prime: Read `src/scoping/NoteContext.ts` (`EntityKind`, `ENTITY_KINDS`, `isEntityKind`)
      and `src/scoping/ScopingService.ts` (`TAG_MAP`, lines 25-32).
@@ -74,7 +74,7 @@ field, so the renderers in Phase 3 have facts to show and `classify()` can type 
   5. Success:
      - [ ] Book notes classify as `book`; plotline unaffected `[ref: SDD/ADR-6]`
 
-- [ ] **T1.4 Align existing plotline/book seed notes** `[activity: data]` `[ref: SDD/ADR-6]`
+- [x] **T1.4 Align existing plotline/book seed notes** `[activity: data]` `[ref: SDD/ADR-6]` — done `1b9122d`
 
   1. Prime: `rg -l "planning/(plotline|book)" test/StoryForge` → `The Dying Light.md`,
      `Wardens of Moonharbor.md`.
@@ -86,7 +86,7 @@ field, so the renderers in Phase 3 have facts to show and `classify()` can type 
   5. Success:
      - [ ] Existing plotline + book seed notes conform to the new schema `[ref: PRD/F4]`
 
-- [ ] **T1.5 Phase Validation** `[activity: validate]`
+- [x] **T1.5 Phase Validation** `[activity: validate]` — all 6 gates green; schema:gen clean (no drift); 8 types
 
   - Run `npm run schema:check && npm run typecheck && npm run lint && npm run build` — all green.
   - Verify no generated artifact was hand-edited (regenerate → clean `git diff`).
