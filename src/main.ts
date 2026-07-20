@@ -40,7 +40,7 @@ export default class StoryForgePlugin extends Plugin {
 		// Construct the shared engine infrastructure injected into SidebarView
 		// and SettingsTab. Registry starts empty; populated in onLayoutReady and
 		// the late-join dataview:api-ready handler (SDD Flow A).
-		const nativeEngine = new NativeScopingEngine();
+		const nativeEngine = new NativeScopingEngine(this.app);
 		const registry = new EngineRegistry([]);
 
 		// DvSettingsReader: wraps getDvSettings (CON-8 any-cast isolated to

@@ -192,7 +192,8 @@ describe("EngineRegistry.replace (late-join post-construction update)", () => {
 	it("replace does not include the native sentinel in the map", () => {
 		// NativeScopingEngine has kind="native" — not a ViewRecord.engine value.
 		// replace() must filter it out just like the constructor does.
-		const native = new NativeScopingEngine();
+		const app = new App();
+		const native = new NativeScopingEngine(app);
 		const registry = new EngineRegistry([]);
 
 		registry.replace([native]);
