@@ -1,6 +1,9 @@
 ---
 type: plotline
-title: The Dying Light
+name: "The Dying Light"
+title: "The Dying Light"
+logline: "The lighthouse apprentice must discover who extinguished the sacred flame and restore it before three days of darkness draw something ancient from the sea."
+status: active
 series: "Forge"
 tags: [planning/plotline]
 ---
