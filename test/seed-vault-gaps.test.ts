@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 // ---------------------------------------------------------------------------
@@ -97,11 +97,10 @@ describe("Seed vault — fantasy character", () => {
 
 	it("the fantasy character has the canon/character tag", () => {
 		const files = readMdFiles(CHARACTERS_DIR);
-		const FANTASY_FIELDS_LOCAL = ["species", "magical_abilities", "combat_skills", "weapons", "armor"];
 
 		const fantasyCharacters = files.filter((f) => {
 			const fm = parseFlatFrontmatter(f.content);
-			return FANTASY_FIELDS_LOCAL.some((field) => {
+			return FANTASY_FIELDS.some((field) => {
 				const val = fm[field];
 				const listPattern = new RegExp(`^${field}:\\s*\\n\\s*-`, "m");
 				return (val !== undefined && val !== "" && val !== "null") ||
@@ -121,11 +120,10 @@ describe("Seed vault — fantasy character", () => {
 
 	it("the fantasy character has type: character", () => {
 		const files = readMdFiles(CHARACTERS_DIR);
-		const FANTASY_FIELDS_LOCAL = ["species", "magical_abilities", "combat_skills", "weapons", "armor"];
 
 		const fantasyCharacters = files.filter((f) => {
 			const fm = parseFlatFrontmatter(f.content);
-			return FANTASY_FIELDS_LOCAL.some((field) => {
+			return FANTASY_FIELDS.some((field) => {
 				const val = fm[field];
 				const listPattern = new RegExp(`^${field}:\\s*\\n\\s*-`, "m");
 				return (val !== undefined && val !== "" && val !== "null") ||
