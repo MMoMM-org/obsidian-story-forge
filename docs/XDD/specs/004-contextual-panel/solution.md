@@ -249,9 +249,13 @@ export function buildBacklinks(
 // src/panel/renderPanel.ts — NEW (ADR-2)
 export type PanelRenderer = (ctx: NoteContext, el: HTMLElement, deps: PanelDeps) => void;
 export interface PanelDeps {
-  onOpenLink: (target: TFile, mode: "drill" | "open") => void;  // wired by SidebarView (ADR-4)
-  collapsed: (label: string) => boolean;                        // section collapse state
-  toggleCollapse: (label: string) => void;
+  // As shipped (Phase 3/4): renderers stay pure and stamp link targets via
+  // `data-sf-link`; SidebarView owns a single delegated body handler that routes
+  // drill/open (ADR-4). Per-link `onOpenLink` is therefore a plain path opener,
+  // NOT a (target, mode) router — the delegated handler supersedes it (T4.2).
+  onOpenLink: (path: string) => void;                           // open a linked note by path
+  collapsed: Record<string, boolean>;                           // section collapse state, keyed by section id
+  toggleCollapse: (sectionId: string) => void;
 }
 export const RENDERERS: Record<EntityKind, PanelRenderer>;      // "unknown" → flat fallback
 ```
