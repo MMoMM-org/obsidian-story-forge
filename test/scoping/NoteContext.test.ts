@@ -20,6 +20,7 @@ describe("isEntityKind", () => {
 			"lore",
 			"scene",
 			"plotline",
+			"book",
 			"unknown",
 		]) {
 			expect(isEntityKind(kind)).toBe(true);
