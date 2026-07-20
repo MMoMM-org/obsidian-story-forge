@@ -35,7 +35,7 @@ phase: 5
 Ships the default view set, fills the seed-vault gaps, and runs the full exit-criteria
 validation for v0.1.
 
-- [ ] **T5.1 Curated `_forge` `sf-view` seed set** `[activity: data]` `[ref: PRD/F7]`
+- [x] **T5.1 Curated `_forge` `sf-view` seed set** `[activity: data]` `[ref: PRD/F7]`
 
   1. Prime: existing `sf-view` note format `[ref: test/StoryForge/sf-views/characters-in-scene.md]`;
      `ViewDefinition` parser `[ref: src/import/ViewDefinition.ts]`.
@@ -46,9 +46,9 @@ validation for v0.1.
      inhabitants, scenes-here, plotline-scenes, book-scenes (+ keep characters-in-scene).
   4. Validate: import each in the dev vault; renders with Dataview; native fallback when absent.
   5. Success:
-     - [ ] Curated view set authored + importable; graceful without Dataview `[ref: PRD/F7]`
+     - [x] Curated view set authored + importable; graceful without Dataview `[ref: PRD/F7]`
 
-- [ ] **T5.2 Seed-vault gap notes** `[activity: data]` `[ref: SDD/Risks]`
+- [x] **T5.2 Seed-vault gap notes** `[activity: data]` `[ref: SDD/Risks]`
 
   1. Prime: Integration research sample-data gaps (no fantasy char; no object/lore in a scene;
      all portraits empty) `[ref: SDD/Risks/Known Technical Issues]`.
@@ -59,7 +59,7 @@ validation for v0.1.
   4. Validate: `schema:check`; open in dev vault, panels populate (S35 with real image, object/lore
      appears-in populated, fantasy sub-block visible).
   5. Success:
-     - [ ] Every mockup state is demonstrable on the seed vault `[ref: SDD/Quality Requirements]`
+     - [x] Every mockup state is demonstrable on the seed vault `[ref: SDD/Quality Requirements]`
 
 - [ ] **T5.3 Integration & live-vault validation** `[activity: validate]` `[ref: SDD/Acceptance Criteria]`
 
