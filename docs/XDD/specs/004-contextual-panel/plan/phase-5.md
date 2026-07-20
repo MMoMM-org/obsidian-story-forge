@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Curated views, seed notes & validation"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 5
 ---
