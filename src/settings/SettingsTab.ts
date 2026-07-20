@@ -112,6 +112,20 @@ export class SettingsTab extends PluginSettingTab {
 					}),
 			);
 
+		new Setting(containerEl)
+			.setName("Link click action")
+			.setDesc("What happens when you click a link in the panel. Modifier-click (ctrl/cmd) inverts this choice.")
+			.addDropdown((d) =>
+				d
+					.addOption("drill", "Drill into linked note (stay in panel)")
+					.addOption("open", "Open in editor")
+					.setValue(this.plugin.settings.linkClickAction)
+					.onChange(async (value: string) => {
+						this.plugin.settings.linkClickAction = value as "drill" | "open";
+						await this.plugin.saveSettings();
+					}),
+			);
+
 		await this._renderViewsSection(gen);
 	}
 

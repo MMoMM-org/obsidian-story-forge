@@ -210,6 +210,11 @@ export default class StoryForgePlugin extends Plugin {
 		const raw = await this.loadData() as StoryForgeData | null | undefined;
 		const stored = raw?.settings ?? null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
+		// Explicit guard: Object.assign propagates any persisted value as-is, so
+		// a malformed linkClickAction (neither "drill" nor "open") must fall back.
+		if (this.settings.linkClickAction !== "drill" && this.settings.linkClickAction !== "open") {
+			this.settings.linkClickAction = "drill";
+		}
 	}
 
 	async saveSettings(): Promise<void> {
