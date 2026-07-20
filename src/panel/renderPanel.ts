@@ -56,8 +56,10 @@ function renderFallback(ctx: NoteContext, el: HTMLElement, _deps: PanelDeps): vo
 
 /**
  * Dispatch table: maps every known EntityKind to its panel renderer.
- * "character-fantasy" reuses the character renderer (per schema design).
- * "unknown" uses the flat fallback.
+ * character-fantasy notes classify as "character" at the scoping layer (via the
+ * canon/character tag), so they arrive here as activeKind:"character" and
+ * renderCharacter handles their fantasy fields conditionally (ADR-9).
+ * "unknown" → renderFallback via the ?? guard below.
  */
 const RENDERERS: Record<EntityKind, PanelRenderer> = {
 	character: renderCharacter,

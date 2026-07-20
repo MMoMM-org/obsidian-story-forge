@@ -26,11 +26,8 @@ export class NativeScopingEngine implements QueryEngine {
 	/** In-memory collapse state, persists across re-renders on this engine instance. */
 	readonly collapsed: Record<string, boolean> = {};
 
-	/** Reference to the last rendered container, for teardown and collapse re-render. */
+	/** Reference to the last rendered container, for teardown. */
 	private lastEl: HTMLElement | null = null;
-
-	/** Last rendered context, for collapse re-render. */
-	private lastCtx: NoteContext | null = null;
 
 	/** Built deps for last render — exposed as _lastDeps for testing. */
 	_lastDeps: PanelDeps | null = null;
@@ -50,7 +47,6 @@ export class NativeScopingEngine implements QueryEngine {
 		el: HTMLElement,
 	): Promise<void> {
 		this.lastEl = el;
-		this.lastCtx = ctx;
 
 		const deps = this._buildDeps(ctx, el);
 		this._lastDeps = deps;
@@ -67,7 +63,6 @@ export class NativeScopingEngine implements QueryEngine {
 			this.lastEl.empty();
 			this.lastEl = null;
 		}
-		this.lastCtx = null;
 		this._lastDeps = null;
 	}
 
