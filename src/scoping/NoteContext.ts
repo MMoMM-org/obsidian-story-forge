@@ -52,6 +52,9 @@ export function isEntityKind(value: unknown): value is EntityKind {
  * - `relation` — "outgoing" | "backlink" | "self"
  * - `field` — source frontmatter key (e.g. "pov", "characters", "location")
  * - `unresolved` — true when the link text resolves to no file in the vault
+ * - `fuzzy` — true when the backlink is inferred from a body link only
+ *   (resolvedLinks hit with no frontmatterLinks edge); only emitted for
+ *   object and lore subjects whose srcKind is "scene" (ADR-8)
  */
 export interface ResolvedEntity {
 	file: TFile;
@@ -59,6 +62,7 @@ export interface ResolvedEntity {
 	relation: "outgoing" | "backlink" | "self";
 	field?: string;
 	unresolved?: boolean;
+	fuzzy?: boolean;
 }
 
 // ---------------------------------------------------------------------------
