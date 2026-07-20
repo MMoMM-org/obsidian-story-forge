@@ -20,6 +20,7 @@ export type EntityKind =
 	| "lore"
 	| "scene"
 	| "plotline"
+	| "book"
 	| "unknown";
 
 /** All valid EntityKind values, used for runtime validation. */
@@ -30,6 +31,7 @@ const ENTITY_KINDS: ReadonlySet<string> = new Set<EntityKind>([
 	"lore",
 	"scene",
 	"plotline",
+	"book",
 	"unknown",
 ]);
 

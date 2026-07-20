@@ -29,6 +29,7 @@ const TAG_MAP: ReadonlyArray<[string, EntityKind]> = [
 	["#canon/lore", "lore"],
 	["#manuscript/scene", "scene"],
 	["#planning/plotline", "plotline"],
+	["#planning/book", "book"],
 ];
 
 // ---------------------------------------------------------------------------
