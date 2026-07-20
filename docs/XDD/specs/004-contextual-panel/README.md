@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-07-19 |
-| **Current Phase** | Ready |
+| **Current Phase** | Implemented |
 | **Last Updated** | 2026-07-20 |
 
 ## Documents
@@ -32,6 +32,7 @@
 | 2026-07-19 | **D5 — Optional `image` for object + location, in M3** (review feedback) | Only `character.json` had `portrait`; per Marcus's review, add an optional `image` field to `object.json` + `location.json` (D1 already touches schema) and render a thumbnail tile like the portrait — but only when present, no monogram placeholder. Mockups S36/S37 updated. |
 | 2026-07-19 | D6 — Contextual view switcher deferred to a GH issue (review feedback) | Marcus: view tabs like "characters in scene" are useless on a character note. Filtering view tabs/dropdown by the active note's kind + a dropdown switcher (strategy: contextual by default, "show all views" escape hatch) is a follow-on feature, not M3. Captured as [GH issue #1](https://github.com/MMoMM-org/obsidian-story-forge/issues/1); M3 keeps the M2 tab strip. Clarified S40 trigger: plotline panel shows when the active note is classified `plotline` (tag `#planning/plotline`, `ScopingService.ts:31`). |
 | 2026-07-20 | PLAN complete → spec Ready | 5 phases, 19 tasks. P1 Schema (plotline/book/image/EntityKind) ∥ P2 Reverse-index (buildBacklinks, sync) → P3 Renderers (src/panel/ + dispatch, 6 kinds) → P4 Nav/Settings (drill-in stack + linkClickAction) → P5 Curated views + seed notes + full-gate validation. Every F1–F7 AC mapped; dependency graph acyclic; ready for /implement. |
+| 2026-07-20 | Implementation complete | Phase 4–5 shipped the M3 contextual panel: linkClickAction setting + drill-in navigation (SubjectSource "drilled", navStack, single delegated leak-free link handler, data-sf-link target stamping), 6 curated reverse-relation sf-view notes, seed-vault gap notes (fantasy char Lyra Tidecall + non-empty portrait), and a 29-test integration suite. PRD F3 + SDD world-cycle reconciled to single-level breadcrumb per DV-2. 949 tests + all six gates green at e1e5670 on branch contextual-panel (unpushed). |
 | 2026-07-19 | SDD complete — ADR-1…9 | Reverse index sync/field-filtered in `ScopingService.resolve()` filling `NoteContext.backlinks` via `resolvedLinks` prefilter + `frontmatterLinks` scan (NOT `getBacklinksForFile`, CON-2); per-kind renderers in a new `src/panel/` module with `NativeScopingEngine` as thin type dispatcher (contract-preserving); `ResolvedEntity` gains optional `fuzzy?`; drill-in nav stack (`SubjectSource` +`"drilled"`) + `linkClickAction` setting; `plotline`+`book` first-class schema (book needs new `EntityKind`+`TAG_MAP` row); optional `image` on object/location; character-fantasy = conditional sub-block. All interfaces verified against current code. |
 | 2026-07-19 | PRD approved → proceed to SDD | 7 feature groups (F1 character panel, F2 reverse resolution, F3 other 5 kinds, F4 plotline/book schema, F5 empty states, F6 navigation, F7 curated views), ~40 Gherkin ACs; 12 mockup states S32–S43; MoSCoW set; 4 SDD-level open questions carried forward (reverse-index construction, renderer home, settings-row shape, new-schema field lists). |
 
