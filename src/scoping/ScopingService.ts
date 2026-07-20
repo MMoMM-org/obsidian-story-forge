@@ -16,6 +16,7 @@ import {
 	type NoteContext,
 	type ResolvedEntity,
 } from "./NoteContext";
+import { buildBacklinks } from "./reverseIndex";
 
 // ---------------------------------------------------------------------------
 // Tag → EntityKind mapping (ADR-4)
@@ -143,7 +144,7 @@ export class ScopingService {
 			activeFile: file,
 			activeKind,
 			entities,
-			backlinks: [], // seam — M3
+			backlinks: buildBacklinks(this.app, file, activeKind, (f) => this.classify(f)),
 			resolvedAt: Date.now(),
 		};
 	}
