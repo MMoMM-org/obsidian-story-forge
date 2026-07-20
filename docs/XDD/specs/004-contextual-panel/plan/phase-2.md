@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Reverse-relation resolution"
-status: pending
+status: completed
 version: "1.0"
 phase: 2
 ---
@@ -34,7 +34,7 @@ phase: 2
 Fills the `NoteContext.backlinks` seam so "appears in", "owns", "inhabitants", "scenes here",
 and "referenced by" can be rendered.
 
-- [ ] **T2.1 `ResolvedEntity.fuzzy?` + `reverseIndex.buildBacklinks`** `[activity: domain-modeling]` `[ref: SDD/ADR-1]` `[ref: SDD/ADR-8]`
+- [x] **T2.1 `ResolvedEntity.fuzzy?` + `reverseIndex.buildBacklinks`** `[activity: domain-modeling]` `[ref: SDD/ADR-1]` `[ref: SDD/ADR-8]` — done `e3f9411` (+review fixes `9e4c406`)
 
   1. Prime: Read the `buildBacklinks` example + traced walkthroughs `[ref: SDD/Implementation Examples]`;
      the existing outgoing-resolve loop `[ref: src/scoping/ScopingService.ts; lines: 101-139]`.
@@ -54,7 +54,7 @@ and "referenced by" can be rendered.
      - [ ] Typed backlinks carry the source field; fuzzy flagged for object/lore `[ref: PRD/F2]`
      - [ ] Only public APIs used (`resolvedLinks`/`frontmatterLinks`/`getFirstLinkpathDest`) `[ref: SDD/CON-2]`
 
-- [ ] **T2.2 Wire reverse index into `ScopingService.resolve()`** `[activity: backend-api]` `[ref: SDD/ADR-1]`
+- [x] **T2.2 Wire reverse index into `ScopingService.resolve()`** `[activity: backend-api]` `[ref: SDD/ADR-1]` — done `3495898`
 
   1. Prime: `resolve()` return site `[ref: src/scoping/ScopingService.ts; lines: 141-147]`.
   2. Test: `resolve(file).backlinks` is populated for each kind; cache-null path still returns
@@ -64,7 +64,7 @@ and "referenced by" can be rendered.
   5. Success:
      - [ ] `NoteContext.backlinks` filled on every resolve; live-follow recomputes `[ref: PRD/F2]`
 
-- [ ] **T2.3 Phase Validation** `[activity: validate]`
+- [x] **T2.3 Phase Validation** `[activity: validate]` — all gates green; 560 tests; 8 reverse-index cases; no cross-phase regression
 
   - Run `npm test` (scoping suite) + `npm run typecheck && npm run typecheck:test && npm run lint`.
   - Verify the ground-truth assertions from the SDD (Mara → Scenes 1-3 POV; Tobias owns Beacon

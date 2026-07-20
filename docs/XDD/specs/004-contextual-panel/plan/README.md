@@ -97,7 +97,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 > **Dependency graph:** P1 ∥ P2 (parallel) → P3 → P4 → P5.
 
 - [x] [Phase 1: Schema foundation (plotline/book + image)](phase-1.md)
-- [ ] [Phase 2: Reverse-relation resolution](phase-2.md)
+- [x] [Phase 2: Reverse-relation resolution](phase-2.md)
 - [ ] [Phase 3: Per-kind panel renderers](phase-3.md)
 - [ ] [Phase 4: Navigation & settings](phase-4.md)
 - [ ] [Phase 5: Curated views, seed notes & validation](phase-5.md)
