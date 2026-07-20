@@ -1,0 +1,29 @@
+{
+  "entity": "book",
+  "idPrefix": "b",
+  "icon": "book",
+  "folder": "20 Planning",
+  "tag": "planning/book",
+  "note": "Canonical note for a book (volume) in the series, under `20 Planning/`. Scenes link here via their `book` field; the reference panel can surface book metadata alongside scene context.",
+  "fields": [
+    { "name": "type", "type": "fixed", "value": "book",
+      "description": "Fixed classifier — always `book`. Set by the template; do not change it." },
+    { "name": "name", "type": "text",
+      "description": "Text. The book's canonical short name — used in `[[wikilinks]]` from scene notes. Should match the note title." },
+    { "name": "title", "type": "text",
+      "description": "Text. The full published title of the book." },
+    { "name": "subtitle", "type": "text",
+      "description": "Text. The subtitle, if any (e.g. \"A Tale of the Forge\")." },
+    { "name": "author", "type": "text",
+      "description": "Text. Author name(s) as they will appear on the cover." },
+    { "name": "order", "type": "number",
+      "description": "Number. The book's position in the series reading order (1 = first). Used to sort book notes and scenes by volume." },
+    { "name": "status", "type": "select",
+      "values": ["planning", "drafting", "revising", "done"],
+      "description": "Select — one of `planning | drafting | revising | done`. Current production state of the book." },
+    { "name": "series", "type": "text", "default": "Forge",
+      "description": "Text. The series this book belongs to (defaults to the vault's series name)." },
+    { "name": "tags", "type": "tags",
+      "description": "List. Always includes `planning/book` — how views and Bases select book notes." }
+  ]
+}

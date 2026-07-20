@@ -35,6 +35,8 @@ const TYPES = [
   { type: 'object', template: 'entity-object.md', fileclass: 'fc-object.md', doc: 'object.md' },
   { type: 'lore', template: 'entity-lore.md', fileclass: 'fc-lore.md', doc: 'lore.md' },
   { type: 'scene', template: 'scene.md', fileclass: 'fc-scene.md', doc: 'scene.md' },
+  { type: 'plotline', template: 'entity-plotline.md', fileclass: 'fc-plotline.md', doc: 'plotline.md' },
+  { type: 'book', template: 'entity-book.md', fileclass: 'fc-book.md', doc: 'book.md' },
 ];
 
 // `tags` classifies the note and is not a metadata-menu field; allow it to be
