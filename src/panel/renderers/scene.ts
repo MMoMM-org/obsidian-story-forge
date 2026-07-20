@@ -95,7 +95,7 @@ function renderFacts(
 		if (e.unresolved) {
 			bodyEl.appendChild(unresolvedEl(e.file.basename));
 		} else {
-			linkRow(bodyEl, e.file.basename);
+			linkRow(bodyEl, e.file.basename, { path: e.file.path });
 		}
 	}
 }
@@ -113,7 +113,7 @@ function renderPointOfView(el: HTMLElement, entities: ResolvedEntity[]): void {
 		if (e.unresolved) {
 			bodyEl.appendChild(unresolvedEl(e.file.basename));
 		} else {
-			linkRow(bodyEl, e.file.basename, { tag: "pov" });
+			linkRow(bodyEl, e.file.basename, { tag: "pov", path: e.file.path });
 		}
 	}
 }
@@ -131,7 +131,7 @@ function renderCharacters(el: HTMLElement, entities: ResolvedEntity[]): void {
 		if (e.unresolved) {
 			bodyEl.appendChild(unresolvedEl(e.file.basename));
 		} else {
-			linkRow(bodyEl, e.file.basename);
+			linkRow(bodyEl, e.file.basename, { path: e.file.path });
 		}
 	}
 }
@@ -149,7 +149,7 @@ function renderLocation(el: HTMLElement, entities: ResolvedEntity[]): void {
 		if (e.unresolved) {
 			bodyEl.appendChild(unresolvedEl(e.file.basename));
 		} else {
-			linkRow(bodyEl, e.file.basename);
+			linkRow(bodyEl, e.file.basename, { path: e.file.path });
 		}
 	}
 }
@@ -167,7 +167,7 @@ function renderPlotlines(el: HTMLElement, entities: ResolvedEntity[]): void {
 		if (e.unresolved) {
 			bodyEl.appendChild(unresolvedEl(e.file.basename));
 		} else {
-			linkRow(bodyEl, e.file.basename);
+			linkRow(bodyEl, e.file.basename, { path: e.file.path });
 		}
 	}
 }
@@ -203,7 +203,7 @@ function renderNavSlot(
 		return;
 	}
 
-	linkRow(bodyEl, match.file.basename);
+	linkRow(bodyEl, match.file.basename, { path: match.file.path });
 }
 
 /**

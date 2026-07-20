@@ -58,7 +58,14 @@ export default class StoryForgePlugin extends Plugin {
 		// Register the sidebar panel view type — inject all M2 deps via closure.
 		this.registerView(
 			SIDEBAR_VIEW_TYPE,
-			(leaf: WorkspaceLeaf) => new SidebarView(leaf, registry, gate, nativeEngine, this.store),
+			(leaf: WorkspaceLeaf) => new SidebarView(
+				leaf,
+				registry,
+				gate,
+				nativeEngine,
+				this.store,
+				() => this.settings.linkClickAction,
+			),
 		);
 
 		// Ribbon icon — open panel on click. "Story Forge" is a proper noun.

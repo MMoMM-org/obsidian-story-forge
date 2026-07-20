@@ -54,7 +54,7 @@ export function renderReverseSceneList(
 		if (bl.unresolved) {
 			bodyEl.appendChild(unresolvedEl(bl.file.basename));
 		} else {
-			linkRow(bodyEl, bl.file.basename);
+			linkRow(bodyEl, bl.file.basename, { path: bl.file.path });
 		}
 	}
 }

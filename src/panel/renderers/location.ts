@@ -27,6 +27,7 @@ import {
 	emptyLine,
 	imageTile,
 	unresolvedEl,
+	stampLinkEl,
 } from "panel/components";
 import { kindFields } from "panel/kindFields";
 import { renderFactsSection } from "panel/renderers/shared";
@@ -82,23 +83,19 @@ function renderWithin(
 		return;
 	}
 
-	renderBreadcrumb(bodyEl, parent.file.basename, basename);
+	renderBreadcrumb(bodyEl, parent.file.basename, parent.file.path, basename);
 }
 
 function renderBreadcrumb(
 	bodyEl: HTMLElement,
 	parentName: string,
+	parentPath: string,
 	currentName: string,
 ): void {
 	const crumbEl = activeDocument.createElement("div");
 	crumbEl.className = "sf-breadcrumb";
 
-	const parentSpan = activeDocument.createElement("span");
-	parentSpan.className = "sf-lrow-lnk";
-	parentSpan.textContent = parentName;
-	parentSpan.setAttribute("tabindex", "0");
-	parentSpan.setAttribute("role", "link");
-	crumbEl.appendChild(parentSpan);
+	crumbEl.appendChild(stampLinkEl(parentName, parentPath));
 
 	const sepSpan = activeDocument.createElement("span");
 	sepSpan.className = "sf-breadcrumb-sep";
@@ -123,7 +120,7 @@ function renderInhabitants(el: HTMLElement, entities: ResolvedEntity[]): void {
 	}
 
 	for (const e of inhabitants) {
-		linkRow(bodyEl, e.file.basename);
+		linkRow(bodyEl, e.file.basename, { path: e.file.path });
 	}
 }
 
@@ -139,7 +136,7 @@ function renderScenesHere(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 	}
 
 	for (const bl of scenes) {
-		linkRow(bodyEl, bl.file.basename);
+		linkRow(bodyEl, bl.file.basename, { path: bl.file.path });
 	}
 }
 
@@ -151,6 +148,6 @@ function renderLocations(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 
 	const { bodyEl } = section(el, "Locations", { count: children.length });
 	for (const bl of children) {
-		linkRow(bodyEl, bl.file.basename);
+		linkRow(bodyEl, bl.file.basename, { path: bl.file.path });
 	}
 }

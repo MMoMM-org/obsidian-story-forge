@@ -63,7 +63,7 @@ function renderRelated(el: HTMLElement, entities: ResolvedEntity[]): void {
 	}
 
 	for (const e of related) {
-		linkRow(bodyEl, e.file.basename, { tag: e.kind });
+		linkRow(bodyEl, e.file.basename, { tag: e.kind, path: e.file.path });
 	}
 }
 
@@ -77,6 +77,6 @@ function renderReferencedBy(el: HTMLElement, backlinks: ResolvedEntity[]): void 
 	}
 
 	for (const bl of backlinks) {
-		linkRow(bodyEl, bl.file.basename, { tag: bl.kind });
+		linkRow(bodyEl, bl.file.basename, { tag: bl.kind, path: bl.file.path });
 	}
 }

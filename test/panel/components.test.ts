@@ -243,6 +243,18 @@ describe("linkRow()", () => {
 		linkRow(container, "Scene 1");
 		expect(container.querySelector(".sf-lrow")).not.toBeNull();
 	});
+
+	it("stamps data-sf-link on the link element when path is provided (T4.2)", () => {
+		const el = linkRow(makeContainer(), "Scene 1", { path: "Scene 1.md" });
+		const lnk = el.querySelector(".sf-lrow-lnk") as HTMLElement;
+		expect(lnk.getAttribute("data-sf-link")).toBe("Scene 1.md");
+	});
+
+	it("does NOT stamp data-sf-link when path is absent (T4.2)", () => {
+		const el = linkRow(makeContainer(), "Scene 1");
+		const lnk = el.querySelector(".sf-lrow-lnk") as HTMLElement;
+		expect(lnk.hasAttribute("data-sf-link")).toBe(false);
+	});
 });
 
 // ---------------------------------------------------------------------------
