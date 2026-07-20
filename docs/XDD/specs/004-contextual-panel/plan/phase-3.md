@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Per-kind panel renderers"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 3
 ---
@@ -29,12 +29,32 @@ phase: 3
 
 ---
 
+## Deviations
+
+- **DV-1 (2026-07-20) — `NoteContext` gains `frontmatter`.** The SDD's per-kind renderers
+  need the note's scalar frontmatter facts (role/status/tagline/logline/portrait/image/…) for
+  the Facts blocks, but `NoteContext` only carried resolved links (`entities`/`backlinks`) and
+  `PanelDeps` gave renderers no `app` access. Fix (additive, same pattern as the `backlinks`
+  fill): add `frontmatter: Record<string, unknown>` to `NoteContext`, populated from
+  `cache.frontmatter` in `ScopingService.resolve()` (empty `{}` on cache-null). Keeps renderers
+  pure/data-testable. Folded into T3.2 as its first step. SDD updated (ADR-2 note). Rationale:
+  necessary for F1/F3 facts rendering; low-risk additive contract extension.
+
+- **DV-2 (2026-07-20) — Location hierarchy = immediate parent only (M3).** The SDD's
+  `worldChain` walks the recursive `world` ancestry via `app.metadataCache`, but per-kind
+  renderers are pure (no `app`) and `NoteContext` only carries the active note's immediate
+  links. To preserve renderer purity/testability, M3's location "Within" breadcrumb shows the
+  **immediate parent** (`ctx.entities` where `field === "world"`) + the current note, plus
+  child locations via reverse (`backlinks` `kind==="location"` `field==="world"`). This matches
+  mockup S36's single-level breadcrumb. Full multi-level ancestry is deferred (would need a
+  precomputed chain in `NoteContext` or `app` in `PanelDeps`). Recorded in T3.3.
+
 ## Tasks
 
 Replaces the Context-tab stub with type-aware panels for all six kinds (+ book), consuming
-`ctx.entities` (outgoing) and `ctx.backlinks` (reverse).
+`ctx.frontmatter` (facts), `ctx.entities` (outgoing relations), and `ctx.backlinks` (reverse).
 
-- [ ] **T3.1 Shared components + `kindFields`** `[activity: frontend-ui]` `[ref: SDD/Interface Specifications]`
+- [x] **T3.1 Shared components + `kindFields`** `[activity: frontend-ui]` `[ref: SDD/Interface Specifications]` — done `2aed26b` (+review fixes `64f78e6`)
 
   1. Prime: Read the mockup component vocabulary (sections, fact/relation/link rows, empty,
      unresolved, portrait/image tiles) `[ref: mockups.html]`.
@@ -48,7 +68,7 @@ Replaces the Context-tab stub with type-aware panels for all six kinds (+ book),
   5. Success:
      - [ ] Reusable builders match the mockups; empty/unresolved states covered `[ref: PRD/F5]`
 
-- [ ] **T3.2 Character renderer (+ fantasy)** `[activity: frontend-ui]` `[ref: PRD/F1]` `[ref: SDD/ADR-9]`
+- [x] **T3.2 Character renderer (+ fantasy)** `[activity: frontend-ui]` `[ref: PRD/F1]` `[ref: SDD/ADR-9]` — done `a8e7128` (+review `01973d5`, `58e3ec9`); DV-1 NoteContext.frontmatter + PanelDeps + unresolvedEl landed here
 
   1. Prime: States S32–S35, S42 `[ref: mockups.html]`; character/character-fantasy schema.
   2. Test: facts+portrait (monogram when `portrait:""`); relationship groups; "appears in"
@@ -60,7 +80,14 @@ Replaces the Context-tab stub with type-aware panels for all six kinds (+ book),
      - [ ] Character panel matches S32; empty/unresolved honest `[ref: PRD/F1]` `[ref: PRD/F5]`
      - [ ] Fantasy fields render only when present `[ref: SDD/ADR-9]`
 
-- [ ] **T3.3 Location / object / lore renderers (+ image)** `[activity: frontend-ui]` `[ref: PRD/F3]` `[ref: SDD/ADR-7]` `[ref: SDD/ADR-8]`
+- **DV-3 (2026-07-20) — Reverse-scene lists render in stable basename order (M3).** Mockups
+  S39/S40 number plotline/book scenes by `scene.order`, but `buildBacklinks` returns only
+  `{file, kind, field}` — not the target scene's `order` frontmatter — so per-kind renderers
+  can't sort by `order`. M3 renders reverse-scene lists in a deterministic basename sort; true
+  `order` sorting is deferred (would need the reverse index to carry the target's sort key, or
+  the renderer to read target frontmatter — neither in M3 scope). Recorded in T3.4.
+
+- [x] **T3.3 Location / object / lore renderers (+ image)** `[activity: frontend-ui]` `[ref: PRD/F3]` `[ref: SDD/ADR-7]` `[ref: SDD/ADR-8]` — done `64a1a89` (+review `0e65ee4`); shared `renderFactsSection` extracted
 
   1. Prime: States S36–S38 `[ref: mockups.html]`; `worldChain` cycle-safe walk `[ref: SDD/Implementation Examples]`.
   2. Test: location hierarchy breadcrumb (cycle-safe), inhabitants, scenes-here; object owner

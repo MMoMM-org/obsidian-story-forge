@@ -222,7 +222,11 @@ export interface ResolvedEntity {
   unresolved?: boolean;
   fuzzy?: boolean;        // NEW: true for prose/body backlinks (object/lore appears-in, ADR-8)
 }
-// NoteContext shape UNCHANGED; resolve() now fills `backlinks: ResolvedEntity[]`.
+// resolve() now fills `backlinks: ResolvedEntity[]`.
+// DEVIATION DV-1 (Phase 3): NoteContext ALSO gains `frontmatter: Record<string, unknown>`
+// (raw cache.frontmatter, `{}` on cache-null) so per-kind renderers can show scalar facts
+// (role/status/tagline/logline/portrait/image/…) without app access — additive, keeps
+// renderers pure/data-testable. See plan/phase-3.md DV-1.
 ```
 
 ```typescript
