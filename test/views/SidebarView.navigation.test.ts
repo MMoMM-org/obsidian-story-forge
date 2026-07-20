@@ -399,6 +399,115 @@ describe("SidebarView: drill-in navigation", () => {
 		expect(pv.subject.file?.path).toBe(to.path);
 		expect(pv.subject.source).toBe("drilled");
 	});
+
+	// FIX 3a: Space key also drills (keyboard parity with Enter)
+	it("keyboard (Space) on a link row drills too", () => {
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
+		seedResolved(from, to);
+
+		const el = getBody(view).querySelector(
+			`[data-sf-link="${to.path}"]`,
+		) as HTMLElement;
+		const evt = new KeyboardEvent("keydown", { key: " ", bubbles: true });
+		el.dispatchEvent(evt);
+
+		const pv = view as unknown as { subject: { file: TFile | null; source: string } };
+		expect(pv.subject.file?.path).toBe(to.path);
+		expect(pv.subject.source).toBe("drilled");
+	});
+
+	// FIX 3b: multi-level back — intermediate drilled state, then full pop
+	it("multi-level back: A→B→C then back once is still drilled; back twice returns to follow", () => {
+		const fileA = makeMdFile("A");
+		const fileB = makeMdFile("B");
+		const fileC = makeMdFile("C");
+
+		// Drill A → B
+		seedResolved(fileA, fileB);
+		clickLink(view, fileB.path);
+
+		// Now seed B → C so we can drill again
+		registerCharacter(app, fileC);
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+			currentCtx: NoteContext;
+			navStack: TFile[];
+			_renderState(s: { kind: string; ctx: NoteContext }): void;
+		};
+		const ctxB: NoteContext = {
+			activeFile: fileB,
+			activeKind: "character",
+			entities: [{ file: fileC, kind: "character", relation: "outgoing", field: "allies" }],
+			backlinks: [],
+			frontmatter: {},
+			resolvedAt: Date.now(),
+		};
+		pv.currentCtx = ctxB;
+		pv._renderState({ kind: "resolved", ctx: ctxB });
+
+		// Drill B → C (now stack = [A, B])
+		clickLink(view, fileC.path);
+
+		expect(pv.navStack.map((f) => f.path)).toEqual([fileA.path, fileB.path]);
+		expect(pv.subject.file?.path).toBe(fileC.path);
+
+		// Back once: pops C → B, stack = [A], still drilled
+		const backBtn1 = getBody(view).querySelector('[data-sf-nav="back"]') as HTMLElement;
+		backBtn1.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(pv.navStack.length).toBe(1);
+		expect(pv.subject.file?.path).toBe(fileB.path);
+		expect(pv.subject.source).toBe("drilled");
+
+		// Back twice: pops B → A, stack = [], follow resumes
+		const backBtn2 = getBody(view).querySelector('[data-sf-nav="back"]') as HTMLElement;
+		backBtn2.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(pv.navStack.length).toBe(0);
+		expect(pv.subject.file?.path).toBe(fileA.path);
+		expect(pv.subject.source).toBe("follow");
+	});
+
+	// FIX 2: Open-note footer (data-sf-nav="open") calls openLinkText, clears stack, resumes follow
+	it("Open-note footer click opens the subject note, clears the nav stack, resumes follow", () => {
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
+		seedResolved(from, to);
+
+		// Drill into `to` so there is a nav stack entry and we are "drilled"
+		clickLink(view, to.path);
+
+		// The Open-note footer should open `to` (the current drilled subject)
+		const openBtn = getBody(view).querySelector('[data-sf-nav="open"]') as HTMLElement | null;
+		expect(openBtn).not.toBeNull();
+		openBtn!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(app.workspace.openLinkText).toHaveBeenCalledWith(to.path, to.path, false);
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+			navStack: TFile[];
+		};
+		expect(pv.navStack.length).toBe(0);
+		expect(pv.subject.source).toBe("follow");
+	});
+
+	// FIX 1 test: modifier-open on a link row must track the OPENED target, not the prior subject
+	it("modifier-open on a link row sets subject.file to the opened target (not the prior subject)", () => {
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
+		seedResolved(from, to);
+
+		// Modifier-click opens `to` in the editor
+		clickLink(view, to.path, { meta: true });
+
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+		};
+		// After opening, subject.file must be `to`, not `from`
+		expect(pv.subject.file?.path).toBe(to.path);
+		expect(pv.subject.source).toBe("follow");
+	});
 });
 
 // ---------------------------------------------------------------------------

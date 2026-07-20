@@ -643,7 +643,7 @@ export class SidebarView extends ItemView {
 		const sourcePath = this.subject.file?.path ?? "";
 		void this.app.workspace.openLinkText(file.path, sourcePath, false);
 		this.navStack = [];
-		this.subject = { file: this.subject.file, source: "follow" };
+		this.subject = { file, source: "follow" };
 		this._updatePinButton();
 	}
 
