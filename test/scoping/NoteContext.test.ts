@@ -43,6 +43,7 @@ describe("isNoteContext", () => {
 			activeKind: "scene",
 			entities: [],
 			backlinks: [],
+			frontmatter: {},
 			resolvedAt: 1234,
 		};
 	}

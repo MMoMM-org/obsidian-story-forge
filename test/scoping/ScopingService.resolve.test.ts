@@ -316,6 +316,34 @@ describe("ScopingService.resolve", () => {
 	});
 
 	// -------------------------------------------------------------------------
+	// Part A (DV-1): NoteContext.frontmatter
+	// -------------------------------------------------------------------------
+
+	it("resolve().frontmatter deep-equals the cache's frontmatter", () => {
+		const file = createMockTFile({ path: "char.md" });
+		const fm = { name: "Mara Stoneway", age: 19, role: "protagonist" };
+		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(
+			createMockCachedMetadata({
+				tags: [{ tag: "#canon/character" }],
+				frontmatter: fm,
+			}),
+		);
+
+		const ctx = service.resolve(file);
+
+		expect(ctx.frontmatter).toEqual(fm);
+	});
+
+	it("resolve().frontmatter is {} when cache is null", () => {
+		const file = createMockTFile({ path: "any.md" });
+		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(null);
+
+		const ctx = service.resolve(file);
+
+		expect(ctx.frontmatter).toEqual({});
+	});
+
+	// -------------------------------------------------------------------------
 	// No frontmatterLinks → empty entities
 	// -------------------------------------------------------------------------
 

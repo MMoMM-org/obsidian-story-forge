@@ -133,6 +133,7 @@ function makeCtx(subjectPath = "notes/chapter-01.md"): NoteContext {
 		activeKind: "scene",
 		entities: [],
 		backlinks: [],
+		frontmatter: {},
 		resolvedAt: Date.now(),
 	};
 }
@@ -379,6 +380,7 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 				{ field: "characters", file: entityFile, kind: "character", relation: "outgoing" },
 			],
 			backlinks: [],
+			frontmatter: {},
 			resolvedAt: Date.now(),
 		};
 
@@ -460,6 +462,7 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 			activeKind: "scene",
 			entities: [],
 			backlinks: [],
+			frontmatter: {},
 			resolvedAt: Date.now(),
 		};
 

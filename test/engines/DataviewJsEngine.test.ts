@@ -37,6 +37,7 @@ function makeCtx(path = "notes/chapter-01.md"): NoteContext {
 		activeKind: "scene",
 		entities: [],
 		backlinks: [],
+		frontmatter: {},
 		resolvedAt: Date.now(),
 	};
 }

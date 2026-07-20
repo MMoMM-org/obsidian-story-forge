@@ -26,6 +26,7 @@ function makeCtx(entities: ResolvedEntity[] = []): NoteContext {
 		activeKind: "scene",
 		entities,
 		backlinks: [],
+		frontmatter: {},
 		resolvedAt: Date.now(),
 	};
 }
