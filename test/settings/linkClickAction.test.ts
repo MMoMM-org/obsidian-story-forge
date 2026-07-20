@@ -3,7 +3,8 @@
  *
  * Covers:
  *   - DEFAULT_SETTINGS.linkClickAction === "drill"
- *   - malformed persisted value falls back to "drill" on load
+ *   - isLinkClickAction type guard narrows correctly
+ *   - normalizeLinkClickAction normalizes malformed / nullish values to "drill"
  *   - settings dropdown row reads current value + writes changed value
  *   - value round-trips through save then load
  *
@@ -12,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "../__mocks__/obsidian";
-import { DEFAULT_SETTINGS } from "../../src/types/index";
+import { DEFAULT_SETTINGS, isLinkClickAction, normalizeLinkClickAction } from "../../src/types/index";
 import { SettingsTab } from "../../src/settings/SettingsTab";
 import { ViewStore } from "../../src/store/ViewStore";
 import type { ViewRecord } from "../../src/store/types";
@@ -74,7 +75,7 @@ function makePlugin(overrides: Partial<{
 		manifest: { id: "story-forge", name: "Story Forge", version: "0.0.0", minAppVersion: "1.5.7" },
 		settings: {
 			exampleSetting: overrides.exampleSetting ?? "",
-			linkClickAction: (overrides.linkClickAction ?? "drill") as "drill" | "open",
+			linkClickAction: normalizeLinkClickAction(overrides.linkClickAction ?? "drill"),
 		},
 		saveSettings: vi.fn(async () => {}),
 	};
@@ -108,81 +109,62 @@ describe("DEFAULT_SETTINGS.linkClickAction", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Malformed persisted value fallback
+// isLinkClickAction type guard
 // ---------------------------------------------------------------------------
 
-describe("loadSettings — malformed linkClickAction fallback", () => {
-	it("falls back to 'drill' when persisted value is an unknown string", async () => {
-		// Simulate a data.json where linkClickAction was saved as "banana"
-		const mockLoadData = vi.fn(async () => ({
-			settings: { exampleSetting: "hello", linkClickAction: "banana" },
-		}));
-		const mockSaveData = vi.fn(async () => {});
-
-		// We need a plugin-like object that exposes loadSettings
-		// and has loadData/saveData as its underlying IO.
-		// We import and instantiate actual main.ts logic by creating
-		// a minimal surrogate that mirrors the loadSettings implementation
-		// from main.ts (Object.assign + explicit guard).
-		const { DEFAULT_SETTINGS: defaults } = await import("../../src/types/index");
-
-		// Re-implement the loadSettings logic (mirrors main.ts) so we can test
-		// it independently of the Obsidian Plugin base class.
-		async function loadSettings(): Promise<typeof defaults> {
-			const raw = await mockLoadData() as { settings?: Record<string, unknown> } | null | undefined;
-			const stored = raw?.settings ?? null;
-			const merged = Object.assign({}, defaults, stored ?? {});
-			// Explicit guard: unknown linkClickAction → "drill"
-			if (merged.linkClickAction !== "drill" && merged.linkClickAction !== "open") {
-				merged.linkClickAction = "drill";
-			}
-			return merged;
-		}
-
-		const result = await loadSettings();
-		expect(result.linkClickAction).toBe("drill");
+describe("isLinkClickAction", () => {
+	it("returns true for 'drill'", () => {
+		expect(isLinkClickAction("drill")).toBe(true);
 	});
 
-	it("falls back to 'drill' when persisted value is a number", async () => {
-		const mockLoadData = vi.fn(async () => ({
-			settings: { exampleSetting: "", linkClickAction: 42 },
-		}));
-
-		const { DEFAULT_SETTINGS: defaults } = await import("../../src/types/index");
-
-		async function loadSettings(): Promise<typeof defaults> {
-			const raw = await mockLoadData() as { settings?: Record<string, unknown> } | null | undefined;
-			const stored = raw?.settings ?? null;
-			const merged = Object.assign({}, defaults, stored ?? {});
-			if (merged.linkClickAction !== "drill" && merged.linkClickAction !== "open") {
-				merged.linkClickAction = "drill";
-			}
-			return merged;
-		}
-
-		const result = await loadSettings();
-		expect(result.linkClickAction).toBe("drill");
+	it("returns true for 'open'", () => {
+		expect(isLinkClickAction("open")).toBe(true);
 	});
 
-	it("preserves 'open' when persisted value is 'open'", async () => {
-		const mockLoadData = vi.fn(async () => ({
-			settings: { exampleSetting: "", linkClickAction: "open" },
-		}));
+	it("returns false for an unknown string", () => {
+		expect(isLinkClickAction("banana")).toBe(false);
+	});
 
-		const { DEFAULT_SETTINGS: defaults } = await import("../../src/types/index");
+	it("returns false for a number", () => {
+		expect(isLinkClickAction(42)).toBe(false);
+	});
 
-		async function loadSettings(): Promise<typeof defaults> {
-			const raw = await mockLoadData() as { settings?: Record<string, unknown> } | null | undefined;
-			const stored = raw?.settings ?? null;
-			const merged = Object.assign({}, defaults, stored ?? {});
-			if (merged.linkClickAction !== "drill" && merged.linkClickAction !== "open") {
-				merged.linkClickAction = "drill";
-			}
-			return merged;
-		}
+	it("returns false for null", () => {
+		expect(isLinkClickAction(null)).toBe(false);
+	});
 
-		const result = await loadSettings();
-		expect(result.linkClickAction).toBe("open");
+	it("returns false for undefined", () => {
+		expect(isLinkClickAction(undefined)).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// normalizeLinkClickAction pure normalizer
+// ---------------------------------------------------------------------------
+
+describe("normalizeLinkClickAction", () => {
+	it("falls back to 'drill' when value is an unknown string", () => {
+		expect(normalizeLinkClickAction("banana")).toBe("drill");
+	});
+
+	it("falls back to 'drill' when value is a number", () => {
+		expect(normalizeLinkClickAction(42)).toBe("drill");
+	});
+
+	it("falls back to 'drill' when value is null", () => {
+		expect(normalizeLinkClickAction(null)).toBe("drill");
+	});
+
+	it("falls back to 'drill' when value is undefined", () => {
+		expect(normalizeLinkClickAction(undefined)).toBe("drill");
+	});
+
+	it("preserves 'open'", () => {
+		expect(normalizeLinkClickAction("open")).toBe("open");
+	});
+
+	it("preserves 'drill'", () => {
+		expect(normalizeLinkClickAction("drill")).toBe("drill");
 	});
 });
 
@@ -268,31 +250,25 @@ describe("SettingsTab — linkClickAction dropdown row", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Value round-trip (save then load)
+// Value round-trip (save then load) — via normalizeLinkClickAction
 // ---------------------------------------------------------------------------
 
 describe("linkClickAction value round-trip", () => {
 	it("saving 'open' and reloading preserves 'open'", async () => {
-		// Simulate what main.ts saveSettings/loadSettings does:
-		// save writes settings blob; load reads it back with the guard.
-		const { DEFAULT_SETTINGS: defaults } = await import("../../src/types/index");
-
 		let storedData: unknown = {};
 
-		async function saveSettings(settings: typeof defaults): Promise<void> {
+		async function saveSettings(settings: typeof DEFAULT_SETTINGS): Promise<void> {
 			const raw = storedData as { settings?: unknown } | null;
 			const data = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
 			(data as Record<string, unknown>)["settings"] = settings;
 			storedData = data;
 		}
 
-		async function loadSettings(): Promise<typeof defaults> {
+		async function loadSettings(): Promise<typeof DEFAULT_SETTINGS> {
 			const raw = storedData as { settings?: Record<string, unknown> } | null | undefined;
 			const stored = raw?.settings ?? null;
-			const merged = Object.assign({}, defaults, stored ?? {});
-			if (merged.linkClickAction !== "drill" && merged.linkClickAction !== "open") {
-				merged.linkClickAction = "drill";
-			}
+			const merged = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
+			merged.linkClickAction = normalizeLinkClickAction(merged.linkClickAction);
 			return merged;
 		}
 
@@ -304,29 +280,34 @@ describe("linkClickAction value round-trip", () => {
 	});
 
 	it("saving 'drill' and reloading preserves 'drill'", async () => {
-		const { DEFAULT_SETTINGS: defaults } = await import("../../src/types/index");
-
 		let storedData: unknown = {};
 
-		async function saveSettings(settings: typeof defaults): Promise<void> {
+		async function saveSettings(settings: typeof DEFAULT_SETTINGS): Promise<void> {
 			const raw = storedData as { settings?: unknown } | null;
 			const data = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
 			(data as Record<string, unknown>)["settings"] = settings;
 			storedData = data;
 		}
 
-		async function loadSettings(): Promise<typeof defaults> {
+		async function loadSettings(): Promise<typeof DEFAULT_SETTINGS> {
 			const raw = storedData as { settings?: Record<string, unknown> } | null | undefined;
 			const stored = raw?.settings ?? null;
-			const merged = Object.assign({}, defaults, stored ?? {});
-			if (merged.linkClickAction !== "drill" && merged.linkClickAction !== "open") {
-				merged.linkClickAction = "drill";
-			}
+			const merged = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
+			merged.linkClickAction = normalizeLinkClickAction(merged.linkClickAction);
 			return merged;
 		}
 
 		await saveSettings({ exampleSetting: "", linkClickAction: "drill" });
 		const result = await loadSettings();
 		expect(result.linkClickAction).toBe("drill");
+	});
+
+	it("falls back to 'drill' when persisted settings is null", async () => {
+		// Simulates { settings: null } in data.json
+		const raw = { settings: null } as { settings: Record<string, unknown> | null };
+		const stored = raw.settings ?? null;
+		const merged = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
+		merged.linkClickAction = normalizeLinkClickAction(merged.linkClickAction);
+		expect(merged.linkClickAction).toBe("drill");
 	});
 });
