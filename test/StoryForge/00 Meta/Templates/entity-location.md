@@ -8,6 +8,7 @@ region: ""
 inhabitants: []           # ["[[Character]]"]
 first_appearance: ""
 series: "Forge"
+image: ""
 tags: [canon/location]
 ---
 

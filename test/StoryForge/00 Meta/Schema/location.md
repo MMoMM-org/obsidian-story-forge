@@ -31,5 +31,8 @@ Text — a `[[scene note]]` link. The scene where the location first appears.
 ### `series`
 Text. The series this canon belongs to.
 
+### `image`
+Text. Optional image link for the panel thumbnail — rendered only when set, like a character's `portrait`.
+
 ### `tags`
 List. Always includes `canon/location` — how views and Bases select location notes.

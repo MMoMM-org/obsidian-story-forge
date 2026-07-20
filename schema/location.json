@@ -25,6 +25,8 @@
       "description": "Text — a `[[scene note]]` link. The scene where the location first appears." },
     { "name": "series", "type": "text", "default": "Forge",
       "description": "Text. The series this canon belongs to." },
+    { "name": "image", "type": "text",
+      "description": "Text. Optional image link for the panel thumbnail — rendered only when set, like a character's `portrait`." },
     { "name": "tags", "type": "tags",
       "description": "List. Always includes `canon/location` — how views and Bases select location notes." }
   ]

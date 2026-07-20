@@ -6,6 +6,7 @@ owner: ""           # "[[Character]]"
 kind: contract        # contract | artifact | relic | item
 first_appearance: ""
 series: "Forge"
+image: ""
 tags: [canon/object]
 ---
 

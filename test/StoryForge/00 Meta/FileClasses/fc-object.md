@@ -19,6 +19,7 @@ fieldsOrder:
   - o-kind
   - o-first_appearance
   - o-series
+  - o-image
 version: "3.0"
 fields:
   - name: type
@@ -68,4 +69,9 @@ fields:
     options: {}
     path: ""
     id: o-series
+  - name: image
+    type: Input
+    options: {}
+    path: ""
+    id: o-image
 ---
