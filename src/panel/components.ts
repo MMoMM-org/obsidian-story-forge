@@ -193,13 +193,13 @@ export function linkRow(
 	const rowEl = asObs(container).createEl("div", { cls: "sf-lrow" });
 
 	// The link element — a span with role=link (drill-in; full wiring in T4)
-	const lnkEl = asObs(rowEl).createEl("span", { cls: "sf-lnk", text });
+	const lnkEl = asObs(rowEl).createEl("span", { cls: "sf-lrow-lnk", text });
 	lnkEl.setAttribute("tabindex", "0");
 	lnkEl.setAttribute("role", "link");
 
 	if (opts.onClick) {
 		const handler = opts.onClick;
-		lnkEl.addEventListener("click", () => handler());
+		lnkEl.addEventListener("click", handler);
 		lnkEl.addEventListener("keydown", (e: Event) => {
 			const ke = e as KeyboardEvent;
 			if (ke.key === "Enter" || ke.key === " ") handler();
@@ -304,8 +304,9 @@ export function portraitTile(
 
 /** Extract up to 2 uppercase initials from a name string. */
 function nameToInitials(name: string): string {
+	// split(/\s+/) on any string always produces at least one element ([""])
+	// so the words.length === 0 guard is unreachable — single-element branch handles "".
 	const words = name.trim().split(/\s+/);
-	if (words.length === 0) return "";
 	if (words.length === 1) return (words[0]![0] ?? "").toUpperCase();
 	return ((words[0]![0] ?? "") + (words[1]![0] ?? "")).toUpperCase();
 }
