@@ -1,5 +1,6 @@
 import type MyPlugin from "main";
 import { type App, Menu, PluginSettingTab, Setting, ToggleComponent } from "obsidian";
+import { normalizeLinkClickAction } from "types/index";
 
 import { HeaderSection } from "./HeaderSection";
 import type { ViewStore } from "store/ViewStore";
@@ -121,7 +122,7 @@ export class SettingsTab extends PluginSettingTab {
 					.addOption("open", "Open in editor")
 					.setValue(this.plugin.settings.linkClickAction)
 					.onChange(async (value: string) => {
-						this.plugin.settings.linkClickAction = value as "drill" | "open";
+						this.plugin.settings.linkClickAction = normalizeLinkClickAction(value);
 						await this.plugin.saveSettings();
 					}),
 			);

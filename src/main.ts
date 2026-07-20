@@ -1,6 +1,6 @@
 import { Plugin, Events, Notice } from "obsidian";
 import { SettingsTab } from "settings/SettingsTab";
-import { DEFAULT_SETTINGS, type PluginSettings } from "types/index";
+import { DEFAULT_SETTINGS, normalizeLinkClickAction, type PluginSettings } from "types/index";
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort, StoryForgeData } from "store/types";
 import { SidebarView, activateView } from "views/SidebarView";
@@ -210,11 +210,9 @@ export default class StoryForgePlugin extends Plugin {
 		const raw = await this.loadData() as StoryForgeData | null | undefined;
 		const stored = raw?.settings ?? null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
-		// Explicit guard: Object.assign propagates any persisted value as-is, so
-		// a malformed linkClickAction (neither "drill" nor "open") must fall back.
-		if (this.settings.linkClickAction !== "drill" && this.settings.linkClickAction !== "open") {
-			this.settings.linkClickAction = "drill";
-		}
+		// Normalize: Object.assign propagates any persisted value as-is, so a
+		// malformed linkClickAction (neither "drill" nor "open") must fall back.
+		this.settings.linkClickAction = normalizeLinkClickAction(this.settings.linkClickAction);
 	}
 
 	async saveSettings(): Promise<void> {
