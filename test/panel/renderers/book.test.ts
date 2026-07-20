@@ -220,6 +220,21 @@ describe("renderBook: Scenes section", () => {
 		expect(el.textContent).toContain("No scenes in this book yet.");
 	});
 
+	it("renders unresolvedEl (not linkRow) for an unresolved scene backlink", () => {
+		const ghostFile = createMockTFile({ basename: "Ghost Scene", path: "Ghost Scene" });
+		const ctx = makeBookCtx({
+			backlinks: [
+				{ file: ghostFile, kind: "scene", relation: "backlink", field: "book", unresolved: true },
+			],
+		});
+		const el = makeContainer();
+		renderBook(ctx, el, makeDeps());
+
+		expect(el.querySelector(".sf-unres")).not.toBeNull();
+		expect(el.querySelector(".sf-lrow-lnk")).toBeNull();
+		expect(el.querySelector(".sf-unres")?.textContent).toContain("Ghost Scene");
+	});
+
 	it("renders scenes in stable basename order (DV-3)", () => {
 		// Intentionally out of order — renderer must sort by basename
 		const scene3 = createMockTFile({ basename: "Scene 3 - Zed" });

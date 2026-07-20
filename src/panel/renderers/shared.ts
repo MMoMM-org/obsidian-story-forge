@@ -7,7 +7,7 @@
  * @ref SDD/ADR-2 (pure DOM components; deps injected)
  */
 
-import { section, factRow, linkRow, emptyLine } from "panel/components";
+import { section, factRow, linkRow, emptyLine, unresolvedEl } from "panel/components";
 import type { ResolvedEntity } from "scoping/NoteContext";
 
 // ---------------------------------------------------------------------------
@@ -51,7 +51,11 @@ export function renderReverseSceneList(
 	}
 
 	for (const bl of scenes) {
-		linkRow(bodyEl, bl.file.basename);
+		if (bl.unresolved) {
+			bodyEl.appendChild(unresolvedEl(bl.file.basename));
+		} else {
+			linkRow(bodyEl, bl.file.basename);
+		}
 	}
 }
 

@@ -83,7 +83,7 @@ function renderFacts(
 
 	if (presentFacts.length === 0 && bookEntities.length === 0) return;
 
-	const { bodyEl } = buildFactsSection(el);
+	const { bodyEl } = section(el, "Facts");
 
 	for (const field of presentFacts) {
 		const value = frontmatter[field];
@@ -183,14 +183,6 @@ function renderReadingOrder(el: HTMLElement, entities: ResolvedEntity[]): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Build a bare "Facts" section element and return its bodyEl.
- * Used by renderFacts which needs to mix factRows and linkRows.
- */
-function buildFactsSection(el: HTMLElement): { bodyEl: HTMLElement; sectionEl: HTMLElement } {
-	return section(el, "Facts");
-}
-
-/**
  * Render a single prev/next navigation slot in the Reading order section.
  * Shows a link row when the entity is present, em-dash otherwise.
  */
@@ -216,8 +208,8 @@ function renderNavSlot(
 
 /**
  * Render a labelled em-dash row for an absent prev/next slot.
- * Uses factRow so the key label is shown alongside the dash.
+ * Uses factRow so the slot name is shown alongside the dash.
  */
-function renderEmDashRow(bodyEl: HTMLElement, label: string): void {
-	factRow(bodyEl, label, "—");
+function renderEmDashRow(bodyEl: HTMLElement, slot: string): void {
+	factRow(bodyEl, slot, "—");
 }
