@@ -25,6 +25,7 @@ import {
 	linkRow,
 	emptyLine,
 	portraitTile,
+	unresolvedEl,
 } from "panel/components";
 
 declare const activeDocument: Document;
@@ -167,6 +168,11 @@ function renderOwns(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 	const collapsed = owned.length === 0;
 	const { bodyEl } = section(el, "Owns", { count: owned.length, collapsed });
 
+	if (owned.length === 0) {
+		emptyLine(bodyEl, "No objects yet.");
+		return;
+	}
+
 	for (const bl of owned) {
 		linkRow(bodyEl, bl.file.basename);
 	}
@@ -174,7 +180,7 @@ function renderOwns(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 
 function renderRelated(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 	const { bodyEl } = section(el, "Related");
-	const locationLinks = backlinks.filter((b) => b.kind === "location");
+	const locationLinks = backlinks.filter((b) => b.kind === "location" && b.field === "inhabitants");
 	const loreLinks = backlinks.filter((b) => b.kind === "lore");
 
 	if (locationLinks.length === 0 && loreLinks.length === 0) {
@@ -236,27 +242,7 @@ function buildRelationLinkEls(
 	}
 
 	for (const e of unresolved) {
-		// Build the unresolved element directly (mirrors unresolvedRow structure).
-		const div = activeDocument.createElement("div");
-		div.className = "sf-unres";
-		div.setAttribute("aria-disabled", "true");
-
-		const glyph = activeDocument.createElement("span");
-		glyph.className = "sf-unres-glyph";
-		glyph.textContent = "⊘";
-		div.appendChild(glyph);
-
-		const text = activeDocument.createElement("span");
-		text.className = "sf-unres-text";
-		text.textContent = e.file.basename;
-		div.appendChild(text);
-
-		const mark = activeDocument.createElement("span");
-		mark.className = "sf-unres-mark";
-		mark.textContent = "(Unresolved)";
-		div.appendChild(mark);
-
-		els.push(div);
+		els.push(unresolvedEl(e.file.basename));
 	}
 
 	return els;

@@ -15,6 +15,7 @@ import {
 	linkRow,
 	emptyLine,
 	unresolvedRow,
+	unresolvedEl,
 	portraitTile,
 	imageTile,
 } from "panel/components";
@@ -307,6 +308,44 @@ describe("unresolvedRow()", () => {
 		const container = makeContainer();
 		unresolvedRow(container, "Old Keeper's Oath");
 		expect(container.querySelector(".sf-unres")).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// unresolvedEl()
+// ---------------------------------------------------------------------------
+
+describe("unresolvedEl()", () => {
+	it("returns an element with class sf-unres", () => {
+		const el = unresolvedEl("Ghost Link");
+		expect(el.classList.contains("sf-unres")).toBe(true);
+	});
+
+	it("has aria-disabled='true'", () => {
+		const el = unresolvedEl("Ghost Link");
+		expect(el.getAttribute("aria-disabled")).toBe("true");
+	});
+
+	it("contains the link text", () => {
+		const el = unresolvedEl("Ghost Link");
+		expect(el.textContent).toContain("Ghost Link");
+	});
+
+	it("contains '(Unresolved)' text", () => {
+		const el = unresolvedEl("Ghost Link");
+		expect(el.textContent).toContain("(Unresolved)");
+	});
+
+	it("contains the ⊘ glyph", () => {
+		const el = unresolvedEl("Ghost Link");
+		expect(el.textContent).toContain("⊘");
+	});
+
+	it("does NOT append to any container (standalone)", () => {
+		const container = makeContainer();
+		unresolvedEl("Ghost Link");
+		// Nothing should have been appended
+		expect(container.querySelector(".sf-unres")).toBeNull();
 	});
 });
 
