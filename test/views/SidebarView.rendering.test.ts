@@ -56,6 +56,7 @@ function makeNoteContext(
 		activeKind: kind,
 		entities,
 		backlinks: [],
+		frontmatter: {},
 		resolvedAt: Date.now(),
 	};
 }
@@ -494,6 +495,7 @@ describe("StubContextTab", () => {
 				},
 			],
 			backlinks: [],
+			frontmatter: {},
 			resolvedAt: Date.now(),
 		};
 
@@ -520,6 +522,7 @@ describe("StubContextTab", () => {
 			activeKind: "scene",
 			entities: [],
 			backlinks: [],
+			frontmatter: {},
 			resolvedAt: Date.now(),
 		};
 

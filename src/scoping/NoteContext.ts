@@ -86,6 +86,8 @@ export interface NoteContext {
 	entities: ResolvedEntity[];
 	/** Backlink seam — EMPTY in M1, filled in M3. */
 	backlinks: ResolvedEntity[];
+	/** Raw frontmatter of the active note. Empty object when cache is null. */
+	frontmatter: Record<string, unknown>;
 	/** Unix millis timestamp of when this context was resolved. */
 	resolvedAt: number;
 }
@@ -103,6 +105,8 @@ export function isNoteContext(value: unknown): value is NoteContext {
 		isEntityKind(v["activeKind"]) &&
 		Array.isArray(v["entities"]) &&
 		Array.isArray(v["backlinks"]) &&
+		typeof v["frontmatter"] === "object" &&
+		v["frontmatter"] !== null &&
 		typeof v["resolvedAt"] === "number"
 	);
 }

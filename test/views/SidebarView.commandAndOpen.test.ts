@@ -58,6 +58,7 @@ function makeNoteContext(
 		activeKind: kind,
 		entities,
 		backlinks: [],
+		frontmatter: {},
 		resolvedAt: Date.now(),
 	};
 }

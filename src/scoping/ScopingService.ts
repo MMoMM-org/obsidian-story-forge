@@ -93,6 +93,7 @@ export class ScopingService {
 				activeKind: "unknown",
 				entities: [],
 				backlinks: [],
+				frontmatter: {},
 				resolvedAt: Date.now(),
 			};
 		}
@@ -145,6 +146,7 @@ export class ScopingService {
 			activeKind,
 			entities,
 			backlinks: buildBacklinks(this.app, file, activeKind, (f) => this.classify(f)),
+			frontmatter: cache.frontmatter ?? {},
 			resolvedAt: Date.now(),
 		};
 	}
