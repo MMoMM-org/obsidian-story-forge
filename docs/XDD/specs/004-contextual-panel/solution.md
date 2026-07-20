@@ -423,8 +423,9 @@ stateDiagram-v2
   instead of a blank region; fully-empty relationship block collapses to one line.
 - **Metadata cache null (pre-index):** `resolve()` returns empty context; SidebarView keeps
   the existing S9 error+Retry (unchanged) — NOT treated as empty relations.
-- **`world` cycle/unresolved parent:** `worldChain` `seen` guard terminates; renderer marks
-  the break.
+- **`world` cycle/unresolved parent:** the `world` breadcrumb is single-level (DV-2), so a
+  cycle cannot loop; an unresolved parent renders as an unresolved row. (Full multi-level,
+  break-point-marked ancestry is deferred per DV-2.)
 - **Renderer throw:** caught by SidebarView's existing engine-render try/catch → engine-error
   box; `currentEngine` nulled; teardown safe.
 
@@ -555,8 +556,9 @@ stateDiagram-v2
 **Per-kind render [PRD/F1,F3]**
 - [ ] WHEN `ctx.activeKind` is character, THE SYSTEM SHALL render facts+portrait,
   relationship groups, "appears in" (POV-flagged), owns, and related (mockup S32).
-- [ ] WHILE a location's `world` chain contains a cycle, THE SYSTEM SHALL terminate the
-  hierarchy walk and mark the break.
+- [ ] WHILE a location's `world` field points at a cycle or unresolved parent, THE SYSTEM
+  SHALL render a bounded single-level breadcrumb without looping (DV-2; multi-level
+  break-point marking deferred to a future milestone).
 - [ ] WHERE an object/location note has a non-empty `image`, THE SYSTEM SHALL render a
   thumbnail tile; otherwise no tile (ADR-7).
 
