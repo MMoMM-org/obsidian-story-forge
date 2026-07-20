@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Per-kind panel renderers"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 3
 ---
@@ -99,7 +99,7 @@ Replaces the Context-tab stub with type-aware panels for all six kinds (+ book),
      - [ ] Each kind renders its layout; hierarchy cycle-safe `[ref: PRD/F3]`
      - [ ] Image tile conditional on `image` presence `[ref: SDD/ADR-7]`
 
-- [ ] **T3.4 Scene / plotline / book renderers** `[activity: frontend-ui]` `[ref: PRD/F3]`
+- [x] **T3.4 Scene / plotline / book renderers** `[activity: frontend-ui]` `[ref: PRD/F3]` — done `eb267f9` (+review `bc05fea`); shared `renderReverseSceneList` extracted
 
   1. Prime: States S39, S40 `[ref: mockups.html]`; scene/plotline/book schema fields.
   2. Test: scene facts + entities-in-scene (POV flagged) + reading-order prev/next; plotline
@@ -110,7 +110,7 @@ Replaces the Context-tab stub with type-aware panels for all six kinds (+ book),
   5. Success:
      - [ ] Scene/plotline/book panels render correctly, scenes order by `order` `[ref: PRD/F3]`
 
-- [ ] **T3.5 `NativeScopingEngine` type dispatch + `renderPanel`** `[activity: frontend-ui]` `[ref: SDD/ADR-2]`
+- [x] **T3.5 `NativeScopingEngine` type dispatch + `renderPanel`** `[activity: frontend-ui]` `[ref: SDD/ADR-2]` — done `1f41653` (+review `6eac6e6`); Context tab now renders type-aware panels
 
   1. Prime: `NativeScopingEngine.render` + `QueryEngine` contract `[ref: src/engines/NativeScopingEngine.ts]`.
   2. Test: `render(null, ctx, el)` dispatches to `RENDERERS[ctx.activeKind]`; `unknown` → flat
@@ -123,7 +123,7 @@ Replaces the Context-tab stub with type-aware panels for all six kinds (+ book),
      - [ ] Context tab shows the right kind's panel, live-updating on note switch `[ref: PRD/F1]` `[ref: PRD/F3]`
      - [ ] `QueryEngine` contract unchanged `[ref: SDD/CON-3]`
 
-- [ ] **T3.6 Phase Validation** `[activity: validate]`
+- [x] **T3.6 Phase Validation** `[activity: validate]` — all 6 gates green; 824 tests / 43 files; all 7 renderers wired; visual S32–S40 reproduction deferred to P5 (no GUI in CI)
 
   - Run `npm test` (panel + engine suites) + `typecheck` + `typecheck:test` + `lint` + `build`.
   - Manually verify S32–S40 + S42 render in the dev vault (`npm run dev`) across the seed notes.
