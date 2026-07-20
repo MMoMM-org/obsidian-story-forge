@@ -1,8 +1,12 @@
 ---
 type: book
-title: Wardens of Moonharbor
+name: "Wardens of Moonharbor"
+title: "Wardens of Moonharbor"
+subtitle: "A Test Story of the Forge"
+author: ""
+order: 1
+status: drafting
 series: "Forge"
-status: draft
 tags: [planning/book]
 ---
 
