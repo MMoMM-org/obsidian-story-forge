@@ -45,6 +45,8 @@ const KIND_FIELD_MAP: Record<EntityKind, KindFieldConfig> = {
 	},
 	object: {
 		relations: ["owner"],
+		// `kind` is the object's category (contract/artifact/relic/item from schema/object.json),
+		// NOT the EntityKind discriminant used by the plugin's classification layer.
 		facts: ["kind", "aliases", "first_appearance"],
 	},
 	lore: {

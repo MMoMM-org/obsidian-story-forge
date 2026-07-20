@@ -83,6 +83,7 @@ body {
 	--sf-kind-object: #c9975a;
 	--sf-kind-lore: #b06cd0;
 	--sf-kind-plotline: #d0795a;
+	--sf-kind-book: #7a8fa8;
 
 	/* Engine-badge accent hues (dql / dataviewjs / bases) — overridable like the kinds. */
 	--sf-engine-dql: #5aa0c9;
@@ -1107,11 +1108,6 @@ body {
  * All colours from Obsidian theme tokens — no hard-coded hex values.
  * =========================================================================== */
 
-/* kind token for book (mirrors the existing --sf-kind-* pattern in body{}) */
-body {
-	--sf-kind-book: #7a8fa8;
-}
-
 /* --- sf-badge-book -------------------------------------------------------- */
 .sf-badge-book {
 	color: var(--sf-kind-book);
@@ -1221,17 +1217,17 @@ body {
 	font-size: 12px;
 }
 
-.sf-lnk {
+.sf-lrow-lnk {
 	color: var(--text-accent);
 	text-decoration: none;
 	cursor: pointer;
 }
 
-.sf-lnk:hover {
+.sf-lrow-lnk:hover {
 	text-decoration: underline;
 }
 
-.sf-lnk:focus-visible {
+.sf-lrow-lnk:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 	border-radius: var(--radius-s);

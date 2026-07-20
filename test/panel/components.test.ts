@@ -180,14 +180,14 @@ describe("linkRow()", () => {
 		expect(el.classList.contains("sf-lrow")).toBe(true);
 	});
 
-	it("contains an element with class sf-lnk", () => {
+	it("contains an element with class sf-lrow-lnk", () => {
 		const el = linkRow(makeContainer(), "Scene 1");
-		expect(el.querySelector(".sf-lnk")).not.toBeNull();
+		expect(el.querySelector(".sf-lrow-lnk")).not.toBeNull();
 	});
 
 	it("link element is focusable (tabIndex >= 0 or role=link or anchor)", () => {
 		const el = linkRow(makeContainer(), "Scene 1");
-		const lnk = el.querySelector(".sf-lnk");
+		const lnk = el.querySelector(".sf-lrow-lnk");
 		expect(lnk).not.toBeNull();
 		const tagName = lnk!.tagName.toLowerCase();
 		const tabIndex = (lnk as HTMLElement).tabIndex;
@@ -216,8 +216,24 @@ describe("linkRow()", () => {
 	it("calls onClick when provided and link is clicked", () => {
 		let called = false;
 		const el = linkRow(makeContainer(), "Scene 1", { onClick: () => { called = true; } });
-		const lnk = el.querySelector(".sf-lnk") as HTMLElement;
+		const lnk = el.querySelector(".sf-lrow-lnk") as HTMLElement;
 		lnk.click();
+		expect(called).toBe(true);
+	});
+
+	it("calls onClick when Enter key is pressed on the link", () => {
+		let called = false;
+		const el = linkRow(makeContainer(), "Scene 1", { onClick: () => { called = true; } });
+		const lnk = el.querySelector(".sf-lrow-lnk") as HTMLElement;
+		lnk.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+		expect(called).toBe(true);
+	});
+
+	it("calls onClick when Space key is pressed on the link", () => {
+		let called = false;
+		const el = linkRow(makeContainer(), "Scene 1", { onClick: () => { called = true; } });
+		const lnk = el.querySelector(".sf-lrow-lnk") as HTMLElement;
+		lnk.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
 		expect(called).toBe(true);
 	});
 
@@ -328,6 +344,13 @@ describe("portraitTile()", () => {
 	it("monogram for single-word name uses one initial", () => {
 		const el = portraitTile(makeContainer(), "Gandalf");
 		expect(el.textContent?.trim()).toBe("G");
+	});
+
+	it("does not throw when name is empty string (monogram is empty)", () => {
+		expect(() => portraitTile(makeContainer(), "")).not.toThrow();
+		const el = portraitTile(makeContainer(), "");
+		// empty name produces empty/whitespace monogram — no crash
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
 	});
 
 	it("renders an img when image is set (non-empty string)", () => {
