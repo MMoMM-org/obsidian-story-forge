@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Navigation & settings"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 4
 ---
@@ -88,7 +88,7 @@ Turns the panel into a navigation surface and makes the click behaviour configur
   5. Success:
      - [x] Drill-in / open-note / swap all behave per S41; pinned diverged per S43 `[ref: PRD/F6]`
 
-- [ ] **T4.3 Phase Validation** `[activity: validate]`
+- [x] **T4.3 Phase Validation** `[activity: validate]`
 
   - Run `npm test` (settings + view suites) + `typecheck` + `typecheck:test` + `lint` + `build`.
   - Manually verify in the dev vault: click drills, modifier opens, setting swaps, Back pops,
