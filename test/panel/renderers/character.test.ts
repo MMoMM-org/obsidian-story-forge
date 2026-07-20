@@ -385,20 +385,13 @@ describe("renderCharacter: Owns section (S32)", () => {
 		expect(ownsHead?.getAttribute("aria-expanded")).toBe("false");
 	});
 
-	it("shows 'No objects yet.' empty line when no object backlinks and expanded", () => {
-		// When the section is uncollapsed manually (no backlinks), it would show empty
-		// We test via forcing expansion — but simpler: just check the body text
-		// when we pass it a character with object backlinks empty but section open.
-		// The simplest test: the body text does NOT include "No objects yet."
-		// when the section is collapsed (default). So just check the section exists.
+	it("renders 'No objects yet.' empty line in body when no object backlinks", () => {
 		const ctx = makeCharCtx({ backlinks: [] });
 		const el = makeContainer();
 		renderCharacter(ctx, el, makeDeps());
 
-		// Count badge = 0
-		const sectHeads = [...el.querySelectorAll(".sf-sec-head")];
-		const ownsHead = sectHeads.find((h) => h.textContent?.includes("Owns"));
-		expect(ownsHead?.querySelector(".sf-count")?.textContent).toBe("0");
+		// The body should contain the empty-state text even when the section is collapsed
+		expect(el.textContent).toContain("No objects yet.");
 	});
 
 	it("renders a link row for each object backlink when present", () => {
@@ -442,6 +435,25 @@ describe("renderCharacter: Related section (S32)", () => {
 
 		const relLabels = [...el.querySelectorAll(".sf-rel-k")].map((k) => k.textContent);
 		expect(relLabels).toContain("locations");
+	});
+
+	it("excludes location backlinks with field other than 'inhabitants' from Related", () => {
+		// A location backlink via a non-inhabitants field (e.g. scene.location) must NOT
+		// appear in the Related section — only inhabitants-field backlinks belong here.
+		const locFile = createMockTFile({ basename: "Moonharbor Lighthouse" });
+		const ctx = makeCharCtx({
+			backlinks: [
+				{ file: locFile, kind: "location", relation: "backlink", field: "location" },
+			],
+		});
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		// No 'locations' relation row should appear
+		const relLabels = [...el.querySelectorAll(".sf-rel-k")].map((k) => k.textContent);
+		expect(relLabels).not.toContain("locations");
+		// The empty-state message should appear instead
+		expect(el.textContent).toContain("No related locations or lore yet.");
 	});
 
 	it("groups lore backlinks under 'lore' label", () => {

@@ -237,7 +237,44 @@ export function emptyLine(
 // ---------------------------------------------------------------------------
 
 /**
- * Render an unresolved-link row. NOT clickable, aria-disabled="true".
+ * Build an unresolved-link element without appending it to any container.
+ * Useful when composing the element into a relation-link list (e.g. inside
+ * a relationRow) rather than rendering it as a standalone row.
+ *
+ * The returned element is NOT clickable, aria-disabled="true".
+ *
+ * @param linkText  The original wikilink text that did not resolve.
+ * @returns         The unresolved element (not yet in the DOM).
+ */
+export function unresolvedEl(linkText: string): HTMLElement {
+	const el = activeDocument.createElement("div");
+	el.className = "sf-unres";
+	el.setAttribute("aria-disabled", "true");
+
+	const glyph = activeDocument.createElement("span");
+	glyph.className = "sf-unres-glyph";
+	glyph.textContent = "⊘";
+	el.appendChild(glyph);
+
+	const text = activeDocument.createElement("span");
+	text.className = "sf-unres-text";
+	text.textContent = linkText;
+	el.appendChild(text);
+
+	const mark = activeDocument.createElement("span");
+	mark.className = "sf-unres-mark";
+	mark.textContent = "(Unresolved)";
+	el.appendChild(mark);
+
+	return el;
+}
+
+/**
+ * Render an unresolved-link row into `container`. NOT clickable,
+ * aria-disabled="true".
+ *
+ * Delegates to `unresolvedEl` so both the standalone-row and the
+ * composable-element paths share a single implementation.
  *
  * @param container  Parent element to append into.
  * @param linkText   The original wikilink text that did not resolve.
@@ -247,18 +284,8 @@ export function unresolvedRow(
 	container: HTMLElement,
 	linkText: string,
 ): HTMLElement {
-	const el = asObs(container).createEl("div", { cls: "sf-unres" });
-	el.setAttribute("aria-disabled", "true");
-
-	// ⊘ glyph
-	asObs(el).createEl("span", { cls: "sf-unres-glyph", text: "⊘" });
-
-	// Link text (plain span — NOT a button or anchor)
-	asObs(el).createEl("span", { cls: "sf-unres-text", text: linkText });
-
-	// "(Unresolved)" marker
-	asObs(el).createEl("span", { cls: "sf-unres-mark", text: "(Unresolved)" });
-
+	const el = unresolvedEl(linkText);
+	container.appendChild(el);
 	return el;
 }
 
