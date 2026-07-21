@@ -110,6 +110,14 @@ export class ConsentGate {
 			return { status: "not-consented" };
 		}
 
+		// 6a. Bases source-model seam (ADR-5 / ADR-6): a bases record stores its
+		//     raw .base YAML directly in record.source — there is no vault file to
+		//     read and no fenced block to parse. Declarative (.base) → no modal;
+		//     checksum guards drift; empty source → fail-closed (not-consented).
+		if (record.engine === "bases") {
+			return this._evaluateBasesRecord(record.source, record.okayed);
+		}
+
 		// 6. Not consented — source note missing from vault (returns null → not-consented)
 		const block = await readFencedBlock(this.app, record.source);
 		if (block === null) {
@@ -271,6 +279,27 @@ export class ConsentGate {
 	// ---------------------------------------------------------------------------
 	// Private helpers
 	// ---------------------------------------------------------------------------
+
+	/**
+	 * Evaluate consent for a `bases` record. The source is raw .base YAML stored
+	 * directly on the record — no vault file, no fenced block (ADR-5).
+	 *
+	 * Declarative → no modal (ADR-6). Fail-closed: empty source → not-consented.
+	 * Drift is checksum-only (no sf-version for bases).
+	 */
+	private async _evaluateBasesRecord(
+		yamlSource: string,
+		okayed: { version: number; checksum: string },
+	): Promise<ConsentDecision> {
+		if (!yamlSource) {
+			return { status: "not-consented" };
+		}
+		const currentChecksum = await computeChecksum(yamlSource);
+		if (okayed.checksum !== currentChecksum) {
+			return { status: "drift", reason: "checksum" };
+		}
+		return { status: "consented" };
+	}
 
 	/**
 	 * Read the current sf-version from the note's cached metadata.

@@ -336,6 +336,211 @@ describe("ConsentGate.evaluate()", () => {
 });
 
 // ---------------------------------------------------------------------------
+// T2.1 — Bases source-model seam (ADR-5 / ADR-6)
+// ---------------------------------------------------------------------------
+// A "bases" ViewRecord carries raw .base YAML in record.source.
+// evaluate() must NOT route it through readFencedBlock/QUERY_LANGS.
+// Declarative bases records evaluate as consented without a modal.
+// Fail-closed: missing/empty source → not-consented.
+// engine-missing still fires when "bases" is not in the registry.
+// ---------------------------------------------------------------------------
+
+const BASES_YAML = "filter:\n  tags:\n    contains: canon\ncolumns:\n  - name\n  - alias\n";
+
+function makeBasesRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
+	return {
+		provenance: "curated",
+		enabled: true,
+		okayed: null,
+		source: BASES_YAML,
+		engine: "bases",
+		command: false,
+		...overrides,
+	};
+}
+
+function makeRegistryWithBases(): EngineRegistryLike {
+	return {
+		get: vi.fn((kind: ViewRecord["engine"]) =>
+			["dataview-dql", "dataviewjs", "bases"].includes(kind) ? {} : undefined,
+		),
+	};
+}
+
+describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)", () => {
+	let dvSettings: DvSettingsReader;
+	let store: ViewStore;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		(Platform as { isMobile: boolean; isDesktop: boolean }).isMobile = false;
+		(Platform as { isMobile: boolean; isDesktop: boolean }).isDesktop = true;
+		dvSettings = makeDvSettings(true);
+		store = makeStore();
+	});
+
+	// (b) Declarative bases record evaluates consented when checksum matches — no modal
+
+	it("returns {status:'consented'} for a bases record with matching checksum [ADR-6]", async () => {
+		const registry = makeRegistryWithBases();
+		// App with NO vault file matching — bases bypasses readFencedBlock entirely
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const checksum = await computeChecksum(BASES_YAML);
+		const result = await gate.evaluate(
+			makeBasesRecord({ okayed: { version: 0, checksum } }),
+		);
+
+		expect(result).toEqual({ status: "consented" });
+	});
+
+	// (a) Bases source read directly from record.source — vault NOT consulted
+
+	it("does NOT call vault.getAbstractFileByPath for a bases record [ADR-5]", async () => {
+		const registry = makeRegistryWithBases();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const checksum = await computeChecksum(BASES_YAML);
+		await gate.evaluate(makeBasesRecord({ okayed: { version: 0, checksum } }));
+
+		expect(app.vault.getAbstractFileByPath).not.toHaveBeenCalled();
+	});
+
+	// (c) computeChecksum over YAML equals the stored checksum byte-for-byte
+
+	it("checksum over bases YAML string matches stored checksum byte-for-byte [ADR-5]", async () => {
+		const checksum = await computeChecksum(BASES_YAML);
+		// The checksum used to consent must be byte-identical to one recomputed now
+		expect(checksum).toMatch(/^sha256:[0-9a-f]{64}$/);
+		expect(await computeChecksum(BASES_YAML)).toBe(checksum);
+	});
+
+	// Fail-closed: missing/empty source → not-consented
+
+	it("returns {status:'not-consented'} when bases source is empty string [fail-closed]", async () => {
+		const registry = makeRegistryWithBases();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.evaluate(
+			makeBasesRecord({ source: "", okayed: { version: 0, checksum: "sha256:" + "0".repeat(64) } }),
+		);
+
+		expect(result).toEqual({ status: "not-consented" });
+	});
+
+	// engine-missing still fires when bases not in registry (S46 degrade path)
+
+	it("returns {status:'engine-missing'} for bases when registry lacks bases [engine-missing fires]", async () => {
+		const registryNoBases = makeRegistry(["dataview-dql", "dataviewjs"]); // no "bases"
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registryNoBases, dvSettings, store);
+
+		const checksum = await computeChecksum(BASES_YAML);
+		const result = await gate.evaluate(
+			makeBasesRecord({ okayed: { version: 0, checksum } }),
+		);
+
+		expect(result).toEqual({ status: "engine-missing" });
+	});
+
+	// drift: checksum mismatch for bases → drift, not consented
+
+	it("returns {status:'drift', reason:'checksum'} when bases YAML checksum changes [ADR-5]", async () => {
+		const registry = makeRegistryWithBases();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		// okayed with wrong checksum
+		const result = await gate.evaluate(
+			makeBasesRecord({
+				okayed: { version: 0, checksum: "sha256:" + "a".repeat(64) },
+			}),
+		);
+
+		expect(result).toEqual({ status: "drift", reason: "checksum" });
+	});
+
+	// disabled kill-switch still fires before bases path
+
+	it("returns {status:'disabled'} for bases record when enabled:false [kill-switch]", async () => {
+		const registry = makeRegistryWithBases();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.evaluate(makeBasesRecord({ enabled: false }));
+
+		expect(result).toEqual({ status: "disabled" });
+	});
+
+	// not-consented: okayed is null → not-consented (no special bases shortcut before okayed check)
+
+	it("returns {status:'not-consented'} when bases record has okayed:null", async () => {
+		const registry = makeRegistryWithBases();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.evaluate(makeBasesRecord({ okayed: null }));
+
+		expect(result).toEqual({ status: "not-consented" });
+	});
+
+	// (d) REGRESSION GUARD: dataview-dql still evaluates exactly as before
+
+	it("[REGRESSION] dataview-dql still requires source note (readFencedBlock path intact)", async () => {
+		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
+		// No file in vault → readFencedBlock returns null → not-consented (fail-closed)
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.evaluate(
+			makeRecord({
+				engine: "dataview-dql",
+				source: "views/my-view.md",
+				okayed: { version: 0, checksum: "sha256:" + "0".repeat(64) },
+			}),
+		);
+
+		expect(result).toEqual({ status: "not-consented" });
+	});
+
+	it("[REGRESSION] dataview-dql evaluates consented when source note exists and checksum matches", async () => {
+		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
+		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const checksum = await computeChecksum(DQL_BODY);
+		const result = await gate.evaluate(
+			makeRecord({
+				engine: "dataview-dql",
+				source: "views/my-view.md",
+				okayed: { version: 0, checksum },
+			}),
+		);
+
+		expect(result).toEqual({ status: "consented" });
+	});
+
+	it("[REGRESSION] dataviewjs still gates: missing source → not-consented (fail-closed)", async () => {
+		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.evaluate(
+			makeRecord({
+				engine: "dataviewjs",
+				source: "views/missing.md",
+				okayed: { version: 0, checksum: "sha256:" + "0".repeat(64) },
+			}),
+		);
+
+		expect(result).toEqual({ status: "not-consented" });
+	});
+});
+
+// ---------------------------------------------------------------------------
 // requestConsentForDef — no-write, def-based consent path (T-S2.1)
 // ---------------------------------------------------------------------------
 
