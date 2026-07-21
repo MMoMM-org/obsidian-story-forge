@@ -28,7 +28,7 @@ phase: 3
 
 Delivers the top-down Codex: category grids that click through into the M3 panel.
 
-- [ ] **T3.1 `SidebarView.showFile(file)` public seam** `[activity: frontend-ui]`
+- [x] **T3.1 `SidebarView.showFile(file)` public seam** `[activity: frontend-ui]`
 
   1. Prime: Read `[ref: SDD/ADR-4]`, `SidebarView._drillInto` (`:639`), `_resolveOrClassify` (`:680`), and the `activateView` reveal helper.
   2. Test: `showFile(file)` re-subjects the panel to `file` via `_drillInto` (nav-stack push, `source:"drilled"`, follow suspended); an unresolved/non-md file falls through to the M3 non-entity/unresolved state (never throws); when the panel is closed, the caller reveals/creates the leaf first.
@@ -38,7 +38,7 @@ Delivers the top-down Codex: category grids that click through into the M3 panel
      - [ ] Panel re-subjects on `showFile` `[ref: PRD/AC-F2.2]`
      - [ ] Unresolved file → M3 state, no throw `[ref: PRD/AC-F2.6]`
 
-- [ ] **T3.2 `CodexBasesView` — the one polymorphic Bases view type** `[activity: frontend-ui]`
+- [x] **T3.2 `CodexBasesView` — the one polymorphic Bases view type** `[activity: frontend-ui]`
 
   1. Prime: Read `[ref: SDD/ADR-2]`, `obsidian.d.ts` (`BasesView`, `BasesQueryResult`, `BasesViewConfig.get`), and `panel/kindFields` (grid columns).
   2. Test: reads category from view config (`config.get`); `onDataUpdated()` reads `data` **fresh** (never caches `BasesEntry`), empties-before-repaint; renders a grid of the category's entities (columns from `kindFields`); an empty category shows the per-category empty-state (S45); no cell is editable (read-only click-through); an unknown/missing category falls back safely.
