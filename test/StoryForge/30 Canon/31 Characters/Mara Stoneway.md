@@ -16,7 +16,7 @@ distinctive_features:
   - "freckles across nose and cheeks"
   - "burn scar on the back of the left hand"
 tagline: "A lighthouse apprentice hunts the thief of the harbour light."
-portrait: ""
+portrait: "95 Assets/Mara Stoneway.svg"
 significant_other:
   - "[[Jonas Kell]]"
 family:
