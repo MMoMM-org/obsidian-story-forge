@@ -913,25 +913,6 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 	let native: NativeScopingEngine;
 	let view: SidebarView;
 
-	function makeOwnLeafSF(a: App): WorkspaceLeaf {
-		const l = new WorkspaceLeaf();
-		l.app = a;
-		l.view.getViewType = vi.fn(() => SIDEBAR_VIEW_TYPE);
-		l.setViewState = vi.fn(async (s: { type: string }) => {
-			l.view.getViewType = vi.fn(() => s.type);
-		});
-		return l;
-	}
-
-	function makeMdFileSF(basename = "Silvan Nightweaver"): TFile {
-		const f = new TFile();
-		f.path = `${basename}.md`;
-		f.name = `${basename}.md`;
-		f.basename = basename;
-		f.extension = "md";
-		return f;
-	}
-
 	function makeNonMdFileSF(): TFile {
 		const f = new TFile();
 		f.path = "cover.png";
@@ -941,22 +922,11 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 		return f;
 	}
 
-	function makeRegistrySF(): EngineRegistry {
-		return { get: vi.fn(() => undefined) } as unknown as EngineRegistry;
-	}
-	function makeGateSF(): ConsentGate {
-		return {
-			evaluate: vi.fn(async () => ({ status: "consented" })),
-			requestConsent: vi.fn(async () => false),
-			requestReConsent: vi.fn(async () => false),
-		} as unknown as ConsentGate;
-	}
-
 	beforeEach(async () => {
 		app = makeApp();
-		leaf = makeOwnLeafSF(app);
+		leaf = makeOwnLeaf(app);
 		native = new NativeScopingEngine(app);
-		view = new SidebarView(leaf, makeRegistrySF(), makeGateSF(), native, undefined, () => "drill");
+		view = new SidebarView(leaf, makeRegistry(), makeGate(), native, undefined, () => "drill");
 		await view.onOpen();
 	});
 
@@ -969,8 +939,8 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 	// -----------------------------------------------------------------------
 
 	it("showFile(file) pushes the prior subject onto the nav stack", () => {
-		const from = makeMdFileSF("Mara Stoneway");
-		const to = makeMdFileSF("Silvan Nightweaver");
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
 
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
@@ -989,8 +959,8 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 	});
 
 	it("showFile(file) sets subject.source to 'drilled' and subject.file to the new file", () => {
-		const from = makeMdFileSF("Mara Stoneway");
-		const to = makeMdFileSF("Silvan Nightweaver");
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
 
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
@@ -1009,8 +979,8 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 	});
 
 	it("showFile(file) suspends active-leaf follow (source is not follow after call)", () => {
-		const from = makeMdFileSF("Mara Stoneway");
-		const to = makeMdFileSF("Silvan Nightweaver");
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
 
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
@@ -1028,8 +998,8 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 	});
 
 	it("showFile(file) re-renders the panel by calling _resolveOrClassify with the new file", () => {
-		const from = makeMdFileSF("Mara Stoneway");
-		const to = makeMdFileSF("Silvan Nightweaver");
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
 
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
@@ -1050,8 +1020,8 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 	});
 
 	it("showFile delegates to _drillInto (does not re-implement drill logic)", () => {
-		const from = makeMdFileSF("Mara Stoneway");
-		const to = makeMdFileSF("Silvan Nightweaver");
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
 
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
@@ -1080,7 +1050,7 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
 		};
-		pv.subject = { file: makeMdFileSF("Mara Stoneway"), source: "follow" };
+		pv.subject = { file: makeMdFile("Mara Stoneway"), source: "follow" };
 
 		expect(() => { view.showFile(nonMd); }).not.toThrow();
 
@@ -1090,11 +1060,11 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 	});
 
 	it("showFile(mdFile with null cache) yields error state and does not throw (AC-F2.6)", () => {
-		const unresolved = makeMdFileSF("Mystery Note");
+		const unresolved = makeMdFile("Mystery Note");
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
 		};
-		pv.subject = { file: makeMdFileSF("Mara Stoneway"), source: "follow" };
+		pv.subject = { file: makeMdFile("Mara Stoneway"), source: "follow" };
 
 		app.metadataCache.getFileCache = vi.fn(() => null);
 
@@ -1104,11 +1074,11 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 	});
 
 	it("showFile(mdFile with no entity tag) yields non-entity state and does not throw (AC-F2.6)", () => {
-		const nonEntity = makeMdFileSF("Random scratchpad");
+		const nonEntity = makeMdFile("Random scratchpad");
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
 		};
-		pv.subject = { file: makeMdFileSF("Mara Stoneway"), source: "follow" };
+		pv.subject = { file: makeMdFile("Mara Stoneway"), source: "follow" };
 
 		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: {} }));
 
@@ -1208,5 +1178,32 @@ describe("revealAndShowFile helper (T3.1)", () => {
 		expect(pv.subject.file?.path).toBe(file.path);
 
 		await sidebarView.onClose();
+	});
+
+	it("silently skips showFile when the leaf's view is not a SidebarView instance", async () => {
+		// Path (c): getLeavesOfType returns a leaf whose .view is a plain object
+		// (not a SidebarView instance). The instanceof guard must silently skip
+		// showFile without throwing, but activateView (revealLeaf) must still run.
+		const app = makeApp();
+		const file = makeMdFileR("Mara Stoneway");
+
+		// Stub a leaf whose view is NOT a SidebarView instance.
+		const alienLeaf = new WorkspaceLeaf();
+		alienLeaf.app = app;
+		const alienLeafWithPlainView = {
+			...alienLeaf,
+			view: { getViewType: () => SIDEBAR_VIEW_TYPE },
+		} as unknown as WorkspaceLeaf;
+
+		// activateView checks getLeavesOfType first; return the alien leaf so it
+		// thinks the panel is already open (skips getRightLeaf).
+		app.workspace.getLeavesOfType = vi.fn((_type: string) => [alienLeafWithPlainView]);
+
+		// Must not throw despite the view failing the instanceof check.
+		await expect(revealAndShowFile(app, file)).resolves.toBeUndefined();
+
+		// revealLeaf (inside activateView) was still called — the function got
+		// far enough to try to reveal the leaf before the guard short-circuited.
+		expect(app.workspace.revealLeaf).toHaveBeenCalled();
 	});
 });
