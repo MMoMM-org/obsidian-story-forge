@@ -5,13 +5,14 @@
  * live in src/bases/ — exactly as src/engines/EngineRegistry.ts is the
  * sole home for the `app as any` Dataview casts.
  *
- * ADR-8: Feature-detection via the boolean returned by registerBasesView.
- * Re-read per call, never cached (mirrors getDataviewApi in EngineRegistry.ts).
+ * ADR-8 (revised): Feature-detection caches the boolean returned by
+ * registerBasesView at plugin onload time (WeakMap<Plugin, boolean>).
+ * isBasesAvailable() reads from the cache — it has NO side effects.
  *
  * ADR-9: Single src/bases/ module is the API-churn firewall.
  *
  * @ref SDD/CON-3  — single Bases-typings firewall (src/bases/ only)
- * @ref SDD/ADR-8  — per-render feature detect via registerBasesView boolean
+ * @ref SDD/ADR-8  — cache-at-onload feature detect via registerBasesView
  * @ref SDD/ADR-9  — API-churn firewall: single module + smoke test
  */
 
@@ -32,40 +33,27 @@ const CODEX_VIEW_ID = "story-forge-codex";
 type RegisterBasesViewFn = (viewId: string, registration: BasesViewRegistration) => boolean;
 
 /**
- * Probe whether Obsidian Bases is enabled in this vault.
+ * WeakMap cache: plugin instance → Bases availability boolean.
  *
- * CON-3 sanctioned any-cast: this is the sole sanctioned Bases-typings
- * firewall (mirrors getDataviewApi in EngineRegistry.ts).
+ * Keyed by plugin instance (GC-friendly, test-isolatable). Populated by
+ * registerCodexView() on first call; isBasesAvailable() reads from it.
  *
- * Probes availability by calling registerBasesView with a no-op stub.
- * Per the obsidian.d.ts JSDoc: "@returns false if bases are not enabled
- * in this vault." Re-read on every call — never cached (ADR-8).
- *
- * @returns true when Bases is enabled; false when absent or disabled.
+ * Using WeakMap (not a module-level boolean) prevents cross-instance or
+ * cross-test state leakage.
  */
-export function isBasesAvailable(plugin: Plugin): boolean {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-	const registerFn: unknown = (plugin as any).registerBasesView;
-	if (typeof registerFn !== "function") return false;
-
-	// Probe by calling with a temporary no-op stub. The Bases runtime returns
-	// false immediately if Bases is disabled, without side-effects on the vault.
-	// Re-read on every call (ADR-8: no cached reference).
-	return (registerFn as RegisterBasesViewFn).call(plugin, "__story-forge-probe__", {
-		name: "probe",
-		icon: "database",
-		factory: (_controller, _containerEl) => {
-			throw new Error("probe factory must never be called");
-		},
-	});
-}
+const availabilityCache = new WeakMap<object, boolean>();
 
 /**
  * Register the one polymorphic "story-forge-codex" Bases view type.
  *
- * Returns false when Bases is unavailable (mirrors isBasesAvailable).
- * The full polymorphic view class lands in Phase 3; this stub registers
- * the minimal required shape so the firewall is in place for downstream phases.
+ * Call once from plugin onload(). Calls registerBasesView EXACTLY ONCE,
+ * caches the boolean result (WeakMap keyed by plugin instance), and returns
+ * it. Idempotent: subsequent calls return the cached value without calling
+ * registerBasesView again.
+ *
+ * Returns false when Bases is unavailable (method absent or returns false).
+ * The full polymorphic view class lands in Phase 3; this stub registers the
+ * minimal required shape so the firewall is in place for downstream phases.
  *
  * TODO(Phase 3): Replace the minimal factory stub with the real CodexBasesView
  * factory and the full options callback when codex/CodexBasesView.ts is built.
@@ -74,9 +62,16 @@ export function isBasesAvailable(plugin: Plugin): boolean {
  * @returns true when registration succeeded (Bases enabled); false otherwise
  */
 export function registerCodexView(plugin: Plugin): boolean {
+	if (availabilityCache.has(plugin)) {
+		return availabilityCache.get(plugin)!;
+	}
+
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
 	const registerFn: unknown = (plugin as any).registerBasesView;
-	if (typeof registerFn !== "function") return false;
+	if (typeof registerFn !== "function") {
+		availabilityCache.set(plugin, false);
+		return false;
+	}
 
 	const registration: BasesViewRegistration = {
 		name: "Story Forge Codex",
@@ -87,5 +82,24 @@ export function registerCodexView(plugin: Plugin): boolean {
 		},
 	};
 
-	return (registerFn as RegisterBasesViewFn).call(plugin, CODEX_VIEW_ID, registration);
+	const available = (registerFn as RegisterBasesViewFn).call(plugin, CODEX_VIEW_ID, registration);
+	availabilityCache.set(plugin, available);
+	return available;
+}
+
+/**
+ * Return the cached Bases availability boolean for this plugin instance.
+ *
+ * Returns the value stored by registerCodexView(). Returns false if
+ * registerCodexView has not run yet (default). Has NO side effects —
+ * never calls registerBasesView.
+ *
+ * CON-3 sanctioned any-cast confined to registerCodexView above; this
+ * function reads only from the WeakMap cache.
+ *
+ * @returns true when Bases is enabled; false when absent, disabled, or
+ *          registerCodexView has not yet been called.
+ */
+export function isBasesAvailable(plugin: Plugin): boolean {
+	return availabilityCache.get(plugin) ?? false;
 }
