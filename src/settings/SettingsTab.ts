@@ -1,5 +1,6 @@
 import type MyPlugin from "main";
 import { type App, Menu, PluginSettingTab, Setting, ToggleComponent } from "obsidian";
+import { normalizeLinkClickAction } from "types/index";
 
 import { HeaderSection } from "./HeaderSection";
 import type { ViewStore } from "store/ViewStore";
@@ -108,6 +109,20 @@ export class SettingsTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.exampleSetting)
 					.onChange(async (value) => {
 						this.plugin.settings.exampleSetting = value;
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Link click action")
+			.setDesc("What happens when you click a link in the panel. Modifier-click (ctrl/cmd) inverts this choice.")
+			.addDropdown((d) =>
+				d
+					.addOption("drill", "Drill into linked note (stay in panel)")
+					.addOption("open", "Open in editor")
+					.setValue(this.plugin.settings.linkClickAction)
+					.onChange(async (value: string) => {
+						this.plugin.settings.linkClickAction = normalizeLinkClickAction(value);
 						await this.plugin.saveSettings();
 					}),
 			);

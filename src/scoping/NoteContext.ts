@@ -20,6 +20,7 @@ export type EntityKind =
 	| "lore"
 	| "scene"
 	| "plotline"
+	| "book"
 	| "unknown";
 
 /** All valid EntityKind values, used for runtime validation. */
@@ -30,6 +31,7 @@ const ENTITY_KINDS: ReadonlySet<string> = new Set<EntityKind>([
 	"lore",
 	"scene",
 	"plotline",
+	"book",
 	"unknown",
 ]);
 
@@ -50,6 +52,9 @@ export function isEntityKind(value: unknown): value is EntityKind {
  * - `relation` — "outgoing" | "backlink" | "self"
  * - `field` — source frontmatter key (e.g. "pov", "characters", "location")
  * - `unresolved` — true when the link text resolves to no file in the vault
+ * - `fuzzy` — true when the backlink is inferred from a body link only
+ *   (resolvedLinks hit with no frontmatterLinks edge); only emitted for
+ *   object and lore subjects whose srcKind is "scene" (ADR-8)
  */
 export interface ResolvedEntity {
 	file: TFile;
@@ -57,6 +62,7 @@ export interface ResolvedEntity {
 	relation: "outgoing" | "backlink" | "self";
 	field?: string;
 	unresolved?: boolean;
+	fuzzy?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,6 +86,8 @@ export interface NoteContext {
 	entities: ResolvedEntity[];
 	/** Backlink seam — EMPTY in M1, filled in M3. */
 	backlinks: ResolvedEntity[];
+	/** Raw frontmatter of the active note. Empty object when cache is null. */
+	frontmatter: Record<string, unknown>;
 	/** Unix millis timestamp of when this context was resolved. */
 	resolvedAt: number;
 }
@@ -97,6 +105,8 @@ export function isNoteContext(value: unknown): value is NoteContext {
 		isEntityKind(v["activeKind"]) &&
 		Array.isArray(v["entities"]) &&
 		Array.isArray(v["backlinks"]) &&
+		typeof v["frontmatter"] === "object" &&
+		v["frontmatter"] !== null &&
 		typeof v["resolvedAt"] === "number"
 	);
 }

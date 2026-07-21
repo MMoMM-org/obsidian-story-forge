@@ -58,6 +58,7 @@ function makeNoteContext(file: TFile): NoteContext {
 		activeKind: "character",
 		entities: [],
 		backlinks: [],
+		frontmatter: {},
 		resolvedAt: Date.now(),
 	};
 }

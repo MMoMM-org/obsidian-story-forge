@@ -2,6 +2,7 @@
 type: object
 name: The Beacon Lens
 aliases: [the lens]
+image: "95 Assets/The Beacon Lens.svg"
 owner: "[[Tobias Ferro]]"
 kind: artifact
 first_appearance: "[[Scene 1 - The Extinguished Fire]]"

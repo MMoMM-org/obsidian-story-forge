@@ -1,28 +1,42 @@
 /**
  * NativeScopingEngine — always-available fallback engine.
  *
- * Renders the NoteContext entity list using XSS-safe DOM construction (createEl).
+ * Dispatches to per-kind panel renderers via renderPanel (T3.5).
+ * Wires PanelDeps (onOpenLink, collapsed, toggleCollapse) from the injected App.
  * NOT a registry entry — held directly on SidebarView as the fallback.
  *
  * @ref SDD/ADR-1 (native fallback held separately; NOT in EngineRegistry)
- * @ref SDD/Runtime View — Flow E (native fallback when Dataview absent)
+ * @ref SDD/ADR-2 (PanelDeps injected; engine wires onOpenLink)
  * @ref SDD/ADR-7 (teardown order: teardown → body.empty() → render)
  * @ref PRD/AC-F1.4
+ * @ref T3.5
  */
 
+import type { App } from "obsidian";
+import { TFile } from "obsidian";
 import type { NoteContext } from "scoping/NoteContext";
 import type { ViewRecord } from "store/types";
 import type { QueryEngine } from "engines/QueryEngine";
+import { renderPanel } from "panel/renderPanel";
+import type { PanelDeps } from "panel/renderPanel";
 
 export class NativeScopingEngine implements QueryEngine {
 	/** Discriminant sentinel — "native" is NOT a ViewRecord.engine value. */
 	readonly kind = "native" as const;
 
+	/** In-memory collapse state, persists across re-renders on this engine instance. */
+	readonly collapsed: Record<string, boolean> = {};
+
 	/** Reference to the last rendered container, for teardown. */
 	private lastEl: HTMLElement | null = null;
 
+	/** Built deps for last render — exposed as _lastDeps for testing. */
+	_lastDeps: PanelDeps | null = null;
+
+	constructor(private readonly app: App) {}
+
 	/**
-	 * Render entity context from NoteContext into `el` using XSS-safe DOM construction.
+	 * Render entity context from NoteContext into `el` using the per-kind renderer.
 	 *
 	 * @param view  ViewRecord (may be null when no view is selected) — not used for rendering content.
 	 * @param ctx   NoteContext with entities to render.
@@ -35,17 +49,10 @@ export class NativeScopingEngine implements QueryEngine {
 	): Promise<void> {
 		this.lastEl = el;
 
-		const list = el.createEl("ul", { cls: "sf-native-entities" });
+		const deps = this._buildDeps(ctx, el);
+		this._lastDeps = deps;
 
-		for (const entity of ctx.entities) {
-			const item = list.createEl("li", { cls: "sf-entity-item" });
-			if (entity.field) {
-				item.createEl("span", { cls: "sf-entity-field", text: entity.field });
-				item.createEl("span", { cls: "sf-entity-sep", text: ": " });
-			}
-			item.createEl("span", { cls: "sf-entity-name", text: entity.file.basename });
-			item.createEl("span", { cls: "sf-entity-kind", text: ` (${entity.kind})` });
-		}
+		renderPanel(ctx, el, deps);
 	}
 
 	/**
@@ -57,5 +64,51 @@ export class NativeScopingEngine implements QueryEngine {
 			this.lastEl.empty();
 			this.lastEl = null;
 		}
+		this._lastDeps = null;
+	}
+
+	// ---------------------------------------------------------------------------
+	// Private helpers
+	// ---------------------------------------------------------------------------
+
+	/** Build the PanelDeps for a render pass. */
+	private _buildDeps(ctx: NoteContext, el: HTMLElement): PanelDeps {
+		const deps: PanelDeps = {
+			onOpenLink: (path: string): void => {
+				void this.app.workspace.openLinkText(path, ctx.activeFile.path, false);
+			},
+			collapsed: this.collapsed,
+			toggleCollapse: (sectionId: string): void => {
+				this.collapsed[sectionId] = !this.collapsed[sectionId];
+				this._reRender(el, ctx);
+			},
+			resolveAsset: (src: string): string => {
+				if (!src.trim()) return "";
+				if (/^(https?:|data:|app:|blob:)/.test(src)) return src;
+
+				// Try direct vault path first
+				const byPath = this.app.vault.getAbstractFileByPath(src);
+				if (byPath instanceof TFile) {
+					return this.app.vault.getResourcePath(byPath);
+				}
+
+				// Fall back to wikilink resolution
+				const byLink = this.app.metadataCache.getFirstLinkpathDest(src, ctx.activeFile.path);
+				if (byLink) {
+					return this.app.vault.getResourcePath(byLink);
+				}
+
+				return src;
+			},
+		};
+		return deps;
+	}
+
+	/** Re-render into the same el after a collapse state change. */
+	private _reRender(el: HTMLElement, ctx: NoteContext): void {
+		el.empty();
+		const deps = this._buildDeps(ctx, el);
+		this._lastDeps = deps;
+		renderPanel(ctx, el, deps);
 	}
 }

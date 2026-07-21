@@ -293,6 +293,7 @@ export class App {
 		getMarkdownFiles: vi.fn(() => [] as TFile[]),
 		getFiles: vi.fn(() => [] as TFile[]),
 		getAllLoadedFiles: vi.fn(() => [] as (TFile | TFolder)[]),
+		getResourcePath: vi.fn((file: TFile): string => `app://vault/${file.path}`),
 		adapter: {
 			read: vi.fn(),
 			write: vi.fn(),
@@ -312,6 +313,16 @@ export class App {
 		getFirstLinkpathDest: vi.fn(
 			(_linkpath: string, _sourcePath: string): TFile | null => null,
 		),
+		/**
+		 * resolvedLinks — mirrors the real MetadataCache.resolvedLinks shape
+		 * (obsidian.d.ts:4438): `{ srcPath: { destPath: count } }`.
+		 *
+		 * Tests set this directly:
+		 *   app.metadataCache.resolvedLinks = { "src.md": { "dest.md": 1 } };
+		 * or mutate per-entry:
+		 *   app.metadataCache.resolvedLinks["src.md"] = { "dest.md": 2 };
+		 */
+		resolvedLinks: {} as Record<string, Record<string, number>>,
 		/** Live registrations (event → callbacks). Cleared by off() on unload. */
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		_eventRegistrations: new Map<string, Array<(...args: any[]) => any>>(),

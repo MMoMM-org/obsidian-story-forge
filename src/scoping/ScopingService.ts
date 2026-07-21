@@ -16,6 +16,7 @@ import {
 	type NoteContext,
 	type ResolvedEntity,
 } from "./NoteContext";
+import { buildBacklinks } from "./reverseIndex";
 
 // ---------------------------------------------------------------------------
 // Tag → EntityKind mapping (ADR-4)
@@ -29,6 +30,7 @@ const TAG_MAP: ReadonlyArray<[string, EntityKind]> = [
 	["#canon/lore", "lore"],
 	["#manuscript/scene", "scene"],
 	["#planning/plotline", "plotline"],
+	["#planning/book", "book"],
 ];
 
 // ---------------------------------------------------------------------------
@@ -91,6 +93,7 @@ export class ScopingService {
 				activeKind: "unknown",
 				entities: [],
 				backlinks: [],
+				frontmatter: {},
 				resolvedAt: Date.now(),
 			};
 		}
@@ -142,7 +145,8 @@ export class ScopingService {
 			activeFile: file,
 			activeKind,
 			entities,
-			backlinks: [], // seam — M3
+			backlinks: buildBacklinks(this.app, file, activeKind, (f) => this.classify(f)),
+			frontmatter: cache.frontmatter ?? {},
 			resolvedAt: Date.now(),
 		};
 	}

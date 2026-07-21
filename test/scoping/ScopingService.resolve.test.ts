@@ -242,19 +242,105 @@ describe("ScopingService.resolve", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// backlinks is always empty in M1 (ADR-3 seam)
+	// backlinks populated via reverse index (T2.2, replaces M1 seam)
 	// -------------------------------------------------------------------------
 
-	it("backlinks is always an empty array (M1 seam per ADR-3)", () => {
+	it("resolve(subject).backlinks is non-empty when a source file's frontmatterLinks point at the subject", () => {
+		const subjectFile = createMockTFile({ path: "30 Canon/31 Characters/Mara Stoneway.md" });
+		const sceneFile = createMockTFile({ path: "10 Manuscript/Scene 1.md" });
+
+		// Provide resolvedLinks so buildBacklinks sees the scene → subject hit
+		app.metadataCache.resolvedLinks = {
+			[sceneFile.path]: { [subjectFile.path]: 2 },
+		};
+
+		// vault lookup: srcPath → TFile
+		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((path) => {
+			if (path === sceneFile.path) return sceneFile;
+			return null;
+		});
+
+		// Metadata: subject is a character; scene has frontmatterLinks pointing at the subject
+		vi.mocked(app.metadataCache.getFileCache).mockImplementation((f) => {
+			if (f === subjectFile) {
+				return createMockCachedMetadata({ tags: [{ tag: "#canon/character" }] });
+			}
+			if (f === sceneFile) {
+				return createMockCachedMetadata({
+					tags: [{ tag: "#manuscript/scene" }],
+					frontmatterLinks: [
+						createMockFrontmatterLink("pov", "Mara Stoneway"),
+						createMockFrontmatterLink("characters.0", "Mara Stoneway"),
+					],
+				});
+			}
+			return null;
+		});
+
+		// getFirstLinkpathDest: "Mara Stoneway" → subjectFile
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((link) => {
+			if (link === "Mara Stoneway") return subjectFile;
+			return null;
+		});
+
+		const ctx = service.resolve(subjectFile);
+
+		// backlinks must be non-empty
+		expect(ctx.backlinks.length).toBeGreaterThan(0);
+
+		// Each backlink carries the expected shape
+		const povBacklink = ctx.backlinks.find((b) => b.field === "pov");
+		expect(povBacklink).toBeDefined();
+		expect(povBacklink?.relation).toBe("backlink");
+		expect(povBacklink?.file).toBe(sceneFile);
+
+		const charBacklink = ctx.backlinks.find((b) => b.field === "characters");
+		expect(charBacklink).toBeDefined();
+		expect(charBacklink?.relation).toBe("backlink");
+	});
+
+	// -------------------------------------------------------------------------
+	// Regression: cache-null subject → backlinks: [] and no throw
+	// -------------------------------------------------------------------------
+
+	it("returns backlinks: [] when cache is null and does NOT throw", () => {
 		const file = createMockTFile({ path: "any.md" });
+		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(null);
+
+		let ctx: ReturnType<typeof service.resolve> | undefined;
+		expect(() => {
+			ctx = service.resolve(file);
+		}).not.toThrow();
+
+		expect(ctx?.backlinks).toEqual([]);
+	});
+
+	// -------------------------------------------------------------------------
+	// Part A (DV-1): NoteContext.frontmatter
+	// -------------------------------------------------------------------------
+
+	it("resolve().frontmatter deep-equals the cache's frontmatter", () => {
+		const file = createMockTFile({ path: "char.md" });
+		const fm = { name: "Mara Stoneway", age: 19, role: "protagonist" };
 		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(
-			createMockCachedMetadata({ tags: [], frontmatterLinks: [] }),
+			createMockCachedMetadata({
+				tags: [{ tag: "#canon/character" }],
+				frontmatter: fm,
+			}),
 		);
 
 		const ctx = service.resolve(file);
 
-		expect(ctx.backlinks).toEqual([]);
-		expect(Array.isArray(ctx.backlinks)).toBe(true);
+		expect(ctx.frontmatter).toEqual(fm);
+	});
+
+	it("resolve().frontmatter is {} when cache is null", () => {
+		const file = createMockTFile({ path: "any.md" });
+		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(null);
+
+		const ctx = service.resolve(file);
+
+		expect(ctx.frontmatter).toEqual({});
 	});
 
 	// -------------------------------------------------------------------------

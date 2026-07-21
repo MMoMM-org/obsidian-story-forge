@@ -83,6 +83,7 @@ body {
 	--sf-kind-object: #c9975a;
 	--sf-kind-lore: #b06cd0;
 	--sf-kind-plotline: #d0795a;
+	--sf-kind-book: #7a8fa8;
 
 	/* Engine-badge accent hues (dql / dataviewjs / bases) — overridable like the kinds. */
 	--sf-engine-dql: #5aa0c9;
@@ -289,7 +290,7 @@ body {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 10px;
 	padding: 12px;
 }
 
@@ -1099,4 +1100,379 @@ body {
 
 .sf-view-blocked-reason a {
 	color: var(--text-accent);
+}
+
+/* ===========================================================================
+ * Contextual panel — per-kind entity rendering (T3.1 / spec 004-contextual-panel).
+ * Visual reference: docs/XDD/specs/004-contextual-panel/mockups.html S32–S40.
+ * All colours from Obsidian theme tokens — no hard-coded hex values.
+ * =========================================================================== */
+
+/* --- sf-badge-book -------------------------------------------------------- */
+.sf-badge-book {
+	color: var(--sf-kind-book);
+	background: color-mix(in srgb, var(--sf-kind-book) 16%, transparent);
+}
+
+/* --- Section (collapsible) ------------------------------------------------ */
+.sf-section {
+	display: flex;
+	flex-direction: column;
+}
+
+.sf-sec-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 0;
+	cursor: pointer;
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+	font-size: 12.5px;
+	user-select: none;
+}
+
+.sf-sec-head:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-s);
+}
+
+.sf-sec-chev {
+	color: var(--text-faint);
+	font-size: 10px;
+	width: 10px;
+	flex: none;
+}
+
+.sf-sec-label {
+	flex: 1;
+}
+
+/* Count badge — right-aligned in header */
+.sf-count {
+	margin-left: auto;
+	font-size: 10px;
+	color: var(--text-faint);
+	background: var(--background-secondary);
+	border-radius: 8px;
+	padding: 0 7px;
+}
+
+/* Section body — indented, stacked rows */
+.sf-sec-body {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 4px 0 2px 16px;
+}
+
+.sf-sec-body--collapsed {
+	display: none;
+}
+
+/* --- Fact row (key / value) ----------------------------------------------- */
+.sf-frow {
+	display: flex;
+	gap: 8px;
+	font-size: 12px;
+	align-items: baseline;
+}
+
+.sf-frow-k {
+	color: var(--text-faint);
+	width: 80px;
+	flex: none;
+}
+
+.sf-frow-v {
+	color: var(--text-normal);
+}
+
+/* --- Relation row (label + stacked link elements) ------------------------- */
+.sf-rel {
+	display: flex;
+	gap: 8px;
+	font-size: 12px;
+	align-items: baseline;
+}
+
+.sf-rel-k {
+	color: var(--text-faint);
+	width: 80px;
+	flex: none;
+}
+
+.sf-rel-lnks {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+/* --- Link row (drill-in link with optional trailing tag) ------------------ */
+.sf-lrow {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+}
+
+.sf-lrow-lnk {
+	color: var(--text-accent);
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.sf-lrow-lnk:hover {
+	text-decoration: underline;
+}
+
+.sf-lrow-lnk:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+	border-radius: var(--radius-s);
+}
+
+/* Trailing tag (e.g. "pov", kind label) */
+.sf-trail {
+	font-size: 9.5px;
+	text-transform: lowercase;
+	padding: 0 6px;
+	border-radius: 8px;
+	background: var(--background-secondary);
+	color: var(--text-faint);
+	margin-left: auto;
+}
+
+/* --- Empty-state line ----------------------------------------------------- */
+.sf-emptyline {
+	font-size: 12px;
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+/* --- Unresolved link row -------------------------------------------------- */
+.sf-unres {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+.sf-unres-glyph {
+	opacity: 0.8;
+}
+
+.sf-unres-text {
+	color: var(--text-muted);
+}
+
+.sf-unres-mark {
+	font-size: 9.5px;
+	color: var(--text-faint);
+	margin-left: auto;
+}
+
+/* --- Portrait tile (character) ------------------------------------------- */
+.sf-portrait {
+	width: 52px;
+	height: 64px;
+	flex: none;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	display: grid;
+	place-items: center;
+	overflow: hidden;
+}
+
+.sf-portrait-mono {
+	color: var(--text-muted);
+	font-weight: var(--font-semibold);
+	font-size: 15px;
+	letter-spacing: 0.05em;
+}
+
+.sf-portrait-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+/* --- Image tile (location / object) -------------------------------------- */
+.sf-imgtile {
+	width: 52px;
+	height: 52px;
+	flex: none;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	display: grid;
+	place-items: center;
+	overflow: hidden;
+}
+
+.sf-imgtile-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+/* --- Drill-in navigation chrome (T4.2) ------------------------------------ */
+/* Back now lives in the header (.sf-chead), before the title (S41). The
+ * Open note footer stays in the body below the engine output. */
+.sf-back {
+	flex: none;
+	font-size: 12px;
+	font-weight: var(--font-semibold);
+	color: var(--text-accent);
+	cursor: pointer;
+	padding: 2px 4px;
+	border-radius: var(--radius-s);
+}
+
+.sf-back:hover {
+	text-decoration: underline;
+}
+
+.sf-back:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.sf-opennote {
+	margin-top: 8px;
+	font-size: 12px;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: 2px 4px;
+	border-radius: var(--radius-s);
+}
+
+.sf-opennote:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.sf-opennote:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* --- Pin hint banner ------------------------------------------------------ */
+.sf-pinhint {
+	background: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+	border: 1px solid color-mix(in srgb, var(--interactive-accent) 28%, transparent);
+	border-radius: 6px;
+	padding: 6px 9px;
+	font-size: 11.5px;
+	color: var(--text-muted);
+}
+
+/* ===========================================================================
+ * Mockup-fidelity pass (spec 004 S32–S43) — profile block, humanized facts,
+ * kind-glyph placeholder tiles, scene subtitle, header Back + drill trail.
+ * All colours from Obsidian theme tokens — no hard-coded hex.
+ * =========================================================================== */
+
+/* --- Section spacing (fix #1) --------------------------------------------- */
+/* The engine renders sections into this host; give it the mockup's 10px gap so
+ * sections don't butt together (mockup .body{gap:10px}). */
+.sf-engine-host {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+/* --- pov tag variant (fix #2) --------------------------------------------- */
+/* Distinguishable accent pill for POV rows (mockup .tag.pov); the plain
+ * .sf-trail stays a subtle pill. */
+.sf-trail--pov {
+	color: var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+}
+
+/* --- Profile block (fix #3 / #6): tile + pinfo stat lines + tagline -------- */
+.sf-profile {
+	display: flex;
+	gap: 11px;
+	align-items: flex-start;
+}
+
+.sf-pinfo {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	padding-top: 1px;
+	font-size: 12px;
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+/* The lead line reads at normal (not muted) weight (mockup .pinfo .lead). */
+.sf-pinfo-line.sf-lead,
+.sf-lead b {
+	color: var(--text-normal);
+}
+
+.sf-ptagline {
+	font-size: 12px;
+	color: var(--text-muted);
+	font-style: italic;
+	line-height: 1.4;
+}
+
+/* --- Kind-glyph placeholder tile (fix #6, D5) ----------------------------- */
+/* location/object variants + centred glyph when no image is set. */
+.sf-imgtile--loc,
+.sf-imgtile--obj {
+	background: var(--background-secondary);
+}
+
+.sf-imgtile-glyph {
+	font-size: 20px;
+	line-height: 1;
+	color: var(--text-muted);
+}
+
+/* --- Fact / relation key column robustness (fix #4) ----------------------- */
+/* Long humanized labels wrap instead of overflowing the 80px column, and long
+ * values wrap instead of bleeding into the next row. */
+.sf-frow-k,
+.sf-rel-k {
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+.sf-frow-v,
+.sf-rel-lnks {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+/* --- Scene subtitle (fix #7) ---------------------------------------------- */
+.sf-subtitle {
+	font-size: 12px;
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* --- Drill trail (fix #8) ------------------------------------------------- */
+/* Faint "from <prev> › <current>" row at the top of the body while drilled.
+ * Named .sf-trailrow to avoid clashing with the .sf-trail tag pill. */
+.sf-trailrow {
+	font-size: 11.5px;
+	color: var(--text-faint);
+}
+
+.sf-trailrow .sf-lrow-lnk {
+	color: var(--text-accent);
+}
+
+.sf-trail-cur {
+	color: var(--text-normal);
 }

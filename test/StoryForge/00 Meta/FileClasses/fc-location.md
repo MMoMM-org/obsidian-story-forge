@@ -21,6 +21,7 @@ fieldsOrder:
   - l-inhabitants
   - l-first_appearance
   - l-series
+  - l-image
 version: "3.0"
 fields:
   - name: type
@@ -83,4 +84,9 @@ fields:
     options: {}
     path: ""
     id: l-series
+  - name: image
+    type: Input
+    options: {}
+    path: ""
+    id: l-image
 ---

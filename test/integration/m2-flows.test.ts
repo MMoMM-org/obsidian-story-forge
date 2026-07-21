@@ -133,6 +133,7 @@ function makeCtx(subjectPath = "notes/chapter-01.md"): NoteContext {
 		activeKind: "scene",
 		entities: [],
 		backlinks: [],
+		frontmatter: {},
 		resolvedAt: Date.now(),
 	};
 }
@@ -369,7 +370,8 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 	});
 
 	it("NativeScopingEngine.render() renders entity context without crash", async () => {
-		const engine = new NativeScopingEngine();
+		const app = new App();
+		const engine = new NativeScopingEngine(app);
 		const el = makeEl();
 		const entityFile = createMockTFile({ path: "notes/mara.md", basename: "mara" });
 		const ctx: NoteContext = {
@@ -379,17 +381,19 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 				{ field: "characters", file: entityFile, kind: "character", relation: "outgoing" },
 			],
 			backlinks: [],
+			frontmatter: {},
 			resolvedAt: Date.now(),
 		};
 
 		// Must not throw even with null view (engine-missing → native fallback)
 		await expect(engine.render(null, ctx, el)).resolves.not.toThrow();
-		// Entity content rendered into el
+		// Entity content rendered into el (scene renderer shows entity basenames in Characters section)
 		expect(el.textContent).toContain("mara");
 	});
 
 	it("NativeScopingEngine.teardown() is safe before render (no-op)", () => {
-		const engine = new NativeScopingEngine();
+		const app = new App();
+		const engine = new NativeScopingEngine(app);
 		expect(() => engine.teardown()).not.toThrow();
 	});
 
@@ -460,6 +464,7 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 			activeKind: "scene",
 			entities: [],
 			backlinks: [],
+			frontmatter: {},
 			resolvedAt: Date.now(),
 		};
 

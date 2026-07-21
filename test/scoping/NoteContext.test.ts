@@ -20,6 +20,7 @@ describe("isEntityKind", () => {
 			"lore",
 			"scene",
 			"plotline",
+			"book",
 			"unknown",
 		]) {
 			expect(isEntityKind(kind)).toBe(true);
@@ -42,6 +43,7 @@ describe("isNoteContext", () => {
 			activeKind: "scene",
 			entities: [],
 			backlinks: [],
+			frontmatter: {},
 			resolvedAt: 1234,
 		};
 	}
@@ -72,5 +74,10 @@ describe("isNoteContext", () => {
 		expect(isNoteContext({ ...validContext(), resolvedAt: "soon" })).toBe(
 			false,
 		);
+	});
+
+	it("rejects a context with a null or non-object frontmatter", () => {
+		expect(isNoteContext({ ...validContext(), frontmatter: null })).toBe(false);
+		expect(isNoteContext({ ...validContext(), frontmatter: "not-an-object" })).toBe(false);
 	});
 });

@@ -1,6 +1,6 @@
 import { Plugin, Events, Notice } from "obsidian";
 import { SettingsTab } from "settings/SettingsTab";
-import { DEFAULT_SETTINGS, type PluginSettings } from "types/index";
+import { DEFAULT_SETTINGS, normalizeLinkClickAction, type PluginSettings } from "types/index";
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort, StoryForgeData } from "store/types";
 import { SidebarView, activateView } from "views/SidebarView";
@@ -40,7 +40,7 @@ export default class StoryForgePlugin extends Plugin {
 		// Construct the shared engine infrastructure injected into SidebarView
 		// and SettingsTab. Registry starts empty; populated in onLayoutReady and
 		// the late-join dataview:api-ready handler (SDD Flow A).
-		const nativeEngine = new NativeScopingEngine();
+		const nativeEngine = new NativeScopingEngine(this.app);
 		const registry = new EngineRegistry([]);
 
 		// DvSettingsReader: wraps getDvSettings (CON-8 any-cast isolated to
@@ -58,7 +58,14 @@ export default class StoryForgePlugin extends Plugin {
 		// Register the sidebar panel view type — inject all M2 deps via closure.
 		this.registerView(
 			SIDEBAR_VIEW_TYPE,
-			(leaf: WorkspaceLeaf) => new SidebarView(leaf, registry, gate, nativeEngine, this.store),
+			(leaf: WorkspaceLeaf) => new SidebarView(
+				leaf,
+				registry,
+				gate,
+				nativeEngine,
+				this.store,
+				() => this.settings.linkClickAction,
+			),
 		);
 
 		// Ribbon icon — open panel on click. "Story Forge" is a proper noun.
@@ -210,6 +217,9 @@ export default class StoryForgePlugin extends Plugin {
 		const raw = await this.loadData() as StoryForgeData | null | undefined;
 		const stored = raw?.settings ?? null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
+		// Normalize: Object.assign propagates any persisted value as-is, so a
+		// malformed linkClickAction (neither "drill" nor "open") must fall back.
+		this.settings.linkClickAction = normalizeLinkClickAction(this.settings.linkClickAction);
 	}
 
 	async saveSettings(): Promise<void> {

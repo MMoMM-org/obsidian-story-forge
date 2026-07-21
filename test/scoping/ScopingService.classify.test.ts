@@ -15,7 +15,7 @@ import {
 	createMockTFile,
 } from "../__mocks__/obsidian";
 import { ScopingService } from "../../src/scoping/ScopingService";
-import type { EntityKind } from "../../src/scoping/NoteContext";
+import { isEntityKind, type EntityKind } from "../../src/scoping/NoteContext";
 
 describe("ScopingService.classify", () => {
 	let app: App;
@@ -86,6 +86,33 @@ describe("ScopingService.classify", () => {
 
 	it("classifies #planning/plotline → 'plotline'", () => {
 		const file = createMockTFile({ path: "20 Planning/The Dying Light.md" });
+		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(
+			createMockCachedMetadata({
+				tags: [{ tag: "#planning/plotline" }],
+				frontmatter: {},
+			}),
+		);
+		expect(service.classify(file)).toBe<EntityKind>("plotline");
+	});
+
+	it("classifies #planning/book → 'book'", () => {
+		const file = createMockTFile({ path: "20 Planning/The Obsidian Eye.md" });
+		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(
+			createMockCachedMetadata({
+				tags: [{ tag: "#planning/book" }],
+				frontmatter: {},
+			}),
+		);
+		expect(service.classify(file)).toBe<EntityKind>("book");
+	});
+
+	it("isEntityKind recognises 'book' as a valid EntityKind", () => {
+		expect(isEntityKind("book")).toBe(true);
+	});
+
+	// Regression: plotline must survive the addition of the book entry
+	it("regression: #planning/plotline still classifies as 'plotline'", () => {
+		const file = createMockTFile({ path: "20 Planning/Arc 1.md" });
 		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(
 			createMockCachedMetadata({
 				tags: [{ tag: "#planning/plotline" }],
