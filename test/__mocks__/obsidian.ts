@@ -423,6 +423,17 @@ export class Plugin extends Component {
 	});
 	addSettingTab = vi.fn();
 	registerView = vi.fn((_type: string, _factory: (leaf: WorkspaceLeaf) => unknown): void => {});
+	/**
+	 * registerBasesView — type-only declaration mirroring obsidian.d.ts:5009.
+	 *
+	 * Declared (not implemented) so the real method name and return type are
+	 * visible to TypeScript without injecting a runtime function on every
+	 * Plugin instance.  Tests that need the method wire it via `(plugin as any)
+	 * .registerBasesView = vi.fn(...)`.  Tests that assert absence need no
+	 * changes — `typeof plugin.registerBasesView` is `undefined` at runtime
+	 * because `declare` emits no JavaScript.
+	 */
+	declare registerBasesView: (viewId: string, registration: BasesViewRegistration) => boolean;
 	register = vi.fn((fn: () => unknown) => {
 		this._cleanupFns.push(fn);
 	});

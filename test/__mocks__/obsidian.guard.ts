@@ -173,6 +173,23 @@ const _componentOk: AssertNoFiction<MockComponent, Component> = true;
 const _workspaceOk: AssertNoFiction<MockWorkspace, Workspace> = true;
 const _workspaceLeafOk: AssertNoFiction<MockWorkspaceLeafAllowlisted, WorkspaceLeaf> = true;
 const _pluginOk: AssertNoFiction<MockPlugin, Plugin> = true;
+
+/**
+ * Structural return-type pin for Plugin.prototype.registerBasesView.
+ *
+ * AssertNoFiction only checks key names, not signatures.  This additional pin
+ * asserts that the REAL Plugin (from node_modules/obsidian) declares
+ * registerBasesView as a method whose return type is assignable to boolean.
+ *
+ * If obsidian.d.ts renames or removes registerBasesView, or changes its return
+ * type away from boolean, this conditional type evaluates to `never` and the
+ * assignment below fails typecheck:mock — forcing the mock to be updated, which
+ * in turn breaks the canary pin in basesApiCanary.test.ts (typecheck:test).
+ */
+type _RealPluginHasRegisterBasesView =
+	Plugin extends { registerBasesView: (...args: never[]) => boolean } ? true : never;
+const _registerBasesViewOnRealPlugin: _RealPluginHasRegisterBasesView = true;
+void _registerBasesViewOnRealPlugin;
 const _modalOk: AssertNoFiction<MockModal, Modal> = true;
 const _noticeOk: AssertNoFiction<MockNoticeAllowlisted, Notice> = true;
 const _settingOk: AssertNoFiction<MockSetting, Setting> = true;

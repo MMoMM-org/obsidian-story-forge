@@ -79,16 +79,22 @@ void _bvData; void _bvConfig; void _bvOnDataUpdated; void _bvAllProperties;
 const _bvrFactory: keyof BasesViewRegistration = "factory";
 void _bvrFactory;
 
-// Plugin.prototype.registerBasesView — pin the method name on the Plugin type
-// (obsidian.d.ts:5009).  This catches a rename of the method itself.
+// Plugin.prototype.registerBasesView — structural return-type pin
+// (obsidian.d.ts:5009).  This catches a rename OR a return-type change.
 //
-// Note: the mock Plugin class does NOT include registerBasesView by default
-// (it is wired per-test below) — this pin asserts only that the TYPE declares
-// it, not that the mock instance carries it.  We use `& { registerBasesView: unknown }`
-// to make the type-level assertion independent of mock instance presence.
-type _PluginWithBases = typeof Plugin.prototype & { registerBasesView: unknown };
-const _hasRegisterBasesView: keyof _PluginWithBases = "registerBasesView";
-void _hasRegisterBasesView;
+// `typeof Plugin.prototype` resolves to the MOCK Plugin type (via
+// tsconfig.test.json paths aliasing "obsidian" → test/__mocks__/obsidian.ts).
+// The mock declares `registerBasesView` with the faithful signature from
+// obsidian.d.ts:5009 (see obsidian.ts Plugin class).
+//
+// If registerBasesView is renamed or removed in the mock (forced by a real
+// obsidian.d.ts rename caught by typecheck:mock), the conditional below
+// evaluates to `never` and the assignment fails typecheck:test.
+// If the return type changes away from boolean, it also fails.
+type _PluginHasRegisterBasesView =
+	typeof Plugin.prototype extends { registerBasesView: (...args: never[]) => boolean } ? true : never;
+const _rbrv: _PluginHasRegisterBasesView = true;
+void _rbrv;
 
 // ---------------------------------------------------------------------------
 // SECTION 2 — Runtime assertions
