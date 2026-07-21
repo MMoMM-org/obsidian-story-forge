@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: F1 sidepanel Bases engine + bases source-model + F5 degrade"
-status: pending
+status: completed
 version: "1.0"
 phase: 2
 ---
@@ -48,7 +48,7 @@ Delivers a read-only Bases render engine in the sidebar (F1) and the honest degr
      - [ ] Fence renders read-only in the container, fills the `bases` slot `[ref: PRD/AC-F1.1]`
      - [ ] Missing-field tolerated `[ref: PRD/AC-F1.5]`; leak-free teardown `[ref: PRD/AC-F1.3]`
 
-- [ ] **T2.3 Register engine (detect-gated) + re-scope on note change** `[activity: backend-integration]`
+- [x] **T2.3 Register engine (detect-gated) + re-scope on note change** `[activity: backend-integration]`
 
   1. Prime: Read `EngineRegistry.buildEngineRegistry`/`populateRegistry` and `main.ts` (`populateRegistry` dataview tuple, `dataview:api-ready` late-join). Note ADR-8 revision (cache-at-onload): availability is captured once at onload via `registerCodexView(plugin)`, NOT per render.
   2. Test: when `isBasesAvailable(plugin)` is true (availability captured at onload), `registry.get("bases")` returns the engine; when false, it returns `undefined`; a Bases view-tab re-scopes on active-note change within the debounce window; Dataview and Bases tabs render through their own engines with no cross-engine bleed.
@@ -67,5 +67,5 @@ Delivers a read-only Bases render engine in the sidebar (F1) and the honest degr
      - [ ] Plugin loads with Bases off; panel + Dataview functional `[ref: PRD/AC-F5.1]`
      - [ ] S46 degrade shown; renders on next render after re-enable `[ref: PRD/AC-F5.2, AC-F5.3]`
 
-- [ ] **T2.5 Phase Validation** `[activity: validate]`
+- [x] **T2.5 Phase Validation** `[activity: validate]`
   - Run all Phase 2 tests. `npm test`, `lint`, `typecheck`, `typecheck:test` pass. Manually confirm on the seed vault: a curated `.base` renders read-only in a sidebar tab and follows the note; disabling core Bases shows S46; no leak on teardown `[ref: PRD/Success Metrics F1, F5]`.
