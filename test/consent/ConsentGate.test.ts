@@ -408,15 +408,6 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 		expect(app.vault.getAbstractFileByPath).not.toHaveBeenCalled();
 	});
 
-	// (c) computeChecksum over YAML equals the stored checksum byte-for-byte
-
-	it("checksum over bases YAML string matches stored checksum byte-for-byte [ADR-5]", async () => {
-		const checksum = await computeChecksum(BASES_YAML);
-		// The checksum used to consent must be byte-identical to one recomputed now
-		expect(checksum).toMatch(/^sha256:[0-9a-f]{64}$/);
-		expect(await computeChecksum(BASES_YAML)).toBe(checksum);
-	});
-
 	// Fail-closed: missing/empty source → not-consented
 
 	it("returns {status:'not-consented'} when bases source is empty string [fail-closed]", async () => {

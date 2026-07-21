@@ -295,6 +295,8 @@ export class ConsentGate {
 			return { status: "not-consented" };
 		}
 		const currentChecksum = await computeChecksum(yamlSource);
+		// okayed.version is intentionally ignored for bases records: ADR-5 stores no
+		// sf-version in .base YAML — checksum is the sole drift signal.
 		if (okayed.checksum !== currentChecksum) {
 			return { status: "drift", reason: "checksum" };
 		}

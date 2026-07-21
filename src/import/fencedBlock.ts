@@ -20,32 +20,6 @@ import type { App } from "obsidian";
 const QUERY_LANGS = new Set(["dataview", "dataviewjs"]);
 
 /**
- * readViewSource — bases-aware source reader.
- *
- * For `bases` engine records: returns `record.source` as-is (the raw .base
- * YAML string). The YAML is stored directly on the record — there is no vault
- * file to read and no fenced block to parse (ADR-5).
- *
- * For `dataview-dql` / `dataviewjs` engine records: delegates to
- * readFencedBlock and returns its body string, or null on any non-happy path.
- *
- * Does NOT throw. Preserves the existing readFencedBlock contract for all
- * non-bases callers.
- *
- * @ref SDD/ADR-5 (bases record source model — raw YAML, not a vault fenced block)
- */
-export async function readViewSource(
-	app: App,
-	record: { engine: string; source: string },
-): Promise<string | null> {
-	if (record.engine === "bases") {
-		return record.source;
-	}
-	const block = await readFencedBlock(app, record.source);
-	return block !== null ? block.body : null;
-}
-
-/**
  * Read the single dataview/dataviewjs fenced block from the note at
  * `sourcePath`.
  *
