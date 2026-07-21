@@ -682,4 +682,25 @@ describe("SidebarView: _renderEngineMissing bases branch (S46 degrade)", () => {
 		privateView._renderEngineMissing(body as HTMLElement, "dataview-dql");
 		expect(body.textContent).not.toContain("Bases is off");
 	});
+
+	// -----------------------------------------------------------------------
+	// Enable Bases button click handler
+	// -----------------------------------------------------------------------
+
+	it("S46 bases-off desktop: clicking 'Enable Bases' calls app.setting.open()", () => {
+		const open = vi.fn();
+		(app as unknown as { setting?: { open?: () => void } }).setting = { open };
+		const body = renderBasesMissing();
+		const btn = body.querySelector("button") as HTMLButtonElement;
+		btn.click();
+		expect(open).toHaveBeenCalledTimes(1);
+	});
+
+	it("S46 bases-off desktop: clicking 'Enable Bases' does not throw when setting is absent", () => {
+		// Ensure app.setting is absent to exercise the optional-chaining guard
+		delete (app as unknown as { setting?: unknown }).setting;
+		const body = renderBasesMissing();
+		const btn = body.querySelector("button") as HTMLButtonElement;
+		expect(() => { btn.click(); }).not.toThrow();
+	});
 });

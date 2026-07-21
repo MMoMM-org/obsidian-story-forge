@@ -75,6 +75,10 @@ type RenderState =
 type AugEl = HTMLElement & {
 	createDiv(opts?: { cls?: string; text?: string }): AugEl;
 	createSpan(opts?: { cls?: string; text?: string }): AugEl;
+	createEl<K extends keyof HTMLElementTagNameMap>(
+		tag: K,
+		opts?: { cls?: string; text?: string },
+	): HTMLElementTagNameMap[K];
 	empty(): void;
 };
 
@@ -1202,14 +1206,12 @@ export class SidebarView extends ItemView {
 				// core Bases themselves. app.setting is not part of the public obsidian.d.ts
 				// API — accessed via optional chaining so it degrades silently on older
 				// Obsidian versions or mocked environments (ADR-8: no internalPlugins).
-				const btn = activeDocument.createElement("button");
-				btn.className = "sf-btn";
 				// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Enable Bases" is an action label for a proper noun
-				btn.textContent = "Enable Bases";
+				const btn = empty.createEl("button", { cls: "sf-btn", text: "Enable Bases" });
+				// ADR-2 exception: element is GC'd on body.empty(); per-render registerDomEvent would leak.
 				btn.addEventListener("click", () => {
 					(this.app as unknown as { setting?: { open?: () => void } }).setting?.open?.();
 				});
-				aug(empty).appendChild(btn);
 			}
 		} else {
 			empty.createDiv({ cls: "sf-empty-lead", text: "Dataview not installed" });
