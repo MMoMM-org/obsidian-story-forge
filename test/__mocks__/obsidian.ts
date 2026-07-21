@@ -1016,6 +1016,108 @@ export class Events {
 }
 
 // ---------------------------------------------------------------------------
+// Bases API stubs (T1.1 — firewall + feature-detect + fence)
+//
+// Minimal faithful mirror of obsidian.d.ts 1.13.1 (BasesViewRegistration,
+// BasesConfigFile, BasesView, BasesViewConfig, BasesViewFactory,
+// QueryController, MarkdownRenderer).
+//
+// RULES:
+//  - Shape must match the real obsidian.d.ts exactly — no invented members.
+//  - Abstract classes with protected constructors stay as stubs (they can't
+//    be instantiated in tests anyway — the Bases runtime owns their lifecycle).
+//  - MarkdownRenderer.render is a static vi.fn() spy so tests can assert calls.
+//
+// These stubs are exported so src/bases/ modules compile under tsconfig.test.json
+// (which aliases "obsidian" → this file).
+// ---------------------------------------------------------------------------
+
+/** Mirrors BasesConfigFile from obsidian.d.ts (since 1.10.0). */
+export interface BasesConfigFile {
+	filters?: unknown;
+	properties?: Record<string, Record<string, unknown>>;
+	formulas?: Record<string, string>;
+	summaries?: Record<string, string>;
+	views?: BasesConfigFileView[];
+}
+
+/** Mirrors BasesConfigFileView from obsidian.d.ts (since 1.10.0). */
+export interface BasesConfigFileView {
+	type: string;
+	name: string;
+	filters?: unknown;
+	groupBy?: Record<string, unknown>;
+}
+
+/**
+ * Minimal stub for QueryController (extends Component; opaque — no public members in
+ * obsidian.d.ts 1.13.1). Used only in BasesViewFactory / BasesView constructor.
+ */
+export class QueryController extends Component {}
+
+/** Mirrors BasesViewConfig from obsidian.d.ts (since 1.10.0). */
+export class BasesViewConfig {
+	name: string = "";
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	get(_key: string, _defaultValue?: unknown): unknown { return undefined; }
+}
+
+/**
+ * Mirrors BasesViewFactory type from obsidian.d.ts (since 1.10.0).
+ * (controller: QueryController, containerEl: HTMLElement) => BasesView
+ */
+export type BasesViewFactory = (controller: QueryController, containerEl: HTMLElement) => BasesView;
+
+/**
+ * Stub for BasesView abstract class (since 1.10.0).
+ * Protected constructor — can only be subclassed, not instantiated directly.
+ * Shape mirrors obsidian.d.ts:1105–1161.
+ */
+export abstract class BasesView extends Component {
+	abstract type: string;
+	app: App = new App();
+	config: BasesViewConfig = new BasesViewConfig();
+	allProperties: string[] = [];
+	data: { entries: unknown[]; groupedData: unknown[] } = { entries: [], groupedData: [] };
+
+	// Constructor is protected in the real API; we must accept a QueryController.
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	protected constructor(_controller: QueryController) {
+		super();
+	}
+
+	abstract onDataUpdated(): void;
+}
+
+/** Mirrors BasesViewRegistration interface from obsidian.d.ts (since 1.10.0). */
+export interface BasesViewRegistration {
+	name: string;
+	icon: string;
+	factory: BasesViewFactory;
+	options?: (config: BasesViewConfig) => unknown[];
+}
+
+/**
+ * MarkdownRenderer — mirrors the real static class in obsidian.d.ts.
+ *
+ * render() is a static vi.fn() spy so tests can assert it was called with
+ * the correct args (app, markdown, el, sourcePath, component).
+ *
+ * Mirrors obsidian.d.ts:4147 (non-deprecated static render).
+ */
+export class MarkdownRenderer {
+	static render = vi.fn(
+		async (
+			_app: App,
+			_markdown: string,
+			_el: HTMLElement,
+			_sourcePath: string,
+			_component: Component,
+		): Promise<void> => {},
+	);
+}
+
+// ---------------------------------------------------------------------------
 // Dataview API mock (T3.2 — engine registry tests)
 //
 // A minimal test double faithful to Dataview v0.5.68:

@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Foundation — Bases firewall, feature-detect, manifest bump"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 1
 ---
