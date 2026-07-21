@@ -51,6 +51,22 @@ version: "1.0"
 ### Deviation Protocol
 When implementation requires changes from the SDD: document the deviation + rationale, obtain approval, update the SDD if the deviation improves the design, and record it here for traceability. The most likely deviation source is **Phase 0** (the prototype): if embedded-base interactivity or mobile parity fails, ADR-10's documented fallbacks apply (read-only fence; desktop-only Bases surfaces via the existing `platform-restricted`/S11 path) — record the prototype verdict here before Phase 2 begins.
 
+### Phase 0 verdict (recorded 2026-07-21)
+
+Resolved from the installed **obsidian 1.13.1** typings + official Obsidian docs (empirical spike de-scoped: mobile testing not possible; desktop items answered from the documented API). Net: **GO to build, two ADR-10 fallbacks active.**
+
+| Item | Verdict | Basis |
+|------|---------|-------|
+| F1 fence engine (`MarkdownRenderer.render` + `base` fence) | **GO** | `render(app, md, el, path, component)` public/non-deprecated (obsidian.d.ts 4147); `base` fence handled by the core Bases code-block processor |
+| F2 Codex (`registerBasesView` + `BasesView`) | **GO** | `registerBasesView` public `@since 1.10.0` (5009); `BasesView` `@since 1.10.0` (1105); `BasesEntry.getValue`/`onDataUpdated` shapes confirmed |
+| ADR-8 detect-via-boolean | **CONFIRMED** | `registerBasesView` JSDoc: "returns false if bases are not enabled in this vault" — explicit in typings + docs |
+| ADR-5 vault-only `.base` placement | **CONFIRMED** | Vault API is scoped to app-visible files; config dir (`.obsidian/…`) is adapter-only → a plugin-dir `.base` is invisible to Bases. Materialising installs into `00 Meta/Bases` is **necessary**, not just tidy |
+| F1 teardown (owned `Component`) | **GO** | `component.unload()` mirrors `DataviewDqlEngine`; runtime leak-free-ness not docs-confirmable → keep CON-4 teardown→empty→render discipline |
+| **F1 fence interactivity** | **GO-WITH-FALLBACK** | Bases embed docs unpublished (404 on 2026-07-21). **Fallback active: fence stays read-only** (already F1 scope; fence has no public write API regardless) |
+| **Mobile parity** | **DESKTOP-ONLY fallback** | Mobile untestable. **Fallback active: Bases surfaces gate desktop-only** via existing `platform-restricted`/S11 path; `isDesktopOnly` stays `false` (non-Bases features still work on mobile) |
+
+Runtime caveats carried forward (not blockers): actual leak-free teardown and fence interactivity remain empirically unverified — the optional throwaway harness (`src/_spike/basesSpike.ts` + a dev command in `main.ts`) can confirm them later if desired. No production code should assume interactivity or mobile Bases support.
+
 ## Metadata Reference
 - `[parallel: true]` — tasks that can run concurrently
 - `[ref: document/section]` — links to PRD/SDD/ADR
@@ -105,7 +121,7 @@ Each phase is a separate file. Tasks follow red-green-refactor: **Prime** → **
 
 > **Tracking Principle**: Track logical units that produce verifiable outcomes. The TDD cycle is the method, not separate tracked items.
 
-- [ ] [Phase 0: De-risking prototype gate](phase-0.md)
+- [x] [Phase 0: De-risking prototype gate](phase-0.md)
 - [ ] [Phase 1: Foundation — Bases firewall, feature-detect, manifest bump](phase-1.md)
 - [ ] [Phase 2: F1 sidepanel Bases engine + bases source-model + F5 degrade](phase-2.md)
 - [ ] [Phase 3: F2 Codex + showFile seam](phase-3.md)

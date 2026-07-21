@@ -840,6 +840,7 @@ All decisions confirmed 2026-07-21 (Agent Team research synthesis + user calls; 
   - Rationale: user chose "draft SDD now, prototype-conditional"; both fallbacks reuse existing machinery, so the design is stable under either prototype outcome.
   - Trade-offs: two conditionals carried into the plan (PLAN Phase 0 = prototype).
   - User confirmed: **Yes** (workflow call, 2026-07-21).
+  - **Phase 0 verdict (2026-07-21): both fallbacks ACTIVE.** Resolved from obsidian 1.13.1 typings + docs (empirical spike de-scoped — mobile testing not possible; desktop items answered from the documented API). (1) **Interactivity** → unconfirmable (Bases embed docs unpublished) → **fence stays read-only** (F1 scope; no public write API on the fence). (2) **Mobile** → untestable → **Bases surfaces gate desktop-only** via `platform-restricted`/S11; `isDesktopOnly` stays `false`. Build APIs otherwise GO: `registerBasesView` (public `@since 1.10.0`, returns `false` when Bases disabled — confirms ADR-8), `MarkdownRenderer.render` (non-deprecated), and ADR-5 vault-only `.base` placement all confirmed. Full report in `plan/README.md` § Phase 0 verdict.
 
 ## Quality Requirements
 
