@@ -269,37 +269,27 @@ describe("M2 flows: cross-engine dispatch, no bleed, bases re-scope (T2.3)", () 
 	// AC-F1.2: bases tab follows active note
 	// -------------------------------------------------------------------------
 
-	it("bases tab re-scopes on active-note change via the existing SidebarView follow pipeline", async () => {
-		// Set up bases as the selected view
+	it("bases tab re-scopes on active-note change: _renderResolved dispatches to BasesFenceEngine for the new note", async () => {
+		// Simulate the outcome of the follow pipeline resolving with a new note (file2).
+		// The SidebarView follow pipeline calls _renderResolved with the new ctx once
+		// the active note changes — here we drive that path directly (the same pattern
+		// as all other dispatch tests in this suite).
+		const file2 = makeMdFile("Scene 2");
+		const ctx2 = makeNoteContext(file2);
+		const record = makeViewRecord("bases");
+
 		const privateView = view as unknown as {
 			currentRecord: ViewRecord | null;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
 		};
-		privateView.currentRecord = makeViewRecord("bases");
+		privateView.currentRecord = record;
 
-		// Simulate a note change via the active-leaf-change event
-		// (the existing pipeline in SidebarView handles this — no new code needed)
-		const file1 = makeMdFile("Scene 1");
-		const file2 = makeMdFile("Scene 2");
+		const body = view.contentEl.querySelector(".sf-body") as HTMLElement;
+		await privateView._renderResolved(body, ctx2);
 
-		// Trigger active-leaf-change with file1
-		const mdLeaf1 = makeMdLeaf(app, file1);
-		app.workspace._trigger("active-leaf-change", mdLeaf1);
-		vi.advanceTimersByTime(200); // flush debounce
-		await Promise.resolve();
-
-		// Trigger active-leaf-change with file2
-		const mdLeaf2 = makeMdLeaf(app, file2);
-		app.workspace._trigger("active-leaf-change", mdLeaf2);
-		vi.advanceTimersByTime(200); // flush debounce
-		await Promise.resolve();
-
-		// basesEngine.render must have been called at least once (follow triggered re-render)
-		// The exact number depends on how fast ScopingService resolves, but > 0
-		// We just assert it was invoked at all (the follow pipeline drove it)
-		// Note: in test environment ScopingService may not fully resolve without metadata,
-		// but the dispatch path reaching basesEngine is what we assert here.
-		// The real assertion is that the pipeline fires — we confirm via render calls.
-		expect(basesEngine.render.mock.calls.length).toBeGreaterThanOrEqual(0);
+		// BasesFenceEngine must have been called with the new note's context (falsifiable:
+		// removing the bases engine dispatch path would make this assertion fail).
+		expect(basesEngine.render).toHaveBeenCalledTimes(1);
 		// And no dv engine was ever called (no bleed)
 		expect(dvEngine.render).not.toHaveBeenCalled();
 	});

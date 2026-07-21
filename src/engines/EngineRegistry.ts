@@ -72,8 +72,8 @@ export function getDvSettings(app: App): { enableDataviewJs: boolean } {
  * and version >=0.5.31. Registers BasesFenceEngine when basesAvailable is true
  * (the boolean captured once at onload via registerCodexView — ADR-8).
  *
- * The second parameter is optional (defaults to false) for backward-compatibility:
- * existing callers that pass only `app` get no bases engine, no breakage.
+ * The second parameter is optional (defaults to false) — an engine is only added
+ * when its runtime is confirmed present; absence is the safe fallback.
  *
  * Called from main.ts:
  *   - once in workspace.onLayoutReady (initial detection)
