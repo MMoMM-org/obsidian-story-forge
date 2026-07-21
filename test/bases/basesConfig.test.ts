@@ -10,8 +10,10 @@
  *  - validateBasesConfig rejects a non-object primitive
  *  - validateBasesConfig rejects an empty object (none of views/filters/formulas present)
  *  - validateBasesConfig rejects when views is present but not an array
- *  - validateBasesConfig rejects when filters is present but is not a valid filter shape
  *  - validateBasesConfig rejects when formulas is present but not a Record<string,string>
+ *
+ * Note: `filters` is typed as `unknown` in BasesConfigFile — no shape validation
+ * is performed on it; any value (string, object, undefined) is accepted as-is.
  */
 
 import { describe, it, expect } from "vitest";

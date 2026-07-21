@@ -211,4 +211,29 @@ describe("registerCodexView", () => {
 		expect(first).toBe(false);
 		expect(second).toBe(false);
 	});
+
+	it("returns false and caches false when registerBasesView throws", () => {
+		// Wire a spy that throws — simulating an unexpected runtime error from
+		// the Bases runtime (e.g. internal validation failure).
+		const spy = vi.fn(() => { throw new Error("bases internal error"); });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(plugin as any).registerBasesView = spy;
+
+		const result = registerCodexView(plugin);
+
+		expect(result).toBe(false);
+		expect(spy).toHaveBeenCalledTimes(1);
+	});
+
+	it("does NOT call registerBasesView again after a throw (exactly-once invariant holds)", () => {
+		const spy = vi.fn(() => { throw new Error("bases internal error"); });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(plugin as any).registerBasesView = spy;
+
+		registerCodexView(plugin);          // first call — throws, caches false
+		const second = registerCodexView(plugin); // second call — must use cache
+
+		expect(spy).toHaveBeenCalledTimes(1);
+		expect(second).toBe(false);
+	});
 });

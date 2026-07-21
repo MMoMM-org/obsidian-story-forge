@@ -82,9 +82,14 @@ export function registerCodexView(plugin: Plugin): boolean {
 		},
 	};
 
-	const available = (registerFn as RegisterBasesViewFn).call(plugin, CODEX_VIEW_ID, registration);
-	availabilityCache.set(plugin, available);
-	return available;
+	try {
+		const available = (registerFn as RegisterBasesViewFn).call(plugin, CODEX_VIEW_ID, registration);
+		availabilityCache.set(plugin, available);
+		return available;
+	} catch {
+		availabilityCache.set(plugin, false);
+		return false;
+	}
 }
 
 /**

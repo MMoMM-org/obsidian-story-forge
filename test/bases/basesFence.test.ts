@@ -14,9 +14,9 @@ import { renderBaseFence } from "bases/basesFence";
 import { MarkdownRenderer } from "obsidian";
 
 // ---------------------------------------------------------------------------
-// MarkdownRenderer is a static class in obsidian — we need to mock it.
-// The mock __mocks__/obsidian.ts does NOT export MarkdownRenderer so we
-// add a minimal stub here via vi.mock.
+// MarkdownRenderer is exported by __mocks__/obsidian.ts with a shared static
+// vi.fn() spy.  We override it here with a fresh vi.fn() per module load so
+// this file's assertions are isolated from any other test file's spy state.
 // ---------------------------------------------------------------------------
 
 vi.mock("obsidian", async (importOriginal) => {
