@@ -33,7 +33,7 @@ export interface PanelDeps {
 	toggleCollapse: (sectionId: string) => void;
 	/**
 	 * Resolve a raw frontmatter image/portrait string to a renderable URL.
-	 * - Empty string → returns "".
+	 * - Empty or whitespace-only string → returns "".
 	 * - Absolute protocol URLs (https:, http:, data:, app:, blob:) → pass through.
 	 * - Vault-relative paths → resolved to an app:// resource URL via the vault API.
 	 * - Unresolvable paths → returned unchanged (graceful fallback).
