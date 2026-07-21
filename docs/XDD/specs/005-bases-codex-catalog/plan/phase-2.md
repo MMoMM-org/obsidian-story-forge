@@ -28,7 +28,7 @@ phase: 2
 
 Delivers a read-only Bases render engine in the sidebar (F1) and the honest degrade when Bases is off (F5), plus the source-model plumbing the catalog (Phase 4) reuses.
 
-- [ ] **T2.1 Bases source-model seam in the M2 consent/import chain** `[activity: backend-integration]`
+- [x] **T2.1 Bases source-model seam in the M2 consent/import chain** `[activity: backend-integration]`
 
   1. Prime: Read `[ref: SDD/ADR-5]`, `[ref: SDD/Known Technical Issues]`, and `fencedBlock.ts` (`QUERY_LANGS`, `:20`), `ConsentGate.evaluate` (`:114`, reads source via `readFencedBlock`).
   2. Test: a `bases` record's `source` (raw `.base` YAML) is read as-is (not via a dataview fenced block); `ConsentGate.evaluate` classifies a bases record as **declarative → consented** (no modal); `computeChecksum` over the YAML matches the build-time value byte-for-byte.
@@ -57,7 +57,7 @@ Delivers a read-only Bases render engine in the sidebar (F1) and the honest degr
   5. Success:
      - [ ] Bases tab follows the active note `[ref: PRD/AC-F1.2]`; no cross-engine bleed `[ref: PRD/AC-F1.6]`
 
-- [ ] **T2.4 F5 degrade — repurpose the S11 `bases` branch** `[activity: frontend-ui]` `[parallel: true]`
+- [x] **T2.4 F5 degrade — repurpose the S11 `bases` branch** `[activity: frontend-ui]` `[parallel: true]`
 
   1. Prime: Read `[ref: SDD/ADR-8]`, `[ref: PRD/F5]`, mockup **S46**, and `SidebarView._renderEngineMissing` (the `bases` branch "Engine coming in M4").
   2. Test: with Bases disabled, `registry.get("bases")` is undefined → the existing `!engine` branch renders the **S46 "enable Bases"** copy (not "coming in M4"); the plugin still loads fully; M3 panel + Dataview keep working; re-enabling Bases recovers on the next render (no reinstall).
