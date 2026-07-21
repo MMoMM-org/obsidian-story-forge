@@ -60,6 +60,9 @@ export class CodexBasesView extends BasesView {
 	/** Injected deps (app + row-click handler). */
 	private readonly deps: CodexBasesViewDeps;
 
+	/** CON-4: set to true on unload; guards onDataUpdated against post-teardown repaints. */
+	private disposed = false;
+
 	constructor(
 		controller: QueryController,
 		containerEl: HTMLElement,
@@ -68,6 +71,8 @@ export class CodexBasesView extends BasesView {
 		super(controller);
 		this.containerEl = containerEl;
 		this.deps = deps;
+		// CON-4: mark disposed when Obsidian unloads this Component.
+		this.register(() => { this.disposed = true; });
 	}
 
 	/**
@@ -80,6 +85,9 @@ export class CodexBasesView extends BasesView {
 	 * CON-4: empty the container before repaint.
 	 */
 	onDataUpdated(): void {
+		// CON-4: no stale content bleed after teardown.
+		if (this.disposed) return;
+
 		// CON-4: empty before repaint.
 		this.containerEl.innerHTML = "";
 

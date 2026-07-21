@@ -296,17 +296,13 @@ describe("CodexBasesView — teardown leaves no retained entries", () => {
 	});
 
 	/**
-	 * S3 post-unload repaint assertion.
+	 * CON-4: post-unload guard — onDataUpdated() must be inert after unload().
 	 *
-	 * NOTE (DONE_WITH_CONCERNS):
-	 * The production onDataUpdated() does NOT guard against calls after unload().
-	 * Obsidian owns the call-site contract (it stops calling onDataUpdated once
-	 * the view is unregistered), but a defensive guard would be safer.
-	 * This test documents the ACTUAL behaviour: the container IS repainted by a
-	 * post-unload onDataUpdated() call. If a guard is added to production, this
-	 * test should be updated to assert the pre-unload content is preserved.
+	 * Obsidian stops calling onDataUpdated once a view is unregistered, so this
+	 * is defensive hardening. The guard ensures no stale content bleed after
+	 * teardown (CON-4: no stale content bleed for every Bases surface).
 	 */
-	it("documents that onDataUpdated() post-unload repaints (no production guard — DONE_WITH_CONCERNS)", () => {
+	it("onDataUpdated() is inert after unload() — pre-unload content is preserved, new data is not rendered", () => {
 		const { view, container } = makeView("character");
 
 		// Pre-unload render with one entry.
@@ -317,14 +313,11 @@ describe("CodexBasesView — teardown leaves no retained entries", () => {
 		view.unload();
 
 		// Post-unload: set new data and call onDataUpdated.
-		// Production code has no unload guard — it repaints with the new data.
+		// The guard must prevent any repaint — the container stays inert.
 		view.data = makeResult([makeEntry("post-unload.md")]);
 		view.onDataUpdated();
 
-		// Document the actual (unguarded) behaviour: new data IS rendered.
-		// If a production guard is added, this assertion would flip to:
-		//   expect(container.querySelector("[data-path='pre-unload.md']")).not.toBeNull()
-		//   expect(container.querySelector("[data-path='post-unload.md']")).toBeNull()
-		expect(container.querySelector("[data-path='post-unload.md']")).not.toBeNull();
+		// The new data must NOT appear — no stale bleed after teardown (CON-4).
+		expect(container.querySelector("[data-path='post-unload.md']")).toBeNull();
 	});
 });
