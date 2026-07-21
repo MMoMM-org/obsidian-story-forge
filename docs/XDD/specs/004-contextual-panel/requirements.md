@@ -240,7 +240,10 @@ already used); the 12 ASCII mockups live in `mockups.html`.
     (`kind`), the `owner` (or "Unowned."), and "appears in" (fuzzy backlinks).
   - [ ] Given a `location` or `object` note with a non-empty `image` field, When the
     panel renders, Then a thumbnail tile is shown (like the character portrait); Given
-    the `image` field is empty/absent, Then no tile and no placeholder is shown (D5).
+    the `image` field is empty/absent, Then a **kind-glyph placeholder tile** is shown
+    (🏛 for location, 🔮 for object), mirroring the character portrait monogram (D5,
+    revised in the S32–S43 mockup-fidelity pass — the original D5 rendered no
+    placeholder when `image` was absent).
   - [ ] Given a `lore` note, When the Context tab renders, Then it shows facts
     (`scope`), `related` entities (kind-tagged, since the list mixes kinds), and
     "referenced by" (reverse `related`).

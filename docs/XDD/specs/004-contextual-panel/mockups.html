@@ -71,7 +71,7 @@
   .portrait{width:52px;height:64px;flex:none;border-radius:6px;border:1px solid var(--border-2);
     background:linear-gradient(160deg,#2c2a3a,#242430);display:grid;place-items:center;
     color:var(--pill-text);font-weight:600;font-size:15px;letter-spacing:.05em}
-  /* optional image tile for object/location (D5) — shown only when an `image` field is set */
+  /* image tile for object/location (D5, revised) — image when set, else a kind-glyph placeholder */
   .imgtile{width:52px;height:52px;flex:none;border-radius:6px;border:1px solid var(--border-2);
     display:grid;place-items:center;color:var(--faint);font-size:18px;overflow:hidden}
   .imgtile.loc{background:linear-gradient(160deg,#24332a,#1e2a24 60%,#2a2f26)}
@@ -417,7 +417,7 @@ so cross-references resolve.</p>
       </div>
     </div>
   </div>
-  <div class="note"><b>Within</b> walks the <code>world</code> chain; breadcrumb ends on the current note (not a link). Top-level location (<code>world: ""</code>) omits Within. <b>Image tile</b> (D5) renders only when the optional <code>image</code> field is set — no monogram placeholder when absent.</div>
+  <div class="note"><b>Within</b> walks the <code>world</code> chain; breadcrumb ends on the current note (not a link). Top-level location (<code>world: ""</code>) omits Within. <b>Image tile</b> (D5, revised) shows the <code>image</code> when set, else a kind-glyph placeholder (&#127957;) — mirroring the character portrait monogram.</div>
 </figure>
 
 <!-- ══ S37 Object ══ -->
@@ -454,7 +454,7 @@ so cross-references resolve.</p>
       </div>
     </div>
   </div>
-  <div class="note"><b>Owner</b> renders single <code>owner</code>; if empty → "Unowned." <b>Appears in</b> = scenes whose body links this object (backlink query — objects aren't a typed scene field · D2). <b>Image tile</b> (D5) renders only when the optional <code>image</code> field is set.</div>
+  <div class="note"><b>Owner</b> renders single <code>owner</code>; if empty → "Unowned." <b>Appears in</b> = scenes whose body links this object (backlink query — objects aren't a typed scene field · D2). <b>Image tile</b> (D5, revised) shows the <code>image</code> when set, else a kind-glyph placeholder (&#128302;) — mirroring the character portrait monogram.</div>
 </figure>
 
 <!-- ══ S38 Lore ══ -->

@@ -507,10 +507,13 @@ stateDiagram-v2
   - User confirmed: **Yes**
 
 - [x] **ADR-7 — Optional `image` field on `object` + `location` (D5).** Text/image link
-  like `character.portrait`; renderers show an `imageTile()` only when present (no
-  placeholder when absent).
-  - Rationale: implements D5; symmetrical with the character portrait; conditional render
-    keeps empty notes clean.
+  like `character.portrait`; renderers show the image when present, else a **kind-glyph
+  placeholder tile** (🏛 location / 🔮 object) via `kindTileEl()` inside a `profileRow`.
+  - Rationale: implements D5; symmetrical with the character portrait, which always shows
+    a tile (image or monogram). *(Revised in the S32–S43 mockup-fidelity pass: the
+    original D5 rendered NO placeholder when `image` was absent; the mockup S36/S37
+    `.imgtile.loc`/`.imgtile.obj` always show a tile, so the placeholder is now shown to
+    match — consistent with the character portrait monogram behaviour.)*
   - Trade-offs: two more schema fields regenerated via `schema:gen`.
   - User confirmed: **Yes**
 
