@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: F2 Codex + showFile seam"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 3
 ---
@@ -42,7 +42,7 @@ Delivers the top-down Codex: category grids that click through into the M3 panel
 
   1. Prime: Read `[ref: SDD/ADR-2]`, `obsidian.d.ts` (`BasesView`, `BasesQueryResult`, `BasesViewConfig.get`), and `panel/kindFields` (grid columns).
   2. Test: reads category from view config (`config.get`); `onDataUpdated()` reads `data` **fresh** (never caches `BasesEntry`), empties-before-repaint; renders a grid of the category's entities (columns from `kindFields`); an empty category shows the per-category empty-state (S45); no cell is editable (read-only click-through); an unknown/missing category falls back safely.
-  3. Implement: `src/codex/CodexBasesView.ts` (extends `BasesView`) + `src/codex/codexGrid.ts` (pure DOM grid; rows stamped with `entry.file.path`; delegated click).
+  3. Implement: `src/bases/CodexBasesView.ts` (extends `BasesView` — **in `src/bases/` per CON-3**, resolved 2026-07-21; thin, delegates all rendering to codexGrid) + `src/codex/codexGrid.ts` (pure DOM grid, NO Bases typings; rows stamped with `entry.file.path`; delegated click). CodexBasesView passes plain data (category, row records with file paths + display fields) to codexGrid — never Bases typings.
   4. Validate: unit tests for grid build, empty-state, category fallback; teardown leaves no retained entries.
   5. Success:
      - [ ] Category grid renders `[ref: PRD/AC-F2.1]`; empty-state shown `[ref: PRD/AC-F2.3]`; read-only `[ref: PRD/AC-F2.4]`

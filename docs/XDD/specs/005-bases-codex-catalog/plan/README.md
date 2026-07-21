@@ -67,6 +67,10 @@ Resolved from the installed **obsidian 1.13.1** typings + official Obsidian docs
 
 Runtime caveats carried forward (not blockers): actual leak-free teardown and fence interactivity remain empirically unverified — the optional throwaway harness (`src/_spike/basesSpike.ts` + a dev command in `main.ts`) can confirm them later if desired. No production code should assume interactivity or mobile Bases support.
 
+### Phase 3 deviation — CodexBasesView lives in src/bases/, not src/codex/ (2026-07-21, user decision)
+
+SDD-internal inconsistency: CON-3/ADR-9 confine ALL Bases typings to `src/bases/` (enforced by the firewall grep gate, green since Phase 1), but the SDD directory map + plan T3.2 placed `CodexBasesView.ts` (which `extends BasesView`) in `src/codex/` — which would break that grep. Since the Codex view MUST subclass `BasesView` (the `registerBasesView` API requires it), the Bases-typed class belongs inside the firewall. **Resolution (user chose "keep firewall absolute"):** `CodexBasesView` → `src/bases/` (thin; extends BasesView, category via `config.get`, reads `BasesEntry[]`, delegates ALL rendering to `codex/codexGrid`); `codexGrid.ts` + `CodexView.ts` stay in `src/codex/` with ZERO Bases typings. `registerCodexView` (already in `src/bases/`) wires the real `CodexBasesView` factory (replacing its Phase-1 throwing stub). SDD map + CON-3 wording updated; the firewall grep stays absolute.
+
 ### Phase 1 deviation — ADR-8 detect: cache-at-onload, not per-render (2026-07-21, user decision)
 
 During T1.1 review a correctness bug surfaced: the first implementation made `isBasesAvailable` *call* `registerBasesView` on every render as a "probe." `registerBasesView` is a **side-effectful registration** (registers a persistent view type; the Phase 0 report explicitly said "call inside onload only"), so a per-render call registers a junk probe view type and bypasses the plugin registration lifecycle — and the hand-rolled mock hid it (its `registerBasesView` was a pure boolean → falsely green tests).
