@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — Bases, Codex & catalog mockups (M4 / spec 005)</title>
+<style>
+  :root{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --link:#8b8bf0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    --warn:#e0a34a; --error-bg:#2a1f1f; --error:#e06a6a; --ok:#6ac47a; --unresolved:#7a6a55;
+    /* kind tokens */
+    --char:#8a7cf0; --loc:#4ea3a3; --object:#5aa0c9; --lore:#b57ad4;
+    --scene:#e0a34a; --plotline:#8b98ab;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:30px 0 12px;border-bottom:1px solid var(--border);padding-bottom:6px}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:92ch}
+  .sub code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .legend{color:var(--muted);font-size:12.5px;max-width:92ch;margin:0 0 22px}
+  .legend b{color:var(--text)}
+  .gallery{display:flex;flex-wrap:wrap;gap:28px 22px;align-items:flex-start}
+  figure{margin:0;width:320px}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:32px}
+  figcaption b{color:var(--text);font-weight:600}
+  .note{font-size:11px;color:var(--faint);margin-top:7px}
+  .note b{color:var(--muted)}
+
+  /* ── Panel chrome (same shell as M1/M2/M3) ── */
+  .panel{width:320px;background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    overflow:hidden;display:flex;flex-direction:column;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .vhead{display:flex;align-items:center;gap:8px;padding:7px 10px;
+    background:var(--header);border-bottom:1px solid var(--border)}
+  .vhead .name{font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--faint);font-weight:600;flex:1}
+  .icons{display:flex;gap:6px}
+  .icons span{width:20px;height:20px;display:grid;place-items:center;border-radius:4px;
+    color:var(--faint);font-size:12px}
+  .icons span.on{color:var(--accent)}
+  .icons span.pin.active{color:var(--accent);background:rgba(124,108,240,.15)}
+
+  .chead{display:flex;align-items:center;gap:8px;padding:9px 11px;border-bottom:1px solid var(--border)}
+  .chead .title{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;flex:1}
+  .chead .back{color:var(--accent);font-weight:600;cursor:pointer;flex:none}
+  .chead .pintag{font-size:10px;color:var(--faint);border:1px solid var(--border-2);
+    padding:0 6px;border-radius:8px;text-transform:lowercase}
+  .badge{font-size:10px;text-transform:lowercase;padding:1px 8px;border-radius:10px;
+    background:var(--pill);color:var(--pill-text);white-space:nowrap;flex:none}
+  .badge.character{background:rgba(138,124,240,.16);color:var(--char)}
+  .badge.location{background:rgba(78,163,163,.16);color:var(--loc)}
+  .badge.object{background:rgba(90,160,201,.16);color:var(--object)}
+  .badge.lore{background:rgba(181,122,212,.16);color:var(--lore)}
+  .badge.scene{background:rgba(224,163,74,.16);color:var(--scene)}
+  .badge.plotline{background:rgba(139,152,171,.18);color:var(--plotline)}
+
+  .tabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--border)}
+  .tabs .tab{font-size:12px;padding:5px 10px;border-radius:6px 6px 0 0;color:var(--muted);white-space:nowrap}
+  .tabs .tab.sel{background:var(--panel-2);color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+
+  .body{padding:12px;flex:1;display:flex;flex-direction:column;gap:10px}
+
+  /* ── Profile (portrait + stat lines + tagline) ── */
+  .profile{display:flex;gap:11px;align-items:flex-start}
+  .portrait{width:52px;height:64px;flex:none;border-radius:6px;border:1px solid var(--border-2);
+    background:linear-gradient(160deg,#2c2a3a,#242430);display:grid;place-items:center;
+    color:var(--pill-text);font-weight:600;font-size:15px;letter-spacing:.05em}
+  .imgtile{width:52px;height:52px;flex:none;border-radius:6px;border:1px solid var(--border-2);
+    display:grid;place-items:center;color:var(--faint);font-size:18px;overflow:hidden}
+  .imgtile.loc{background:linear-gradient(160deg,#24332a,#1e2a24 60%,#2a2f26)}
+  .imgtile.obj{background:linear-gradient(160deg,#232d38,#1e2731)}
+  .pinfo{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);padding-top:1px}
+  .pinfo .lead{color:var(--text)}
+  .pinfo .lead b{color:var(--text)}
+  .tagline{font-size:12px;color:var(--muted);font-style:italic;line-height:1.4}
+
+  /* ── Sections ── */
+  .section{display:flex;flex-direction:column}
+  .sec-head{display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0;
+    color:var(--text);font-weight:600;font-size:12.5px}
+  .sec-head .chev{color:var(--faint);font-size:10px;width:10px}
+  .sec-head .count{margin-left:auto;font-size:10px;color:var(--faint);
+    background:var(--panel-2);border-radius:8px;padding:0 7px}
+  .sec-rows{display:flex;flex-direction:column;gap:2px;padding:4px 0 2px 16px}
+
+  .frow{display:flex;gap:8px;font-size:12px;align-items:baseline}
+  .frow .k{color:var(--faint);width:80px;flex:none}
+  .frow .v{color:var(--text)}
+  .frow .v.dim{color:var(--muted)}
+
+  .rel{display:flex;gap:8px;font-size:12px;align-items:baseline}
+  .rel .k{color:var(--faint);width:80px;flex:none}
+  .rel .lnks{display:flex;flex-direction:column;gap:2px}
+
+  .lrow{display:flex;align-items:center;gap:6px;font-size:12px}
+  .lrow .idx{color:var(--faint);width:12px;flex:none;text-align:right}
+  .lnk{color:var(--link);text-decoration:none;cursor:pointer}
+  .lnk:hover{text-decoration:underline}
+  .tag{font-size:9.5px;text-transform:lowercase;padding:0 6px;border-radius:8px;
+    background:var(--panel-2);color:var(--faint);margin-left:auto}
+  .tag.pov{color:var(--accent);background:rgba(124,108,240,.14)}
+  .kindtag{font-size:9.5px;color:var(--faint);margin-left:auto}
+  .dash{color:var(--faint)}
+
+  .unres{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--unresolved)}
+  .unres .glyph{opacity:.8}
+  .unres .mark{font-size:9.5px;color:var(--unresolved);margin-left:auto}
+
+  .emptyline{font-size:12px;color:var(--faint);font-style:italic}
+  .crumb{font-size:12px;color:var(--muted)}
+  .crumb .lnk{color:var(--link)}
+  .crumb .cur{color:var(--text)}
+  .pinhint{background:rgba(124,108,240,.10);border:1px solid rgba(124,108,240,.28);
+    border-radius:6px;padding:6px 9px;font-size:11.5px;color:var(--muted)}
+  .trail{font-size:11.5px;color:var(--faint)}
+  .trail .lnk{color:var(--link)}
+  .opennote{margin-top:2px;font-size:12px;color:var(--accent);cursor:pointer}
+  .subtitle{font-size:12px;color:var(--muted);font-style:italic}
+
+  /* inventory table */
+  table.inv{border-collapse:collapse;font-size:12.5px;margin:0 0 8px}
+  table.inv th,table.inv td{border:1px solid var(--border);padding:5px 10px;text-align:left;vertical-align:top}
+  table.inv th{color:var(--text);background:var(--panel-2)}
+  table.inv td{color:var(--muted)}
+  table.inv td b{color:var(--text)}
+  .kinds b{padding:1px 8px;border-radius:10px;font-size:11px;margin-right:6px}
+  .kb-character{background:rgba(138,124,240,.18);color:var(--char)}
+  .kb-location{background:rgba(78,163,163,.18);color:var(--loc)}
+  .kb-object{background:rgba(90,160,201,.18);color:var(--object)}
+  .kb-lore{background:rgba(181,122,212,.18);color:var(--lore)}
+  .kb-scene{background:rgba(224,163,74,.18);color:var(--scene)}
+  .kb-plotline{background:rgba(139,152,171,.2);color:var(--plotline)}
+
+  /* ══════════════════════════════════════════════════════════════════
+     M4 NEW COMPONENTS — same tokens/aesthetic
+     ══════════════════════════════════════════════════════════════════ */
+
+  /* wide main-area container for the Codex / Overview grids */
+  .panel.wide{width:560px}
+  figure.wide{width:560px}
+  figure.pair{width:auto}
+
+  .chead .cnt{margin-left:auto;font-size:11px;color:var(--faint);flex:none}
+  .icons span.tool{cursor:pointer}
+
+  /* category tab bar (main-area) */
+  .cattabs{display:flex;align-items:center;gap:2px;padding:6px 10px 0;border-bottom:1px solid var(--border)}
+  .cattabs .tab{font-size:12px;padding:5px 11px;border-radius:6px 6px 0 0;color:var(--muted);white-space:nowrap;cursor:pointer}
+  .cattabs .tab.sel{background:var(--panel-2);color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+  .cattabs .cnt{margin-left:auto;font-size:11px;color:var(--faint)}
+
+  /* ── .grid : Codex / Overview table ── */
+  .grid{display:flex;flex-direction:column;font-size:12.5px}
+  .grid .ghead,.grid .row{display:grid;align-items:center;gap:10px;
+    padding:6px 12px;border-bottom:1px solid var(--border)}
+  .grid .ghead{color:var(--faint);background:var(--panel-2);font-size:11px;
+    text-transform:uppercase;letter-spacing:.03em;font-weight:600}
+  .grid .row{color:var(--muted);cursor:pointer;position:relative}
+  .grid .row:hover{background:var(--hover)}
+  .grid .row .nm{color:var(--text);font-weight:500}
+  .grid .row .edit{color:var(--faint);text-align:right;opacity:0;font-size:12px}
+  .grid .row:hover .edit{opacity:1}
+  .grid .row.sel{background:rgba(124,108,240,.12);box-shadow:inset 3px 0 0 var(--accent)}
+  .grid .row.sel .nm{color:var(--text)}
+  .grid .row.sel .edit{opacity:1;color:var(--accent)}
+  .grid .grouphdr{padding:6px 12px;color:var(--faint);font-size:11px;letter-spacing:.05em;
+    background:#1e1e1e;border-bottom:1px solid var(--border);text-transform:uppercase}
+  .grid .caret{color:var(--accent);width:12px;text-align:center}
+  .gridfoot{font-size:11px;color:var(--faint);padding:8px 12px;border-top:1px solid var(--border)}
+  .gridfoot .lnk{color:var(--link)}
+
+  /* grid column templates */
+  .cols-char{grid-template-columns:1.3fr 1fr .7fr .5fr 1.3fr 20px}
+  .cols-scene{grid-template-columns:20px 1.8fr .8fr .8fr .7fr 1fr}
+
+  /* centered empty state (main-area) */
+  .emptybox{padding:44px 24px;display:flex;flex-direction:column;align-items:center;
+    gap:8px;text-align:center;color:var(--muted)}
+  .emptybox .glyph{font-size:26px;color:var(--faint)}
+  .emptybox .lead{color:var(--text);font-size:13px}
+  .emptybox .hint{font-size:12px;color:var(--faint);max-width:38ch}
+  .emptybox code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:11.5px}
+
+  /* degrade / warn lead (Bases off) */
+  .degrade{padding:18px 18px 8px}
+  .degrade .lead{color:var(--warn);font-weight:600;font-size:13px;margin-bottom:5px}
+  .degrade .why{font-size:12px;color:var(--muted);line-height:1.5;max-width:52ch}
+  .simplelist{display:grid;grid-template-columns:1fr 1fr;gap:2px 26px;
+    padding:12px 18px;font-size:12.5px;color:var(--text)}
+  .simplelist li{list-style:none;padding:2px 0}
+  .simplelist li::before{content:"• ";color:var(--faint)}
+
+  /* button row + buttons */
+  .btnrow{display:flex;gap:8px;padding:12px 18px 16px;flex-wrap:wrap}
+  .btnrow.right{justify-content:flex-end}
+  .btn{font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid var(--border-2);
+    background:var(--panel-2);color:var(--text);cursor:pointer;white-space:nowrap}
+  .btn:hover{background:var(--hover)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:#6a5ce0}
+  .btn.ghost{background:transparent}
+  .btn.sm{padding:3px 9px;font-size:11.5px}
+  .btn.danger{border-color:#7a3a3a;color:#e58b8b}
+  .btn.disabled{opacity:.45;cursor:not-allowed;position:relative}
+
+  /* ── .modal : centered dialog ── */
+  .modal{width:460px;background:var(--panel);border:1px solid var(--border-2);border-radius:8px;
+    overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;font-size:13px}
+  .modal .mhead{display:flex;align-items:center;gap:8px;padding:10px 14px;
+    background:var(--header);border-bottom:1px solid var(--border)}
+  .modal .mhead .mtitle{font-weight:600;color:var(--text);flex:1}
+  .modal .mhead .updbadge{font-size:10.5px;color:var(--warn);background:rgba(224,163,74,.14);
+    border-radius:8px;padding:1px 8px}
+  .modal .mhead .x{color:var(--faint);cursor:pointer;width:18px;text-align:center}
+  .modal .mtools{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border)}
+  .modal .search{flex:1;background:var(--bg);border:1px solid var(--border-2);border-radius:6px;
+    padding:4px 9px;color:var(--muted);font-size:12px}
+  .modal .search .ph{color:var(--faint)}
+  .modal .drop{font-size:12px;color:var(--muted);border:1px solid var(--border-2);border-radius:6px;
+    padding:4px 9px;background:var(--panel-2);cursor:pointer}
+  .modal .mtools .cnt{margin-left:auto;font-size:11px;color:var(--faint)}
+  .modal .mbody{max-height:none;overflow:auto}
+
+  /* catalog list rows */
+  .clist{display:flex;flex-direction:column}
+  .crow{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer}
+  .crow:hover{background:var(--hover)}
+  .crow.sel{background:rgba(124,108,240,.1);box-shadow:inset 3px 0 0 var(--accent)}
+  .crow .st{width:16px;flex:none;text-align:center;font-size:13px;padding-top:1px}
+  .crow .st.not{color:var(--faint)}
+  .crow .st.inst{color:var(--ok)}
+  .crow .st.upd{color:var(--warn)}
+  .crow .st.code{color:var(--warn)}
+  .crow .cmain{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+  .crow .cname{color:var(--text);font-weight:500}
+  .crow .cengine{font-size:9.5px;text-transform:lowercase;color:var(--faint);
+    border:1px solid var(--border-2);border-radius:8px;padding:0 6px;margin-left:6px}
+  .crow .cprov{font-size:11px;color:var(--muted)}
+  .crow .cdesc{font-size:11.5px;color:var(--muted)}
+  .crow .csha{font-size:10.5px;color:var(--faint);font-family:ui-monospace,Menlo,Consolas,monospace}
+  .crow .cact{flex:none;padding-top:1px}
+  .clegend{font-size:11px;color:var(--faint);padding:9px 14px;border-top:1px solid var(--border);display:flex;gap:14px;flex-wrap:wrap}
+  .clegend b{color:var(--muted);font-weight:400}
+
+  /* modal.split : list + preview */
+  .modal.split{width:640px}
+  .modal.split .splitbody{display:flex;min-height:230px}
+  .modal.split .sleft{width:250px;flex:none;border-right:1px solid var(--border);overflow:auto}
+  .modal.split .sright{flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:9px}
+  .modal.split .sleft .crow{padding:9px 12px}
+  .prevhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .prevhead .pv-title{font-weight:600;color:var(--text);font-size:14px}
+  .prevprov{font-size:11.5px;color:var(--muted)}
+  .prevprov .csha{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--faint)}
+  .prevdesc{font-size:12px;color:var(--muted);line-height:1.5}
+  .safe{font-size:11.5px;color:var(--ok)}
+  .safe.warnline{color:var(--warn)}
+  .changelog{font-size:12px;color:var(--muted);line-height:1.55}
+  .changelog b{color:var(--text)}
+
+  /* source code block */
+  pre.src{background:#161616;border:1px solid var(--border);border-radius:6px;
+    padding:10px 12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;
+    line-height:1.55;color:#c8c8d0;overflow:auto;margin:0;white-space:pre}
+  pre.src .lang{color:var(--faint)}
+  .consentwarn{background:var(--error-bg);border:1px solid #5a3a3a;border-radius:6px;
+    padding:9px 11px;font-size:12px;color:var(--warn);line-height:1.5}
+  .mfoot{display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--border)}
+
+  /* ── .form : the Inspector ── */
+  .form{display:flex;flex-direction:column;gap:9px;padding:12px;flex:1}
+  .form .backline{display:flex;align-items:center;gap:8px;font-size:13px}
+  .form .backline .back{color:var(--accent);cursor:pointer}
+  .form .backline .who{color:var(--text);font-weight:600}
+  .form .fgrp{display:flex;flex-direction:column;gap:7px}
+  .field{display:flex;align-items:center;gap:9px;font-size:12px}
+  .field label{color:var(--faint);width:96px;flex:none}
+  .field .ctrl{flex:1;display:flex;align-items:center;gap:6px}
+  .field input,.field select{flex:1;min-width:0;background:var(--bg);
+    border:1px solid var(--border-2);border-radius:5px;padding:4px 8px;
+    color:var(--text);font-size:12px;font-family:inherit}
+  .field select{cursor:pointer;-webkit-appearance:none;appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,var(--faint) 50%),linear-gradient(135deg,var(--faint) 50%,transparent 50%);
+    background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+  .field .unit{color:var(--faint);flex:none;font-size:11.5px}
+  .field.focus input,.field.focus select{border-color:var(--accent);box-shadow:0 0 0 2px rgba(124,108,240,.2)}
+  .field.dirty input,.field.dirty select{border-color:var(--accent)}
+  .field .flag{font-size:10.5px;flex:none}
+  .field.dirty .flag{color:var(--accent)}
+  .field.saved .flag{color:var(--ok)}
+  .field.saved input{border-color:var(--ok)}
+  .field.err input{border-color:var(--error)}
+  .field.err .flag{color:var(--error)}
+  .fielderr{font-size:11px;color:var(--error);padding-left:105px;margin-top:-3px}
+
+  /* read-only relation chips */
+  .rochips{display:flex;align-items:baseline;gap:9px;font-size:12px}
+  .rochips label{color:var(--faint);width:96px;flex:none}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;flex:1}
+  .chip{font-size:11px;background:var(--pill);color:var(--pill-text);
+    border-radius:10px;padding:1px 9px;display:inline-flex;align-items:center;gap:5px}
+  .chip.ro{background:var(--panel-2);color:var(--muted)}
+  .chip .x{color:var(--faint);cursor:pointer;font-size:10px}
+
+  .formfoot{margin-top:auto;display:flex;align-items:center;gap:8px;
+    padding-top:9px;border-top:1px solid var(--border)}
+  .formfoot .msg{font-size:11.5px;color:var(--faint);flex:1}
+  .formfoot .msg.dirty{color:var(--accent)}
+  .formfoot .msg.saved{color:var(--ok)}
+  .savedline{font-size:11.5px;color:var(--ok);display:flex;align-items:center;gap:6px}
+  .writeerr{background:var(--error-bg);border:1px solid #5a3a3a;border-radius:6px;
+    padding:8px 10px;font-size:11.5px;color:var(--warn);display:flex;flex-direction:column;gap:6px}
+  .writeerr .er-act{display:flex;justify-content:flex-end}
+
+  /* side-by-side layout for S57 */
+  .sidebyside{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<h1>Story Forge — Bases, Codex &amp; catalog mockups (M4 / spec 005-bases-codex-catalog)</h1>
+<p class="sub">Main-area <b>Codex / Overview</b> grids (Bases <code>registerBasesView</code>), a bundled
+<b>"Browse official"</b> catalog with install + update + consent, a read-only <code>.base</code> sidepanel
+view-tab, and the minimal editable <b>Inspector</b> that proves the frontmatter write-back loop. Ships v0.2.
+Data is real, from <code>test/StoryForge/</code> (Wardens of Moonharbor), verified against actual frontmatter.</p>
+
+<p class="legend">
+  <b>Numbering:</b> M3's highest S-number is S43 → M4 states start at <b>S44</b>. M4 reuses the M3 shell
+  (<code>.vhead / .chead / .tabs / .body</code>, kind badges, sections). <b>Codex / Overview</b> are
+  <b>main-area</b> surfaces (Bases <code>registerBasesView</code>) and are click-through browsers only;
+  the <b>sidepanel <code>.base</code> fence</b> is <b>read-only</b>; the <b>Inspector</b> is the <b>only
+  editable surface</b> — its commits write <b>plain frontmatter</b> (Story Forge never owns state).
+  <b>&#9679;</b> not installed &#183; <b>&#10003;</b> installed &#183; <b>&#11014;</b> update &#183;
+  <b>&#9888;</b> runs code &#183; kind badges:
+  <span class="kinds"><b class="kb-character">character</b><b class="kb-location">location</b><b class="kb-object">object</b><b class="kb-lore">lore</b><b class="kb-scene">scene</b><b class="kb-plotline">plotline</b></span>
+</p>
+
+<h2>State inventory (S44–S57)</h2>
+<table class="inv">
+<tr><th>S</th><th>State</th><th>Surface</th><th>Trigger</th></tr>
+<tr><td><b>S44</b></td><td>Codex — Characters grid (populated)</td><td>main / grid</td><td>core Bases on, canon characters present</td></tr>
+<tr><td><b>S45</b></td><td>Codex — empty category (no canon)</td><td>main</td><td>a category with 0 canon entities</td></tr>
+<tr><td><b>S46</b></td><td>Codex — Bases-disabled fallback</td><td>main</td><td>core Bases off / absent (F5 degrade)</td></tr>
+<tr><td><b>S47</b></td><td>Browse official — catalog list</td><td>modal</td><td>writer opens "Browse official"</td></tr>
+<tr><td><b>S48</b></td><td>Catalog — preview + install</td><td>modal.split</td><td>row selected → preview declarative view</td></tr>
+<tr><td><b>S49</b></td><td>Catalog — update available</td><td>modal.split</td><td>installed view, newer bundled checksum</td></tr>
+<tr><td><b>S50</b></td><td>Overview — Scenes</td><td>main / grid</td><td>installed Scenes overview, grouped by act</td></tr>
+<tr><td><b>S51</b></td><td>Sidepanel <code>.base</code> view-tab (fence)</td><td>panel</td><td>curated <code>.base</code> renders read-only</td></tr>
+<tr><td><b>S52</b></td><td>Inspector — editable detail (clean)</td><td>panel / form</td><td>Inspector open, no unsaved changes</td></tr>
+<tr><td><b>S53</b></td><td>Inspector — mid-edit (dirty)</td><td>panel / form</td><td>a scalar field changed, not yet written</td></tr>
+<tr><td><b>S54</b></td><td>Inspector — write-back confirmation</td><td>panel / form</td><td>commit succeeded, frontmatter written</td></tr>
+<tr><td><b>S55</b></td><td>Inspector — validation / write error</td><td>panel / form</td><td>bad value / write fails; edit preserved</td></tr>
+<tr><td><b>S56</b></td><td>Codex → panel selection (linked)</td><td>main + panel</td><td>row click re-subjects the M3 panel</td></tr>
+<tr><td><b>S57</b></td><td>Catalog — install consent (DataviewJS)</td><td>modal</td><td>installing a code-bearing view</td></tr>
+</table>
+
+<div class="gallery">
+
+<!-- ══ S44 Codex Characters grid ══ -->
+<figure class="wide">
+  <figcaption><b>S44 · Codex — Characters grid (populated)</b> — the top-down roster. Bases-backed, sortable columns; click a row to open it in the panel.</figcaption>
+  <div class="panel wide">
+    <div class="vhead"><span class="name">Story Forge &#183; Codex</span>
+      <div class="icons"><span class="tool" title="reload">&#10227;</span><span class="tool" title="settings">&#9881;</span><span class="tool" title="expand">&#10530;</span></div></div>
+    <div class="cattabs">
+      <div class="tab sel">Characters</div><div class="tab">Locations</div><div class="tab">Objects</div><div class="tab">Lore</div>
+      <span class="cnt">6 entities</span>
+    </div>
+    <div class="grid">
+      <div class="ghead cols-char"><span>Name</span><span>Role</span><span>Status</span><span>Age</span><span>Appears in</span><span></span></div>
+      <div class="row cols-char sel"><span class="nm">Mara Stoneway</span><span>protagonist</span><span>alive</span><span>19</span><span>Scene 1 &#183; 2 &#183; 3</span><span class="edit">&#9998;</span></div>
+      <div class="row cols-char"><span class="nm">Tobias Ferro</span><span>deuteragonist</span><span>alive</span><span>68</span><span>Scene 1 &#183; 3</span><span class="edit">&#9998;</span></div>
+      <div class="row cols-char"><span class="nm">Silvan Nightweaver</span><span>antagonist</span><span>alive</span><span>45</span><span>Scene 3</span><span class="edit">&#9998;</span></div>
+      <div class="row cols-char"><span class="nm">Jonas Kell</span><span>supporting</span><span>alive</span><span>22</span><span>Scene 2</span><span class="edit">&#9998;</span></div>
+      <div class="row cols-char"><span class="nm">Elke Stoneway</span><span>supporting</span><span>alive</span><span>52</span><span>Scene 2</span><span class="edit">&#9998;</span></div>
+      <div class="row cols-char"><span class="nm">Lyra Tidecall</span><span>supporting</span><span>alive</span><span>340</span><span class="dash">&#8212;</span><span class="edit">&#9998;</span></div>
+    </div>
+    <div class="gridfoot">&#9432; Bases &#183; sortable columns &#183; click a row to open it in the panel</div>
+  </div>
+  <div class="note">The Codex is the deliberate opposite of "follow the active note." Read-only grid — the trailing <code>&#9998;</code> opens the <b>Inspector</b> (F6), the only editable surface. Rendered via Bases <code>registerBasesView</code> (F2).</div>
+</figure>
+
+<!-- ══ S45 Codex empty category ══ -->
+<figure class="wide">
+  <figcaption><b>S45 · Codex — empty category (no canon)</b> — the Objects tab with zero canon objects. Honest per-category empty-state, never a blank grid.</figcaption>
+  <div class="panel wide">
+    <div class="vhead"><span class="name">Story Forge &#183; Codex</span>
+      <div class="icons"><span class="tool" title="reload">&#10227;</span><span class="tool" title="settings">&#9881;</span><span class="tool" title="expand">&#10530;</span></div></div>
+    <div class="cattabs">
+      <div class="tab">Characters</div><div class="tab">Locations</div><div class="tab sel">Objects</div><div class="tab">Lore</div>
+      <span class="cnt">0 entities</span>
+    </div>
+    <div class="emptybox">
+      <div class="glyph">&#9678;</div>
+      <div class="lead">No objects in your canon yet.</div>
+      <div class="hint">Objects are notes tagged <code>canon/object</code> with <code>type: object</code>.</div>
+      <div class="btnrow" style="padding-top:6px">
+        <span class="btn primary">New object from template</span>
+        <span class="btn ghost">Learn more</span>
+      </div>
+    </div>
+  </div>
+  <div class="note">Per-category empty-state (F2 AC). Each category scopes on its classifier tag / <code>type</code>; a missing kind is "complete but empty," not broken.</div>
+</figure>
+
+<!-- ══ S46 Codex Bases-off fallback ══ -->
+<figure class="wide">
+  <figcaption><b>S46 · Codex — Bases-disabled fallback</b> — core Bases off. Warn + point to enabling Bases, then a read-only list from metadata. Degrades exactly like a missing Dataview (F5).</figcaption>
+  <div class="panel wide">
+    <div class="vhead"><span class="name">Story Forge &#183; Codex</span>
+      <div class="icons"><span class="tool" title="reload">&#10227;</span><span class="tool" title="settings">&#9881;</span><span class="tool" title="expand">&#10530;</span></div></div>
+    <div class="cattabs">
+      <div class="tab sel">Characters</div><div class="tab">Locations</div><div class="tab">Objects</div><div class="tab">Lore</div>
+      <span class="cnt">6 entities</span>
+    </div>
+    <div class="degrade">
+      <div class="lead">&#9881; Bases is off — showing a simple list</div>
+      <div class="why">The full Codex grid needs the core Bases plugin (Obsidian 1.12.7+). Sorting, filtering and
+        columns are unavailable. Falling back to a read-only list from metadata.</div>
+    </div>
+    <ul class="simplelist">
+      <li>Mara Stoneway</li><li>Jonas Kell</li>
+      <li>Tobias Ferro</li><li>Elke Stoneway</li>
+      <li>Silvan Nightweaver</li><li>Lyra Tidecall</li>
+    </ul>
+    <div class="btnrow">
+      <span class="btn primary">Enable Bases</span>
+      <span class="btn ghost">Keep simple list</span>
+    </div>
+  </div>
+  <div class="note"><b>Mobile variant:</b> lead reads "Bases isn't available on this device" and the [Enable Bases] button is <b>omitted</b> (core Bases can't be toggled from mobile). The M3 panel and Dataview tabs keep working throughout (F5).</div>
+</figure>
+
+<!-- ══ S47 Catalog list ══ -->
+<figure style="width:460px">
+  <figcaption><b>S47 · Browse official — catalog list</b> — bundled, offline library. Each row carries provenance + a checksum; declarative views install 1-click, code-bearing views gate first.</figcaption>
+  <div class="modal">
+    <div class="mhead"><span class="mtitle">Browse official views</span><span class="updbadge">1 update &#9679;</span><span class="x">&#10005;</span></div>
+    <div class="mtools">
+      <span class="search">scene</span>
+      <span class="drop">Kind &#9662;</span><span class="drop">Engine &#9662;</span>
+      <span class="cnt">9 available</span>
+    </div>
+    <div class="mbody"><div class="clist">
+      <div class="crow">
+        <span class="st not">&#9679;</span>
+        <span class="cmain"><span class="cname">Characters in scene<span class="cengine">dataview-dql</span></span>
+          <span class="cprov">official &#183; curated</span>
+          <span class="cdesc">Canon characters linked from the active scene.</span>
+          <span class="csha">sha 8f3a&#8230;</span></span>
+        <span class="cact"><span class="btn sm">Install</span></span>
+      </div>
+      <div class="crow">
+        <span class="st not">&#9679;</span>
+        <span class="cmain"><span class="cname">Scenes overview<span class="cengine">bases</span></span>
+          <span class="cprov">official &#183; curated</span>
+          <span class="cdesc">All scenes, grouped by act, with status.</span>
+          <span class="csha">sha 2c91&#8230;</span></span>
+        <span class="cact"><span class="btn sm">Install</span></span>
+      </div>
+      <div class="crow">
+        <span class="st inst">&#10003;</span>
+        <span class="cmain"><span class="cname">Appears in<span class="cengine">dataview-dql</span></span>
+          <span class="cprov">installed &#183; v1</span>
+          <span class="csha">sha 51be&#8230;</span></span>
+        <span class="cact"><span class="btn sm ghost">Open</span></span>
+      </div>
+      <div class="crow">
+        <span class="st upd">&#11014;</span>
+        <span class="cmain"><span class="cname">Plotline scenes<span class="cengine">dataview-dql</span></span>
+          <span class="cprov">installed &#183; update &#183; v1 &#8594; v2</span>
+          <span class="csha">sha a07f&#8230;</span></span>
+        <span class="cact"><span class="btn sm primary">Update</span></span>
+      </div>
+      <div class="crow">
+        <span class="st code">&#9888;</span>
+        <span class="cmain"><span class="cname">Scene debug (DataviewJS)<span class="cengine">dataviewjs</span></span>
+          <span class="cprov">official &#183; runs JS</span>
+          <span class="csha">sha d4c2&#8230;</span></span>
+        <span class="cact"><span class="btn sm">Install</span></span>
+      </div>
+    </div></div>
+    <div class="clegend">
+      <b>&#9679; not installed</b><b>&#10003; installed</b><b>&#11014; update available</b><b>&#9888; runs code</b>
+    </div>
+  </div>
+  <div class="note">Catalog is a bundled, checksummed <code>dist/index.json</code> — no network fetch (F4). The "1 update &#9679;" header badge counts drifted installs (F7).</div>
+</figure>
+
+<!-- ══ S48 Catalog preview + install ══ -->
+<figure style="width:640px">
+  <figcaption><b>S48 · Catalog — preview + install</b> — Scenes overview selected. Right pane shows provenance, source, and a "safe: no code" note; installs 1-click (declarative).</figcaption>
+  <div class="modal split">
+    <div class="mhead"><span class="mtitle">Browse official views</span><span class="x">&#10005;</span></div>
+    <div class="splitbody">
+      <div class="sleft"><div class="clist">
+        <div class="crow"><span class="st not">&#9679;</span><span class="cmain"><span class="cname">Characters in scene</span><span class="cprov">official</span></span></div>
+        <div class="crow sel"><span class="st not">&#9679;</span><span class="cmain"><span class="cname">Scenes overview</span><span class="cprov">official</span></span><span class="cact">&#9664;</span></div>
+        <div class="crow"><span class="st inst">&#10003;</span><span class="cmain"><span class="cname">Appears in</span><span class="cprov">installed</span></span></div>
+        <div class="crow"><span class="st upd">&#11014;</span><span class="cmain"><span class="cname">Plotline scenes</span><span class="cprov">update</span></span></div>
+        <div class="crow"><span class="st code">&#9888;</span><span class="cmain"><span class="cname">Scene debug (DataviewJS)</span><span class="cprov">runs JS</span></span></div>
+      </div></div>
+      <div class="sright">
+        <div class="prevhead"><span class="pv-title">Scenes overview</span><span class="badge scene">scene</span><span class="badge">bases</span></div>
+        <div class="prevprov">official &#183; curated &#183; <span class="csha">sha 2c91&#8230;</span></div>
+        <div class="prevdesc">All scenes in the book, grouped by act, showing status, POV and when. Read-only.</div>
+        <pre class="src"><span class="lang">```base</span>
+filters:
+  and: [ type == "scene" ]
+views:
+  - type: table
+    order: [act, chapter, order]
+    columns: [when, status, pov]
+<span class="lang">```</span></pre>
+        <div class="safe">&#10003; Safe: declarative query, no code.</div>
+      </div>
+    </div>
+    <div class="mfoot"><span class="btn primary">Install</span><span class="btn ghost">Cancel</span></div>
+  </div>
+  <div class="note">A <code>.base</code> / DQL view installs 1-click with a <code>curated</code>-provenance record — no consent gate (F4). Checksum is verified against the bundled entry; a mismatch fails closed.</div>
+</figure>
+
+<!-- ══ S49 Catalog update available ══ -->
+<figure style="width:640px">
+  <figcaption><b>S49 · Catalog — update available</b> — an installed view whose bundled checksum drifted. "What changed" diff; declarative, so no re-consent (F7).</figcaption>
+  <div class="modal split">
+    <div class="mhead"><span class="mtitle">Browse official views</span><span class="updbadge">1 update &#9679;</span><span class="x">&#10005;</span></div>
+    <div class="splitbody">
+      <div class="sleft"><div class="clist">
+        <div class="crow"><span class="st not">&#9679;</span><span class="cmain"><span class="cname">Characters in scene</span><span class="cprov">official</span></span></div>
+        <div class="crow"><span class="st not">&#9679;</span><span class="cmain"><span class="cname">Scenes overview</span><span class="cprov">official</span></span></div>
+        <div class="crow"><span class="st inst">&#10003;</span><span class="cmain"><span class="cname">Appears in</span><span class="cprov">installed</span></span></div>
+        <div class="crow sel"><span class="st upd">&#11014;</span><span class="cmain"><span class="cname">Plotline scenes</span><span class="cprov">update</span></span><span class="cact">&#9664;</span></div>
+        <div class="crow"><span class="st code">&#9888;</span><span class="cmain"><span class="cname">Scene debug (DataviewJS)</span><span class="cprov">runs JS</span></span></div>
+      </div></div>
+      <div class="sright">
+        <div class="prevhead"><span class="pv-title">&#11014; Plotline scenes</span><span class="badge scene">scene</span><span class="badge">dql</span></div>
+        <div class="prevprov">installed v1 &#8594; official v2</div>
+        <div class="prevdesc">An update is available for this view.</div>
+        <div class="changelog"><b>What changed (v1 &#8594; v2):</b><br>
+          &#8226; adds <code>SORT scene.storyDay ASC</code><br>
+          &#8226; sha a07f&#8230; &#8594; b93e&#8230;</div>
+        <div class="safe">&#10003; Declarative view — no re-consent needed.</div>
+      </div>
+    </div>
+    <div class="mfoot"><span class="btn primary">Update to v2</span><span class="btn ghost">Keep v1</span></div>
+  </div>
+  <div class="note">Update reuses the same install path as F4: <code>.base</code>/DQL 1-click, DataviewJS re-gated. The record's provenance + checksum are refreshed on update.</div>
+</figure>
+
+<!-- ══ S50 Overview Scenes ══ -->
+<figure class="wide">
+  <figcaption><b>S50 · Overview — Scenes</b> — an installed global overview (V8). Grouped by act, sorted by act &#183; chapter &#183; order; click a row to open it in the panel.</figcaption>
+  <div class="panel wide">
+    <div class="vhead"><span class="name">Story Forge &#183; Overview</span>
+      <div class="icons"><span class="tool" title="reload">&#10227;</span><span class="tool" title="settings">&#9881;</span><span class="tool" title="expand">&#10530;</span></div></div>
+    <div class="cattabs">
+      <div class="tab sel">Scenes</div><div class="tab">Characters</div><div class="tab">Locations</div><div class="tab">Objects</div><div class="tab">Lore</div>
+      <span class="cnt">3 scenes</span>
+    </div>
+    <div class="grid">
+      <div class="ghead cols-scene"><span>#</span><span>Scene</span><span>POV</span><span>When</span><span>Status</span><span>Plotline</span></div>
+      <div class="grouphdr">&#9472;&#9472; Act 1 &#9472;&#9472;</div>
+      <div class="row cols-scene"><span>1</span><span class="nm">Scene 1 - The Extinguished&#8230;</span><span>Mara</span><span>Night 1</span><span>draft</span><span>Dying L.</span></div>
+      <div class="row cols-scene"><span>2</span><span class="nm">Scene 2 - The Salty Gull</span><span>Mara</span><span>Day 2</span><span>draft</span><span>Dying L.</span></div>
+      <div class="row cols-scene"><span>3</span><span class="nm">Scene 3 - The Black Cliffs</span><span>Mara</span><span>Night 2</span><span>draft</span><span>Dying L.</span></div>
+    </div>
+    <div class="gridfoot">&#9432; 3 scenes &#183; sorted by act &#183; chapter &#183; order &#183; click to open in panel</div>
+  </div>
+  <div class="note">One of the five installable overview views (F3 / roadmap V4–V8). Notes missing a field render a blank cell — the view tolerates gaps, never errors.</div>
+</figure>
+
+<!-- ══ S51 Sidepanel .base fence ══ -->
+<figure>
+  <figcaption><b>S51 · Sidepanel <code>.base</code> view-tab (fence)</b> — a curated base renders read-only in a Story Forge sidebar tab, following the active scene (F1).</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge</span>
+      <div class="icons"><span class="on">&#8645;</span><span class="pin">&#128204;</span></div></div>
+    <div class="chead"><span class="title">Scene 1 - The Extinguished&#8230;</span><span class="badge scene">scene</span></div>
+    <div class="tabs"><div class="tab sel">Chars in scene</div><div class="tab">Overview</div><div class="tab">Context</div></div>
+    <div class="body">
+      <div class="subtitle" style="font-style:normal;color:var(--faint);font-size:11px">```base``` (read-only)</div>
+      <div class="grid" style="border:1px solid var(--border);border-radius:6px;font-size:12px">
+        <div class="ghead" style="grid-template-columns:1.2fr 1fr;display:grid;gap:10px"><span>Character</span><span>Role</span></div>
+        <div class="row" style="grid-template-columns:1.2fr 1fr;display:grid;gap:10px;cursor:default"><span class="nm">Mara Stoneway</span><span>protag&#8230;</span></div>
+        <div class="row" style="grid-template-columns:1.2fr 1fr;display:grid;gap:10px;cursor:default;border-bottom:none"><span class="nm">Tobias Ferro</span><span>deuter&#8230;</span></div>
+      </div>
+      <div class="trail">&#9432; Read-only &#183; edit in the note or the Inspector (&#9998;)</div>
+    </div>
+  </div>
+  <div class="note">Rendered via a <code>MarkdownRenderer</code> <code>```base```</code> fence inside the plugin's own container (ADR-0001). It re-scopes to the active note like the Dataview tabs; no public API to write Bases cells, so it stays read-only.</div>
+</figure>
+
+<!-- ══ S52 Inspector clean ══ -->
+<figure>
+  <figcaption><b>S52 · Inspector — editable detail (clean)</b> — Mara Stoneway. Read-only M3 detail plus editable scalar/enum fields. No unsaved changes (F6).</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge &#183; Inspector</span>
+      <div class="icons"><span class="tool">&#10005;</span></div></div>
+    <div class="form">
+      <div class="backline"><span class="back">&#8249; Back</span><span class="who">Mara Stoneway</span><span class="badge character">character</span></div>
+      <div class="fgrp">
+        <div class="field"><label>nickname</label><div class="ctrl"><input value="Spark"></div></div>
+        <div class="field"><label>role</label><div class="ctrl"><select><option>protagonist</option></select></div></div>
+        <div class="field"><label>status</label><div class="ctrl"><select><option>alive</option></select></div></div>
+        <div class="field"><label>age</label><div class="ctrl"><input value="19"></div></div>
+        <div class="field"><label>occupation</label><div class="ctrl"><input value="lighthouse appren&#8230;"></div></div>
+        <div class="field"><label>height</label><div class="ctrl"><input value="168" style="max-width:70px"><span class="unit">cm</span></div></div>
+        <div class="field"><label>hair</label><div class="ctrl"><input value="copper-red, short"></div></div>
+        <div class="field"><label>eyes</label><div class="ctrl"><input value="hazel"></div></div>
+      </div>
+      <div class="fgrp" style="gap:5px">
+        <div class="rochips"><label>partner</label><div class="chips"><span class="chip ro">Jonas Kell</span></div></div>
+        <div class="rochips"><label>allies</label><div class="chips"><span class="chip ro">Tobias Ferro</span></div></div>
+        <div class="rochips"><label>enemies</label><div class="chips"><span class="chip ro">Silvan Nightweaver</span></div></div>
+      </div>
+      <div class="formfoot"><span class="msg">&#9432; Edits write frontmatter. No unsaved changes.</span><span class="btn ghost sm">Done</span></div>
+    </div>
+  </div>
+  <div class="note">Enum fields (<code>role</code>, <code>status</code>) are <code>&lt;select&gt;</code> bound to the schema's allowed values; scalar fields commit on-blur. Relation chips are <b>read-only display</b> in v0.2 (F8) — editable chip lists are a Could/Won't.</div>
+</figure>
+
+<!-- ══ S53 Inspector dirty ══ -->
+<figure>
+  <figcaption><b>S53 · Inspector — mid-edit (dirty)</b> — occupation changed, not yet written. Field marked "&#9679; unsaved"; footer summarises and offers Save / Revert (F6).</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge &#183; Inspector</span>
+      <div class="icons"><span class="tool">&#10005;</span></div></div>
+    <div class="form">
+      <div class="backline"><span class="back">&#8249; Back</span><span class="who">Mara Stoneway</span><span class="badge character">character</span></div>
+      <div class="fgrp">
+        <div class="field"><label>nickname</label><div class="ctrl"><input value="Spark"></div></div>
+        <div class="field"><label>role</label><div class="ctrl"><select><option>protagonist</option></select></div></div>
+        <div class="field"><label>status</label><div class="ctrl"><select><option>alive</option></select></div></div>
+        <div class="field"><label>age</label><div class="ctrl"><input value="19"></div></div>
+        <div class="field focus dirty"><label>occupation</label><div class="ctrl"><input value="harbour-light kee&#8230;"><span class="flag">&#9679; unsaved</span></div></div>
+        <div class="field"><label>height</label><div class="ctrl"><input value="168" style="max-width:70px"><span class="unit">cm</span></div></div>
+        <div class="field"><label>hair</label><div class="ctrl"><input value="copper-red, short"></div></div>
+        <div class="field"><label>eyes</label><div class="ctrl"><input value="hazel"></div></div>
+      </div>
+      <div class="formfoot">
+        <span class="msg dirty">&#9679; 1 unsaved change &#183; Blur or Save to write &#183; Esc to revert this field</span>
+        <span class="btn primary sm">Save</span><span class="btn ghost sm">Revert</span>
+      </div>
+    </div>
+  </div>
+  <div class="note">Dirty = value differs from its committed frontmatter value. Blur commits a scalar; Save commits all dirty fields; Esc reverts the focused field.</div>
+</figure>
+
+<!-- ══ S54 Inspector saved ══ -->
+<figure>
+  <figcaption><b>S54 · Inspector — write-back confirmation</b> — commit succeeded. Field shows "&#10003; saved"; a saved line confirms the write and the fan-out (F6).</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge &#183; Inspector</span>
+      <div class="icons"><span class="tool">&#10005;</span></div></div>
+    <div class="form">
+      <div class="backline"><span class="back">&#8249; Back</span><span class="who">Mara Stoneway</span><span class="badge character">character</span></div>
+      <div class="fgrp">
+        <div class="field"><label>nickname</label><div class="ctrl"><input value="Spark"></div></div>
+        <div class="field"><label>role</label><div class="ctrl"><select><option>protagonist</option></select></div></div>
+        <div class="field"><label>status</label><div class="ctrl"><select><option>alive</option></select></div></div>
+        <div class="field"><label>age</label><div class="ctrl"><input value="19"></div></div>
+        <div class="field saved"><label>occupation</label><div class="ctrl"><input value="harbour-light kee&#8230;"><span class="flag">&#10003; saved</span></div></div>
+        <div class="field"><label>height</label><div class="ctrl"><input value="168" style="max-width:70px"><span class="unit">cm</span></div></div>
+        <div class="field"><label>hair</label><div class="ctrl"><input value="copper-red, short"></div></div>
+        <div class="field"><label>eyes</label><div class="ctrl"><input value="hazel"></div></div>
+      </div>
+      <div class="formfoot">
+        <span class="msg saved">&#10003; Saved to frontmatter &#183; 12:04 — Reflected in the panel, Codex and any open base.</span>
+        <span class="btn ghost sm">Done</span>
+      </div>
+    </div>
+  </div>
+  <div class="note">On commit, Story Forge writes plain frontmatter via <code>processFrontMatter</code>; the <code>metadataCache</code> change fans out so the M3 panel, the Codex grid, and any open base re-render (F6).</div>
+</figure>
+
+<!-- ══ S55 Inspector error ══ -->
+<figure>
+  <figcaption><b>S55 · Inspector — validation / write error</b> — a bad <code>age</code> blocks Save; below, a write-failure variant. Either way the edit is preserved, never silently lost (F6).</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge &#183; Inspector</span>
+      <div class="icons"><span class="tool">&#10005;</span></div></div>
+    <div class="form">
+      <div class="backline"><span class="back">&#8249; Back</span><span class="who">Mara Stoneway</span><span class="badge character">character</span></div>
+      <div class="fgrp">
+        <div class="field"><label>nickname</label><div class="ctrl"><input value="Spark"></div></div>
+        <div class="field"><label>role</label><div class="ctrl"><select><option>protagonist</option></select></div></div>
+        <div class="field"><label>status</label><div class="ctrl"><select><option>alive</option></select></div></div>
+        <div class="field err focus"><label>age</label><div class="ctrl"><input value="nineteen"><span class="flag">&#10007;</span></div></div>
+        <div class="fielderr">&#10007; age must be a whole number</div>
+        <div class="field"><label>occupation</label><div class="ctrl"><input value="harbour-light kee&#8230;"></div></div>
+      </div>
+      <div class="formfoot">
+        <span class="msg" style="color:var(--error)">Save is blocked until this is fixed. No changes were written.</span>
+        <span class="btn primary sm disabled">Save &#10007;</span><span class="btn ghost sm">Revert</span>
+      </div>
+      <div class="writeerr">
+        <div>&#9888; Couldn't write frontmatter. The file may be open or locked. Your edits are kept.</div>
+        <div class="er-act"><span class="btn sm">Retry</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Two failure modes, both preserving the edit: <b>validation</b> (bad value → Save blocked, nothing written) and <b>write failure</b> (I/O error → edit kept, Retry). The field value is never discarded (F6).</div>
+</figure>
+
+<!-- ══ S56 Codex → panel selection ══ -->
+<figure class="pair">
+  <figcaption><b>S56 · Codex &#8594; panel selection (linked)</b> — clicking Mara's row re-subjects the M3 contextual panel via the drill-in seam. Roster in the main area, detail in the sidebar, in tandem (F2 / S57 in PRD).</figcaption>
+  <div class="sidebyside">
+    <div class="panel wide">
+      <div class="vhead"><span class="name">Story Forge &#183; Codex</span>
+        <div class="icons"><span class="tool">&#10227;</span><span class="tool">&#9881;</span><span class="tool">&#10530;</span></div></div>
+      <div class="cattabs">
+        <div class="tab sel">Characters</div><div class="tab">Locations</div><div class="tab">Objects</div><div class="tab">Lore</div>
+        <span class="cnt">6 entities</span>
+      </div>
+      <div class="grid">
+        <div class="ghead cols-char"><span>Name</span><span>Role</span><span>Status</span><span>Age</span><span>Appears in</span><span></span></div>
+        <div class="row cols-char sel"><span class="nm">&#9654; Mara Stoneway &#9664;</span><span>protagonist</span><span>alive</span><span>19</span><span>Scene 1 &#183; 2 &#183; 3</span><span class="edit">&#9998;</span></div>
+        <div class="row cols-char"><span class="nm">Tobias Ferro</span><span>deuteragonist</span><span>alive</span><span>68</span><span>Scene 1 &#183; 3</span><span class="edit">&#9998;</span></div>
+        <div class="row cols-char"><span class="nm">Silvan Nightweaver</span><span>antagonist</span><span>alive</span><span>45</span><span>Scene 3</span><span class="edit">&#9998;</span></div>
+        <div class="row cols-char"><span class="nm">Jonas Kell</span><span>supporting</span><span>alive</span><span>22</span><span>Scene 2</span><span class="edit">&#9998;</span></div>
+      </div>
+      <div class="gridfoot">&#9432; click a row &#8594; opens in the panel &#8594;</div>
+    </div>
+
+    <div class="panel">
+      <div class="vhead"><span class="name">Story Forge</span>
+        <div class="icons"><span class="on">&#8645;</span><span class="pin">&#128204;</span></div></div>
+      <div class="chead"><span class="back">&#8249; Back</span><span class="title">Mara Stoneway</span><span class="badge character">character</span></div>
+      <div class="tabs"><div class="tab">Characters in scene</div><div class="tab sel">Context</div></div>
+      <div class="body">
+        <div class="trail">from <a class="lnk">Codex</a> &#8250; Mara</div>
+        <div class="profile">
+          <div class="portrait">MS</div>
+          <div class="pinfo">
+            <div class="lead"><b>Spark</b> &#183; protagonist</div>
+            <div>apprentice &#183; age 19</div>
+            <div>alive &#183; 168 cm</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="sec-head"><span class="chev">&#9662;</span>Relationships</div>
+          <div class="sec-rows">
+            <div class="rel"><span class="k">partner</span><span class="lnks"><a class="lnk">Jonas Kell</a></span></div>
+            <div class="rel"><span class="k">allies</span><span class="lnks"><a class="lnk">Tobias Ferro</a></span></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="sec-head"><span class="chev">&#9662;</span>Appears in<span class="count">3</span></div>
+          <div class="sec-rows">
+            <div class="lrow"><a class="lnk">Scene 1 &#183; 2 &#183; 3</a><span class="tag pov">pov</span></div>
+          </div>
+        </div>
+        <div class="opennote">&#10530; Open note</div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Click row &#8594; the panel re-subjects via the M3 drill-in (<code>_drillInto</code> / <code>navStack</code>) behind a new <code>showFile(file)</code> seam; <b>&#8249; Back</b> + trail pop back to the Codex context. Reuses the same panel look as M3's S32 / S41.</div>
+</figure>
+
+<!-- ══ S57 Catalog install consent (DataviewJS) ══ -->
+<figure style="width:460px">
+  <figcaption><b>S57 · Catalog — install consent (DataviewJS)</b> — the code-bearing view routes through the full M2 consent gate before anything runs. Verbatim M2 consent copy (F4).</figcaption>
+  <div class="modal">
+    <div class="mhead"><span class="mtitle">Install — Scene debug (DataviewJS)</span><span class="x">&#10005;</span></div>
+    <div class="mbody" style="padding:14px;display:flex;flex-direction:column;gap:11px">
+      <div class="consentwarn">&#9888; This view runs DataviewJS — arbitrary JavaScript with full vault access.
+        The code is not running yet.</div>
+      <div class="prevprov">official &#183; curated &#183; <span class="csha">sha d4c2&#8230;</span> &#183; requires: Dataview plugin</div>
+      <pre class="src"><span class="lang">```dataviewjs</span>
+const p = dv.current();
+dv.table(["key","value"],
+  Object.entries(p).map(&#8230;));
+<span class="lang">```</span></pre>
+      <div class="prevdesc">Review the source and checksum before enabling. You can disable or remove it at any
+        time. Not available on mobile.</div>
+    </div>
+    <div class="mfoot"><span class="btn primary">Review &amp; enable</span><span class="btn ghost">Cancel</span></div>
+  </div>
+  <div class="note">Declarative <code>.base</code>/DQL views install 1-click; <b>DataviewJS carries code</b>, so install must route through the M2 consent gate (F4 AC). Consent declined → nothing installed, modal returns to the list.</div>
+</figure>
+
+</div>
+
+<h2>Copy strings (M4, sentence-case per obsidianmd rules)</h2>
+<p class="sub"><b>Codex empty-states</b> — "No characters in your canon yet." / "No locations in your canon yet." /
+  "No objects in your canon yet." / "No lore in your canon yet." &#183; hint: "Objects are notes tagged
+  <code>canon/object</code> with <code>type: object</code>." &#183; buttons: "New object from template" / "Learn more".</p>
+<p class="sub"><b>Bases off (F5 degrade)</b> — warn lead: "Bases is off — showing a simple list" &#183; why: "The full
+  Codex grid needs the core Bases plugin (Obsidian 1.12.7+). Sorting, filtering and columns are unavailable.
+  Falling back to a read-only list from metadata." &#183; buttons: "Enable Bases" / "Keep simple list" &#183;
+  <b>mobile</b> lead: "Bases isn't available on this device" (no Enable button).</p>
+<p class="sub"><b>Catalog provenance / status</b> — "official &#183; curated" / "installed &#183; v1" /
+  "installed &#183; update &#183; v1 &#8594; v2" / "official &#183; runs JS" &#183; row legend: "&#9679; not installed  &#10003; installed  &#11014; update available  &#9888; runs code" &#183;
+  safe note: "Safe: declarative query, no code." / "Declarative view — no re-consent needed." &#183;
+  update: "What changed (v1 &#8594; v2): …" · buttons "Install" / "Update to v2" / "Keep v1" / "Open".</p>
+<p class="sub"><b>Inspector</b> — clean: "Edits write frontmatter. No unsaved changes." &#183; dirty: "&#9679; unsaved" /
+  "1 unsaved change &#183; Blur or Save to write &#183; Esc to revert this field" &#183; saved: "&#10003; saved" /
+  "Saved to frontmatter &#183; 12:04 — Reflected in the panel, Codex and any open base." &#183;
+  validation: "age must be a whole number" / "Save is blocked until this is fixed. No changes were written." &#183;
+  write failure: "Couldn't write frontmatter. The file may be open or locked. Your edits are kept." + "Retry".</p>
+<p class="sub"><b>DataviewJS consent (verbatim M2)</b> — "This view runs DataviewJS — arbitrary JavaScript with full
+  vault access. The code is not running yet." / "Review the source and checksum before enabling. You can disable
+  or remove it at any time. Not available on mobile." &#183; buttons "Review &amp; enable" / "Cancel".</p>
+<p class="sub"><b>Grid footers</b> — Codex: "Bases &#183; sortable columns &#183; click a row to open it in the panel" &#183;
+  Overview scenes: "3 scenes &#183; sorted by act &#183; chapter &#183; order &#183; click to open in panel" &#183;
+  sidepanel fence: "Read-only &#183; edit in the note or the Inspector (&#9998;)".</p>
+
+</body>
+</html>

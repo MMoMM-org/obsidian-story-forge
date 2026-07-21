@@ -12,7 +12,8 @@
 
 | Document | Status | Notes |
 |----------|--------|-------|
-| requirements.md | in_progress | M4 PRD — 3 Bases surfaces (sidepanel engine · Codex/catalog · Inspector) |
+| requirements.md | completed | M4 PRD — F1–F6 (+F7/F8 Should), 42 Gherkin ACs; 6 SDD-level open questions |
+| mockups.html | completed | 14 styled states S44–S57 (Codex/Overview grids · catalog modal · Inspector form), M3 visual shell |
 | solution.md | pending | — |
 | plan/ | pending | — |
 
@@ -24,6 +25,7 @@
 |------|----------|-----------|
 | 2026-07-21 | Scaffold spec 005-bases-codex-catalog | M4 milestone per `docs/build-plan.md` (slug `bases-codex-catalog`, ships v0.2); next after M3 (spec 004, Implemented). Adds native Obsidian Bases as a view engine + Codex/catalog + editable Inspector. |
 | 2026-07-21 | **Bases integration strategy (gate) → [ADR-0001](../../adr/0001-bases-integration-strategy.md)** | Spike verdict (verified against `obsidian.d.ts` 1.13.1 + docs + plugin survey): (1) sidepanel Bases engine = markdown ```base``` fence via `MarkdownRenderer` (read-only); (2) Codex/catalog general views = `registerBasesView` custom view types (bound to Bases API — **user-confirmed**); (3) Inspector/interactive = custom DOM + `processFrontMatter`. No public embed/results or write-back API exists; do not depend on 3rd-party plugins. minAppVersion + API-churn implications noted. |
+| 2026-07-21 | **M4 scope decisions (post-research)** | After parallel Requirements/UX/Integration research: (a) **Codex = read-only** click-through → detail in the M3 contextual panel (reuse `_drillInto`/`navStack`); (b) **Inspector = minimal editable** in v0.2 — read-only detail reuses the M3 panel, plus editable scalar/enum fields proving the `processFrontMatter` write-back loop end-to-end; full field types (wikilink chips) + validation deferred (M6-adjacent); (c) **Catalog = bundled/offline** (`catalog/` → `build-catalog.mjs` → checksummed `dist/index.json`, "Browse official" modal reuses `ImportPickerModal`/`ConsentGate`/M2 checksum-drift); update notifications = Should; (d) **minAppVersion → 1.12.7** (current stable; 1.13 is Catalyst/beta) — honest floor, Bases needs ≥1.10; (e) **Bases-off handling** = warn + point the user to enabling core Bases, then degrade exactly like missing/disabled Dataview (reuse the M2 `_renderEngineMissing`/S11 engine-missing pattern). UX produced mockup states S44–S57. |
 
 ## Context
 
