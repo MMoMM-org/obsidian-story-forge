@@ -1419,7 +1419,7 @@ body {
 	color: var(--text-normal);
 }
 
-.sf-tagline {
+.sf-ptagline {
 	font-size: 12px;
 	color: var(--text-muted);
 	font-style: italic;

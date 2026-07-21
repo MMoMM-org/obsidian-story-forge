@@ -448,7 +448,7 @@ export function profileRow(
  */
 export function taglineLine(container: HTMLElement, text: string): HTMLElement {
 	return asObs(container).createEl("div", {
-		cls: "sf-tagline",
+		cls: "sf-ptagline",
 		text: `"${text}"`,
 	});
 }
