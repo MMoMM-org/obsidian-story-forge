@@ -17,8 +17,10 @@
 import type { App } from "obsidian";
 import type { DataviewApi } from "types/dataview";
 import { EngineRegistry } from "engines/QueryEngine";
+import type { QueryEngine } from "engines/QueryEngine";
 import { DataviewDqlEngine } from "engines/DataviewDqlEngine";
 import { DataviewJsEngine } from "engines/DataviewJsEngine";
+import { BasesFenceEngine } from "engines/BasesFenceEngine";
 
 /**
  * Read the Dataview plugin API from the app's plugin registry.
@@ -67,23 +69,32 @@ export function getDvSettings(app: App): { enableDataviewJs: boolean } {
  * Build the EngineRegistry for the plugin lifecycle.
  *
  * Registers DataviewDqlEngine + DataviewJsEngine only when Dataview is present
- * and version >=0.5.31. Returns an empty registry when Dataview is absent
- * (no crash — callers handle undefined from get()).
+ * and version >=0.5.31. Registers BasesFenceEngine when basesAvailable is true
+ * (the boolean captured once at onload via registerCodexView — ADR-8).
+ *
+ * The second parameter is optional (defaults to false) for backward-compatibility:
+ * existing callers that pass only `app` get no bases engine, no breakage.
  *
  * Called from main.ts:
  *   - once in workspace.onLayoutReady (initial detection)
  *   - again in the "dataview:api-ready" late-join handler (T4.4)
+ *
+ * @param basesAvailable - cached result of registerCodexView (ADR-8); defaults false
  */
-export function buildEngineRegistry(app: App): EngineRegistry {
+export function buildEngineRegistry(app: App, basesAvailable = false): EngineRegistry {
 	const dvApi = getDataviewApi(app);
+	const engines: QueryEngine[] = [];
 
 	if (!dvApi) {
-		console.debug("[StoryForge] Dataview absent or version < 0.5.31 — engine registry empty");
-		return new EngineRegistry([]);
+		console.debug("[StoryForge] Dataview absent or version < 0.5.31 — Dataview engines skipped");
+	} else {
+		engines.push(new DataviewDqlEngine(app));
+		engines.push(new DataviewJsEngine(app));
 	}
 
-	return new EngineRegistry([
-		new DataviewDqlEngine(app),
-		new DataviewJsEngine(app),
-	]);
+	if (basesAvailable) {
+		engines.push(new BasesFenceEngine(app));
+	}
+
+	return new EngineRegistry(engines);
 }

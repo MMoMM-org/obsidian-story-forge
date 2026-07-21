@@ -12,6 +12,7 @@ import { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
+import { registerCodexView } from "bases/BasesAdapter";
 
 /** Last path segment of a source path, with a trailing `.md` stripped. */
 function basenameNoMd(source: string): string {
@@ -83,13 +84,19 @@ export default class StoryForgePlugin extends Plugin {
 			},
 		});
 
+		// ADR-8: capture Bases availability ONCE at onload — before populateRegistry.
+		// registerCodexView registers the "story-forge-codex" Bases view type and
+		// caches the boolean (WeakMap<Plugin, boolean>). Do NOT call per-render or
+		// inside populateRegistry (which runs twice — layout-ready + late-join).
+		const basesAvailable = registerCodexView(this);
+
 		// Populate registry from a freshly-built EngineRegistry.
 		// buildEngineRegistry returns a new EngineRegistry; we extract the
-		// two known engine kinds and pass them into the shared registry.replace().
+		// three known engine kinds and pass them into the shared registry.replace().
 		const populateRegistry = (): void => {
-			const built = buildEngineRegistry(this.app);
+			const built = buildEngineRegistry(this.app, basesAvailable);
 			registry.replace(
-				(["dataview-dql", "dataviewjs"] as const)
+				(["dataview-dql", "dataviewjs", "bases"] as const)
 					.map((k) => built.get(k))
 					.filter((e): e is NonNullable<typeof e> => e !== undefined),
 			);

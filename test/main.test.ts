@@ -16,6 +16,12 @@ import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { StoryForgeData } from "store/types";
 import { EngineRegistry } from "engines/QueryEngine";
 
+// Mock registerCodexView so we can assert call counts + simulate Bases availability
+vi.mock("bases/BasesAdapter", () => ({
+	registerCodexView: vi.fn(() => false),
+	isBasesAvailable: vi.fn(() => false),
+}));
+
 // Dynamically import main after test setup so the mock is in place
 async function makePlugin(): Promise<{
 	plugin: InstanceType<typeof import("main").default>;
@@ -584,5 +590,119 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 		await vi.waitFor(() => {
 			expect(pvAfter.selectedViewId).toBe("v1");
 		}, { timeout: 2000 });
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T2.3: registerCodexView once-ness + basesAvailable threading (ADR-8)
+// ---------------------------------------------------------------------------
+
+describe("StoryForgePlugin T2.3 — Bases availability capture", () => {
+	it("onload calls registerCodexView(plugin) EXACTLY ONCE", async () => {
+		const { registerCodexView } = await import("bases/BasesAdapter");
+		vi.mocked(registerCodexView).mockClear();
+
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+
+		expect(registerCodexView).toHaveBeenCalledTimes(1);
+		expect(registerCodexView).toHaveBeenCalledWith(plugin);
+	});
+
+	it("registerCodexView is NOT called again when the late-join dataview:api-ready fires", async () => {
+		const { registerCodexView } = await import("bases/BasesAdapter");
+		vi.mocked(registerCodexView).mockClear();
+
+		const { plugin, app } = await makePlugin();
+		await plugin.onload();
+		const callsAfterOnload = vi.mocked(registerCodexView).mock.calls.length;
+
+		const mc = app.metadataCache as unknown as { _trigger(event: string): void };
+		mc._trigger("dataview:api-ready");
+
+		expect(vi.mocked(registerCodexView).mock.calls.length).toBe(callsAfterOnload);
+	});
+
+	it("when Bases available, bases engine is in registry after populateRegistry", async () => {
+		const { registerCodexView } = await import("bases/BasesAdapter");
+		// Simulate Bases present
+		vi.mocked(registerCodexView).mockReturnValue(true);
+
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+
+		const factoryCall = plugin.registerView.mock.calls.find(
+			(c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE,
+		);
+		const leaf = new WorkspaceLeaf();
+		const factory = factoryCall![1] as (leaf: WorkspaceLeaf) => import("views/SidebarView").SidebarView;
+		const view = factory(leaf);
+		const tv = view as unknown as { registry: EngineRegistry };
+		expect(tv.registry.get("bases")).toBeDefined();
+		expect(tv.registry.get("bases")?.kind).toBe("bases");
+	});
+
+	it("when Bases unavailable, bases engine is absent from registry", async () => {
+		const { registerCodexView } = await import("bases/BasesAdapter");
+		vi.mocked(registerCodexView).mockReturnValue(false);
+
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+
+		const factoryCall = plugin.registerView.mock.calls.find(
+			(c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE,
+		);
+		const leaf = new WorkspaceLeaf();
+		const factory = factoryCall![1] as (leaf: WorkspaceLeaf) => import("views/SidebarView").SidebarView;
+		const view = factory(leaf);
+		const tv = view as unknown as { registry: EngineRegistry };
+		expect(tv.registry.get("bases")).toBeUndefined();
+	});
+
+	it("late-join handler uses SAME basesAvailable (captured once at onload, not re-captured)", async () => {
+		const { registerCodexView } = await import("bases/BasesAdapter");
+		// First call returns true (onload), any subsequent would return false
+		vi.mocked(registerCodexView).mockReturnValueOnce(true).mockReturnValue(false);
+
+		const { plugin, app } = await makePlugin();
+		await plugin.onload();
+
+		// Fire late-join — must not call registerCodexView again
+		const mc = app.metadataCache as unknown as { _trigger(event: string): void };
+		mc._trigger("dataview:api-ready");
+
+		// Registry still has bases engine (the same captured boolean = true was used)
+		const factoryCall = plugin.registerView.mock.calls.find(
+			(c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE,
+		);
+		const leaf = new WorkspaceLeaf();
+		const factory = factoryCall![1] as (leaf: WorkspaceLeaf) => import("views/SidebarView").SidebarView;
+		const view = factory(leaf);
+		const tv = view as unknown as { registry: EngineRegistry };
+		expect(tv.registry.get("bases")).toBeDefined();
+	});
+
+	it("Dataview registration is unchanged when Bases is available (regression)", async () => {
+		const { registerCodexView } = await import("bases/BasesAdapter");
+		vi.mocked(registerCodexView).mockReturnValue(true);
+
+		const { plugin, app } = await makePlugin();
+		const dvApi = createMockDataviewApi({ satisfies: true });
+		wireDataviewApi(app, dvApi);
+		await plugin.onload();
+
+		const factoryCall = plugin.registerView.mock.calls.find(
+			(c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE,
+		);
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		const factory = factoryCall![1] as (leaf: WorkspaceLeaf) => import("views/SidebarView").SidebarView;
+		const view = factory(leaf);
+		const tv = view as unknown as { registry: EngineRegistry };
+		// Dataview engines still present
+		expect(tv.registry.get("dataview-dql")).toBeDefined();
+		expect(tv.registry.get("dataviewjs")).toBeDefined();
+		// Bases also present
+		expect(tv.registry.get("bases")).toBeDefined();
 	});
 });

@@ -145,12 +145,46 @@ describe("buildEngineRegistry", () => {
 		expect(registry.get("dataviewjs")).toBeUndefined();
 	});
 
-	it("'bases' engine always returns undefined (unwired in M2)", () => {
+	it("'bases' engine is UNDEFINED when basesAvailable is false (default, backward-compat)", () => {
 		const dvApi = createMockDataviewApi({ satisfies: true });
 		wireDataviewApi(app, dvApi);
 
+		// Default second arg = false → no bases engine
 		const registry = buildEngineRegistry(app);
 
+		expect(registry.get("bases")).toBeUndefined();
+	});
+
+	it("registers BasesFenceEngine when basesAvailable is true", () => {
+		const registry = buildEngineRegistry(app, true);
+
+		expect(registry.get("bases")).toBeDefined();
+	});
+
+	it("registered BasesFenceEngine has kind 'bases'", () => {
+		const registry = buildEngineRegistry(app, true);
+
+		expect(registry.get("bases")?.kind).toBe("bases");
+	});
+
+	it("basesAvailable=true does NOT affect Dataview registration (regression)", () => {
+		const dvApi = createMockDataviewApi({ satisfies: true });
+		wireDataviewApi(app, dvApi);
+
+		const registry = buildEngineRegistry(app, true);
+
+		expect(registry.get("dataview-dql")).toBeDefined();
+		expect(registry.get("dataviewjs")).toBeDefined();
+	});
+
+	it("basesAvailable=false with Dataview present — Dataview engines registered, bases absent", () => {
+		const dvApi = createMockDataviewApi({ satisfies: true });
+		wireDataviewApi(app, dvApi);
+
+		const registry = buildEngineRegistry(app, false);
+
+		expect(registry.get("dataview-dql")).toBeDefined();
+		expect(registry.get("dataviewjs")).toBeDefined();
 		expect(registry.get("bases")).toBeUndefined();
 	});
 });
