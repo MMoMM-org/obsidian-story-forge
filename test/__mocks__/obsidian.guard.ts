@@ -52,6 +52,7 @@ import type {
 	Events,
 	Menu,
 	MenuItem,
+	BasesEntry,
 } from "obsidian";
 
 // Import the bodyless mock shape emitted by step 1 of typecheck:mock.
@@ -79,6 +80,7 @@ import type {
 	Events as MockEvents,
 	Menu as MockMenu,
 	MenuItem as MockMenuItem,
+	BasesEntry as MockBasesEntry,
 } from "../../.typecheck-mock-tmp/test/__mocks__/obsidian";
 
 // ---------------------------------------------------------------------------
@@ -233,3 +235,15 @@ const _appOk: AssertNoFiction<MockApp, App> = true;
  */
 const _vaultOk: AssertNoFiction<MockVault, Vault> = true;
 const _metadataCacheOk: AssertNoFiction<MockMetadataCache, MetadataCache> = true;
+
+// ---------------------------------------------------------------------------
+// BasesEntry guard (W3 — production depends on getValue + file)
+//
+// If obsidian.d.ts renames `getValue` or `file` on BasesEntry, typecheck:mock
+// will fail because MockBasesEntry will have a key that doesn't exist on the
+// real BasesEntry.  That forces a mock update, which in turn breaks the keyof
+// pins in basesApiCanary.test.ts (typecheck:test).
+// ---------------------------------------------------------------------------
+
+const _basesEntryOk: AssertNoFiction<MockBasesEntry, BasesEntry> = true;
+void _basesEntryOk;

@@ -42,6 +42,7 @@ import type {
 	BasesView,
 	BasesConfigFile,
 	BasesViewRegistration,
+	BasesEntry,
 } from "obsidian";
 import { Plugin, App } from "../__mocks__/obsidian";
 
@@ -78,6 +79,11 @@ void _bvData; void _bvConfig; void _bvOnDataUpdated; void _bvAllProperties;
 // BasesViewRegistration member pin — factory (used by BasesAdapter.registerCodexView)
 const _bvrFactory: keyof BasesViewRegistration = "factory";
 void _bvrFactory;
+
+// BasesEntry member pins — file, getValue (used by CodexBasesView.mapEntriesToRows)
+const _beFile: keyof BasesEntry = "file";
+const _beGetValue: keyof BasesEntry = "getValue";
+void _beFile; void _beGetValue;
 
 // Plugin.prototype.registerBasesView — structural return-type pin
 // (obsidian.d.ts:5009).  This catches a rename OR a return-type change.

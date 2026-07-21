@@ -1076,8 +1076,7 @@ export class QueryController extends Component {}
 /** Mirrors BasesViewConfig from obsidian.d.ts (since 1.10.0). */
 export class BasesViewConfig {
 	name: string = "";
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	get(_key: string, _defaultValue?: unknown): unknown { return undefined; }
+	get(_key: string): unknown { return undefined; }
 }
 
 // ---------------------------------------------------------------------------
@@ -1098,13 +1097,24 @@ export class BasesEntry {
 	getValue = vi.fn((_propertyId: string): unknown => null);
 }
 
+/**
+ * Stub for BasesEntryGroup (obsidian.d.ts:710 @since 1.10.0).
+ * Shape mirrors obsidian.d.ts: `key?: Value (unknown in mock); entries: BasesEntry[]; hasKey()`.
+ * Value is an abstract class with no testable body — typed as `unknown` here.
+ */
+export class BasesEntryGroup {
+	key?: unknown;
+	entries: BasesEntry[] = [];
+	hasKey(): boolean { return this.key !== undefined; }
+}
+
 /** Minimal stub for BasesQueryResult (obsidian.d.ts:971). */
 export class BasesQueryResult {
 	/** Flat list of result entries (mirrors BasesQueryResult.data). */
 	data: BasesEntry[] = [];
 
 	/** Grouped view of entries (mirrors BasesQueryResult.groupedData getter). */
-	get groupedData(): BasesEntry[] { return []; }
+	get groupedData(): BasesEntryGroup[] { return []; }
 }
 
 /**
