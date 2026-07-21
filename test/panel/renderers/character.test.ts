@@ -37,6 +37,7 @@ function makeDeps(overrides?: Partial<PanelDeps>): PanelDeps {
 		onOpenLink: () => {},
 		collapsed: {},
 		toggleCollapse: () => {},
+		resolveAsset: (src: string) => src,
 		...overrides,
 	};
 }
@@ -598,6 +599,36 @@ describe("renderCharacter: Related section (S32)", () => {
 		renderCharacter(ctx, el, makeDeps());
 
 		expect(el.textContent).toContain("No related locations or lore yet.");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// resolveAsset — portrait path resolution
+// ---------------------------------------------------------------------------
+
+describe("renderCharacter: portrait resolution via deps.resolveAsset", () => {
+	it("renders img.src as the resolved resource URL when portrait is a vault path", () => {
+		const ctx = makeCharCtx({ frontmatter: { portrait: "95 Assets/Mara Stoneway.svg" } });
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps({
+			resolveAsset: (src: string) =>
+				src === "95 Assets/Mara Stoneway.svg" ? "app://vault/fake.svg" : src,
+		}));
+
+		const img = el.querySelector(".sf-portrait img") as HTMLImageElement | null;
+		expect(img?.src).toBe("app://vault/fake.svg");
+	});
+
+	it("renders img.src as the raw external URL when portrait is an https URL (pass-through)", () => {
+		const url = "https://example.com/portrait.png";
+		const ctx = makeCharCtx({ frontmatter: { portrait: url } });
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps({
+			resolveAsset: (src: string) => src,
+		}));
+
+		const img = el.querySelector(".sf-portrait img") as HTMLImageElement | null;
+		expect(img?.src).toBe(url);
 	});
 });
 

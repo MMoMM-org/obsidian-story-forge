@@ -46,12 +46,12 @@ import type { PanelDeps } from "panel/renderPanel";
 export function renderLocation(
 	ctx: NoteContext,
 	el: HTMLElement,
-	_deps: PanelDeps,
+	deps: PanelDeps,
 ): void {
 	const { frontmatter, entities, backlinks } = ctx;
 	const basename = ctx.activeFile.basename;
 
-	renderProfile(el, frontmatter);
+	renderProfile(el, frontmatter, deps);
 	renderFacts(el, frontmatter);
 	renderWithin(el, basename, entities);
 	renderInhabitants(el, entities);
@@ -68,12 +68,13 @@ export function renderLocation(
  * per D5) beside pinfo lead lines. Lead = "locationType · region"; second line
  * = joined aliases (when present).
  */
-function renderProfile(el: HTMLElement, frontmatter: Record<string, unknown>): void {
-	const image =
+function renderProfile(el: HTMLElement, frontmatter: Record<string, unknown>, deps: PanelDeps): void {
+	const rawSrc =
 		typeof frontmatter["image"] === "string" && frontmatter["image"]
 			? frontmatter["image"]
-			: undefined;
-	const tile = kindTileEl("location", image);
+			: "";
+	const resolved = rawSrc ? deps.resolveAsset(rawSrc) : undefined;
+	const tile = kindTileEl("location", resolved || undefined);
 
 	const lines: string[] = [];
 	const lead = [stringifyFieldValue(frontmatter["locationType"]), stringifyFieldValue(frontmatter["region"])]

@@ -39,11 +39,11 @@ import type { PanelDeps } from "panel/renderPanel";
 export function renderObject(
 	ctx: NoteContext,
 	el: HTMLElement,
-	_deps: PanelDeps,
+	deps: PanelDeps,
 ): void {
 	const { frontmatter, entities, backlinks } = ctx;
 
-	renderProfile(el, frontmatter);
+	renderProfile(el, frontmatter, deps);
 	renderFacts(el, frontmatter);
 	renderOwner(el, entities);
 	renderAppearsIn(el, backlinks);
@@ -58,12 +58,13 @@ export function renderObject(
  * per D5) beside pinfo lead lines. Lead = object `kind`; second line = joined
  * aliases (when present).
  */
-function renderProfile(el: HTMLElement, frontmatter: Record<string, unknown>): void {
-	const image =
+function renderProfile(el: HTMLElement, frontmatter: Record<string, unknown>, deps: PanelDeps): void {
+	const rawSrc =
 		typeof frontmatter["image"] === "string" && frontmatter["image"]
 			? frontmatter["image"]
-			: undefined;
-	const tile = kindTileEl("object", image);
+			: "";
+	const resolved = rawSrc ? deps.resolveAsset(rawSrc) : undefined;
+	const tile = kindTileEl("object", resolved || undefined);
 
 	const lines: string[] = [];
 	const kind = stringifyFieldValue(frontmatter["kind"]);

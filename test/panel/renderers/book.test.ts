@@ -33,6 +33,7 @@ function makeDeps(overrides?: Partial<PanelDeps>): PanelDeps {
 		onOpenLink: () => {},
 		collapsed: {},
 		toggleCollapse: () => {},
+		resolveAsset: (src: string) => src,
 		...overrides,
 	};
 }

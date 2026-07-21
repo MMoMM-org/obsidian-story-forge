@@ -76,12 +76,12 @@ const PROFILE_FIELDS: ReadonlySet<string> = new Set([
 export function renderCharacter(
 	ctx: NoteContext,
 	el: HTMLElement,
-	_deps: PanelDeps,
+	deps: PanelDeps,
 ): void {
 	const { frontmatter, entities, backlinks } = ctx;
 	const name = ctx.activeFile.basename;
 
-	renderProfile(el, name, frontmatter);
+	renderProfile(el, name, frontmatter, deps);
 	renderFacts(el, frontmatter);
 	renderFantasy(el, frontmatter);
 	renderRelationships(el, entities);
@@ -103,9 +103,12 @@ function renderProfile(
 	el: HTMLElement,
 	name: string,
 	frontmatter: Record<string, unknown>,
+	deps: PanelDeps,
 ): void {
 	const portrait = frontmatter["portrait"];
-	const image = typeof portrait === "string" && portrait ? portrait : undefined;
+	const rawSrc = typeof portrait === "string" && portrait ? portrait : "";
+	const resolved = deps.resolveAsset(rawSrc);
+	const image = resolved || undefined;
 
 	// Build the portrait tile detached, then hand it to profileRow.
 	const holder = activeDocument.createElement("div");
