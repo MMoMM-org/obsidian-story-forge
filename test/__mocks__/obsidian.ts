@@ -1061,6 +1061,13 @@ export interface BasesConfigFileView {
 }
 
 /**
+ * Mirrors BasesPropertyId from obsidian.d.ts (since 1.10.0).
+ * A branded property identifier: `${BasesPropertyType}.${string}`.
+ * In the mock we use a simpler `string` alias so test code can use plain strings.
+ */
+export type BasesPropertyId = string;
+
+/**
  * Minimal stub for QueryController (extends Component; opaque — no public members in
  * obsidian.d.ts 1.13.1). Used only in BasesViewFactory / BasesView constructor.
  */
@@ -1071,6 +1078,33 @@ export class BasesViewConfig {
 	name: string = "";
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	get(_key: string, _defaultValue?: unknown): unknown { return undefined; }
+}
+
+// ---------------------------------------------------------------------------
+// BasesEntry + BasesQueryResult stubs (obsidian.d.ts:685, 971 @since 1.10.0)
+//
+// Declared before BasesView so BasesView.data can be typed as BasesQueryResult.
+// ---------------------------------------------------------------------------
+
+/**
+ * Stub for BasesEntry (obsidian.d.ts:685 @since 1.10.0).
+ *
+ * Shape mirrors obsidian.d.ts: `file: TFile` + `getValue(propertyId)`.
+ * `getValue` is a vi.fn() spy so tests can stub return values per property.
+ */
+export class BasesEntry {
+	file: TFile = new TFile();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	getValue = vi.fn((_propertyId: string): unknown => null);
+}
+
+/** Minimal stub for BasesQueryResult (obsidian.d.ts:971). */
+export class BasesQueryResult {
+	/** Flat list of result entries (mirrors BasesQueryResult.data). */
+	data: BasesEntry[] = [];
+
+	/** Grouped view of entries (mirrors BasesQueryResult.groupedData getter). */
+	get groupedData(): BasesEntry[] { return []; }
 }
 
 /**
@@ -1091,14 +1125,9 @@ export abstract class BasesView extends Component {
 	allProperties: string[] = [];
 	/**
 	 * Mirrors BasesView.data: BasesQueryResult (obsidian.d.ts:1137).
-	 * The stub is a plain object matching the BasesQueryResult public shape:
-	 *   data: BasesEntry[]  (flat list)
-	 *   groupedData getter  (grouped view)
+	 * Typed as BasesQueryResult so subclass code can read data.data (BasesEntry[]).
 	 */
-	data: { data: unknown[]; readonly groupedData: unknown[] } = {
-		data: [],
-		get groupedData(): unknown[] { return []; },
-	};
+	data: BasesQueryResult = new BasesQueryResult();
 
 	// Constructor is protected in the real API; we must accept a QueryController.
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1107,24 +1136,6 @@ export abstract class BasesView extends Component {
 	}
 
 	abstract onDataUpdated(): void;
-}
-
-// ---------------------------------------------------------------------------
-// BasesQueryResult stub (obsidian.d.ts:971 @since 1.10.0)
-//
-// BasesView.data is typed as BasesQueryResult. This stub mirrors the public
-// shape: `data: BasesEntry[]` (the flat list) and `get groupedData()` (the
-// grouped view). We use `unknown[]` for BasesEntry/BasesEntryGroup since the
-// mock does not need concrete implementations of those opaque classes.
-// ---------------------------------------------------------------------------
-
-/** Minimal stub for BasesQueryResult (obsidian.d.ts:971). */
-export class BasesQueryResult {
-	/** Flat list of result entries (mirrors BasesQueryResult.data). */
-	data: unknown[] = [];
-
-	/** Grouped view of entries (mirrors BasesQueryResult.groupedData getter). */
-	get groupedData(): unknown[] { return []; }
 }
 
 /** Mirrors BasesViewRegistration interface from obsidian.d.ts (since 1.10.0). */
