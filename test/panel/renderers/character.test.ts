@@ -178,7 +178,7 @@ describe("renderCharacter: profile block (S32)", () => {
 		const el = makeContainer();
 		renderCharacter(ctx, el, makeDeps());
 
-		const tagline = el.querySelector(".sf-tagline");
+		const tagline = el.querySelector(".sf-ptagline");
 		expect(tagline?.textContent).toBe(
 			'"A lighthouse apprentice hunts the thief of the harbour light."',
 		);
@@ -189,7 +189,7 @@ describe("renderCharacter: profile block (S32)", () => {
 		const el = makeContainer();
 		renderCharacter(ctx, el, makeDeps());
 
-		expect(el.querySelector(".sf-tagline")).toBeNull();
+		expect(el.querySelector(".sf-ptagline")).toBeNull();
 	});
 });
 

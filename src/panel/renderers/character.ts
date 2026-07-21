@@ -125,8 +125,8 @@ function buildPinfoLines(
 ): Array<string | HTMLElement> {
 	const lines: Array<string | HTMLElement> = [];
 
-	const nickname = str(fm["nickname"]);
-	const role = str(fm["role"]);
+	const nickname = stringifyFieldValue(fm["nickname"]);
+	const role = stringifyFieldValue(fm["role"]);
 	// Lead: **<nickname>** · <role> when nickname present, else <role>.
 	if (nickname) {
 		const leadEl = activeDocument.createElement("span");
@@ -139,17 +139,17 @@ function buildPinfoLines(
 		lines.push(role);
 	}
 
-	const occupation = str(fm["occupation"]);
-	const age = str(fm["age"]);
+	const occupation = stringifyFieldValue(fm["occupation"]);
+	const age = stringifyFieldValue(fm["age"]);
 	pushLine(lines, [occupation, age ? `age ${age}` : ""]);
 
-	const status = str(fm["status"]);
-	const height = str(fm["height"]);
-	const build = str(fm["build"]);
+	const status = stringifyFieldValue(fm["status"]);
+	const height = stringifyFieldValue(fm["height"]);
+	const build = stringifyFieldValue(fm["build"]);
 	pushLine(lines, [status, height ? `${height} cm` : "", build]);
 
-	const eyes = str(fm["eyes"]);
-	const hair = str(fm["hair"]);
+	const eyes = stringifyFieldValue(fm["eyes"]);
+	const hair = stringifyFieldValue(fm["hair"]);
 	pushLine(lines, [eyes ? `${eyes} eyes` : "", hair]);
 
 	// Ensure at least the lead exists so the profile never renders an empty pinfo.
@@ -161,11 +161,6 @@ function buildPinfoLines(
 function pushLine(lines: Array<string | HTMLElement>, parts: string[]): void {
 	const kept = parts.filter((p) => p !== "");
 	if (kept.length > 0) lines.push(kept.join(" · "));
-}
-
-/** Coerce a frontmatter value to a display string ("" when absent). */
-function str(value: unknown): string {
-	return stringifyFieldValue(value);
 }
 
 function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): void {
@@ -181,7 +176,7 @@ function renderFantasy(el: HTMLElement, frontmatter: Record<string, unknown>): v
 
 	const { bodyEl } = section(el, "Fantasy");
 	for (const field of present) {
-		factRow(bodyEl, humanizeFieldLabel(field), str(frontmatter[field]));
+		factRow(bodyEl, humanizeFieldLabel(field), stringifyFieldValue(frontmatter[field]));
 	}
 }
 

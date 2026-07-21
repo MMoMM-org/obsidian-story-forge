@@ -76,19 +76,14 @@ function renderProfile(el: HTMLElement, frontmatter: Record<string, unknown>): v
 	const tile = kindTileEl("location", image);
 
 	const lines: string[] = [];
-	const lead = [str(frontmatter["locationType"]), str(frontmatter["region"])]
+	const lead = [stringifyFieldValue(frontmatter["locationType"]), stringifyFieldValue(frontmatter["region"])]
 		.filter((p) => p !== "")
 		.join(" · ");
 	if (lead) lines.push(lead);
-	const aliases = str(frontmatter["aliases"]);
+	const aliases = stringifyFieldValue(frontmatter["aliases"]);
 	if (aliases) lines.push(aliases);
 
 	profileRow(el, tile, lines);
-}
-
-/** Coerce a frontmatter value to a display string ("" when absent). */
-function str(value: unknown): string {
-	return stringifyFieldValue(value);
 }
 
 function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): void {

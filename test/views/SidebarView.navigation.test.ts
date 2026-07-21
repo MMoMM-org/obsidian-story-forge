@@ -509,6 +509,68 @@ describe("SidebarView: drill-in navigation", () => {
 		expect(pv.subject.file?.path).toBe(to.path);
 		expect(pv.subject.source).toBe("follow");
 	});
+
+	// -----------------------------------------------------------------------
+	// FIX W2: bare-basename fallback via getFirstLinkpathDest
+	// -----------------------------------------------------------------------
+
+	it("bare-basename link resolves via getFirstLinkpathDest when getAbstractFileByPath returns null", () => {
+		const from = makeMdFile("Mara Stoneway");
+		// Target is stored with a bare basename (no folder path) — the kind that
+		// wikilinks stamp in data-sf-link when the file has no known vault path.
+		const to = makeMdFile("Silvan Nightweaver");
+		const bareBasename = "Silvan Nightweaver"; // NOT a full vault path
+
+		// getAbstractFileByPath returns null for the bare name (not a path).
+		app.vault.getAbstractFileByPath = vi.fn(
+			(_p: string): ReturnType<App["vault"]["getAbstractFileByPath"]> => null,
+		);
+		// getFirstLinkpathDest resolves the bare basename to the target TFile.
+		app.metadataCache.getFirstLinkpathDest = vi.fn(
+			(linkpath: string, _sourcePath: string): TFile | null =>
+				linkpath === bareBasename ? to : null,
+		);
+		// metadataCache.getFileCache classifies target as character so drill succeeds.
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		// Render a body element with data-sf-link set to the BARE BASENAME.
+		const body = getBody(view);
+		const linkEl = document.createElement("span");
+		linkEl.setAttribute("data-sf-link", bareBasename);
+		body.appendChild(linkEl);
+
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+			navStack: TFile[];
+		};
+		pv.subject = { file: from, source: "follow" };
+
+		linkEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		// Navigation must have resolved to `to` via the fallback path.
+		expect(pv.subject.file?.path).toBe(to.path);
+		expect(pv.subject.source).toBe("drilled");
+	});
+
+	it("path-based relation links resolve via getAbstractFileByPath (fallback not needed)", () => {
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
+		// This is the normal path: seedResolved stamps the full vault path.
+		seedResolved(from, to);
+
+		// Confirm getAbstractFileByPath is the one that resolves it.
+		const getAbstract = vi.spyOn(app.vault, "getAbstractFileByPath");
+
+		clickLink(view, to.path);
+
+		expect(getAbstract).toHaveBeenCalledWith(to.path);
+		const pv = view as unknown as { subject: { file: TFile | null; source: string } };
+		expect(pv.subject.file?.path).toBe(to.path);
+		expect(pv.subject.source).toBe("drilled");
+	});
 });
 
 // ---------------------------------------------------------------------------

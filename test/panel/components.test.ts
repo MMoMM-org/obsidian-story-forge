@@ -554,9 +554,9 @@ describe("profileRow()", () => {
 // ---------------------------------------------------------------------------
 
 describe("taglineLine()", () => {
-	it("returns an element with class sf-tagline", () => {
+	it("returns an element with class sf-ptagline", () => {
 		const el = taglineLine(makeContainer(), "A quiet hero.");
-		expect(el.classList.contains("sf-tagline")).toBe(true);
+		expect(el.classList.contains("sf-ptagline")).toBe(true);
 	});
 
 	it("wraps the text in straight quotes", () => {
@@ -567,7 +567,7 @@ describe("taglineLine()", () => {
 	it("appends the element to the container", () => {
 		const container = makeContainer();
 		taglineLine(container, "hi");
-		expect(container.querySelector(".sf-tagline")).not.toBeNull();
+		expect(container.querySelector(".sf-ptagline")).not.toBeNull();
 	});
 });
 
