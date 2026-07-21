@@ -38,7 +38,7 @@ Delivers a read-only Bases render engine in the sidebar (F1) and the honest degr
      - [ ] Bases record source read without a dataview fence `[ref: SDD/ADR-5]`
      - [ ] Bases record evaluates consented (declarative) `[ref: PRD/F4 business rules; SDD/ADR-6]`
 
-- [ ] **T2.2 `BasesFenceEngine implements QueryEngine`** `[activity: backend-integration]`
+- [x] **T2.2 `BasesFenceEngine implements QueryEngine`** `[activity: backend-integration]`
 
   1. Prime: Read `[ref: SDD/ADR-1]`, the `DataviewDqlEngine` teardown pattern, and `QueryEngine.ts` (the reserved `bases` slot).
   2. Test: `render(view, ctx, el)` loads an owned `Component` before render, calls `renderBaseFence(...)` with `ctx.activeFile.path` as `sourcePath`, self-unloads on throw; `teardown()` unloads + nulls; a note missing a referenced field renders a blank/omitted cell (tolerated, no error).
