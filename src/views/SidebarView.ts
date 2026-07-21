@@ -98,11 +98,10 @@ export async function activateView(app: App): Promise<void> {
 	// revealLeaf exists well before its @since 1.7.2 (awaitable) form; we don't
 	// depend on the returned promise (reveal is fire-and-forget here), so we call
 	// the version-agnostic synchronous form via `void` and keep minAppVersion at
-	// 1.5.7 (CON-1) rather than bumping the manifest for an unused await.
+	// 1.12.7 (CON-5) rather than bumping the manifest for an unused await.
 	const existing = workspace.getLeavesOfType(SIDEBAR_VIEW_TYPE);
 	const existingLeaf = existing[0];
 	if (existingLeaf) {
-		// eslint-disable-next-line obsidianmd/no-unsupported-api -- see note above; reveal is fire-and-forget, minAppVersion stays 1.5.7 (CON-1)
 		void workspace.revealLeaf(existingLeaf);
 		return;
 	}
@@ -111,7 +110,6 @@ export async function activateView(app: App): Promise<void> {
 	if (!leaf) return;
 
 	await leaf.setViewState({ type: SIDEBAR_VIEW_TYPE, active: true });
-	// eslint-disable-next-line obsidianmd/no-unsupported-api -- see note above; reveal is fire-and-forget, minAppVersion stays 1.5.7 (CON-1)
 	void workspace.revealLeaf(leaf);
 }
 
