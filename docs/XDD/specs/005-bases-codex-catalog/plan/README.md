@@ -128,7 +128,7 @@ Each phase is a separate file. Tasks follow red-green-refactor: **Prime** → **
 > **Tracking Principle**: Track logical units that produce verifiable outcomes. The TDD cycle is the method, not separate tracked items.
 
 - [x] [Phase 0: De-risking prototype gate](phase-0.md)
-- [ ] [Phase 1: Foundation — Bases firewall, feature-detect, manifest bump](phase-1.md)
+- [x] [Phase 1: Foundation — Bases firewall, feature-detect, manifest bump](phase-1.md)
 - [ ] [Phase 2: F1 sidepanel Bases engine + bases source-model + F5 degrade](phase-2.md)
 - [ ] [Phase 3: F2 Codex + showFile seam](phase-3.md)
 - [ ] [Phase 4: F3 overview views + F4 catalog pipeline & install + F7 updates](phase-4.md)

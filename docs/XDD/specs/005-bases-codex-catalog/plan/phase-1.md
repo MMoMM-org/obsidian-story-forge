@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Foundation — Bases firewall, feature-detect, manifest bump"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 1
 ---
@@ -37,7 +37,7 @@ Establishes the Bases anti-corruption layer, the feature-detection primitive, an
      - [ ] `isBasesAvailable` re-reads per call `[ref: SDD/ADR-8]`
      - [ ] All Bases typings confined to `src/bases/` `[ref: SDD/CON-3; ADR-9]`
 
-- [ ] **T1.2 Bases API schema smoke-test canary** `[activity: testing]` `[parallel: true]`
+- [x] **T1.2 Bases API schema smoke-test canary** `[activity: testing]` `[parallel: true]`
 
   1. Prime: Read `[ref: SDD/API-churn firewall]` — the exact members to pin.
   2. Test: assert `Plugin.prototype.registerBasesView` exists and returns `boolean`; `BasesView` exposes `data`/`config`/`onDataUpdated`/`allProperties`; `BasesConfigFile` has `views`/`filters`/`formulas`.
@@ -53,5 +53,5 @@ Establishes the Bases anti-corruption layer, the feature-detection primitive, an
   4. Validate: lint clean; build passes; core panel + Dataview unaffected.
   5. Success: floor is 1.12.7 and no comment claims 1.5.7 `[ref: PRD/AC-F5.4; SDD/ADR-8]`
 
-- [ ] **T1.4 Phase Validation** `[activity: validate]`
+- [x] **T1.4 Phase Validation** `[activity: validate]`
   - Run all Phase 1 tests. `npm test`, `lint`, `typecheck`, `typecheck:test` pass. Verify the firewall boundary (no Bases imports outside `src/bases/`) and that `schema:check` stays green (no schema change).
