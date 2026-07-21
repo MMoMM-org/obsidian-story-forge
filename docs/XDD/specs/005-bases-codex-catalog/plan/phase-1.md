@@ -27,7 +27,7 @@ phase: 1
 
 Establishes the Bases anti-corruption layer, the feature-detection primitive, and the version floor — everything downstream imports Bases only through here.
 
-- [ ] **T1.1 `src/bases/` adapter firewall** `[activity: backend-integration]`
+- [x] **T1.1 `src/bases/` adapter firewall** `[activity: backend-integration]`
 
   1. Prime: Read `[ref: SDD/ADR-9]`, `[ref: SDD/CON-3]`, and `EngineRegistry.getDataviewApi` (the per-render soft-detect + single-file `app as any` pattern to mirror).
   2. Test: `isBasesAvailable(app)` returns the captured `registerBasesView` boolean, re-evaluated per call (never cached); `basesFence.renderBaseFence(app, yaml, el, sourcePath, component)` wraps YAML as a ```base``` fence and calls `MarkdownRenderer.render`; `basesConfig` validates a well-formed `.base` against `BasesConfigFile` and rejects a malformed one.
