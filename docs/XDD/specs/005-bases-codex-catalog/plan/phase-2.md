@@ -50,9 +50,9 @@ Delivers a read-only Bases render engine in the sidebar (F1) and the honest degr
 
 - [ ] **T2.3 Register engine (detect-gated) + re-scope on note change** `[activity: backend-integration]`
 
-  1. Prime: Read `EngineRegistry.buildEngineRegistry`/`populateRegistry` and `main.ts` (`populateRegistry` dataview tuple, `dataview:api-ready` late-join).
-  2. Test: when `isBasesAvailable(app)` is true, `registry.get("bases")` returns the engine; when false, it returns `undefined`; a Bases view-tab re-scopes on active-note change within the debounce window; Dataview and Bases tabs render through their own engines with no cross-engine bleed.
-  3. Implement: register `BasesFenceEngine` in `buildEngineRegistry` gated on the detect; extend `populateRegistry` to include `"bases"`.
+  1. Prime: Read `EngineRegistry.buildEngineRegistry`/`populateRegistry` and `main.ts` (`populateRegistry` dataview tuple, `dataview:api-ready` late-join). Note ADR-8 revision (cache-at-onload): availability is captured once at onload via `registerCodexView(plugin)`, NOT per render.
+  2. Test: when `isBasesAvailable(plugin)` is true (availability captured at onload), `registry.get("bases")` returns the engine; when false, it returns `undefined`; a Bases view-tab re-scopes on active-note change within the debounce window; Dataview and Bases tabs render through their own engines with no cross-engine bleed.
+  3. Implement: wire the single onload availability capture (call `registerCodexView(plugin)` once in `main.ts` onload and cache its boolean — the Codex factory body itself lands in Phase 3); register `BasesFenceEngine` in `buildEngineRegistry` gated on `isBasesAvailable(plugin)`; extend `populateRegistry` to include `"bases"`.
   4. Validate: engine-dispatch traced walkthrough (SDD) holds; no cross-engine bleed test passes.
   5. Success:
      - [ ] Bases tab follows the active note `[ref: PRD/AC-F1.2]`; no cross-engine bleed `[ref: PRD/AC-F1.6]`

@@ -330,8 +330,8 @@ graph LR
 .
 ├── src/
 │   ├── bases/                     # NEW — the ONLY Bases-typings module (CON-3 firewall)
-│   │   ├── BasesAdapter.ts        # NEW: isBasesAvailable(app) (per-render, boolean from registerBasesView);
-│   │   │                          #      registerCodexView(plugin); all BasesView/BasesEntry/BasesConfigFile imports
+│   │   ├── BasesAdapter.ts        # NEW: isBasesAvailable(plugin) (returns availability CACHED at onload — no per-render side effect);
+│   │   │                          #      registerCodexView(plugin) (single onload registerBasesView call, captures the boolean); all BasesView/BasesEntry/BasesConfigFile imports
 │   │   ├── basesFence.ts          # NEW: renderBaseFence(app, yaml, el, sourcePath, component) via MarkdownRenderer.render
 │   │   └── basesConfig.ts         # NEW: typed builders + BasesConfigFile validation for authored .base YAML
 │   ├── engines/
@@ -444,8 +444,8 @@ NEW public method — SidebarView:
     reachability: helper reveals/creates the sidebar leaf first if closed (activateView pattern).
 
 NEW module API — src/bases/BasesAdapter:
-  isBasesAvailable(app: App): boolean         # per-render, from the captured registerBasesView boolean
-  registerCodexView(plugin: Plugin): boolean  # registers the one polymorphic "story-forge-codex" type; returns availability
+  isBasesAvailable(plugin: Plugin): boolean   # returns Bases availability CACHED once at onload (see registerCodexView); NO per-render side effect. (ADR-8 revised — see below)
+  registerCodexView(plugin: Plugin): boolean  # called ONCE at onload; registers the polymorphic "story-forge-codex" type via registerBasesView, captures + caches its boolean return (the availability signal), returns it
 
 NEW QueryEngine — BasesFenceEngine implements QueryEngine:
   readonly kind = "bases"
@@ -556,9 +556,9 @@ export class BasesFenceEngine implements QueryEngine {
 ```
 
 **Traced walkthrough — engine dispatch & degrade (F1/F5):**
-- Registry populated: `isBasesAvailable(app) === true` → `registry.register(new BasesFenceEngine(app))`. `registry.get("bases")` returns the engine → normal render.
-- Bases disabled at runtime: registry rebuilt/populate skips it (per-render detect) → `registry.get("bases") === undefined` → `SidebarView`'s existing `if (!engine)` branch (`:1081`) → `_renderEngineMissing(body,"bases")` (`:1186`) → the repurposed S46 "enable Bases" copy. **No new degrade code.**
-- User re-enables Bases → next note change / tab switch re-detects → engine present again. No reinstall (CON-6).
+- Registry populated at onload: `isBasesAvailable(plugin) === true` (availability captured once at onload) → `registry.register(new BasesFenceEngine(app))`. `registry.get("bases")` returns the engine → normal render.
+- Bases disabled at onload: populate skips it → `registry.get("bases") === undefined` → `SidebarView`'s existing `if (!engine)` branch (`:1081`) → `_renderEngineMissing(body,"bases")` (`:1186`) → the repurposed S46 "enable Bases" copy. **No new degrade code.**
+- **Runtime toggle (ADR-8 revised, cache-at-onload):** enabling/disabling Bases *after* load is **not** re-detected per render (the availability boolean is captured once at onload — `registerBasesView` is a side-effectful registration and must not be called per render). Recovery after enabling Bases requires a **plugin reload**. (If Bases was enabled at onload and the user disables it mid-session, the fence renders its raw ```base``` YAML as an inert code block per the Phase 0 finding — no crash — rather than the S46 degrade panel.) No reinstall (CON-6).
 
 #### Example: Codex row → panel re-subject (F2, the showFile seam)
 
@@ -827,9 +827,10 @@ All decisions confirmed 2026-07-21 (Agent Team research synthesis + user calls; 
   - User confirmed: **Yes** (open question 6).
 
 - [x] **ADR-8 Bases feature-detection via the `registerBasesView` boolean, degrade via the existing S11 path, `minAppVersion` → 1.12.7.**
-  - Rationale: `internalPlugins` is untyped and `plugins.plugins["bases"]` is the wrong namespace; the boolean is the honest public signal. Re-read per render (mirrors `getDataviewApi`). Degrade reuses `_renderEngineMissing` (repurpose the stale "Engine coming in M4" `bases` copy → S46).
-  - Trade-offs: no "bases enabled" event exists → recovery is render-triggered only (must not promise event-driven recovery); the stale "1.5.7" eslint-disable justifications in `main.ts`/`SidebarView.ts` become inaccurate and should be revisited.
+  - Rationale: `internalPlugins` is untyped and `plugins.plugins["bases"]` is the wrong namespace; the boolean is the honest public signal. Degrade reuses `_renderEngineMissing` (repurpose the stale "Engine coming in M4" `bases` copy → S46).
+  - Trade-offs: no "bases enabled" event exists → recovery is reload-triggered (must not promise event-driven recovery); the stale "1.5.7" eslint-disable justifications in `main.ts`/`SidebarView.ts` become inaccurate and should be revisited.
   - User confirmed: **Yes** (PRD F5; CON-5/CON-6).
+  - **REVISED during Phase 1 impl (2026-07-21, user decision):** the boolean is captured **once at onload and cached** — NOT "re-read per render." `registerBasesView` is a *side-effectful registration* (it registers a persistent view type; the Phase 0 report warned "call inside onload only"), so calling it per render would register a junk probe view type and bypass the plugin's registration lifecycle. New contract: `registerCodexView(plugin)` runs once at onload and its boolean return is cached; `isBasesAvailable(plugin)` returns that cached value with no side effect. **Consequence:** a runtime enable/disable of core Bases is detected only on the next plugin reload, not per render (weaker F5 runtime-recovery than originally worded above; the traced walkthrough is updated to match). User chose this ("call once at onload, cache") over a side-effect-free `internalPlugins` probe.
 
 - [x] **ADR-9 API-churn firewall = single `src/bases/` module + build-time `.base` validation + schema smoke test.**
   - Rationale: discharges ADR-0001's accepted churn risk; mirrors the existing single-file Dataview cast firewall and the `schema:check` build gate.

@@ -67,6 +67,12 @@ Resolved from the installed **obsidian 1.13.1** typings + official Obsidian docs
 
 Runtime caveats carried forward (not blockers): actual leak-free teardown and fence interactivity remain empirically unverified — the optional throwaway harness (`src/_spike/basesSpike.ts` + a dev command in `main.ts`) can confirm them later if desired. No production code should assume interactivity or mobile Bases support.
 
+### Phase 1 deviation — ADR-8 detect: cache-at-onload, not per-render (2026-07-21, user decision)
+
+During T1.1 review a correctness bug surfaced: the first implementation made `isBasesAvailable` *call* `registerBasesView` on every render as a "probe." `registerBasesView` is a **side-effectful registration** (registers a persistent view type; the Phase 0 report explicitly said "call inside onload only"), so a per-render call registers a junk probe view type and bypasses the plugin registration lifecycle — and the hand-rolled mock hid it (its `registerBasesView` was a pure boolean → falsely green tests).
+
+**Resolution (user chose "call once at onload, cache" over a side-effect-free `internalPlugins` probe):** `registerCodexView(plugin)` runs once at onload and its boolean return is cached (plugin-scoped); `isBasesAvailable(plugin)` returns that cached value with no side effect. **Consequence:** runtime enable/disable of core Bases is re-detected only on plugin reload, not per render — the SDD ADR-8 note + F1/F5 traced walkthrough are updated to match; downstream must not promise event-driven runtime recovery. Signature corrected `app: App` → `plugin: Plugin` (the API lives on `Plugin`). Also fixed a mock faithfulness bug (`BasesView` result field `entries` → real name `data`).
+
 ## Metadata Reference
 - `[parallel: true]` — tasks that can run concurrently
 - `[ref: document/section]` — links to PRD/SDD/ADR

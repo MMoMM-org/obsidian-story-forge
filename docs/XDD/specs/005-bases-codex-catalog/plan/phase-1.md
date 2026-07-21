@@ -45,7 +45,7 @@ Establishes the Bases anti-corruption layer, the feature-detection primitive, an
   4. Validate: test passes against pinned `obsidian.d.ts` 1.13.1; would fail loudly on a member rename.
   5. Success: canary breaks on a Bases-API-shape regression, not at runtime `[ref: SDD/ADR-9]`
 
-- [ ] **T1.3 `minAppVersion` bump + stale-guard cleanup** `[activity: config]` `[parallel: true]`
+- [x] **T1.3 `minAppVersion` bump + stale-guard cleanup** `[activity: config]` `[parallel: true]`
 
   1. Prime: Read `[ref: SDD/CON-5]`, `[ref: SDD/Technical Debt]` (the "1.5.7" eslint-disable comments in `main.ts`/`SidebarView.ts`).
   2. Test: `manifest.json minAppVersion === "1.12.7"`; the previously-guarded APIs are now unconditionally in-range.
