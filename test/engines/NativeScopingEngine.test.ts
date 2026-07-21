@@ -293,6 +293,11 @@ describe("NativeScopingEngine", () => {
 			expect(deps.resolveAsset("")).toBe("");
 		});
 
+		it("returns empty string when src is whitespace-only", async () => {
+			const deps = await buildDeps();
+			expect(deps.resolveAsset("  ")).toBe("");
+		});
+
 		it("passes through https:// URLs unchanged", async () => {
 			const deps = await buildDeps();
 			expect(deps.resolveAsset("https://example.com/img.png")).toBe("https://example.com/img.png");
@@ -327,6 +332,11 @@ describe("NativeScopingEngine", () => {
 			const deps = await buildDeps();
 			const result = deps.resolveAsset("95 Assets/portrait.svg");
 			expect(result).toBe("app://vault/95 Assets/portrait.svg");
+
+			// Prove the FIRST branch (getAbstractFileByPath → TFile) was taken and
+			// the wikilink fallback was never reached (guards the early return).
+			expect(vi.mocked(app.vault.getAbstractFileByPath)).toHaveBeenCalledWith("95 Assets/portrait.svg");
+			expect(vi.mocked(app.metadataCache.getFirstLinkpathDest)).not.toHaveBeenCalled();
 		});
 
 		it("returns getResourcePath result for a path resolved via getFirstLinkpathDest", async () => {

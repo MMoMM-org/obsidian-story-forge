@@ -83,7 +83,7 @@ export class NativeScopingEngine implements QueryEngine {
 				this._reRender(el, ctx);
 			},
 			resolveAsset: (src: string): string => {
-				if (!src) return "";
+				if (!src.trim()) return "";
 				if (/^(https?:|data:|app:|blob:)/.test(src)) return src;
 
 				// Try direct vault path first
