@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { App, WorkspaceLeaf, TFile, augmentEl } from "obsidian";
+import { App, WorkspaceLeaf, TFile, augmentEl, Platform } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { StubContextTab } from "views/StubContextTab";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
@@ -530,5 +530,156 @@ describe("StubContextTab", () => {
 		tab.render(ctx, container);
 
 		expect(container.querySelector(".sf-appears")).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T2.4 — S46 Bases-off degrade: _renderEngineMissing bases branch
+// ---------------------------------------------------------------------------
+
+describe("SidebarView: _renderEngineMissing bases branch (S46 degrade)", () => {
+	let app: App;
+	let leaf: WorkspaceLeaf;
+	let view: SidebarView;
+
+	beforeEach(async () => {
+		app = makeApp();
+		leaf = makeOwnLeaf(app);
+		view = new SidebarView(leaf);
+		await view.onOpen();
+		(Platform as { isMobile: boolean }).isMobile = false;
+	});
+
+	afterEach(async () => {
+		await view.onClose();
+		(Platform as { isMobile: boolean }).isMobile = false;
+	});
+
+	function renderBasesMissing(): HTMLElement {
+		const body = getBody(view);
+		const privateView = view as unknown as {
+			_renderEngineMissing(body: HTMLElement, kind: string): void;
+		};
+		body.innerHTML = "";
+		privateView._renderEngineMissing(body as HTMLElement, "bases");
+		return body;
+	}
+
+	// -----------------------------------------------------------------------
+	// Structure: outer wrapper classes are preserved
+	// -----------------------------------------------------------------------
+
+	it("S46 bases-off: wrapper has sf-engine-missing and sf-empty classes", () => {
+		const body = renderBasesMissing();
+		const wrapper = body.querySelector(".sf-engine-missing.sf-empty");
+		expect(wrapper).not.toBeNull();
+	});
+
+	// -----------------------------------------------------------------------
+	// Old copy is GONE
+	// -----------------------------------------------------------------------
+
+	it("S46 bases-off: does NOT contain 'Engine coming in M4'", () => {
+		const body = renderBasesMissing();
+		expect(body.textContent).not.toContain("Engine coming in M4");
+	});
+
+	it("S46 bases-off: does NOT contain 'The Bases engine is not yet available.'", () => {
+		const body = renderBasesMissing();
+		expect(body.textContent).not.toContain("The Bases engine is not yet available.");
+	});
+
+	// -----------------------------------------------------------------------
+	// Desktop copy: warn lead + why text
+	// -----------------------------------------------------------------------
+
+	it("S46 bases-off desktop: lead reads '⚙ Bases is off — showing a simple list'", () => {
+		const body = renderBasesMissing();
+		const lead = body.querySelector(".sf-empty-lead");
+		expect(lead).not.toBeNull();
+		expect(lead?.textContent).toBe("⚙ Bases is off — showing a simple list");
+	});
+
+	it("S46 bases-off desktop: body contains explanation about core Bases plugin", () => {
+		const body = renderBasesMissing();
+		expect(body.textContent).toContain("Bases plugin");
+	});
+
+	it("S46 bases-off desktop: body mentions sorting/filtering unavailability", () => {
+		const body = renderBasesMissing();
+		const bodyText = body.textContent ?? "";
+		expect(
+			bodyText.includes("Sorting") ||
+			bodyText.includes("sorting") ||
+			bodyText.includes("Filtering") ||
+			bodyText.includes("filtering") ||
+			bodyText.includes("unavailable") ||
+			bodyText.includes("not available"),
+		).toBe(true);
+	});
+
+	// -----------------------------------------------------------------------
+	// Desktop: Enable Bases button is present
+	// -----------------------------------------------------------------------
+
+	it("S46 bases-off desktop: renders an 'Enable Bases' button", () => {
+		const body = renderBasesMissing();
+		const btn = body.querySelector("button");
+		expect(btn).not.toBeNull();
+		expect(btn?.textContent).toContain("Enable Bases");
+	});
+
+	// -----------------------------------------------------------------------
+	// Mobile: different lead, no Enable Bases button
+	// -----------------------------------------------------------------------
+
+	it("S46 bases-off mobile: lead reads '⚙ Bases isn't available on this device'", () => {
+		(Platform as { isMobile: boolean }).isMobile = true;
+		const body = renderBasesMissing();
+		const lead = body.querySelector(".sf-empty-lead");
+		expect(lead?.textContent).toBe("⚙ Bases isn't available on this device");
+	});
+
+	it("S46 bases-off mobile: Enable Bases button is omitted", () => {
+		(Platform as { isMobile: boolean }).isMobile = true;
+		const body = renderBasesMissing();
+		const btn = body.querySelector("button");
+		expect(btn).toBeNull();
+	});
+
+	// -----------------------------------------------------------------------
+	// Regression: dataview branches are unchanged
+	// -----------------------------------------------------------------------
+
+	it("S46 regression: dataview-dql branch still renders 'Dataview not installed' lead", () => {
+		const body = getBody(view);
+		body.innerHTML = "";
+		const privateView = view as unknown as {
+			_renderEngineMissing(body: HTMLElement, kind: string): void;
+		};
+		privateView._renderEngineMissing(body as HTMLElement, "dataview-dql");
+		const lead = body.querySelector(".sf-empty-lead");
+		expect(lead?.textContent).toBe("Dataview not installed");
+	});
+
+	it("S46 regression: dataviewjs branch still renders 'Dataview not installed' lead", () => {
+		const body = getBody(view);
+		body.innerHTML = "";
+		const privateView = view as unknown as {
+			_renderEngineMissing(body: HTMLElement, kind: string): void;
+		};
+		privateView._renderEngineMissing(body as HTMLElement, "dataviewjs");
+		const lead = body.querySelector(".sf-empty-lead");
+		expect(lead?.textContent).toBe("Dataview not installed");
+	});
+
+	it("S46 regression: dataview branch does NOT show 'Bases is off'", () => {
+		const body = getBody(view);
+		body.innerHTML = "";
+		const privateView = view as unknown as {
+			_renderEngineMissing(body: HTMLElement, kind: string): void;
+		};
+		privateView._renderEngineMissing(body as HTMLElement, "dataview-dql");
+		expect(body.textContent).not.toContain("Bases is off");
 	});
 });

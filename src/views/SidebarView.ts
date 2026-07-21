@@ -17,6 +17,7 @@
 import {
 	ItemView,
 	MarkdownView,
+	Platform,
 	TFile,
 	type WorkspaceLeaf,
 	type App,
@@ -1179,14 +1180,37 @@ export class SidebarView extends ItemView {
 	/**
 	 * S11 — Engine missing or platform restriction.
 	 * Matches kind-specific copy: dataview-* shows "Dataview not installed";
-	 * "bases" shows "engine coming in M4" hint.
+	 * "bases" shows the S46 warn+point degrade (ADR-8, F5).
 	 */
 	private _renderEngineMissing(body: AugEl, kind: ViewRecord["engine"]): void {
 		const empty = body.createDiv({ cls: "sf-engine-missing sf-empty" });
 		empty.createDiv({ cls: "sf-empty-ic", text: "⚙" });
 		if (kind === "bases") {
-			empty.createDiv({ cls: "sf-empty-lead", text: "Engine coming in M4" });
-			empty.createDiv({ text: "The Bases engine is not yet available." });
+			if (Platform.isMobile) {
+				// Mobile: core Bases can't be toggled from mobile — omit the Enable button.
+				empty.createDiv({ cls: "sf-empty-lead", text: "⚙ Bases isn't available on this device" });
+				empty.createDiv({
+					text: "The full grid needs the core Bases plugin, which is not available on mobile. Falling back to a read-only list from metadata.",
+				});
+			} else {
+				// Desktop: warn + point the user at enabling Bases (ADR-8: no internalPlugins).
+				empty.createDiv({ cls: "sf-empty-lead", text: "⚙ Bases is off — showing a simple list" });
+				empty.createDiv({
+					text: "The full grid needs the core Bases plugin (Obsidian 1.12.7+). Sorting, filtering, and columns are unavailable. Falling back to a read-only list from metadata.",
+				});
+				// "Enable Bases" affordance: opens Obsidian settings so the user can toggle
+				// core Bases themselves. app.setting is not part of the public obsidian.d.ts
+				// API — accessed via optional chaining so it degrades silently on older
+				// Obsidian versions or mocked environments (ADR-8: no internalPlugins).
+				const btn = activeDocument.createElement("button");
+				btn.className = "sf-btn";
+				// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Enable Bases" is an action label for a proper noun
+				btn.textContent = "Enable Bases";
+				btn.addEventListener("click", () => {
+					(this.app as unknown as { setting?: { open?: () => void } }).setting?.open?.();
+				});
+				aug(empty).appendChild(btn);
+			}
 		} else {
 			empty.createDiv({ cls: "sf-empty-lead", text: "Dataview not installed" });
 			empty.createDiv({ text: "This view requires the Dataview community plugin." });
