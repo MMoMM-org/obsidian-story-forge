@@ -19,11 +19,12 @@
  *  - teardown(): safe to call before any render (no-op)
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { augmentEl, createMockTFile, App } from "../__mocks__/obsidian";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { NoteContext, ResolvedEntity, EntityKind } from "scoping/NoteContext";
 import type { ViewRecord } from "store/types";
+import type { TFile } from "obsidian";
 
 function makeEl(): HTMLElement {
 	return augmentEl(document.createElement("div"));
@@ -273,5 +274,79 @@ describe("NativeScopingEngine", () => {
 
 		// el2 should render character panel content
 		expect(el2.textContent).toContain("Relationships");
+	});
+
+	// ---------------------------------------------------------------------------
+	// resolveAsset — vault-path resolution
+	// ---------------------------------------------------------------------------
+
+	describe("resolveAsset", () => {
+		async function buildDeps(): Promise<{ resolveAsset: (src: string) => string }> {
+			const ctx = makeCtx("scene");
+			await engine.render(null, ctx, el);
+			const deps = engine._lastDeps!;
+			return deps as unknown as { resolveAsset: (src: string) => string };
+		}
+
+		it("returns empty string when src is empty", async () => {
+			const deps = await buildDeps();
+			expect(deps.resolveAsset("")).toBe("");
+		});
+
+		it("passes through https:// URLs unchanged", async () => {
+			const deps = await buildDeps();
+			expect(deps.resolveAsset("https://example.com/img.png")).toBe("https://example.com/img.png");
+		});
+
+		it("passes through http:// URLs unchanged", async () => {
+			const deps = await buildDeps();
+			expect(deps.resolveAsset("http://example.com/img.png")).toBe("http://example.com/img.png");
+		});
+
+		it("passes through data: URLs unchanged", async () => {
+			const deps = await buildDeps();
+			const dataUrl = "data:image/png;base64,abc123";
+			expect(deps.resolveAsset(dataUrl)).toBe(dataUrl);
+		});
+
+		it("passes through app: URLs unchanged", async () => {
+			const deps = await buildDeps();
+			expect(deps.resolveAsset("app://vault/some/path.png")).toBe("app://vault/some/path.png");
+		});
+
+		it("passes through blob: URLs unchanged", async () => {
+			const deps = await buildDeps();
+			expect(deps.resolveAsset("blob:http://localhost/uuid")).toBe("blob:http://localhost/uuid");
+		});
+
+		it("returns getResourcePath result for a vault path resolved via getAbstractFileByPath", async () => {
+			const fakeFile = createMockTFile({ path: "95 Assets/portrait.svg", basename: "portrait" });
+			vi.mocked(app.vault.getAbstractFileByPath).mockReturnValueOnce(fakeFile as unknown as ReturnType<typeof app.vault.getAbstractFileByPath>);
+			vi.mocked(app.vault.getResourcePath).mockReturnValueOnce("app://vault/95 Assets/portrait.svg");
+
+			const deps = await buildDeps();
+			const result = deps.resolveAsset("95 Assets/portrait.svg");
+			expect(result).toBe("app://vault/95 Assets/portrait.svg");
+		});
+
+		it("returns getResourcePath result for a path resolved via getFirstLinkpathDest", async () => {
+			vi.mocked(app.vault.getAbstractFileByPath).mockReturnValueOnce(null);
+			const fakeFile = createMockTFile({ path: "95 Assets/portrait.svg", basename: "portrait" });
+			vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValueOnce(fakeFile as unknown as TFile);
+			vi.mocked(app.vault.getResourcePath).mockReturnValueOnce("app://vault/95 Assets/portrait.svg");
+
+			const deps = await buildDeps();
+			const result = deps.resolveAsset("95 Assets/portrait.svg");
+			expect(result).toBe("app://vault/95 Assets/portrait.svg");
+		});
+
+		it("returns src unchanged when vault path cannot be resolved", async () => {
+			vi.mocked(app.vault.getAbstractFileByPath).mockReturnValueOnce(null);
+			vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValueOnce(null);
+
+			const deps = await buildDeps();
+			const result = deps.resolveAsset("95 Assets/missing.svg");
+			expect(result).toBe("95 Assets/missing.svg");
+		});
 	});
 });

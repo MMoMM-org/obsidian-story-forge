@@ -35,6 +35,7 @@ function makeDeps(overrides?: Partial<PanelDeps>): PanelDeps {
 		onOpenLink: () => {},
 		collapsed: {},
 		toggleCollapse: () => {},
+		resolveAsset: (src: string) => src,
 		...overrides,
 	};
 }
@@ -121,6 +122,30 @@ describe("renderLocation: profile tile (D5 kind-glyph placeholder)", () => {
 
 		const lines = [...el.querySelectorAll(".sf-pinfo-line")].map((l) => l.textContent);
 		expect(lines).toContain("the lighthouse");
+	});
+
+	it("renders img.src as the resolved resource URL when image is a vault path", () => {
+		const ctx = makeLocCtx({ frontmatter: { image: "95 Assets/Moonharbor Lighthouse.svg" } });
+		const el = makeContainer();
+		renderLocation(ctx, el, makeDeps({
+			resolveAsset: (src: string) =>
+				src === "95 Assets/Moonharbor Lighthouse.svg" ? "app://vault/fake.svg" : src,
+		}));
+
+		const img = el.querySelector(".sf-imgtile img") as HTMLImageElement | null;
+		expect(img?.src).toBe("app://vault/fake.svg");
+	});
+
+	it("renders img.src as the raw external URL when image is an https URL", () => {
+		const url = "https://example.com/lighthouse.png";
+		const ctx = makeLocCtx({ frontmatter: { image: url } });
+		const el = makeContainer();
+		renderLocation(ctx, el, makeDeps({
+			resolveAsset: (src: string) => src,
+		}));
+
+		const img = el.querySelector(".sf-imgtile img") as HTMLImageElement | null;
+		expect(img?.src).toBe(url);
 	});
 });
 
