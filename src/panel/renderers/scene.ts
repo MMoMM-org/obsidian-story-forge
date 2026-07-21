@@ -25,6 +25,8 @@ import {
 	linkRow,
 	emptyLine,
 	unresolvedEl,
+	humanizeFieldLabel,
+	factValueEl,
 } from "panel/components";
 import { kindFields } from "panel/kindFields";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
@@ -65,9 +67,10 @@ function renderSubtitle(el: HTMLElement, frontmatter: Record<string, unknown>): 
 	const subtitle = frontmatter["subtitle"];
 	if (typeof subtitle !== "string" || !subtitle) return;
 
+	// Wrap in straight quotes (mockup S39 shows `"Mara finds the lens gone cold."`).
 	const subtitleEl = activeDocument.createElement("div");
 	subtitleEl.className = "sf-subtitle";
-	subtitleEl.textContent = subtitle;
+	subtitleEl.textContent = `"${subtitle}"`;
 	el.appendChild(subtitleEl);
 }
 
@@ -86,9 +89,7 @@ function renderFacts(
 	const { bodyEl } = section(el, "Facts");
 
 	for (const field of presentFacts) {
-		const value = frontmatter[field];
-		const display = Array.isArray(value) ? value.join(", ") : String(value);
-		factRow(bodyEl, field, display);
+		factRow(bodyEl, humanizeFieldLabel(field), factValueEl(frontmatter[field]));
 	}
 
 	for (const e of bookEntities) {

@@ -18,6 +18,8 @@
  * @ref SDD/ADR-2 (pure DOM components; deps injected)
  */
 
+declare const activeDocument: Document;
+
 import {
 	section,
 	factRow,
@@ -25,6 +27,10 @@ import {
 	linkRow,
 	emptyLine,
 	portraitTile,
+	profileRow,
+	taglineLine,
+	humanizeFieldLabel,
+	stringifyFieldValue,
 	unresolvedEl,
 	stampLinkEl,
 } from "panel/components";
@@ -46,10 +52,15 @@ const FANTASY_FIELDS: ReadonlyArray<string> = [
 	"armor",
 ];
 
-/** Display label overrides for relation fields. */
-const RELATION_LABELS: Record<string, string> = {
-	significant_other: "partner",
-};
+/**
+ * Character fact fields surfaced in the profile block (mockup S32), NOT in the
+ * Facts section. The Facts section keeps only the remaining fields (aliases,
+ * distinctive_features, first_appearance).
+ */
+const PROFILE_FIELDS: ReadonlySet<string> = new Set([
+	"nickname", "role", "occupation", "age",
+	"status", "height", "build", "eyes", "hair", "tagline",
+]);
 
 // ---------------------------------------------------------------------------
 // renderCharacter
@@ -70,7 +81,7 @@ export function renderCharacter(
 	const { frontmatter, entities, backlinks } = ctx;
 	const name = ctx.activeFile.basename;
 
-	renderPortrait(el, name, frontmatter);
+	renderProfile(el, name, frontmatter);
 	renderFacts(el, frontmatter);
 	renderFantasy(el, frontmatter);
 	renderRelationships(el, entities);
@@ -83,18 +94,85 @@ export function renderCharacter(
 // Section renderers (each under 20 lines, single responsibility)
 // ---------------------------------------------------------------------------
 
-function renderPortrait(
+/**
+ * Render the profile block (mockup S32): a portrait tile beside stacked pinfo
+ * stat lines, then an optional tagline. Portrait uses the `portrait` image or
+ * a monogram (existing portraitTile behaviour).
+ */
+function renderProfile(
 	el: HTMLElement,
 	name: string,
 	frontmatter: Record<string, unknown>,
 ): void {
 	const portrait = frontmatter["portrait"];
 	const image = typeof portrait === "string" && portrait ? portrait : undefined;
-	portraitTile(el, name, image);
+
+	// Build the portrait tile detached, then hand it to profileRow.
+	const holder = activeDocument.createElement("div");
+	const tile = portraitTile(holder, name, image);
+
+	profileRow(el, tile, buildPinfoLines(frontmatter));
+
+	const tagline = frontmatter["tagline"];
+	if (typeof tagline === "string" && tagline) {
+		taglineLine(el, tagline);
+	}
+}
+
+/** Compose the pinfo stat lines from frontmatter, skipping all-empty lines. */
+function buildPinfoLines(
+	fm: Record<string, unknown>,
+): Array<string | HTMLElement> {
+	const lines: Array<string | HTMLElement> = [];
+
+	const nickname = str(fm["nickname"]);
+	const role = str(fm["role"]);
+	// Lead: **<nickname>** · <role> when nickname present, else <role>.
+	if (nickname) {
+		const leadEl = activeDocument.createElement("span");
+		const b = activeDocument.createElement("b");
+		b.textContent = nickname;
+		leadEl.appendChild(b);
+		if (role) leadEl.appendChild(activeDocument.createTextNode(` · ${role}`));
+		lines.push(leadEl);
+	} else if (role) {
+		lines.push(role);
+	}
+
+	const occupation = str(fm["occupation"]);
+	const age = str(fm["age"]);
+	pushLine(lines, [occupation, age ? `age ${age}` : ""]);
+
+	const status = str(fm["status"]);
+	const height = str(fm["height"]);
+	const build = str(fm["build"]);
+	pushLine(lines, [status, height ? `${height} cm` : "", build]);
+
+	const eyes = str(fm["eyes"]);
+	const hair = str(fm["hair"]);
+	pushLine(lines, [eyes ? `${eyes} eyes` : "", hair]);
+
+	// Ensure at least the lead exists so the profile never renders an empty pinfo.
+	if (lines.length === 0 && role) lines.push(role);
+	return lines;
+}
+
+/** Join non-empty parts with " · " and push as a line; skip when all empty. */
+function pushLine(lines: Array<string | HTMLElement>, parts: string[]): void {
+	const kept = parts.filter((p) => p !== "");
+	if (kept.length > 0) lines.push(kept.join(" · "));
+}
+
+/** Coerce a frontmatter value to a display string ("" when absent). */
+function str(value: unknown): string {
+	return stringifyFieldValue(value);
 }
 
 function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): void {
-	renderFactsSection(el, kindFields("character").facts, frontmatter);
+	// Profile-consumed fields (nickname/role/stats/tagline) are shown in the
+	// profile block, not the Facts section (mockup S32).
+	const facts = kindFields("character").facts.filter((f) => !PROFILE_FIELDS.has(f));
+	renderFactsSection(el, facts, frontmatter);
 }
 
 function renderFantasy(el: HTMLElement, frontmatter: Record<string, unknown>): void {
@@ -103,7 +181,7 @@ function renderFantasy(el: HTMLElement, frontmatter: Record<string, unknown>): v
 
 	const { bodyEl } = section(el, "Fantasy");
 	for (const field of present) {
-		factRow(bodyEl, field, String(frontmatter[field]));
+		factRow(bodyEl, humanizeFieldLabel(field), str(frontmatter[field]));
 	}
 }
 
@@ -130,7 +208,7 @@ function renderRelationships(el: HTMLElement, entities: ResolvedEntity[]): void 
 	}
 
 	for (const field of orderedFields) {
-		const label = RELATION_LABELS[field] ?? field;
+		const label = humanizeFieldLabel(field);
 		const resolved = byField[field] ?? [];
 		const unresolved = unresolvedByField[field] ?? [];
 		const linkEls = buildRelationLinkEls(resolved, unresolved);

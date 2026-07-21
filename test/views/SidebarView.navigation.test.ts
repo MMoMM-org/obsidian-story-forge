@@ -211,9 +211,10 @@ describe("SidebarView: drill-in navigation", () => {
 		seedResolved(from, to);
 		clickLink(view, to.path);
 
-		// Back control present (S41)
-		const back = getBody(view).querySelector('[data-sf-nav="back"]') as HTMLElement | null;
+		// Back control present in the header (S41 — moved out of the body).
+		const back = view.contentEl.querySelector('.sf-chead [data-sf-nav="back"]') as HTMLElement | null;
 		expect(back).not.toBeNull();
+		expect(back!.classList.contains("sf-hidden")).toBe(false);
 
 		// Pop
 		const evt = new MouseEvent("click", { bubbles: true });
@@ -452,8 +453,8 @@ describe("SidebarView: drill-in navigation", () => {
 		expect(pv.navStack.map((f) => f.path)).toEqual([fileA.path, fileB.path]);
 		expect(pv.subject.file?.path).toBe(fileC.path);
 
-		// Back once: pops C → B, stack = [A], still drilled
-		const backBtn1 = getBody(view).querySelector('[data-sf-nav="back"]') as HTMLElement;
+		// Back once: pops C → B, stack = [A], still drilled (Back lives in header now).
+		const backBtn1 = view.contentEl.querySelector('.sf-chead [data-sf-nav="back"]') as HTMLElement;
 		backBtn1.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
 		expect(pv.navStack.length).toBe(1);
@@ -461,7 +462,7 @@ describe("SidebarView: drill-in navigation", () => {
 		expect(pv.subject.source).toBe("drilled");
 
 		// Back twice: pops B → A, stack = [], follow resumes
-		const backBtn2 = getBody(view).querySelector('[data-sf-nav="back"]') as HTMLElement;
+		const backBtn2 = view.contentEl.querySelector('.sf-chead [data-sf-nav="back"]') as HTMLElement;
 		backBtn2.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
 		expect(pv.navStack.length).toBe(0);
@@ -564,6 +565,192 @@ describe("SidebarView: nav-stack lifecycle & leak teardown", () => {
 		const after = (view as unknown as { subject: { file: TFile | null } }).subject.file;
 
 		expect(after).toBe(before);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Fix #8/#9: header Back control + drill trail + pin preserves Back
+// ---------------------------------------------------------------------------
+
+describe("SidebarView: header Back + drill trail (S41)", () => {
+	let app: App;
+	let leaf: WorkspaceLeaf;
+	let native: NativeScopingEngine;
+	let view: SidebarView;
+
+	beforeEach(async () => {
+		app = makeApp();
+		leaf = makeOwnLeaf(app);
+		native = new NativeScopingEngine(app);
+		view = new SidebarView(leaf, makeRegistry(), makeGate(), native, undefined, () => "drill");
+		await view.onOpen();
+	});
+	afterEach(async () => {
+		await view.onClose();
+	});
+
+	function head(): HTMLElement {
+		return view.contentEl.querySelector(".sf-chead") as HTMLElement;
+	}
+
+	function seedResolved(from: TFile, to: TFile): void {
+		registerCharacter(app, to);
+		const ctx: NoteContext = {
+			activeFile: from,
+			activeKind: "character",
+			entities: [{ file: to, kind: "character", relation: "outgoing", field: "enemies" }],
+			backlinks: [],
+			frontmatter: {},
+			resolvedAt: Date.now(),
+		};
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+			currentCtx: NoteContext;
+			_renderState(s: { kind: string; ctx: NoteContext }): void;
+		};
+		pv.subject = { file: from, source: "follow" };
+		pv.currentCtx = ctx;
+		pv._renderState({ kind: "resolved", ctx });
+	}
+
+	it("Back lives in the header (.sf-chead), before the title, and is hidden initially", () => {
+		const back = head().querySelector('[data-sf-nav="back"]') as HTMLElement | null;
+		expect(back).not.toBeNull();
+		// Header Back precedes the title node.
+		const title = head().querySelector(".sf-title") as HTMLElement;
+		expect(back!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+		// Hidden while not drilled.
+		expect(back!.classList.contains("sf-hidden")).toBe(true);
+	});
+
+	it("header Back becomes visible after drilling and pops the stack", () => {
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
+		seedResolved(from, to);
+		clickLink(view, to.path);
+
+		const back = head().querySelector('[data-sf-nav="back"]') as HTMLElement;
+		expect(back.classList.contains("sf-hidden")).toBe(false);
+
+		back.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		const pv = view as unknown as { subject: { file: TFile | null; source: string } };
+		expect(pv.subject.file?.path).toBe(from.path);
+		expect(pv.subject.source).toBe("follow");
+		// Hidden again once the stack is empty.
+		expect(back.classList.contains("sf-hidden")).toBe(true);
+	});
+
+	it("renders a drill trail 'from <prev> › <current>' in the body when drilled", () => {
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
+		seedResolved(from, to);
+		clickLink(view, to.path);
+
+		const trail = getBody(view).querySelector(".sf-trailrow") as HTMLElement | null;
+		expect(trail).not.toBeNull();
+		expect(trail?.textContent).toContain("from");
+		expect(trail?.textContent).toContain("Mara Stoneway");
+		expect(trail?.textContent).toContain("Silvan Nightweaver");
+	});
+
+	it("the body no longer renders a .sf-navbar Back bar (moved to header)", () => {
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
+		seedResolved(from, to);
+		clickLink(view, to.path);
+
+		expect(getBody(view).querySelector(".sf-navbar")).toBeNull();
+	});
+
+	it("the header Back handler is registered once (leak-free)", () => {
+		const back = head().querySelector('[data-sf-nav="back"]') as HTMLElement;
+		const calls = (view.registerDomEvent as ReturnType<typeof vi.fn>).mock.calls;
+		const backClicks = calls.filter((c) => c[0] === back && c[1] === "click");
+		expect(backClicks.length).toBe(1);
+	});
+});
+
+describe("SidebarView: pin preserves Back while drilled (fix #9)", () => {
+	let app: App;
+	let leaf: WorkspaceLeaf;
+	let native: NativeScopingEngine;
+	let view: SidebarView;
+
+	beforeEach(async () => {
+		app = makeApp();
+		leaf = makeOwnLeaf(app);
+		native = new NativeScopingEngine(app);
+		view = new SidebarView(leaf, makeRegistry(), makeGate(), native, undefined, () => "drill");
+		await view.onOpen();
+	});
+	afterEach(async () => {
+		await view.onClose();
+	});
+
+	function head(): HTMLElement {
+		return view.contentEl.querySelector(".sf-chead") as HTMLElement;
+	}
+
+	function seedResolved(from: TFile, to: TFile): void {
+		registerCharacter(app, to);
+		const ctx: NoteContext = {
+			activeFile: from,
+			activeKind: "character",
+			entities: [{ file: to, kind: "character", relation: "outgoing", field: "enemies" }],
+			backlinks: [],
+			frontmatter: {},
+			resolvedAt: Date.now(),
+		};
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+			currentCtx: NoteContext;
+			_renderState(s: { kind: string; ctx: NoteContext }): void;
+		};
+		pv.subject = { file: from, source: "follow" };
+		pv.currentCtx = ctx;
+		pv._renderState({ kind: "resolved", ctx });
+	}
+
+	it("pinning while drilled keeps the nav stack and the header Back visible", () => {
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
+		seedResolved(from, to);
+		clickLink(view, to.path);
+
+		const pv = view as unknown as {
+			navStack: TFile[];
+			togglePin(): void;
+		};
+		expect(pv.navStack.length).toBe(1);
+
+		pv.togglePin(); // pin while drilled
+
+		// Nav stack is preserved…
+		expect(pv.navStack.length).toBe(1);
+		// …and Back stays visible (gated on navStack, not source).
+		const back = head().querySelector('[data-sf-nav="back"]') as HTMLElement;
+		expect(back.classList.contains("sf-hidden")).toBe(false);
+	});
+
+	it("Back still works after pinning while drilled", () => {
+		const from = makeMdFile("Mara Stoneway");
+		const to = makeMdFile("Silvan Nightweaver");
+		seedResolved(from, to);
+		clickLink(view, to.path);
+
+		const pv = view as unknown as {
+			navStack: TFile[];
+			subject: { file: TFile | null; source: string };
+			togglePin(): void;
+		};
+		pv.togglePin();
+
+		const back = head().querySelector('[data-sf-nav="back"]') as HTMLElement;
+		back.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(pv.navStack.length).toBe(0);
+		expect(pv.subject.file?.path).toBe(from.path);
 	});
 });
 

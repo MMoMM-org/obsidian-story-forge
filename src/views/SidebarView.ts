@@ -469,6 +469,7 @@ export class SidebarView extends ItemView {
 	private _titleEl: HTMLElement | null = null;
 	private _badgeEl: HTMLElement | null = null;
 	private _pinTagEl: HTMLElement | null = null;
+	private _backEl: HTMLElement | null = null;
 	private _bodyEl: HTMLElement | null = null;
 
 	private _buildShell(): void {
@@ -491,8 +492,26 @@ export class SidebarView extends ItemView {
 		this.registerDomEvent(pinBtn, "click", () => { this.togglePin(); });
 		icons.appendChild(pinBtn);
 
-		// Context header (chead: title + pin-tag + badge)
+		// Context header (chead: Back + title + pin-tag + badge)
 		const chead = ce.createDiv({ cls: "sf-chead" });
+		// Header Back (S41) — FIRST child, before the title. Hidden until drilled
+		// with a non-empty nav stack. Lives outside _bodyEl, so its click/keydown
+		// are wired directly here (registered once → leak-free).
+		const backEl = chead.createSpan({ cls: "sf-back sf-hidden" });
+		backEl.setAttribute("role", "button");
+		backEl.setAttribute("tabindex", "0");
+		backEl.setAttribute("data-sf-nav", "back");
+		// "‹ Back" — proper action label; sentence-case exempt like other nav.
+		// eslint-disable-next-line obsidianmd/ui/sentence-case
+		backEl.textContent = "‹ Back";
+		this._backEl = backEl;
+		this.registerDomEvent(backEl, "click", () => { this._navBack(); });
+		this.registerDomEvent(backEl, "keydown", (e: KeyboardEvent) => {
+			if (e.key !== "Enter" && e.key !== " ") return;
+			e.preventDefault();
+			this._navBack();
+		});
+
 		this._titleEl = chead.createSpan({ cls: "sf-title" });
 		this._pinTagEl = chead.createSpan({ cls: "sf-pin-tag sf-hidden" });
 		this._badgeEl = chead.createSpan({ cls: "sf-badge" });
@@ -591,12 +610,18 @@ export class SidebarView extends ItemView {
 			return;
 		}
 
-		// Link rows — resolve the stamped path to a TFile within the body scope.
+		// Link rows — resolve the stamped path/link-target to a TFile within the
+		// body scope. Relation/backlink links stamp a full vault path; fact-value
+		// wikilinks (fix #5) stamp only the link TARGET text (a basename), so fall
+		// back to getFirstLinkpathDest which resolves basenames the way Obsidian does.
 		const linkEl = target.closest("[data-sf-link]");
 		if (!linkEl) return;
 		const path = linkEl.getAttribute("data-sf-link");
 		if (!path) return;
-		const file = this.app.vault.getAbstractFileByPath(path);
+		const sourcePath = this.subject.file?.path ?? "";
+		const file =
+			this.app.vault.getAbstractFileByPath(path) ??
+			this.app.metadataCache.getFirstLinkpathDest(path, sourcePath);
 		if (!(file instanceof TFile)) return;
 
 		// XOR the setting with the modifier: "drill" default drills on plain click
@@ -894,6 +919,13 @@ export class SidebarView extends ItemView {
 			pinTagEl.textContent = "";
 			pinTagEl.classList.add("sf-hidden");
 		}
+
+		// Header Back (S41 / fix #8, #9) — shown whenever there is somewhere to go
+		// back to, gated on navStack (NOT source), so pinning while drilled keeps it.
+		if (this._backEl) {
+			const showBack = this.navStack.length > 0 && state.kind !== "no-note";
+			this._backEl.classList.toggle("sf-hidden", !showBack);
+		}
 	}
 
 	private _updateBody(state: RenderState): void {
@@ -951,16 +983,20 @@ export class SidebarView extends ItemView {
 	 * of the body. Routed by the one delegated body handler via data-sf-nav.
 	 */
 	private _renderNavChrome(body: AugEl, state: RenderState): void {
-		// Back — only while drilled with somewhere to go back to (S41).
-		if (this.subject.source === "drilled" && this.navStack.length > 0) {
-			const bar = body.createDiv({ cls: "sf-navbar" });
-			const back = bar.createSpan({ cls: "sf-back" });
-			back.setAttribute("role", "button");
-			back.setAttribute("tabindex", "0");
-			back.setAttribute("data-sf-nav", "back");
-			// "‹ Back" — proper action label; sentence-case exempt like other nav.
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			back.textContent = "‹ Back";
+		// Drill trail (S41) — "from <prev> › <current>" at the top of the body,
+		// shown whenever there is a nav stack (the Back control now lives in the
+		// header, not the body). `prev` is the note we drilled from (stack top).
+		const prev = this.navStack.length > 0 ? this.navStack[this.navStack.length - 1] : null;
+		const current = this.subject.file;
+		if (prev && current && state.kind !== "no-note") {
+			const trail = body.createDiv({ cls: "sf-trailrow" });
+			trail.createSpan({ cls: "sf-trail-lead", text: "from " });
+			const prevLnk = trail.createSpan({ cls: "sf-lrow-lnk", text: prev.basename });
+			prevLnk.setAttribute("role", "link");
+			prevLnk.setAttribute("tabindex", "0");
+			prevLnk.setAttribute("data-sf-link", prev.path);
+			trail.createSpan({ cls: "sf-trail-sep", text: " › " });
+			trail.createSpan({ cls: "sf-trail-cur", text: current.basename });
 		}
 
 		// S43 pinned-divergence hint — only when pinned AND the editor has moved
