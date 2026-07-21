@@ -25,7 +25,9 @@ import {
 	section,
 	linkRow,
 	emptyLine,
-	imageTile,
+	kindTileEl,
+	profileRow,
+	stringifyFieldValue,
 	unresolvedEl,
 	stampLinkEl,
 } from "panel/components";
@@ -49,9 +51,7 @@ export function renderLocation(
 	const { frontmatter, entities, backlinks } = ctx;
 	const basename = ctx.activeFile.basename;
 
-	const image = typeof frontmatter["image"] === "string" ? frontmatter["image"] : undefined;
-	imageTile(el, image);
-
+	renderProfile(el, frontmatter);
 	renderFacts(el, frontmatter);
 	renderWithin(el, basename, entities);
 	renderInhabitants(el, entities);
@@ -62,6 +62,34 @@ export function renderLocation(
 // ---------------------------------------------------------------------------
 // Section renderers (each under 20 lines, single responsibility)
 // ---------------------------------------------------------------------------
+
+/**
+ * Render the profile block (mockup S36): a kind tile (image or 🏛 placeholder
+ * per D5) beside pinfo lead lines. Lead = "locationType · region"; second line
+ * = joined aliases (when present).
+ */
+function renderProfile(el: HTMLElement, frontmatter: Record<string, unknown>): void {
+	const image =
+		typeof frontmatter["image"] === "string" && frontmatter["image"]
+			? frontmatter["image"]
+			: undefined;
+	const tile = kindTileEl("location", image);
+
+	const lines: string[] = [];
+	const lead = [str(frontmatter["locationType"]), str(frontmatter["region"])]
+		.filter((p) => p !== "")
+		.join(" · ");
+	if (lead) lines.push(lead);
+	const aliases = str(frontmatter["aliases"]);
+	if (aliases) lines.push(aliases);
+
+	profileRow(el, tile, lines);
+}
+
+/** Coerce a frontmatter value to a display string ("" when absent). */
+function str(value: unknown): string {
+	return stringifyFieldValue(value);
+}
 
 function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): void {
 	renderFactsSection(el, kindFields("location").facts, frontmatter);

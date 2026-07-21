@@ -98,6 +98,102 @@ describe("renderCharacter: portrait tile (S35)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// S32 — Profile block (portrait + pinfo stat lines + tagline)
+// ---------------------------------------------------------------------------
+
+describe("renderCharacter: profile block (S32)", () => {
+	it("renders a sf-profile wrapping the portrait tile", () => {
+		const ctx = makeCharCtx({ frontmatter: { role: "protagonist" } });
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const profile = el.querySelector(".sf-profile");
+		expect(profile).not.toBeNull();
+		expect(profile?.querySelector(".sf-portrait")).not.toBeNull();
+		expect(profile?.querySelector(".sf-pinfo")).not.toBeNull();
+	});
+
+	it("lead line bolds the nickname and shows role after a middot", () => {
+		const ctx = makeCharCtx({
+			frontmatter: { nickname: "Spark", role: "protagonist" },
+		});
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const lead = el.querySelector(".sf-pinfo-line.sf-lead");
+		expect(lead?.querySelector("b")?.textContent).toBe("Spark");
+		expect(lead?.textContent).toBe("Spark · protagonist");
+	});
+
+	it("lead line is just the role when no nickname is present", () => {
+		const ctx = makeCharCtx({ frontmatter: { role: "minor" } });
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const lead = el.querySelector(".sf-pinfo-line.sf-lead");
+		expect(lead?.textContent).toBe("minor");
+		expect(lead?.querySelector("b")).toBeNull();
+	});
+
+	it("composes occupation · age line, omitting empty fields", () => {
+		const ctx = makeCharCtx({
+			frontmatter: { role: "protagonist", occupation: "lighthouse apprentice", age: 19 },
+		});
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const lines = [...el.querySelectorAll(".sf-pinfo-line")].map((l) => l.textContent);
+		expect(lines).toContain("lighthouse apprentice · age 19");
+	});
+
+	it("composes status · height cm · build line", () => {
+		const ctx = makeCharCtx({
+			frontmatter: { role: "protagonist", status: "alive", height: 168, build: "slim, wiry" },
+		});
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const lines = [...el.querySelectorAll(".sf-pinfo-line")].map((l) => l.textContent);
+		expect(lines).toContain("alive · 168 cm · slim, wiry");
+	});
+
+	it("composes eyes · hair line", () => {
+		const ctx = makeCharCtx({
+			frontmatter: { role: "protagonist", eyes: "hazel", hair: "copper-red, short" },
+		});
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const lines = [...el.querySelectorAll(".sf-pinfo-line")].map((l) => l.textContent);
+		expect(lines).toContain("hazel eyes · copper-red, short");
+	});
+
+	it("renders a tagline (quoted) when frontmatter.tagline is set", () => {
+		const ctx = makeCharCtx({
+			frontmatter: {
+				role: "protagonist",
+				tagline: "A lighthouse apprentice hunts the thief of the harbour light.",
+			},
+		});
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const tagline = el.querySelector(".sf-tagline");
+		expect(tagline?.textContent).toBe(
+			'"A lighthouse apprentice hunts the thief of the harbour light."',
+		);
+	});
+
+	it("omits the tagline element when frontmatter.tagline is empty/absent", () => {
+		const ctx = makeCharCtx({ frontmatter: { role: "protagonist" } });
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		expect(el.querySelector(".sf-tagline")).toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
 // S32 — Facts section
 // ---------------------------------------------------------------------------
 
@@ -111,22 +207,38 @@ describe("renderCharacter: Facts section (S32)", () => {
 		expect(labels.some((l) => l.textContent === "Facts")).toBe(true);
 	});
 
-	it("renders a factRow for each present fact field in order", () => {
+	it("renders a factRow for each present Facts-section field with humanized labels", () => {
+		// age/status now live in the profile block (S32); the Facts section keeps
+		// aliases, features (distinctive_features), first seen (first_appearance).
 		const ctx = makeCharCtx({
 			frontmatter: {
 				aliases: "Mara",
-				age: 19,
-				status: "alive",
+				distinctive_features: "freckles across nose",
 			},
 		});
 		const el = makeContainer();
 		renderCharacter(ctx, el, makeDeps());
 
-		// All three should produce fact rows
 		const keys = [...el.querySelectorAll(".sf-frow-k")].map((k) => k.textContent);
 		expect(keys).toContain("aliases");
-		expect(keys).toContain("age");
-		expect(keys).toContain("status");
+		expect(keys).toContain("features"); // humanized distinctive_features
+		expect(keys).not.toContain("distinctive_features");
+	});
+
+	it("shows age/status in the profile block, not the Facts section", () => {
+		const ctx = makeCharCtx({
+			frontmatter: { aliases: "Mara", age: 19, status: "alive", role: "protagonist" },
+		});
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const keys = [...el.querySelectorAll(".sf-frow-k")].map((k) => k.textContent);
+		expect(keys).not.toContain("age");
+		expect(keys).not.toContain("status");
+		// They appear in pinfo lines instead.
+		const pinfo = el.querySelector(".sf-pinfo")?.textContent ?? "";
+		expect(pinfo).toContain("age 19");
+		expect(pinfo).toContain("alive");
 	});
 
 	it("skips absent fact fields (no factRow for undefined keys)", () => {

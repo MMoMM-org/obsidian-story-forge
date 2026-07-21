@@ -18,6 +18,11 @@ import {
 	unresolvedEl,
 	portraitTile,
 	imageTile,
+	profileRow,
+	taglineLine,
+	humanizeFieldLabel,
+	factValueEl,
+	kindTileEl,
 } from "panel/components";
 
 // ---------------------------------------------------------------------------
@@ -212,6 +217,18 @@ describe("linkRow()", () => {
 		const el = linkRow(makeContainer(), "Scene 1");
 		const trail = el.querySelector(".sf-trail");
 		expect(trail).toBeNull();
+	});
+
+	it("adds sf-trail--pov to the tag span when tag is 'pov'", () => {
+		const el = linkRow(makeContainer(), "Scene 1", { tag: "pov" });
+		const trail = el.querySelector(".sf-trail");
+		expect(trail?.classList.contains("sf-trail--pov")).toBe(true);
+	});
+
+	it("does NOT add sf-trail--pov for a non-pov tag", () => {
+		const el = linkRow(makeContainer(), "Scene 1", { tag: "char" });
+		const trail = el.querySelector(".sf-trail");
+		expect(trail?.classList.contains("sf-trail--pov")).toBe(false);
 	});
 
 	it("calls onClick when provided and link is clicked", () => {
@@ -472,5 +489,202 @@ describe("imageTile()", () => {
 		const container = makeContainer();
 		imageTile(container, "map.png");
 		expect(container.querySelector(".sf-imgtile")).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// profileRow()
+// ---------------------------------------------------------------------------
+
+describe("profileRow()", () => {
+	it("returns an element with class sf-profile", () => {
+		const tile = augmentEl(document.createElement("div"));
+		const el = profileRow(makeContainer(), tile, ["role"]);
+		expect(el.classList.contains("sf-profile")).toBe(true);
+	});
+
+	it("contains the passed tile element", () => {
+		const tile = augmentEl(document.createElement("div"));
+		tile.className = "sf-portrait";
+		const el = profileRow(makeContainer(), tile, ["role"]);
+		expect(el.querySelector(".sf-portrait")).toBe(tile);
+	});
+
+	it("renders a sf-pinfo container", () => {
+		const tile = augmentEl(document.createElement("div"));
+		const el = profileRow(makeContainer(), tile, ["role"]);
+		expect(el.querySelector(".sf-pinfo")).not.toBeNull();
+	});
+
+	it("renders each string line as a sf-pinfo-line", () => {
+		const tile = augmentEl(document.createElement("div"));
+		const el = profileRow(makeContainer(), tile, ["protagonist", "age 19"]);
+		const lines = el.querySelectorAll(".sf-pinfo-line");
+		expect(lines.length).toBe(2);
+		expect(lines[0]?.textContent).toBe("protagonist");
+		expect(lines[1]?.textContent).toBe("age 19");
+	});
+
+	it("gives the FIRST line an extra sf-lead class", () => {
+		const tile = augmentEl(document.createElement("div"));
+		const el = profileRow(makeContainer(), tile, ["protagonist", "age 19"]);
+		const lines = el.querySelectorAll(".sf-pinfo-line");
+		expect(lines[0]?.classList.contains("sf-lead")).toBe(true);
+		expect(lines[1]?.classList.contains("sf-lead")).toBe(false);
+	});
+
+	it("appends an HTMLElement line as-is inside the pinfo line", () => {
+		const tile = augmentEl(document.createElement("div"));
+		const b = document.createElement("b");
+		b.textContent = "Spark";
+		const el = profileRow(makeContainer(), tile, [b]);
+		expect(el.querySelector(".sf-pinfo-line b")?.textContent).toBe("Spark");
+	});
+
+	it("appends the profile to the container", () => {
+		const container = makeContainer();
+		const tile = augmentEl(document.createElement("div"));
+		profileRow(container, tile, ["x"]);
+		expect(container.querySelector(".sf-profile")).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// taglineLine()
+// ---------------------------------------------------------------------------
+
+describe("taglineLine()", () => {
+	it("returns an element with class sf-tagline", () => {
+		const el = taglineLine(makeContainer(), "A quiet hero.");
+		expect(el.classList.contains("sf-tagline")).toBe(true);
+	});
+
+	it("wraps the text in straight quotes", () => {
+		const el = taglineLine(makeContainer(), "A quiet hero.");
+		expect(el.textContent).toBe('"A quiet hero."');
+	});
+
+	it("appends the element to the container", () => {
+		const container = makeContainer();
+		taglineLine(container, "hi");
+		expect(container.querySelector(".sf-tagline")).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// humanizeFieldLabel()
+// ---------------------------------------------------------------------------
+
+describe("humanizeFieldLabel()", () => {
+	it("maps distinctive_features to 'features'", () => {
+		expect(humanizeFieldLabel("distinctive_features")).toBe("features");
+	});
+
+	it("maps first_appearance to 'first seen'", () => {
+		expect(humanizeFieldLabel("first_appearance")).toBe("first seen");
+	});
+
+	it("maps locationType to 'type'", () => {
+		expect(humanizeFieldLabel("locationType")).toBe("type");
+	});
+
+	it("maps significant_other to 'partner'", () => {
+		expect(humanizeFieldLabel("significant_other")).toBe("partner");
+	});
+
+	it("maps magical_abilities to 'magic'", () => {
+		expect(humanizeFieldLabel("magical_abilities")).toBe("magic");
+	});
+
+	it("maps combat_skills to 'combat'", () => {
+		expect(humanizeFieldLabel("combat_skills")).toBe("combat");
+	});
+
+	it("falls back to replacing underscores with spaces", () => {
+		expect(humanizeFieldLabel("some_other_field")).toBe("some other field");
+	});
+
+	it("falls back to replacing hyphens with spaces", () => {
+		expect(humanizeFieldLabel("some-field")).toBe("some field");
+	});
+
+	it("leaves a plain single-word label unchanged", () => {
+		expect(humanizeFieldLabel("region")).toBe("region");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// factValueEl()
+// ---------------------------------------------------------------------------
+
+describe("factValueEl()", () => {
+	it("returns a plain sf-frow-v span for a non-wikilink string", () => {
+		const el = factValueEl("harbour mole");
+		expect(el.classList.contains("sf-frow-v")).toBe(true);
+		expect(el.textContent).toBe("harbour mole");
+	});
+
+	it("returns a stamped link for a [[Target]] wikilink", () => {
+		const el = factValueEl("[[Scene 1 - The Extinguished Fire]]");
+		expect(el.classList.contains("sf-lrow-lnk")).toBe(true);
+		expect(el.getAttribute("data-sf-link")).toBe("Scene 1 - The Extinguished Fire");
+		// Displayed text strips the brackets.
+		expect(el.textContent).toBe("Scene 1 - The Extinguished Fire");
+	});
+
+	it("uses the alias as display text for [[Target|Alias]] and stamps the target", () => {
+		const el = factValueEl("[[Scene 1 - The Extinguished Fire|Scene 1]]");
+		expect(el.getAttribute("data-sf-link")).toBe("Scene 1 - The Extinguished Fire");
+		expect(el.textContent).toBe("Scene 1");
+	});
+
+	it("handles a single-entry array whose only entry is a wikilink", () => {
+		const el = factValueEl(["[[Moonharbor]]"]);
+		expect(el.getAttribute("data-sf-link")).toBe("Moonharbor");
+		expect(el.textContent).toBe("Moonharbor");
+	});
+
+	it("renders a plain span for a non-string value", () => {
+		const el = factValueEl(19);
+		expect(el.classList.contains("sf-frow-v")).toBe(true);
+		expect(el.textContent).toBe("19");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// kindTileEl()
+// ---------------------------------------------------------------------------
+
+describe("kindTileEl()", () => {
+	it("returns an element with class sf-imgtile and variant sf-imgtile--loc for location", () => {
+		const el = kindTileEl("location");
+		expect(el.classList.contains("sf-imgtile")).toBe(true);
+		expect(el.classList.contains("sf-imgtile--loc")).toBe(true);
+	});
+
+	it("returns variant sf-imgtile--obj for object", () => {
+		const el = kindTileEl("object");
+		expect(el.classList.contains("sf-imgtile--obj")).toBe(true);
+	});
+
+	it("renders the location glyph 🏛 when no image is set", () => {
+		const el = kindTileEl("location");
+		const glyph = el.querySelector(".sf-imgtile-glyph");
+		expect(glyph?.textContent).toBe("🏛");
+		expect(el.querySelector("img")).toBeNull();
+	});
+
+	it("renders the object glyph 🔮 when no image is set", () => {
+		const el = kindTileEl("object");
+		const glyph = el.querySelector(".sf-imgtile-glyph");
+		expect(glyph?.textContent).toBe("🔮");
+	});
+
+	it("renders an img (no glyph) when an image is set", () => {
+		const el = kindTileEl("location", "imgs/lighthouse.png");
+		const img = el.querySelector("img.sf-imgtile-img") as HTMLImageElement | null;
+		expect(img).not.toBeNull();
+		expect(img?.src).toContain("lighthouse.png");
+		expect(el.querySelector(".sf-imgtile-glyph")).toBeNull();
 	});
 });

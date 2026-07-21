@@ -227,9 +227,11 @@ export function linkRow(
 		});
 	}
 
-	// Trailing tag badge
+	// Trailing tag badge. The "pov" tag gets a distinguishable accent variant
+	// (mockups.html:111 `.tag.pov`) so it reads clearly in light themes.
 	if (opts.tag !== undefined) {
-		asObs(rowEl).createEl("span", { cls: "sf-trail", text: opts.tag });
+		const cls = opts.tag === "pov" ? "sf-trail sf-trail--pov" : "sf-trail";
+		asObs(rowEl).createEl("span", { cls, text: opts.tag });
 	}
 
 	return rowEl;
@@ -331,7 +333,10 @@ export function portraitTile(
 	name: string,
 	image?: string,
 ): HTMLElement {
-	const tileEl = asObs(container).createEl("div", { cls: "sf-portrait" });
+	// Build with activeDocument.createElement (not container.createEl) so the
+	// tile can also be constructed into a detached holder for profileRow.
+	const tileEl = activeDocument.createElement("div");
+	tileEl.className = "sf-portrait";
 	tileEl.setAttribute("aria-label", name);
 
 	if (image) {
@@ -343,10 +348,13 @@ export function portraitTile(
 		tileEl.appendChild(imgEl);
 	} else {
 		// Monogram: initials from first letter(s) of name words
-		const initials = nameToInitials(name);
-		asObs(tileEl).createEl("span", { cls: "sf-portrait-mono", text: initials });
+		const monoEl = activeDocument.createElement("span");
+		monoEl.className = "sf-portrait-mono";
+		monoEl.textContent = nameToInitials(name);
+		tileEl.appendChild(monoEl);
 	}
 
+	container.appendChild(tileEl);
 	return tileEl;
 }
 
@@ -385,6 +393,179 @@ export function imageTile(
 	imgEl.alt = "";
 	imgEl.className = "sf-imgtile-img";
 	tileEl.appendChild(imgEl);
+
+	return tileEl;
+}
+
+// ---------------------------------------------------------------------------
+// profileRow()
+// ---------------------------------------------------------------------------
+
+/**
+ * Render a profile block: a tile element on the left and a stack of "pinfo"
+ * stat lines on the right (mockup S32 `.profile`). The first line receives an
+ * extra `.sf-lead` class (mockup `.pinfo .lead`).
+ *
+ * @param container  Parent element to append into.
+ * @param tileEl     A pre-built tile (portrait or kind tile) placed on the left.
+ * @param lines      Stat lines — plain strings become text; HTMLElements are
+ *                   appended as-is (e.g. a `<b>` for a bolded nickname).
+ * @returns          The profile element.
+ */
+export function profileRow(
+	container: HTMLElement,
+	tileEl: HTMLElement,
+	lines: Array<string | HTMLElement>,
+): HTMLElement {
+	const profileEl = asObs(container).createEl("div", { cls: "sf-profile" });
+	profileEl.appendChild(tileEl);
+
+	const pinfoEl = asObs(profileEl).createEl("div", { cls: "sf-pinfo" });
+	lines.forEach((line, i) => {
+		const cls = i === 0 ? "sf-pinfo-line sf-lead" : "sf-pinfo-line";
+		if (typeof line === "string") {
+			asObs(pinfoEl).createEl("div", { cls, text: line });
+		} else {
+			const lineEl = asObs(pinfoEl).createEl("div", { cls });
+			lineEl.appendChild(line);
+		}
+	});
+
+	return profileEl;
+}
+
+// ---------------------------------------------------------------------------
+// taglineLine()
+// ---------------------------------------------------------------------------
+
+/**
+ * Render an italic, muted tagline line (mockup `.tagline`). The text is wrapped
+ * in straight quotes.
+ *
+ * @param container  Parent element to append into.
+ * @param text       The tagline text (unquoted).
+ * @returns          The tagline element.
+ */
+export function taglineLine(container: HTMLElement, text: string): HTMLElement {
+	return asObs(container).createEl("div", {
+		cls: "sf-tagline",
+		text: `"${text}"`,
+	});
+}
+
+// ---------------------------------------------------------------------------
+// humanizeFieldLabel()
+// ---------------------------------------------------------------------------
+
+/** Short, human-friendly labels for frontmatter field keys (mockup S32/S36). */
+const FIELD_LABELS: Record<string, string> = {
+	distinctive_features: "features",
+	first_appearance: "first seen",
+	locationType: "type",
+	significant_other: "partner",
+	magical_abilities: "magic",
+	combat_skills: "combat",
+};
+
+/**
+ * Map a raw frontmatter field key to a short display label. Falls back to
+ * replacing `_`/`-` with spaces so long snake/kebab keys don't overflow the
+ * fact-row key column.
+ */
+export function humanizeFieldLabel(field: string): string {
+	return FIELD_LABELS[field] ?? field.replace(/[_-]/g, " ");
+}
+
+// ---------------------------------------------------------------------------
+// factValueEl()
+// ---------------------------------------------------------------------------
+
+/** Match `[[Target]]` or `[[Target|Alias]]`, capturing target and optional alias. */
+const WIKILINK_RE = /^\[\[([^\]|]+?)(?:\|([^\]]+))?\]\]$/;
+
+/**
+ * Build a fact VALUE element. When the value is a wikilink string (or a
+ * single-entry array whose only entry is a wikilink), returns a stamped drill
+ * link carrying the link TARGET in `data-sf-link` (SidebarView's handler
+ * resolves the basename via getFirstLinkpathDest). Otherwise returns a plain
+ * `.sf-frow-v` text span.
+ *
+ * @param value  The raw frontmatter value.
+ * @returns      The value element (link or text span).
+ */
+export function factValueEl(value: unknown): HTMLElement {
+	// A single-entry array of one wikilink is treated as that wikilink.
+	const raw: unknown =
+		Array.isArray(value) && value.length === 1 ? (value as unknown[])[0] : value;
+
+	if (typeof raw === "string") {
+		const match = WIKILINK_RE.exec(raw.trim());
+		if (match) {
+			const target = match[1]!.trim();
+			const display = (match[2] ?? match[1])!.trim();
+			return stampLinkEl(display, target);
+		}
+	}
+
+	const span = activeDocument.createElement("span");
+	span.className = "sf-frow-v";
+	span.textContent = stringifyFieldValue(value);
+	return span;
+}
+
+/**
+ * Coerce a frontmatter value to a display string. Arrays join with ", ";
+ * primitives stringify; objects/null/undefined yield "" (never "[object Object]").
+ */
+export function stringifyFieldValue(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (Array.isArray(value)) return value.map(stringifyFieldValue).join(", ");
+	if (typeof value === "number" || typeof value === "bigint") return value.toString();
+	if (typeof value === "boolean") return value ? "true" : "false";
+	if (typeof value === "symbol") return value.toString();
+	// undefined, null, functions, and plain objects → empty (never "[object Object]").
+	return "";
+}
+
+// ---------------------------------------------------------------------------
+// kindTileEl()
+// ---------------------------------------------------------------------------
+
+/** Kind-glyph placeholder emojis for the location/object profile tile (D5). */
+const KIND_GLYPH: Record<"location" | "object", string> = {
+	location: "🏛",
+	object: "🔮",
+};
+
+/**
+ * Render a location/object profile tile. Shows the `image` when set, else a
+ * kind-glyph placeholder (mockup S36/S37 `.imgtile.loc`/`.imgtile.obj`). The
+ * placeholder mirrors the character portrait monogram behaviour (D5 update).
+ *
+ * @param kind   "location" or "object" — selects the variant class + glyph.
+ * @param image  Optional image path/URL.
+ * @returns      The tile element (detached; caller places it via profileRow).
+ */
+export function kindTileEl(
+	kind: "location" | "object",
+	image?: string,
+): HTMLElement {
+	const variant = kind === "location" ? "sf-imgtile--loc" : "sf-imgtile--obj";
+	const tileEl = activeDocument.createElement("div");
+	tileEl.className = `sf-imgtile ${variant}`;
+
+	if (image) {
+		const imgEl = activeDocument.createElement("img");
+		imgEl.src = image;
+		imgEl.alt = "";
+		imgEl.className = "sf-imgtile-img";
+		tileEl.appendChild(imgEl);
+	} else {
+		const glyph = activeDocument.createElement("span");
+		glyph.className = "sf-imgtile-glyph";
+		glyph.textContent = KIND_GLYPH[kind];
+		tileEl.appendChild(glyph);
+	}
 
 	return tileEl;
 }

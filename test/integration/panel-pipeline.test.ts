@@ -550,7 +550,8 @@ describe("T5.3 ground truth — rendered DOM matches the verified seed vault", (
 		const text = fantasy!.textContent ?? "";
 		expect(text).toContain("species");
 		expect(text).toContain("Merfolk");
-		expect(text).toContain("magical_abilities");
+		// magical_abilities is humanized to "magic" in the Fantasy block (fix #4).
+		expect(text).toContain("magic");
 	});
 
 	it("GT5b: a non-fantasy character (Tobias) does NOT render a Fantasy sub-block", async () => {
@@ -622,9 +623,13 @@ describe("T5.3 navigation — drill / open / swap on the integrated pipeline", (
 		await Promise.resolve();
 	}
 
-	/** Click a nav-chrome control (Back / Open) and flush the async re-render. */
+	/**
+	 * Click a nav-chrome control and flush the async re-render. Back lives in the
+	 * header (.sf-chead); the Open-note footer lives in the body — search the whole
+	 * contentEl so both resolve.
+	 */
 	async function clickNav(sel: string): Promise<void> {
-		const el = h.body().querySelector(sel) as HTMLElement | null;
+		const el = view.contentEl.querySelector(sel) as HTMLElement | null;
 		if (!el) throw new Error(`no nav control for ${sel}`);
 		el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await Promise.resolve();
@@ -651,9 +656,9 @@ describe("T5.3 navigation — drill / open / swap on the integrated pipeline", (
 		await h.follow(scene);
 		await clickLink(mara.path);
 
-		const back = h.body().querySelector('[data-sf-nav="back"]') as HTMLElement | null;
+		const back = view.contentEl.querySelector('.sf-chead [data-sf-nav="back"]') as HTMLElement | null;
 		expect(back).not.toBeNull();
-		await clickNav('[data-sf-nav="back"]');
+		await clickNav('.sf-chead [data-sf-nav="back"]');
 
 		expect(priv().subject.file?.path).toBe(scene.path);
 		expect(priv().navStack.length).toBe(0);

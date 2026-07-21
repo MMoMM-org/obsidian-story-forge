@@ -59,13 +59,15 @@ function makeLocCtx(overrides?: Partial<NoteContext>): NoteContext {
 // Image tile
 // ---------------------------------------------------------------------------
 
-describe("renderLocation: image tile", () => {
-	it("renders an image tile when frontmatter.image is set", () => {
+describe("renderLocation: profile tile (D5 kind-glyph placeholder)", () => {
+	it("renders an image tile inside a profile when frontmatter.image is set", () => {
 		const ctx = makeLocCtx({ frontmatter: { image: "imgs/lighthouse.png" } });
 		const el = makeContainer();
 		renderLocation(ctx, el, makeDeps());
 
-		const tile = el.querySelector(".sf-imgtile");
+		const profile = el.querySelector(".sf-profile");
+		expect(profile).not.toBeNull();
+		const tile = profile?.querySelector(".sf-imgtile");
 		expect(tile).not.toBeNull();
 	});
 
@@ -78,22 +80,47 @@ describe("renderLocation: image tile", () => {
 		expect(img?.src).toContain("lighthouse.png");
 	});
 
-	it("does NOT render an image tile when frontmatter.image is absent", () => {
+	it("renders a kind-glyph placeholder tile (🏛, --loc variant) when image is absent (D5)", () => {
 		const ctx = makeLocCtx({ frontmatter: {} });
 		const el = makeContainer();
 		renderLocation(ctx, el, makeDeps());
 
 		const tile = el.querySelector(".sf-imgtile");
-		expect(tile).toBeNull();
+		expect(tile).not.toBeNull();
+		expect(tile?.classList.contains("sf-imgtile--loc")).toBe(true);
+		expect(tile?.querySelector(".sf-imgtile-glyph")?.textContent).toBe("🏛");
 	});
 
-	it("does NOT render an image tile when frontmatter.image is empty string", () => {
+	it("renders the placeholder tile when image is empty string (D5)", () => {
 		const ctx = makeLocCtx({ frontmatter: { image: "" } });
 		const el = makeContainer();
 		renderLocation(ctx, el, makeDeps());
 
 		const tile = el.querySelector(".sf-imgtile");
-		expect(tile).toBeNull();
+		expect(tile).not.toBeNull();
+		expect(tile?.querySelector(".sf-imgtile-glyph")).not.toBeNull();
+	});
+
+	it("renders pinfo lead line 'locationType · region'", () => {
+		const ctx = makeLocCtx({
+			frontmatter: { locationType: "building", region: "harbour mole" },
+		});
+		const el = makeContainer();
+		renderLocation(ctx, el, makeDeps());
+
+		const lead = el.querySelector(".sf-pinfo-line.sf-lead");
+		expect(lead?.textContent).toBe("building · harbour mole");
+	});
+
+	it("renders a second pinfo line from aliases", () => {
+		const ctx = makeLocCtx({
+			frontmatter: { locationType: "building", aliases: ["the lighthouse"] },
+		});
+		const el = makeContainer();
+		renderLocation(ctx, el, makeDeps());
+
+		const lines = [...el.querySelectorAll(".sf-pinfo-line")].map((l) => l.textContent);
+		expect(lines).toContain("the lighthouse");
 	});
 });
 
@@ -120,13 +147,14 @@ describe("renderLocation: Facts section (S36)", () => {
 		expect(labels.every((l) => l.textContent !== "Facts")).toBe(true);
 	});
 
-	it("renders factRow for locationType when present", () => {
+	it("renders factRow for locationType with the humanized label 'type'", () => {
 		const ctx = makeLocCtx({ frontmatter: { locationType: "building" } });
 		const el = makeContainer();
 		renderLocation(ctx, el, makeDeps());
 
 		const keys = [...el.querySelectorAll(".sf-frow-k")].map((k) => k.textContent);
-		expect(keys).toContain("locationType");
+		expect(keys).toContain("type"); // humanized locationType (fix #4)
+		expect(keys).not.toContain("locationType");
 	});
 
 	it("renders factRow for region when present", () => {

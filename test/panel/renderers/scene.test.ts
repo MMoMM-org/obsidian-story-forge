@@ -63,14 +63,14 @@ function makeSceneCtx(overrides?: Partial<NoteContext>): NoteContext {
 // ---------------------------------------------------------------------------
 
 describe("renderScene: subtitle line", () => {
-	it("renders subtitle text when frontmatter.subtitle is set", () => {
+	it("renders subtitle text (wrapped in straight quotes) when frontmatter.subtitle is set", () => {
 		const ctx = makeSceneCtx({ frontmatter: { subtitle: "Mara finds the lens gone cold." } });
 		const el = makeContainer();
 		renderScene(ctx, el, makeDeps());
 
 		const subtitle = el.querySelector(".sf-subtitle");
 		expect(subtitle).not.toBeNull();
-		expect(subtitle?.textContent).toBe("Mara finds the lens gone cold.");
+		expect(subtitle?.textContent).toBe('"Mara finds the lens gone cold."');
 	});
 
 	it("omits the subtitle element when frontmatter.subtitle is absent", () => {

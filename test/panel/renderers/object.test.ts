@@ -57,14 +57,15 @@ function makeObjCtx(overrides?: Partial<NoteContext>): NoteContext {
 // Image tile
 // ---------------------------------------------------------------------------
 
-describe("renderObject: image tile", () => {
-	it("renders an image tile when frontmatter.image is set", () => {
+describe("renderObject: profile tile (D5 kind-glyph placeholder)", () => {
+	it("renders an image tile inside a profile when frontmatter.image is set", () => {
 		const ctx = makeObjCtx({ frontmatter: { image: "imgs/beacon-lens.png" } });
 		const el = makeContainer();
 		renderObject(ctx, el, makeDeps());
 
-		const tile = el.querySelector(".sf-imgtile");
-		expect(tile).not.toBeNull();
+		const profile = el.querySelector(".sf-profile");
+		expect(profile).not.toBeNull();
+		expect(profile?.querySelector(".sf-imgtile")).not.toBeNull();
 	});
 
 	it("renders an img element with the image src when image is set", () => {
@@ -76,22 +77,41 @@ describe("renderObject: image tile", () => {
 		expect(img?.src).toContain("beacon-lens.png");
 	});
 
-	it("does NOT render an image tile when frontmatter.image is absent", () => {
+	it("renders a kind-glyph placeholder tile (🔮, --obj variant) when image is absent (D5)", () => {
 		const ctx = makeObjCtx({ frontmatter: {} });
 		const el = makeContainer();
 		renderObject(ctx, el, makeDeps());
 
 		const tile = el.querySelector(".sf-imgtile");
-		expect(tile).toBeNull();
+		expect(tile).not.toBeNull();
+		expect(tile?.classList.contains("sf-imgtile--obj")).toBe(true);
+		expect(tile?.querySelector(".sf-imgtile-glyph")?.textContent).toBe("🔮");
 	});
 
-	it("does NOT render an image tile when frontmatter.image is empty string", () => {
+	it("renders the placeholder tile when image is empty string (D5)", () => {
 		const ctx = makeObjCtx({ frontmatter: { image: "" } });
 		const el = makeContainer();
 		renderObject(ctx, el, makeDeps());
 
-		const tile = el.querySelector(".sf-imgtile");
-		expect(tile).toBeNull();
+		expect(el.querySelector(".sf-imgtile-glyph")).not.toBeNull();
+	});
+
+	it("renders pinfo lead line from kind", () => {
+		const ctx = makeObjCtx({ frontmatter: { kind: "artifact" } });
+		const el = makeContainer();
+		renderObject(ctx, el, makeDeps());
+
+		const lead = el.querySelector(".sf-pinfo-line.sf-lead");
+		expect(lead?.textContent).toBe("artifact");
+	});
+
+	it("renders a second pinfo line from aliases", () => {
+		const ctx = makeObjCtx({ frontmatter: { kind: "artifact", aliases: ["the lens"] } });
+		const el = makeContainer();
+		renderObject(ctx, el, makeDeps());
+
+		const lines = [...el.querySelectorAll(".sf-pinfo-line")].map((l) => l.textContent);
+		expect(lines).toContain("the lens");
 	});
 });
 

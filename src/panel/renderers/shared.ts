@@ -7,7 +7,15 @@
  * @ref SDD/ADR-2 (pure DOM components; deps injected)
  */
 
-import { section, factRow, linkRow, emptyLine, unresolvedEl } from "panel/components";
+import {
+	section,
+	factRow,
+	linkRow,
+	emptyLine,
+	unresolvedEl,
+	humanizeFieldLabel,
+	factValueEl,
+} from "panel/components";
 import type { ResolvedEntity } from "scoping/NoteContext";
 
 // ---------------------------------------------------------------------------
@@ -80,8 +88,8 @@ export function renderFactsSection(
 
 	const { bodyEl } = section(el, "Facts");
 	for (const field of presentFields) {
-		const value = frontmatter[field];
-		const display = Array.isArray(value) ? value.join(", ") : String(value);
-		factRow(bodyEl, field, display);
+		// Humanized label (fix #4) + wikilink-aware value element (fix #5): a
+		// value like "[[Scene 1]]" renders as a drill link instead of literal text.
+		factRow(bodyEl, humanizeFieldLabel(field), factValueEl(frontmatter[field]));
 	}
 }
