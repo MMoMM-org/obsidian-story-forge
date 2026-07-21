@@ -118,6 +118,26 @@ export async function activateView(app: App): Promise<void> {
 	void workspace.revealLeaf(leaf);
 }
 
+/**
+ * Reveal-or-create the sidebar leaf, locate the live SidebarView, and call
+ * `showFile(file)` on it.
+ *
+ * This is the single entry point for callers that need to "open the panel
+ * (if closed) and drill into a file" in one step — e.g. the Codex row-click
+ * handler (T3.3). It reuses `activateView` so the reveal-or-create logic
+ * stays in one place and no duplicate leaf can be created.
+ *
+ * The leaf lookup mirrors the pattern in main.ts:162 (getLeavesOfType →
+ * view instanceof SidebarView), per SDD/ADR-4 implementation example.
+ */
+export async function revealAndShowFile(app: App, file: TFile): Promise<void> {
+	await activateView(app);
+	const leaf = app.workspace.getLeavesOfType(SIDEBAR_VIEW_TYPE)[0];
+	if (leaf?.view instanceof SidebarView) {
+		leaf.view.showFile(file);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // SidebarView
 // ---------------------------------------------------------------------------
@@ -633,6 +653,22 @@ export class SidebarView extends ItemView {
 		const drill = action === "drill" ? !modifier : modifier;
 		if (drill) this._drillInto(file);
 		else this._openLink(file);
+	}
+
+	/**
+	 * Re-subject the panel to `file` by delegating to `_drillInto`.
+	 *
+	 * Called by external entry points (e.g. the Codex row-click handler, T3.3)
+	 * that have already revealed the sidebar leaf. This is the public seam
+	 * described in SDD/ADR-4: all drill semantics (nav-stack push, drilled
+	 * follow-suspension, unresolved fall-throughs) are inherited from the
+	 * existing private `_drillInto` — nothing is reimplemented here.
+	 *
+	 * [ref: PRD/AC-F2.2] — panel re-subjects on showFile.
+	 * [ref: PRD/AC-F2.6] — unresolved/non-md yields M3 state, never throws.
+	 */
+	public showFile(file: TFile): void {
+		this._drillInto(file);
 	}
 
 	/**

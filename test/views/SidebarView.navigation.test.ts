@@ -18,7 +18,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { App, WorkspaceLeaf, TFile } from "obsidian";
-import { SidebarView } from "views/SidebarView";
+import { SidebarView, activateView, revealAndShowFile } from "views/SidebarView";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { NoteContext } from "scoping/NoteContext";
@@ -900,5 +900,313 @@ describe("SidebarView: pinned divergence (S43)", () => {
 		pv.togglePin();
 
 		expect(pv.subject.source).toBe("follow");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T3.1 — SidebarView.showFile(file) public seam (ADR-4, PRD/AC-F2.2, AC-F2.6)
+// ---------------------------------------------------------------------------
+
+describe("SidebarView: showFile public seam (T3.1)", () => {
+	let app: App;
+	let leaf: WorkspaceLeaf;
+	let native: NativeScopingEngine;
+	let view: SidebarView;
+
+	function makeOwnLeafSF(a: App): WorkspaceLeaf {
+		const l = new WorkspaceLeaf();
+		l.app = a;
+		l.view.getViewType = vi.fn(() => SIDEBAR_VIEW_TYPE);
+		l.setViewState = vi.fn(async (s: { type: string }) => {
+			l.view.getViewType = vi.fn(() => s.type);
+		});
+		return l;
+	}
+
+	function makeMdFileSF(basename = "Silvan Nightweaver"): TFile {
+		const f = new TFile();
+		f.path = `${basename}.md`;
+		f.name = `${basename}.md`;
+		f.basename = basename;
+		f.extension = "md";
+		return f;
+	}
+
+	function makeNonMdFileSF(): TFile {
+		const f = new TFile();
+		f.path = "cover.png";
+		f.name = "cover.png";
+		f.basename = "cover";
+		f.extension = "png";
+		return f;
+	}
+
+	function makeRegistrySF(): EngineRegistry {
+		return { get: vi.fn(() => undefined) } as unknown as EngineRegistry;
+	}
+	function makeGateSF(): ConsentGate {
+		return {
+			evaluate: vi.fn(async () => ({ status: "consented" })),
+			requestConsent: vi.fn(async () => false),
+			requestReConsent: vi.fn(async () => false),
+		} as unknown as ConsentGate;
+	}
+
+	beforeEach(async () => {
+		app = makeApp();
+		leaf = makeOwnLeafSF(app);
+		native = new NativeScopingEngine(app);
+		view = new SidebarView(leaf, makeRegistrySF(), makeGateSF(), native, undefined, () => "drill");
+		await view.onOpen();
+	});
+
+	afterEach(async () => {
+		await view.onClose();
+	});
+
+	// -----------------------------------------------------------------------
+	// AC-F2.2: Panel re-subjects on showFile
+	// -----------------------------------------------------------------------
+
+	it("showFile(file) pushes the prior subject onto the nav stack", () => {
+		const from = makeMdFileSF("Mara Stoneway");
+		const to = makeMdFileSF("Silvan Nightweaver");
+
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+			navStack: TFile[];
+		};
+		pv.subject = { file: from, source: "follow" };
+
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		view.showFile(to);
+
+		expect(pv.navStack.map((f) => f.path)).toEqual([from.path]);
+	});
+
+	it("showFile(file) sets subject.source to 'drilled' and subject.file to the new file", () => {
+		const from = makeMdFileSF("Mara Stoneway");
+		const to = makeMdFileSF("Silvan Nightweaver");
+
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+		};
+		pv.subject = { file: from, source: "follow" };
+
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		view.showFile(to);
+
+		expect(pv.subject.source).toBe("drilled");
+		expect(pv.subject.file?.path).toBe(to.path);
+	});
+
+	it("showFile(file) suspends active-leaf follow (source is not follow after call)", () => {
+		const from = makeMdFileSF("Mara Stoneway");
+		const to = makeMdFileSF("Silvan Nightweaver");
+
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+		};
+		pv.subject = { file: from, source: "follow" };
+
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		view.showFile(to);
+
+		expect(pv.subject.source).not.toBe("follow");
+	});
+
+	it("showFile(file) re-renders the panel by calling _resolveOrClassify with the new file", () => {
+		const from = makeMdFileSF("Mara Stoneway");
+		const to = makeMdFileSF("Silvan Nightweaver");
+
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+			_resolveOrClassify: (f: TFile) => void;
+		};
+		pv.subject = { file: from, source: "follow" };
+
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		const resolveSpy = vi.spyOn(pv, "_resolveOrClassify");
+
+		view.showFile(to);
+
+		expect(resolveSpy).toHaveBeenCalledWith(to);
+	});
+
+	it("showFile delegates to _drillInto (does not re-implement drill logic)", () => {
+		const from = makeMdFileSF("Mara Stoneway");
+		const to = makeMdFileSF("Silvan Nightweaver");
+
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+			_drillInto: (f: TFile) => void;
+		};
+		pv.subject = { file: from, source: "follow" };
+
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		const drillSpy = vi.spyOn(pv, "_drillInto");
+
+		view.showFile(to);
+
+		expect(drillSpy).toHaveBeenCalledWith(to);
+	});
+
+	// -----------------------------------------------------------------------
+	// AC-F2.6: Unresolved/non-md file -> M3 state, no throw
+	// -----------------------------------------------------------------------
+
+	it("showFile(nonMdFile) yields non-md M3 state and does not throw", () => {
+		const nonMd = makeNonMdFileSF();
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+		};
+		pv.subject = { file: makeMdFileSF("Mara Stoneway"), source: "follow" };
+
+		expect(() => { view.showFile(nonMd); }).not.toThrow();
+
+		// Non-md state: body shows "Story Forge follows markdown notes." (S3)
+		const body = view.contentEl.querySelector(".sf-body");
+		expect(body?.textContent).toContain("Story Forge follows markdown notes.");
+	});
+
+	it("showFile(mdFile with null cache) yields error state and does not throw (AC-F2.6)", () => {
+		const unresolved = makeMdFileSF("Mystery Note");
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+		};
+		pv.subject = { file: makeMdFileSF("Mara Stoneway"), source: "follow" };
+
+		app.metadataCache.getFileCache = vi.fn(() => null);
+
+		expect(() => { view.showFile(unresolved); }).not.toThrow();
+
+		expect(pv.subject.file?.path).toBe(unresolved.path);
+	});
+
+	it("showFile(mdFile with no entity tag) yields non-entity state and does not throw (AC-F2.6)", () => {
+		const nonEntity = makeMdFileSF("Random scratchpad");
+		const pv = view as unknown as {
+			subject: { file: TFile | null; source: string };
+		};
+		pv.subject = { file: makeMdFileSF("Mara Stoneway"), source: "follow" };
+
+		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: {} }));
+
+		expect(() => { view.showFile(nonEntity); }).not.toThrow();
+
+		const badge = view.contentEl.querySelector(".sf-badge");
+		expect(badge?.textContent).toBe("not an entity");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T3.1 — revealAndShowFile helper (closed-panel case)
+// ---------------------------------------------------------------------------
+
+describe("revealAndShowFile helper (T3.1)", () => {
+	function makeMdFileR(basename = "Silvan Nightweaver"): TFile {
+		const f = new TFile();
+		f.path = `${basename}.md`;
+		f.name = `${basename}.md`;
+		f.basename = basename;
+		f.extension = "md";
+		return f;
+	}
+
+	it("reveals an existing sidebar leaf without creating a duplicate leaf", async () => {
+		const app = makeApp();
+		const file = makeMdFileR("Mara Stoneway");
+		const native = new NativeScopingEngine(app);
+
+		const existingLeaf = new WorkspaceLeaf();
+		existingLeaf.app = app;
+
+		const sidebarView = new SidebarView(existingLeaf, undefined, undefined, native);
+		await sidebarView.onOpen();
+
+		// Simulate: getLeavesOfType returns the leaf carrying the live SidebarView
+		const leafWithView = { ...existingLeaf, view: sidebarView } as unknown as WorkspaceLeaf;
+		app.workspace.getLeavesOfType = vi.fn((_type: string) => [leafWithView]);
+
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		await revealAndShowFile(app, file);
+
+		// reveal was called on the existing leaf
+		expect(app.workspace.revealLeaf).toHaveBeenCalled();
+		// No new leaf was created
+		expect(app.workspace.getRightLeaf).not.toHaveBeenCalled();
+		// showFile was called — view re-subjected to the file
+		const pv = sidebarView as unknown as {
+			subject: { file: TFile | null; source: string };
+		};
+		expect(pv.subject.file?.path).toBe(file.path);
+		expect(pv.subject.source).toBe("drilled");
+
+		await sidebarView.onClose();
+	});
+
+	it("creates a new leaf when the panel is closed then calls showFile on the opened view", async () => {
+		const app = makeApp();
+		const file = makeMdFileR("Mara Stoneway");
+		const native = new NativeScopingEngine(app);
+
+		const newLeaf = new WorkspaceLeaf();
+		newLeaf.app = app;
+		newLeaf.setViewState = vi.fn(async (s: { type: string }) => {
+			newLeaf.view.getViewType = vi.fn(() => s.type);
+		});
+		app.workspace.getRightLeaf = vi.fn(() => newLeaf);
+
+		const sidebarView = new SidebarView(newLeaf, undefined, undefined, native);
+		await sidebarView.onOpen();
+		const leafWithView = { ...newLeaf, view: sidebarView } as unknown as WorkspaceLeaf;
+
+		// First getLeavesOfType call (in activateView): no leaf
+		// Second call (revealAndShowFile after activateView): leaf present
+		let callCount = 0;
+		app.workspace.getLeavesOfType = vi.fn((_type: string) => {
+			callCount++;
+			if (callCount <= 1) return [];
+			return [leafWithView];
+		});
+
+		app.metadataCache.getFileCache = vi.fn(() => ({
+			tags: [{ tag: "#canon/character" }],
+			frontmatter: {},
+		}));
+
+		await revealAndShowFile(app, file);
+
+		expect(newLeaf.setViewState).toHaveBeenCalledWith({ type: SIDEBAR_VIEW_TYPE, active: true });
+		const pv = sidebarView as unknown as {
+			subject: { file: TFile | null; source: string };
+		};
+		expect(pv.subject.file?.path).toBe(file.path);
+
+		await sidebarView.onClose();
 	});
 });
