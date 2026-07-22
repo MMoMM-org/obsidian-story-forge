@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: F6 Inspector + F8 read-only fields"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 5
 ---
@@ -28,16 +28,16 @@ phase: 5
 
 Delivers the minimal editable Inspector that proves the frontmatter write-back loop end-to-end, plus read-only display of list/relation fields.
 
-- [ ] **T5.1 `frontmatterWriter` — validate-before-write, two error states** `[activity: backend-integration]`
+- [x] **T5.1 `frontmatterWriter` — validate-before-write, two error states** `[activity: backend-integration]`
 
   1. Prime: Read `[ref: SDD/ADR-7]`, the F6 commit example, `obsidian.d.ts` `processFrontMatter` (`:2954`), `schema/*.json` `values`.
   2. Test: validation runs **in memory before** any write; a **type-invalid** value returns `{ok:false, reason:"validation", keepDirty:true}` and **writes nothing** (S55); a valid value calls `processFrontMatter` and returns `{ok:true}` (S54); a `processFrontMatter` reject returns `{ok:false, reason:"write", keepDirty:true}` with Retry (S55); an out-of-vocab `select` value is **not** a blocking error (advisory warn) and the write proceeds.
   3. Implement: `src/inspector/frontmatterWriter.ts` (`commit(file, key, value, field)`), `src/inspector/editableFields.ts` (scalar/enum controls; select vocab from schema `values`).
   4. Validate: unit tests for valid / type-error / write-error / out-of-vocab; nothing persisted to plugin state.
   5. Success:
-     - [ ] Valid commit writes plain frontmatter + saved `[ref: PRD/AC-F6.3]`
-     - [ ] Type error blocks + preserves edit `[ref: PRD/AC-F6.5]`; write failure preserves + Retry `[ref: PRD/AC-F6.6]`
-     - [ ] Out-of-vocab follows frontmatter-is-truth (write + warn) `[ref: PRD/AC-F6.7; SDD/ADR-7]`
+     - [x] Valid commit writes plain frontmatter + saved `[ref: PRD/AC-F6.3]`
+     - [x] Type error blocks + preserves edit `[ref: PRD/AC-F6.5]`; write failure preserves + Retry `[ref: PRD/AC-F6.6]`
+     - [x] Out-of-vocab follows frontmatter-is-truth (write + warn) `[ref: PRD/AC-F6.7; SDD/ADR-7]`
 
 - [ ] **T5.2 `InspectorController` — dirty/saved/error state hosted in SidebarView** `[activity: frontend-ui]`
 
