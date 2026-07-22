@@ -10,6 +10,7 @@ node_modules
 # Build output — uploaded to GitHub releases, not committed
 main.js
 build/
+dist/
 # Exception: hot-reload plugin ships with the test vault
 !test/*/.obsidian/plugins/hot-reload/main.js
 
