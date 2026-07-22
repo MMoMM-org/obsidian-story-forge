@@ -80,13 +80,18 @@ function viewOrder(parsed: unknown): string[] {
 }
 
 /**
- * Return the groupBy property name from the first view, or undefined.
+ * Return the groupBy object from the first view as { property, direction }.
+ * Returns undefined when groupBy is absent or not a plain object.
  */
-function viewGroupByProperty(parsed: unknown): string | undefined {
+function viewGroupBy(parsed: unknown): { property: string | undefined; direction: string | undefined } | undefined {
 	const view = firstView(parsed);
 	const groupBy = view["groupBy"];
 	if (groupBy === null || typeof groupBy !== "object" || Array.isArray(groupBy)) return undefined;
-	return (groupBy as Record<string, unknown>)["property"] as string | undefined;
+	const gb = groupBy as Record<string, unknown>;
+	return {
+		property: gb["property"] as string | undefined,
+		direction: gb["direction"] as string | undefined,
+	};
 }
 
 /**
@@ -136,35 +141,21 @@ describe("catalog overview .base files — existence", () => {
 // ---------------------------------------------------------------------------
 
 describe("catalog overview .base files — validateBasesConfig", () => {
-	it("overview-characters.base passes validateBasesConfig", () => {
-		const parsed = loadBase("overview-characters.base");
-		const result = validateBasesConfig(parsed);
-		expect(result.ok, result.ok ? undefined : `error: ${(result as { ok: false; error: string }).error}`).toBe(true);
-	});
+	const FILES = [
+		"overview-characters.base",
+		"overview-locations.base",
+		"overview-objects.base",
+		"overview-lore.base",
+		"overview-scenes.base",
+	];
 
-	it("overview-locations.base passes validateBasesConfig", () => {
-		const parsed = loadBase("overview-locations.base");
-		const result = validateBasesConfig(parsed);
-		expect(result.ok, result.ok ? undefined : `error: ${(result as { ok: false; error: string }).error}`).toBe(true);
-	});
-
-	it("overview-objects.base passes validateBasesConfig", () => {
-		const parsed = loadBase("overview-objects.base");
-		const result = validateBasesConfig(parsed);
-		expect(result.ok, result.ok ? undefined : `error: ${(result as { ok: false; error: string }).error}`).toBe(true);
-	});
-
-	it("overview-lore.base passes validateBasesConfig", () => {
-		const parsed = loadBase("overview-lore.base");
-		const result = validateBasesConfig(parsed);
-		expect(result.ok, result.ok ? undefined : `error: ${(result as { ok: false; error: string }).error}`).toBe(true);
-	});
-
-	it("overview-scenes.base passes validateBasesConfig", () => {
-		const parsed = loadBase("overview-scenes.base");
-		const result = validateBasesConfig(parsed);
-		expect(result.ok, result.ok ? undefined : `error: ${(result as { ok: false; error: string }).error}`).toBe(true);
-	});
+	for (const file of FILES) {
+		it(`${file} passes validateBasesConfig`, () => {
+			const parsed = loadBase(file);
+			const result = validateBasesConfig(parsed);
+			expect(result.ok, result.ok ? undefined : `error: ${(result as { ok: false; error: string }).error}`).toBe(true);
+		});
+	}
 });
 
 // ---------------------------------------------------------------------------
@@ -178,11 +169,10 @@ describe("V4 overview-characters.base — fields match roadmap", () => {
 		expect(filters).toContain("canon/character");
 	});
 
-	it("view order includes: name (file.name), role, status, tagline", () => {
+	it("view order includes: file.name, role, status, tagline", () => {
 		const parsed = loadBase("overview-characters.base");
 		const order = viewOrder(parsed);
-		// name is represented as file.name in Bases
-		expect(order.some((f) => f === "file.name" || f === "name")).toBe(true);
+		expect(order).toContain("file.name");
 		expect(order).toContain("role");
 		expect(order).toContain("status");
 		expect(order).toContain("tagline");
@@ -200,10 +190,12 @@ describe("V5 overview-locations.base — fields + groupBy match roadmap", () => 
 		expect(filters).toContain("canon/location");
 	});
 
-	it("view is grouped by locationType", () => {
+	it("view is grouped by locationType ASC", () => {
 		const parsed = loadBase("overview-locations.base");
-		const groupProp = viewGroupByProperty(parsed);
-		expect(groupProp).toBe("locationType");
+		const groupBy = viewGroupBy(parsed);
+		expect(groupBy, "Expected a groupBy entry").toBeDefined();
+		expect(groupBy?.property).toBe("locationType");
+		expect(groupBy?.direction).toBe("ASC");
 	});
 
 	it("view order includes: world, region", () => {
@@ -225,10 +217,10 @@ describe("V6 overview-objects.base — fields match roadmap", () => {
 		expect(filters).toContain("canon/object");
 	});
 
-	it("view order includes: name (file.name), kind, owner", () => {
+	it("view order includes: file.name, kind, owner", () => {
 		const parsed = loadBase("overview-objects.base");
 		const order = viewOrder(parsed);
-		expect(order.some((f) => f === "file.name" || f === "name")).toBe(true);
+		expect(order).toContain("file.name");
 		expect(order).toContain("kind");
 		expect(order).toContain("owner");
 	});
@@ -245,10 +237,10 @@ describe("V7 overview-lore.base — fields match roadmap", () => {
 		expect(filters).toContain("canon/lore");
 	});
 
-	it("view order includes: name (file.name), scope, related", () => {
+	it("view order includes: file.name, scope, related", () => {
 		const parsed = loadBase("overview-lore.base");
 		const order = viewOrder(parsed);
-		expect(order.some((f) => f === "file.name" || f === "name")).toBe(true);
+		expect(order).toContain("file.name");
 		expect(order).toContain("scope");
 		expect(order).toContain("related");
 	});
