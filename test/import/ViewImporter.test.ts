@@ -655,6 +655,95 @@ describe("ViewImporter.importToStore()", () => {
 });
 
 // ---------------------------------------------------------------------------
+// T4.3 — importToStore() provenance override
+// ---------------------------------------------------------------------------
+
+describe("ViewImporter.importToStore() — T4.3 provenance override", () => {
+	let app: App;
+
+	const dqlDef: ViewDefinition = {
+		sourcePath: "catalog/overview-characters.base",
+		engine: "dataview-dql",
+		version: 1,
+		name: "Characters Overview",
+		description: "All characters",
+		command: false,
+		querySource: "LIST FROM #character\n",
+		checksum: "sha256:def456" as `sha256:${string}`,
+	};
+
+	const dvjsDef: ViewDefinition = {
+		sourcePath: "views/advanced.md",
+		engine: "dataviewjs",
+		version: 1,
+		name: "Advanced View",
+		description: "Advanced scripted view",
+		command: false,
+		querySource: "dv.list(dv.pages())\n",
+		checksum: "sha256:abc123" as `sha256:${string}`,
+	};
+
+	beforeEach(() => {
+		app = new App();
+	});
+
+	it("writes provenance:'curated' when opts.provenance is 'curated'", async () => {
+		const store = makeStore();
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		const importer = new ViewImporter(app, store);
+
+		await importer.importToStore(dqlDef, { provenance: "curated" });
+
+		expect(setRecordSpy).toHaveBeenCalledTimes(1);
+		const [, calledRec] = setRecordSpy.mock.calls[0]!;
+		expect(calledRec.provenance).toBe("curated");
+	});
+
+	it("writes provenance:'imported' by default (no opts) — backward compatible", async () => {
+		const store = makeStore();
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		const importer = new ViewImporter(app, store);
+
+		await importer.importToStore(dvjsDef);
+
+		expect(setRecordSpy).toHaveBeenCalledTimes(1);
+		const [, calledRec] = setRecordSpy.mock.calls[0]!;
+		expect(calledRec.provenance).toBe("imported");
+	});
+
+	it("writes provenance:'imported' when opts does not include provenance — backward compatible", async () => {
+		const store = makeStore();
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		const importer = new ViewImporter(app, store);
+
+		await importer.importToStore(dvjsDef, { enabled: false });
+
+		expect(setRecordSpy).toHaveBeenCalledTimes(1);
+		const [, calledRec] = setRecordSpy.mock.calls[0]!;
+		expect(calledRec.provenance).toBe("imported");
+	});
+
+	it("duplicate detection fires before any write even when provenance:'curated'", async () => {
+		const existingRecord: ViewRecord = {
+			provenance: "curated",
+			enabled: true,
+			okayed: { version: 1, checksum: "sha256:def456" },
+			source: "catalog/overview-characters.base",
+			engine: "dataview-dql",
+			command: false,
+		};
+		const store = makeStore({ "existing-id": existingRecord });
+		const setRecordSpy = vi.spyOn(store, "setRecord");
+		const importer = new ViewImporter(app, store);
+
+		await expect(
+			importer.importToStore(dqlDef, { provenance: "curated" }),
+		).rejects.toMatchObject({ code: "DUPLICATE" });
+		expect(setRecordSpy).not.toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
 // T2.3 — scanVault()
 // ---------------------------------------------------------------------------
 

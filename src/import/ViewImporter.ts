@@ -177,6 +177,8 @@ export class ViewImporter {
 	async importToStore(
 		def: ViewDefinition,
 		opts?: {
+			/** Override provenance for curated catalog installs. Defaults to "imported". @ref SDD/ADR-6 T4.3 */
+			provenance?: "curated" | "imported";
 			okayed?: { version: number; checksum: string } | null;
 			enabled?: boolean;
 			commandName?: string;
@@ -192,6 +194,9 @@ export class ViewImporter {
 
 		const newId = crypto.randomUUID();
 		const record = this.toRecord(def);
+		if (opts?.provenance !== undefined) {
+			record.provenance = opts.provenance;
+		}
 		if (opts?.enabled !== undefined) {
 			record.enabled = opts.enabled;
 		}
