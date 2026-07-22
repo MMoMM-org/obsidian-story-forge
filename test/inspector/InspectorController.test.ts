@@ -1065,3 +1065,165 @@ describe("InspectorController: no listener accumulation across re-renders", () =
 		expect(commitBtn).toBeNull();
 	});
 });
+
+// ---------------------------------------------------------------------------
+// T5.3 — Unified Inspector: read-only relation/list chips + each field once
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: T5.3 unified detail — read-only relation/list fields", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+	});
+
+	// -------------------------------------------------------------------------
+	// Relation field: resolved link → stampLinkEl (sf-lrow-lnk), read-only
+	// -------------------------------------------------------------------------
+
+	it("relation field with resolved value → shows a read-only link chip (sf-lrow-lnk), no input control", () => {
+		// Mock metadataCache to resolve the link
+		const targetFile = makeFile("30 Canon/31 Characters/Mara Stoneway.md");
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValue(targetFile);
+
+		const ctx = makeCtx(file, "character", { pov: "Mara Stoneway" });
+		const { container } = buildController(app, file, ctx, [makeRelationField("pov")]);
+
+		// No edit input
+		const input = container.querySelector("input, select, textarea");
+		expect(input).toBeNull();
+
+		// A read-only link chip (stampLinkEl) should be present
+		const chip = container.querySelector(".sf-lrow-lnk, .sf-inspector-readonly-chip, .sf-chip-ro, [data-sf-inspector-ro]");
+		expect(chip).not.toBeNull();
+	});
+
+	it("relation field: read-only chip is not an edit control (no input/select in DOM)", () => {
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValue(null);
+		const ctx = makeCtx(file, "character", { partner: "[[Jonas Kell]]" });
+		const { container } = buildController(app, file, ctx, [makeRelationField("partner")]);
+
+		const input = container.querySelector("input, select");
+		expect(input).toBeNull();
+	});
+
+	// -------------------------------------------------------------------------
+	// Unresolved [[link]] → unresolvedEl treatment: muted, non-clickable, not error
+	// -------------------------------------------------------------------------
+
+	it("relation field with unresolved value → renders muted unresolved treatment (sf-unres), not an error", () => {
+		// getFirstLinkpathDest returns null by default → unresolved
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValue(null);
+		const ctx = makeCtx(file, "character", { partner: "Nonexistent Ghost" });
+		const { container } = buildController(app, file, ctx, [makeRelationField("partner")]);
+
+		// No blocking error element
+		const errorEl = container.querySelector("[data-sf-inspector-error]");
+		expect(errorEl).toBeNull();
+
+		// The muted unresolved treatment should be present (sf-unres)
+		const unresolved = container.querySelector(".sf-unres, .sf-inspector-unresolved, [data-sf-inspector-unres]");
+		expect(unresolved).not.toBeNull();
+	});
+
+	it("relation field unresolved → no clickable link (no data-sf-link attribute)", () => {
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValue(null);
+		const ctx = makeCtx(file, "character", { partner: "Ghost" });
+		const { container } = buildController(app, file, ctx, [makeRelationField("partner")]);
+
+		// Must not have a data-sf-link (unresolved = non-routable)
+		const link = container.querySelector("[data-sf-link]");
+		expect(link).toBeNull();
+	});
+
+	// -------------------------------------------------------------------------
+	// List field → read-only chips row, no edit control
+	// -------------------------------------------------------------------------
+
+	it("list field → read-only display, no input control", () => {
+		const ctx = makeCtx(file, "character", { aliases: ["Spark", "Al"] });
+		const { container } = buildController(app, file, ctx, [makeListField("aliases")]);
+
+		const input = container.querySelector("input, select");
+		expect(input).toBeNull();
+
+		// Should have a field row (label present)
+		expect(container.textContent).toContain("aliases");
+	});
+
+	it("list field with multiple values → all values visible in read-only form", () => {
+		const ctx = makeCtx(file, "character", { allies: ["Tobias Ferro", "Jonas Kell"] });
+		const { container } = buildController(app, file, ctx, [makeListField("allies")]);
+
+		expect(container.textContent).toContain("Tobias Ferro");
+		expect(container.textContent).toContain("Jonas Kell");
+	});
+
+	// -------------------------------------------------------------------------
+	// Tags field → read-only, not editable
+	// -------------------------------------------------------------------------
+
+	it("tags field → read-only display, no input control", () => {
+		const ctx = makeCtx(file, "character", { tags: ["canon/character"] });
+		const { container } = buildController(app, file, ctx, [makeTagsField("tags")]);
+
+		const input = container.querySelector("input, select");
+		expect(input).toBeNull();
+	});
+
+	// -------------------------------------------------------------------------
+	// Fixed field → read-only, not editable
+	// -------------------------------------------------------------------------
+
+	it("fixed field → read-only display, no input control", () => {
+		const ctx = makeCtx(file, "character", { type: "character" });
+		const { container } = buildController(app, file, ctx, [makeFixedField("type")]);
+
+		const input = container.querySelector("input, select");
+		expect(input).toBeNull();
+	});
+
+	// -------------------------------------------------------------------------
+	// Each field ONCE: scalar editable + relation/list read-only, no duplication
+	// -------------------------------------------------------------------------
+
+	it("unified detail: scalar field has exactly ONE input, not two", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const inputs = container.querySelectorAll("input[data-sf-inspector-input='nickname']");
+		expect(inputs.length).toBe(1);
+	});
+
+	it("unified detail: mixed fields — each scalar has one editable input, each relation has one read-only row", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark", pov: "[[Mara]]" });
+		const fields = [makeTextField("nickname"), makeRelationField("pov")];
+		const { container } = buildController(app, file, ctx, fields);
+
+		// Exactly one editable input for the scalar
+		const inputs = container.querySelectorAll("[data-sf-inspector-input]");
+		expect(inputs.length).toBe(1);
+
+		// No input for the relation field
+		const allInputs = container.querySelectorAll("input, select");
+		expect(allInputs.length).toBe(1); // only the scalar input
+
+		// Relation label present
+		expect(container.textContent).toContain("pov");
+	});
+
+	it("unified detail: editable scalar/enum commit/dirty still works when relation fields also rendered", async () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark", pov: "[[Mara]]" });
+		const fields = [makeTextField("nickname"), makeRelationField("pov")];
+		const { container } = buildController(app, file, ctx, fields);
+
+		const input = container.querySelector("[data-sf-inspector-input='nickname']") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit='nickname']");
+		expect(commitBtn).not.toBeNull();
+	});
+});

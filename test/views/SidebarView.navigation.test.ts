@@ -24,10 +24,16 @@ import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { NoteContext } from "scoping/NoteContext";
 import type { EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
+import type { ViewRecord } from "store/types";
 
 /**
- * Minimal registry + gate so _renderResolved takes the native-fallback path
- * (currentRecord is null → nativeEngine.render), NOT the pre-T4.4 legacy stub.
+ * Minimal registry + gate so _renderResolved takes the engine-missing path:
+ * currentRecord is set to a non-null view record, registry returns undefined →
+ * engine-missing branch → nativeEngine.render produces navigable M3 link rows.
+ *
+ * T5.3: The !view (currentRecord=null) branch now renders the Inspector (no link
+ * rows). Navigation tests need nativeEngine.render to run, so they set a non-null
+ * currentRecord so the engine-missing path is taken.
  */
 function makeRegistry(): EngineRegistry {
 	return { get: vi.fn(() => undefined) } as unknown as EngineRegistry;
@@ -103,6 +109,23 @@ function registerCharacter(app: App, file: TFile): void {
 	}));
 }
 
+/**
+ * A minimal ViewRecord so _renderResolved takes the engine-missing path (registry
+ * returns undefined → nativeEngine.render) rather than the !view branch (Inspector).
+ * Navigation tests need nativeEngine to produce link rows — the Inspector renders
+ * form controls, not navigable section rows.
+ */
+function makeDummyViewRecord(): ViewRecord {
+	return {
+		provenance: "imported" as const,
+		enabled: true,
+		okayed: { version: 1, checksum: "sha256:abc" },
+		source: "TABLE name FROM #canon/character",
+		engine: "dataview-dql" as const,
+		command: false,
+	};
+}
+
 /** Dispatch a click on the body targeting a link element carrying data-sf-link. */
 function clickLink(
 	view: SidebarView,
@@ -152,7 +175,15 @@ describe("SidebarView: drill-in navigation", () => {
 		await view.onClose();
 	});
 
-	/** Seed a resolved subject `from` with one drill-target link `to` in its context. */
+	/**
+	 * Seed a resolved subject `from` with one drill-target link `to` in its context.
+	 *
+	 * T5.3: Sets currentRecord to a non-null dummy view record so _renderResolved
+	 * takes the engine-missing path (registry→undefined → nativeEngine.render) rather
+	 * than the !view branch (Inspector). The Inspector renders editable form controls,
+	 * not navigable M3 link rows — navigation tests need nativeEngine to produce the
+	 * M3 section rows that carry data-sf-link.
+	 */
 	function seedResolved(from: TFile, to: TFile): void {
 		registerCharacter(app, to);
 		const ctx: NoteContext = {
@@ -168,10 +199,13 @@ describe("SidebarView: drill-in navigation", () => {
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
 			currentCtx: NoteContext;
+			currentRecord: ViewRecord | null;
 			_renderState(s: { kind: string; ctx: NoteContext }): void;
 		};
 		pv.subject = { file: from, source: "follow" };
 		pv.currentCtx = ctx;
+		// Set a non-null currentRecord so the engine-missing path produces M3 link rows.
+		pv.currentRecord = makeDummyViewRecord();
 		pv._renderState({ kind: "resolved", ctx });
 	}
 
@@ -322,10 +356,14 @@ describe("SidebarView: drill-in navigation", () => {
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
 			currentCtx: NoteContext;
+			currentRecord: ViewRecord | null;
 			_renderState(s: { kind: string; ctx: NoteContext }): void;
 		};
 		pv.subject = { file: from, source: "follow" };
 		pv.currentCtx = ctx;
+		// T5.3: set a non-null currentRecord so _renderResolved takes the engine-missing
+		// path (nativeEngine.render) and produces navigable M3 link rows with data-sf-link.
+		pv.currentRecord = makeDummyViewRecord();
 		pv._renderState({ kind: "resolved", ctx });
 
 		// Now the target's cache classifies as unknown.
@@ -668,10 +706,15 @@ describe("SidebarView: header Back + drill trail (S41)", () => {
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
 			currentCtx: NoteContext;
+			currentRecord: ViewRecord | null;
 			_renderState(s: { kind: string; ctx: NoteContext }): void;
 		};
 		pv.subject = { file: from, source: "follow" };
 		pv.currentCtx = ctx;
+		// T5.3: set a non-null currentRecord so engine-missing path runs (nativeEngine.render
+		// produces M3 link rows). The !view branch now renders the Inspector (form controls,
+		// no navigable link rows). Navigation tests need nativeEngine to produce link rows.
+		pv.currentRecord = makeDummyViewRecord();
 		pv._renderState({ kind: "resolved", ctx });
 	}
 
@@ -767,10 +810,15 @@ describe("SidebarView: pin preserves Back while drilled (fix #9)", () => {
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
 			currentCtx: NoteContext;
+			currentRecord: ViewRecord | null;
 			_renderState(s: { kind: string; ctx: NoteContext }): void;
 		};
 		pv.subject = { file: from, source: "follow" };
 		pv.currentCtx = ctx;
+		// T5.3: set a non-null currentRecord so engine-missing path runs (nativeEngine.render
+		// produces M3 link rows). The !view branch now renders the Inspector (form controls,
+		// no navigable link rows). Navigation tests need nativeEngine to produce link rows.
+		pv.currentRecord = makeDummyViewRecord();
 		pv._renderState({ kind: "resolved", ctx });
 	}
 

@@ -35,7 +35,6 @@ import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFields } from "../inspector/inspectorFields";
-import { isScalarEditable } from "../inspector/editableFields";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -1129,17 +1128,14 @@ export class SidebarView extends ItemView {
 
 		const view = this.currentRecord;
 
-		// No view tab selected → native M3 read-only detail + editable Inspector overlay.
-		// The Inspector renders ONLY editable-scalar fields (ADR-3: overlay, not replacement)
-		// so the M3 read-only rows and the Inspector's editable inputs are distinct DOM nodes
-		// with no duplication. nativeEngine always runs to produce the M3 panel.
+		// No view tab selected (Context tab) → Inspector owns the entire unified detail.
+		// T5.3: nativeEngine.render is NOT called here. The Inspector renders ALL fields
+		// exactly once: editable scalar/enum inputs (F6) + read-only relation/list/tags/fixed
+		// chips (F8). This prevents the double-render that occurred when nativeEngine produced
+		// M3 read-only rows and the Inspector also rendered editable inputs for the same fields.
+		// nativeEngine.render still runs in the view-selected + engine-missing branch below.
 		if (!view) {
 			this._prepareBody(body);
-			await this.nativeEngine.render(null, ctx, body);
-			if (gen !== this._renderGen) return;
-			this.currentEngine = this.nativeEngine;
-			// T5.2: editable-only Inspector overlay appended after M3 read-only detail.
-			// _renderInspector passes only isScalarEditable fields (no list/relation/tags/fixed).
 			this._renderInspector(body, ctx);
 			return;
 		}
@@ -1243,22 +1239,27 @@ export class SidebarView extends ItemView {
 	}
 
 	/**
-	 * T5.2: Render the editable-only Inspector overlay after M3 read-only detail.
+	 * T5.3: Render the unified Inspector detail (all fields, not just editable scalars).
 	 *
-	 * Passes ONLY isScalarEditable fields (text/number/select) to the controller —
-	 * list/relation/tags/fixed fields remain in the M3 read-only panel rendered by
-	 * nativeEngine above this call. This prevents each read-only row from appearing
-	 * twice in the panel (S3/ADR-3: Inspector is an overlay, not a replacement).
+	 * The Inspector OWNS the entire no-view-tab detail:
+	 *   - scalar/enum (text, number, select) → editable inputs (F6)
+	 *   - relation/list/tags/fixed → read-only chips using M3 helpers (F8)
+	 *
+	 * nativeEngine.render is NOT called before this in the !view branch — every
+	 * field is rendered exactly once (no duplication). nativeEngine.render continues
+	 * to run in the view-selected + engine-missing branches.
 	 *
 	 * Only shown in the Context tab (no view tab selected).
 	 */
 	private _renderInspector(body: AugEl, ctx: NoteContext): void {
 		if (!this._inspector) return;
 		if (ctx.activeKind === "unknown") return;
-		const editableFields = inspectorFields(ctx.activeKind).filter(isScalarEditable);
-		if (editableFields.length === 0) return;
+		// T5.3: pass ALL fields (scalar editable + read-only relation/list/tags/fixed).
+		// The controller routes each field to the appropriate render path.
+		const allFields = inspectorFields(ctx.activeKind);
+		if (allFields.length === 0) return;
 		const host = body.createDiv({ cls: "sf-inspector-host" });
-		this._inspector.render(host, ctx, editableFields);
+		this._inspector.render(host, ctx, allFields);
 	}
 
 	// ---------------------------------------------------------------------------

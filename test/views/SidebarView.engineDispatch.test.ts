@@ -481,10 +481,14 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// No view record → native fallback (no currentRecord)
+	// No view record → Inspector owns full detail (T5.3: unified detail, no M3)
 	// -------------------------------------------------------------------------
 
-	it("no currentRecord: falls back to nativeEngine.render", async () => {
+	it("no currentRecord: Inspector owns full detail — nativeEngine.render NOT called in !view branch", async () => {
+		// T5.3 rework: the !view branch must NOT call nativeEngine.render.
+		// The Inspector is responsible for the entire unified detail (editable scalars
+		// + read-only relation/list chips). nativeEngine.render only runs in
+		// view-selected (engine-missing) or view-selected + consented branches.
 		const registry = makeMockRegistry(undefined);
 		const consentGate = makeMockConsentGate({ status: "consented" });
 
@@ -498,13 +502,18 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 			currentRecord: ViewRecord | null;
 			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
 		};
-		// currentRecord is null — no view selected
+		// currentRecord is null — no view selected (Context tab)
 		privateView.currentRecord = null;
 
 		const body = getBody(view);
 		await privateView._renderResolved(body, ctx);
 
-		expect(nativeEngine.render).toHaveBeenCalledWith(null, ctx, body);
+		// T5.3: nativeEngine.render must NOT be called in the !view branch.
+		// The Inspector renders the unified detail instead.
+		expect(nativeEngine.render).not.toHaveBeenCalled();
+
+		// The Inspector host must be present in the DOM.
+		expect(body.querySelector(".sf-inspector-host")).not.toBeNull();
 	});
 
 	it("no currentRecord: does not call registry.get", async () => {

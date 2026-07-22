@@ -40,6 +40,7 @@ import type { NoteContext } from "scoping/NoteContext";
 import { commit } from "./frontmatterWriter";
 import { isScalarEditable, selectVocab } from "./editableFields";
 import type { FieldSpec } from "./frontmatterWriter";
+import { unresolvedEl, stampLinkEl } from "../panel/components";
 
 declare const activeDocument: Document;
 
@@ -270,7 +271,7 @@ export class InspectorController {
 			if (isScalarEditable(spec)) {
 				this._renderEditableField(fieldRow, spec, state);
 			} else {
-				this._renderReadOnlyField(fieldRow, state);
+				this._renderReadOnlyField(fieldRow, spec, state);
 			}
 
 			container.appendChild(fieldRow);
@@ -348,12 +349,84 @@ export class InspectorController {
 
 	private _renderReadOnlyField(
 		fieldRow: HTMLElement,
+		spec: FieldSpec,
 		state: FieldState,
 	): void {
-		const valueEl = activeDocument.createElement("span");
-		valueEl.className = "sf-inspector-readonly-value";
-		valueEl.textContent = displayValue(state.committedValue) || "—";
-		fieldRow.appendChild(valueEl);
+		if (spec.type === "relation") {
+			this._renderRelationChip(fieldRow, spec, state);
+		} else if (spec.type === "list" || spec.type === "tags") {
+			this._renderListChips(fieldRow, state);
+		} else {
+			// fixed and any other read-only types: plain text display
+			const valueEl = activeDocument.createElement("span");
+			valueEl.className = "sf-inspector-readonly-value";
+			valueEl.textContent = displayValue(state.committedValue) || "—";
+			fieldRow.appendChild(valueEl);
+		}
+	}
+
+	/** Render a relation field as a resolved link chip or an unresolved muted element. */
+	private _renderRelationChip(
+		fieldRow: HTMLElement,
+		_spec: FieldSpec,
+		state: FieldState,
+	): void {
+		const raw = state.committedValue;
+		const rawStr = displayValue(raw);
+		if (!rawStr) {
+			const emptyEl = activeDocument.createElement("span");
+			emptyEl.className = "sf-inspector-readonly-value";
+			emptyEl.textContent = "—";
+			fieldRow.appendChild(emptyEl);
+			return;
+		}
+		// Strip [[wikilink]] brackets if present (Obsidian may store them raw)
+		const linkText = rawStr.replace(/^\[\[(.+?)\]\]$/, "$1");
+		const sourcePath = this.ctx?.activeFile.path ?? "";
+		const resolvedFile = this.app.metadataCache.getFirstLinkpathDest(linkText, sourcePath);
+		if (resolvedFile) {
+			// Resolved: read-only link chip using stampLinkEl (activeDocument.createElement,
+			// no Obsidian createEl augmentation needed — safe in tests and runtime). The chip
+			// carries data-sf-link so the SidebarView delegated handler can route it (AC-F8.1).
+			const chipEl = activeDocument.createElement("div");
+			chipEl.className = "sf-inspector-ro-chip";
+			chipEl.appendChild(stampLinkEl(resolvedFile.basename, resolvedFile.path));
+			fieldRow.appendChild(chipEl);
+		} else {
+			// Unresolved: muted, non-clickable M3 treatment (AC-F8.2). unresolvedEl uses
+			// activeDocument.createElement — safe in tests and runtime.
+			fieldRow.appendChild(unresolvedEl(linkText));
+		}
+	}
+
+	/** Render a list or tags field as read-only comma-joined chips. */
+	private _renderListChips(
+		fieldRow: HTMLElement,
+		state: FieldState,
+	): void {
+		const raw = state.committedValue;
+		const items = Array.isArray(raw)
+			? (raw as unknown[]).map(displayValue).filter(Boolean)
+			: displayValue(raw)
+				? [displayValue(raw)]
+				: [];
+		if (items.length === 0) {
+			const emptyEl = activeDocument.createElement("span");
+			emptyEl.className = "sf-inspector-readonly-value";
+			emptyEl.textContent = "—";
+			fieldRow.appendChild(emptyEl);
+			return;
+		}
+		const chipsEl = activeDocument.createElement("div");
+		chipsEl.className = "sf-inspector-chips";
+		for (const item of items) {
+			const chip = activeDocument.createElement("span");
+			chip.className = "sf-inspector-chip";
+			chip.setAttribute("data-sf-inspector-ro", "true");
+			chip.textContent = item;
+			chipsEl.appendChild(chip);
+		}
+		fieldRow.appendChild(chipsEl);
 	}
 
 	/** Update (or create) the commit/error/retry/advisory elements for a field. */

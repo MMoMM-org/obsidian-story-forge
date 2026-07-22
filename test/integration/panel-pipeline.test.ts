@@ -48,6 +48,7 @@ import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { NoteContext } from "scoping/NoteContext";
+import type { ViewRecord } from "store/types";
 
 // ---------------------------------------------------------------------------
 // Fixture model — build a metadataCache from the seed notes' known frontmatter
@@ -313,6 +314,23 @@ function makeRegistry(): EngineRegistry {
 	return { get: vi.fn(() => undefined) } as unknown as EngineRegistry;
 }
 
+/**
+ * T5.3: A non-null currentRecord so _renderResolved takes the engine-missing path
+ * (nativeEngine.render) rather than the !view branch (Inspector-only).
+ * Integration / ground-truth tests assert the M3 section DOM produced by
+ * NativeScopingEngine, so they need the engine-missing path.
+ */
+function makeDummyViewRecord(): ViewRecord {
+	return {
+		provenance: "imported" as const,
+		enabled: true,
+		okayed: { version: 1, checksum: "sha256:abc" },
+		source: "TABLE name FROM #canon/character",
+		engine: "dataview-dql" as const,
+		command: false,
+	};
+}
+
 function makeGate(): ConsentGate {
 	return {
 		evaluate: vi.fn(async () => ({ status: "consented" })),
@@ -375,6 +393,11 @@ async function mountPanel(specs: NoteSpec[] = SEED_NOTES): Promise<Harness> {
 	const native = new NativeScopingEngine(app);
 	const view = new SidebarView(leaf, makeRegistry(), makeGate(), native);
 	await view.onOpen();
+	// T5.3: set a non-null currentRecord so _renderResolved takes the engine-missing
+	// path (nativeEngine.render produces M3 section DOM). Without this, the !view
+	// branch renders the Inspector-only unified detail — no M3 sections.
+	(view as unknown as { currentRecord: ViewRecord | null }).currentRecord =
+		makeDummyViewRecord();
 
 	return {
 		app,
@@ -583,6 +606,10 @@ describe("T5.3 navigation — drill / open / swap on the integrated pipeline", (
 		const native = new NativeScopingEngine(app);
 		view = new SidebarView(leaf, makeRegistry(), makeGate(), native, undefined, () => clickAction);
 		await view.onOpen();
+		// T5.3: set a non-null currentRecord so _renderResolved takes the engine-missing
+		// path (nativeEngine.render produces M3 section DOM with data-sf-link rows).
+		(view as unknown as { currentRecord: ViewRecord | null }).currentRecord =
+			makeDummyViewRecord();
 		h = {
 			app,
 			view,
