@@ -127,6 +127,22 @@ export class SettingsTab extends PluginSettingTab {
 					}),
 			);
 
+		new Setting(containerEl)
+			.setName("Curated bases folder")
+			.setDesc("Vault folder where installed curated .base files are placed. Default: 00 Meta/Bases")
+			.addText((text) =>
+				text
+					// eslint-disable-next-line obsidianmd/ui/sentence-case -- '00 Meta/Bases' is a vault path placeholder
+					.setPlaceholder("00 Meta/Bases")
+					.setValue(this.plugin.settings.curatedBasesFolder)
+					.onChange(async (value) => {
+						// Fall back to the default when the field is cleared.
+						this.plugin.settings.curatedBasesFolder =
+							value.trim().length > 0 ? value.trim() : "00 Meta/Bases";
+						await this.plugin.saveSettings();
+					}),
+			);
+
 		await this._renderViewsSection(gen);
 	}
 

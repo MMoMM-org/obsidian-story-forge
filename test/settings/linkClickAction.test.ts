@@ -273,7 +273,7 @@ describe("linkClickAction value round-trip", () => {
 		}
 
 		// Save "open"
-		await saveSettings({ exampleSetting: "", linkClickAction: "open" });
+		await saveSettings({ exampleSetting: "", linkClickAction: "open", curatedBasesFolder: "00 Meta/Bases" });
 		// Load it back
 		const result = await loadSettings();
 		expect(result.linkClickAction).toBe("open");
@@ -297,7 +297,7 @@ describe("linkClickAction value round-trip", () => {
 			return merged;
 		}
 
-		await saveSettings({ exampleSetting: "", linkClickAction: "drill" });
+		await saveSettings({ exampleSetting: "", linkClickAction: "drill", curatedBasesFolder: "00 Meta/Bases" });
 		const result = await loadSettings();
 		expect(result.linkClickAction).toBe("drill");
 	});

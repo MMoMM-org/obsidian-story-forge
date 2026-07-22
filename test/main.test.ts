@@ -98,7 +98,7 @@ describe("StoryForgePlugin — settings persistence across reload", () => {
 		const { plugin } = await makePlugin();
 		// Simulate stored data with custom setting
 		const stored: StoryForgeData = {
-			settings: { exampleSetting: "custom-value", linkClickAction: "drill" },
+			settings: { exampleSetting: "custom-value", linkClickAction: "drill", curatedBasesFolder: "00 Meta/Bases" },
 		};
 		plugin.loadData.mockResolvedValue(stored);
 
@@ -125,7 +125,7 @@ describe("StoryForgePlugin — clobber guards", () => {
 
 		// Simulate existing data with a view record
 		const existingData: StoryForgeData = {
-			settings: { exampleSetting: "old", linkClickAction: "drill" },
+			settings: { exampleSetting: "old", linkClickAction: "drill", curatedBasesFolder: "00 Meta/Bases" },
 			views: { "view-1": makeViewRecord() },
 		};
 		plugin.loadData.mockResolvedValue(existingData);
@@ -146,7 +146,7 @@ describe("StoryForgePlugin — clobber guards", () => {
 		const { plugin } = await makePlugin();
 
 		const existingData: StoryForgeData = {
-			settings: { exampleSetting: "keep-me", linkClickAction: "drill" },
+			settings: { exampleSetting: "keep-me", linkClickAction: "drill", curatedBasesFolder: "00 Meta/Bases" },
 		};
 		plugin.loadData.mockResolvedValue(existingData);
 		await plugin.onload();
