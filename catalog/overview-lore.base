@@ -1,0 +1,15 @@
+filters: file.hasTag("canon/lore")
+properties:
+  file.name:
+    displayName: Name
+  scope:
+    displayName: Scope
+  related:
+    displayName: Related
+views:
+  - type: table
+    name: Lore
+    order:
+      - file.name
+      - scope
+      - related

@@ -1,0 +1,24 @@
+filters: file.hasTag("manuscript/scene")
+properties:
+  order:
+    displayName: "#"
+  file.name:
+    displayName: Scene
+  status:
+    displayName: Status
+  pov:
+    displayName: POV
+  location:
+    displayName: Location
+views:
+  - type: table
+    name: Scenes
+    order:
+      - order
+      - file.name
+      - status
+      - pov
+      - location
+    sort:
+      - property: order
+        direction: ASC

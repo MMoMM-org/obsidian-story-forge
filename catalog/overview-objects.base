@@ -1,0 +1,15 @@
+filters: file.hasTag("canon/object")
+properties:
+  file.name:
+    displayName: Name
+  kind:
+    displayName: Kind
+  owner:
+    displayName: Owner
+views:
+  - type: table
+    name: Objects
+    order:
+      - file.name
+      - kind
+      - owner

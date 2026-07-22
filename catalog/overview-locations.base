@@ -1,0 +1,20 @@
+filters: file.hasTag("canon/location")
+properties:
+  file.name:
+    displayName: Name
+  locationType:
+    displayName: Type
+  world:
+    displayName: World
+  region:
+    displayName: Region
+views:
+  - type: table
+    name: Locations
+    groupBy:
+      property: locationType
+      direction: ASC
+    order:
+      - file.name
+      - world
+      - region
