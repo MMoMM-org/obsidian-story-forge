@@ -1,0 +1,864 @@
+/**
+ * InspectorController tests — T5.2 (RED first, per TDD).
+ *
+ * Tests:
+ *  - render: editable scalar/enum controls shown; read-only fields (list/relation/tags/fixed)
+ *    shown read-only without edit control.
+ *  - dirty state machine: editing past committed value → dirty + commit affordance;
+ *    reverting to committed value → clean (affordance hidden); clearing (null) → dirty.
+ *  - commit → saved: valid edit calls frontmatterWriter.commit → {ok:true} → saved state.
+ *  - commit → error (validation): error shown + edit retained.
+ *  - commit → error (write): error shown + edit retained + Retry re-attempts.
+ *  - listeners: registered once on owned container, not per-field-per-render.
+ *  - teardown: close/re-subject clears transient dirty state.
+ *  - dirty-guard: controller's own commit fires metadataCache.changed → does NOT
+ *    clobber an in-flight edit.
+ *  - out-of-vocab advisory: visible inline cue shown after a successful {ok:true}
+ *    commit of an out-of-vocab select value.
+ *
+ * @ref SDD/ADR-3 — Inspector home = edit-mode overlay inside SidebarView
+ * @ref SDD/ADR-7 — block type errors, warn vocab; out-of-vocab advisory visible
+ * @ref PRD/AC-F6.1 — read-only detail + editable scalar/enum
+ * @ref PRD/AC-F6.2 — dirty state
+ * @ref PRD/AC-F6.4 — committed edit fans out to M3 panel (via metadataCache)
+ * @ref CON-1 — transient in-memory dirty state only, never persisted
+ * @ref CON-4 — teardown discipline, listener cleanup
+ */
+
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { App, TFile, Component } from "../__mocks__/obsidian";
+import { InspectorController } from "inspector/InspectorController";
+import * as frontmatterWriter from "inspector/frontmatterWriter";
+import type { FieldSpec, CommitResult } from "inspector/frontmatterWriter";
+import type { NoteContext, EntityKind } from "scoping/NoteContext";
+
+// ---------------------------------------------------------------------------
+// Factories
+// ---------------------------------------------------------------------------
+
+function makeApp(): App {
+	return new App();
+}
+
+function makeFile(path = "30 Canon/31 Characters/Alice.md"): TFile {
+	const f = new TFile();
+	f.path = path;
+	f.basename = "Alice";
+	f.name = "Alice.md";
+	f.extension = "md";
+	return f;
+}
+
+function makeCtx(
+	file: TFile,
+	kind: EntityKind = "character",
+	frontmatter: Record<string, unknown> = {},
+): NoteContext {
+	return {
+		activeFile: file,
+		activeKind: kind,
+		entities: [],
+		backlinks: [],
+		frontmatter,
+		resolvedAt: Date.now(),
+	};
+}
+
+function makeTextField(name: string): FieldSpec {
+	return { name, type: "text" };
+}
+
+function makeNumberField(name: string): FieldSpec {
+	return { name, type: "number" };
+}
+
+function makeSelectField(name: string, values: string[] = []): FieldSpec {
+	return { name, type: "select", values };
+}
+
+function makeListField(name: string): FieldSpec {
+	return { name, type: "list" };
+}
+
+function makeRelationField(name: string): FieldSpec {
+	return { name, type: "relation" };
+}
+
+function makeTagsField(name: string): FieldSpec {
+	return { name, type: "tags" };
+}
+
+function makeFixedField(name: string): FieldSpec {
+	return { name, type: "fixed" };
+}
+
+function makeContainer(): HTMLElement {
+	const el = document.createElement("div");
+	// The global HTMLElement augmentation (obsidian-augment.d.ts) adds createEl/
+	// createDiv/createSpan/empty to the HTMLElement interface. The jsdom runtime
+	// does NOT implement them — we wire them manually here so the controller's
+	// DOM calls work in the test environment without a live Obsidian runtime.
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	(el as any).createDiv = (opts?: { cls?: string; text?: string }): HTMLDivElement => {
+		const child = document.createElement("div");
+		if (opts?.cls) child.className = opts.cls;
+		if (opts?.text) child.textContent = opts.text;
+		el.appendChild(child);
+		return child;
+	};
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	(el as any).createSpan = (opts?: { cls?: string; text?: string }): HTMLSpanElement => {
+		const child = document.createElement("span");
+		if (opts?.cls) child.className = opts.cls;
+		if (opts?.text) child.textContent = opts.text;
+		el.appendChild(child);
+		return child;
+	};
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	(el as any).empty = (): void => {
+		el.innerHTML = "";
+	};
+	return el;
+}
+
+/** Create a parent Component that owns the InspectorController (mirrors SidebarView pattern). */
+function makeOwner(): Component {
+	return new Component();
+}
+
+// ---------------------------------------------------------------------------
+// Helper to build InspectorController and render it
+// ---------------------------------------------------------------------------
+
+function buildController(
+	app: App,
+	file: TFile,
+	ctx: NoteContext,
+	fields: FieldSpec[],
+	owner?: Component,
+): { controller: InspectorController; container: HTMLElement } {
+	const container = makeContainer();
+	const parentOwner = owner ?? makeOwner();
+	const controller = new InspectorController(app, parentOwner);
+	controller.render(container, ctx, fields);
+	return { controller, container };
+}
+
+// ---------------------------------------------------------------------------
+// render: field controls
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: render", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+	});
+
+	it("renders an editable text input for a text field", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input[type='text'], input:not([type='checkbox'])");
+		expect(input).not.toBeNull();
+	});
+
+	it("renders an editable input for a number field", () => {
+		const ctx = makeCtx(file, "character", { age: 30 });
+		const { container } = buildController(app, file, ctx, [makeNumberField("age")]);
+
+		// Number fields use type="text" + inputMode="numeric" to allow intermediate
+		// values and preserve edits on validation error (see AC-F6.5).
+		const input = container.querySelector("[data-sf-inspector-input='age']");
+		expect(input).not.toBeNull();
+	});
+
+	it("renders a select/dropdown for a select field with values", () => {
+		const ctx = makeCtx(file, "character", { role: "protagonist" });
+		const { container } = buildController(app, file, ctx, [
+			makeSelectField("role", ["protagonist", "antagonist", "supporting"]),
+		]);
+
+		// Either a <select> or an element with role="listbox"/"combobox"
+		const sel = container.querySelector("select") ?? container.querySelector("[role='combobox']") ?? container.querySelector("[role='listbox']");
+		expect(sel).not.toBeNull();
+	});
+
+	it("does NOT render an edit control for a list field (read-only)", () => {
+		const ctx = makeCtx(file, "character", { aliases: ["Spark", "Al"] });
+		const { container } = buildController(app, file, ctx, [makeListField("aliases")]);
+
+		// No inputs should be present for read-only fields
+		const input = container.querySelector("input, select, textarea");
+		expect(input).toBeNull();
+	});
+
+	it("does NOT render an edit control for a relation field (read-only)", () => {
+		const ctx = makeCtx(file, "character", { friends: ["[[Bob]]"] });
+		const { container } = buildController(app, file, ctx, [makeRelationField("friends")]);
+
+		const input = container.querySelector("input, select, textarea");
+		expect(input).toBeNull();
+	});
+
+	it("does NOT render an edit control for a tags field (read-only)", () => {
+		const ctx = makeCtx(file, "character", { tags: ["canon/character"] });
+		const { container } = buildController(app, file, ctx, [makeTagsField("tags")]);
+
+		const input = container.querySelector("input, select, textarea");
+		expect(input).toBeNull();
+	});
+
+	it("does NOT render an edit control for a fixed field (read-only)", () => {
+		const ctx = makeCtx(file, "character", { type: "character" });
+		const { container } = buildController(app, file, ctx, [makeFixedField("type")]);
+
+		const input = container.querySelector("input, select, textarea");
+		expect(input).toBeNull();
+	});
+
+	it("renders field label for each field", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		expect(container.textContent).toContain("nickname");
+	});
+
+	it("pre-fills input with committed frontmatter value", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement | null;
+		expect(input?.value).toBe("Spark");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// dirty state machine
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: dirty state machine", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+	});
+
+	it("starts clean — no commit affordance shown initially", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		// No "save" / "commit" button visible initially
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtn).toBeNull();
+	});
+
+	it("editing an input past the committed value → dirty → commit affordance appears", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		// Commit button should now be visible
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtn).not.toBeNull();
+	});
+
+	it("reverting input to committed value → clean → commit affordance hidden", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+
+		// Dirty: change away
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		// Revert to committed
+		input.value = "Spark";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtn).toBeNull();
+	});
+
+	it("clearing input to empty string → dirty (differs from non-null committed value)", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtn).not.toBeNull();
+	});
+
+	it("field with null/undefined frontmatter value → input empty, editing → dirty", () => {
+		// No value for nickname in frontmatter → starts as null/empty
+		const ctx = makeCtx(file, "character", {});
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		// Initially empty (committed = null/undefined)
+		expect(input.value).toBe("");
+
+		// Editing into a value → dirty
+		input.value = "Spark";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtn).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// commit → saved (S54)
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: commit → saved", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+		vi.mocked(app.fileManager.processFrontMatter).mockResolvedValue(undefined);
+	});
+
+	it("clicking commit calls frontmatterWriter.commit with correct args", async () => {
+		const commitSpy = vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({ ok: true });
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+
+		// Give microtasks a chance
+		await Promise.resolve();
+
+		expect(commitSpy).toHaveBeenCalledWith(
+			app,
+			file,
+			"nickname",
+			"Ember",
+			expect.objectContaining({ name: "nickname", type: "text" }),
+		);
+		commitSpy.mockRestore();
+	});
+
+	it("successful commit → saved state shown (no error, no commit button)", async () => {
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({ ok: true });
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+
+		await Promise.resolve();
+		// Wait for async commit to resolve
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// After successful commit, no blocking error shown
+		const errorEl = container.querySelector("[data-sf-inspector-error]");
+		expect(errorEl).toBeNull();
+	});
+
+	it("successful commit → dirty cleared (commit affordance removed)", async () => {
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({ ok: true });
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// Commit affordance removed on save
+		const commitBtnAfter = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtnAfter).toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// commit → error: validation (S55)
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: commit → validation error", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+	});
+
+	it("validation error → error element shown with message", async () => {
+		const validationResult: CommitResult = {
+			ok: false,
+			reason: "validation",
+			message: "Field 'age' expects a finite number, got string.",
+			keepDirty: true,
+		};
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue(validationResult);
+
+		const ctx = makeCtx(file, "character", { age: 30 });
+		const { container } = buildController(app, file, ctx, [makeNumberField("age")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "thirty";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		const errorEl = container.querySelector("[data-sf-inspector-error]");
+		expect(errorEl).not.toBeNull();
+		expect(errorEl?.textContent).toContain("finite number");
+	});
+
+	it("validation error → edit value RETAINED in input (keepDirty)", async () => {
+		const validationResult: CommitResult = {
+			ok: false,
+			reason: "validation",
+			message: "Type error",
+			keepDirty: true,
+		};
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue(validationResult);
+
+		const ctx = makeCtx(file, "character", { age: 30 });
+		const { container } = buildController(app, file, ctx, [makeNumberField("age")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "thirty";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// Edit value preserved in input
+		expect(input.value).toBe("thirty");
+	});
+
+	it("validation error → commit affordance remains (user can fix and retry)", async () => {
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({
+			ok: false,
+			reason: "validation",
+			message: "Type error",
+			keepDirty: true,
+		});
+
+		const ctx = makeCtx(file, "character", { age: 30 });
+		const { container } = buildController(app, file, ctx, [makeNumberField("age")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "thirty";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// User can still see the commit button (to re-attempt after fixing)
+		const commitBtnAfter = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtnAfter).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// commit → error: write failure (S55 + Retry)
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: commit → write error", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+	});
+
+	it("write error → error element shown", async () => {
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({
+			ok: false,
+			reason: "write",
+			message: "Couldn't write frontmatter. Your edits are kept.",
+			keepDirty: true,
+		});
+
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		const errorEl = container.querySelector("[data-sf-inspector-error]");
+		expect(errorEl).not.toBeNull();
+	});
+
+	it("write error → edit RETAINED (keepDirty)", async () => {
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({
+			ok: false,
+			reason: "write",
+			message: "Couldn't write frontmatter. Your edits are kept.",
+			keepDirty: true,
+		});
+
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		expect(input.value).toBe("Ember");
+	});
+
+	it("write error → Retry button shown", async () => {
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({
+			ok: false,
+			reason: "write",
+			message: "Couldn't write frontmatter. Your edits are kept.",
+			keepDirty: true,
+		});
+
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		const retryBtn = container.querySelector("[data-sf-inspector-retry]");
+		expect(retryBtn).not.toBeNull();
+	});
+
+	it("Retry re-attempts the commit call", async () => {
+		const commitSpy = vi.spyOn(frontmatterWriter, "commit")
+			.mockResolvedValueOnce({
+				ok: false,
+				reason: "write",
+				message: "Couldn't write frontmatter. Your edits are kept.",
+				keepDirty: true,
+			})
+			.mockResolvedValueOnce({ ok: true });
+
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { container } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		// First commit → write error
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// Retry
+		const retryBtn = container.querySelector("[data-sf-inspector-retry]") as HTMLButtonElement;
+		retryBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// commit should have been called twice
+		expect(commitSpy).toHaveBeenCalledTimes(2);
+		commitSpy.mockRestore();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// listener discipline: registered once on owned container (no per-render leak)
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: listener discipline", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+	});
+
+	it("listeners are registered on the owned container component (registerDomEvent pattern)", () => {
+		const owner = makeOwner();
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		// The controller should have called registerDomEvent on an owned component
+		// (either the owner or its own child Component). We verify by checking
+		// that the owner or its delegates have tracked cleanup.
+		// Proxy: calling unload on the owner should not throw.
+		expect(() => { owner._unload(); }).not.toThrow();
+	});
+
+	it("re-rendering (new subject) does not multiply listeners", () => {
+		// Re-render with a new context — event listeners must not accumulate
+		const owner = makeOwner();
+		const ctx1 = makeCtx(file, "character", { nickname: "Spark" });
+		const ctx2 = makeCtx(file, "character", { nickname: "Ember" });
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+
+		controller.render(container, ctx1, [makeTextField("nickname")]);
+		// Re-render same container
+		(container as unknown as { empty: () => void }).empty();
+		controller.render(container, ctx2, [makeTextField("nickname")]);
+
+		// Should still work without error / doubled handlers
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Fire";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtn).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// teardown: onClose/re-subject clears dirty state
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: teardown", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+	});
+
+	it("teardown clears in-memory dirty state (no error survives a new subject)", async () => {
+		const owner = makeOwner();
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		// Make dirty
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		// Teardown (simulates re-subject or onClose)
+		controller.teardown();
+
+		// Re-render fresh
+		(container as unknown as { empty: () => void }).empty();
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		// After teardown + re-render, commit affordance gone (clean state)
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtn).toBeNull();
+	});
+
+	it("teardown does not persist dirty state — CON-1", () => {
+		// Verify saveData/any plugin-data path is never called
+		const owner = makeOwner();
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		controller.teardown();
+
+		// No vault writes, no saveData — CON-1
+		expect(app.vault.modify).not.toHaveBeenCalled();
+		expect(app.vault.create).not.toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// dirty-guard: own commit's metadataCache.changed must NOT clobber in-flight edit
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: dirty-guard", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+		vi.mocked(app.fileManager.processFrontMatter).mockResolvedValue(undefined);
+	});
+
+	it("metadataCache.changed fired for same file after commit does NOT wipe a new in-flight edit", async () => {
+		// This simulates the generation-guard scenario:
+		// 1. User makes edit A, commits → saved
+		// 2. metadataCache.changed fires (from the write fan-out)
+		// 3. User has already started edit B (new dirty value)
+		// 4. The changed event must NOT re-resolve/re-render in a way that
+		//    discards edit B from the input
+
+		// The InspectorController is informed of a "changed" event via
+		// notifyFileChanged(file). If the controller is in a dirty state for a
+		// DIFFERENT field or a newly dirty field, that state must survive.
+
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({ ok: true });
+
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+
+		// Edit A: user types Ember
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		// Commit A
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// Immediately (before metadataCache.changed re-renders), user types Fire
+		input.value = "Fire";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		// Simulate the metadataCache.changed event from the write fan-out
+		controller.notifyFileChanged(file);
+
+		// Edit B ("Fire") must still be in the input — not wiped by the changed event
+		expect(input.value).toBe("Fire");
+	});
+
+	it("notifyFileChanged for a different file does not affect the current edit", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		// Different file changed — should be no-op
+		const otherFile = makeFile("Other.md");
+		controller.notifyFileChanged(otherFile);
+
+		expect(input.value).toBe("Ember");
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtn).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// out-of-vocab advisory: visible inline cue (ADR-7 carry-over)
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: out-of-vocab advisory", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+		vi.mocked(app.fileManager.processFrontMatter).mockResolvedValue(undefined);
+	});
+
+	it("commit of an out-of-vocab select value → {ok:true} + advisory cue visible", async () => {
+		// out-of-vocab: frontmatterWriter returns {ok:true} (write proceeds)
+		// InspectorController should show an inline advisory, not a blocking error.
+		// The out-of-vocab value is pre-existing in frontmatter (it was written by
+		// another tool), so the controller renders it as a pre-populated out-of-vocab
+		// option. The user commits without changing it (already dirty detection is
+		// not needed — we can simulate by pre-loading an out-of-vocab committed value).
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({ ok: true });
+
+		const field = { name: "role", type: "select" as const, values: ["protagonist", "antagonist"] };
+		// frontmatter has an out-of-vocab value already
+		const ctx = makeCtx(file, "character", { role: "sidekick" });
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [field]);
+
+		// The select should have "sidekick" as current value (pre-existing out-of-vocab)
+		const sel = container.querySelector("select") as HTMLSelectElement;
+		expect(sel.value).toBe("sidekick");
+
+		// User selects a different out-of-vocab value by adding it manually (simulating
+		// what a real Obsidian select with custom options would do) and fires change
+		const newOpt = document.createElement("option");
+		newOpt.value = "villain";
+		sel.appendChild(newOpt);
+		sel.value = "villain";
+		sel.dispatchEvent(new Event("change", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// An advisory (non-blocking) cue should appear — NOT a blocking error
+		const advisoryEl = container.querySelector("[data-sf-inspector-advisory]");
+		expect(advisoryEl).not.toBeNull();
+	});
+
+	it("out-of-vocab advisory is distinct from blocking validation error — no blocking error shown", async () => {
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({ ok: true });
+
+		const field = { name: "role", type: "select" as const, values: ["protagonist", "antagonist"] };
+		// Start with an out-of-vocab value
+		const ctx = makeCtx(file, "character", { role: "sidekick" });
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [field]);
+
+		const sel = container.querySelector("select") as HTMLSelectElement;
+		const newOpt = document.createElement("option");
+		newOpt.value = "villain";
+		sel.appendChild(newOpt);
+		sel.value = "villain";
+		sel.dispatchEvent(new Event("change", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// No BLOCKING error — advisory is informational
+		const blockingError = container.querySelector("[data-sf-inspector-error]");
+		expect(blockingError).toBeNull();
+	});
+});

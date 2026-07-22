@@ -33,6 +33,8 @@ import type { ConsentGate } from "consent/ConsentGate";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
+import { InspectorController } from "../inspector/InspectorController";
+import { inspectorFields } from "../inspector/inspectorFields";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -160,6 +162,11 @@ export class SidebarView extends ItemView {
 	// Push the current subject.file when drilling; Back pops back one level.
 	private navStack: TFile[] = [];
 
+	// T5.2: InspectorController — hosts the edit-mode overlay for the resolved
+	// entity detail. Transient dirty state lives here (CON-1: never persisted).
+	// Created once; torn down on onClose/re-subject via controller.teardown().
+	private _inspector: InspectorController | null = null;
+
 	// T4.2: reads the live linkClickAction setting. Threaded as a getter (not a
 	// captured value) because main.ts reassigns this.settings on load — a captured
 	// reference would go stale. Defaults to "drill" when no getter is injected.
@@ -215,6 +222,8 @@ export class SidebarView extends ItemView {
 			DEBOUNCE_MS,
 			true,
 		);
+		// T5.2: InspectorController — owned by this Component (auto-torn down on unload)
+		this._inspector = new InspectorController(this.app, this);
 	}
 
 	// -------------------------------------------------------------------------
@@ -281,6 +290,10 @@ export class SidebarView extends ItemView {
 					) {
 						return;
 					}
+					// T5.2: dirty-guard — notify the Inspector first. If the Inspector
+					// has an in-flight edit it drops the notification internally and
+					// returns without re-rendering (guards against wiping dirty edits).
+					this._inspector?.notifyFileChanged(file);
 					// Re-resolve current subject file
 					this._resolveAndRender(this.subject.file);
 				}),
@@ -310,6 +323,8 @@ export class SidebarView extends ItemView {
 		// ADR-7: teardown the current engine before clearing the DOM
 		this.currentEngine?.teardown();
 		this.currentEngine = null;
+		// T5.2: tear down the Inspector (clears in-memory dirty state — CON-1)
+		this._inspector?.teardown();
 		aug(this.contentEl).empty();
 		// Clear resolved-context cache and subject so a re-opened view starts
 		// clean (no stale entities/error/pin carried across a close→open cycle).
@@ -331,6 +346,12 @@ export class SidebarView extends ItemView {
 	// -------------------------------------------------------------------------
 
 	private setSubject(file: TFile | null, source: SubjectSource): void {
+		// T5.2: tear down Inspector dirty state when the subject FILE changes.
+		// This clears transient in-memory edits for the previous entity (CON-1).
+		// Same-file follow/pin/drilled transitions preserve the dirty state.
+		if (file?.path !== this.subject.file?.path) {
+			this._inspector?.teardown();
+		}
 		this.subject = { file, source };
 	}
 
@@ -1106,12 +1127,14 @@ export class SidebarView extends ItemView {
 
 		const view = this.currentRecord;
 
-		// No view tab selected → native fallback
+		// No view tab selected → native fallback + Inspector overlay (T5.2)
 		if (!view) {
 			this._prepareBody(body);
 			await this.nativeEngine.render(null, ctx, body);
 			if (gen !== this._renderGen) return;
 			this.currentEngine = this.nativeEngine;
+			// T5.2: render the Inspector overlay after the M3 read-only detail
+			this._renderInspector(body, ctx);
 			return;
 		}
 
@@ -1211,6 +1234,26 @@ export class SidebarView extends ItemView {
 			cls: "sf-appears",
 			text: "appears in: — (M3)",
 		});
+	}
+
+	/**
+	 * T5.2: Render the InspectorController overlay after the M3 read-only detail.
+	 *
+	 * Creates a dedicated host div (sf-inspector-host) so the Inspector DOM is
+	 * isolated from the engine's panel DOM. The controller handles its own
+	 * teardown via notifyFileChanged + teardown (CON-4).
+	 *
+	 * Only shown in the Context tab (no view tab selected). Call after nativeEngine
+	 * has rendered the M3 read-only detail so the read-only context is already visible.
+	 */
+	private _renderInspector(body: AugEl, ctx: NoteContext): void {
+		if (!this._inspector) return;
+		// Skip for entity kinds that have no Inspector fields (unknown)
+		if (ctx.activeKind === "unknown") return;
+		const fields = inspectorFields(ctx.activeKind);
+		if (fields.length === 0) return;
+		const host = body.createDiv({ cls: "sf-inspector-host" });
+		this._inspector.render(host, ctx, fields);
 	}
 
 	// ---------------------------------------------------------------------------
