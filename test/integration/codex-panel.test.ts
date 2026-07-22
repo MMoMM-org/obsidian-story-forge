@@ -324,11 +324,8 @@ describe("Codex row click re-subjects panel (S56)", () => {
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 
-		// Set up the store tab selection so currentRecord is non-null
 		const pv = view as unknown as {
 			subject: { file: TFile | null; source: string };
-			currentCtx: NoteContext | null;
-			currentRecord: ViewRecord | null;
 			navStack: TFile[];
 		};
 
@@ -339,17 +336,19 @@ describe("Codex row click re-subjects panel (S56)", () => {
 		});
 		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(null);
 
-		// Select a view tab so engine dispatch fires when re-subjecting
+		// Select a view tab so currentRecord is non-null when engine dispatch runs.
+		// scoping.resolve() will derive currentCtx from the mocked metadataCache
+		// (getFileCache returns { type: "character" }) — no manual ctx injection needed.
 		getTabByViewId(view, "v1").click();
 		await new Promise((r) => setTimeout(r, 0));
-		// Inject a resolved ctx so _renderResolved can proceed to engine dispatch
-		pv.currentCtx = makeNoteContext(clickedFile, "character");
 		// Reset the engine spy so we only count calls after showFile
 		(engine.render as ReturnType<typeof vi.fn>).mockClear();
 
 		// Act: Codex row click → showFile → _drillInto → _resolveOrClassify → render
 		view.showFile(clickedFile);
-		// Flush the async render (consent evaluate + engine.render)
+		// Two micro-ticks drain the two sequential awaits inside _renderResolved
+		// (consentGate.evaluate() + engine.render()); the macro-tick drains the
+		// store's async getViews load that runs alongside.
 		await Promise.resolve();
 		await Promise.resolve();
 		await new Promise((r) => setTimeout(r, 0));
@@ -364,7 +363,7 @@ describe("Codex row click re-subjects panel (S56)", () => {
 		// Assert the body DOM shows the clicked entity's content (sentinel output)
 		const outputEl = getBody(view).querySelector(".engine-output-dataview-dql");
 		expect(outputEl).not.toBeNull();
-		expect(outputEl?.textContent).toBe("character detail");
+		expect((outputEl as Element).textContent).toBe("character detail");
 	});
 });
 
