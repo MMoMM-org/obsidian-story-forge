@@ -20,7 +20,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import { writeFileSync, mkdirSync, rmSync, existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { computeChecksum } from "consent/checksum";
@@ -106,12 +106,13 @@ describe("buildCatalog — real catalog sources: checksums are byte-exact", () =
 		}
 	});
 
-	it("emits exactly five entries (one per catalog/*.base file)", async () => {
+	it("emits one entry per catalog/*.base file (count derived from disk)", async () => {
 		await loadBuildModule();
 		const outDir = makeTempDir("count");
 		try {
+			const expectedCount = readdirSync(CATALOG_DIR).filter((f) => f.endsWith(".base")).length;
 			const index = await buildCatalog({ catalogDir: CATALOG_DIR, outDir });
-			expect(index.entries).toHaveLength(5);
+			expect(index.entries).toHaveLength(expectedCount);
 		} finally {
 			rmSync(outDir, { recursive: true, force: true });
 		}
@@ -199,8 +200,9 @@ describe("buildCatalog — real catalog sources: checksums are byte-exact", () =
 			const { readFileSync } = await import("node:fs");
 			const indexPath = join(outDir, "catalog-index.json");
 			const written = JSON.parse(readFileSync(indexPath, "utf8")) as CatalogIndex;
-			// Round-trip: entries length and checksums must match.
+			// Round-trip: entries length, checksums, and generated timestamp must match.
 			expect(written.entries.length).toBe(index.entries.length);
+			expect(written.generated).toBe(index.generated);
 			for (let i = 0; i < index.entries.length; i++) {
 				expect(written.entries[i]!.checksum).toBe(index.entries[i]!.checksum);
 			}

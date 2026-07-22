@@ -36,30 +36,15 @@
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
 
 // ---------------------------------------------------------------------------
 // Bootstrap jiti to import TypeScript source files at build time.
-// jiti is already a devDependency (version 2.x).
+// jiti is pinned to 2.x in devDependencies — import directly, no CJS fallback.
 // ---------------------------------------------------------------------------
 
-const require = createRequire(import.meta.url);
-
 // jiti 2.x exports a default factory function via ESM.
-// We use a try/require fallback so both jiti 1.x and 2.x work.
-let jiti;
-try {
-  // jiti 2.x
-  const jitiMod = await import('jiti');
-  const jitiFactory = jitiMod.default ?? jitiMod.createJiti ?? jitiMod;
-  jiti = (typeof jitiFactory === 'function' ? jitiFactory : null);
-} catch {
-  // fallback: require jiti 1.x
-  const jitiCjs = require('jiti');
-  jiti = typeof jitiCjs === 'function' ? jitiCjs : jitiCjs.default;
-}
-
-if (!jiti) throw new Error('Could not load jiti — install it as a devDependency');
+const jitiMod = await import('jiti');
+const jiti = jitiMod.default ?? jitiMod.createJiti;
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'src');
@@ -200,8 +185,12 @@ const isMain =
 
 if (isMain) {
   const args = process.argv.slice(2);
-  const catalogArg = args[args.indexOf('--catalog') + 1];
-  const outArg = args[args.indexOf('--out') + 1];
+  // Guard: indexOf returns -1 when flag is absent; -1+1=0 would pick up a
+  // sibling argument. Use undefined (→ default) when the flag is missing.
+  const catalogIdx = args.indexOf('--catalog');
+  const catalogArg = catalogIdx !== -1 ? args[catalogIdx + 1] : undefined;
+  const outIdx = args.indexOf('--out');
+  const outArg = outIdx !== -1 ? args[outIdx + 1] : undefined;
 
   const catalogDir = catalogArg ?? join(ROOT, 'catalog');
   const outDir = outArg ?? join(ROOT, 'dist');
