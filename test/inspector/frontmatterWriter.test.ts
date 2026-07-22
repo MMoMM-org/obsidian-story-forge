@@ -210,6 +210,21 @@ describe("commit", () => {
 		expect(result).toEqual({ ok: true });
 	});
 
+	it("out-of-vocab select → advisory warn fires with field name and out-of-vocab value (AC-F6.7)", async () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const field = makeSelectField("role", ["protagonist", "antagonist", "supporting"]);
+			await commit(app, file, "role", "sidekick", field);
+
+			expect(warnSpy).toHaveBeenCalledTimes(1);
+			const [warnMsg] = warnSpy.mock.calls[0] as [string];
+			expect(warnMsg).toContain("role");
+			expect(warnMsg).toContain("sidekick");
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
 	// --- Plugin state: nothing persisted (CON-1) ---
 
 	it("successful commit does not mutate any plugin state (only processFrontMatter is side-effecting)", async () => {
