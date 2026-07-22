@@ -148,10 +148,21 @@ export class InspectorController {
 	 * callbacks capture the gen at dispatch time and bail if stale.
 	 */
 	private gen = 0;
+	/**
+	 * AbortController for the current set of delegated DOM listeners.
+	 *
+	 * Aborted at the start of each render() and teardown() so old listeners on
+	 * a recreated container are released immediately — preventing accumulation
+	 * on the owner Component across re-renders. The owner's unload also calls
+	 * abort() via owner.register() (registered once in the constructor).
+	 */
+	private _listenerController: AbortController | null = null;
 
 	constructor(app: App, owner: Component) {
 		this.app = app;
 		this.owner = owner;
+		// Ensure DOM listeners are cleaned up when the owning Component is unloaded.
+		owner.register(() => { this._listenerController?.abort(); });
 	}
 
 	// -------------------------------------------------------------------------
@@ -203,7 +214,10 @@ export class InspectorController {
 		}
 
 		this._renderFields(container, ctx, fields);
-		this._registerDelegatedListeners(container);
+		// Abort any previous listener set (prevents accumulation across re-renders).
+		this._listenerController?.abort();
+		this._listenerController = new AbortController();
+		this._registerDelegatedListeners(container, this._listenerController.signal);
 	}
 
 	/**
@@ -216,6 +230,8 @@ export class InspectorController {
 		this.fields = [];
 		this.container = null;
 		this.gen++;
+		this._listenerController?.abort();
+		this._listenerController = null;
 	}
 
 	/**
@@ -225,21 +241,22 @@ export class InspectorController {
 	 * dirty/saving/error, the notification is silently dropped. This prevents
 	 * the writer's own metadataCache.changed fan-out from wiping an in-flight edit.
 	 *
-	 * When no field is dirty, the caller is responsible for re-rendering.
+	 * @returns `true` if the guard fired (caller MUST skip re-render to preserve
+	 *   the in-flight edit); `false` if all fields are clean/saved and the caller
+	 *   should proceed with re-rendering to pick up new frontmatter values.
 	 */
-	notifyFileChanged(file: TFile): void {
-		if (!this.ctx || file.path !== this.ctx.activeFile.path) return;
+	notifyFileChanged(file: TFile): boolean {
+		if (!this.ctx || file.path !== this.ctx.activeFile.path) return false;
 
-		// Dirty-guard: any field in a non-clean state → preserve in-flight edits
+		// Dirty-guard: any field in a non-clean/saved state → preserve in-flight edits
 		for (const state of this.fieldStates.values()) {
 			if (state.status.kind !== "clean" && state.status.kind !== "saved") {
-				return; // Drop the notification — edit is in-flight
+				return true; // Guard fired — caller must skip re-render
 			}
 		}
 
-		// All fields are clean/saved — the caller may re-render to pick up new
-		// frontmatter values. We refresh committed values from the latest ctx
-		// (the caller will pass a fresh ctx on the next render call).
+		// All fields are clean/saved — caller should proceed with re-render.
+		return false;
 	}
 
 	// -------------------------------------------------------------------------
@@ -419,9 +436,11 @@ export class InspectorController {
 	// Delegated event listener (registered once per render, not per field)
 	// -------------------------------------------------------------------------
 
-	private _registerDelegatedListeners(container: HTMLElement): void {
-		// Input changes — track dirty state
-		this.owner.registerDomEvent(container, "input", (e: Event) => {
+	private _registerDelegatedListeners(container: HTMLElement, signal: AbortSignal): void {
+		// Input changes — track dirty state.
+		// Use container.addEventListener with { signal } so the old listeners from a
+		// prior render are aborted when _listenerController is aborted — no accumulation.
+		container.addEventListener("input", (e: Event) => {
 			const target = e.target as HTMLElement;
 			const fieldName = target.getAttribute("data-sf-inspector-input");
 			if (!fieldName) return;
@@ -444,10 +463,10 @@ export class InspectorController {
 			}
 
 			this._updateFieldAffordances(target.closest(".sf-inspector-field") as HTMLElement ?? container, state.spec, state);
-		});
+		}, { signal });
 
 		// Select changes
-		this.owner.registerDomEvent(container, "change", (e: Event) => {
+		container.addEventListener("change", (e: Event) => {
 			const target = e.target as HTMLElement;
 			if (target.tagName.toLowerCase() !== "select") return;
 			const fieldName = target.getAttribute("data-sf-inspector-input");
@@ -471,10 +490,10 @@ export class InspectorController {
 			}
 
 			this._updateFieldAffordances(target.closest(".sf-inspector-field") as HTMLElement ?? container, state.spec, state);
-		});
+		}, { signal });
 
 		// Commit button clicks
-		this.owner.registerDomEvent(container, "click", (e: Event) => {
+		container.addEventListener("click", (e: Event) => {
 			const target = e.target as HTMLElement;
 
 			// Commit button
@@ -491,7 +510,7 @@ export class InspectorController {
 				const fieldName = retryTarget.getAttribute("data-sf-inspector-retry");
 				if (fieldName) void this._commitField(fieldName, container);
 			}
-		});
+		}, { signal });
 	}
 
 	// -------------------------------------------------------------------------

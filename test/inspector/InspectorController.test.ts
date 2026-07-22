@@ -862,3 +862,176 @@ describe("InspectorController: out-of-vocab advisory", () => {
 		expect(blockingError).toBeNull();
 	});
 });
+
+// ---------------------------------------------------------------------------
+// dirty-guard integration: notifyFileChanged returns boolean; SidebarView
+// skips _resolveAndRender when the guard fires
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: dirty-guard — notifyFileChanged return value", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+		vi.mocked(app.fileManager.processFrontMatter).mockResolvedValue(undefined);
+	});
+
+	it("returns false when all fields are clean (caller should re-render)", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { controller } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		const guarded = controller.notifyFileChanged(file);
+		expect(guarded).toBe(false);
+	});
+
+	it("returns true when a field is dirty (caller must skip re-render)", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const guarded = controller.notifyFileChanged(file);
+		expect(guarded).toBe(true);
+	});
+
+	it("returns true when a field is saving (async commit in flight)", async () => {
+		let resolveCommit!: (v: { ok: true }) => void;
+		const pendingCommit = new Promise<{ ok: true }>(r => { resolveCommit = r; });
+		vi.spyOn(frontmatterWriter, "commit").mockReturnValue(pendingCommit as Promise<CommitResult>);
+
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+
+		const guarded = controller.notifyFileChanged(file);
+		expect(guarded).toBe(true);
+
+		resolveCommit({ ok: true });
+		await new Promise<void>(r => setTimeout(r, 0));
+	});
+
+	it("returns false for a different file — does not guard unrelated files", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const otherFile = makeFile("Other.md");
+		const guarded = controller.notifyFileChanged(otherFile);
+		expect(guarded).toBe(false);
+	});
+
+	it("integration: simulated SidebarView changed-handler skips re-render when guard fires", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const inputBefore = container.querySelector("input") as HTMLInputElement;
+
+		let reRenderCalled = false;
+		const simulatedChangedHandler = (f: TFile): void => {
+			if (controller.notifyFileChanged(f)) return;
+			reRenderCalled = true;
+		};
+
+		simulatedChangedHandler(file);
+
+		expect(reRenderCalled).toBe(false);
+		const inputAfter = container.querySelector("input") as HTMLInputElement;
+		expect(inputAfter).toBe(inputBefore);
+		expect(inputAfter.value).toBe("Ember");
+	});
+
+	it("integration: simulated SidebarView changed-handler proceeds when all fields are clean", () => {
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const { controller } = buildController(app, file, ctx, [makeTextField("nickname")]);
+
+		let reRenderCalled = false;
+		const simulatedChangedHandler = (f: TFile): void => {
+			if (controller.notifyFileChanged(f)) return;
+			reRenderCalled = true;
+		};
+
+		simulatedChangedHandler(file);
+
+		expect(reRenderCalled).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// listener accumulation: listeners must not fire multiple times after re-render
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: no listener accumulation across re-renders", () => {
+	let app: App;
+	let file: TFile;
+
+	beforeEach(() => {
+		app = makeApp();
+		file = makeFile();
+	});
+
+	it("input handler fires exactly once after two renders on the same container", () => {
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		(container as unknown as { empty: () => void }).empty();
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Fire";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtns = container.querySelectorAll("[data-sf-inspector-commit]");
+		expect(commitBtns.length).toBe(1);
+	});
+
+	it("after teardown, listeners from the old render do not fire on the container", () => {
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+
+		controller.render(container, ctx, [makeTextField("nickname")]);
+		controller.teardown();
+
+		const input = container.querySelector("input") as HTMLInputElement | null;
+		if (input) {
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+		}
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]");
+		expect(commitBtn).toBeNull();
+	});
+});

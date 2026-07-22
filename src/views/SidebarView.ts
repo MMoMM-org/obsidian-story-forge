@@ -290,10 +290,11 @@ export class SidebarView extends ItemView {
 					) {
 						return;
 					}
-					// T5.2: dirty-guard — notify the Inspector first. If the Inspector
-					// has an in-flight edit it drops the notification internally and
-					// returns without re-rendering (guards against wiping dirty edits).
-					this._inspector?.notifyFileChanged(file);
+					// T5.2: dirty-guard — notify the Inspector first.
+					// Returns true = guard fired (edit in-flight) → skip re-render so
+					// we don't wipe the user's in-progress input or dirty state.
+					// Returns false = all fields clean/saved → proceed with re-render.
+					if (this._inspector?.notifyFileChanged(file)) return;
 					// Re-resolve current subject file
 					this._resolveAndRender(this.subject.file);
 				}),
