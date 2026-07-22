@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: F6 Inspector + F8 read-only fields"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 5
 ---
@@ -39,23 +39,23 @@ Delivers the minimal editable Inspector that proves the frontmatter write-back l
      - [x] Type error blocks + preserves edit `[ref: PRD/AC-F6.5]`; write failure preserves + Retry `[ref: PRD/AC-F6.6]`
      - [x] Out-of-vocab follows frontmatter-is-truth (write + warn) `[ref: PRD/AC-F6.7; SDD/ADR-7]`
 
-- [ ] **T5.2 `InspectorController` — dirty/saved/error state hosted in SidebarView** `[activity: frontend-ui]`
+- [x] **T5.2 `InspectorController` — dirty/saved/error state hosted in SidebarView** `[activity: frontend-ui]`
 
   1. Prime: Read `[ref: SDD/ADR-3]`, the Inspector state diagram, `SidebarView` detail render + `_renderRelevantEqual` (`:838`), `onClose` (`:279`), mockups S52/S53.
   2. Test: renders the read-only M3 detail **plus** editable scalar/enum fields (S52); editing past the committed value shows a **dirty** state with a commit affordance (S53); commit drives the state machine to saved (S54) or error (S55, edit retained); listeners are registered on a delegated/owned container (no per-field-per-render leak); `onClose`/re-subject clears transient dirty state; the controller's own commit does **not** re-trigger a subject re-resolve that wipes an in-flight edit.
   3. Implement: `src/inspector/InspectorController.ts` (delegated child hosted by `SidebarView`); wire `SidebarView` to host it in the detail render.
   4. Validate: state-machine tests; dirty-guard test (commit-triggered `changed` event does not clobber); teardown test.
   5. Success:
-     - [ ] Read-only detail + editable scalar/enum `[ref: PRD/AC-F6.1]`; dirty state `[ref: PRD/AC-F6.2]`
-     - [ ] Committed edit fans out to the M3 panel `[ref: PRD/AC-F6.4]` (Codex/base fan-out verified in Phase 6)
+     - [x] Read-only detail + editable scalar/enum `[ref: PRD/AC-F6.1]`; dirty state `[ref: PRD/AC-F6.2]`
+     - [x] Committed edit fans out to the M3 panel `[ref: PRD/AC-F6.4]` (Codex/base fan-out verified in Phase 6)
 
-- [ ] **T5.3 F8 read-only list/relation field display** `[activity: frontend-ui]` `[parallel: true]`
+- [x] **T5.3 F8 read-only list/relation field display** `[activity: frontend-ui]` `[parallel: true]`
 
   1. Prime: Read `[ref: PRD/F8]`, the M3 unresolved-row treatment in `panel/renderers`.
   2. Test: list/relation (wikilink) fields render **read-only**, clearly not editable, alongside the editable scalar/enum fields; an unresolved `[[link]]` uses the M3 muted, non-clickable treatment (not an error).
   3. Implement: extend `editableFields`/the Inspector render to show list/relation fields read-only.
   4. Validate: unit tests for resolved + unresolved relation display.
-  5. Success: list/relation shown read-only; unresolved uses M3 treatment `[ref: PRD/AC-F8.1, AC-F8.2]`
+  5. Success: list/relation shown read-only; unresolved uses M3 treatment `[ref: PRD/AC-F8.1, AC-F8.2]` — delivered via the unified-detail rework (see Phase 5 deviation in plan/README.md)
 
-- [ ] **T5.4 Phase Validation** `[activity: validate]`
+- [x] **T5.4 Phase Validation** `[activity: validate]`
   - Run all Phase 5 tests. `npm test`, `lint`, `typecheck`, `typecheck:test` pass. Manually confirm on the seed vault: editing a scalar/enum writes plain frontmatter, shows saved, and the panel re-renders; a bad value shows a blocking validation error with the edit preserved; a simulated write failure preserves the edit with Retry `[ref: PRD/Success Metrics F6]`.
