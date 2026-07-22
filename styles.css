@@ -796,6 +796,23 @@ body {
 	font-size: 12px;
 }
 
+/* BrowseOfficialModal feedback area — used for both error messages (default)
+   and success confirmations (.sf-catalog-success modifier). */
+.sf-picker-feedback {
+	padding: 8px 10px;
+	border: 1px solid var(--background-modifier-error-border, var(--background-modifier-border));
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-error);
+	color: var(--text-error);
+	font-size: 12px;
+}
+
+.sf-picker-feedback.sf-catalog-success {
+	border-color: var(--background-modifier-border);
+	background: var(--background-modifier-success, var(--background-secondary));
+	color: var(--text-success);
+}
+
 .sf-picker-search {
 	width: 100%;
 	padding: 5px 9px;
