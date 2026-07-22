@@ -21,8 +21,9 @@
  * @ref plan/phase-6.md T6.3
  */
 
-import path from "node:path";
-import fs from "node:fs";
+import { join, resolve } from "node:path";
+import { mkdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { App, TFile } from "../__mocks__/obsidian";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
@@ -725,26 +726,37 @@ describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confi
 		expect(decision.status).toBe("drift");
 	});
 
-	it("bundled catalog-index.json: every entry.engine is 'bases' (real-world manifestation of the bases-only guard)", () => {
-		// Load the actual bundled catalog index — the same artifact the production
-		// CatalogService receives. This assertion would fail if a non-bases entry
-		// (e.g. engine:"dataviewjs") ever shipped in the catalog.
+	it("committed catalog sources: every entry.engine is 'bases' (real-world manifestation of the bases-only guard)", async () => {
+		// Run the SAME build pipeline the catalog:build command drives, over the
+		// committed catalog/*.base sources, entirely in-memory (no dist/ dependency).
+		// This assertion survives a fresh checkout — dist/ is gitignored and absent
+		// until a build runs, but catalog/*.base are committed inputs.
 		//
 		// Why this matters: CatalogService has an exhaustive `never` guard — any
 		// future engine variant must be handled at compile time before it reaches
 		// production. The type system enforces it at compile time; this test enforces
-		// the same invariant at runtime against the actual shipped artifact.
+		// the same invariant at runtime against the real committed source files.
 		//
 		// The behavioral "decline → nothing written" for the gated-engine path is
 		// asserted in Suite 7 against the real ConsentGate + installCurated path.
 		// The unit-level proof lives in T4.3: ImportFlow.test.ts
 		// "dataviewjs: declined consent (null) writes NOTHING" (line ~201).
-		const indexPath = path.resolve(__dirname, "../../dist/catalog-index.json");
-		const raw = fs.readFileSync(indexPath, "utf-8");
-		const index = JSON.parse(raw) as CatalogIndex;
+		const mod = await import("../../scripts/build-catalog.mjs");
+		const buildCatalog = mod.buildCatalog as (opts: {
+			catalogDir: string;
+			outDir: string;
+		}) => Promise<CatalogIndex>;
 
-		expect(index.entries.length).toBeGreaterThan(0);
-		expect(index.entries.every((e) => e.engine === "bases")).toBe(true);
+		const catalogDir = resolve(__dirname, "../../catalog");
+		const outDir = join(tmpdir(), `sf-e2e-bases-guard-${Date.now()}`);
+		mkdirSync(outDir, { recursive: true });
+		try {
+			const index = await buildCatalog({ catalogDir, outDir });
+			expect(index.entries.length).toBeGreaterThan(0);
+			expect(index.entries.every((e: CatalogEntry) => e.engine === "bases")).toBe(true);
+		} finally {
+			rmSync(outDir, { recursive: true, force: true });
+		}
 	});
 });
 
