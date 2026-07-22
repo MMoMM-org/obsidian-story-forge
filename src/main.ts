@@ -14,6 +14,15 @@ import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
 import { registerCodexView, isBasesAvailable } from "bases/BasesAdapter";
 import { CodexView, CODEX_VIEW_TYPE } from "codex/CodexView";
+import { CatalogService } from "catalog/CatalogService";
+import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
+import type { CatalogIndex } from "catalog/catalogTypes";
+import catalogIndexRaw from "../dist/catalog-index.json";
+
+// The bundled catalog-index.json is built by `catalog:build` before esbuild
+// reads this file. TypeScript infers `engine` as `string` from JSON; the cast
+// is safe because build-catalog.mjs validates every entry's engine at build time.
+const catalogIndex = catalogIndexRaw as unknown as CatalogIndex;
 
 /** Last path segment of a source path, with a trailing `.md` stripped. */
 function basenameNoMd(source: string): string {
@@ -107,6 +116,31 @@ export default class StoryForgePlugin extends Plugin {
 			name: "Open Codex",
 			callback: () => {
 				void this._openCodex();
+			},
+		});
+
+		// T4.5: "Browse official views" command — opens the curated catalog modal.
+		// CatalogService receives the bundled catalog-index.json (static import, no
+		// fetch). The index is built by catalog:build before esbuild bundles main.ts.
+		const curatedFolder =
+			(this.settings as unknown as { curatedBasesFolder?: string }).curatedBasesFolder;
+		const curatedBasesFolder =
+			(typeof curatedFolder === "string" && curatedFolder.length > 0)
+				? curatedFolder
+				: "00 Meta/Bases";
+
+		const catalogService = new CatalogService(catalogIndex, {
+			app: this.app,
+			gate,
+			store: this.store,
+			curatedBasesFolder,
+		});
+
+		this.addCommand({
+			id: "browse-official",
+			name: "Browse official views",
+			callback: () => {
+				new BrowseOfficialModal(this.app, catalogService, this.store).open();
 			},
 		});
 

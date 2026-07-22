@@ -25,7 +25,6 @@ import { CatalogService } from "catalog/CatalogService";
 import type { CatalogIndex, CatalogEntry } from "catalog/catalogTypes";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
-import type { ViewImporter } from "import/ViewImporter";
 import type { ConsentGate } from "consent/ConsentGate";
 
 // ---------------------------------------------------------------------------
@@ -87,15 +86,6 @@ function makeStore(initial: Record<string, ViewRecord> = {}): {
 	return { store, capturedRecords };
 }
 
-function makeImporter(): ViewImporter {
-	return {
-		importToStore: vi.fn(async () => "new-uuid"),
-		toRecord: vi.fn(),
-		parse: vi.fn(),
-		scanVault: vi.fn(),
-	} as unknown as ViewImporter;
-}
-
 function makeGate(): ConsentGate {
 	return {
 		requestConsentForDef: vi.fn(async () => ({ version: 1, checksum: "sha256:abc" })),
@@ -113,14 +103,13 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 	it("writes NOTHING to the vault when entry.checksum does not match computeChecksum(entry.source)", async () => {
 		const app = makeApp();
 		const { store } = makeStore();
-		const importer = makeImporter();
 		const gate = makeGate();
 
 		// Entry with a deliberately wrong checksum.
 		const entry = await makeEntry({ checksum: "sha256:deadbeef00000000000000000000000000000000000000000000000000000000" });
 		const index = await makeCatalogIndex([entry]);
 
-		const svc = new CatalogService(index, { app, importer, gate, store, curatedBasesFolder: "00 Meta/Bases" });
+		const svc = new CatalogService(index, { app, gate, store, curatedBasesFolder: "00 Meta/Bases" });
 
 		const result = await svc.install(entry.id);
 
@@ -128,8 +117,6 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
 		// Must not call store.setRecord.
 		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
-		// Must not call importToStore.
-		expect(vi.mocked(importer.importToStore)).not.toHaveBeenCalled();
 		// Must surface a reason.
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
@@ -145,7 +132,7 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -171,7 +158,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -194,7 +181,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -217,7 +204,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -239,7 +226,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -264,7 +251,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -297,7 +284,7 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -324,7 +311,7 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -351,7 +338,7 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -374,7 +361,7 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -392,7 +379,7 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -424,7 +411,7 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -453,7 +440,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -478,7 +465,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -499,7 +486,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -519,7 +506,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -545,7 +532,7 @@ describe("CatalogService — persistence and sidebar re-render (AC-F4.6)", () =>
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -571,7 +558,7 @@ describe("CatalogService — persistence and sidebar re-render (AC-F4.6)", () =>
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -600,7 +587,7 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -617,7 +604,7 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -643,7 +630,7 @@ describe("CatalogService.getEntries()", () => {
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
@@ -662,7 +649,7 @@ describe("CatalogService.getEntries()", () => {
 
 		const svc = new CatalogService(index, {
 			app,
-			importer: makeImporter(),
+
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",

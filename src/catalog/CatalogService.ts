@@ -37,7 +37,6 @@ import { computeChecksum } from "consent/checksum";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
 import type { ConsentGate } from "consent/ConsentGate";
-import type { ViewImporter } from "import/ViewImporter";
 import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 
 // ---------------------------------------------------------------------------
@@ -54,7 +53,6 @@ export type InstallResult =
 
 export interface CatalogServiceDeps {
 	app: App;
-	importer: ViewImporter;
 	gate: ConsentGate;
 	store: ViewStore;
 	/** Vault folder where curated .base files are materialised. Default "00 Meta/Bases". */

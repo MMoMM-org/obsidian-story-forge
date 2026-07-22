@@ -16,6 +16,7 @@
 		"allowSyntheticDefaultImports": true,
 		"useUnknownInCatchVariables": true,
 		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
 		"lib": ["DOM", "DOM.Iterable", "ES2020"]
 	},
 	"include": ["src/**/*.ts"]
