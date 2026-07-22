@@ -542,6 +542,45 @@ describe("BrowseOfficialModal — S49 update-available affordance (AC-F7.1, AC-F
 			expect(row.textContent).not.toMatch(/update available/i);
 		}
 	});
+
+	it("W1 provenance guard: imported record with matching commandName does NOT produce update-available", async () => {
+		// An IMPORTED record (provenance:"imported") whose commandName collides
+		// with a catalog entry's name must NOT trigger the update-available
+		// affordance. The provenance:"curated" guard is the only thing preventing
+		// this false positive. If that guard were removed, this test would fail.
+		const entry = makeEntry({
+			id: "overview-characters",
+			name: "Characters overview",
+			checksum: "sha256:" + "b".repeat(64),
+		});
+		// Imported record — same commandName, different checksum, no catalogId
+		const importedRecord: ViewRecord = {
+			provenance: "imported",
+			enabled: true,
+			okayed: { version: 1, checksum: "sha256:" + "a".repeat(64) },
+			source: "some/vault/path.md",
+			engine: "dataviewjs",
+			command: false,
+			commandName: "Characters overview",
+		};
+		const store = makeStore({ "imported-1": importedRecord });
+		const service = makeCatalogService({ entries: [entry] });
+		const modal = new BrowseOfficialModal(app, service, store);
+		modal.open();
+
+		await vi.waitFor(() => {
+			const row = document.body.querySelector(".sf-catalog-row");
+			if (!row) throw new Error("no row rendered");
+		});
+
+		// Must NOT show update affordance — this is an imported record, not a curated one
+		const rows = Array.from(document.body.querySelectorAll(".sf-catalog-row"));
+		for (const row of rows) {
+			expect(row.textContent).not.toMatch(/update available/i);
+		}
+		// Must NOT show an Update button
+		expect(findButton(document.body, "Update")).toBeNull();
+	});
 });
 
 // ---------------------------------------------------------------------------

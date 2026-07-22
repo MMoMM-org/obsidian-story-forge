@@ -122,18 +122,11 @@ export default class StoryForgePlugin extends Plugin {
 		// T4.5: "Browse official views" command — opens the curated catalog modal.
 		// CatalogService receives the bundled catalog-index.json (static import, no
 		// fetch). The index is built by catalog:build before esbuild bundles main.ts.
-		const curatedFolder =
-			(this.settings as unknown as { curatedBasesFolder?: string }).curatedBasesFolder;
-		const curatedBasesFolder =
-			(typeof curatedFolder === "string" && curatedFolder.length > 0)
-				? curatedFolder
-				: "00 Meta/Bases";
-
 		const catalogService = new CatalogService(catalogIndex, {
 			app: this.app,
 			gate,
 			store: this.store,
-			curatedBasesFolder,
+			curatedBasesFolder: this._getCuratedBasesFolder(),
 		});
 
 		this.addCommand({
@@ -193,6 +186,23 @@ export default class StoryForgePlugin extends Plugin {
 	// guidance), so we deliberately do NOT do it.
 
 	// ---------------------------------------------------------------------------
+	// Settings helpers
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Return the configured curated bases folder, falling back to the default
+	 * "00 Meta/Bases" when the value is absent or empty.
+	 *
+	 * A null/empty persisted value — e.g. from an older data.json — also falls
+	 * back gracefully. No `as unknown` cast needed: curatedBasesFolder is a
+	 * first-class field on PluginSettings (added in T4.4).
+	 */
+	_getCuratedBasesFolder(): string {
+		const v = this.settings.curatedBasesFolder;
+		return typeof v === "string" && v.length > 0 ? v : "00 Meta/Bases";
+	}
+
+	// ---------------------------------------------------------------------------
 	// Codex navigation (T3.3)
 	// ---------------------------------------------------------------------------
 
@@ -207,12 +217,7 @@ export default class StoryForgePlugin extends Plugin {
 	 * default "00 Meta/Bases" — added in T4.x; falls back to default here).
 	 */
 	async _openCodex(): Promise<void> {
-		// Use || (not ??) so a persisted null value also falls back to the default.
-		const rawFolder =
-			(this.settings as unknown as { curatedBasesFolder?: string }).curatedBasesFolder;
-		const curatedBasesFolder =
-			(typeof rawFolder === "string" && rawFolder.length > 0) ? rawFolder : "00 Meta/Bases";
-		const basePath = normalizePath(`${curatedBasesFolder}/Codex.base`);
+		const basePath = normalizePath(`${this._getCuratedBasesFolder()}/Codex.base`);
 
 		if (isBasesAvailable(this)) {
 			const abstract = this.app.vault.getAbstractFileByPath(basePath);

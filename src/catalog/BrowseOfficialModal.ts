@@ -43,7 +43,8 @@ import type { ViewRecord } from "store/types";
 // ---------------------------------------------------------------------------
 
 export class BrowseOfficialModal extends Modal {
-	private errorEl: HTMLElement | null = null;
+	/** Feedback area used for both error messages and success confirmations. */
+	private feedbackEl: HTMLElement | null = null;
 	private previewEl: HTMLElement | null = null;
 	private selectedEntry: CatalogEntry | null = null;
 
@@ -64,7 +65,7 @@ export class BrowseOfficialModal extends Modal {
 
 	onClose(): void {
 		this.contentEl.empty();
-		this.errorEl = null;
+		this.feedbackEl = null;
 		this.previewEl = null;
 	}
 
@@ -82,8 +83,8 @@ export class BrowseOfficialModal extends Modal {
 			cls: "sf-picker-sub",
 		});
 
-		// Inline error area (hidden until an error or result occurs)
-		this.errorEl = el.createEl("div", { cls: "sf-picker-error sf-hidden" });
+		// Inline feedback area — used for both errors and success confirmations.
+		this.feedbackEl = el.createEl("div", { cls: "sf-picker-feedback sf-hidden" });
 
 		// Main split layout
 		const splitEl = el.createEl("div", { cls: "sf-catalog-split" });
@@ -229,8 +230,9 @@ export class BrowseOfficialModal extends Modal {
 		const preEl = this.previewEl.createEl("pre", { cls: "sf-catalog-preview-src" });
 		preEl.textContent = entry.source;
 
-		// Bases/DQL entries are declarative — safe note
-		if (entry.engine === "bases" || entry.engine === ("dataview-dql" as string)) {
+		// Bases entries are declarative — safe note.
+		// TODO: add "dataview-dql" when that engine joins CatalogEntry.
+		if (entry.engine === "bases") {
 			this.previewEl.createEl("div", {
 				text: "Safe: declarative query, no code.",
 				cls: "sf-catalog-safe",
@@ -239,7 +241,7 @@ export class BrowseOfficialModal extends Modal {
 	}
 
 	private async _doInstall(entry: CatalogEntry): Promise<void> {
-		this._clearError();
+		this._clearFeedback();
 
 		const result = await this.service.install(entry.id);
 
@@ -251,23 +253,22 @@ export class BrowseOfficialModal extends Modal {
 	}
 
 	private _showError(message: string): void {
-		if (!this.errorEl) return;
-		this.errorEl.textContent = message;
-		this.errorEl.classList.remove("sf-hidden");
+		if (!this.feedbackEl) return;
+		this.feedbackEl.textContent = message;
+		this.feedbackEl.classList.remove("sf-hidden");
 	}
 
 	private _showMessage(message: string): void {
-		if (!this.errorEl) return;
-		this.errorEl.textContent = message;
-		this.errorEl.classList.remove("sf-hidden");
-		// Use a different style class for success vs error
-		this.errorEl.classList.add("sf-catalog-success");
+		if (!this.feedbackEl) return;
+		this.feedbackEl.textContent = message;
+		this.feedbackEl.classList.remove("sf-hidden");
+		this.feedbackEl.classList.add("sf-catalog-success");
 	}
 
-	private _clearError(): void {
-		if (!this.errorEl) return;
-		this.errorEl.textContent = "";
-		this.errorEl.classList.add("sf-hidden");
-		this.errorEl.classList.remove("sf-catalog-success");
+	private _clearFeedback(): void {
+		if (!this.feedbackEl) return;
+		this.feedbackEl.textContent = "";
+		this.feedbackEl.classList.add("sf-hidden");
+		this.feedbackEl.classList.remove("sf-catalog-success");
 	}
 }
