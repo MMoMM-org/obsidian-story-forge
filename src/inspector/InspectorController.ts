@@ -368,7 +368,7 @@ export class InspectorController {
 	/** Render a relation field as a resolved link chip or an unresolved muted element. */
 	private _renderRelationChip(
 		fieldRow: HTMLElement,
-		_spec: FieldSpec,
+		spec: FieldSpec,
 		state: FieldState,
 	): void {
 		const raw = state.committedValue;
@@ -390,6 +390,7 @@ export class InspectorController {
 			// carries data-sf-link so the SidebarView delegated handler can route it (AC-F8.1).
 			const chipEl = activeDocument.createElement("div");
 			chipEl.className = "sf-inspector-ro-chip";
+			chipEl.setAttribute("aria-label", spec.name);
 			chipEl.appendChild(stampLinkEl(resolvedFile.basename, resolvedFile.path));
 			fieldRow.appendChild(chipEl);
 		} else {

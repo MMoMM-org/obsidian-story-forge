@@ -49,6 +49,7 @@ import type { EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { NoteContext } from "scoping/NoteContext";
 import type { ViewRecord } from "store/types";
+import { makeDummyViewRecord } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Fixture model — build a metadataCache from the seed notes' known frontmatter
@@ -314,22 +315,6 @@ function makeRegistry(): EngineRegistry {
 	return { get: vi.fn(() => undefined) } as unknown as EngineRegistry;
 }
 
-/**
- * T5.3: A non-null currentRecord so _renderResolved takes the engine-missing path
- * (nativeEngine.render) rather than the !view branch (Inspector-only).
- * Integration / ground-truth tests assert the M3 section DOM produced by
- * NativeScopingEngine, so they need the engine-missing path.
- */
-function makeDummyViewRecord(): ViewRecord {
-	return {
-		provenance: "imported" as const,
-		enabled: true,
-		okayed: { version: 1, checksum: "sha256:abc" },
-		source: "TABLE name FROM #canon/character",
-		engine: "dataview-dql" as const,
-		command: false,
-	};
-}
 
 function makeGate(): ConsentGate {
 	return {

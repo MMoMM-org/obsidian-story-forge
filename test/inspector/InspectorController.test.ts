@@ -1096,8 +1096,11 @@ describe("InspectorController: T5.3 unified detail — read-only relation/list f
 		expect(input).toBeNull();
 
 		// A read-only link chip (stampLinkEl) should be present
-		const chip = container.querySelector(".sf-lrow-lnk, .sf-inspector-readonly-chip, .sf-chip-ro, [data-sf-inspector-ro]");
+		const chip = container.querySelector(".sf-lrow-lnk");
 		expect(chip).not.toBeNull();
+		// W1: the chip must carry the resolved file path in data-sf-link so the
+		// SidebarView delegated body handler can route click events (AC-F8.1).
+		expect(chip!.getAttribute("data-sf-link")).toBe(targetFile.path);
 	});
 
 	it("relation field: read-only chip is not an edit control (no input/select in DOM)", () => {

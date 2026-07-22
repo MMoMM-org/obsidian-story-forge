@@ -449,7 +449,11 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 		// ADR-7: teardown → empty → render (enforced in native fallback branch too)
 		expect(callOrder).toEqual(["teardown", "empty", "render"]);
 		expect(body.querySelector(".sf-engine-missing")).not.toBeNull();
-		expect(nativeEngine.render).toHaveBeenCalled();
+		// W2: nativeEngine.render must be called with the non-null dummy record, not null.
+		// This proves the engine-missing path (view-selected + registry miss) passes the
+		// view record through — distinguishing it from the !view branch (currentRecord=null
+		// → Inspector-only, nativeEngine.render NOT called).
+		expect(nativeEngine.render).toHaveBeenCalledWith(record, ctx, expect.anything());
 	});
 
 	// -------------------------------------------------------------------------
@@ -537,6 +541,69 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 		await privateView._renderResolved(body, ctx);
 
 		expect(registryGetSpy).not.toHaveBeenCalled();
+	});
+
+	// -------------------------------------------------------------------------
+	// S3: field-once at SidebarView boundary — catches the T5.2 double-render bug
+	// -------------------------------------------------------------------------
+
+	it("S3 (field-once): !view branch renders each field exactly once — no M3 sections, nativeEngine.render NOT called", async () => {
+		// This test is the integration-level guard for the T5.3 rework. It proves
+		// that when currentRecord=null, the Inspector owns the entire detail:
+		//   • editable scalar (text) → exactly one <input> in the DOM
+		//   • read-only relation chip → exactly one .sf-inspector-ro-chip
+		//   • NO M3 section DOM (.sf-section / .sf-sec-label)
+		//   • nativeEngine.render NOT called
+		// If T5.2's double-render bug were reintroduced (nativeEngine.render +
+		// _renderInspector both running), the input count would be ≥2 and the
+		// M3 section would appear — both assertions would catch it.
+		const registry = makeMockRegistry(undefined);
+		const consentGate = makeMockConsentGate({ status: "consented" });
+
+		view = new SidebarView(leaf, registry, consentGate, nativeEngine);
+		await view.onOpen();
+
+		// location kind: world (relation) + region (text) — a known scalar+relation pair
+		const locFile = makeMdFile("Moonharbor Lighthouse");
+		const worldFile = makeMdFile("Moonharbor");
+
+		// Resolve the "world" relation field → a TFile so it renders a link chip
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation(
+			(link: string) => link === "Moonharbor" ? worldFile : null,
+		);
+
+		const ctx: NoteContext = {
+			activeFile: locFile,
+			activeKind: "location",
+			entities: [],
+			backlinks: [],
+			frontmatter: { world: "Moonharbor", region: "harbour mole" },
+			resolvedAt: Date.now(),
+		};
+
+		const privateView = view as unknown as {
+			currentRecord: ViewRecord | null;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		privateView.currentRecord = null; // !view branch
+
+		const body = getBody(view);
+		await privateView._renderResolved(body, ctx);
+
+		// nativeEngine.render must NOT run in the !view branch
+		expect(nativeEngine.render).not.toHaveBeenCalled();
+
+		// No M3 section structure
+		expect(body.querySelector(".sf-section")).toBeNull();
+		expect(body.querySelector(".sf-sec-label")).toBeNull();
+
+		// Exactly ONE editable input for the "region" text field (not two)
+		const regionInputs = body.querySelectorAll("[data-sf-inspector-input='region']");
+		expect(regionInputs.length).toBe(1);
+
+		// Exactly ONE read-only relation chip for the "world" relation field
+		const worldChips = body.querySelectorAll(".sf-inspector-ro-chip");
+		expect(worldChips.length).toBe(1);
 	});
 
 	// -------------------------------------------------------------------------

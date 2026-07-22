@@ -25,6 +25,7 @@ import type { NoteContext } from "scoping/NoteContext";
 import type { EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { ViewRecord } from "store/types";
+import { makeDummyViewRecord } from "../helpers/viewFixtures";
 
 /**
  * Minimal registry + gate so _renderResolved takes the engine-missing path:
@@ -109,22 +110,6 @@ function registerCharacter(app: App, file: TFile): void {
 	}));
 }
 
-/**
- * A minimal ViewRecord so _renderResolved takes the engine-missing path (registry
- * returns undefined → nativeEngine.render) rather than the !view branch (Inspector).
- * Navigation tests need nativeEngine to produce link rows — the Inspector renders
- * form controls, not navigable section rows.
- */
-function makeDummyViewRecord(): ViewRecord {
-	return {
-		provenance: "imported" as const,
-		enabled: true,
-		okayed: { version: 1, checksum: "sha256:abc" },
-		source: "TABLE name FROM #canon/character",
-		engine: "dataview-dql" as const,
-		command: false,
-	};
-}
 
 /** Dispatch a click on the body targeting a link element carrying data-sf-link. */
 function clickLink(
