@@ -23,8 +23,10 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { App, Plugin } from "../__mocks__/obsidian";
+import { App, Plugin, TFile } from "../__mocks__/obsidian";
 import { isBasesAvailable, registerCodexView } from "bases/BasesAdapter";
+import { CodexBasesView } from "bases/CodexBasesView";
+import * as SidebarViewModule from "views/SidebarView";
 
 // ---------------------------------------------------------------------------
 // Mock helpers
@@ -235,5 +237,115 @@ describe("registerCodexView", () => {
 
 		expect(spy).toHaveBeenCalledTimes(1);
 		expect(second).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T3.3: registerCodexView factory produces real CodexBasesView + onRowClick wiring
+// ---------------------------------------------------------------------------
+
+describe("registerCodexView T3.3 — real factory (CodexBasesView + row-click wiring)", () => {
+	let app: App;
+	let plugin: Plugin;
+
+	beforeEach(() => {
+		app = new App();
+		plugin = new Plugin(app);
+	});
+
+	it("factory returns a CodexBasesView instance (not throwing stub)", () => {
+		let capturedFactory: ((controller: unknown, containerEl: HTMLElement) => unknown) | undefined;
+
+		const spy = vi.fn(
+			(_viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				capturedFactory = registration.factory;
+				return true;
+			},
+		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(plugin as any).registerBasesView = spy;
+
+		registerCodexView(plugin);
+
+		expect(capturedFactory).toBeDefined();
+
+		// Invoke the factory — must not throw and must return CodexBasesView
+		const container = document.createElement("div");
+		const controller = { load: vi.fn(), unload: vi.fn(), register: vi.fn() };
+		const view = capturedFactory!(controller, container);
+		expect(view).toBeInstanceOf(CodexBasesView);
+	});
+
+	it("factory's onRowClick resolves path to TFile and calls revealAndShowFile", () => {
+		let capturedFactory: ((controller: unknown, containerEl: HTMLElement) => unknown) | undefined;
+
+		const spy = vi.fn(
+			(_viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				capturedFactory = registration.factory;
+				return true;
+			},
+		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(plugin as any).registerBasesView = spy;
+
+		// Spy on revealAndShowFile before registration
+		const revealSpy = vi.spyOn(SidebarViewModule, "revealAndShowFile").mockResolvedValue(undefined);
+
+		registerCodexView(plugin);
+		expect(capturedFactory).toBeDefined();
+
+		const container = document.createElement("div");
+		const controller = { load: vi.fn(), unload: vi.fn(), register: vi.fn() };
+		const view = capturedFactory!(controller, container) as CodexBasesView;
+		expect(view).toBeInstanceOf(CodexBasesView);
+
+		// Wire a file into the vault mock so path resolves to TFile
+		const mockFile = new TFile();
+		mockFile.path = "30 Canon/31 Characters/Lirien.md";
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(app.vault.getFileByPath as any).mockReturnValue(mockFile);
+
+		// Extract the onRowClick from the view's deps via internal access
+		const deps = (view as unknown as { deps: { onRowClick: (path: string) => void } }).deps;
+		expect(typeof deps.onRowClick).toBe("function");
+
+		// Invoke the row-click handler with a path
+		deps.onRowClick("30 Canon/31 Characters/Lirien.md");
+
+		// revealAndShowFile must be called with the app and the resolved TFile
+		expect(revealSpy).toHaveBeenCalledWith(app, mockFile);
+
+		revealSpy.mockRestore();
+	});
+
+	it("factory's onRowClick is a no-op when file path does not resolve", () => {
+		let capturedFactory: ((controller: unknown, containerEl: HTMLElement) => unknown) | undefined;
+
+		const spy = vi.fn(
+			(_viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				capturedFactory = registration.factory;
+				return true;
+			},
+		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(plugin as any).registerBasesView = spy;
+
+		const revealSpy = vi.spyOn(SidebarViewModule, "revealAndShowFile").mockResolvedValue(undefined);
+
+		registerCodexView(plugin);
+		const container = document.createElement("div");
+		const controller = { load: vi.fn(), unload: vi.fn(), register: vi.fn() };
+		const view = capturedFactory!(controller, container) as CodexBasesView;
+
+		// Vault returns null — path cannot be resolved
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(app.vault.getFileByPath as any).mockReturnValue(null);
+
+		const deps = (view as unknown as { deps: { onRowClick: (path: string) => void } }).deps;
+		// Must not throw; revealAndShowFile must not be called
+		expect(() => { deps.onRowClick("nonexistent/file.md"); }).not.toThrow();
+		expect(revealSpy).not.toHaveBeenCalled();
+
+		revealSpy.mockRestore();
 	});
 });

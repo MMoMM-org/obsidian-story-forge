@@ -1,4 +1,4 @@
-import { Plugin, Events, Notice } from "obsidian";
+import { Plugin, Events, Notice, normalizePath, TFile } from "obsidian";
 import { SettingsTab } from "settings/SettingsTab";
 import { DEFAULT_SETTINGS, normalizeLinkClickAction, type PluginSettings } from "types/index";
 import { ViewStore } from "store/ViewStore";
@@ -12,7 +12,8 @@ import { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
-import { registerCodexView } from "bases/BasesAdapter";
+import { registerCodexView, isBasesAvailable } from "bases/BasesAdapter";
+import { CodexView, CODEX_VIEW_TYPE } from "codex/CodexView";
 
 /** Last path segment of a source path, with a trailing `.md` stripped. */
 function basenameNoMd(source: string): string {
@@ -69,6 +70,14 @@ export default class StoryForgePlugin extends Plugin {
 			),
 		);
 
+		// Register the thin CodexView host (T3.3, ADR-2 Option A).
+		// This view is only ever activated for the S46 degrade path (Bases off).
+		// When Bases is available, the open-codex command opens Codex.base directly.
+		this.registerView(
+			CODEX_VIEW_TYPE,
+			(leaf: WorkspaceLeaf) => new CodexView(leaf),
+		);
+
 		// Ribbon icon — open panel on click. "Story Forge" is a proper noun.
 		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		this.addRibbonIcon(ICON, "Story Forge: open panel", () => {
@@ -89,6 +98,17 @@ export default class StoryForgePlugin extends Plugin {
 		// caches the boolean (WeakMap<Plugin, boolean>). Do NOT call per-render or
 		// inside populateRegistry (which runs twice — layout-ready + late-join).
 		const basesAvailable = registerCodexView(this);
+
+		// "Open Codex" command (T3.3): if Bases is on, open the seed Codex.base in
+		// the main area; if Bases is off, activate the CodexView degrade leaf (S46).
+		this.addCommand({
+			id: "open-codex",
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Codex" is a proper noun + action
+			name: "Open Codex",
+			callback: () => {
+				void this._openCodex();
+			},
+		});
 
 		// Populate registry from a freshly-built EngineRegistry.
 		// buildEngineRegistry returns a new EngineRegistry; we extract the
@@ -137,6 +157,56 @@ export default class StoryForgePlugin extends Plugin {
 	// Component base auto-cleans every listener wired via register*/registerEvent.
 	// Detaching leaves here would reset the user's panel layout (obsidianmd
 	// guidance), so we deliberately do NOT do it.
+
+	// ---------------------------------------------------------------------------
+	// Codex navigation (T3.3)
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Open the Codex.
+	 *
+	 * When Bases is available: resolve the seed Codex.base from the curated
+	 * bases folder (default "00 Meta/Bases") and open it in a main-area leaf.
+	 * When Bases is off: activate the CodexView degrade leaf (S46).
+	 *
+	 * The curated bases folder is read from settings (curatedBasesFolder,
+	 * default "00 Meta/Bases" — added in T4.x; falls back to default here).
+	 */
+	async _openCodex(): Promise<void> {
+		// Use || (not ??) so a persisted null value also falls back to the default.
+		const rawFolder =
+			(this.settings as unknown as { curatedBasesFolder?: string }).curatedBasesFolder;
+		const curatedBasesFolder =
+			(typeof rawFolder === "string" && rawFolder.length > 0) ? rawFolder : "00 Meta/Bases";
+		const basePath = normalizePath(`${curatedBasesFolder}/Codex.base`);
+
+		if (isBasesAvailable(this)) {
+			const abstract = this.app.vault.getAbstractFileByPath(basePath);
+			if (abstract instanceof TFile) {
+				// getLeaf(true) opens in a new tab — avoids clobbering the user's active note.
+				const leaf = this.app.workspace.getLeaf(true);
+				if (leaf) {
+					await leaf.openFile(abstract);
+					return;
+				}
+			}
+			// Codex.base not yet seeded — fall through to degrade
+		}
+
+		// Bases off (or Codex.base not yet seeded): reveal existing degrade leaf or create one.
+		const existing = this.app.workspace.getLeavesOfType(CODEX_VIEW_TYPE);
+		const existingLeaf = existing[0];
+		if (existingLeaf) {
+			await this.app.workspace.revealLeaf(existingLeaf);
+			return;
+		}
+		// Open in a new tab — avoids clobbering the user's active note.
+		const leaf = this.app.workspace.getLeaf(true);
+		if (leaf) {
+			await leaf.setViewState({ type: CODEX_VIEW_TYPE, active: true });
+			await this.app.workspace.revealLeaf(leaf);
+		}
+	}
 
 	// ---------------------------------------------------------------------------
 	// View command management

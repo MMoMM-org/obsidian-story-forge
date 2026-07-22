@@ -18,6 +18,8 @@
 
 import type { Plugin } from "obsidian";
 import type { BasesViewRegistration } from "obsidian";
+import { CodexBasesView } from "bases/CodexBasesView";
+import { revealAndShowFile } from "views/SidebarView";
 
 /** View ID for the one polymorphic Codex view type (ADR-2). */
 const CODEX_VIEW_ID = "story-forge-codex";
@@ -52,11 +54,8 @@ const availabilityCache = new WeakMap<object, boolean>();
  * registerBasesView again.
  *
  * Returns false when Bases is unavailable (method absent or returns false).
- * The full polymorphic view class lands in Phase 3; this stub registers the
- * minimal required shape so the firewall is in place for downstream phases.
- *
- * TODO(Phase 3): Replace the minimal factory stub with the real CodexBasesView
- * factory and the full options callback when codex/CodexBasesView.ts is built.
+ * The factory constructs a CodexBasesView wired with onRowClick →
+ * revealAndShowFile(plugin.app, file) (T3.3 — row click re-subjects sidebar).
  *
  * @param plugin - the Story Forge plugin instance
  * @returns true when registration succeeded (Bases enabled); false otherwise
@@ -76,10 +75,15 @@ export function registerCodexView(plugin: Plugin): boolean {
 	const registration: BasesViewRegistration = {
 		name: "Story Forge Codex",
 		icon: "library",
-		// TODO(Phase 3): Replace stub with real CodexBasesView factory.
-		factory: (_controller, _containerEl) => {
-			throw new Error("CodexBasesView factory not yet implemented (Phase 3)");
-		},
+		factory: (controller, containerEl) => new CodexBasesView(controller, containerEl, {
+			app: plugin.app,
+			onRowClick: (path: string): void => {
+				const file = plugin.app.vault.getFileByPath(path);
+				if (file) {
+					void revealAndShowFile(plugin.app, file);
+				}
+			},
+		}),
 	};
 
 	try {

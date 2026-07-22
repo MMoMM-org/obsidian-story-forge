@@ -1,0 +1,31 @@
+filters:
+  and:
+    - file.hasTag("canon/character")
+    - file.hasTag("canon/location")
+    - file.hasTag("canon/object")
+    - file.hasTag("canon/lore")
+    - file.hasTag("manuscript/scene")
+properties:
+  file.name:
+    displayName: Name
+views:
+  - type: story-forge-codex
+    name: Characters
+    category: characters
+    filters: file.hasTag("canon/character")
+  - type: story-forge-codex
+    name: Locations
+    category: locations
+    filters: file.hasTag("canon/location")
+  - type: story-forge-codex
+    name: Objects
+    category: objects
+    filters: file.hasTag("canon/object")
+  - type: story-forge-codex
+    name: Lore
+    category: lore
+    filters: file.hasTag("canon/lore")
+  - type: story-forge-codex
+    name: Scenes
+    category: scenes
+    filters: file.hasTag("manuscript/scene")

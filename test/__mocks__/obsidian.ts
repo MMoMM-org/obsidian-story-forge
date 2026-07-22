@@ -244,7 +244,7 @@ export class Workspace {
 		(_split: boolean): WorkspaceLeaf => new WorkspaceLeaf(),
 	);
 
-	revealLeaf = vi.fn((_leaf: WorkspaceLeaf): void => {});
+	revealLeaf = vi.fn(async (_leaf: WorkspaceLeaf): Promise<void> => {});
 
 	getActiveFile = vi.fn((): TFile | null => null);
 
@@ -263,6 +263,8 @@ export class Workspace {
 			_newLeaf?: boolean,
 		): Promise<void> => {},
 	);
+
+	getLeaf = vi.fn((_newLeaf?: boolean | string): WorkspaceLeaf => new WorkspaceLeaf());
 
 	/** Trigger a registered event (used in tests to simulate Obsidian events). */
 	_trigger(event: string, ...args: unknown[]): void {
@@ -922,6 +924,9 @@ export class WorkspaceLeaf {
 
 	/** detach — removes the leaf (no-op in mock). */
 	detach = vi.fn((): void => {});
+
+	/** openFile — opens a TFile in this leaf (no-op in mock). */
+	openFile = vi.fn(async (_file: TFile, _openState?: unknown): Promise<void> => {});
 }
 
 /**
