@@ -22,15 +22,18 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { App } from "../__mocks__/obsidian";
+import { App, TFile } from "../__mocks__/obsidian";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import { CatalogService } from "catalog/CatalogService";
 import { ViewStore } from "store/ViewStore";
 import { ConsentGate } from "consent/ConsentGate";
+import { DisclosureModal } from "consent/DisclosureModal";
+import { installCurated } from "import/ImportFlow";
 import { computeChecksum } from "consent/checksum";
 import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 import type { ViewRecord } from "store/types";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
+import type { ViewImporter } from "import/ViewImporter";
 
 // ---------------------------------------------------------------------------
 // Offline guard — throw if network is ever touched during the whole suite.
@@ -630,8 +633,20 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 // ===========================================================================
 // 5. BASES CONSENT GATE — declarative entries bypass modal; ConsentGate
 //    evaluates a freshly-installed record as "consented" (no modal shown).
-//    For dataviewjs entries: the gate-less bases path is never reachable
-//    (CatalogEntry.engine is "bases" — exhaustive guard in CatalogService).
+//
+//    DataviewJS compile-time enforcement note (Req 5):
+//      CatalogEntry.engine is typed "bases"-only and CatalogService carries an
+//      exhaustive `never` guard — no DataviewJS CatalogEntry can be constructed
+//      at compile time, so the catalog never reaches a gate-less path for
+//      dataviewjs. The "decline → nothing written" behavior at the gated layer
+//      is the real regression risk. This suite asserts:
+//        (a) bases installs bypass the modal entirely (no DisclosureModal.present call),
+//        (b) ConsentGate.evaluate() returns "consented" for a freshly-installed
+//            bases record (the joined path across CatalogService + ConsentGate),
+//        (c) ConsentGate.evaluate() returns "drift" when the stored checksum is stale.
+//      The actual "decline → nothing written" assertion for the gated-engine path
+//      lives in Suite 7 below (drives real ConsentGate.requestConsentForDef +
+//      installCurated with a DataviewJS ViewDefinition and a declined modal).
 // ===========================================================================
 
 describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confirms consented state", () => {
@@ -644,14 +659,17 @@ describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confi
 	});
 
 	it("install succeeds for a bases entry without opening any consent modal", async () => {
+		// Spy on DisclosureModal.present — it must NOT be called for a bases entry.
+		// If the gate opened a modal, present() would hang (no button in DOM to click).
+		// Install completing (not hanging) AND present spy not called proves no modal.
+		const presentSpy = vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(false);
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
 		const h = await mountHarness([entry]);
 
-		// If the gate opened a modal, present() would hang (no button in DOM to click).
-		// Install completing without hanging proves no modal was opened.
 		const result = await h.service.install(entry.id);
 
 		expect(result.ok).toBe(true);
+		expect(presentSpy).not.toHaveBeenCalled();
 	});
 
 	it("ConsentGate.evaluate() returns 'consented' for a freshly installed bases record", async () => {
@@ -674,7 +692,6 @@ describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confi
 	it("ConsentGate.evaluate() returns 'drift' when the record's checksum is stale (post-update scenario)", async () => {
 		// Simulate a bases record where the stored checksum is stale.
 		const newSource = BASE_YAML;
-		const newChecksum = await computeChecksum(newSource);
 
 		const staleRecord: ViewRecord = {
 			provenance: "curated",
@@ -695,21 +712,17 @@ describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confi
 		expect(decision.status).toBe("drift");
 	});
 
-	it("a declined consent for dataviewjs scenario — install path returns fail (gate boundary not reached for bases)", async () => {
-		// CatalogService only handles engine:"bases" today. The exhaustive guard
-		// ensures no other engine reaches production. This test documents that the
-		// current catalog always produces bases-engine records and the gate is never
-		// invoked for install (bases entries are declarative — no modal).
-		const entry = await makeEntry({ id: "overview-characters", engine: "bases" });
-		const h = await mountHarness([entry]);
-
-		// If we could call install on a hypothetical dataviewjs entry it would route
-		// through ConsentGate.requestConsentForDef. But the exhaustive guard in
-		// CatalogService returns { ok:false } for any engine not "bases".
-		// Verify: only bases engine installs succeed through the joined path.
-		const result = await h.service.install(entry.id);
-		expect(result.ok).toBe(true);
-		expect(vi.mocked(h.app.vault.adapter.write)).toHaveBeenCalled();
+	it("compile-time exhaustive guard: CatalogEntry.engine is 'bases'-only (no DataviewJS catalog path)", () => {
+		// CatalogService has an exhaustive `never` guard — any future engine variant
+		// must be handled at compile time before it reaches production.
+		// This test documents (not re-asserts) the type invariant.
+		// The behavioral "decline → nothing written" for the gated-engine path is
+		// asserted in Suite 7 against the real ConsentGate + installCurated path.
+		// The unit-level proof lives in T4.3: ImportFlow.test.ts
+		// "dataviewjs: declined consent (null) writes NOTHING" (line ~201).
+		const engineValues: CatalogEntry["engine"][] = ["bases"]; // only valid value
+		expect(engineValues).toContain("bases");
+		// TypeScript itself enforces this — no runtime representation is needed.
 	});
 });
 
@@ -801,5 +814,173 @@ describe("E2E T6.3.6 — offline: fetch/requestUrl must not be called on any cat
 		h.service.getEntries();
 
 		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+});
+
+// ===========================================================================
+// 7. CONSENT-DECLINE CONTRACT — "decline → nothing written" (Req 5)
+//
+//    WHY THIS LAYER: CatalogEntry.engine is "bases"-only at compile time, so
+//    CatalogService never reaches ConsentGate for any install. The decline
+//    behavior is enforced by the gate mechanism itself (installCurated +
+//    ConsentGate.requestConsentForDef). This suite exercises that contract at
+//    the real gate layer — the same mechanism the catalog would use for any
+//    future gated engine — using:
+//      - REAL ConsentGate (requestConsentForDef path)
+//      - REAL ViewStore (in-memory port)
+//      - REAL installCurated (ImportFlow — the gated-engine install path)
+//      - DisclosureModal.present() stubbed to decline (return false)
+//      - A DataviewJS ViewDefinition with vault content wired via App mock
+//
+//    The unit-level proof for installCurated itself lives in T4.3:
+//    test/import/ImportFlow.test.ts "dataviewjs: declined consent (null) writes
+//    NOTHING". This suite is the E2E assertion at the integration boundary.
+// ===========================================================================
+
+const DVJS_BODY = "dv.paragraph('hello')\n";
+const DVJS_FENCED_CONTENT = "---\nsf-version: 1\nsf-name: Fancy View\n---\n\n```dataviewjs\n" + DVJS_BODY + "```\n";
+
+/** Wire an App mock so vault.read returns fenced content for the given path. */
+function makeAppWithVaultContent(sourcePath: string, content: string): App {
+	const app = new App();
+
+	// vault.adapter for CatalogService-style writes (not used here but wired for consistency)
+	vi.mocked(app.vault.adapter.exists).mockResolvedValue(false);
+	vi.mocked(app.vault.adapter.mkdir).mockResolvedValue(undefined);
+	vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
+	vi.mocked(app.vault.adapter.remove).mockResolvedValue(undefined);
+
+	// readFencedBlock calls vault.read(abstractFile) — wire read to return the content.
+	vi.mocked(app.vault.read).mockResolvedValue(content);
+
+	// getAbstractFileByPath must return a real TFile instance — readFencedBlock uses
+	// `instanceof TFile` to guard against folders. A plain object cast fails that check.
+	const mockFile = new TFile();
+	mockFile.path = sourcePath;
+	mockFile.name = "fancy-view.md";
+	mockFile.basename = "fancy-view";
+	vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(mockFile);
+
+	return app;
+}
+
+describe("E2E T6.3.7 — consent-decline contract: decline → nothing written (Req 5)", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		fetchSpy.mockRejectedValue(
+			new Error("[catalog-e2e] fetch called — must be offline"),
+		);
+	});
+
+	afterEach(() => {
+		document.body.innerHTML = "";
+		vi.restoreAllMocks();
+	});
+
+	it("ConsentGate.requestConsentForDef: decline returns null — no store write", async () => {
+		// Real ConsentGate with DisclosureModal.present() returning false (decline).
+		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(false);
+
+		const sourcePath = "views/fancy-view.md";
+		const app = makeAppWithVaultContent(sourcePath, DVJS_FENCED_CONTENT);
+		const { store } = makeStoreHarness();
+		const gate = new ConsentGate(app, makeBasesRegistry(), makeDvSettings(), store);
+
+		const result = await gate.requestConsentForDef({
+			sourcePath,
+			engine: "dataviewjs",
+			version: 1,
+			name: "Fancy View",
+			command: false,
+			querySource: DVJS_BODY,
+			checksum: `sha256:${"a".repeat(64)}`,
+		});
+
+		// Declined gate must return null — the caller commits nothing.
+		expect(result).toBeNull();
+		// Verify at the store level — no record was committed.
+		const views = await store.getViews();
+		expect(Object.keys(views).length).toBe(0);
+	});
+
+	it("installCurated with dataviewjs + declined gate writes NOTHING to the store", async () => {
+		// Drive real ConsentGate.requestConsentForDef with a declined DisclosureModal.
+		// installCurated (ImportFlow) checks the return and aborts with no write
+		// when the gate returns null.
+		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(false);
+
+		const sourcePath = "views/fancy-view.md";
+		const app = makeAppWithVaultContent(sourcePath, DVJS_FENCED_CONTENT);
+		const { store, raw: storeRaw } = makeStoreHarness();
+		const gate = new ConsentGate(app, makeBasesRegistry(), makeDvSettings(), store);
+
+		// A real ViewImporter-shaped stub: if importToStore is ever called, we want
+		// to know — it should NOT be called on decline.
+		const importToStore = vi.fn(async () => "new-id");
+		const importer: ViewImporter = { importToStore } as unknown as ViewImporter;
+
+		await installCurated({ app, importer, gate }, {
+			sourcePath,
+			engine: "dataviewjs",
+			version: 1,
+			name: "Fancy View",
+			command: false,
+			querySource: DVJS_BODY,
+			checksum: `sha256:${"a".repeat(64)}`,
+		});
+
+		// importToStore must NOT have been called — decline aborts before any write.
+		expect(importToStore).not.toHaveBeenCalled();
+		// Store has no records (double-check via the port).
+		expect(Object.keys(storeRaw()).length).toBe(0);
+	});
+
+	it("installCurated with dataviewjs + declined gate does NOT call vault.write", async () => {
+		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(false);
+
+		const sourcePath = "views/fancy-view.md";
+		const app = makeAppWithVaultContent(sourcePath, DVJS_FENCED_CONTENT);
+		const { store } = makeStoreHarness();
+		const gate = new ConsentGate(app, makeBasesRegistry(), makeDvSettings(), store);
+
+		const importToStore = vi.fn(async () => "new-id");
+		const importer: ViewImporter = { importToStore } as unknown as ViewImporter;
+
+		await installCurated({ app, importer, gate }, {
+			sourcePath,
+			engine: "dataviewjs",
+			version: 1,
+			name: "Fancy View",
+			command: false,
+			querySource: DVJS_BODY,
+			checksum: `sha256:${"a".repeat(64)}`,
+		});
+
+		// The vault adapter write must NOT have been called — nothing materialised.
+		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
+	});
+
+	it("DisclosureModal.present was invoked (consent WAS requested, then declined)", async () => {
+		// This asserts the gate was actually exercised — not bypassed silently.
+		// A decline that silently bypassed the modal would NOT satisfy Req 5.
+		const presentSpy = vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(false);
+
+		const sourcePath = "views/fancy-view.md";
+		const app = makeAppWithVaultContent(sourcePath, DVJS_FENCED_CONTENT);
+		const { store } = makeStoreHarness();
+		const gate = new ConsentGate(app, makeBasesRegistry(), makeDvSettings(), store);
+
+		await gate.requestConsentForDef({
+			sourcePath,
+			engine: "dataviewjs",
+			version: 1,
+			name: "Fancy View",
+			command: false,
+			querySource: DVJS_BODY,
+			checksum: `sha256:${"a".repeat(64)}`,
+		});
+
+		// Modal was opened and present() was called — then declined.
+		expect(presentSpy).toHaveBeenCalledTimes(1);
 	});
 });
