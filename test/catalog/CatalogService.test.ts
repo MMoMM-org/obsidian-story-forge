@@ -2,14 +2,13 @@
  * CatalogService.test.ts — T4.4
  *
  * Tests the fail-closed checksum verify, materialise (.base → vault), persist
- * (importToStore provenance:"curated"), and sidebar re-render on success.
+ * (store.setRecord with engine:"bases" + raw YAML source), and sidebar re-render.
  *
  * Design:
  *   - CatalogService receives the CatalogIndex via constructor injection — no
  *     dist/ read at runtime, fully testable without build artifacts.
  *   - Vault writes are mocked via App.vault.adapter (write + exists + mkdir-like).
- *   - importToStore is mocked on the ViewImporter instance.
- *   - store.subscribe callback is captured and called to assert re-render.
+ *   - store.setRecord is mocked to capture the persisted ViewRecord.
  *   - No fetch/network calls on any path (CON-9, offline-only catalog).
  *
  * @ref PRD/AC-F4.5 (checksum mismatch fails closed)
@@ -25,8 +24,8 @@ import { computeChecksum } from "consent/checksum";
 import { CatalogService } from "catalog/CatalogService";
 import type { CatalogIndex, CatalogEntry } from "catalog/catalogTypes";
 import type { ViewStore } from "store/ViewStore";
+import type { ViewRecord } from "store/types";
 import type { ViewImporter } from "import/ViewImporter";
-import type { ImportFlowDeps } from "import/ImportFlow";
 import type { ConsentGate } from "consent/ConsentGate";
 
 // ---------------------------------------------------------------------------
@@ -63,23 +62,30 @@ function makeApp(): App {
 	vi.mocked(app.vault.adapter.exists).mockResolvedValue(false);
 	// Stub vault.adapter.write to succeed.
 	vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
-	// Stub vault.adapter.mkdir if present; real App mock adapter has no mkdir
-	// so we add it dynamically.
+	// DataAdapter has no mkdir in typings; add it dynamically.
 	(app.vault.adapter as Record<string, unknown>).mkdir = vi.fn(async () => {});
 	return app;
 }
 
-function makeStore(): ViewStore {
-	const _subscribers = new Set<() => void>();
-	return {
-		getViews: vi.fn(async () => ({})),
-		setRecord: vi.fn(async () => {}),
+/** A store that captures setRecord calls and surfaces them for assertions. */
+function makeStore(initial: Record<string, ViewRecord> = {}): {
+	store: ViewStore;
+	capturedRecords: Map<string, ViewRecord>;
+} {
+	const capturedRecords = new Map<string, ViewRecord>();
+	const views: Record<string, ViewRecord> = { ...initial };
+	const store: ViewStore = {
+		getViews: vi.fn(async () => ({ ...views })),
+		setRecord: vi.fn(async (id: string, rec: ViewRecord) => {
+			views[id] = rec;
+			capturedRecords.set(id, rec);
+		}),
 		deleteRecord: vi.fn(async () => {}),
-		subscribe: vi.fn((cb: () => void) => {
-			_subscribers.add(cb);
-			return () => { _subscribers.delete(cb); };
+		subscribe: vi.fn((_cb: () => void) => {
+			return () => {};
 		}),
 	} as unknown as ViewStore;
+	return { store, capturedRecords };
 }
 
 function makeImporter(): ViewImporter {
@@ -100,14 +106,6 @@ function makeGate(): ConsentGate {
 	} as unknown as ConsentGate;
 }
 
-function makeFlowDeps(
-	app: App,
-	importer: ViewImporter,
-	gate: ConsentGate,
-): ImportFlowDeps {
-	return { app, importer, gate };
-}
-
 // ---------------------------------------------------------------------------
 // Suite 1 — Fail-closed: checksum MISMATCH
 // ---------------------------------------------------------------------------
@@ -115,9 +113,9 @@ function makeFlowDeps(
 describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 	it("writes NOTHING to the vault when entry.checksum does not match computeChecksum(entry.source)", async () => {
 		const app = makeApp();
+		const { store } = makeStore();
 		const importer = makeImporter();
 		const gate = makeGate();
-		const store = makeStore();
 
 		// Entry with a deliberately wrong checksum.
 		const entry = await makeEntry({ checksum: "sha256:deadbeef00000000000000000000000000000000000000000000000000000000" });
@@ -129,10 +127,10 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 
 		// Must not write to the vault adapter.
 		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
+		// Must not call store.setRecord.
+		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
 		// Must not call importToStore.
 		expect(vi.mocked(importer.importToStore)).not.toHaveBeenCalled();
-		// Must not call setRecord.
-		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
 		// Must surface a reason.
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
@@ -140,30 +138,9 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 		}
 	});
 
-	it("does NOT call store.subscribe callback on checksum mismatch", async () => {
-		const app = makeApp();
-		const importer = makeImporter();
-		const gate = makeGate();
-		const store = makeStore();
-		const subscriber = vi.fn();
-		store.subscribe(subscriber);
-
-		const entry = await makeEntry({ checksum: "sha256:0000000000000000000000000000000000000000000000000000000000000000" });
-		const index = await makeCatalogIndex([entry]);
-
-		const svc = new CatalogService(index, { app, importer, gate, store, curatedBasesFolder: "00 Meta/Bases" });
-		await svc.install(entry.id);
-
-		// Store subscriber must not be notified (nothing changed).
-		// Note: subscriber is tracked via store.subscribe — the mock's setRecord
-		// would trigger it in a real store. Since setRecord is not called, subscriber
-		// stays silent.
-		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
-	});
-
 	it("returns a result with ok:false and a reason string on mismatch", async () => {
 		const app = makeApp();
-		const store = makeStore();
+		const { store } = makeStore();
 		const entry = await makeEntry({ checksum: "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" });
 		const index = await makeCatalogIndex([entry]);
 
@@ -182,30 +159,132 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Suite 2 — Checksum MATCH: routes through installCurated / importToStore
+// Suite 2 — Bases entry persists with correct engine and source (the core bug fix)
 // ---------------------------------------------------------------------------
 
-describe("CatalogService — checksum match: routes through importToStore (AC-F4.6)", () => {
-	it("calls importToStore with provenance:'curated' on a matching bases entry", async () => {
+describe("CatalogService — bases entry: ViewRecord has engine='bases' and source=raw YAML (AC-F4.5/ADR-5)", () => {
+	it("store.setRecord is called with engine:'bases' for a bases catalog entry", async () => {
 		const app = makeApp();
-		const importer = makeImporter();
-		const gate = makeGate();
-		const store = makeStore();
+		const { store, capturedRecords } = makeStore();
 
-		const entry = await makeEntry();
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
 		const index = await makeCatalogIndex([entry]);
 
-		const svc = new CatalogService(index, { app, importer, gate, store, curatedBasesFolder: "00 Meta/Bases" });
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
 
 		const result = await svc.install(entry.id);
 
 		expect(result.ok).toBe(true);
-		// importToStore must be called exactly once with provenance:"curated".
-		expect(vi.mocked(importer.importToStore)).toHaveBeenCalledTimes(1);
-		const [, opts] = vi.mocked(importer.importToStore).mock.calls[0]!;
-		expect(opts?.provenance).toBe("curated");
+		expect(capturedRecords.size).toBe(1);
+		const [writtenRecord] = capturedRecords.values();
+		expect(writtenRecord!.engine).toBe("bases");
 	});
 
+	it("store.setRecord is called with source equal to the raw .base YAML (not the entry id slug)", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		await svc.install(entry.id);
+
+		const [writtenRecord] = capturedRecords.values();
+		// source must be the raw YAML — NOT the slug "overview-characters"
+		expect(writtenRecord!.source).toBe(BASE_YAML);
+		expect(writtenRecord!.source).not.toBe("overview-characters");
+	});
+
+	it("persisted record has provenance:'curated' and enabled:true", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+
+		const entry = await makeEntry();
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		await svc.install(entry.id);
+
+		const [writtenRecord] = capturedRecords.values();
+		expect(writtenRecord!.provenance).toBe("curated");
+		expect(writtenRecord!.enabled).toBe(true);
+	});
+
+	it("persisted record has okayed.checksum equal to computeChecksum(entry.source)", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+
+		const entry = await makeEntry({ source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		await svc.install(entry.id);
+
+		const expectedChecksum = await computeChecksum(BASE_YAML);
+		const [writtenRecord] = capturedRecords.values();
+		expect(writtenRecord!.okayed?.checksum).toBe(expectedChecksum);
+	});
+
+	it("the persisted record.engine routes to BasesFenceEngine (engine must be 'bases')", async () => {
+		// BasesFenceEngine registers with kind = "bases" as const.
+		// EngineRegistry.get("bases") returns it; any other engine string breaks render.
+		// This test catches the original bug where "dataview-dql" was written instead.
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+
+		const entry = await makeEntry();
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		await svc.install(entry.id);
+
+		const [writtenRecord] = capturedRecords.values();
+		// Must be "bases" — the kind string BasesFenceEngine registers with.
+		// If this is "dataview-dql", the DQL engine gets called with raw .base YAML → broken render.
+		expect(writtenRecord!.engine).toBe("bases");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Suite 3 — Checksum MATCH: install result and duplicate handling
+// ---------------------------------------------------------------------------
+
+describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 	it("returns ok:true on a matching bases entry", async () => {
 		const app = makeApp();
 		const entry = await makeEntry();
@@ -215,7 +294,7 @@ describe("CatalogService — checksum match: routes through importToStore (AC-F4
 			app,
 			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
+			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 
@@ -233,7 +312,7 @@ describe("CatalogService — checksum match: routes through importToStore (AC-F4
 			app,
 			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
+			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 
@@ -244,23 +323,59 @@ describe("CatalogService — checksum match: routes through importToStore (AC-F4
 			expect(result.reason).toMatch(/not.found/i);
 		}
 	});
+
+	it("returns ok:false up-to-date when source already in store (duplicate detection)", async () => {
+		const app = makeApp();
+		const entry = await makeEntry({ source: BASE_YAML });
+
+		// Pre-populate store with a record that has the same source.
+		const existingRecord: ViewRecord = {
+			provenance: "curated",
+			enabled: true,
+			okayed: null,
+			source: BASE_YAML,
+			engine: "bases",
+			command: false,
+		};
+		const { store } = makeStore({ "existing-id": existingRecord });
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		const result = await svc.install(entry.id);
+
+		// Should not write anything new.
+		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.reason).toMatch(/up.to.date/i);
+		}
+	});
 });
 
 // ---------------------------------------------------------------------------
-// Suite 3 — Materialise: bases entry writes .base into curatedBasesFolder
+// Suite 4 — Materialise: bases entry writes .base into curatedBasesFolder
 // ---------------------------------------------------------------------------
 
 describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5/ADR-5)", () => {
 	it("writes entry.source to <curatedBasesFolder>/<entry.id>.base via vault.adapter.write", async () => {
 		const app = makeApp();
-		const importer = makeImporter();
-		const gate = makeGate();
-		const store = makeStore();
-
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
 		const index = await makeCatalogIndex([entry]);
 
-		const svc = new CatalogService(index, { app, importer, gate, store, curatedBasesFolder: "00 Meta/Bases" });
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store: makeStore().store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
 
 		await svc.install(entry.id);
 
@@ -283,7 +398,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			app,
 			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
+			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 
@@ -295,7 +410,6 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 	it("creates the folder if it does not exist", async () => {
 		const app = makeApp();
-		// Folder does not exist (default mock).
 		vi.mocked(app.vault.adapter.exists).mockResolvedValue(false);
 
 		const entry = await makeEntry();
@@ -305,20 +419,18 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			app,
 			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
+			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 
 		await svc.install(entry.id);
 
-		// mkdir (or equivalent) must have been called.
 		const mkdir = (app.vault.adapter as Record<string, unknown>).mkdir as ReturnType<typeof vi.fn>;
 		expect(mkdir).toHaveBeenCalled();
 	});
 
 	it("does NOT re-create the folder if it already exists", async () => {
 		const app = makeApp();
-		// Folder already exists.
 		vi.mocked(app.vault.adapter.exists).mockResolvedValue(true);
 
 		const entry = await makeEntry();
@@ -328,7 +440,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			app,
 			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
+			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 
@@ -337,107 +449,67 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 		const mkdir = (app.vault.adapter as Record<string, unknown>).mkdir as ReturnType<typeof vi.fn>;
 		expect(mkdir).not.toHaveBeenCalled();
 	});
-
-	it("stores the raw .base YAML as the ViewRecord source (not the vault path)", async () => {
-		const app = makeApp();
-		const importer = makeImporter();
-
-		const entry = await makeEntry({ source: BASE_YAML });
-		const index = await makeCatalogIndex([entry]);
-
-		const svc = new CatalogService(index, {
-			app,
-			importer,
-			gate: makeGate(),
-			store: makeStore(),
-			curatedBasesFolder: "00 Meta/Bases",
-		});
-
-		await svc.install(entry.id);
-
-		const [def] = vi.mocked(importer.importToStore).mock.calls[0]!;
-		// The ViewDefinition source passed to importToStore is the raw YAML, per ADR-5.
-		expect(def.querySource).toBe(BASE_YAML);
-	});
 });
 
 // ---------------------------------------------------------------------------
-// Suite 4 — Persistence + sidebar re-render (AC-F4.6)
+// Suite 5 — Persistence + sidebar re-render (AC-F4.6)
 // ---------------------------------------------------------------------------
 
 describe("CatalogService — persistence and sidebar re-render (AC-F4.6)", () => {
-	it("importToStore is called exactly once after a successful install", async () => {
+	it("store.setRecord is called exactly once after a successful bases install", async () => {
 		const app = makeApp();
-		const importer = makeImporter();
+		const { store } = makeStore();
 
 		const entry = await makeEntry();
 		const index = await makeCatalogIndex([entry]);
 
 		const svc = new CatalogService(index, {
 			app,
-			importer,
+			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
-			curatedBasesFolder: "00 Meta/Bases",
-		});
-
-		await svc.install(entry.id);
-
-		expect(vi.mocked(importer.importToStore)).toHaveBeenCalledTimes(1);
-	});
-
-	it("the store subscriber is notified after a successful install (re-render trigger)", async () => {
-		const app = makeApp();
-		const importer = makeImporter();
-		const gate = makeGate();
-
-		// Build a store where setRecord calls the subscriber, mirroring real ViewStore.
-		const subscriber = vi.fn();
-		const sidebarSubscribers = new Set<() => void>([subscriber]);
-		const store = {
-			getViews: vi.fn(async () => ({})),
-			setRecord: vi.fn(async () => {
-				for (const cb of sidebarSubscribers) cb();
-			}),
-			deleteRecord: vi.fn(async () => {}),
-			subscribe: vi.fn((cb: () => void) => {
-				sidebarSubscribers.add(cb);
-				return () => { sidebarSubscribers.delete(cb); };
-			}),
-		} as unknown as ViewStore;
-
-		const entry = await makeEntry();
-		const index = await makeCatalogIndex([entry]);
-
-		const svc = new CatalogService(index, {
-			app,
-			importer,
-			gate,
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 
 		await svc.install(entry.id);
 
-		// setRecord triggers store subscribers → sidebar re-render.
-		// importer.importToStore calls store.setRecord in the real flow; here we
-		// assert that the store side-effect path fires through importToStore being called.
-		expect(vi.mocked(importer.importToStore)).toHaveBeenCalled();
-		// The subscriber was pre-added; importToStore itself handles the setRecord call
-		// in the real ViewImporter — here we verify the service DOES call importToStore
-		// (the entry point that eventually calls setRecord → notifies subscribers).
-		// For a more direct assertion, we drive the notification through our store mock.
-		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled(); // importToStore mock handles it
+		expect(vi.mocked(store.setRecord)).toHaveBeenCalledTimes(1);
+	});
+
+	it("store subscribers are notified after a successful install (sidebar re-render)", async () => {
+		const app = makeApp();
+		const subscriber = vi.fn();
+		const { store } = makeStore();
+
+		// Wire the subscriber to fire when setRecord is called.
+		vi.mocked(store.setRecord).mockImplementation(async (_id, _rec) => {
+			subscriber();
+		});
+
+		const entry = await makeEntry();
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		await svc.install(entry.id);
+
+		// setRecord was called → sidebar subscriber (wired by ViewStore.subscribe) fires.
+		expect(subscriber).toHaveBeenCalled();
 	});
 });
 
 // ---------------------------------------------------------------------------
-// Suite 5 — Offline: no network on any path (AC-F4.7 / CON-9)
+// Suite 6 — Offline: no network on any path (AC-F4.7 / CON-9)
 // ---------------------------------------------------------------------------
 
 describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)", () => {
 	beforeEach(() => {
-		// If fetch is called, the test will detect it via the global spy.
 		vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("fetch must not be called in catalog install"));
 	});
 
@@ -450,13 +522,11 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 			app,
 			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
+			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 
-		// Must not throw due to network.
 		await expect(svc.install(entry.id)).resolves.toMatchObject({ ok: true });
-		// fetch spy must not have been called.
 		expect(fetch).not.toHaveBeenCalled();
 	});
 
@@ -469,7 +539,7 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 			app,
 			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
+			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 
@@ -479,7 +549,7 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 });
 
 // ---------------------------------------------------------------------------
-// Suite 6 — getEntries: surfaces the catalog list
+// Suite 7 — getEntries: surfaces the catalog list
 // ---------------------------------------------------------------------------
 
 describe("CatalogService.getEntries()", () => {
@@ -495,7 +565,7 @@ describe("CatalogService.getEntries()", () => {
 			app,
 			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
+			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 
@@ -514,7 +584,7 @@ describe("CatalogService.getEntries()", () => {
 			app,
 			importer: makeImporter(),
 			gate: makeGate(),
-			store: makeStore(),
+			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
 		});
 

@@ -11,14 +11,25 @@
  *                 written. Bases/.base entries are declarative → skip gate.
  *   3. MATERIALISE (bases only) — write raw .base YAML into curatedBasesFolder,
  *                 normalizePath'd; create folder on demand.
- *   4. PERSIST  — importToStore(def, { provenance:"curated" }) → store.setRecord
- *                 → store subscribers (sidebar re-render).
+ *   4. PERSIST:
+ *       - bases entries: store.setRecord directly with engine:"bases",
+ *         source:<raw YAML>, provenance:"curated" (ADR-5 — ViewRecord.source
+ *         IS the raw YAML, and ViewDefinition.engine excludes "bases").
+ *       - DQL/DataviewJS entries: installCurated (existing ImportFlow path).
+ *
+ * Why bases entries skip importToStore (route b, ADR-5):
+ *   ViewDefinition.engine is typed "dataview-dql"|"dataviewjs" — "bases" is not
+ *   in the union. Routing through toRecord() would either (a) require lying about
+ *   the engine or (b) require touching src/import/* in a way that risks T4.3
+ *   regressions. Writing directly is the minimal, correct path: ConsentGate and
+ *   BasesFenceEngine both require engine:"bases" AND source:<raw YAML> on the
+ *   record (src/consent/ConsentGate.ts:117 + src/engines/BasesFenceEngine.ts:27).
  *
  * @ref PRD/AC-F4.5 (fail-closed on mismatch)
  * @ref PRD/AC-F4.6 (surfaced via existing view surfaces)
  * @ref PRD/AC-F4.7 (offline — zero network on any path, CON-9)
- * @ref SDD/ADR-5 (bases source = raw .base YAML; curatedBasesFolder)
- * @ref SDD/ADR-6 (reuse installCurated + importToStore provenance override)
+ * @ref SDD/ADR-5 (bases record source = raw .base YAML; curatedBasesFolder)
+ * @ref SDD/ADR-6 (reuse installCurated for DQL/DataviewJS; bases bypass)
  */
 
 import { normalizePath } from "obsidian";
@@ -28,6 +39,7 @@ import { installCurated } from "import/ImportFlow";
 import type { ImportFlowDeps } from "import/ImportFlow";
 import type { ViewImporter } from "import/ViewImporter";
 import type { ViewStore } from "store/ViewStore";
+import type { ViewRecord } from "store/types";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 
@@ -90,7 +102,7 @@ export class CatalogService {
 			return { ok: false, reason: `not-found: no catalog entry with id "${id}"` };
 		}
 
-		// 1. VERIFY checksum before any side effect.
+		// 1. VERIFY checksum before any side effect (fail-closed, AC-F4.5).
 		const computed = await computeChecksum(entry.source);
 		if (computed !== entry.checksum) {
 			return {
@@ -99,49 +111,90 @@ export class CatalogService {
 			};
 		}
 
-		// 2. Build a ViewDefinition-compatible object for the install path.
-		//    engine "bases" is declarative → installCurated skips the consent modal.
-		const def = this._buildDef(entry);
-
-		// 3. MATERIALISE (bases engine only): write raw .base YAML into vault.
-		let writtenPath: string | undefined;
 		if (entry.engine === "bases") {
-			writtenPath = await this._materialise(entry);
+			return this._installBasesEntry(entry, computed);
 		}
 
-		// 4. PERSIST via installCurated (reuses ImportFlow + importToStore provenance:"curated").
+		// Non-bases (DQL / DataviewJS): use the existing installCurated path.
+		return this._installNonBasesEntry(entry);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Private — bases install path (route b)
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Install a bases entry directly: materialise the .base file into the vault,
+	 * then write a ViewRecord with engine:"bases" and source:<raw YAML> directly
+	 * to the store (bypassing importToStore which cannot produce a bases engine
+	 * record — ViewDefinition.engine excludes "bases").
+	 *
+	 * Duplicate detection mirrors importToStore: if a record with the same source
+	 * already exists, surface "up-to-date" without an error.
+	 */
+	private async _installBasesEntry(
+		entry: CatalogEntry,
+		computedChecksum: string,
+	): Promise<InstallResult> {
+		// Duplicate check: same raw YAML already in the store → up-to-date.
+		const existing = await this.deps.store.getViews();
+		for (const rec of Object.values(existing)) {
+			if (rec.source === entry.source) {
+				return { ok: false, reason: "up-to-date: already installed" };
+			}
+		}
+
+		// 3. MATERIALISE: write the .base YAML file into the vault folder.
+		const writtenPath = await this._materialise(entry);
+
+		// 4. PERSIST: write ViewRecord directly — engine:"bases", source:<raw YAML>.
+		//    okayed records the checksum so ConsentGate._evaluateBasesRecord returns
+		//    "consented" (no modal for declarative .base — ADR-6).
+		const record: ViewRecord = {
+			provenance: "curated",
+			enabled: true,
+			okayed: { version: 1, checksum: computedChecksum },
+			source: entry.source,
+			engine: "bases",
+			command: false,
+			commandName: entry.name,
+			...(entry.description !== undefined ? { description: entry.description } : {}),
+		};
+
+		const newId = crypto.randomUUID();
+		await this.deps.store.setRecord(newId, record);
+
+		return { ok: true, path: writtenPath };
+	}
+
+	// ---------------------------------------------------------------------------
+	// Private — non-bases install path (installCurated)
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Install a DQL or DataviewJS entry via the existing installCurated flow.
+	 * DataviewJS routes through requestConsentForDef; DQL is 1-click.
+	 */
+	private async _installNonBasesEntry(entry: CatalogEntry): Promise<InstallResult> {
+		const def = this._buildDefForNonBases(entry);
 		const flowDeps: ImportFlowDeps = {
 			app: this.deps.app,
 			importer: this.deps.importer,
 			gate: this.deps.gate,
 		};
 		await installCurated(flowDeps, def);
-
-		return { ok: true, ...(writtenPath !== undefined ? { path: writtenPath } : {}) };
+		return { ok: true };
 	}
 
-	// ---------------------------------------------------------------------------
-	// Private helpers
-	// ---------------------------------------------------------------------------
-
 	/**
-	 * Build a ViewDefinition-compatible plain object from a CatalogEntry.
-	 *
-	 * ViewDefinition.engine is "dataview-dql" | "dataviewjs" (not "bases"),
-	 * so bases entries are mapped to "dataview-dql" — both are declarative
-	 * (no executable code) and the installCurated DECLARATIVE_ENGINES set
-	 * treats them identically: 1-click, no consent modal (SDD/ADR-6).
-	 *
-	 * checksum must satisfy the Checksum branded type; the bundled index
-	 * emits "sha256:<hex>" via computeChecksum — the format is correct.
+	 * Build a ViewDefinition for DQL or DataviewJS entries only.
+	 * Never called for bases entries (they bypass importToStore entirely).
 	 */
-	private _buildDef(entry: CatalogEntry): Parameters<typeof installCurated>[1] {
-		const engineForDef: "dataview-dql" | "dataviewjs" =
-			entry.engine === "bases" ? "dataview-dql" : entry.engine;
-
+	private _buildDefForNonBases(entry: CatalogEntry): Parameters<typeof installCurated>[1] {
+		const engine = entry.engine as "dataview-dql" | "dataviewjs";
 		return {
 			sourcePath: entry.id,
-			engine: engineForDef,
+			engine,
 			version: 1,
 			name: entry.name,
 			description: entry.description,
@@ -150,6 +203,10 @@ export class CatalogService {
 			checksum: entry.checksum as import("consent/checksum").Checksum,
 		};
 	}
+
+	// ---------------------------------------------------------------------------
+	// Private — vault materialise helper
+	// ---------------------------------------------------------------------------
 
 	/**
 	 * Materialise a .base entry into the configured curatedBasesFolder.
