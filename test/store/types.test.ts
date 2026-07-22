@@ -232,4 +232,15 @@ describe("applyDefaults", () => {
     const result = applyDefaults({});
     expect("commandLabel" in result).toBe(false);
   });
+
+  it("preserves optional catalogId", () => {
+    expect(applyDefaults({ catalogId: "overview-characters" }).catalogId).toBe(
+      "overview-characters",
+    );
+  });
+
+  it("does not add catalogId when absent", () => {
+    const result = applyDefaults({});
+    expect("catalogId" in result).toBe(false);
+  });
 });

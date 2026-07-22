@@ -12,10 +12,14 @@
  * displays the error/result inline — no consent logic lives here.
  *
  * Update-available detection (F7):
- *   For each catalog entry, scan ViewStore for a curated record whose
- *   commandName === entry.name. If found and record.okayed?.checksum !==
- *   entry.checksum, the row shows an "update available" affordance with an
- *   Update button that reuses CatalogService.install().
+ *   For each catalog entry, scan ViewStore for a curated record matched by:
+ *   1. rec.catalogId === entry.id  (primary — stable slug, set since T4.5;
+ *      survives catalog renames)
+ *   2. rec.commandName === entry.name  (fallback — backward-compatible with
+ *      records persisted before catalogId was added)
+ *   If a match is found and record.okayed?.checksum !== entry.checksum, the
+ *   row shows an "update available" affordance with an Update button that
+ *   reuses CatalogService.install().
  *
  * DOM safety: no innerHTML with untrusted content — all DOM writes use
  * createEl / textContent (mirrors ImportPickerModal).
