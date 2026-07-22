@@ -300,6 +300,7 @@ export class App {
 			read: vi.fn(),
 			write: vi.fn(),
 			exists: vi.fn(),
+			mkdir: vi.fn(async (_normalizedPath: string) => {}),
 			stat: vi.fn(async () => null),
 			rename: vi.fn(),
 			remove: vi.fn(),

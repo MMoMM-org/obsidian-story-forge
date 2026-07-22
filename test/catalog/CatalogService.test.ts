@@ -7,7 +7,7 @@
  * Design:
  *   - CatalogService receives the CatalogIndex via constructor injection — no
  *     dist/ read at runtime, fully testable without build artifacts.
- *   - Vault writes are mocked via App.vault.adapter (write + exists + mkdir-like).
+ *   - Vault writes are mocked via App.vault.adapter (write + exists + mkdir + remove).
  *   - store.setRecord is mocked to capture the persisted ViewRecord.
  *   - No fetch/network calls on any path (CON-9, offline-only catalog).
  *
@@ -58,12 +58,11 @@ async function makeCatalogIndex(entries?: CatalogEntry[]): Promise<CatalogIndex>
 
 function makeApp(): App {
 	const app = new App();
-	// Stub vault.adapter.exists to return false by default (folder does not exist).
 	vi.mocked(app.vault.adapter.exists).mockResolvedValue(false);
-	// Stub vault.adapter.write to succeed.
 	vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
-	// DataAdapter has no mkdir in typings; add it dynamically.
-	(app.vault.adapter as Record<string, unknown>).mkdir = vi.fn(async () => {});
+	// mkdir is properly typed on DataAdapter (obsidian.d.ts:2099) — no cast needed.
+	vi.mocked(app.vault.adapter.mkdir).mockResolvedValue(undefined);
+	vi.mocked(app.vault.adapter.remove).mockResolvedValue(undefined);
 	return app;
 }
 
@@ -281,7 +280,90 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 });
 
 // ---------------------------------------------------------------------------
-// Suite 3 — Checksum MATCH: install result and duplicate handling
+// Suite 3 — Atomic install: partial-write cleanup (C1 / W1)
+// ---------------------------------------------------------------------------
+
+describe("CatalogService — atomic install: partial-write cleanup (C1)", () => {
+	it("returns ok:false (does NOT throw) when store.setRecord rejects after the .base file was written", async () => {
+		const app = makeApp();
+		const { store } = makeStore();
+
+		// File write succeeds but store persist fails.
+		vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
+		vi.mocked(store.setRecord).mockRejectedValue(new Error("disk full"));
+
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		// Must NOT throw.
+		const result = await svc.install(entry.id);
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.reason).toMatch(/persist failed/i);
+		}
+	});
+
+	it("removes the orphaned .base file when store.setRecord rejects (rollback)", async () => {
+		const app = makeApp();
+		const { store } = makeStore();
+
+		vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
+		vi.mocked(store.setRecord).mockRejectedValue(new Error("disk full"));
+
+		const entry = await makeEntry({ id: "overview-characters" });
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		await svc.install(entry.id);
+
+		// adapter.remove must have been called on the path that was written.
+		expect(vi.mocked(app.vault.adapter.remove)).toHaveBeenCalledTimes(1);
+		const [removedPath] = vi.mocked(app.vault.adapter.remove).mock.calls[0]!;
+		expect(removedPath).toContain("overview-characters.base");
+	});
+
+	it("still returns ok:false even when rollback remove also fails", async () => {
+		const app = makeApp();
+		const { store } = makeStore();
+
+		vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
+		vi.mocked(store.setRecord).mockRejectedValue(new Error("disk full"));
+		vi.mocked(app.vault.adapter.remove).mockRejectedValue(new Error("remove also failed"));
+
+		const entry = await makeEntry();
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			importer: makeImporter(),
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		// Double failure: persist + rollback both fail — must still not throw.
+		await expect(svc.install(entry.id)).resolves.toMatchObject({ ok: false });
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Suite 4 — Checksum MATCH: install result and duplicate handling
 // ---------------------------------------------------------------------------
 
 describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
@@ -360,7 +442,7 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Suite 4 — Materialise: bases entry writes .base into curatedBasesFolder
+// Suite 5 — Materialise: bases entry writes .base into curatedBasesFolder
 // ---------------------------------------------------------------------------
 
 describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5/ADR-5)", () => {
@@ -425,8 +507,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		await svc.install(entry.id);
 
-		const mkdir = (app.vault.adapter as Record<string, unknown>).mkdir as ReturnType<typeof vi.fn>;
-		expect(mkdir).toHaveBeenCalled();
+		expect(vi.mocked(app.vault.adapter.mkdir)).toHaveBeenCalled();
 	});
 
 	it("does NOT re-create the folder if it already exists", async () => {
@@ -446,13 +527,12 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		await svc.install(entry.id);
 
-		const mkdir = (app.vault.adapter as Record<string, unknown>).mkdir as ReturnType<typeof vi.fn>;
-		expect(mkdir).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.adapter.mkdir)).not.toHaveBeenCalled();
 	});
 });
 
 // ---------------------------------------------------------------------------
-// Suite 5 — Persistence + sidebar re-render (AC-F4.6)
+// Suite 6 — Persistence + sidebar re-render (AC-F4.6)
 // ---------------------------------------------------------------------------
 
 describe("CatalogService — persistence and sidebar re-render (AC-F4.6)", () => {
@@ -505,7 +585,7 @@ describe("CatalogService — persistence and sidebar re-render (AC-F4.6)", () =>
 });
 
 // ---------------------------------------------------------------------------
-// Suite 6 — Offline: no network on any path (AC-F4.7 / CON-9)
+// Suite 7 — Offline: no network on any path (AC-F4.7 / CON-9)
 // ---------------------------------------------------------------------------
 
 describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)", () => {
@@ -549,7 +629,7 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 });
 
 // ---------------------------------------------------------------------------
-// Suite 7 — getEntries: surfaces the catalog list
+// Suite 8 — getEntries: surfaces the catalog list
 // ---------------------------------------------------------------------------
 
 describe("CatalogService.getEntries()", () => {

@@ -7,17 +7,14 @@
  * Install order (SDD Runtime View — curated-install algorithm):
  *   1. VERIFY   — computeChecksum(entry.source) vs entry.checksum; fail-closed
  *                 on mismatch (nothing written, reason surfaced).
- *   2. GATE     — DataviewJS only: requestConsentForDef; declined → nothing
- *                 written. Bases/.base entries are declarative → skip gate.
- *   3. MATERIALISE (bases only) — write raw .base YAML into curatedBasesFolder,
+ *   2. MATERIALISE — write raw .base YAML into curatedBasesFolder,
  *                 normalizePath'd; create folder on demand.
- *   4. PERSIST:
- *       - bases entries: store.setRecord directly with engine:"bases",
- *         source:<raw YAML>, provenance:"curated" (ADR-5 — ViewRecord.source
- *         IS the raw YAML, and ViewDefinition.engine excludes "bases").
- *       - DQL/DataviewJS entries: installCurated (existing ImportFlow path).
+ *   3. PERSIST  — store.setRecord with engine:"bases", source:<raw YAML>,
+ *                 provenance:"curated", okayed:{checksum}.
+ *   If PERSIST fails after MATERIALISE, the orphaned .base file is removed so
+ *   no partial state is left. install() NEVER throws — always returns InstallResult.
  *
- * Why bases entries skip importToStore (route b, ADR-5):
+ * Why bases entries bypass importToStore (ADR-5):
  *   ViewDefinition.engine is typed "dataview-dql"|"dataviewjs" — "bases" is not
  *   in the union. Routing through toRecord() would either (a) require lying about
  *   the engine or (b) require touching src/import/* in a way that risks T4.3
@@ -25,22 +22,22 @@
  *   BasesFenceEngine both require engine:"bases" AND source:<raw YAML> on the
  *   record (src/consent/ConsentGate.ts:117 + src/engines/BasesFenceEngine.ts:27).
  *
+ * The catalog only emits engine:"bases" today. An exhaustive guard ensures a
+ * future non-bases CatalogEntry variant fails to compile until handled.
+ *
  * @ref PRD/AC-F4.5 (fail-closed on mismatch)
  * @ref PRD/AC-F4.6 (surfaced via existing view surfaces)
  * @ref PRD/AC-F4.7 (offline — zero network on any path, CON-9)
  * @ref SDD/ADR-5 (bases record source = raw .base YAML; curatedBasesFolder)
- * @ref SDD/ADR-6 (reuse installCurated for DQL/DataviewJS; bases bypass)
  */
 
 import { normalizePath } from "obsidian";
 import type { App } from "obsidian";
 import { computeChecksum } from "consent/checksum";
-import { installCurated } from "import/ImportFlow";
-import type { ImportFlowDeps } from "import/ImportFlow";
-import type { ViewImporter } from "import/ViewImporter";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
 import type { ConsentGate } from "consent/ConsentGate";
+import type { ViewImporter } from "import/ViewImporter";
 import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 
 // ---------------------------------------------------------------------------
@@ -91,10 +88,11 @@ export class CatalogService {
 	/**
 	 * Install a catalog entry by id.
 	 *
-	 * Follows the four-step curated-install algorithm (SDD Runtime View):
-	 * VERIFY → GATE → MATERIALISE → PERSIST.
+	 * Follows the curated-install algorithm (SDD Runtime View):
+	 * VERIFY → MATERIALISE → PERSIST.
 	 *
-	 * Returns InstallResult — never throws.
+	 * Never throws — always returns InstallResult. If PERSIST fails after
+	 * MATERIALISE, the orphaned .base file is removed to avoid partial state.
 	 */
 	async install(id: string): Promise<InstallResult> {
 		const entry = this.index.entries.find((e) => e.id === id);
@@ -102,7 +100,33 @@ export class CatalogService {
 			return { ok: false, reason: `not-found: no catalog entry with id "${id}"` };
 		}
 
-		// 1. VERIFY checksum before any side effect (fail-closed, AC-F4.5).
+		if (entry.engine === "bases") {
+			return this._installBasesEntry(entry);
+		}
+
+		// Exhaustive guard: a future non-bases CatalogEntry variant must be handled
+		// here before it reaches production. This will fail to compile until done.
+		const _exhaustive: never = entry.engine;
+		return { ok: false, reason: `unsupported engine: ${String(_exhaustive)}` };
+	}
+
+	// ---------------------------------------------------------------------------
+	// Private — bases install path
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Install a bases entry atomically:
+	 *   duplicate-check → materialise .base file → persist ViewRecord.
+	 *
+	 * Atomic guarantee: if store.setRecord throws after the .base file was written,
+	 * the orphaned file is removed (best-effort rollback) so no partial state remains.
+	 *
+	 * Duplicate detection compares record.source against entry.source. Bases records
+	 * store the raw .base YAML in ViewRecord.source (not a vault path — ADR-5), so
+	 * YAML equality means the same content is already installed.
+	 */
+	private async _installBasesEntry(entry: CatalogEntry): Promise<InstallResult> {
+		// 1. VERIFY checksum before any side effect.
 		const computed = await computeChecksum(entry.source);
 		if (computed !== entry.checksum) {
 			return {
@@ -111,49 +135,33 @@ export class CatalogService {
 			};
 		}
 
-		if (entry.engine === "bases") {
-			return this._installBasesEntry(entry, computed);
-		}
-
-		// Non-bases (DQL / DataviewJS): use the existing installCurated path.
-		return this._installNonBasesEntry(entry);
-	}
-
-	// ---------------------------------------------------------------------------
-	// Private — bases install path (route b)
-	// ---------------------------------------------------------------------------
-
-	/**
-	 * Install a bases entry directly: materialise the .base file into the vault,
-	 * then write a ViewRecord with engine:"bases" and source:<raw YAML> directly
-	 * to the store (bypassing importToStore which cannot produce a bases engine
-	 * record — ViewDefinition.engine excludes "bases").
-	 *
-	 * Duplicate detection mirrors importToStore: if a record with the same source
-	 * already exists, surface "up-to-date" without an error.
-	 */
-	private async _installBasesEntry(
-		entry: CatalogEntry,
-		computedChecksum: string,
-	): Promise<InstallResult> {
-		// Duplicate check: same raw YAML already in the store → up-to-date.
-		const existing = await this.deps.store.getViews();
-		for (const rec of Object.values(existing)) {
-			if (rec.source === entry.source) {
-				return { ok: false, reason: "up-to-date: already installed" };
+		// 2. Duplicate check: same raw YAML already in the store → up-to-date.
+		try {
+			const existing = await this.deps.store.getViews();
+			for (const rec of Object.values(existing)) {
+				if (rec.source === entry.source) {
+					return { ok: false, reason: "up-to-date: already installed" };
+				}
 			}
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			return { ok: false, reason: `store read failed: ${msg}` };
 		}
 
 		// 3. MATERIALISE: write the .base YAML file into the vault folder.
-		const writtenPath = await this._materialise(entry);
+		let writtenPath: string;
+		try {
+			writtenPath = await this._materialise(entry);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			return { ok: false, reason: `materialise failed: ${msg}` };
+		}
 
-		// 4. PERSIST: write ViewRecord directly — engine:"bases", source:<raw YAML>.
-		//    okayed records the checksum so ConsentGate._evaluateBasesRecord returns
-		//    "consented" (no modal for declarative .base — ADR-6).
+		// 4. PERSIST: write ViewRecord. On failure, remove the orphaned .base file.
 		const record: ViewRecord = {
 			provenance: "curated",
 			enabled: true,
-			okayed: { version: 1, checksum: computedChecksum },
+			okayed: { version: 1, checksum: computed },
 			source: entry.source,
 			engine: "bases",
 			command: false,
@@ -161,47 +169,22 @@ export class CatalogService {
 			...(entry.description !== undefined ? { description: entry.description } : {}),
 		};
 
-		const newId = crypto.randomUUID();
-		await this.deps.store.setRecord(newId, record);
+		try {
+			const newId = crypto.randomUUID();
+			await this.deps.store.setRecord(newId, record);
+		} catch (err) {
+			// Roll back the orphaned .base file so no partial state is left.
+			try {
+				await this.deps.app.vault.adapter.remove(writtenPath);
+			} catch {
+				// Best-effort rollback: log and continue — don't mask the original error.
+				console.debug("[StoryForge] CatalogService: rollback remove failed", writtenPath);
+			}
+			const msg = err instanceof Error ? err.message : String(err);
+			return { ok: false, reason: `persist failed: ${msg}` };
+		}
 
 		return { ok: true, path: writtenPath };
-	}
-
-	// ---------------------------------------------------------------------------
-	// Private — non-bases install path (installCurated)
-	// ---------------------------------------------------------------------------
-
-	/**
-	 * Install a DQL or DataviewJS entry via the existing installCurated flow.
-	 * DataviewJS routes through requestConsentForDef; DQL is 1-click.
-	 */
-	private async _installNonBasesEntry(entry: CatalogEntry): Promise<InstallResult> {
-		const def = this._buildDefForNonBases(entry);
-		const flowDeps: ImportFlowDeps = {
-			app: this.deps.app,
-			importer: this.deps.importer,
-			gate: this.deps.gate,
-		};
-		await installCurated(flowDeps, def);
-		return { ok: true };
-	}
-
-	/**
-	 * Build a ViewDefinition for DQL or DataviewJS entries only.
-	 * Never called for bases entries (they bypass importToStore entirely).
-	 */
-	private _buildDefForNonBases(entry: CatalogEntry): Parameters<typeof installCurated>[1] {
-		const engine = entry.engine as "dataview-dql" | "dataviewjs";
-		return {
-			sourcePath: entry.id,
-			engine,
-			version: 1,
-			name: entry.name,
-			description: entry.description,
-			command: false,
-			querySource: entry.source,
-			checksum: entry.checksum as import("consent/checksum").Checksum,
-		};
 	}
 
 	// ---------------------------------------------------------------------------
@@ -209,28 +192,25 @@ export class CatalogService {
 	// ---------------------------------------------------------------------------
 
 	/**
-	 * Materialise a .base entry into the configured curatedBasesFolder.
+	 * Write a .base entry into the configured curatedBasesFolder.
 	 *
-	 * Creates the folder if it does not exist (vault.adapter.exists + mkdir).
-	 * Writes the raw source YAML via vault.adapter.write.
-	 * Returns the normalizePath'd vault path.
+	 * Creates the folder via vault.adapter.mkdir when absent. mkdir is a properly
+	 * typed method on the DataAdapter interface (obsidian.d.ts:2099) — no `as
+	 * unknown` cast needed; no fictional-method risk.
+	 *
+	 * Throws on any vault error — the caller (_installBasesEntry) catches and
+	 * returns { ok:false }.
 	 */
 	private async _materialise(entry: CatalogEntry): Promise<string> {
 		const { app, curatedBasesFolder } = this.deps;
 		const folderPath = normalizePath(curatedBasesFolder);
 		const filePath = normalizePath(`${curatedBasesFolder}/${entry.id}.base`);
 
-		// Ensure the folder exists.
 		const folderExists = await app.vault.adapter.exists(folderPath);
 		if (!folderExists) {
-			// DataAdapter typings don't expose mkdir; we access it as unknown first.
-			const adapter = app.vault.adapter as unknown as Record<string, unknown>;
-			if (typeof adapter["mkdir"] === "function") {
-				await (adapter["mkdir"] as (path: string) => Promise<void>)(folderPath);
-			}
+			await app.vault.adapter.mkdir(folderPath);
 		}
 
-		// Write the raw .base YAML.
 		await app.vault.adapter.write(filePath, entry.source);
 
 		return filePath;
