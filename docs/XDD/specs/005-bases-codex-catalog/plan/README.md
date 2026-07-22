@@ -135,7 +135,7 @@ Each phase is a separate file. Tasks follow red-green-refactor: **Prime** → **
 - [x] [Phase 1: Foundation — Bases firewall, feature-detect, manifest bump](phase-1.md)
 - [x] [Phase 2: F1 sidepanel Bases engine + bases source-model + F5 degrade](phase-2.md)
 - [x] [Phase 3: F2 Codex + showFile seam](phase-3.md)
-- [ ] [Phase 4: F3 overview views + F4 catalog pipeline & install + F7 updates](phase-4.md)
+- [x] [Phase 4: F3 overview views + F4 catalog pipeline & install + F7 updates](phase-4.md)
 - [ ] [Phase 5: F6 Inspector + F8 read-only fields](phase-5.md)
 - [ ] [Phase 6: Integration, E2E, manual verification & gates](phase-6.md)
 
