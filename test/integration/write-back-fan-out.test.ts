@@ -15,7 +15,7 @@
  *    directly with fresh BasesQueryResult data, assert the view re-reads this.data.data
  *    and renders the new value, and that a single invocation produces a single render.
  *
- * 3. OPEN BASE (BasesFenceEngine / BasesView.onDataUpdated — same rationale):
+ * 3. OPEN BASE (BasesView.onDataUpdated — same rationale):
  *    Same pattern: direct invocation, assert new value rendered once.
  *
  * WHAT WE DO NOT SIMULATE: the Bases runtime's autonomous re-query on vault change.
@@ -33,7 +33,6 @@ import {
 	WorkspaceLeaf,
 	TFile,
 	createMockTFile,
-	createMockFrontmatterLink,
 	QueryController,
 	BasesViewConfig,
 	BasesEntry,
@@ -148,7 +147,6 @@ function makeOwnLeaf(app: App): WorkspaceLeaf {
 /** Wire a minimal App whose metadataCache reports the character file. */
 function makeAppWithChar(
 	frontmatter: Record<string, unknown> = {},
-	frontmatterLinks: ReturnType<typeof createMockFrontmatterLink>[] = [],
 ): { app: App; charFile: TFile } {
 	const app = new App();
 	const charFile = makeCharFile();
@@ -158,7 +156,7 @@ function makeAppWithChar(
 			return {
 				tags: [{ tag: "#canon/character" }],
 				frontmatter: { type: "character", name: CHAR_BASENAME, role: "protagonist", ...frontmatter },
-				frontmatterLinks,
+				frontmatterLinks: [],
 			};
 		}
 		return null;
@@ -195,6 +193,46 @@ async function followFile(app: App, view: SidebarView, file: TFile): Promise<voi
 	vi.advanceTimersByTime(DEBOUNCE_MS + 1);
 	await Promise.resolve();
 	await Promise.resolve();
+}
+
+/** Shorthand to fire the mock metadataCache.changed event. */
+function triggerChanged(app: App, file: TFile): void {
+	(app.metadataCache as unknown as { _trigger: (e: string, ...a: unknown[]) => void })
+		._trigger("changed", file);
+}
+
+// ---------------------------------------------------------------------------
+// mountAndRenderInspector — shared boilerplate across inspector tests (S1)
+//
+// Mounts the sidebar, follows the file, extracts the private inspector, then
+// renders a fresh standalone container with the supplied fields + frontmatter.
+// Returns { view, inspector, container } so each test can proceed directly to
+// its specific interaction/assertion.
+// ---------------------------------------------------------------------------
+
+interface InspectorHarness {
+	view: SidebarView;
+	inspector: InspectorController;
+	container: HTMLElement;
+}
+
+async function mountAndRenderInspector(
+	app: App,
+	charFile: TFile,
+	fields: FieldSpec[],
+	frontmatter: Record<string, unknown> = {},
+): Promise<InspectorHarness> {
+	const view = await mountSidebar(app);
+	await followFile(app, view, charFile);
+
+	const privateView = view as unknown as { _inspector: InspectorController | null };
+	const inspector = privateView._inspector!;
+
+	const ctx = makeCharCtx(frontmatter);
+	const container = augmentInspectorHost(document.createElement("div"));
+	inspector.render(container, ctx, fields);
+
+	return { view, inspector, container };
 }
 
 // ---------------------------------------------------------------------------
@@ -234,10 +272,10 @@ function makeBasesResult(entries: BasesEntry[]): BasesQueryResult {
 }
 
 // ===========================================================================
-// 1. Inspector commit → metadataCache.changed → panel re-renders with new value
+// 1. Inspector commit → processFrontMatter → metadataCache.changed → panel re-renders
 // ===========================================================================
 
-describe("T6.1.1 — panel fan-out: commit → metadataCache.changed → panel DOM updated", () => {
+describe("T6.1.1 — panel fan-out: commit → processFrontMatter → metadataCache.changed → panel DOM updated", () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
 	});
@@ -246,20 +284,54 @@ describe("T6.1.1 — panel fan-out: commit → metadataCache.changed → panel D
 		vi.restoreAllMocks();
 	});
 
-	it("panel renders the new frontmatter value after a successful commit fires metadataCache.changed", async () => {
+	it("panel renders the new frontmatter value after commit → processFrontMatter → metadataCache.changed", async () => {
 		const { app, charFile } = makeAppWithChar({ occupation: "lighthouse keeper" });
-		const view = await mountSidebar(app);
 
-		// Follow the character file → Inspector renders in Context tab (no view selected)
-		await followFile(app, view, charFile);
+		// processFrontMatter is a stub: resolves immediately, does not auto-fire
+		// metadataCache.changed (only the real Obsidian runtime does that).
+		vi.mocked(app.fileManager.processFrontMatter).mockResolvedValue(undefined);
 
-		// Verify initial render is in place (Inspector host present)
-		const host1 = view.contentEl.querySelector(".sf-inspector-host");
-		expect(host1).not.toBeNull();
+		const { view, container } = await mountAndRenderInspector(
+			app, charFile, [OCCUPATION_FIELD], { occupation: "lighthouse keeper" },
+		);
 
-		// Simulate the commit: update the cache to reflect the new value, then fire
-		// metadataCache.changed — this is the exact path processFrontMatter triggers
-		// in the real Obsidian runtime.
+		// Verify initial render is in place (Inspector host present in the sidebar)
+		expect(view.contentEl.querySelector(".sf-inspector-host")).not.toBeNull();
+
+		// --- Real commit sequence ---
+
+		// 1. Enter the new value in the occupation input
+		const input = container.querySelector(
+			"[data-sf-inspector-input='occupation']",
+		) as HTMLInputElement | null;
+		expect(input).not.toBeNull();
+		input!.value = "lighthouse keeper (retired)";
+		input!.dispatchEvent(new Event("input", { bubbles: true }));
+
+		// 2. Click Save — this calls frontmatterWriter.commit → app.fileManager.processFrontMatter
+		const saveBtn = container.querySelector(
+			"[data-sf-inspector-commit='occupation']",
+		) as HTMLButtonElement | null;
+		expect(saveBtn).not.toBeNull();
+		saveBtn!.click();
+
+		// 3. Wait for the async commit + processFrontMatter to resolve
+		await Promise.resolve();
+		await Promise.resolve();
+
+		// 4. Assert processFrontMatter was called with the new value
+		//    (proves the commit→write path ran — catches a regression if
+		//    frontmatterWriter.commit stops calling processFrontMatter)
+		expect(app.fileManager.processFrontMatter).toHaveBeenCalledTimes(1);
+		const [writtenFile, writeFn] = vi.mocked(app.fileManager.processFrontMatter).mock.calls[0]!;
+		expect(writtenFile.path).toBe(CHAR_PATH);
+		// Apply the write function to a plain object and assert the new value
+		const fm: Record<string, unknown> = { occupation: "lighthouse keeper" };
+		(writeFn as (fm: Record<string, unknown>) => void)(fm);
+		expect(fm.occupation).toBe("lighthouse keeper (retired)");
+
+		// 5. Update the cache to reflect the written value (what Obsidian does after
+		//    processFrontMatter resolves), then fire metadataCache.changed
 		vi.mocked(app.metadataCache.getFileCache).mockImplementation((f: TFile) => {
 			if (f.path === CHAR_PATH) {
 				return {
@@ -270,26 +342,17 @@ describe("T6.1.1 — panel fan-out: commit → metadataCache.changed → panel D
 			}
 			return null;
 		});
+		triggerChanged(app, charFile);
 
-		// Fire the changed event (real Obsidian fires this after processFrontMatter resolves)
-		(app.metadataCache as unknown as { _trigger: (e: string, ...a: unknown[]) => void })
-			._trigger("changed", charFile);
-
-		// Let the async re-render complete
+		// 6. Flush the async re-render
 		await Promise.resolve();
 		await Promise.resolve();
 
-		// The Inspector host must be re-rendered with the updated frontmatter value
-		const host2 = view.contentEl.querySelector(".sf-inspector-host");
-		expect(host2).not.toBeNull();
-
-		// The "occupation" field should display the updated value
-		// The InspectorController reads ctx.frontmatter[field.name] → sets input.value
+		// 7. The Inspector host must be re-rendered with the updated frontmatter value
 		const occupationInput = view.contentEl.querySelector(
 			"[data-sf-inspector-input='occupation']",
 		) as HTMLInputElement | null;
 		expect(occupationInput).not.toBeNull();
-		// The input reflects the fresh frontmatter value from the changed event
 		expect(occupationInput!.value).toBe("lighthouse keeper (retired)");
 
 		await view.onClose();
@@ -311,24 +374,15 @@ describe("T6.1.2 — dirty-guard: saved state → changed proceeds; exactly one 
 
 	it("notifyFileChanged returns false (no guard) when field is in saved state, allowing re-render", async () => {
 		const { app, charFile } = makeAppWithChar({ occupation: "scout" });
-		const view = await mountSidebar(app);
-		await followFile(app, view, charFile);
 
-		// Access the private inspector via the internal view state
-		const privateView = view as unknown as { _inspector: InspectorController | null };
-		const inspector = privateView._inspector!;
+		const { view, inspector, container } = await mountAndRenderInspector(
+			app, charFile, [OCCUPATION_FIELD], { occupation: "scout" },
+		);
 		expect(inspector).not.toBeNull();
 
-		// Build a context and render the inspector with an occupation field
-		const ctx = makeCharCtx({ occupation: "scout" });
-		const container = augmentInspectorHost(document.createElement("div"));
-		inspector.render(container, ctx, [OCCUPATION_FIELD]);
-
 		// Simulate a successful commit: the field status advances to "saved"
-		// We do this by spying on frontmatterWriter.commit to return {ok:true}
 		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({ ok: true });
 
-		// Simulate field becoming dirty (input event)
 		const input = container.querySelector(
 			"[data-sf-inspector-input='occupation']",
 		) as HTMLInputElement | null;
@@ -336,14 +390,12 @@ describe("T6.1.2 — dirty-guard: saved state → changed proceeds; exactly one 
 		input!.value = "explorer";
 		input!.dispatchEvent(new Event("input", { bubbles: true }));
 
-		// Commit the field by clicking the save button
 		const saveBtn = container.querySelector(
 			"[data-sf-inspector-commit='occupation']",
 		) as HTMLButtonElement | null;
 		expect(saveBtn).not.toBeNull();
 		saveBtn!.click();
 
-		// Wait for the async commit to complete
 		await Promise.resolve();
 		await Promise.resolve();
 
@@ -351,6 +403,8 @@ describe("T6.1.2 — dirty-guard: saved state → changed proceeds; exactly one 
 		// notifyFileChanged must return false (guard not fired)
 		const guardFired = inspector.notifyFileChanged(charFile);
 		expect(guardFired).toBe(false);
+
+		await view.onClose();
 	});
 
 	it("panel re-renders exactly once after a commit (no flash/double-render)", async () => {
@@ -377,8 +431,7 @@ describe("T6.1.2 — dirty-guard: saved state → changed proceeds; exactly one 
 		});
 
 		// Fire changed exactly once
-		(app.metadataCache as unknown as { _trigger: (e: string, ...a: unknown[]) => void })
-			._trigger("changed", charFile);
+		triggerChanged(app, charFile);
 
 		await Promise.resolve();
 		await Promise.resolve();
@@ -404,8 +457,7 @@ describe("T6.1.3 — Codex grid: onDataUpdated renders updated value; single inv
 		view.onDataUpdated();
 
 		// The grid renders the character row
-		const row1 = container.querySelector(`[data-path='${CHAR_PATH}']`);
-		expect(row1).not.toBeNull();
+		expect(container.querySelector(`[data-path='${CHAR_PATH}']`)).not.toBeNull();
 
 		// After a commit, the Bases runtime would call onDataUpdated with updated data.
 		// We call it directly with the new value (as the task spec requires).
@@ -413,23 +465,21 @@ describe("T6.1.3 — Codex grid: onDataUpdated renders updated value; single inv
 		view.data = makeBasesResult([entry2]);
 		view.onDataUpdated();
 
-		// Entry should show the new path (entry is re-read from fresh data)
-		const row2 = container.querySelector(`[data-path='${CHAR_PATH}']`);
-		expect(row2).not.toBeNull();
+		// Row still present (entry re-read from fresh data)
+		expect(container.querySelector(`[data-path='${CHAR_PATH}']`)).not.toBeNull();
 
 		// The grid must have re-read entry2.getValue for the new data
-		// entry1.getValue should have been called for the first render, entry2 for the second
 		expect(entry1.getValue).toHaveBeenCalled();
 		expect(entry2.getValue).toHaveBeenCalled();
+
+		// S5: the rendered DOM reflects the new value (not just entry.getValue being called)
+		// codexGrid renders field values as cell text — the new occupation should be visible
+		expect(container.textContent).toContain("cartographer");
 	});
 
 	it("single onDataUpdated invocation empties-then-renders exactly once (no double-render)", () => {
 		const { view, container } = makeCodexView("character");
 
-		// Inject a sentinel to count container clears
-		let clearCount = 0;
-		const origInnerHTMLSetter = Object.getOwnPropertyDescriptor(Element.prototype, "innerHTML");
-		// We instead observe by counting children before/after
 		const entry = makeBasesEntry(CHAR_PATH, { name: CHAR_BASENAME, occupation: "explorer" });
 		view.data = makeBasesResult([entry]);
 
@@ -439,7 +489,6 @@ describe("T6.1.3 — Codex grid: onDataUpdated renders updated value; single inv
 		// Container has exactly one row (no duplication from double-render)
 		const rows = container.querySelectorAll(`[data-path='${CHAR_PATH}']`);
 		expect(rows).toHaveLength(1);
-		void clearCount; void origInnerHTMLSetter; // suppress lint
 	});
 
 	it("stale entry content is cleared before repaint — new value replaces old (no bleed)", () => {
@@ -548,25 +597,20 @@ describe("T6.1.5 — validation failure: dirty preserved, no fan-out", () => {
 		const processSpy = vi.mocked(app.fileManager.processFrontMatter);
 		processSpy.mockResolvedValue(undefined);
 
-		const view = await mountSidebar(app);
-		await followFile(app, view, charFile);
-
-		const privateView = view as unknown as { _inspector: InspectorController | null };
-		const inspector = privateView._inspector!;
-
-		// Render inspector with a number field
 		const NUMBER_FIELD: FieldSpec = { name: "age", type: "number" };
-		const ctx = makeCharCtx({ age: 30 });
-		const container = augmentInspectorHost(document.createElement("div"));
-		inspector.render(container, ctx, [NUMBER_FIELD]);
+		const { view, inspector, container } = await mountAndRenderInspector(
+			app, charFile, [NUMBER_FIELD], { age: 30 },
+		);
 
-		// Enter an invalid (NaN) value
+		// W3: assert the controller stamped data-sf-field-type on the input
 		const input = container.querySelector(
 			"[data-sf-inspector-input='age']",
 		) as HTMLInputElement | null;
 		expect(input).not.toBeNull();
-		input!.value = "thirty"; // non-numeric → will parse as NaN → fails validation
-		input!.setAttribute("data-sf-field-type", "number"); // ensure readInputValue parses it
+		expect(input!.getAttribute("data-sf-field-type")).toBe("number");
+
+		// Enter an invalid (NaN) value — no manual setAttribute needed; controller already stamped it
+		input!.value = "thirty"; // non-numeric → parseFloat → NaN → fails validation
 		input!.dispatchEvent(new Event("input", { bubbles: true }));
 
 		// Commit — should fail validation
@@ -603,32 +647,31 @@ describe("T6.1.5 — validation failure: dirty preserved, no fan-out", () => {
 
 		vi.mocked(app.fileManager.processFrontMatter).mockResolvedValue(undefined);
 
-		const view = await mountSidebar(app);
-		await followFile(app, view, charFile);
+		const NUMBER_FIELD: FieldSpec = { name: "age", type: "number" };
+		const { view, inspector } = await mountAndRenderInspector(
+			app, charFile, [NUMBER_FIELD], { age: 25 },
+		);
 
-		const privateView = view as unknown as {
-			_inspector: InspectorController | null;
-			_resolveAndRender: (file: TFile) => void;
-		};
-		const inspector = privateView._inspector!;
+		const privateView = view as unknown as { _resolveAndRender: (file: TFile) => void };
 		const renderSpy = vi.spyOn(privateView, "_resolveAndRender");
 
-		// Render inspector with a number field and set it dirty with invalid input
-		const NUMBER_FIELD: FieldSpec = { name: "age", type: "number" };
+		// Re-render the inspector into a fresh container to get a clean input reference
 		const ctx = makeCharCtx({ age: 25 });
-		const container = augmentInspectorHost(document.createElement("div"));
-		inspector.render(container, ctx, [NUMBER_FIELD]);
+		const container2 = augmentInspectorHost(document.createElement("div"));
+		inspector.render(container2, ctx, [NUMBER_FIELD]);
 
-		const input = container.querySelector(
+		const input = container2.querySelector(
 			"[data-sf-inspector-input='age']",
 		) as HTMLInputElement | null;
 		expect(input).not.toBeNull();
+		// W3: controller stamps data-sf-field-type; no manual setAttribute needed
+		expect(input!.getAttribute("data-sf-field-type")).toBe("number");
+
 		input!.value = "not-a-number";
-		input!.setAttribute("data-sf-field-type", "number");
 		input!.dispatchEvent(new Event("input", { bubbles: true }));
 
 		// Try to commit the invalid value (this will fail validation)
-		const saveBtn = container.querySelector(
+		const saveBtn = container2.querySelector(
 			"[data-sf-inspector-commit='age']",
 		) as HTMLButtonElement | null;
 		expect(saveBtn).not.toBeNull();
@@ -636,12 +679,12 @@ describe("T6.1.5 — validation failure: dirty preserved, no fan-out", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		// Now simulate an external metadataCache.changed event for the same file
-		// (mimicking what would happen if another process changed the file).
-		// Since the field is in error state, the dirty-guard fires → _resolveAndRender NOT called.
+		// Clear the spy after setup (we only care about post-commit events)
 		renderSpy.mockClear();
-		(app.metadataCache as unknown as { _trigger: (e: string, ...a: unknown[]) => void })
-			._trigger("changed", charFile);
+
+		// Now simulate an external metadataCache.changed event for the same file.
+		// Since the field is in error state, the dirty-guard fires → _resolveAndRender NOT called.
+		triggerChanged(app, charFile);
 
 		await Promise.resolve();
 		await Promise.resolve();
@@ -675,16 +718,9 @@ describe("T6.1.6 — write failure: edit preserved, error state, no fan-out", ()
 			new Error("Vault write error"),
 		);
 
-		const view = await mountSidebar(app);
-		await followFile(app, view, charFile);
-
-		const privateView = view as unknown as { _inspector: InspectorController | null };
-		const inspector = privateView._inspector!;
-
-		// Render inspector with occupation field
-		const ctx = makeCharCtx({ occupation: "fisher" });
-		const container = augmentInspectorHost(document.createElement("div"));
-		inspector.render(container, ctx, [OCCUPATION_FIELD]);
+		const { view, inspector, container } = await mountAndRenderInspector(
+			app, charFile, [OCCUPATION_FIELD], { occupation: "fisher" },
+		);
 
 		// Edit the field
 		const input = container.querySelector(
@@ -731,31 +767,25 @@ describe("T6.1.6 — write failure: edit preserved, error state, no fan-out", ()
 			new Error("Write failed"),
 		);
 
-		const view = await mountSidebar(app);
-		await followFile(app, view, charFile);
+		const { view, inspector, container } = await mountAndRenderInspector(
+			app, charFile, [OCCUPATION_FIELD], { occupation: "farmer" },
+		);
 
-		const privateView = view as unknown as {
-			_inspector: InspectorController | null;
-			_resolveAndRender: (file: TFile) => void;
-		};
-		const inspector = privateView._inspector!;
+		const privateView = view as unknown as { _resolveAndRender: (file: TFile) => void };
 		const renderSpy = vi.spyOn(privateView, "_resolveAndRender");
-
-		// Render inspector
-		const ctx = makeCharCtx({ occupation: "farmer" });
-		const container = augmentInspectorHost(document.createElement("div"));
-		inspector.render(container, ctx, [OCCUPATION_FIELD]);
 
 		// Edit + commit (will fail)
 		const input = container.querySelector(
 			"[data-sf-inspector-input='occupation']",
 		) as HTMLInputElement | null;
+		expect(input).not.toBeNull();
 		input!.value = "baker";
 		input!.dispatchEvent(new Event("input", { bubbles: true }));
 
 		const saveBtn = container.querySelector(
 			"[data-sf-inspector-commit='occupation']",
 		) as HTMLButtonElement | null;
+		expect(saveBtn).not.toBeNull();
 		saveBtn!.click();
 		await Promise.resolve();
 		await Promise.resolve();
@@ -764,14 +794,16 @@ describe("T6.1.6 — write failure: edit preserved, error state, no fan-out", ()
 		renderSpy.mockClear();
 
 		// Fire metadataCache.changed — must be suppressed by the dirty-guard
-		(app.metadataCache as unknown as { _trigger: (e: string, ...a: unknown[]) => void })
-			._trigger("changed", charFile);
+		triggerChanged(app, charFile);
 
 		await Promise.resolve();
 		await Promise.resolve();
 
 		// _resolveAndRender must NOT have been called (guard suppressed it)
 		expect(renderSpy).not.toHaveBeenCalled();
+
+		// inspector referenced to prevent unused-variable warning
+		void inspector;
 
 		await view.onClose();
 	});
