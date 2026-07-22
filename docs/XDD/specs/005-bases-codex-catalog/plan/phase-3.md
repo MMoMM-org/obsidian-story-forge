@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: F2 Codex + showFile seam"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 3
 ---
@@ -47,7 +47,7 @@ Delivers the top-down Codex: category grids that click through into the M3 panel
   5. Success:
      - [ ] Category grid renders `[ref: PRD/AC-F2.1]`; empty-state shown `[ref: PRD/AC-F2.3]`; read-only `[ref: PRD/AC-F2.4]`
 
-- [ ] **T3.3 `CodexView` host + registration + row-click wiring** `[activity: frontend-ui]`
+- [x] **T3.3 `CodexView` host + registration + row-click wiring** `[activity: frontend-ui]`
 
   **Option A (confirmed 2026-07-22): Bases-native tabs; CodexView is a THIN entry point.** The Codex tab bar is Obsidian Bases' own view-tab bar over a multi-view `Codex.base`; CodexView does NOT render tab chrome. See SDD ADR-2 addendum.
   1. Prime: Read `[ref: SDD/ADR-2]` (Codex chrome = Bases-native, Option A), `main.ts` (`registerView`, the `getLeavesOfType(...).view instanceof SidebarView` pattern `:162`), `revealAndShowFile` (T3.1, `src/views/SidebarView.ts`), `registerCodexView` (`src/bases/BasesAdapter.ts` — its factory currently throws a Phase-3 stub), and mockups **S44/S56/S46**.
@@ -61,5 +61,5 @@ Delivers the top-down Codex: category grids that click through into the M3 panel
      - [ ] Row click re-subjects panel with grid selection `[ref: PRD/AC-F2.2]`
      - [ ] Category switch leak-free `[ref: PRD/AC-F2.7]`; Bases-off degrade `[ref: PRD/AC-F2.5]`
 
-- [ ] **T3.4 Phase Validation** `[activity: validate]`
+- [x] **T3.4 Phase Validation** `[activity: validate]`
   - Run all Phase 3 tests. `npm test`, `lint`, `typecheck`, `typecheck:test` pass. Manually confirm on the seed vault: all four category grids render; clicking a row re-subjects the M3 panel; an empty category shows its empty-state `[ref: PRD/Success Metrics F2]`.
