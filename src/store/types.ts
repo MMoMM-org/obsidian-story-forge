@@ -31,6 +31,13 @@ export interface ViewRecord {
   /** User-chosen sidebar tab label (optional). */
   commandName?: string;
   /**
+   * Stable catalog entry id (slug, e.g. "overview-characters") set on install.
+   * Optional for backward-compatibility with records persisted before T4.5.
+   * Used by BrowseOfficialModal to match installed records to catalog entries
+   * without relying on the mutable entry.name (which can change on catalog rename).
+   */
+  catalogId?: string;
+  /**
    * Palette command display name (optional). Distinct from `commandName`,
    * which is the sidebar tab label.
    */
@@ -112,6 +119,9 @@ export function applyDefaults(
   }
   if (raw?.commandLabel !== undefined) {
     base.commandLabel = raw.commandLabel;
+  }
+  if (raw?.catalogId !== undefined) {
+    base.catalogId = raw.catalogId;
   }
 
   return base;

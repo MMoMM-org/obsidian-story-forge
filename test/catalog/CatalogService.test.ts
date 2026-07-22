@@ -264,6 +264,28 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 		// If this is "dataview-dql", the DQL engine gets called with raw .base YAML → broken render.
 		expect(writtenRecord!.engine).toBe("bases");
 	});
+
+	it("persisted record has catalogId equal to entry.id (stable slug for update detection)", async () => {
+		// catalogId is the stable key BrowseOfficialModal uses to match installed
+		// records to catalog entries (survives catalog name renames — T4.5 fix).
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+
+		const entry = await makeEntry({ id: "overview-characters" });
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		await svc.install(entry.id);
+
+		const [writtenRecord] = capturedRecords.values();
+		expect(writtenRecord!.catalogId).toBe("overview-characters");
+	});
 });
 
 // ---------------------------------------------------------------------------

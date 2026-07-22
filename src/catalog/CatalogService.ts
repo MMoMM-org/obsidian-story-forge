@@ -164,6 +164,9 @@ export class CatalogService {
 			engine: "bases",
 			command: false,
 			commandName: entry.name,
+			// catalogId is the stable entry slug — never changes for an existing entry,
+			// survives catalog renames. Used by BrowseOfficialModal for update detection.
+			catalogId: entry.id,
 			...(entry.description !== undefined ? { description: entry.description } : {}),
 		};
 

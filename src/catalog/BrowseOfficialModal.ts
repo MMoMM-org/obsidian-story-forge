@@ -86,14 +86,20 @@ export class BrowseOfficialModal extends Modal {
 		const listEl = splitEl.createEl("div", { cls: "sf-catalog-list" });
 		this.previewEl = splitEl.createEl("div", { cls: "sf-catalog-preview sf-hidden" });
 
-		// Load installed records to detect update-available state
+		// Load installed records to detect update-available state.
+		// Primary match: rec.catalogId === entry.id (stable slug, set since T4.5).
+		// Fallback: rec.commandName === entry.name for records persisted before
+		// catalogId was added — backward-compatible with pre-T4.5 installs.
 		try {
 			const allViews = await this.store.getViews();
 			this.installedRecords.clear();
 			const entries = this.service.getEntries();
 			for (const entry of entries) {
 				for (const rec of Object.values(allViews)) {
-					if (rec.provenance === "curated" && rec.commandName === entry.name) {
+					if (
+						rec.provenance === "curated" &&
+						(rec.catalogId === entry.id || rec.commandName === entry.name)
+					) {
 						this.installedRecords.set(entry.id, rec);
 						break;
 					}

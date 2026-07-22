@@ -60,6 +60,7 @@ function makeCuratedRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
 		engine: "bases",
 		command: false,
 		commandName: "Characters overview",
+		catalogId: "overview-characters",
 		...overrides,
 	};
 }
@@ -394,16 +395,17 @@ describe("BrowseOfficialModal — S49 update-available affordance (AC-F7.1, AC-F
 		document.body.innerHTML = "";
 	});
 
-	it("AC-F7.1: shows 'update available' affordance when installed record's checksum differs from bundled entry checksum", async () => {
+	it("AC-F7.1: shows 'update available' when installed record.catalogId matches entry.id and checksums differ", async () => {
 		const entry = makeEntry({
 			id: "overview-characters",
 			name: "Characters overview",
-			checksum: "sha256:" + "b".repeat(64), // newer checksum
+			checksum: "sha256:" + "b".repeat(64), // newer bundled checksum
 		});
-		// Installed record has the OLD checksum
+		// Record matched by stable catalogId; stored checksum is the old one
 		const installedRecord = makeCuratedRecord({
+			catalogId: "overview-characters",
 			commandName: "Characters overview",
-			okayed: { version: 1, checksum: "sha256:" + "a".repeat(64) }, // old checksum
+			okayed: { version: 1, checksum: "sha256:" + "a".repeat(64) }, // old
 		});
 		const store = makeStore({ "rec-1": installedRecord });
 		const service = makeCatalogService({ entries: [entry] });
@@ -416,15 +418,65 @@ describe("BrowseOfficialModal — S49 update-available affordance (AC-F7.1, AC-F
 		});
 	});
 
-	it("AC-F7.3: does NOT show update affordance when installed record's checksum matches the bundled entry checksum", async () => {
+	it("AC-F7.1 rename-resistant: catalogId match still detects update when entry.name changed", async () => {
+		// Simulates a catalog rename: installed record has old commandName
+		// "Characters overview" but catalogId "overview-characters" still matches
+		// the entry whose name is now "All Characters".
+		const entry = makeEntry({
+			id: "overview-characters",
+			name: "All Characters", // renamed in catalog
+			checksum: "sha256:" + "b".repeat(64),
+		});
+		const installedRecord = makeCuratedRecord({
+			catalogId: "overview-characters", // stable slug still matches
+			commandName: "Characters overview", // old name — would miss without catalogId
+			okayed: { version: 1, checksum: "sha256:" + "a".repeat(64) },
+		});
+		const store = makeStore({ "rec-1": installedRecord });
+		const service = makeCatalogService({ entries: [entry] });
+		const modal = new BrowseOfficialModal(app, service, store);
+		modal.open();
+
+		await vi.waitFor(() => {
+			const text = document.body.textContent ?? "";
+			expect(text).toMatch(/update available|update/i);
+		});
+	});
+
+	it("AC-F7.1 legacy fallback: commandName match still works for records without catalogId", async () => {
+		// Records persisted before T4.5 have no catalogId field.
+		// The commandName fallback must still surface update-available for them.
+		const entry = makeEntry({
+			id: "overview-characters",
+			name: "Characters overview",
+			checksum: "sha256:" + "b".repeat(64),
+		});
+		const legacyRecord = makeCuratedRecord({
+			catalogId: undefined, // no catalogId — legacy pre-T4.5 record
+			commandName: "Characters overview",
+			okayed: { version: 1, checksum: "sha256:" + "a".repeat(64) },
+		});
+		const store = makeStore({ "rec-1": legacyRecord });
+		const service = makeCatalogService({ entries: [entry] });
+		const modal = new BrowseOfficialModal(app, service, store);
+		modal.open();
+
+		await vi.waitFor(() => {
+			const text = document.body.textContent ?? "";
+			expect(text).toMatch(/update available|update/i);
+		});
+	});
+
+	it("AC-F7.3: does NOT show update affordance when checksums match (no drift → no noise)", async () => {
 		const sharedChecksum = "sha256:" + "a".repeat(64);
 		const entry = makeEntry({
 			id: "overview-characters",
 			name: "Characters overview",
 			checksum: sharedChecksum,
 		});
-		// Installed record has the SAME checksum — no drift
+		// Record matched by catalogId; checksum matches — no update
 		const installedRecord = makeCuratedRecord({
+			catalogId: "overview-characters",
 			commandName: "Characters overview",
 			okayed: { version: 1, checksum: sharedChecksum },
 		});
@@ -433,13 +485,11 @@ describe("BrowseOfficialModal — S49 update-available affordance (AC-F7.1, AC-F
 		const modal = new BrowseOfficialModal(app, service, store);
 		modal.open();
 
-		// Wait for the list to render
 		await vi.waitFor(() => {
 			const row = document.body.querySelector(".sf-catalog-row");
 			if (!row) throw new Error("no row rendered");
 		});
 
-		// Must NOT show update affordance for matching checksums
 		const rows = Array.from(document.body.querySelectorAll(".sf-catalog-row"));
 		for (const row of rows) {
 			expect(row.textContent).not.toMatch(/update available/i);
@@ -453,6 +503,7 @@ describe("BrowseOfficialModal — S49 update-available affordance (AC-F7.1, AC-F
 			checksum: "sha256:" + "b".repeat(64),
 		});
 		const installedRecord = makeCuratedRecord({
+			catalogId: "overview-characters",
 			commandName: "Characters overview",
 			okayed: { version: 1, checksum: "sha256:" + "a".repeat(64) },
 		});
@@ -461,7 +512,6 @@ describe("BrowseOfficialModal — S49 update-available affordance (AC-F7.1, AC-F
 		const modal = new BrowseOfficialModal(app, service, store);
 		modal.open();
 
-		// Wait for Update button
 		const updateBtn = await vi.waitFor(() => {
 			const btn = findButton(document.body, "Update");
 			if (!btn) throw new Error("Update button not found");
@@ -476,7 +526,7 @@ describe("BrowseOfficialModal — S49 update-available affordance (AC-F7.1, AC-F
 	});
 
 	it("no update affordance shown when no views are installed", async () => {
-		const entry = makeEntry({ name: "Characters overview" });
+		const entry = makeEntry({ id: "overview-characters", name: "Characters overview" });
 		const store = makeStore(); // empty — no installed records
 		const service = makeCatalogService({ entries: [entry] });
 		const modal = new BrowseOfficialModal(app, service, store);
