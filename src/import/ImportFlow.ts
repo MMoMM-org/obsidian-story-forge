@@ -24,7 +24,11 @@ import type { ViewDefinition } from "import/ViewDefinition";
 import type { ViewImporter } from "import/ViewImporter";
 import type { ConsentGate } from "consent/ConsentGate";
 
-/** Declarative engine kinds that do not require a consent modal on install. */
+/**
+ * Declarative engine kinds that do not require a consent modal on install.
+ * Currently: "dataview-dql" only. Add "bases" here when ViewDefinition["engine"]
+ * gains that member (bases records are presently only in ViewRecord, not ViewDefinition).
+ */
 const DECLARATIVE_ENGINES = new Set<ViewDefinition["engine"]>(["dataview-dql"]);
 
 /** Dependencies injected into the import flow (all owned by main.ts). */

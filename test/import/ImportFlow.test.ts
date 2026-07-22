@@ -255,6 +255,25 @@ describe("installCurated — T4.3 gate-less declarative flow", () => {
 		expect(Notice._instances[0]!.message).toContain("up-to-date");
 	});
 
+	it("UNEXPECTED error: plain Error → console.error + generic Notice, resolves without throwing", async () => {
+		const gate = makeGate(null);
+		const importer = {
+			importToStore: vi.fn(async () => {
+				throw new Error("disk full");
+			}),
+		} as unknown as ViewImporter;
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const def = makeDqlDef();
+
+		await expect(
+			installCurated({ app, importer, gate }, def),
+		).resolves.toBeUndefined();
+
+		expect(Notice._instances).toHaveLength(1);
+		expect(Notice._instances[0]!.message).toBe("Install failed: unexpected error");
+		expect(errorSpy).toHaveBeenCalledTimes(1);
+	});
+
 	it("checksum and consent are independent — declarative install does not require tokens", async () => {
 		// A DQL install must NOT consult requestConsentForDef; consent tokens stay null.
 		// Checksum is recorded by CatalogService (T4.4) and is a separate concern.
