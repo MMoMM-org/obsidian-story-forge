@@ -776,5 +776,7 @@ describe("StoryForgePlugin T3.3 — CodexView registration + Open Codex command"
 		expect(degradeLeaf.setViewState).toHaveBeenCalledWith(
 			expect.objectContaining({ type: CODEX_VIEW_TYPE }),
 		);
+		// revealLeaf must have been called to focus the newly created degrade leaf
+		expect(app.workspace.revealLeaf).toHaveBeenCalledWith(degradeLeaf);
 	});
 });

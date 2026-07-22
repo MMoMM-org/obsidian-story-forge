@@ -185,10 +185,8 @@ export default class StoryForgePlugin extends Plugin {
 			if (abstract instanceof TFile) {
 				// getLeaf(true) opens in a new tab — avoids clobbering the user's active note.
 				const leaf = this.app.workspace.getLeaf(true);
-				if (leaf) {
-					await leaf.openFile(abstract);
-					return;
-				}
+				await leaf.openFile(abstract);
+				return;
 			}
 			// Codex.base not yet seeded — fall through to degrade
 		}
@@ -202,10 +200,8 @@ export default class StoryForgePlugin extends Plugin {
 		}
 		// Open in a new tab — avoids clobbering the user's active note.
 		const leaf = this.app.workspace.getLeaf(true);
-		if (leaf) {
-			await leaf.setViewState({ type: CODEX_VIEW_TYPE, active: true });
-			await this.app.workspace.revealLeaf(leaf);
-		}
+		await leaf.setViewState({ type: CODEX_VIEW_TYPE, active: true });
+		await this.app.workspace.revealLeaf(leaf);
 	}
 
 	// ---------------------------------------------------------------------------
