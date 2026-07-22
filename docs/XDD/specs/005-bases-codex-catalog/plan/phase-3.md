@@ -49,9 +49,13 @@ Delivers the top-down Codex: category grids that click through into the M3 panel
 
 - [ ] **T3.3 `CodexView` host + registration + row-click wiring** `[activity: frontend-ui]`
 
-  1. Prime: Read `[ref: SDD/Building Block View]` (CodexView role), `main.ts` (`registerView`, the `getLeavesOfType(...).view instanceof SidebarView` pattern `:162`), and mockup **S44/S56**.
-  2. Test: `registerCodexView` registers the `story-forge-codex` type in `onLayoutReady`; the Codex `.base` opens category tabs; a row click resolves `entry.file` and calls `SidebarView.showFile` (revealing the leaf if closed) with the selection reflected in the grid (S56); switching category tabs disposes the previous grid leak-free (no stale bleed); with Bases disabled, the Codex shows the S46 degrade while panel + Dataview keep working.
-  3. Implement: `src/codex/CodexView.ts` (main-area host: tab chrome, degrade S46, empty S45); register in `main.ts`; ship a curated `Codex.base` (seed) selecting the type.
+  **Option A (confirmed 2026-07-22): Bases-native tabs; CodexView is a THIN entry point.** The Codex tab bar is Obsidian Bases' own view-tab bar over a multi-view `Codex.base`; CodexView does NOT render tab chrome. See SDD ADR-2 addendum.
+  1. Prime: Read `[ref: SDD/ADR-2]` (Codex chrome = Bases-native, Option A), `main.ts` (`registerView`, the `getLeavesOfType(...).view instanceof SidebarView` pattern `:162`), `revealAndShowFile` (T3.1, `src/views/SidebarView.ts`), `registerCodexView` (`src/bases/BasesAdapter.ts` — its factory currently throws a Phase-3 stub), and mockups **S44/S56/S46**.
+  2. Test: the real `registerCodexView` factory constructs a `CodexBasesView` wired with `onRowClick → revealAndShowFile(app, entry.file)` (row click resolves `entry.file`, reveals the sidebar leaf if closed, re-subjects the panel — S56); the seed `Codex.base` has one `story-forge-codex` view per category (Bases-native tabs switch them); switching category tabs disposes the previous `CodexBasesView` leak-free (CON-4 guard, no stale bleed); `CodexView` (thin ItemView) opens/reveals `Codex.base` when Bases is available and renders the **S46 degrade** when Bases is off (a `.base` can't open without core Bases) while panel + Dataview keep working.
+  3. Implement:
+     - Replace the `registerCodexView` factory stub in `src/bases/BasesAdapter.ts` with the REAL `CodexBasesView` factory: `(controller, containerEl) => new CodexBasesView(controller, { app: plugin.app, onRowClick: (file) => revealAndShowFile(plugin.app, file) })`. (BasesAdapter may import `revealAndShowFile` from `views/SidebarView` — a plain function, not Bases typings; CON-3 holds.)
+     - `src/codex/CodexView.ts` — a THIN main-area `ItemView` (NO Bases typings): an "Open Codex" entry point (command/ribbon) that reveals the seed `Codex.base` when `isBasesAvailable(plugin)` is true, and renders the S46 degrade (reuse the S46 copy) when false. `registerView` + the open command in `main.ts`.
+     - Ship a curated seed `Codex.base` (5 `story-forge-codex` views, category per view) in the configurable bases folder (default `00 Meta/Bases`) — mirror the M3-seeded `Canon.base` structure.
   4. Validate: click→panel integration test; tab-switch teardown test; degrade test.
   5. Success:
      - [ ] Row click re-subjects panel with grid selection `[ref: PRD/AC-F2.2]`
