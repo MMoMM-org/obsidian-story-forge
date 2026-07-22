@@ -454,6 +454,44 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 		expect(result).toEqual({ status: "drift", reason: "checksum" });
 	});
 
+	// ADR-10 mobile gate: bases records on mobile → platform-restricted (before engine-check)
+
+	it("returns {status:'platform-restricted'} for a bases record on mobile [ADR-10]", async () => {
+		(Platform as { isMobile: boolean }).isMobile = true;
+		const registry = makeRegistryWithBases();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const checksum = await computeChecksum(BASES_YAML);
+		const result = await gate.evaluate(
+			makeBasesRecord({ okayed: { version: 0, checksum } }),
+		);
+
+		expect(result).toEqual({ status: "platform-restricted" });
+	});
+
+	it("platform-restricted for bases fires after disabled (disabled wins) [ADR-10 order]", async () => {
+		(Platform as { isMobile: boolean }).isMobile = true;
+		const registry = makeRegistryWithBases();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.evaluate(makeBasesRecord({ enabled: false }));
+
+		expect(result).toEqual({ status: "disabled" });
+	});
+
+	it("[REGRESSION] dataview-dql on mobile is NOT platform-restricted (only bases+dataviewjs) [ADR-10]", async () => {
+		(Platform as { isMobile: boolean }).isMobile = true;
+		const registry = makeRegistry(["dataview-dql"]);
+		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.evaluate(makeRecord({ engine: "dataview-dql", okayed: null }));
+
+		expect(result.status).not.toBe("platform-restricted");
+	});
+
 	// disabled kill-switch still fires before bases path
 
 	it("returns {status:'disabled'} for bases record when enabled:false [kill-switch]", async () => {

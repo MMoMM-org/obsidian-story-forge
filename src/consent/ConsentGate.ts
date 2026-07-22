@@ -87,10 +87,12 @@ export class ConsentGate {
 			return { status: "disabled" };
 		}
 
-		// 2. Platform-restricted — Dataview itself blocks DataviewJS execution on
-		//    mobile, so DataviewJS views cannot render there. (The checksum is
-		//    cross-platform via Web Crypto, so it is NOT the restriction reason.)
-		if (record.engine === "dataviewjs" && Platform.isMobile) {
+		// 2. Platform-restricted — DataviewJS cannot execute on mobile (Dataview
+		//    blocks it); Bases surfaces are desktop-only per ADR-10 Phase 0 verdict.
+		//    (The checksum is cross-platform via Web Crypto — NOT the reason.)
+		const isMobileRestricted =
+			record.engine === "dataviewjs" || record.engine === "bases";
+		if (isMobileRestricted && Platform.isMobile) {
 			return { status: "platform-restricted" };
 		}
 
