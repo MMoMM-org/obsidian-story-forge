@@ -314,6 +314,8 @@ describe("Codex row click re-subjects panel (S56)", () => {
 
 	it("showFile followed by a render produces entity detail for the clicked file", async () => {
 		// This asserts the full _drillInto → _resolveOrClassify → _renderState chain.
+		// The engine double emits a sentinel div so we can verify the body actually
+		// shows the clicked entity's content, not just that the subject changed.
 		const engine = makeContentEngine("dataview-dql", "character detail");
 		const registry = makeMockRegistry(engine);
 		const consentGate = makeMockConsentGate({ status: "consented" });
@@ -337,22 +339,32 @@ describe("Codex row click re-subjects panel (S56)", () => {
 		});
 		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(null);
 
-		// Select a view tab so engine dispatch fires
+		// Select a view tab so engine dispatch fires when re-subjecting
 		getTabByViewId(view, "v1").click();
 		await new Promise((r) => setTimeout(r, 0));
-		// Inject a resolved ctx for the current subject
+		// Inject a resolved ctx so _renderResolved can proceed to engine dispatch
 		pv.currentCtx = makeNoteContext(clickedFile, "character");
+		// Reset the engine spy so we only count calls after showFile
+		(engine.render as ReturnType<typeof vi.fn>).mockClear();
 
-		// Act: Codex row click → showFile
+		// Act: Codex row click → showFile → _drillInto → _resolveOrClassify → render
 		view.showFile(clickedFile);
-		// Flush the async render
+		// Flush the async render (consent evaluate + engine.render)
 		await Promise.resolve();
 		await Promise.resolve();
 		await new Promise((r) => setTimeout(r, 0));
 
-		// Assert: subject is the clicked file
+		// Assert subject re-directed to the clicked file
 		expect(pv.subject.file?.path).toBe(clickedFile.path);
 		expect(pv.subject.source).toBe("drilled");
+
+		// Assert the render chain actually fired through the engine
+		expect(engine.render).toHaveBeenCalledTimes(1);
+
+		// Assert the body DOM shows the clicked entity's content (sentinel output)
+		const outputEl = getBody(view).querySelector(".engine-output-dataview-dql");
+		expect(outputEl).not.toBeNull();
+		expect(outputEl?.textContent).toBe("character detail");
 	});
 });
 
