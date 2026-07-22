@@ -926,6 +926,36 @@ describe("InspectorController: dirty-guard — notifyFileChanged return value", 
 		await new Promise<void>(r => setTimeout(r, 0));
 	});
 
+	it("returns true when a field is in the ERROR state (write error — guard must survive failed commits)", async () => {
+		// Regression guard: a narrowed implementation that only guards dirty/saving
+		// would return false here and wipe the error message + edit on the next
+		// metadataCache.changed event, losing the user's failed-write feedback.
+		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({
+			ok: false,
+			reason: "write",
+			message: "Couldn't write frontmatter. Your edits are kept.",
+			keepDirty: true,
+		});
+
+		const ctx = makeCtx(file, "character", { nickname: "Spark" });
+		const owner = makeOwner();
+		const container = makeContainer();
+		const controller = new InspectorController(app, owner);
+		controller.render(container, ctx, [makeTextField("nickname")]);
+
+		const input = container.querySelector("input") as HTMLInputElement;
+		input.value = "Ember";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const commitBtn = container.querySelector("[data-sf-inspector-commit]") as HTMLButtonElement;
+		commitBtn.click();
+		await new Promise<void>(r => setTimeout(r, 0));
+
+		// Field is now in error state — guard must still fire
+		const guarded = controller.notifyFileChanged(file);
+		expect(guarded).toBe(true);
+	});
+
 	it("returns false for a different file — does not guard unrelated files", () => {
 		const ctx = makeCtx(file, "character", { nickname: "Spark" });
 		const owner = makeOwner();

@@ -6,10 +6,12 @@
  * active entity. Delegates writes to frontmatterWriter.commit.
  *
  * Listener discipline (CON-4):
- *   All DOM listeners are registered via the parent Component's
- *   registerDomEvent so they are released on teardown/re-subject. A single
- *   delegated input handler on the field container prevents per-field-per-render
- *   listener accumulation.
+ *   Delegated DOM listeners are attached via container.addEventListener with an
+ *   AbortSignal. A new AbortController is created at the start of each render()
+ *   call and its previous controller is aborted, so listeners from a prior
+ *   container are released immediately (no accumulation across re-renders). The
+ *   controller is also aborted in teardown() and via owner.register() on
+ *   Component unload — three layers of cleanup.
  *
  * Dirty-guard (SDD/ADR-3, SDD §Interaction Design):
  *   The controller exposes `notifyFileChanged(file)` so SidebarView can forward
@@ -30,11 +32,10 @@
  * @ref PRD/AC-F6.2 — dirty state
  * @ref PRD/AC-F6.4 — committed edit fans out via metadataCache
  * @ref CON-1 — transient in-memory state only, NEVER persisted
- * @ref CON-4 — teardown discipline: owned Component, registerDomEvent
+ * @ref CON-4 — teardown discipline: AbortSignal + owner.register, no registerDomEvent
  */
 
-import type { App, TFile } from "obsidian";
-import { Component } from "obsidian";
+import type { App, TFile, Component } from "obsidian";
 import type { NoteContext } from "scoping/NoteContext";
 import { commit } from "./frontmatterWriter";
 import { isScalarEditable, selectVocab } from "./editableFields";
@@ -134,15 +135,10 @@ function toComparableString(v: unknown): string {
 
 export class InspectorController {
 	private readonly app: App;
-	private readonly owner: Component;
 	/** Per-field state keyed by field name. Transient — cleared on teardown. */
 	private fieldStates: Map<string, FieldState> = new Map();
 	/** Current context snapshot. */
 	private ctx: NoteContext | null = null;
-	/** Current field specs. */
-	private fields: FieldSpec[] = [];
-	/** Container last rendered into — used by notifyFileChanged dirty-guard. */
-	private container: HTMLElement | null = null;
 	/**
 	 * Generation counter. Incremented on every render/teardown. Async commit
 	 * callbacks capture the gen at dispatch time and bail if stale.
@@ -160,7 +156,6 @@ export class InspectorController {
 
 	constructor(app: App, owner: Component) {
 		this.app = app;
-		this.owner = owner;
 		// Ensure DOM listeners are cleaned up when the owning Component is unloaded.
 		owner.register(() => { this._listenerController?.abort(); });
 	}
@@ -172,17 +167,13 @@ export class InspectorController {
 	/**
 	 * Render the Inspector into `container` for the given context and fields.
 	 *
-	 * All DOM listeners are registered via `this.owner.registerDomEvent` so they
-	 * are released when the owner is unloaded (teardown discipline, CON-4).
-	 * A single delegated listener on the container handles all field inputs —
-	 * no per-field-per-render listener registration.
+	 * Delegated listeners are attached via container.addEventListener with an
+	 * AbortSignal (replaced on each render — no per-field-per-render accumulation).
 	 *
 	 * Re-rendering (new subject) should be preceded by teardown() to clear state.
 	 */
 	render(container: HTMLElement, ctx: NoteContext, fields: FieldSpec[]): void {
 		this.ctx = ctx;
-		this.fields = fields;
-		this.container = container;
 
 		// Build fresh per-field state for fields not already tracked.
 		// Existing dirty/error state for the same field key is PRESERVED across
@@ -213,7 +204,7 @@ export class InspectorController {
 			}
 		}
 
-		this._renderFields(container, ctx, fields);
+		this._renderFields(container, fields);
 		// Abort any previous listener set (prevents accumulation across re-renders).
 		this._listenerController?.abort();
 		this._listenerController = new AbortController();
@@ -227,8 +218,6 @@ export class InspectorController {
 	teardown(): void {
 		this.fieldStates.clear();
 		this.ctx = null;
-		this.fields = [];
-		this.container = null;
 		this.gen++;
 		this._listenerController?.abort();
 		this._listenerController = null;
@@ -265,7 +254,6 @@ export class InspectorController {
 
 	private _renderFields(
 		container: HTMLElement,
-		ctx: NoteContext,
 		fields: FieldSpec[],
 	): void {
 		for (const spec of fields) {
@@ -282,7 +270,7 @@ export class InspectorController {
 			if (isScalarEditable(spec)) {
 				this._renderEditableField(fieldRow, spec, state);
 			} else {
-				this._renderReadOnlyField(fieldRow, spec, state);
+				this._renderReadOnlyField(fieldRow, state);
 			}
 
 			container.appendChild(fieldRow);
@@ -360,7 +348,6 @@ export class InspectorController {
 
 	private _renderReadOnlyField(
 		fieldRow: HTMLElement,
-		spec: FieldSpec,
 		state: FieldState,
 	): void {
 		const valueEl = activeDocument.createElement("span");

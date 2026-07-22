@@ -35,6 +35,7 @@ import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFields } from "../inspector/inspectorFields";
+import { isScalarEditable } from "../inspector/editableFields";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -1128,13 +1129,17 @@ export class SidebarView extends ItemView {
 
 		const view = this.currentRecord;
 
-		// No view tab selected → native fallback + Inspector overlay (T5.2)
+		// No view tab selected → native M3 read-only detail + editable Inspector overlay.
+		// The Inspector renders ONLY editable-scalar fields (ADR-3: overlay, not replacement)
+		// so the M3 read-only rows and the Inspector's editable inputs are distinct DOM nodes
+		// with no duplication. nativeEngine always runs to produce the M3 panel.
 		if (!view) {
 			this._prepareBody(body);
 			await this.nativeEngine.render(null, ctx, body);
 			if (gen !== this._renderGen) return;
 			this.currentEngine = this.nativeEngine;
-			// T5.2: render the Inspector overlay after the M3 read-only detail
+			// T5.2: editable-only Inspector overlay appended after M3 read-only detail.
+			// _renderInspector passes only isScalarEditable fields (no list/relation/tags/fixed).
 			this._renderInspector(body, ctx);
 			return;
 		}
@@ -1238,23 +1243,22 @@ export class SidebarView extends ItemView {
 	}
 
 	/**
-	 * T5.2: Render the InspectorController overlay after the M3 read-only detail.
+	 * T5.2: Render the editable-only Inspector overlay after M3 read-only detail.
 	 *
-	 * Creates a dedicated host div (sf-inspector-host) so the Inspector DOM is
-	 * isolated from the engine's panel DOM. The controller handles its own
-	 * teardown via notifyFileChanged + teardown (CON-4).
+	 * Passes ONLY isScalarEditable fields (text/number/select) to the controller —
+	 * list/relation/tags/fixed fields remain in the M3 read-only panel rendered by
+	 * nativeEngine above this call. This prevents each read-only row from appearing
+	 * twice in the panel (S3/ADR-3: Inspector is an overlay, not a replacement).
 	 *
-	 * Only shown in the Context tab (no view tab selected). Call after nativeEngine
-	 * has rendered the M3 read-only detail so the read-only context is already visible.
+	 * Only shown in the Context tab (no view tab selected).
 	 */
 	private _renderInspector(body: AugEl, ctx: NoteContext): void {
 		if (!this._inspector) return;
-		// Skip for entity kinds that have no Inspector fields (unknown)
 		if (ctx.activeKind === "unknown") return;
-		const fields = inspectorFields(ctx.activeKind);
-		if (fields.length === 0) return;
+		const editableFields = inspectorFields(ctx.activeKind).filter(isScalarEditable);
+		if (editableFields.length === 0) return;
 		const host = body.createDiv({ cls: "sf-inspector-host" });
-		this._inspector.render(host, ctx, fields);
+		this._inspector.render(host, ctx, editableFields);
 	}
 
 	// ---------------------------------------------------------------------------
