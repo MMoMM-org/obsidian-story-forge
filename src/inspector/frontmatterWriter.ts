@@ -30,9 +30,9 @@ export type FieldType = "text" | "number" | "select" | "list" | "tags" | "relati
  * This mirrors the schema field shape without duplicating the full JSON structure.
  */
 export type FieldSpec =
-	| { name: string; type: "text" | "list" | "tags" | "relation" | "fixed" }
-	| { name: string; type: "number" }
-	| { name: string; type: "select"; values?: string[] };
+	| { name: string; type: Extract<FieldType, "text" | "list" | "tags" | "relation" | "fixed"> }
+	| { name: string; type: Extract<FieldType, "number"> }
+	| { name: string; type: Extract<FieldType, "select">; values?: string[] };
 
 /** Success result. */
 export interface CommitOk {
@@ -77,10 +77,12 @@ function validateField(field: FieldSpec, value: unknown): ValidationResult {
 			return { kind: "ok" };
 
 		case "number":
-			if (typeof value !== "number") {
+			// NaN and Infinity are typeof "number" but cannot round-trip through YAML frontmatter.
+			if (typeof value !== "number" || !Number.isFinite(value)) {
+				const got = typeof value === "number" ? "NaN or Infinity" : typeof value;
 				return {
 					kind: "type-error",
-					message: `Field "${field.name}" expects a number, got ${typeof value}.`,
+					message: `Field "${field.name}" expects a finite number, got ${got}.`,
 				};
 			}
 			return { kind: "ok" };

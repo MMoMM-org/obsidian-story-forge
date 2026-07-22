@@ -21,7 +21,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App, TFile } from "../__mocks__/obsidian";
 import { commit } from "inspector/frontmatterWriter";
 import type { FieldSpec } from "inspector/frontmatterWriter";
-import { selectVocab } from "inspector/editableFields";
+import { selectVocab, isScalarEditable, isReadOnly } from "inspector/editableFields";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -126,6 +126,32 @@ describe("commit", () => {
 		expect(app.fileManager.processFrontMatter).not.toHaveBeenCalled();
 	});
 
+	it("NaN on number field → returns {ok:false, reason:'validation'} and nothing written", async () => {
+		const field = makeNumberField("age");
+		const result = await commit(app, file, "age", NaN, field);
+
+		expect(result).toEqual({
+			ok: false,
+			reason: "validation",
+			keepDirty: true,
+			message: expect.any(String),
+		});
+		expect(app.fileManager.processFrontMatter).not.toHaveBeenCalled();
+	});
+
+	it("Infinity on number field → returns {ok:false, reason:'validation'} and nothing written", async () => {
+		const field = makeNumberField("age");
+		const result = await commit(app, file, "age", Infinity, field);
+
+		expect(result).toEqual({
+			ok: false,
+			reason: "validation",
+			keepDirty: true,
+			message: expect.any(String),
+		});
+		expect(app.fileManager.processFrontMatter).not.toHaveBeenCalled();
+	});
+
 	it("boolean value on text field → returns {ok:false, reason:'validation', keepDirty:true}", async () => {
 		const field = makeTextField("nickname");
 		// booleans are not valid text values
@@ -227,6 +253,15 @@ describe("commit", () => {
 
 	// --- Plugin state: nothing persisted (CON-1) ---
 
+	it("null value on text field → processFrontMatter called, returns {ok:true} (clearing a field)", async () => {
+		// null is a valid sentinel: writer clears the frontmatter key (S2 — clear path).
+		const field = makeTextField("nickname");
+		const result = await commit(app, file, "nickname", null, field);
+
+		expect(result).toEqual({ ok: true });
+		expect(app.fileManager.processFrontMatter).toHaveBeenCalledTimes(1);
+	});
+
 	it("successful commit does not mutate any plugin state (only processFrontMatter is side-effecting)", async () => {
 		// The commit function receives `app` and a `file` reference.
 		// No plugin.saveData or plugin.loadData should be called.
@@ -268,5 +303,58 @@ describe("selectVocab", () => {
 
 		const numberField = makeNumberField("age");
 		expect(selectVocab(numberField)).toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// editableFields.isScalarEditable + isReadOnly (W2)
+// ---------------------------------------------------------------------------
+
+describe("isScalarEditable", () => {
+	it("text field → true", () => {
+		expect(isScalarEditable(makeTextField("nickname"))).toBe(true);
+	});
+
+	it("number field → true", () => {
+		expect(isScalarEditable(makeNumberField("age"))).toBe(true);
+	});
+
+	it("select field → true", () => {
+		expect(isScalarEditable(makeSelectField("role"))).toBe(true);
+	});
+
+	it("list field → false", () => {
+		const field: FieldSpec = { name: "aliases", type: "list" };
+		expect(isScalarEditable(field)).toBe(false);
+	});
+
+	it("relation field → false", () => {
+		const field: FieldSpec = { name: "significant_other", type: "relation" };
+		expect(isScalarEditable(field)).toBe(false);
+	});
+
+	it("tags field → false", () => {
+		const field: FieldSpec = { name: "tags", type: "tags" };
+		expect(isScalarEditable(field)).toBe(false);
+	});
+
+	it("fixed field → false", () => {
+		const field: FieldSpec = { name: "type", type: "fixed" };
+		expect(isScalarEditable(field)).toBe(false);
+	});
+});
+
+describe("isReadOnly", () => {
+	it("text/number/select → false (not read-only)", () => {
+		expect(isReadOnly(makeTextField("nickname"))).toBe(false);
+		expect(isReadOnly(makeNumberField("age"))).toBe(false);
+		expect(isReadOnly(makeSelectField("role"))).toBe(false);
+	});
+
+	it("list/relation/tags/fixed → true (read-only)", () => {
+		expect(isReadOnly({ name: "aliases", type: "list" })).toBe(true);
+		expect(isReadOnly({ name: "significant_other", type: "relation" })).toBe(true);
+		expect(isReadOnly({ name: "tags", type: "tags" })).toBe(true);
+		expect(isReadOnly({ name: "type", type: "fixed" })).toBe(true);
 	});
 });
