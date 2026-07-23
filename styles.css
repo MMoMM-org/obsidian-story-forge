@@ -1923,3 +1923,50 @@ body {
 .sf-pl-unassigned .sf-sec-label {
 	color: var(--text-faint);
 }
+
+/* ---- WorkspaceView (main-area host: header toggle + body) ---- */
+.sf-ws-head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 14px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-ws-brand {
+	font-weight: var(--font-bold);
+	color: var(--text-normal);
+}
+
+.sf-ws-toggle {
+	display: flex;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.sf-ws-mode {
+	padding: 3px 12px;
+	font-size: 12px;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.sf-ws-mode--sel {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.sf-ws-body {
+	padding: 14px 16px 18px;
+	overflow: auto;
+}
+
+.sf-ws-hint {
+	margin-bottom: 10px;
+	padding: 6px 12px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-warning);
+	font-size: 11.5px;
+}

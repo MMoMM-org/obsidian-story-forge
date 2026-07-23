@@ -14,6 +14,7 @@ import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
 import { registerCodexView, isBasesAvailable } from "bases/BasesAdapter";
 import { CodexView, CODEX_VIEW_TYPE } from "codex/CodexView";
+import { WorkspaceView, WORKSPACE_VIEW_TYPE, type WorkspaceLayout } from "workspace/WorkspaceView";
 import { CatalogService } from "catalog/CatalogService";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import type { CatalogIndex } from "catalog/catalogTypes";
@@ -87,6 +88,14 @@ export default class StoryForgePlugin extends Plugin {
 			(leaf: WorkspaceLeaf) => new CodexView(leaf),
 		);
 
+		// Register the main-area WorkspaceView (M5): Timeline rail + Plotlines list.
+		this.registerView(
+			WORKSPACE_VIEW_TYPE,
+			(leaf: WorkspaceLeaf) => new WorkspaceView(leaf, {
+				getLinkClickAction: () => this.settings.linkClickAction,
+			}),
+		);
+
 		// Ribbon icon — open panel on click. "Story Forge" is a proper noun.
 		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		this.addRibbonIcon(ICON, "Story Forge: open panel", () => {
@@ -116,6 +125,24 @@ export default class StoryForgePlugin extends Plugin {
 			name: "Open Codex",
 			callback: () => {
 				void this._openCodex();
+			},
+		});
+
+		// M5: main-area Timeline / Plotlines views.
+		this.addCommand({
+			id: "open-timeline",
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Timeline" is a proper noun + action
+			name: "Open Timeline",
+			callback: () => {
+				void this._openWorkspace("timeline");
+			},
+		});
+		this.addCommand({
+			id: "open-plotlines",
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Plotlines" is a proper noun + action
+			name: "Open Plotlines",
+			callback: () => {
+				void this._openWorkspace("plotlines");
 			},
 		});
 
@@ -240,6 +267,20 @@ export default class StoryForgePlugin extends Plugin {
 		// Open in a new tab — avoids clobbering the user's active note.
 		const leaf = this.app.workspace.getLeaf(true);
 		await leaf.setViewState({ type: CODEX_VIEW_TYPE, active: true });
+		await this.app.workspace.revealLeaf(leaf);
+	}
+
+	/**
+	 * Open the main-area WorkspaceView at the given layout (M5).
+	 *
+	 * Opens in a new tab (getLeaf(true)); the initial layout is passed via view
+	 * state and also applied directly to the live view (setLayout) so it renders
+	 * the requested layout without relying on state round-tripping.
+	 */
+	async _openWorkspace(layout: WorkspaceLayout): Promise<void> {
+		const leaf = this.app.workspace.getLeaf(true);
+		await leaf.setViewState({ type: WORKSPACE_VIEW_TYPE, active: true, state: { layout } });
+		if (leaf.view instanceof WorkspaceView) leaf.view.setLayout(layout);
 		await this.app.workspace.revealLeaf(leaf);
 	}
 

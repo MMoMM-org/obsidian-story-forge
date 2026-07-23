@@ -918,7 +918,14 @@ export class WorkspaceLeaf {
 	 * Returns a resolved Promise to match the real API.
 	 */
 	setViewState = vi.fn(
-		async (state: { type: string; active?: boolean }): Promise<void> => {
+		// Mirrors the real ViewState shape: `state` (per-view state) + `pinned` in
+		// addition to type/active, so callers passing an initial view state typecheck.
+		async (state: {
+			type: string;
+			active?: boolean;
+			pinned?: boolean;
+			state?: Record<string, unknown>;
+		}): Promise<void> => {
 			this.view.getViewType = vi.fn(() => state.type);
 		},
 	);

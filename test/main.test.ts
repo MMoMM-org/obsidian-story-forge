@@ -14,6 +14,7 @@ import { describe, it, expect, vi } from "vitest";
 import { App, WorkspaceLeaf, TFile, createMockDataviewApi, wireDataviewApi } from "obsidian";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import { CODEX_VIEW_TYPE } from "codex/CodexView";
+import { WORKSPACE_VIEW_TYPE } from "workspace/WorkspaceView";
 import type { StoryForgeData } from "store/types";
 import { EngineRegistry } from "engines/QueryEngine";
 
@@ -778,5 +779,39 @@ describe("StoryForgePlugin T3.3 — CodexView registration + Open Codex command"
 		);
 		// revealLeaf must have been called to focus the newly created degrade leaf
 		expect(app.workspace.revealLeaf).toHaveBeenCalledWith(degradeLeaf);
+	});
+});
+
+describe("StoryForgePlugin M5 — WorkspaceView registration + open commands", () => {
+	it("registerView is called with WORKSPACE_VIEW_TYPE", async () => {
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+		expect(plugin.registerView).toHaveBeenCalledWith(
+			WORKSPACE_VIEW_TYPE,
+			expect.any(Function),
+		);
+	});
+
+	it("registers 'open-timeline' and 'open-plotlines' commands", async () => {
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+		expect(plugin.addCommand).toHaveBeenCalledWith(expect.objectContaining({ id: "open-timeline" }));
+		expect(plugin.addCommand).toHaveBeenCalledWith(expect.objectContaining({ id: "open-plotlines" }));
+	});
+
+	it("_openWorkspace opens a new leaf with the layout state and reveals it", async () => {
+		const { plugin, app } = await makePlugin();
+		await plugin.onload();
+
+		const wsLeaf = new WorkspaceLeaf();
+		wsLeaf.app = app;
+		app.workspace.getLeaf.mockReturnValue(wsLeaf);
+
+		await plugin._openWorkspace("plotlines");
+
+		expect(wsLeaf.setViewState).toHaveBeenCalledWith(
+			expect.objectContaining({ type: WORKSPACE_VIEW_TYPE, state: { layout: "plotlines" } }),
+		);
+		expect(app.workspace.revealLeaf).toHaveBeenCalledWith(wsLeaf);
 	});
 });

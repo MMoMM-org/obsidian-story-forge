@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Main-area WorkspaceView — Timeline rail + Plotlines list"
-status: pending
+status: done
 version: "2.0"
 phase: 5
 ---

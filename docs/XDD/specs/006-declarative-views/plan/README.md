@@ -84,7 +84,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 - [x] [Phase 2: Scope seam + pure derivations (actLabel/plotlineColor/statusTally)](phase-2.md) — *shipped*
 - [x] [Phase 3: Render building blocks + collapse + CSS](phase-3.md) — *shipped*
 - [x] [Phase 4: Navigator sidebar tab (SidebarView)](phase-4.md) — *shipped*
-- [ ] [Phase 5: Main-area WorkspaceView — Timeline rail + Plotlines list](phase-5.md)
+- [x] [Phase 5: Main-area WorkspaceView — Timeline rail + Plotlines list](phase-5.md) — *shipped*
 - [ ] [Phase 6: Seed (beat notes) + integration/E2E + gates + finalize](phase-6.md) — *mockups done early*
 
 **Dependency graph**
