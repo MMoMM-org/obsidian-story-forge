@@ -1702,3 +1702,224 @@ body {
 	font-size: 12.5px;
 	text-align: center;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Navigator / Timeline / Plotlines (M5, spec 006) — read-only declarative views.
+ * StoryLine-grounded visual language, built fresh. Plotline dot/node colors are
+ * emitted inline (data-driven via plotlineColor); everything else uses theme tokens.
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+/* Colored dots (size/shape only; background set inline). */
+.sf-nav-dot,
+.sf-tl-node,
+.sf-pl-dot,
+.sf-pl-rowdot {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	flex: none;
+	display: inline-block;
+}
+
+/* ---- Navigator (sidebar) ---- */
+.sf-nav-filter {
+	margin: 6px 0;
+	padding: 5px 9px;
+	background: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	color: var(--text-faint);
+	font-size: 12px;
+}
+
+.sf-nav-pl-row,
+.sf-nav-sc-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 3px 6px;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	font-size: 12.5px;
+}
+
+.sf-nav-pl-row:hover,
+.sf-nav-sc-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.sf-nav-pl-row--sel {
+	background: var(--background-secondary);
+}
+
+.sf-nav-pl-count,
+.sf-nav-when {
+	margin-left: auto;
+	color: var(--text-faint);
+	font-size: 11px;
+}
+
+.sf-nav-idx {
+	color: var(--text-faint);
+	font-size: 11px;
+	min-width: 14px;
+	text-align: right;
+}
+
+.sf-nav-prog {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-faint);
+	font-size: 11px;
+}
+
+.sf-nav-prog-bar {
+	flex: 1;
+	height: 6px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	overflow: hidden;
+}
+
+.sf-nav-prog-bar i {
+	display: block;
+	height: 100%;
+	background: var(--interactive-accent);
+}
+
+/* ---- Timeline (main area, rail mode) ---- */
+.sf-tl-actpill {
+	display: inline-block;
+	margin: 12px 0 8px;
+	padding: 3px 12px;
+	border-radius: 12px;
+	background: var(--background-secondary);
+	color: var(--text-accent);
+	font-weight: var(--font-semibold);
+	font-size: 11px;
+	letter-spacing: 0.03em;
+}
+
+.sf-tl-rail {
+	position: relative;
+	padding-left: 22px;
+}
+
+.sf-tl-rail::before {
+	content: "";
+	position: absolute;
+	left: 7px;
+	top: 6px;
+	bottom: 6px;
+	width: 2px;
+	background: var(--background-modifier-border);
+}
+
+.sf-tl-item {
+	position: relative;
+	margin-bottom: 10px;
+}
+
+.sf-tl-node {
+	position: absolute;
+	left: -21px;
+	top: 13px;
+	border: 2px solid var(--background-primary);
+}
+
+.sf-tl-card {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	padding: 9px 12px;
+}
+
+.sf-tl-ct {
+	font-weight: var(--font-semibold);
+	font-size: 13px;
+	margin-bottom: 3px;
+}
+
+.sf-tl-cm {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	color: var(--text-muted);
+	font-size: 11.5px;
+	margin-bottom: 5px;
+}
+
+.sf-tl-meta {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.sf-tl-st {
+	font-size: 10.5px;
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+}
+
+.sf-tl-st--draft {
+	color: var(--text-warning);
+}
+
+.sf-tl-st--outline {
+	color: var(--text-accent);
+}
+
+.sf-tl-st--written,
+.sf-tl-st--final,
+.sf-tl-st--revised {
+	color: var(--text-success);
+}
+
+.sf-tl-words {
+	color: var(--text-faint);
+	font-size: 10.5px;
+}
+
+.sf-tl-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	margin-top: 7px;
+}
+
+.sf-tl-chip {
+	padding: 1px 8px;
+	border-radius: 9px;
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	font-size: 10px;
+}
+
+/* ---- Plotlines (main area, list mode) ---- */
+.sf-pl-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	padding: 2px 0;
+}
+
+.sf-pl-idx {
+	color: var(--text-faint);
+	font-size: 11px;
+	min-width: 14px;
+	text-align: right;
+}
+
+.sf-pl-unresolved .sf-sec-label {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.sf-pl-unassigned .sf-sec-label {
+	color: var(--text-faint);
+}

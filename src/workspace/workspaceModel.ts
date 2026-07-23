@@ -115,7 +115,7 @@ export function actLabel(act: number | null, scenes: SceneRow[]): string {
 // ---------------------------------------------------------------------------
 
 /** Strip `[[ ]]` from a link target, tolerating surrounding whitespace. */
-function stripLink(raw: string): string {
+export function stripLink(raw: string): string {
 	const t = raw.trim();
 	return WIKILINK.exec(t)?.[1] ?? t;
 }

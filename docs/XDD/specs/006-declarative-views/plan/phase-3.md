@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Render building blocks + collapse + CSS"
-status: pending
+status: done
 version: "2.0"
 phase: 3
 ---
