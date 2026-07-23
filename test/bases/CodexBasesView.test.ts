@@ -321,3 +321,28 @@ describe("CodexBasesView — teardown leaves no retained entries", () => {
 		expect(container.querySelector("[data-path='post-unload.md']")).toBeNull();
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Value display: getValue returns a Bases Value wrapper, not a scalar
+// ---------------------------------------------------------------------------
+
+describe("CodexBasesView — Value display (toString, not JSON)", () => {
+	it("renders each cell via the Value's toString(), not a JSON-stringified wrapper", () => {
+		const { view, container } = makeView("character");
+
+		// Emulate a Bases Value wrapper: an object whose display form is toString().
+		// JSON.stringify would emit e.g. {"icon":"crown"} — the bug we're guarding.
+		const roleValue = { icon: "crown", toString: () => "protagonist" };
+		const entry = makeEntry("30 Canon/31 Characters/Mara Stoneway.md");
+		entry.getValue.mockImplementation((propId: string): unknown =>
+			propId === "role" ? roleValue : null,
+		);
+
+		view.data = makeResult([entry]);
+		view.onDataUpdated();
+
+		const roleCell = container.querySelector(".sf-codex-row [data-cell='role']");
+		expect(roleCell?.textContent).toBe("protagonist");
+		expect(roleCell?.textContent).not.toContain("icon");
+	});
+});

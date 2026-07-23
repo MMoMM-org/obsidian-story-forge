@@ -23,6 +23,8 @@ import {
 	section,
 	factRow,
 	linkRow,
+	relationRow,
+	stampLinkEl,
 	emptyLine,
 	unresolvedEl,
 	humanizeFieldLabel,
@@ -185,7 +187,12 @@ function renderReadingOrder(el: HTMLElement, entities: ResolvedEntity[]): void {
 
 /**
  * Render a single prev/next navigation slot in the Reading order section.
- * Shows a link row when the entity is present, em-dash otherwise.
+ *
+ * Both prev and next are ALWAYS shown as a labelled relation row (mockup S39):
+ *   - present + resolved   → label + clickable link
+ *   - present + unresolved → label + muted unresolved element
+ *   - absent               → label + em-dash placeholder
+ * The label is never dropped, so prev/next read consistently.
  */
 function renderNavSlot(
 	bodyEl: HTMLElement,
@@ -194,23 +201,16 @@ function renderNavSlot(
 ): void {
 	const match = entities.find((e) => e.field === slot);
 
+	let valueEl: HTMLElement;
 	if (!match) {
-		renderEmDashRow(bodyEl, slot);
-		return;
+		valueEl = activeDocument.createElement("span");
+		valueEl.className = "sf-rel-dash";
+		valueEl.textContent = "—";
+	} else if (match.unresolved) {
+		valueEl = unresolvedEl(match.file.basename);
+	} else {
+		valueEl = stampLinkEl(match.file.basename, match.file.path);
 	}
 
-	if (match.unresolved) {
-		bodyEl.appendChild(unresolvedEl(match.file.basename));
-		return;
-	}
-
-	linkRow(bodyEl, match.file.basename, { path: match.file.path });
-}
-
-/**
- * Render a labelled em-dash row for an absent prev/next slot.
- * Uses factRow so the slot name is shown alongside the dash.
- */
-function renderEmDashRow(bodyEl: HTMLElement, slot: string): void {
-	factRow(bodyEl, slot, "—");
+	relationRow(bodyEl, slot, [valueEl]);
 }

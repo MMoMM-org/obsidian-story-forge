@@ -678,6 +678,13 @@ export class SidebarView extends ItemView {
 	private _onBodyActivate(target: EventTarget | null, modifier: boolean): void {
 		if (!(target instanceof HTMLElement)) return;
 
+		// Collapsible section headers — toggle the body in place (no re-render).
+		const secHead = target.closest("[data-sf-section-toggle]");
+		if (secHead instanceof HTMLElement) {
+			this._toggleSection(secHead);
+			return;
+		}
+
 		// Nav controls first (Back / Open-note chrome).
 		const nav = target.closest("[data-sf-nav]");
 		if (nav) {
@@ -707,6 +714,24 @@ export class SidebarView extends ItemView {
 		const drill = action === "drill" ? !modifier : modifier;
 		if (drill) this._drillInto(file);
 		else this._openLink(file);
+	}
+
+	/**
+	 * Toggle a collapsible section's body open/closed in place.
+	 *
+	 * Pure-DOM: flips the `sf-sec-body--collapsed` class and syncs the chevron +
+	 * aria state. No engine re-render — collapse is a transient view concern that
+	 * resets when the panel re-subjects to a new note (expected for a follow panel).
+	 */
+	private _toggleSection(headEl: HTMLElement): void {
+		const sectionEl = headEl.closest(".sf-section");
+		const bodyEl = sectionEl?.querySelector(".sf-sec-body");
+		if (!(bodyEl instanceof HTMLElement)) return;
+		const collapsed = bodyEl.classList.toggle("sf-sec-body--collapsed");
+		bodyEl.setAttribute("aria-hidden", collapsed ? "true" : "false");
+		headEl.setAttribute("aria-expanded", collapsed ? "false" : "true");
+		const chev = headEl.querySelector(".sf-sec-chev");
+		if (chev) chev.textContent = collapsed ? "▶" : "▼";
 	}
 
 	/**

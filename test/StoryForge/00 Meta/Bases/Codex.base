@@ -1,10 +1,7 @@
 filters:
   or:
-    - file.hasTag("canon/character")
-    - file.hasTag("canon/location")
-    - file.hasTag("canon/object")
-    - file.hasTag("canon/lore")
-    - file.hasTag("manuscript/scene")
+    - file.inFolder("30 Canon")
+    - file.inFolder("10 Manuscript")
 properties:
   file.name:
     displayName: Name

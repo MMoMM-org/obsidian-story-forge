@@ -218,16 +218,30 @@ function renderAppearsIn(el: HTMLElement, backlinks: ResolvedEntity[]): void {
 	const sceneLinks = backlinks.filter(
 		(b) => b.kind === "scene" && (b.field === "pov" || b.field === "characters"),
 	);
-	const { bodyEl } = section(el, "Appears in", { count: sceneLinks.length });
 
-	if (sceneLinks.length === 0) {
+	// Dedup by scene file — a character referenced by the same scene BOTH as `pov`
+	// and in `characters` must appear once, tagged with its primary role (pov wins).
+	// Mockup S32/S34: one row per unique scene; count reflects unique scenes.
+	const byScene = new Map<string, { file: ResolvedEntity["file"]; isPov: boolean }>();
+	for (const bl of sceneLinks) {
+		const existing = byScene.get(bl.file.path);
+		if (existing) {
+			existing.isPov = existing.isPov || bl.field === "pov";
+		} else {
+			byScene.set(bl.file.path, { file: bl.file, isPov: bl.field === "pov" });
+		}
+	}
+	const scenes = [...byScene.values()];
+
+	const { bodyEl } = section(el, "Appears in", { count: scenes.length });
+
+	if (scenes.length === 0) {
 		emptyLine(bodyEl, "No scenes yet.");
 		return;
 	}
 
-	for (const bl of sceneLinks) {
-		const tag = bl.field === "pov" ? "pov" : "char";
-		linkRow(bodyEl, bl.file.basename, { tag, path: bl.file.path });
+	for (const s of scenes) {
+		linkRow(bodyEl, s.file.basename, { tag: s.isPov ? "pov" : "char", path: s.file.path });
 	}
 }
 

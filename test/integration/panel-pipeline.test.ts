@@ -505,28 +505,25 @@ describe("T5.3 ground truth — rendered DOM matches the verified seed vault", (
 	it("GT1: Mara's 'Appears in' covers exactly Scene 1/2/3 in basename order", async () => {
 		await h.follow(h.fixture.files.get("Mara Stoneway")!);
 		const texts = linkTextsIn(h.body(), "Appears in");
-		// IMPLEMENTATION NOTE: renderAppearsIn emits one row per (scene, field)
-		// backlink and does NOT dedupe per scene. Mara is BOTH pov and in
-		// `characters` for every scene, so each scene appears twice — once as a
-		// pov-tagged row, once as a char-tagged row (order: S1-pov, S1-char, …).
-		// The GROUND TRUTH ("appears in = Scenes 1–3") is the DISTINCT scene set,
-		// asserted here in order; GT1b asserts the pov/char row interleaving.
-		const distinct = [...new Set(texts)];
-		expect(distinct).toEqual([
+		// renderAppearsIn dedupes per scene: Mara is BOTH pov and in `characters`
+		// for every scene, but each scene renders exactly once (mockup S32). The
+		// ground truth ("appears in = Scenes 1–3") is the distinct scene set.
+		expect(texts).toEqual([
 			"Scene 1 - The Extinguished Fire",
 			"Scene 2 - The Salty Gull",
 			"Scene 3 - The Black Cliffs",
 		]);
 	});
 
-	it("GT1b: each of Mara's scenes renders both a pov-tagged and a char-tagged row", async () => {
+	it("GT1b: each of Mara's scenes renders exactly one row, pov-tagged (pov precedence)", async () => {
 		await h.follow(h.fixture.files.get("Mara Stoneway")!);
 		const body = sectionBody(h.body(), "Appears in")!;
 		const tags = Array.from(body.querySelectorAll<HTMLElement>(".sf-lrow .sf-trail")).map(
 			(el) => el.textContent,
 		);
-		// Mara is pov AND a listed character in all three scenes → pov/char per scene.
-		expect(tags).toEqual(["pov", "char", "pov", "char", "pov", "char"]);
+		// Mara is pov AND a listed character in all three scenes → deduped to one
+		// pov-tagged row per scene (pov wins over char).
+		expect(tags).toEqual(["pov", "pov", "pov"]);
 	});
 
 	it("GT2: Tobias's 'Owns' lists The Beacon Lens", async () => {

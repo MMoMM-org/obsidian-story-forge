@@ -280,4 +280,37 @@ describe("SidebarView: ARIA roles & accessibility", () => {
 		const btn = view.contentEl.querySelector(".sf-pin-btn") as HTMLButtonElement | null;
 		expect(btn?.getAttribute("aria-label")).toBeTruthy();
 	});
+
+	it("clicking a section header toggles its body collapsed (delegated body handler)", () => {
+		const body = view.contentEl.querySelector(".sf-body") as HTMLElement;
+		expect(body).not.toBeNull();
+
+		// Build a minimal M3 section into the body (mirrors components.section()).
+		const sectionEl = document.createElement("div");
+		sectionEl.className = "sf-section";
+		const head = document.createElement("div");
+		head.className = "sf-sec-head";
+		head.setAttribute("data-sf-section-toggle", "");
+		const chev = document.createElement("span");
+		chev.className = "sf-sec-chev";
+		chev.textContent = "▼";
+		head.appendChild(chev);
+		const secBody = document.createElement("div");
+		secBody.className = "sf-sec-body";
+		sectionEl.appendChild(head);
+		sectionEl.appendChild(secBody);
+		body.appendChild(sectionEl);
+
+		// Click collapses.
+		head.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(secBody.classList.contains("sf-sec-body--collapsed")).toBe(true);
+		expect(head.getAttribute("aria-expanded")).toBe("false");
+		expect(chev.textContent).toBe("▶");
+
+		// Click again expands.
+		head.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(secBody.classList.contains("sf-sec-body--collapsed")).toBe(false);
+		expect(head.getAttribute("aria-expanded")).toBe("true");
+		expect(chev.textContent).toBe("▼");
+	});
 });

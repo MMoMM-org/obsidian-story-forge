@@ -466,8 +466,8 @@ describe("renderCharacter: Appears in section (S32)", () => {
 	});
 
 	it("counts scene backlinks in the Appears-in section header badge", () => {
-		const scene1 = createMockTFile({ basename: "Scene 1" });
-		const scene2 = createMockTFile({ basename: "Scene 2" });
+		const scene1 = createMockTFile({ basename: "Scene 1", path: "Scene 1.md" });
+		const scene2 = createMockTFile({ basename: "Scene 2", path: "Scene 2.md" });
 		const ctx = makeCharCtx({
 			backlinks: [
 				{ file: scene1, kind: "scene", relation: "backlink", field: "pov" },
@@ -481,6 +481,30 @@ describe("renderCharacter: Appears in section (S32)", () => {
 		const sectHeads = [...el.querySelectorAll(".sf-sec-head")];
 		const appearsHead = sectHeads.find((h) => h.textContent?.includes("Appears in"));
 		expect(appearsHead?.querySelector(".sf-count")?.textContent).toBe("2");
+	});
+
+	it("dedups a scene referenced as BOTH pov and characters → one row, pov tag", () => {
+		// A scene that lists the character as pov AND in characters must appear once.
+		const scene = createMockTFile({ basename: "Scene 1", path: "Scene 1.md" });
+		const ctx = makeCharCtx({
+			backlinks: [
+				{ file: scene, kind: "scene", relation: "backlink", field: "characters" },
+				{ file: scene, kind: "scene", relation: "backlink", field: "pov" },
+			],
+		});
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps());
+
+		const sectHeads = [...el.querySelectorAll(".sf-sec-head")];
+		const appearsHead = sectHeads.find((h) => h.textContent?.includes("Appears in"));
+		const appearsBody = appearsHead?.parentElement?.querySelector(".sf-sec-body");
+
+		// Exactly ONE row for the scene (not two)
+		const rows = appearsBody?.querySelectorAll(".sf-lrow") ?? [];
+		expect(rows.length).toBe(1);
+		expect(appearsHead?.querySelector(".sf-count")?.textContent).toBe("1");
+		// pov takes precedence over char in the role tag
+		expect(appearsBody?.querySelector(".sf-trail")?.textContent).toBe("pov");
 	});
 });
 

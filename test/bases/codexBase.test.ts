@@ -133,9 +133,10 @@ describe("Seed Codex.base — structure", () => {
 		}
 	});
 
-	it("top-level filter combines the category tags with OR, not AND", () => {
-		// The base-level filter applies to ALL views. `and` of mutually-exclusive
-		// canon/* + manuscript/* tags matches zero notes → every category empty.
+	it("top-level filter is an OR-union of the content folders (excludes 00 Meta templates)", () => {
+		// The base-level filter applies to ALL views. It must (a) use `or` not a
+		// mutually-exclusive `and`, and (b) scope to the real content folders so the
+		// tag-carrying template files under 00 Meta/Templates are NOT surfaced.
 		const content = readFileSync(CODEX_BASE_PATH, "utf8");
 		const filterBlock = content.slice(
 			content.indexOf("filters:"),
@@ -143,6 +144,9 @@ describe("Seed Codex.base — structure", () => {
 		);
 		expect(filterBlock, "expected an `or:` top-level filter block").toMatch(/\bor:/);
 		expect(filterBlock, "top-level filter must not use mutually-exclusive `and:`").not.toMatch(/\band:/);
+		expect(filterBlock, "must scope to the canon folder").toContain('file.inFolder("30 Canon")');
+		expect(filterBlock, "must scope to the manuscript folder").toContain('file.inFolder("10 Manuscript")');
+		expect(filterBlock, "must not include the templates/meta folder").not.toContain("00 Meta");
 	});
 });
 

@@ -135,7 +135,12 @@ function mapEntriesToRows(entries: BasesEntry[], category: EntityKind): CodexRow
 	return entries.map((entry) => {
 		const fields: Record<string, unknown> = {};
 		for (const id of propertyIds) {
-			fields[id] = entry.getValue(id as BasesPropertyId);
+			// getValue returns a Bases `Value` wrapper (or null), NOT a scalar.
+			// toString() is the display form — JSON.stringify would emit the raw
+			// wrapper (e.g. {"icon":…}). This is the only place Value is touched
+			// (CON-3): the resulting CodexRow carries plain strings only.
+			const v = entry.getValue(id as BasesPropertyId);
+			fields[id] = v == null ? null : v.toString();
 		}
 		return { path: entry.file.path, fields };
 	});

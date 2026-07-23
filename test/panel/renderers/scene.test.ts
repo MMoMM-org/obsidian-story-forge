@@ -583,4 +583,24 @@ describe("renderScene: Reading order section (S39)", () => {
 		);
 		expect(readingSection?.querySelector(".sf-unres")).not.toBeNull();
 	});
+
+	it("always shows the prev AND next labels, even when the slot is present", () => {
+		// The label must never be dropped — a present prev/next shows "prev"/"next"
+		// alongside the link, not just the bare note (regression fix).
+		const nextFile = createMockTFile({ basename: "Scene 2 - The Salty Gull", path: "Scene 2.md" });
+		const ctx = makeSceneCtx({
+			entities: [
+				{ file: nextFile, kind: "scene", relation: "outgoing", field: "next" },
+			],
+		});
+		const el = makeContainer();
+		renderScene(ctx, el, makeDeps());
+
+		const readingSection = [...el.querySelectorAll(".sf-section")].find((s) =>
+			s.querySelector(".sf-sec-label")?.textContent === "Reading order",
+		);
+		const labels = [...(readingSection?.querySelectorAll(".sf-rel-k") ?? [])].map((k) => k.textContent);
+		expect(labels).toContain("prev");
+		expect(labels).toContain("next");
+	});
 });

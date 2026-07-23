@@ -74,11 +74,14 @@ export function section(
 
 	const sectionEl = obs.createEl("div", { cls: "sf-section" });
 
-	// Header — role=button for keyboard/screen-reader access
+	// Header — role=button for keyboard/screen-reader access.
+	// data-sf-section-toggle marks it for SidebarView's delegated body handler,
+	// which toggles the body's collapsed class on click/Enter/Space (no re-render).
 	const headEl = asObs(sectionEl).createEl("div", { cls: "sf-sec-head" });
 	headEl.setAttribute("role", "button");
 	headEl.setAttribute("aria-expanded", collapsed ? "false" : "true");
 	headEl.setAttribute("tabindex", "0");
+	headEl.setAttribute("data-sf-section-toggle", "");
 
 	// Chevron indicator
 	asObs(headEl).createEl("span", {
