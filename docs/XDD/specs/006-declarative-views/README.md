@@ -13,6 +13,7 @@
 | Document | Status | Notes |
 |----------|--------|-------|
 | requirements.md | completed | M5 PRD — F0–F6 Must + F7–F11 Should/Could; Gherkin ACs grounded in schema + seed; F5 degrade superseded by SDD ADR-1 (reconciled) |
+| mockups.html | completed | 12 states S59–S70 (Timeline populated/act-boundary/order-fallback/empty/No-act; Plotlines groups/Unassigned/multi-plotline/collapsed/unresolved; workspace→panel drill; no-scope hint). Authored early (before UI phases) per "UI as mockups"; S63/S68 re-purposed from the superseded degrade |
 | solution.md | completed | SDD — 9 ADRs (all confirmed); metadataCache-scan render host (no Bases dep, no degrade), one polymorphic `story-forge-workspace` ItemView, scope seam in `src/scoping/`, TS sort/group, collapse per view+scope+group, unresolved-plotline flagged group; EARS ACs; mockup states S59–S70 (S63/S68 degrade superseded) |
 | plan/ | completed | 6 phases, ~15 tasks (TDD Prime/Test/Implement/Validate). P1 models ∥ P2 scope; P3 render (←P1); P4 view/registration/follow/drill (←P1+2+3); P5 seed+M4 recon; P6 mockups/integration/gates. Every F0–F6 AC + SDD component mapped |
 

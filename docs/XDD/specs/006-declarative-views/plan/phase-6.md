@@ -31,13 +31,12 @@ phase: 6
 
 Delivers the visual spec, end-to-end verification, and green exit gate for v0.3.
 
-- [ ] **T6.1 Mockup states S59–S70** `[activity: frontend-ui]` `[parallel: true]` `[ref: SDD/UI Visualization Guide]`
+- [x] **T6.1 Mockup states S59–S70** — ✅ **DONE EARLY (pulled forward before Phase 3)** `[activity: frontend-ui]` `[ref: SDD/UI Visualization Guide]`
 
-  1. Prime: Read the M4 mockups.html vocabulary + inventory `[ref: docs/XDD/specs/005-bases-codex-catalog/mockups.html]`.
-  2. Test (RED): n/a (design artifact) — reviewed against the SDD state list.
-  3. Implement (GREEN): create `docs/XDD/specs/006-declarative-views/mockups.html` with S59–S70 (Timeline populated/act-boundary/order-fallback/empty/no-act; Plotlines groups/Unassigned/multi-plotline/collapsed/unresolved-link; workspace→panel drill; optional no-scope hint), reusing the M4 CSS/classes; S63/S68 re-purposed per ADR-1.
-  4. Validate: states cover every F1–F5 rendering path; inventory table complete.
-  5. Success: [ ] Every meaningful view state has a versioned mockup `[ref: memory: UI as mockups]`
+  Per "UI as mockups", authored `docs/XDD/specs/006-declarative-views/mockups.html` up front so
+  the render (Phase 3) and view (Phase 4) build against a fixed target. 12 states S59–S70 reuse
+  the M4 visual vocabulary; S63/S68 re-purposed ("No act" bucket / unresolved-link group) per ADR-1.
+  Remaining Phase 6 work is T6.2 (integration/E2E) + T6.3 (gates/finalize).
 
 - [ ] **T6.2 Integration / E2E** `[activity: test-strategy]` `[ref: SDD/Runtime View; PRD/F1–F4]`
 

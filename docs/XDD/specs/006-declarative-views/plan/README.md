@@ -78,7 +78,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 - [ ] [Phase 3: Render + collapse + CSS](phase-3.md)
 - [ ] [Phase 4: WorkspaceView host, registration, follow, drill](phase-4.md)
 - [ ] [Phase 5: Seed extension + M4 Codex reconciliation](phase-5.md)
-- [ ] [Phase 6: Mockups, integration/E2E, gates, finalize](phase-6.md)
+- [ ] [Phase 6: Integration/E2E, gates, finalize](phase-6.md) — *mockups (T6.1) pulled forward & done*
 
 **Dependency graph**
 - Phase 1 and Phase 2 are independent → **parallel**.

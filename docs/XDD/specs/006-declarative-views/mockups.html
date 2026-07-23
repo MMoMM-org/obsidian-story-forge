@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — Declarative workspace views mockups (M5 / spec 006)</title>
+<style>
+  :root{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --link:#8b8bf0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    --warn:#e0a34a; --error:#e06a6a; --ok:#6ac47a; --unresolved:#7a6a55;
+    --scene:#e0a34a; --plotline:#8b98ab; --char:#8a7cf0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:30px 0 12px;border-bottom:1px solid var(--border);padding-bottom:6px}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:92ch}
+  .sub code,.legend code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .legend{color:var(--muted);font-size:12.5px;max-width:92ch;margin:0 0 22px}
+  .legend b{color:var(--text)}
+  table.inv{border-collapse:collapse;font-size:12.5px;margin:0 0 8px}
+  table.inv th,table.inv td{border:1px solid var(--border);padding:4px 10px;text-align:left;vertical-align:top}
+  table.inv th{color:var(--faint);font-weight:600}
+  .gallery{display:flex;flex-wrap:wrap;gap:28px 22px;align-items:flex-start}
+  figure{margin:0;width:420px}
+  figure.wide{width:560px}
+  figure.pair{width:auto}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:44px}
+  figcaption b{color:var(--text);font-weight:600}
+  .note{font-size:11px;color:var(--faint);margin-top:7px;max-width:60ch}
+  .note b{color:var(--muted)}
+
+  /* Panel / view chrome (same shell as M1–M4) */
+  .panel{width:420px;background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    overflow:hidden;display:flex;flex-direction:column;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .panel.wide{width:560px}
+  .panel.narrow{width:320px}
+  .vhead{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--header);border-bottom:1px solid var(--border)}
+  .vhead .name{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);font-weight:600;flex:1}
+  .toggle{display:flex;gap:0;border:1px solid var(--border-2);border-radius:6px;overflow:hidden}
+  .toggle span{font-size:11px;padding:2px 10px;color:var(--muted);cursor:pointer}
+  .toggle span.sel{background:var(--accent);color:#fff}
+  .icons{display:flex;gap:6px}
+  .icons span{width:20px;height:20px;display:grid;place-items:center;border-radius:4px;color:var(--faint);font-size:12px}
+  .icons span.on{color:var(--accent)}
+
+  .chead{display:flex;align-items:center;gap:8px;padding:9px 11px;border-bottom:1px solid var(--border)}
+  .chead .title{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+  .chead .back{color:var(--accent);font-weight:600;cursor:pointer;flex:none}
+  .badge{font-size:10px;text-transform:lowercase;padding:1px 8px;border-radius:10px;background:var(--pill);color:var(--pill-text);white-space:nowrap;flex:none}
+  .badge.scene{background:rgba(224,163,74,.16);color:var(--scene)}
+  .badge.character{background:rgba(138,124,240,.16);color:var(--char)}
+  .badge.plotline{background:rgba(139,152,171,.18);color:var(--plotline)}
+
+  .body{padding:8px 4px 10px;display:flex;flex-direction:column;gap:2px}
+
+  /* Collapsible group (reuses M3 section()) */
+  .section{display:flex;flex-direction:column;margin:2px 0}
+  .sec-head{display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 12px;color:var(--text);font-weight:600;font-size:12px}
+  .sec-head .chev{color:var(--faint);font-size:10px;width:10px}
+  .sec-head .count{margin-left:auto;font-size:10px;color:var(--faint);background:var(--panel-2);border-radius:8px;padding:0 7px}
+  .sec-head.plot{color:var(--plotline)}
+  .sec-head.unassigned{color:var(--faint);font-weight:500}
+  .sec-head.unresolved{color:var(--unresolved)}
+  .sec-rows{display:flex;flex-direction:column;gap:1px;padding:2px 0 4px}
+
+  /* Scene row: [when/idx] [scene link] [role/status tag] */
+  .row{display:grid;grid-template-columns:64px 1fr auto;align-items:center;gap:8px;padding:3px 12px 3px 24px;font-size:12px}
+  .row:hover{background:var(--hover)}
+  .row .when{color:var(--faint);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .when.dash{color:var(--border-2)}
+  .lnk{color:var(--link);text-decoration:none;cursor:pointer}
+  .lnk:hover{text-decoration:underline}
+  .tag{font-size:9.5px;text-transform:lowercase;padding:0 6px;border-radius:8px;background:var(--pill);color:var(--faint);white-space:nowrap}
+  .tag.pov{color:var(--pill-text)}
+  .unres{color:var(--unresolved);cursor:default}
+  .unres::after{content:" ⊘";font-size:10px}
+
+  .emptybox{padding:40px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+  .emptybox .glyph{font-size:26px;color:var(--faint)}
+  .emptybox .lead{color:var(--text);font-size:13px}
+  .emptybox .hint{font-size:12px;color:var(--faint);max-width:40ch}
+  .gridfoot{font-size:11px;color:var(--faint);padding:8px 12px;border-top:1px solid var(--border)}
+  .scopehint{font-size:11.5px;color:var(--warn);padding:6px 12px;border-bottom:1px solid var(--border);background:rgba(224,163,74,.07)}
+  .trail{font-size:11.5px;color:var(--faint);padding:6px 12px}
+  .trail .lnk{color:var(--link)}
+  .sidebyside{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<h1>Story Forge — Declarative workspace views (M5 / spec 006)</h1>
+<p class="sub">Two read-only, frontmatter-driven <b>main-area workspace views</b>: a linear
+<b>Timeline</b> (scenes by <code>storyDay</code>, fallback <code>order</code>, grouped by act,
+<code>when</code> as the label) and a <b>Plotlines</b> list (scenes grouped by <code>plotlines</code>,
+collapsible, "Unassigned" bucket). One polymorphic <code>story-forge-workspace</code> ItemView with a
+Timeline&nbsp;|&nbsp;Plotlines toggle. Data comes from a <code>metadataCache</code> scan — <b>no Bases
+dependency</b> (SDD ADR-1), so there is no Bases-off degrade. A scene click drills the M3 sidebar panel.
+Ships v0.3. Read-only (drag→frontmatter is M6).</p>
+
+<p class="legend">
+  <b>Numbering:</b> M4's highest S-number is S58 → M5 states start at <b>S59</b>. Reuses the M1–M4 shell
+  (<code>.vhead</code>, collapsible <code>.section</code>, <code>.lnk</code> rows, kind badges,
+  <code>.emptybox</code>). The earlier S63/S68 "Bases-off degrade" states are <b>superseded by ADR-1</b>
+  and re-purposed (S63 = "No act" bucket, S68 = unresolved-link group). Data is the (extended) seed —
+  Wardens of Moonharbor, plotline <b>The Dying Light</b> (+ a second arc for multi-membership).
+</p>
+
+<h2>State inventory (S59–S70)</h2>
+<table class="inv">
+<tr><th>S</th><th>State</th><th>Surface</th><th>Trigger</th></tr>
+<tr><td><b>S59</b></td><td>Timeline — populated (single act)</td><td>main / workspace</td><td>book scope, scenes present</td></tr>
+<tr><td><b>S60</b></td><td>Timeline — act boundary (2 acts)</td><td>main</td><td>scenes span act 1 & 2</td></tr>
+<tr><td><b>S61</b></td><td>Timeline — storyDay→order fallback</td><td>main</td><td>a scene has no <code>storyDay</code></td></tr>
+<tr><td><b>S62</b></td><td>Timeline — empty (no scenes in scope)</td><td>main</td><td>book with 0 scenes</td></tr>
+<tr><td><b>S63</b></td><td>Timeline — "No act" bucket</td><td>main</td><td>a scene has no <code>act</code></td></tr>
+<tr><td><b>S64</b></td><td>Plotlines — multiple groups</td><td>main</td><td>scenes across 2 plotlines</td></tr>
+<tr><td><b>S65</b></td><td>Plotlines — Unassigned bucket</td><td>main</td><td>a scene has no plotline</td></tr>
+<tr><td><b>S66</b></td><td>Plotlines — scene in multiple plotlines</td><td>main</td><td>one scene on 2 arcs</td></tr>
+<tr><td><b>S67</b></td><td>Plotlines — all groups collapsed</td><td>main</td><td>reading-mode focus</td></tr>
+<tr><td><b>S68</b></td><td>Plotlines — unresolved-link group</td><td>main</td><td>scene links a missing plotline</td></tr>
+<tr><td><b>S69</b></td><td>Workspace → sidebar panel drill-in</td><td>main + panel</td><td>scene row clicked</td></tr>
+<tr><td><b>S70</b></td><td>No-scope hint (non-book/plotline note)</td><td>main</td><td>active note yields no scope</td></tr>
+</table>
+
+<div class="gallery">
+
+<!-- ══ S59 Timeline populated ══ -->
+<figure>
+  <figcaption><b>S59 · Timeline — populated (single act)</b> — scenes ordered by <code>storyDay</code>, <code>when</code> as the leading label; day-1 tie broken by <code>order</code> (Scene 1 before 2).</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Timeline</span>
+      <div class="toggle"><span class="sel">Timeline</span><span>Plotlines</span></div></div>
+    <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head"><span class="chev">▼</span>Act 1<span class="count">3</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 1 — The Extinguished Fire</a><span class="tag pov">pov · Mara</span></div>
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 2 — The Salty Gull</a><span class="tag">draft</span></div>
+          <div class="row"><span class="when">Night 2</span><a class="lnk">Scene 3 — The Black Cliffs</a><span class="tag">outline</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="gridfoot">sorted by storyDay (order fallback) · read-only</div>
+  </div>
+  <div class="note">The deliberate opposite of "follow the active note": a book-wide overview. <code>when</code> is the label; ordering is driven by <code>storyDay</code> then <code>order</code>, never by <code>when</code>.</div>
+</figure>
+
+<!-- ══ S60 Timeline act boundary ══ -->
+<figure>
+  <figcaption><b>S60 · Timeline — act boundary</b> — two collapsible act group-headers; scenes chronological within each act.</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Timeline</span>
+      <div class="toggle"><span class="sel">Timeline</span><span>Plotlines</span></div></div>
+    <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head"><span class="chev">▼</span>Act 1<span class="count">3</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 1 — The Extinguished Fire</a><span class="tag pov">pov · Mara</span></div>
+          <div class="row"><span class="when">Night 2</span><a class="lnk">Scene 3 — The Black Cliffs</a><span class="tag">outline</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-head"><span class="chev">▼</span>Act 2<span class="count">1</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Dawn, day 4</span><a class="lnk">Scene 4 — The Lantern's Return</a><span class="tag">idea</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Act group-headers reuse the M3 <code>section()</code> collapse (chevron, count, <code>aria-expanded</code>) — the same delegated <code>data-sf-section-toggle</code> handler.</div>
+</figure>
+
+<!-- ══ S61 storyDay→order fallback ══ -->
+<figure>
+  <figcaption><b>S61 · Timeline — storyDay → order fallback</b> — a scene with no <code>storyDay</code> is placed by <code>order</code>; its <code>when</code> cell is blank (em-dash), never dropped.</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Timeline</span>
+      <div class="toggle"><span class="sel">Timeline</span><span>Plotlines</span></div></div>
+    <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head"><span class="chev">▼</span>Act 1<span class="count">3</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 1 — The Extinguished Fire</a><span class="tag pov">pov · Mara</span></div>
+          <div class="row"><span class="when dash">—</span><a class="lnk">Scene 2b — Interlude at the Docks</a><span class="tag">idea · order 2</span></div>
+          <div class="row"><span class="when">Night 2</span><a class="lnk">Scene 3 — The Black Cliffs</a><span class="tag">outline</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Sort key = coalesce(<code>storyDay</code>, <code>order</code>). No <code>storyDay</code> → placed by <code>order</code> (here between day-1 and day-2 by its order value); no story-time label shown.</div>
+</figure>
+
+<!-- ══ S62 Timeline empty ══ -->
+<figure>
+  <figcaption><b>S62 · Timeline — empty</b> — a book in scope with zero scenes. Honest empty-state, never a blank host.</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Timeline</span>
+      <div class="toggle"><span class="sel">Timeline</span><span>Plotlines</span></div></div>
+    <div class="chead"><span class="title">The Second Book</span><span class="badge scene">book scope</span></div>
+    <div class="emptybox">
+      <div class="glyph">🕰</div>
+      <div class="lead">No scenes in this book yet.</div>
+      <div class="hint">Scenes are notes tagged <code>manuscript/scene</code> with a <code>storyDay</code> or <code>order</code>.</div>
+    </div>
+  </div>
+  <div class="note">Mirrors the M4 S45 per-category empty pattern.</div>
+</figure>
+
+<!-- ══ S63 Timeline "No act" bucket (repurposed) ══ -->
+<figure>
+  <figcaption><b>S63 · Timeline — "No act" bucket</b> <span style="color:var(--faint)">(re-purposed from the superseded degrade state)</span> — scenes with no <code>act</code> collect in a trailing group, still chronologically ordered.</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Timeline</span>
+      <div class="toggle"><span class="sel">Timeline</span><span>Plotlines</span></div></div>
+    <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head"><span class="chev">▼</span>Act 1<span class="count">3</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 1 — The Extinguished Fire</a><span class="tag pov">pov · Mara</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-head unassigned"><span class="chev">▼</span>No act<span class="count">1</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">—</span><a class="lnk">Fragment — untitled beat</a><span class="tag">idea</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Parallels the Plotlines "Unassigned" bucket — un-acted scenes are surfaced, muted, and last, never hidden.</div>
+</figure>
+
+<!-- ══ S64 Plotlines multiple groups ══ -->
+<figure>
+  <figcaption><b>S64 · Plotlines — multiple groups</b> — scenes grouped by the plotline they advance; each group collapsible with a scene count.</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Plotlines</span>
+      <div class="toggle"><span>Timeline</span><span class="sel">Plotlines</span></div></div>
+    <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head plot"><span class="chev">▼</span>The Dying Light<span class="count">3</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 1 — The Extinguished Fire</a><span class="tag pov">pov</span></div>
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 2 — The Salty Gull</a><span class="tag">draft</span></div>
+          <div class="row"><span class="when">Night 2</span><a class="lnk">Scene 3 — The Black Cliffs</a><span class="tag">outline</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-head plot"><span class="chev">▼</span>Mara's Awakening<span class="count">1</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 2</span><a class="lnk">Scene 3 — The Black Cliffs</a><span class="tag">outline</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Groups ordered by plotline name. A scene may appear under more than one arc (see S66).</div>
+</figure>
+
+<!-- ══ S65 Plotlines Unassigned bucket ══ -->
+<figure>
+  <figcaption><b>S65 · Plotlines — Unassigned bucket</b> — scenes with no <code>plotlines</code> collect in a trailing, muted "Unassigned" group for triage.</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Plotlines</span>
+      <div class="toggle"><span>Timeline</span><span class="sel">Plotlines</span></div></div>
+    <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head plot"><span class="chev">▼</span>The Dying Light<span class="count">3</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 1 — The Extinguished Fire</a><span class="tag pov">pov</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-head unassigned"><span class="chev">▼</span>Unassigned<span class="count">1</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 3</span><a class="lnk">Scene 5 — A Quiet Morning</a><span class="tag">idea</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">"Unassigned" = <code>plotlines</code> absent or empty <code>[]</code>. Shown last, muted — the author's "loose ends" checklist.</div>
+</figure>
+
+<!-- ══ S66 Plotlines scene in multiple plotlines ══ -->
+<figure>
+  <figcaption><b>S66 · Plotlines — scene in multiple plotlines</b> — Scene 3 advances two arcs, so it appears under <b>both</b> groups (counts are per-scene-per-arc, intentionally).</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Plotlines</span>
+      <div class="toggle"><span>Timeline</span><span class="sel">Plotlines</span></div></div>
+    <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head plot"><span class="chev">▼</span>The Dying Light<span class="count">2</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 2</span><a class="lnk">Scene 3 — The Black Cliffs</a><span class="tag">also in: Mara's Awakening</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-head plot"><span class="chev">▼</span>Mara's Awakening<span class="count">1</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 2</span><a class="lnk">Scene 3 — The Black Cliffs</a><span class="tag">also in: The Dying Light</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Repeat-under-each-group (no "primary plotline" concept in the schema). The optional "also in: …" cue makes multi-membership read clearly.</div>
+</figure>
+
+<!-- ══ S67 Plotlines all collapsed ══ -->
+<figure>
+  <figcaption><b>S67 · Plotlines — all groups collapsed</b> — every arc collapsed to header + count; collapse persists per view + scope + group (F8).</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Plotlines</span>
+      <div class="toggle"><span>Timeline</span><span class="sel">Plotlines</span></div></div>
+    <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+    <div class="body">
+      <div class="section"><div class="sec-head plot"><span class="chev">▶</span>The Dying Light<span class="count">3</span></div></div>
+      <div class="section"><div class="sec-head plot"><span class="chev">▶</span>Mara's Awakening<span class="count">1</span></div></div>
+      <div class="section"><div class="sec-head unassigned"><span class="chev">▶</span>Unassigned<span class="count">1</span></div></div>
+    </div>
+  </div>
+  <div class="note">Collapsing arcs in Book A does not collapse them in Book B (keyed by view+scope+group, SDD ADR-6).</div>
+</figure>
+
+<!-- ══ S68 Plotlines unresolved-link group (repurposed) ══ -->
+<figure>
+  <figcaption><b>S68 · Plotlines — unresolved-link group</b> <span style="color:var(--faint)">(re-purposed from the superseded degrade state)</span> — a scene links <code>[[Ghost Arc]]</code> with no such note → its own flagged group, distinct from "Unassigned".</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Plotlines</span>
+      <div class="toggle"><span>Timeline</span><span class="sel">Plotlines</span></div></div>
+    <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head plot"><span class="chev">▼</span>The Dying Light<span class="count">3</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 1 — The Extinguished Fire</a><span class="tag pov">pov</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-head unresolved"><span class="chev">▼</span><span class="unres">Ghost Arc</span><span class="count">1</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 4</span><a class="lnk">Scene 6 — The Whispering Dark</a><span class="tag">idea</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">A broken plotline link is surfaced (flagged ⊘), not hidden and not merged into "Unassigned" (no plotline at all) — SDD ADR-7.</div>
+</figure>
+
+<!-- ══ S69 Workspace → panel drill-in ══ -->
+<figure class="pair">
+  <figcaption><b>S69 · Workspace → sidebar panel drill-in</b> — clicking Scene 1 in the Timeline re-subjects the M3 sidebar panel to that scene (the M4 S56 <code>showFile</code> seam); overview + detail in tandem.</figcaption>
+  <div class="sidebyside">
+    <div class="panel wide">
+      <div class="vhead"><span class="name">Story Forge · Timeline</span>
+        <div class="toggle"><span class="sel">Timeline</span><span>Plotlines</span></div></div>
+      <div class="chead"><span class="title">Wardens of Moonharbor</span><span class="badge scene">book scope</span></div>
+      <div class="body">
+        <div class="section">
+          <div class="sec-head"><span class="chev">▼</span>Act 1<span class="count">3</span></div>
+          <div class="sec-rows">
+            <div class="row" style="background:rgba(124,108,240,.12);box-shadow:inset 3px 0 0 var(--accent)"><span class="when">Night 1</span><a class="lnk">▸ Scene 1 — The Extinguished Fire ◂</a><span class="tag pov">pov · Mara</span></div>
+            <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 2 — The Salty Gull</a><span class="tag">draft</span></div>
+            <div class="row"><span class="when">Night 2</span><a class="lnk">Scene 3 — The Black Cliffs</a><span class="tag">outline</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel narrow">
+      <div class="vhead"><span class="name">Story Forge</span><div class="icons"><span>✎</span><span>📌</span></div></div>
+      <div class="chead"><span class="back">‹ Back</span><span class="title">Scene 1 — The Extinguished Fire</span><span class="badge scene">scene</span></div>
+      <div class="trail">from <a class="lnk">Timeline</a> › Scene 1</div>
+      <div class="body">
+        <div class="section"><div class="sec-head"><span class="chev">▼</span>Point of view</div>
+          <div class="sec-rows"><div class="row" style="grid-template-columns:1fr auto;padding-left:24px"><a class="lnk">Mara Stoneway</a><span class="tag pov">pov</span></div></div></div>
+        <div class="section"><div class="sec-head"><span class="chev">▼</span>Reading order</div>
+          <div class="sec-rows">
+            <div class="row" style="grid-template-columns:44px 1fr;padding-left:24px"><span class="when">prev</span><span class="when dash">—</span></div>
+            <div class="row" style="grid-template-columns:44px 1fr;padding-left:24px"><span class="when">next</span><a class="lnk">Scene 2 — The Salty Gull</a></div>
+          </div></div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Reuses the existing <code>SidebarView.showFile</code> → <code>_drillInto</code> → <code>navStack</code> seam; ‹ Back + trail pop back to the workspace context. Modifier-click opens the note instead (per the setting).</div>
+</figure>
+
+<!-- ══ S70 No-scope hint ══ -->
+<figure>
+  <figcaption><b>S70 · No-scope hint</b> — the active note is a character (yields no book/plotline). The view falls back to whole-vault book scope with a non-blocking hint, never empty or broken.</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge · Timeline</span>
+      <div class="toggle"><span class="sel">Timeline</span><span>Plotlines</span></div></div>
+    <div class="scopehint">⚠ Not scoped to a book or plotline (active note: <b>Mara Stoneway</b>) — showing all scenes.</div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head"><span class="chev">▼</span>Act 1<span class="count">3</span></div>
+        <div class="sec-rows">
+          <div class="row"><span class="when">Night 1</span><a class="lnk">Scene 1 — The Extinguished Fire</a><span class="tag pov">pov · Mara</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Fallback per PRD F3 AC-4: never a dead-end. When the author opens a book or plotline note, the hint clears and the view re-scopes.</div>
+</figure>
+
+</div>
+</body>
+</html>
