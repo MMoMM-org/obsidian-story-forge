@@ -522,6 +522,13 @@ Continue the S-scheme from **S58** → **S59–S70** (from UX research):
   - **Alignment note:** book and plotline notes both live in `20 Planning/` — the seam MUST
     distinguish them by `type`/tag (`type: book` vs `type: plotline`), NOT by folder. `activeKind`
     already carries this (`book`/`plotline`/`scene`).
+  - **Folder exclusion (structure-agnostic):** the seam INCLUDES scenes by tag/type (never by
+    folder — the plugin must not impose a vault structure) and EXCLUDES notes in configured
+    folders (templates carry the same tags). M5 uses a module constant
+    `DEFAULT_EXCLUDED_FOLDERS = ["00 Meta"]`, clearly marked to be replaced by a future
+    `excludedFolders` **settings picker** (deferred per the 2026-07-23 decision — see the
+    project memory / spec-005 debt note). This keeps M5 correct today with no rework when the
+    setting lands.
   - Trade-offs: net-new code; multi-book scope selector deferred (F10). Accepted.
   - User confirmed: **Yes (derived from the locked scope decision)**
 

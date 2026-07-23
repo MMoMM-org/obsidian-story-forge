@@ -33,8 +33,8 @@ Delivers active-note → scene-set scoping, the single biggest net-new correctne
 - [ ] **T2.1 resolveWorkspaceScope** `[activity: domain-modeling]` `[ref: SDD/ADR-4; PRD/F3]`
 
   1. Prime: Read `NoteContext.activeKind` + how scenes reference `book`/`plotlines` `[ref: schema/scene.json]`; the M3 resolve pattern `[ref: src/scoping/ScopingService.ts]`.
-  2. Test (RED): active note is a **book** → `{kind:"book", ref}` + all scenes whose `book` links ref; active note is a **plotline** → `{kind:"plotline", ref}` + scenes linking it; active note is a **scene** → scope to that scene's `book`; active note is a character/other/null → `{kind:"none"}` + whole-vault book scenes; unresolved/`[[ ]]`-wrapped links tolerated; never throws.
-  3. Implement (GREEN): Create `src/scoping/workspaceScope.ts` — `WorkspaceScope`, `ResolvedScope`, `resolveWorkspaceScope(app, activeFile)` using `metadataCache` (`getFileCache`, `getFirstLinkpathDest`, `resolvedLinks`).
+  2. Test (RED): active note is a **book** → `{kind:"book", ref}` + all scenes whose `book` links ref; active note is a **plotline** → `{kind:"plotline", ref}` + scenes linking it; active note is a **scene** → scope to that scene's `book`; active note is a character/other/null → `{kind:"none"}` + whole-vault book scenes; unresolved/`[[ ]]`-wrapped links tolerated; never throws. **Scenes are included by tag/type; notes in `DEFAULT_EXCLUDED_FOLDERS = ["00 Meta"]` are excluded** (so the seeded `scene.md` template is never surfaced) — structure-agnostic include + folder-denylist exclude, marked to become the future `excludedFolders` settings picker (deferred).
+  3. Implement (GREEN): Create `src/scoping/workspaceScope.ts` — `WorkspaceScope`, `ResolvedScope`, `resolveWorkspaceScope(app, activeFile)` + `DEFAULT_EXCLUDED_FOLDERS` using `metadataCache` (`getFileCache`, `getFirstLinkpathDest`, `resolvedLinks`).
   4. Validate: `test/scoping/workspaceScope.test.ts` green with a mocked `app`/`metadataCache`; lint; types.
   5. Success:
      - [ ] Book/plotline/scene active notes yield the correct scene set (seed: 3 scenes for the book) `[ref: PRD/AC-T7, AC-P6]`
