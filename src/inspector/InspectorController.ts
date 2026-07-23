@@ -400,7 +400,14 @@ export class InspectorController {
 		}
 	}
 
-	/** Render a list or tags field as read-only comma-joined chips. */
+	/**
+	 * Render a list or tags field as read-only chips.
+	 *
+	 * Items written as `[[wikilinks]]` (relation lists — characters, plotlines,
+	 * prev, next, family, …) resolve to clickable link chips carrying data-sf-link
+	 * (routed by SidebarView's delegated handler), mirroring _renderRelationChip.
+	 * Plain-string lists (aliases, tags, distinctive_features) stay as text chips.
+	 */
 	private _renderListChips(
 		fieldRow: HTMLElement,
 		state: FieldState,
@@ -418,14 +425,31 @@ export class InspectorController {
 			fieldRow.appendChild(emptyEl);
 			return;
 		}
+		const sourcePath = this.ctx?.activeFile.path ?? "";
 		const chipsEl = activeDocument.createElement("div");
 		chipsEl.className = "sf-inspector-chips";
 		for (const item of items) {
-			const chip = activeDocument.createElement("span");
-			chip.className = "sf-inspector-chip";
-			chip.setAttribute("data-sf-inspector-ro", "true");
-			chip.textContent = item;
-			chipsEl.appendChild(chip);
+			const linkMatch = /^\[\[(.+?)\]\]$/.exec(item);
+			const linkText = linkMatch?.[1];
+			if (linkText) {
+				// Wikilink item → clickable chip (or muted unresolved treatment).
+				const resolved = this.app.metadataCache.getFirstLinkpathDest(linkText, sourcePath);
+				if (resolved) {
+					const chip = activeDocument.createElement("span");
+					chip.className = "sf-inspector-chip sf-inspector-chip-link";
+					chip.appendChild(stampLinkEl(resolved.basename, resolved.path));
+					chipsEl.appendChild(chip);
+				} else {
+					chipsEl.appendChild(unresolvedEl(linkText));
+				}
+			} else {
+				// Plain-string list item → non-clickable text chip.
+				const chip = activeDocument.createElement("span");
+				chip.className = "sf-inspector-chip";
+				chip.setAttribute("data-sf-inspector-ro", "true");
+				chip.textContent = item;
+				chipsEl.appendChild(chip);
+			}
 		}
 		fieldRow.appendChild(chipsEl);
 	}

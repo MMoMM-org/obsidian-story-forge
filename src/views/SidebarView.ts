@@ -167,6 +167,11 @@ export class SidebarView extends ItemView {
 	// Created once; torn down on onClose/re-subject via controller.teardown().
 	private _inspector: InspectorController | null = null;
 
+	// Context-tab detail mode. false = styled read-only M3 view (default);
+	// true = editable Inspector. Toggled by the header pencil button. Transient —
+	// resets to view on reload; discards unsaved Inspector drafts when switched off.
+	private _editMode = false;
+
 	// T4.2: reads the live linkClickAction setting. Threaded as a getter (not a
 	// captured value) because main.ts reassigns this.settings on load — a captured
 	// reference would go stale. Defaults to "drill" when no getter is injected.
@@ -370,6 +375,20 @@ export class SidebarView extends ItemView {
 		this._updatePinButton();
 	}
 
+	/**
+	 * Toggle the Context-tab detail between the styled read-only M3 view (default)
+	 * and the editable Inspector. Tears down the Inspector first so any unsaved
+	 * transient drafts are discarded (CON-1), then re-renders via the standard
+	 * state pipeline (same trigger togglePin uses).
+	 */
+	toggleEditMode(): void {
+		this._editMode = !this._editMode;
+		// Discard in-flight drafts when leaving (or re-entering) edit mode.
+		this._inspector?.teardown();
+		this._renderState(this._computeState());
+		this._updateEditButton();
+	}
+
 	// -------------------------------------------------------------------------
 	// Follow pipeline
 	// -------------------------------------------------------------------------
@@ -511,6 +530,7 @@ export class SidebarView extends ItemView {
 
 	/** Header elements — stored as refs for pin button update. */
 	private _pinBtn: HTMLButtonElement | null = null;
+	private _editBtn: HTMLButtonElement | null = null;
 	private _titleEl: HTMLElement | null = null;
 	private _badgeEl: HTMLElement | null = null;
 	private _pinTagEl: HTMLElement | null = null;
@@ -536,6 +556,18 @@ export class SidebarView extends ItemView {
 		this._pinBtn = pinBtn;
 		this.registerDomEvent(pinBtn, "click", () => { this.togglePin(); });
 		icons.appendChild(pinBtn);
+
+		// Edit-mode toggle (pencil) — switches the Context-tab detail between the
+		// styled read-only M3 view (default) and the editable Inspector. Mirrors
+		// the pin button pattern (aria-pressed + active class).
+		const editBtn = activeDocument.createElement("button");
+		editBtn.className = "sf-edit-btn";
+		editBtn.setAttribute("aria-pressed", "false");
+		editBtn.setAttribute("aria-label", "Toggle edit mode");
+		editBtn.textContent = "✎";
+		this._editBtn = editBtn;
+		this.registerDomEvent(editBtn, "click", () => { this.toggleEditMode(); });
+		icons.appendChild(editBtn);
 
 		// Context header (chead: Back + title + pin-tag + badge)
 		const chead = ce.createDiv({ cls: "sf-chead" });
@@ -1128,15 +1160,26 @@ export class SidebarView extends ItemView {
 
 		const view = this.currentRecord;
 
-		// No view tab selected (Context tab) → Inspector owns the entire unified detail.
-		// T5.3: nativeEngine.render is NOT called here. The Inspector renders ALL fields
-		// exactly once: editable scalar/enum inputs (F6) + read-only relation/list/tags/fixed
-		// chips (F8). This prevents the double-render that occurred when nativeEngine produced
-		// M3 read-only rows and the Inspector also rendered editable inputs for the same fields.
-		// nativeEngine.render still runs in the view-selected + engine-missing branch below.
+		// No view tab selected (Context tab) → View/Edit toggle owns the detail.
+		//   view mode (default): the styled read-only M3 panel via nativeEngine.render
+		//     (sections + clickable wikilink lists — the surface the M3 renderers own).
+		//   edit mode: the Inspector renders editable scalar/enum inputs (F6) + read-only
+		//     relation/list chips (F8), exactly once (no double-render).
+		// The pencil toggle in the header flips _editMode and re-renders through here.
 		if (!view) {
 			this._prepareBody(body);
-			this._renderInspector(body, ctx);
+			// Edit mode only applies to inspectable entity notes; for anything else
+			// (unknown kind, no fields) fall through to the styled read-only view so
+			// the panel is never blank.
+			const inspectable =
+				ctx.activeKind !== "unknown" && inspectorFields(ctx.activeKind).length > 0;
+			if (this._editMode && inspectable) {
+				this._renderInspector(body, ctx);
+			} else {
+				await this.nativeEngine.render(null, ctx, body);
+				if (gen !== this._renderGen) return;
+				this.currentEngine = this.nativeEngine;
+			}
 			return;
 		}
 
@@ -1438,5 +1481,11 @@ export class SidebarView extends ItemView {
 		const isPinned = this.subject.source === "pinned";
 		this._pinBtn.setAttribute("aria-pressed", isPinned ? "true" : "false");
 		this._pinBtn.classList.toggle("sf-pin-active", isPinned);
+	}
+
+	private _updateEditButton(): void {
+		if (!this._editBtn) return;
+		this._editBtn.setAttribute("aria-pressed", this._editMode ? "true" : "false");
+		this._editBtn.classList.toggle("sf-edit-active", this._editMode);
 	}
 }

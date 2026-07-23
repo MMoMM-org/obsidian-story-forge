@@ -160,6 +160,38 @@ body {
 	outline-offset: 1px;
 }
 
+/* Edit-mode toggle (pencil) — shares the pin button's chrome. */
+.sf-edit-btn {
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-faint);
+	font-size: 13px;
+	line-height: 1;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.sf-edit-btn:hover {
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+}
+
+.sf-edit-btn.sf-edit-active {
+	color: var(--text-accent);
+	background: var(--background-modifier-hover);
+}
+
+.sf-edit-btn:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
 /* --- Context header (chead): note title + pin tag + entity badge ---------- */
 .sf-chead {
 	display: flex;
@@ -1492,4 +1524,176 @@ body {
 
 .sf-trail-cur {
 	color: var(--text-normal);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Inspector (edit mode) — F6. Flat labelled form; number inputs read narrower
+ * than text so field kinds are visually distinct. Ported from mockups S52–S55.
+ * ═════════════════════════════════════════════════════════════════════════ */
+.sf-inspector-host {
+	display: flex;
+	flex-direction: column;
+	gap: 9px;
+	padding: 4px 0;
+}
+
+.sf-inspector-field {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	font-size: 12px;
+}
+
+.sf-inspector-label {
+	width: 96px;
+	flex: none;
+	color: var(--text-faint);
+}
+
+.sf-inspector-input {
+	flex: 1;
+	min-width: 0;
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 5px;
+	background: var(--background-modifier-form-field);
+	color: var(--text-normal);
+	font-size: 12px;
+	font-family: inherit;
+}
+
+.sf-inspector-input:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+/* Number inputs read narrower than free text (fixes "all boxes same size"). */
+.sf-inspector-number {
+	flex: none;
+	max-width: 90px;
+}
+
+.sf-inspector-select {
+	cursor: pointer;
+}
+
+/* Read-only value + chips (F8) */
+.sf-inspector-readonly-value {
+	flex: 1;
+	color: var(--text-muted);
+}
+
+.sf-inspector-chips {
+	flex: 1;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+}
+
+.sf-inspector-chip {
+	display: inline-flex;
+	align-items: center;
+	padding: 1px 9px;
+	border-radius: 10px;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: 11px;
+}
+
+/* Wikilink chips carry an M3 link inside — reuse the accent link treatment. */
+.sf-inspector-chip-link,
+.sf-inspector-ro-chip {
+	padding: 0;
+	background: transparent;
+}
+
+.sf-inspector-chip-link .sf-lrow-lnk,
+.sf-inspector-ro-chip .sf-lrow-lnk {
+	color: var(--text-accent);
+	cursor: pointer;
+}
+
+.sf-inspector-chip-link .sf-lrow-lnk:hover,
+.sf-inspector-ro-chip .sf-lrow-lnk:hover {
+	text-decoration: underline;
+}
+
+/* Commit / feedback affordances */
+.sf-inspector-commit-btn,
+.sf-inspector-retry-btn {
+	flex: none;
+	padding: 2px 8px;
+	border-radius: 5px;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.sf-inspector-error {
+	flex: none;
+	color: var(--text-error);
+	font-size: 11px;
+}
+
+.sf-inspector-advisory {
+	flex: none;
+	color: var(--text-muted);
+	font-size: 11px;
+	font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Codex grid — F2. Read-only category table with a leading clickable Name
+ * column. The grid template is driven by --sf-codex-cols (set per category by
+ * codexGrid.ts) so the header and every row share one template. Ported from
+ * mockup S44 (.grid).
+ * ═════════════════════════════════════════════════════════════════════════ */
+.sf-codex-header,
+.sf-codex-row {
+	display: grid;
+	grid-template-columns: var(--sf-codex-cols, minmax(120px, 1.4fr) repeat(3, minmax(70px, 1fr)));
+	align-items: center;
+	gap: 10px;
+	padding: 6px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: 12.5px;
+}
+
+.sf-codex-header {
+	background: var(--background-secondary);
+	color: var(--text-faint);
+	font-size: 11px;
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.sf-codex-row {
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.sf-codex-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.sf-codex-cell {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sf-codex-name-link {
+	color: var(--text-accent);
+	font-weight: var(--font-medium);
+}
+
+.sf-codex-row:hover .sf-codex-name-link {
+	text-decoration: underline;
+}
+
+.sf-codex-empty {
+	padding: 24px 12px;
+	color: var(--text-muted);
+	font-size: 12.5px;
+	text-align: center;
 }

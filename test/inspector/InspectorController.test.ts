@@ -1164,6 +1164,38 @@ describe("InspectorController: T5.3 unified detail — read-only relation/list f
 		expect(container.textContent).toContain("Jonas Kell");
 	});
 
+	it("list field with [[wikilink]] items → resolved items become clickable link chips (data-sf-link)", () => {
+		// Relation-style list (characters, plotlines, prev, next …) stored as
+		// [[wikilinks]]. Resolved items must be clickable, not plain text.
+		const mara = makeFile("30 Canon/31 Characters/Mara Stoneway.md");
+		const jonas = makeFile("30 Canon/31 Characters/Jonas Kell.md");
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((link: string) => {
+			if (link === "Mara Stoneway") return mara;
+			if (link === "Jonas Kell") return jonas;
+			return null;
+		});
+
+		const ctx = makeCtx(file, "scene", { characters: ["[[Mara Stoneway]]", "[[Jonas Kell]]"] });
+		const { container } = buildController(app, file, ctx, [makeListField("characters")]);
+
+		const links = container.querySelectorAll(".sf-lrow-lnk[data-sf-link]");
+		expect(links.length).toBe(2);
+		const paths = Array.from(links).map((l) => l.getAttribute("data-sf-link"));
+		expect(paths).toContain(mara.path);
+		expect(paths).toContain(jonas.path);
+	});
+
+	it("list field with plain (non-wikilink) items → stays non-clickable text chips", () => {
+		// Plain string lists (aliases, distinctive_features) must NOT be linkified.
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValue(null);
+		const ctx = makeCtx(file, "character", { aliases: ["Spark", "Al"] });
+		const { container } = buildController(app, file, ctx, [makeListField("aliases")]);
+
+		expect(container.querySelector("[data-sf-link]")).toBeNull();
+		expect(container.textContent).toContain("Spark");
+		expect(container.textContent).toContain("Al");
+	});
+
 	// -------------------------------------------------------------------------
 	// Tags field → read-only, not editable
 	// -------------------------------------------------------------------------

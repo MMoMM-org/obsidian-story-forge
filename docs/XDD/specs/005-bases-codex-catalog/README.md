@@ -6,14 +6,14 @@
 |-------|-------|
 | **Created** | 2026-07-21 |
 | **Current Phase** | Implemented |
-| **Last Updated** | 2026-07-22 |
+| **Last Updated** | 2026-07-23 |
 
 ## Documents
 
 | Document | Status | Notes |
 |----------|--------|-------|
 | requirements.md | completed | M4 PRD — F1–F6 (+F7/F8 Should), 42 Gherkin ACs; 6 SDD-level open questions |
-| mockups.html | completed | 14 styled states S44–S57 (Codex/Overview grids · catalog modal · Inspector form), M3 visual shell |
+| mockups.html | completed | 15 styled states S44–S58 (Codex/Overview grids · catalog modal · Inspector form · S58 View/Edit toggle), M3 visual shell |
 | solution.md | completed | SDD — ADR-1…ADR-10 (all confirmed); validated (PRD coverage ✓, all 13 code citations ✓, no FAILs); 2 findings applied |
 | plan/ | completed | 7 phases (0–6), 28 TDD tasks; every F1–F8 AC + SDD component mapped; alignment-checked (all modify-targets confirmed, no drift) |
 
@@ -23,6 +23,7 @@
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
+| 2026-07-23 | **Pre-tag M4 defect-fix round (seed-vault walk)** | The recommended pre-tag manual walk surfaced six side-panel/Codex defects; all fixed on `bases-codex-catalog` before the v0.2 tag. Root causes + fixes: **(a/c/d)** T5.3 had let the Inspector own the whole Context-tab detail, dropping M3 styling and rendering relation lists (`characters`/`plotlines`/`prev`/`next`) as plain text. Reverted to **View-default + Edit toggle**: the Context tab renders the styled read-only M3 `renderPanel` (`nativeEngine.render(null, …)`) by default; a header **pencil toggle** (`_editMode`, beside the pin) switches to the editable Inspector (new mockup **S58**). **(b/e)** `styles.css` shipped with **zero** `sf-inspector-*` / `sf-codex-*` rules → unstyled form + grid, all inputs equal width; ported the mockup CSS (`.form/.field`, `.grid`), number inputs now narrower than text. **(c, edit mode)** Inspector list/relation chips now resolve `[[wikilinks]]` to clickable `data-sf-link` chips. **(f)** `Codex.base` top-level filter was `and` of mutually-exclusive tags (→ 0 rows) and per-view `category` was **plural** (code expects singular `EntityKind`) → every category empty/`unknown`; fixed to `or` + singular, and **promoted `Codex.base` into `infra/Bases/`** (was only a hand-placed test fixture — never deployed to real vaults; now shipped via `schema-gen`). Codex grid gained a leading clickable **Name** column (mockup S44). Gates green: test **1420** (+11), lint, typecheck (src/test/mock), schema:check, catalog:build, build. Still not merged to `main`; **v0.2 tag still pending**. |
 | 2026-07-22 | **Implementation complete** | M4 shipped on branch `bases-codex-catalog` (Phases 0–6, all TDD-gated). Delivered: F1 sidepanel Bases fence engine, F2 Codex (`registerBasesView`), F3 five overview `.base` views + F4 offline checksummed catalog pipeline & 1-click install (`CatalogService` fail-closed, `BrowseOfficialModal`), F6 Inspector (validate-before-write, dirty-guard, unified detail per S52), F8 read-only relation/list, F7 update-available, ADR-10 bases-on-mobile `platform-restricted` gate. Gates green: test 1409, lint, typecheck, typecheck:test, schema:check, catalog:build, build. Not yet merged to `main`; **v0.2 tag pending (manual — auto-release paused)**. Manual seed-vault walk (Journeys A–D / S44–S57) recommended pre-tag. Review-caught bugs fixed: bases-record engine mis-routing (T4.4), Inspector dirty-guard no-op + `inspectorFields` schema drift (T5.2), unified-detail double-render (T5.3, S52), missing bases-on-mobile gate (T6.4). |
 | 2026-07-21 | Scaffold spec 005-bases-codex-catalog | M4 milestone per `docs/build-plan.md` (slug `bases-codex-catalog`, ships v0.2); next after M3 (spec 004, Implemented). Adds native Obsidian Bases as a view engine + Codex/catalog + editable Inspector. |
 | 2026-07-21 | **Bases integration strategy (gate) → [ADR-0001](../../adr/0001-bases-integration-strategy.md)** | Spike verdict (verified against `obsidian.d.ts` 1.13.1 + docs + plugin survey): (1) sidepanel Bases engine = markdown ```base``` fence via `MarkdownRenderer` (read-only); (2) Codex/catalog general views = `registerBasesView` custom view types (bound to Bases API — **user-confirmed**); (3) Inspector/interactive = custom DOM + `processFrontMatter`. No public embed/results or write-back API exists; do not depend on 3rd-party plugins. minAppVersion + API-churn implications noted. |

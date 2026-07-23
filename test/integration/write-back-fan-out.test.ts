@@ -223,6 +223,10 @@ async function mountAndRenderInspector(
 	frontmatter: Record<string, unknown> = {},
 ): Promise<InspectorHarness> {
 	const view = await mountSidebar(app);
+	// The Context-tab detail defaults to the read-only M3 view; these fan-out tests
+	// exercise the editable Inspector, so switch the panel into edit mode before it
+	// renders (so `.sf-inspector-host` appears in the panel and re-renders on fan-out).
+	(view as unknown as { _editMode: boolean })._editMode = true;
 	await followFile(app, view, charFile);
 
 	const privateView = view as unknown as { _inspector: InspectorController | null };

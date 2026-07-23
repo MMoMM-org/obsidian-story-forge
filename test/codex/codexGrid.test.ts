@@ -124,6 +124,52 @@ describe("buildCodexGrid — row data-path", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Leading Name column (mockup S44) — entity identity + link cue
+// ---------------------------------------------------------------------------
+
+describe("buildCodexGrid — Name column", () => {
+	it("renders a leading 'Name' header column", () => {
+		const container = makeContainer();
+		buildCodexGrid(container, {
+			category: "character",
+			rows: [makeRow()],
+			onRowClick: vi.fn(),
+		});
+
+		const nameHead = container.querySelector(".sf-codex-header [data-column-id='name']");
+		expect(nameHead).not.toBeNull();
+		expect(nameHead!.textContent).toBe("Name");
+	});
+
+	it("renders each row's name (note basename) as a link cell derived from the path", () => {
+		const container = makeContainer();
+		buildCodexGrid(container, {
+			category: "character",
+			rows: [{ path: "30 Canon/31 Characters/Mara Stoneway.md", fields: {} }],
+			onRowClick: vi.fn(),
+		});
+
+		const nameLink = container.querySelector(".sf-codex-row .sf-codex-name-link");
+		expect(nameLink).not.toBeNull();
+		expect(nameLink!.textContent).toBe("Mara Stoneway");
+	});
+
+	it("clicking the name cell routes onRowClick with the row path", () => {
+		const container = makeContainer();
+		const onRowClick = vi.fn();
+		buildCodexGrid(container, {
+			category: "character",
+			rows: [{ path: "30 Canon/31 Characters/Mara Stoneway.md", fields: {} }],
+			onRowClick,
+		});
+
+		const nameLink = container.querySelector(".sf-codex-name-link") as HTMLElement;
+		nameLink.click();
+		expect(onRowClick).toHaveBeenCalledWith("30 Canon/31 Characters/Mara Stoneway.md");
+	});
+});
+
+// ---------------------------------------------------------------------------
 // Empty state (S45)
 // ---------------------------------------------------------------------------
 

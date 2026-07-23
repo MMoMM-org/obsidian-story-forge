@@ -336,12 +336,14 @@ Data is real, from <code>test/StoryForge/</code> (Wardens of Moonharbor), verifi
   <b>main-area</b> surfaces (Bases <code>registerBasesView</code>) and are click-through browsers only;
   the <b>sidepanel <code>.base</code> fence</b> is <b>read-only</b>; the <b>Inspector</b> is the <b>only
   editable surface</b> — its commits write <b>plain frontmatter</b> (Story Forge never owns state).
+  The Context tab defaults to the <b>read-only M3 view</b>; a <b>pencil <code>&#9998;</code> toggle</b> beside
+  the pin opens the Inspector and back (<b>S58</b>) — View and Edit share one visual language.
   <b>&#9679;</b> not installed &#183; <b>&#10003;</b> installed &#183; <b>&#11014;</b> update &#183;
   <b>&#9888;</b> runs code &#183; kind badges:
   <span class="kinds"><b class="kb-character">character</b><b class="kb-location">location</b><b class="kb-object">object</b><b class="kb-lore">lore</b><b class="kb-scene">scene</b><b class="kb-plotline">plotline</b></span>
 </p>
 
-<h2>State inventory (S44–S57)</h2>
+<h2>State inventory (S44–S58)</h2>
 <table class="inv">
 <tr><th>S</th><th>State</th><th>Surface</th><th>Trigger</th></tr>
 <tr><td><b>S44</b></td><td>Codex — Characters grid (populated)</td><td>main / grid</td><td>core Bases on, canon characters present</td></tr>
@@ -358,6 +360,7 @@ Data is real, from <code>test/StoryForge/</code> (Wardens of Moonharbor), verifi
 <tr><td><b>S55</b></td><td>Inspector — validation / write error</td><td>panel / form</td><td>bad value / write fails; edit preserved</td></tr>
 <tr><td><b>S56</b></td><td>Codex → panel selection (linked)</td><td>main + panel</td><td>row click re-subjects the M3 panel</td></tr>
 <tr><td><b>S57</b></td><td>Catalog — install consent (DataviewJS)</td><td>modal</td><td>installing a code-bearing view</td></tr>
+<tr><td><b>S58</b></td><td>Context detail — View mode (default) + pencil toggle</td><td>panel</td><td>Context tab; pencil switches View ↔ Inspector</td></tr>
 </table>
 
 <div class="gallery">
@@ -785,6 +788,37 @@ dv.table(["key","value"],
     <div class="mfoot"><span class="btn primary">Review &amp; enable</span><span class="btn ghost">Cancel</span></div>
   </div>
   <div class="note">Declarative <code>.base</code>/DQL views install 1-click; <b>DataviewJS carries code</b>, so install must route through the M2 consent gate (F4 AC). Consent declined → nothing installed, modal returns to the list.</div>
+</figure>
+
+<!-- ══ S58 Context detail — View mode + pencil toggle ══ -->
+<figure>
+  <figcaption><b>S58 · Context detail — View mode (default) + pencil toggle</b> — the Context tab defaults to the styled read-only M3 detail (clickable link lists). A pencil <code>&#9998;</code> beside the pin toggles the editable Inspector (S52); pin/pencil are independent.</figcaption>
+  <div class="panel">
+    <div class="vhead"><span class="name">Story Forge</span>
+      <div class="icons"><span class="pin">&#128204;</span><span class="tool">&#9998;</span></div></div>
+    <div class="chead"><span class="title">Mara Stoneway</span><span class="badge character">character</span></div>
+    <div class="tabs"><div class="tab sel">Context</div></div>
+    <div class="body">
+      <div class="section">
+        <div class="sec-head"><span class="chev">&#9662;</span>Relationships</div>
+        <div class="sec-rows">
+          <div class="rel"><span class="k">partner</span><span class="lnks"><a class="lnk">Jonas Kell</a></span></div>
+          <div class="rel"><span class="k">allies</span><span class="lnks"><a class="lnk">Tobias Ferro</a></span></div>
+          <div class="rel"><span class="k">enemies</span><span class="lnks"><a class="lnk">Silvan Nightweaver</a></span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-head"><span class="chev">&#9662;</span>Appears in<span class="count">3</span></div>
+        <div class="sec-rows">
+          <div class="lrow"><a class="lnk">Scene 1</a><span class="tag pov">pov</span></div>
+          <div class="lrow"><a class="lnk">Scene 2</a></div>
+          <div class="lrow"><a class="lnk">Scene 3</a></div>
+        </div>
+      </div>
+      <div class="opennote">&#10530; Open note</div>
+    </div>
+  </div>
+  <div class="note">Regression fix (post-M3): the Context tab had been overtaken by the always-on Inspector, which lost the M3 styling and rendered relation lists (<code>characters</code>, <code>plotlines</code>, <code>prev</code>, <code>next</code>) as plain text. View is now the default via the M3 <code>renderPanel</code>; the header <b>&#9998;</b> toggle switches to edit (S52) and back. Same visual language, links stay clickable in both.</div>
 </figure>
 
 </div>

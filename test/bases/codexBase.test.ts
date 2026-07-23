@@ -17,6 +17,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
+import { isEntityKind } from "scoping/NoteContext";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -25,9 +26,13 @@ import { resolve, join } from "node:path";
 const VAULT = resolve(__dirname, "../StoryForge");
 const BASES_DIR = join(VAULT, "00 Meta/Bases");
 const CODEX_BASE_PATH = join(BASES_DIR, "Codex.base");
+// infra/ is the deploy source of truth (schema-gen copies it into the vault).
+const INFRA_CODEX_PATH = resolve(__dirname, "../../infra/Bases/Codex.base");
 
-// Expected categories per T3.3 spec (5 story-forge-codex views)
-const EXPECTED_CATEGORIES = ["characters", "locations", "objects", "lore", "scenes"] as const;
+// Expected categories — SINGULAR, matching the EntityKind discriminant the code
+// resolves via isEntityKind() (CodexBasesView reads config.get("category")).
+// A plural value here would fall through to "unknown" at runtime (the f-bug).
+const EXPECTED_CATEGORIES = ["character", "location", "object", "lore", "scene"] as const;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -100,33 +105,58 @@ describe("Seed Codex.base — structure", () => {
 		}
 	});
 
-	it("has a view for each category: characters, locations, objects, lore, scenes", () => {
+	it("has a view for each singular category: character, location, object, lore, scene", () => {
 		const content = readFileSync(CODEX_BASE_PATH, "utf8");
 		const views = parseViews(content);
 
 		for (const category of EXPECTED_CATEGORIES) {
-			const hasCategory = views.some(
-				(v) =>
-					v.category === category ||
-					v.name.toLowerCase().includes(category.replace(/s$/, "")),
-			);
+			// Exact category-key match only — no name fallback. A plural/typo value
+			// would resolve to "unknown" at runtime, so this must be strict.
+			const hasCategory = views.some((v) => v.category === category);
 			expect(
 				hasCategory,
-				`Expected a view for category '${category}'. Views: ${JSON.stringify(views.map((v) => v.name))}`,
+				`Expected a view with category '${category}'. Categories: ${JSON.stringify(views.map((v) => v.category))}`,
 			).toBe(true);
 		}
 	});
 
-	it("each view carries a category config key", () => {
+	it("every view's category is a valid EntityKind (not plural/unknown — the f-bug guard)", () => {
 		const content = readFileSync(CODEX_BASE_PATH, "utf8");
 		const views = parseViews(content);
 
-		const withCategory = views.filter((v) => v.category !== undefined);
+		expect(views.length).toBeGreaterThan(0);
+		for (const v of views) {
+			expect(
+				v.category !== undefined && isEntityKind(v.category),
+				`View '${v.name}' category '${v.category ?? "(none)"}' is not a valid EntityKind`,
+			).toBe(true);
+		}
+	});
+
+	it("top-level filter combines the category tags with OR, not AND", () => {
+		// The base-level filter applies to ALL views. `and` of mutually-exclusive
+		// canon/* + manuscript/* tags matches zero notes → every category empty.
+		const content = readFileSync(CODEX_BASE_PATH, "utf8");
+		const filterBlock = content.slice(
+			content.indexOf("filters:"),
+			content.indexOf("\nproperties:"),
+		);
+		expect(filterBlock, "expected an `or:` top-level filter block").toMatch(/\bor:/);
+		expect(filterBlock, "top-level filter must not use mutually-exclusive `and:`").not.toMatch(/\band:/);
+	});
+});
+
+describe("Seed Codex.base — deploy source of truth", () => {
+	it("infra/Bases/Codex.base exists (schema-gen deploys it into the vault)", () => {
 		expect(
-			withCategory.length,
-			`Expected all 5 views to have a 'category' key. Views without: ${JSON.stringify(
-				views.filter((v) => v.category === undefined).map((v) => v.name),
-			)}`,
-		).toBe(5);
+			existsSync(INFRA_CODEX_PATH),
+			`Expected the deploy source at ${INFRA_CODEX_PATH}`,
+		).toBe(true);
+	});
+
+	it("the deployed vault copy matches the infra source", () => {
+		const infra = readFileSync(INFRA_CODEX_PATH, "utf8");
+		const deployed = readFileSync(CODEX_BASE_PATH, "utf8");
+		expect(deployed).toBe(infra);
 	});
 });

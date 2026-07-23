@@ -109,6 +109,27 @@ describe("SidebarView: pin toggle", () => {
 		expect(btn.getAttribute("aria-pressed")).toBe("false");
 	});
 
+	it("edit-mode (pencil) button exists and defaults to aria-pressed='false'", () => {
+		const btn = view.contentEl.querySelector(".sf-edit-btn") as HTMLButtonElement | null;
+		expect(btn).not.toBeNull();
+		expect(btn?.tagName).toBe("BUTTON");
+		expect(btn?.getAttribute("aria-pressed")).toBe("false");
+	});
+
+	it("clicking the pencil button toggles edit mode (aria-pressed + _editMode)", () => {
+		const btn = view.contentEl.querySelector(".sf-edit-btn") as HTMLButtonElement;
+		const priv = view as unknown as { _editMode: boolean };
+
+		expect(priv._editMode).toBe(false);
+		btn.click();
+		expect(priv._editMode).toBe(true);
+		expect(btn.getAttribute("aria-pressed")).toBe("true");
+
+		btn.click();
+		expect(priv._editMode).toBe(false);
+		expect(btn.getAttribute("aria-pressed")).toBe("false");
+	});
+
 	it("pinning freezes subject — active-note changes ignored", () => {
 		const file = makeMdFile("Pinned Note");
 		// Set a subject first

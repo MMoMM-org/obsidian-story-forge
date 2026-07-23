@@ -485,14 +485,14 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// No view record → Inspector owns full detail (T5.3: unified detail, no M3)
+	// No view record → View/Edit toggle owns the detail.
+	//   view mode (default): styled M3 detail via nativeEngine.render, no Inspector.
+	//   edit mode: Inspector owns the detail, nativeEngine.render NOT called.
 	// -------------------------------------------------------------------------
 
-	it("no currentRecord: Inspector owns full detail — nativeEngine.render NOT called in !view branch", async () => {
-		// T5.3 rework: the !view branch must NOT call nativeEngine.render.
-		// The Inspector is responsible for the entire unified detail (editable scalars
-		// + read-only relation/list chips). nativeEngine.render only runs in
-		// view-selected (engine-missing) or view-selected + consented branches.
+	it("no currentRecord + view mode (default): nativeEngine.render renders the M3 detail, no Inspector", async () => {
+		// Default Context-tab detail is the styled read-only M3 panel (fixes the
+		// regression where the Inspector had taken over and lost M3 styling/links).
 		const registry = makeMockRegistry(undefined);
 		const consentGate = makeMockConsentGate({ status: "consented" });
 
@@ -504,19 +504,43 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 
 		const privateView = view as unknown as {
 			currentRecord: ViewRecord | null;
+			_editMode: boolean;
 			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
 		};
-		// currentRecord is null — no view selected (Context tab)
+		// currentRecord is null — no view selected (Context tab); _editMode defaults false.
 		privateView.currentRecord = null;
 
 		const body = getBody(view);
 		await privateView._renderResolved(body, ctx);
 
-		// T5.3: nativeEngine.render must NOT be called in the !view branch.
-		// The Inspector renders the unified detail instead.
-		expect(nativeEngine.render).not.toHaveBeenCalled();
+		// View mode → nativeEngine.render owns the detail; no editable Inspector host.
+		expect(nativeEngine.render).toHaveBeenCalled();
+		expect(body.querySelector(".sf-inspector-host")).toBeNull();
+	});
 
-		// The Inspector host must be present in the DOM.
+	it("no currentRecord + edit mode: Inspector owns the detail — nativeEngine.render NOT called", async () => {
+		const registry = makeMockRegistry(undefined);
+		const consentGate = makeMockConsentGate({ status: "consented" });
+
+		view = new SidebarView(leaf, registry, consentGate, nativeEngine);
+		await view.onOpen();
+
+		const file = makeMdFile("Scene 1");
+		const ctx = makeNoteContext(file);
+
+		const privateView = view as unknown as {
+			currentRecord: ViewRecord | null;
+			_editMode: boolean;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		privateView.currentRecord = null;
+		privateView._editMode = true; // pencil toggle on
+
+		const body = getBody(view);
+		await privateView._renderResolved(body, ctx);
+
+		// Edit mode → the Inspector renders the unified detail; nativeEngine.render idle.
+		expect(nativeEngine.render).not.toHaveBeenCalled();
 		expect(body.querySelector(".sf-inspector-host")).not.toBeNull();
 	});
 
@@ -547,14 +571,14 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 	// S3: field-once at SidebarView boundary — catches the T5.2 double-render bug
 	// -------------------------------------------------------------------------
 
-	it("S3 (field-once): !view branch renders each field exactly once — no M3 sections, nativeEngine.render NOT called", async () => {
-		// This test is the integration-level guard for the T5.3 rework. It proves
-		// that when currentRecord=null, the Inspector owns the entire detail:
+	it("S3 (field-once): edit-mode !view branch renders each field exactly once — no M3 sections, nativeEngine.render NOT called", async () => {
+		// Field-once guard for the Inspector (edit mode). When currentRecord=null AND
+		// edit mode is on, the Inspector owns the entire detail:
 		//   • editable scalar (text) → exactly one <input> in the DOM
 		//   • read-only relation chip → exactly one .sf-inspector-ro-chip
 		//   • NO M3 section DOM (.sf-section / .sf-sec-label)
 		//   • nativeEngine.render NOT called
-		// If T5.2's double-render bug were reintroduced (nativeEngine.render +
+		// If the double-render bug were reintroduced (nativeEngine.render +
 		// _renderInspector both running), the input count would be ≥2 and the
 		// M3 section would appear — both assertions would catch it.
 		const registry = makeMockRegistry(undefined);
@@ -583,14 +607,16 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 
 		const privateView = view as unknown as {
 			currentRecord: ViewRecord | null;
+			_editMode: boolean;
 			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
 		};
 		privateView.currentRecord = null; // !view branch
+		privateView._editMode = true;     // edit mode → Inspector owns detail
 
 		const body = getBody(view);
 		await privateView._renderResolved(body, ctx);
 
-		// nativeEngine.render must NOT run in the !view branch
+		// nativeEngine.render must NOT run when the Inspector owns the detail
 		expect(nativeEngine.render).not.toHaveBeenCalled();
 
 		// No M3 section structure

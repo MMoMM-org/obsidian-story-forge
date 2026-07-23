@@ -109,8 +109,17 @@ export function buildCodexGrid(container: HTMLElement, opts: CodexGridOptions): 
 		return;
 	}
 
+	// Drive the CSS grid template from the (dynamic) column count so the header
+	// and every row share one template and stay aligned. +1 leading Name column.
+	container.style.setProperty(
+		"--sf-codex-cols",
+		`minmax(120px, 1.4fr) repeat(${columns.length}, minmax(70px, 1fr))`,
+	);
+
 	renderHeader(container, columns);
 	renderRows(container, rows, columns);
+
+	// (header/rows include a leading clickable Name column — see helpers below)
 
 	// Single delegated click listener on the container.
 	container.addEventListener("click", (evt) => {
@@ -134,9 +143,23 @@ function renderEmptyState(container: HTMLElement, category: string): void {
 	container.appendChild(emptyEl);
 }
 
+/** Derive the display name (note basename) from a vault-relative path. */
+function pathToName(path: string): string {
+	const last = path.split("/").pop() ?? path;
+	return last.replace(/\.md$/, "");
+}
+
 function renderHeader(container: HTMLElement, columns: string[]): void {
 	const headerEl = activeDocument.createElement("div");
 	headerEl.className = "sf-codex-header";
+
+	// Leading Name column (the entity note itself — matches mockup S44).
+	const nameHead = activeDocument.createElement("div");
+	nameHead.className = "sf-codex-header-cell sf-codex-name-head";
+	nameHead.setAttribute("data-column-id", "name");
+	nameHead.textContent = "Name";
+	headerEl.appendChild(nameHead);
+
 	for (const col of columns) {
 		const cell = activeDocument.createElement("div");
 		cell.className = "sf-codex-header-cell";
@@ -152,6 +175,18 @@ function renderRows(container: HTMLElement, rows: CodexRow[], columns: string[])
 		const rowEl = activeDocument.createElement("div");
 		rowEl.className = "sf-codex-row";
 		rowEl.setAttribute("data-path", row.path);
+
+		// Leading Name cell — clickable link styling. The whole row is already
+		// click-delegated to onRowClick via [data-path]; the link cue just makes
+		// the entity identifiable and matches the mockup.
+		const nameCell = activeDocument.createElement("div");
+		nameCell.className = "sf-codex-cell sf-codex-name-cell";
+		nameCell.setAttribute("data-cell", "name");
+		const nameLink = activeDocument.createElement("span");
+		nameLink.className = "sf-codex-name-link";
+		nameLink.textContent = pathToName(row.path);
+		nameCell.appendChild(nameLink);
+		rowEl.appendChild(nameCell);
 
 		for (const col of columns) {
 			const cell = activeDocument.createElement("div");
