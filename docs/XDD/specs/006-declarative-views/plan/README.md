@@ -81,7 +81,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 **Test** (red), **Implement** (green), **Validate** (refactor + verify).
 
 - [x] [Phase 1: Pure models (workspaceModel)](phase-1.md) — *timelineModel/plotlineModel shipped*
-- [ ] [Phase 2: Scope seam + pure derivations (actLabel/plotlineColor/statusTally)](phase-2.md)
+- [x] [Phase 2: Scope seam + pure derivations (actLabel/plotlineColor/statusTally)](phase-2.md) — *shipped*
 - [ ] [Phase 3: Render building blocks + collapse + CSS](phase-3.md)
 - [ ] [Phase 4: Navigator sidebar tab (SidebarView)](phase-4.md)
 - [ ] [Phase 5: Main-area WorkspaceView — Timeline rail + Plotlines list](phase-5.md)

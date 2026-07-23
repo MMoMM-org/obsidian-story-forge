@@ -29,8 +29,17 @@ export interface SceneRow {
 	when: string;
 	status: string;
 	pov: string;
+	/** Resolved location basename, or "" when absent/unresolved. */
+	location: string;
+	/** Resolved character basenames present in the scene. */
+	characters: string[];
 	/** Raw plotline link targets (may be `[[wrapped]]` and/or unresolved). */
 	plotlines: string[];
+	/** Raw `beat` link text ("" when empty). */
+	beat: string;
+	/** Resolved beat-note display name (alias/title), or "" when empty/unresolved. */
+	beatName: string;
+	wordcount: number | null;
 }
 
 export type GroupKind = "act" | "plotline" | "unassigned" | "no-act" | "unresolved";
@@ -81,12 +90,24 @@ export function timelineModel(rows: SceneRow[]): Group[] {
 
 	const groups: Group[] = [];
 	for (const act of [...byAct.keys()].sort((x, y) => x - y)) {
-		groups.push({ key: `act:${act}`, label: `Act ${act}`, kind: "act", scenes: byAct.get(act)! });
+		const scenes = byAct.get(act)!;
+		groups.push({ key: `act:${act}`, label: actLabel(act, scenes), kind: "act", scenes });
 	}
 	if (noAct.length > 0) {
 		groups.push({ key: "no-act", label: "No act", kind: "no-act", scenes: noAct });
 	}
 	return groups;
+}
+
+/**
+ * Act divider label. Acts have no name of their own; the name is the beat the act's
+ * scenes share (`scene.beat` → beat-note alias). Returns `Act N · <beat>` when the
+ * act's scenes agree on a single non-empty beat, else `Act N` (ADR-11).
+ */
+export function actLabel(act: number | null, scenes: SceneRow[]): string {
+	if (act === null) return "No act";
+	const names = new Set(scenes.map((s) => s.beatName).filter((n) => n !== ""));
+	return names.size === 1 ? `Act ${act} · ${[...names][0]!}` : `Act ${act}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -138,4 +159,35 @@ export function plotlineModel(rows: SceneRow[], resolve: LinkResolver): Group[] 
 		groups.push({ key: "unassigned", label: "Unassigned", kind: "unassigned", scenes: unassigned });
 	}
 	return groups;
+}
+
+// ---------------------------------------------------------------------------
+// Derivations (color, status)
+// ---------------------------------------------------------------------------
+
+/**
+ * Stable per-plotline palette (mockup hues). Plotlines have no `color` field, so the
+ * color is derived deterministically from the name — same name → same color (ADR-12).
+ */
+const PLOTLINE_PALETTE: readonly string[] = [
+	"#d9a441", "#5b8bd0", "#b06a86", "#6ac47a",
+	"#8a7cf0", "#4bb6ab", "#e0a34a", "#c0607f",
+];
+
+/** Deterministic color for a plotline name (FNV-ish hash → fixed palette). */
+export function plotlineColor(name: string): string {
+	let h = 0;
+	for (let i = 0; i < name.length; i++) {
+		h = (Math.imul(h, 31) + name.charCodeAt(i)) >>> 0;
+	}
+	return PLOTLINE_PALETTE[h % PLOTLINE_PALETTE.length]!;
+}
+
+/** Count scenes by `status` (empty status counted under the "" key). For the Navigator progress bar. */
+export function statusTally(rows: SceneRow[]): Record<string, number> {
+	const tally: Record<string, number> = {};
+	for (const r of rows) {
+		tally[r.status] = (tally[r.status] ?? 0) + 1;
+	}
+	return tally;
 }

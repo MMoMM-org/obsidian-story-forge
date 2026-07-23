@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Scope seam + pure derivations"
-status: pending
+status: done
 version: "2.0"
 phase: 2
 ---

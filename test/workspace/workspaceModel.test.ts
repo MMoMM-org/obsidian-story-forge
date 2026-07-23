@@ -10,7 +10,14 @@
 
 import { describe, it, expect } from "vitest";
 import { createMockTFile } from "../__mocks__/obsidian";
-import { timelineModel, plotlineModel, type SceneRow } from "workspace/workspaceModel";
+import {
+	timelineModel,
+	plotlineModel,
+	actLabel,
+	plotlineColor,
+	statusTally,
+	type SceneRow,
+} from "workspace/workspaceModel";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -26,7 +33,12 @@ function row(o: Partial<SceneRow> & { title: string }): SceneRow {
 		when: o.when ?? "",
 		status: o.status ?? "",
 		pov: o.pov ?? "",
+		location: o.location ?? "",
+		characters: o.characters ?? [],
 		plotlines: o.plotlines ?? [],
+		beat: o.beat ?? "",
+		beatName: o.beatName ?? "",
+		wordcount: o.wordcount ?? null,
 	};
 }
 
@@ -95,6 +107,23 @@ describe("timelineModel", () => {
 		expect(groups[1]!.kind).toBe("no-act");
 	});
 
+	it("labels an act with the beat name shared by its scenes (ADR-11)", () => {
+		const rows = [
+			row({ title: "S1", act: 1, order: 1, beatName: "The Failing Light" }),
+			row({ title: "S2", act: 1, order: 2, beatName: "The Failing Light" }),
+		];
+		const groups = timelineModel(rows);
+		expect(groups[0]!.label).toBe("Act 1 · The Failing Light");
+	});
+
+	it("falls back to 'Act N' when scenes in an act disagree on the beat", () => {
+		const rows = [
+			row({ title: "S1", act: 1, order: 1, beatName: "One" }),
+			row({ title: "S2", act: 1, order: 2, beatName: "Two" }),
+		];
+		expect(timelineModel(rows)[0]!.label).toBe("Act 1");
+	});
+
 	it("does not let `when` affect ordering", () => {
 		const rows = [
 			row({ title: "Late", act: 1, storyDay: 1, order: 2, when: "Aardvark" }),
@@ -156,5 +185,80 @@ describe("plotlineModel", () => {
 
 	it("returns no groups for empty input", () => {
 		expect(plotlineModel([], resolverFor([]))).toEqual([]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// actLabel (ADR-11)
+// ---------------------------------------------------------------------------
+
+describe("actLabel", () => {
+	it("appends the beat name when all scenes share one non-empty beat", () => {
+		const scenes = [
+			row({ title: "a", beatName: "The Gathering Dark" }),
+			row({ title: "b", beatName: "The Gathering Dark" }),
+		];
+		expect(actLabel(2, scenes)).toBe("Act 2 · The Gathering Dark");
+	});
+
+	it("returns 'Act N' when scenes disagree on the beat", () => {
+		const scenes = [row({ title: "a", beatName: "X" }), row({ title: "b", beatName: "Y" })];
+		expect(actLabel(1, scenes)).toBe("Act 1");
+	});
+
+	it("returns 'Act N' when no scene has a beat", () => {
+		expect(actLabel(3, [row({ title: "a" })])).toBe("Act 3");
+	});
+
+	it("ignores empty beat names when deriving the shared beat", () => {
+		const scenes = [row({ title: "a", beatName: "Solo" }), row({ title: "b", beatName: "" })];
+		expect(actLabel(1, scenes)).toBe("Act 1 · Solo");
+	});
+
+	it("returns 'No act' for a null act", () => {
+		expect(actLabel(null, [])).toBe("No act");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// plotlineColor (ADR-12)
+// ---------------------------------------------------------------------------
+
+describe("plotlineColor", () => {
+	it("is deterministic — the same name always yields the same color", () => {
+		expect(plotlineColor("The Dying Light")).toBe(plotlineColor("The Dying Light"));
+	});
+
+	it("returns a hex color string", () => {
+		expect(plotlineColor("The Warden's Oath")).toMatch(/^#[0-9a-fA-F]{6}$/);
+	});
+
+	it("spreads distinct names across more than one color", () => {
+		const names = ["The Dying Light", "The Warden's Oath", "Shadow Trade", "Broken Lens", "Homecoming"];
+		const colors = new Set(names.map(plotlineColor));
+		expect(colors.size).toBeGreaterThan(1);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// statusTally
+// ---------------------------------------------------------------------------
+
+describe("statusTally", () => {
+	it("counts scenes by status", () => {
+		const rows = [
+			row({ title: "a", status: "draft" }),
+			row({ title: "b", status: "draft" }),
+			row({ title: "c", status: "outline" }),
+		];
+		expect(statusTally(rows)).toEqual({ draft: 2, outline: 1 });
+	});
+
+	it("tolerates an empty status", () => {
+		expect(statusTally([row({ title: "a", status: "" })])).toEqual({ "": 1 });
+	});
+
+	it("returns an empty tally for no rows", () => {
+		expect(statusTally([])).toEqual({});
 	});
 });
