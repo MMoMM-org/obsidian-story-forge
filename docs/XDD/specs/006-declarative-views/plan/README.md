@@ -73,7 +73,7 @@ npm run dev                 # watch → redeploy into test/StoryForge/
 Each phase is defined in a separate file. Tasks follow red-green-refactor: **Prime** (context),
 **Test** (red), **Implement** (green), **Validate** (refactor + verify).
 
-- [ ] [Phase 1: Pure models (workspaceModel)](phase-1.md)
+- [x] [Phase 1: Pure models (workspaceModel)](phase-1.md)
 - [ ] [Phase 2: Scope seam (resolveWorkspaceScope)](phase-2.md)
 - [ ] [Phase 3: Render + collapse + CSS](phase-3.md)
 - [ ] [Phase 4: WorkspaceView host, registration, follow, drill](phase-4.md)

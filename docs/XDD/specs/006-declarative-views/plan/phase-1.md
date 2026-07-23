@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Pure models (workspaceModel)"
-status: pending
+status: done
 version: "1.0"
 phase: 1
 ---
