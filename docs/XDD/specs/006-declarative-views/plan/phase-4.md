@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Navigator sidebar tab (SidebarView)"
-status: pending
+status: done
 version: "2.0"
 phase: 4
 ---

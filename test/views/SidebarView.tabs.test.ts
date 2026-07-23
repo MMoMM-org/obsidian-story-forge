@@ -214,23 +214,25 @@ describe("SidebarView tabs: basic tab building from store", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("empty store: only Context tab rendered", async () => {
+	it("empty store: Context + Navigator tabs rendered", async () => {
 		const store = makeFakeStore({});
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 		const tabs = getTabs(view);
-		expect(tabs.length).toBe(1);
+		expect(tabs.length).toBe(2);
 		expect(tabs[0]?.getAttribute("data-view-id")).toBe("__context__");
+		expect(tabs[1]?.getAttribute("data-view-id")).toBe("__navigator__");
 	});
 
-	it("one view: view tab first, Context tab last", async () => {
+	it("one view: view tab first, then Context, then the fixed Navigator", async () => {
 		const store = makeFakeStore({ v1: makeViewRecord({ commandName: "My View" }) });
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 		const tabs = getTabs(view);
-		expect(tabs.length).toBe(2);
+		expect(tabs.length).toBe(3);
 		expect(tabs[0]?.getAttribute("data-view-id")).toBe("v1");
 		expect(tabs[1]?.getAttribute("data-view-id")).toBe("__context__");
+		expect(tabs[2]?.getAttribute("data-view-id")).toBe("__navigator__");
 	});
 
 	it("Context tab is selected by default (aria-selected=true, sf-tab-sel class)", async () => {
@@ -275,7 +277,7 @@ describe("SidebarView tabs: basic tab building from store", () => {
 		expect(() => getTabByViewId(view, "abc123")).not.toThrow();
 	});
 
-	it("two views: both appear before Context", async () => {
+	it("two views: both appear before Context (Navigator is last)", async () => {
 		const store = makeFakeStore({
 			v1: makeViewRecord({ commandName: "View A" }),
 			v2: makeViewRecord({ commandName: "View B" }),
@@ -283,8 +285,9 @@ describe("SidebarView tabs: basic tab building from store", () => {
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 		const tabs = getTabs(view);
-		expect(tabs.length).toBe(3);
+		expect(tabs.length).toBe(4);
 		expect(tabs[2]?.getAttribute("data-view-id")).toBe("__context__");
+		expect(tabs[3]?.getAttribute("data-view-id")).toBe("__navigator__");
 	});
 });
 
@@ -417,7 +420,7 @@ describe("SidebarView tabs: live refresh on store change", () => {
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 
-		expect(getTabs(view).length).toBe(2); // v1 + Context
+		expect(getTabs(view).length).toBe(3); // v1 + Context + Navigator
 
 		// Simulate import of a second view
 		store._views = {
@@ -428,7 +431,7 @@ describe("SidebarView tabs: live refresh on store change", () => {
 		// _reloadViews is async
 		await new Promise((r) => setTimeout(r, 0));
 
-		expect(getTabs(view).length).toBe(3); // v1 + v2 + Context
+		expect(getTabs(view).length).toBe(4); // v1 + v2 + Context + Navigator
 		expect(() => getTabByViewId(view, "v2")).not.toThrow();
 	});
 
@@ -462,8 +465,8 @@ describe("SidebarView tabs: live refresh on store change", () => {
 		store._fire();
 		await new Promise((r) => setTimeout(r, 0));
 
-		// Two tabs now visible (v1 + v2 + Context = 3)
-		expect(getTabs(view).length).toBe(3);
+		// Tabs now visible (v1 + v2 + Context + Navigator = 4)
+		expect(getTabs(view).length).toBe(4);
 		// But v1's engine must NOT have been called again (no spurious re-render)
 		expect(engine.render).toHaveBeenCalledTimes(1);
 	});
@@ -796,7 +799,7 @@ describe("SidebarView tabs: keyboard roving tabindex", () => {
 		void strip; // suppress unused warning
 	});
 
-	it("ArrowRight from last tab wraps to first tab", async () => {
+	it("ArrowRight from the last tab (Navigator) wraps to the first tab", async () => {
 		const store = makeFakeStore({
 			v1: makeViewRecord({ commandName: "View A" }),
 			v2: makeViewRecord({ commandName: "View B" }),
@@ -806,13 +809,11 @@ describe("SidebarView tabs: keyboard roving tabindex", () => {
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 
-		// Select Context (last tab)
-		// Context is already selected by default
-		const ctxTab = getContextTab(view);
-		fireKey(ctxTab, "ArrowRight");
+		// Navigator is the last tab — ArrowRight from it wraps to v1 (first tab).
+		const navTab = getTabByViewId(view, "__navigator__");
+		fireKey(navTab, "ArrowRight");
 		await Promise.resolve();
 
-		// Should wrap to v1 (first tab)
 		const v1Tab = getTabByViewId(view, "v1");
 		expect(v1Tab.getAttribute("aria-selected")).toBe("true");
 	});
@@ -836,7 +837,7 @@ describe("SidebarView tabs: keyboard roving tabindex", () => {
 		expect(v1Tab.getAttribute("aria-selected")).toBe("true");
 	});
 
-	it("End moves to last tab (Context)", async () => {
+	it("End moves to the last tab (Navigator)", async () => {
 		const store = makeFakeStore({
 			v1: makeViewRecord({ commandName: "View A" }),
 		});
@@ -845,15 +846,15 @@ describe("SidebarView tabs: keyboard roving tabindex", () => {
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 
-		// Select v1, then End
+		// Select v1, then End → the fixed Navigator tab (now last).
 		const v1Tab = getTabByViewId(view, "v1");
 		v1Tab.click();
 		await Promise.resolve();
 		fireKey(v1Tab, "End");
 		await Promise.resolve();
 
-		const ctxTab = getContextTab(view);
-		expect(ctxTab.getAttribute("aria-selected")).toBe("true");
+		const navTab = getTabByViewId(view, "__navigator__");
+		expect(navTab.getAttribute("aria-selected")).toBe("true");
 	});
 
 	it("ArrowRight from view tab moves to next view tab", async () => {
@@ -880,7 +881,7 @@ describe("SidebarView tabs: keyboard roving tabindex", () => {
 });
 
 describe("SidebarView tabs: backward compat (no store)", () => {
-	it("new SidebarView(leaf) with no store — Context only, no throw", async () => {
+	it("new SidebarView(leaf) with no store — Context + Navigator, no throw", async () => {
 		const app = makeApp();
 		const leaf = makeOwnLeaf(app);
 		// Old-style construction — no store arg
@@ -888,13 +889,14 @@ describe("SidebarView tabs: backward compat (no store)", () => {
 		await expect(view.onOpen()).resolves.toBeUndefined();
 
 		const tabs = getTabs(view);
-		expect(tabs.length).toBe(1);
+		expect(tabs.length).toBe(2);
 		expect(tabs[0]?.getAttribute("data-view-id")).toBe("__context__");
+		expect(tabs[1]?.getAttribute("data-view-id")).toBe("__navigator__");
 
 		await view.onClose();
 	});
 
-	it("new SidebarView(leaf, registry, gate, native) with no store — Context only", async () => {
+	it("new SidebarView(leaf, registry, gate, native) with no store — Context + Navigator", async () => {
 		const app = makeApp();
 		const leaf = makeOwnLeaf(app);
 		const native = {
@@ -908,8 +910,9 @@ describe("SidebarView tabs: backward compat (no store)", () => {
 		await expect(view.onOpen()).resolves.toBeUndefined();
 
 		const tabs = getTabs(view);
-		expect(tabs.length).toBe(1);
+		expect(tabs.length).toBe(2);
 		expect(tabs[0]?.getAttribute("data-view-id")).toBe("__context__");
+		expect(tabs[1]?.getAttribute("data-view-id")).toBe("__navigator__");
 
 		await view.onClose();
 	});

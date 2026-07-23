@@ -24,9 +24,20 @@ import {
 	type IconName,
 	debounce,
 } from "obsidian";
-import { SIDEBAR_VIEW_TYPE, ICON, DEBOUNCE_MS } from "pluginConstants";
+import { SIDEBAR_VIEW_TYPE, NAVIGATOR_TAB_ID, ICON, DEBOUNCE_MS } from "pluginConstants";
 import { ScopingService } from "scoping/ScopingService";
+import { resolveWorkspaceScope } from "scoping/workspaceScope";
 import type { NoteContext, EntityKind } from "scoping/NoteContext";
+import { CollapseStore } from "workspace/collapseStore";
+import { mapSceneRow } from "workspace/sceneMapper";
+import {
+	timelineModel,
+	plotlineModel,
+	statusTally,
+	stripLink,
+	type LinkResolver,
+} from "workspace/workspaceModel";
+import { renderNavigator, type NavigatorData } from "workspace/renderNavigator";
 import type { PluginSettings } from "types/index";
 import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
@@ -192,6 +203,12 @@ export class SidebarView extends ItemView {
 	private _unsubscribeStore: (() => void) | null = null;  // store unsubscribe handle
 	private _tabsGen = 0;                                   // async-load guard
 
+	// M5: Navigator tab state. Collapse persists per (surface, scope, group) so it
+	// survives the follow re-render; the plotline filter narrows the scene list.
+	private readonly _collapse = new CollapseStore();
+	private _navFilter: string | null = null;
+	private _navScopeKey = "none";
+
 	// Debounced follow function — coalesces rapid active-leaf-change events.
 	private readonly _debouncedFollow: ReturnType<
 		typeof debounce<[WorkspaceLeaf | null], void>
@@ -345,6 +362,10 @@ export class SidebarView extends ItemView {
 		this.selectedViewId = null;
 		this._views = {};
 		this._tabsEl = null;
+		// M5: reset Navigator state
+		this._collapse.clear();
+		this._navFilter = null;
+		this._navScopeKey = "none";
 	}
 
 	// -------------------------------------------------------------------------
@@ -682,7 +703,23 @@ export class SidebarView extends ItemView {
 		const secHead = target.closest("[data-sf-section-toggle]");
 		if (secHead instanceof HTMLElement) {
 			this._toggleSection(secHead);
+			// M5: persist Navigator collapse so it survives the follow re-render.
+			if (this.selectedViewId === NAVIGATOR_TAB_ID) {
+				const groupKey = secHead.getAttribute("data-sf-group-key");
+				if (groupKey) this._collapse.toggle("navigator", this._navScopeKey, groupKey);
+			}
 			return;
+		}
+
+		// M5: Navigator plotline filter rows — narrow (or clear via the "All" row).
+		if (this.selectedViewId === NAVIGATOR_TAB_ID) {
+			const plRow = target.closest("[data-sf-plotline]");
+			if (plRow instanceof HTMLElement) {
+				const val = plRow.getAttribute("data-sf-plotline") ?? "";
+				this._navFilter = val === "" ? null : val;
+				this._rerenderBody();
+				return;
+			}
 		}
 
 		// Nav controls first (Back / Open-note chrome).
@@ -712,6 +749,13 @@ export class SidebarView extends ItemView {
 		// and opens on modifier; "open" swaps both.
 		const action = this.getLinkClickAction();
 		const drill = action === "drill" ? !modifier : modifier;
+		// M5: drilling from the Navigator switches to the Context tab first, so the
+		// note renders in the Context detail rather than back into the Navigator.
+		if (drill && this.selectedViewId === NAVIGATOR_TAB_ID) {
+			this.selectedViewId = null;
+			this.currentRecord = null;
+			this._syncTabSelection();
+		}
 		if (drill) this._drillInto(file);
 		else this._openLink(file);
 	}
@@ -845,15 +889,27 @@ export class SidebarView extends ItemView {
 			tabEl.title = label;
 		}
 
-		// Context tab (always last)
+		// Context tab
 		const ctxEl = strip.createDiv({ cls: "sf-tab" });
 		ctxEl.textContent = "Context";
 		ctxEl.setAttribute("role", "tab");
 		ctxEl.setAttribute("data-view-id", CTX_TAB_ID);
 		ctxEl.title = "Context";
 
-		// Reconcile: if selected view is gone, fall back to Context
-		if (this.selectedViewId !== null && !(this.selectedViewId in this._views)) {
+		// M5: fixed Navigator tab (always last) — a built-in surface, not a store view.
+		const navEl = strip.createDiv({ cls: "sf-tab" });
+		navEl.textContent = "Navigator";
+		navEl.setAttribute("role", "tab");
+		navEl.setAttribute("data-view-id", NAVIGATOR_TAB_ID);
+		navEl.title = "Navigator";
+
+		// Reconcile: if a selected *store* view is gone, fall back to Context. The
+		// built-in Navigator tab is exempt (it is never a member of _views).
+		if (
+			this.selectedViewId !== null &&
+			this.selectedViewId !== NAVIGATOR_TAB_ID &&
+			!(this.selectedViewId in this._views)
+		) {
 			this.selectedViewId = null;
 			this.currentRecord = null;
 		}
@@ -1051,6 +1107,13 @@ export class SidebarView extends ItemView {
 		const body = aug(this._bodyEl);
 		body.empty();
 
+		// M5: the Navigator tab renders regardless of the active note's kind (it
+		// falls back to whole-vault scope), so it short-circuits the state routing.
+		if (this.selectedViewId === NAVIGATOR_TAB_ID) {
+			this._renderNavigatorTab(body);
+			return;
+		}
+
 		// T4.2: nav chrome around the body content.
 		// - Back control (only while drilled with a non-empty stack)
 		// - S43 pinned-divergence hint (only when pinned + editor diverged)
@@ -1094,6 +1157,39 @@ export class SidebarView extends ItemView {
 			// S9: error with Retry button
 			this._renderError(body, state.retry);
 		}
+	}
+
+	/**
+	 * M5: compute + render the Navigator tab (ADR-10). Resolves the active note's
+	 * scope, maps scenes → rows, builds the act/plotline models + status tally,
+	 * applies the plotline filter, and renders via renderNavigator. Follows the
+	 * active note because _updateBody is driven by the follow pipeline.
+	 */
+	private _renderNavigatorTab(body: HTMLElement): void {
+		const activeFile = this.app.workspace.getActiveFile();
+		const { scope, scenes } = resolveWorkspaceScope(this.app, activeFile);
+		this._navScopeKey = scope.kind === "none" ? "none" : `${scope.kind}:${scope.ref.path}`;
+
+		const sourcePath = activeFile?.path ?? "";
+		const resolve: LinkResolver = (t) =>
+			this.app.metadataCache.getFirstLinkpathDest(t, sourcePath);
+
+		const rows = scenes.map((f) => mapSceneRow(this.app, f));
+		const filter = this._navFilter;
+		const actRows =
+			filter === null ? rows : rows.filter((r) => r.plotlines.map(stripLink).includes(filter));
+
+		const data: NavigatorData = {
+			actGroups: timelineModel(actRows),
+			plotlineGroups: plotlineModel(rows, resolve),
+			tally: statusTally(rows),
+		};
+		renderNavigator(
+			body,
+			data,
+			{ plotlineFilter: filter },
+			{ isCollapsed: (g) => this._collapse.isCollapsed("navigator", this._navScopeKey, g) },
+		);
 	}
 
 	/**
