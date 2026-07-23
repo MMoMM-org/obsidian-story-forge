@@ -1676,7 +1676,12 @@ body {
 	background: var(--background-modifier-hover);
 }
 
+/* Grid items default to min-width:auto, so long content (e.g. a
+ * "distinctive_features" header) refuses to shrink and overflows into the next
+ * column. min-width:0 lets the cell shrink; ellipsis clips the overflow. */
+.sf-codex-header-cell,
 .sf-codex-cell {
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
