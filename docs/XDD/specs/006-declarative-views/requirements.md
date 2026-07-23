@@ -6,6 +6,16 @@ version: "1.0"
 
 # Product Requirements Document
 
+> **v2.0 reground note (2026-07-23).** After reviewing the redrawn mockups against the MIT-licensed
+> obsidian-storyline plugin, the surface and scope were refined (see the spec README decision log +
+> SDD v2.0). Deltas to the features below: (a) a third **surface**, the sidebar **Navigator** (a
+> compact scene browser — plotline filter list + act-grouped rows + progress — a `SidebarView` tab),
+> complements the main-area Timeline/Plotlines; (b) **M5 ships Navigator + Timeline-rail +
+> Plotlines-list**; Timeline **swimlanes** and Plotlines **subway map** (plus drag→frontmatter) move
+> to **M6**; (c) Timeline act-divider labels come from the scene's **`beat`** note alias (no schema
+> change), not a new act-name field. The F0–F6 acceptance intent is unchanged; the SDD's EARS ACs are
+> the implementation-level source of truth.
+
 ## Validation Checklist
 
 ### CRITICAL GATES (Must Pass)

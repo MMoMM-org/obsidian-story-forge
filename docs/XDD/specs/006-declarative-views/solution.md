@@ -1,10 +1,17 @@
 ---
-title: "M5 — Declarative Workspace Views (Timeline + Plotlines)"
+title: "M5 — Declarative Workspace Views (Navigator + Timeline + Plotlines)"
 status: draft
-version: "1.0"
+version: "2.0 — StoryLine-grounded reground"
 ---
 
 # Solution Design Document
+
+> **v2.0 reground (2026-07-23).** Supersedes the v1.0 "one polymorphic main-area view of M3
+> sectioned lists" design. Driven by three user decisions (see README decision log): the views
+> take **StoryLine's** visual language (built fresh, no code port); the surface **splits** into a
+> sidebar **Navigator** (third tab) + main-area **Timeline/Plotlines**; and **M5 ships Navigator +
+> Timeline-rail + Plotlines-list**, with swimlanes / subway map / drag deferred to **M6**. Act
+> divider labels come from **beat notes** (`scene.beat` → beat-note alias), not a new schema field.
 
 ## Validation Checklist
 
@@ -36,20 +43,24 @@ version: "1.0"
 - **CON-1 (platform/language):** TypeScript strict, Obsidian plugin API; ESM/esbuild bundle;
   targets `minAppVersion` 1.12.7. No `any` (use `unknown` + narrowing). No runtime `<style>`
   injection — all styling via the bundled `styles.css` `sf-*` classes.
-- **CON-2 (read-only, M5):** the views MUST NOT write frontmatter. All drag/edit is deferred
-  to M6. The render host must leave a clean seam (delegated `data-*` handlers) so M6 can add
-  interaction without re-architecting.
-- **CON-3 (Bases-typing firewall):** all Obsidian **Bases** typings stay confined to
-  `src/bases/`. **M5 does not use Bases** as a data source (see ADR-1), so the workspace views
-  carry zero Bases typings and live outside `src/bases/` — the firewall is respected by not
-  crossing it.
-- **CON-4 (lifecycle/teardown):** register DOM listeners, events, and intervals via
-  `this.register*`/`registerDomEvent`/`registerEvent` so unload is clean (the mock's
-  `_runCleanup()` asserts this). No listener accumulation across re-renders.
-- **CON-5 (English + schema-coupled seed):** all committed content and seed-vault additions are
-  English; seed changes must keep `npm run schema:check` green.
+- **CON-2 (read-only, M5):** the views MUST NOT write frontmatter. All drag/edit is deferred to
+  M6. Render hosts must leave a clean seam (delegated `data-*` handlers) so M6 can add interaction
+  without re-architecting.
+- **CON-3 (Bases-typing firewall):** all Obsidian **Bases** typings stay confined to `src/bases/`.
+  **M5 does not use Bases** as a data source (ADR-1), so the workspace views carry zero Bases
+  typings and live outside `src/bases/` — the firewall is respected by not crossing it.
+- **CON-4 (lifecycle/teardown):** register DOM listeners, events, intervals via
+  `this.register*`/`registerDomEvent`/`registerEvent`; the mock's `_runCleanup()` asserts clean
+  unload. No listener accumulation across re-renders.
+- **CON-5 (English + schema-coupled seed):** all committed content and seed additions are English;
+  seed changes keep `npm run schema:check` green.
 - **CON-6 (frontmatter is truth):** the views only READ frontmatter; they never own or cache
-  authoritative state. Everything derives live from `metadataCache`.
+  authoritative state. Everything derives live from `metadataCache`. No new schema fields in M5
+  (act labels are derived from existing `beat` links, not stored — ADR-11).
+- **CON-7 (structure-agnostic):** scenes are INCLUDED by tag/type, never by folder; a folder
+  denylist (`DEFAULT_EXCLUDED_FOLDERS`) EXCLUDES template/meta notes. No vault layout is imposed.
+- **CON-8 (StoryLine attribution):** the visual language is modelled on the MIT-licensed
+  obsidian-storyline; built fresh on our schema (no code copied). Credit StoryLine in `NOTICE`.
 
 ## Implementation Context
 
@@ -61,75 +72,71 @@ version: "1.0"
 ```yaml
 - doc: docs/DESIGN.md
   relevance: HIGH
-  why: "Two render surfaces (contextual panel vs workspace views); ①–④ view categories"
+  why: "Two render surfaces (contextual panel vs workspace views); view categories"
 - doc: docs/build-plan.md
   relevance: HIGH
   why: "M5 scope (Timeline/Plotlines) + the M6 boundary (drag→frontmatter)"
 - doc: docs/XDD/specs/006-declarative-views/requirements.md
   relevance: CRITICAL
-  why: "The PRD this design must satisfy (F0–F11, ~20 ACs)"
-- doc: docs/XDD/specs/005-bases-codex-catalog/mockups.html
+  why: "The PRD this design must satisfy (F0–F11)"
+- doc: docs/XDD/specs/006-declarative-views/mockups.html
+  relevance: CRITICAL
+  why: "StoryLine-grounded states S59–S72 (Navigator, Timeline-rail, Plotlines-list; M6 swimlane/subway)"
+- ref: https://github.com/pixerojan/obsidian-storyline
   relevance: HIGH
-  why: "Existing visual language + highest S-number (S58); the S56 drill seam + S46 degrade"
+  why: "Visual reference (MIT) for Navigator, Timeline, Plotlines; screenshots studied, no code ported"
 ```
 
 #### Code Context
 ```yaml
-- file: src/panel/components.ts
+- file: src/views/SidebarView.ts
   relevance: CRITICAL
-  why: "section()/collapse, factRow, relationRow, linkRow, stampLinkEl, unresolvedEl, emptyLine — reused verbatim"
-- file: src/panel/renderers/scene.ts
+  why: "Hosts the Navigator as a 3rd tab: tab strip, active-leaf follow, body render, showFile/_drillInto drill seam, _toggleSection, data-sf-* delegation"
+- file: src/panel/components.ts
   relevance: HIGH
-  why: "Precedent for scene field rendering + reading-order/plotlines sections"
-- file: src/panel/kindFields.ts
-  relevance: HIGH
-  why: "Canonical scene fact/relation field order for card fields"
+  why: "section()/collapse, stampLinkEl, unresolvedEl, emptyLine, data-sf-section-toggle/data-sf-link — reused for collapse + drill + empty/unresolved"
 - file: src/engines/NativeScopingEngine.ts
   relevance: HIGH
-  why: "The metadataCache-backed, pure-DOM render pattern the workspace host mirrors (incl. its collapse map)"
+  why: "metadataCache-backed pure-DOM render pattern the main-area host mirrors"
 - file: src/scoping/ScopingService.ts
   relevance: HIGH
   why: "resolve(file)→NoteContext; the workspace scope seam sits alongside this"
 - file: src/scoping/NoteContext.ts
   relevance: HIGH
-  why: "activeKind (book|plotline|scene|…), frontmatter shape used to derive scope"
+  why: "activeKind (book|plotline|scene|…) used to derive scope"
 - file: src/codex/CodexView.ts
   relevance: HIGH
-  why: "Main-area ItemView host pattern (view type, onOpen, activation) to mirror"
-- file: src/views/SidebarView.ts
-  relevance: HIGH
-  why: "showFile()/_drillInto drill seam (target of scene click); active-leaf-change follow pattern; _toggleSection"
+  why: "Main-area ItemView host pattern (view type, onOpen, activation) to mirror for Timeline/Plotlines"
 - file: src/main.ts
   relevance: HIGH
   why: "View + command registration, activation helpers, active-leaf-change wiring"
 - file: schema/scene.json
   relevance: CRITICAL
-  why: "Real scene fields: act, order, storyDay, when, plotlines, book, status, chapter, pov"
+  why: "Real scene fields: act, order, storyDay, when, plotlines, book, status, chapter, pov, location, characters, beat, wordcount"
 - file: schema/plotline.json
   relevance: MEDIUM
-  why: "Plotline fields (name/title/logline/status) for group headers"
+  why: "Plotline fields (name/title/status) for group headers; no color field → color is derived (ADR-12)"
 - file: '@styles.css'
   relevance: MEDIUM
-  why: "sf-* classes to reuse; new sf-tl-*/sf-pl-* classes added here"
+  why: "sf-* classes to reuse; new sf-nav-*/sf-tl-*/sf-pl-* classes added here"
 ```
 
 #### External APIs
-Not applicable — no third-party services. The plugin reads only the local vault via the
-Obsidian API (`metadataCache`, `vault`, `workspace`).
+Not applicable — no third-party services. The plugin reads only the local vault via the Obsidian
+API (`metadataCache`, `vault`, `workspace`).
 
 ### Implementation Boundaries
-- **Must Preserve:** the M3 sidebar panel + its `showFile`/`_drillInto` drill seam; the M2
-  engine/consent contracts; the M4 Codex view type + catalog; `schema/*` as the canonical
-  source (edit JSON + `schema:gen`, never hand-edit generated vault artifacts).
-- **Can Modify:** `src/main.ts` (register the new view + commands + follow wiring); `styles.css`
-  (add workspace view classes); `src/scoping/` (add the scope seam); the test-vault seed
-  (extend per F0); M4 Codex tests whose row counts shift when seed scenes are added (ADR-9).
+- **Must Preserve:** the M3 sidebar panel + its `showFile`/`_drillInto` drill seam and tab strip;
+  the M2 engine/consent contracts; the M4 Codex view type; `schema/*` as canonical (edit JSON +
+  `schema:gen`, never hand-edit generated vault artifacts).
+- **Can Modify:** `src/views/SidebarView.ts` (add the Navigator tab); `src/main.ts` (register the
+  main-area view + commands + follow); `styles.css` (add view classes); `src/scoping/` (scope
+  seam); the test-vault seed (extend per F0, incl. beat notes).
 - **Must Not Touch:** `src/bases/` Bases typings (not needed); generated `00 Meta/` artifacts by
-  hand; the frontmatter-write path (read-only in M5).
+  hand; the frontmatter-write path (read-only in M5); StoryLine's source (visual reference only).
 
 ### External Interfaces
-Not applicable in the web sense. The only "external" boundary is the Obsidian workspace/vault
-API. No inbound/outbound network, no database, no message queue.
+The only "external" boundary is the Obsidian workspace/vault API. No network, database, or queue.
 
 ### Project Commands
 ```bash
@@ -144,26 +151,40 @@ Schema:  npm run schema:gen   # regenerate vault artifacts   /   npm run schema:
 
 ## Solution Strategy
 
-- **Architecture Pattern:** a thin main-area **`ItemView` host** (one polymorphic workspace
-  view, `story-forge-workspace`, discriminated by a `layout: "timeline" | "plotlines"` state)
-  that, on open and on active-leaf-change, (1) derives the active **scope** via a new
-  `resolveWorkspaceScope` seam, (2) **scans `metadataCache`** for in-scope scenes, (3) sorts
-  and groups them **in TypeScript** per the layout strategy, and (4) renders read-only DOM by
-  **reusing the M3 panel components** (`section`, `linkRow`, `stampLinkEl`, `emptyLine`).
-  Scene clicks reuse the M4 drill seam (`SidebarView.showFile`).
+- **Architecture Pattern:** **two read-only surfaces over one shared data core.** A pure core
+  (`resolveWorkspaceScope` → `metadataCache` scan → `SceneRow[]` → `timelineModel`/`plotlineModel`)
+  feeds:
+  1. **Navigator** — a **sidebar tab** rendered inside the existing `SidebarView` leaf (third tab
+     alongside Context + the views-library tabs). Compact: a plotline **filter list** (color dot +
+     name + count), **act-grouped** collapsible scene rows, and a **status progress** bar. Follows
+     the active note exactly like Context.
+  2. **Timeline / Plotlines** — a main-area polymorphic `ItemView` (`story-forge-workspace`,
+     `layout: "timeline" | "plotlines"`). **M5 renders Timeline in rail mode and Plotlines in list
+     mode**; it follows active-leaf-change to re-scope.
+  Scene clicks in either surface reuse the M4 drill seam (`SidebarView.showFile`).
+- **Visual language:** StoryLine-grounded (cards with status badges, plotline **color dots**, a
+  vertical **rail** with act-divider pills, a Navigator list) — built fresh with `sf-nav-*` /
+  `sf-tl-*` / `sf-pl-*` classes. Collapse, drill, and empty/unresolved states reuse the M3
+  delegated-handler primitives.
 - **Integration Approach:** additive. New module `src/workspace/`; new scope helper in
-  `src/scoping/`; registration + follow wiring in `src/main.ts`; new `sf-tl-*`/`sf-pl-*` CSS.
+  `src/scoping/`; a Navigator tab in `SidebarView`; main-area registration + follow in `main.ts`.
   No changes to the engine registry, consent, or Bases adapter.
-- **Justification:** scope-following requires parameterising by the active note, which static
-  Bases `.base` filters cannot express (ADR-1). A `metadataCache` scan (the proven
-  `NativeScopingEngine` pattern) makes scope-following natural, removes the Bases dependency
-  entirely (no degrade path), and gives full DOM ownership so M6 can add drag→frontmatter
-  without re-architecting.
-- **Key Decisions:** metadataCache (not Bases) as source (ADR-1); main-area follow-the-note
-  ItemView (ADR-2); one polymorphic view type (ADR-3); scope seam in `src/scoping/` (ADR-4);
-  TS sort/group with coalesced keys + Unassigned/No-act buckets (ADR-5); collapse persisted per
-  view+scope+group (ADR-6); unresolved plotline links get their own flagged group (ADR-7);
-  reuse M3 components + read-only M6 seam (ADR-8); extend seed + fix M4 Codex counts (ADR-9).
+- **Justification:** scope-following must be parameterised by the active note, which static Bases
+  `.base` filters cannot express (ADR-1). A `metadataCache` scan makes scope natural, removes the
+  Bases dependency (no degrade path), and gives full DOM ownership so M6 can add swimlanes / subway
+  / drag→frontmatter on the same core without re-architecting.
+- **M5 / M6 boundary:** **M5** = Navigator + Timeline **rail** + Plotlines **list** (read-only).
+  **M6** = Timeline **swimlanes** (keys: POV / location / plotline), Plotlines **subway map** (SVG
+  or DOM; zoom + pan; clickable stations), and drag→frontmatter. The M5 render hosts and models are
+  shaped so M6 adds modes, not rewrites (ADR-8, ADR-13).
+
+- **Key Decisions:** metadataCache not Bases (ADR-1); split surfaces — Navigator sidebar tab +
+  main-area Timeline/Plotlines (ADR-2); one polymorphic main-area view (ADR-3); scope seam in
+  `src/scoping/` (ADR-4); TS sort/group with coalesced keys + Unassigned/No-act buckets (ADR-5);
+  collapse per surface+scope+group (ADR-6); unresolved plotline → flagged group (ADR-7); StoryLine
+  visual language + read-only M6 seam (ADR-8); extend seed incl. beat notes (ADR-9); Navigator =
+  SidebarView tab (ADR-10); act label derived from `beat` note alias, no schema change (ADR-11);
+  plotline color derived deterministically from name (ADR-12); swimlane/subway/drag → M6 (ADR-13).
 
 ## Building Block View
 
@@ -171,50 +192,69 @@ Schema:  npm run schema:gen   # regenerate vault artifacts   /   npm run schema:
 
 ```mermaid
 graph LR
-    Main[main.ts] -->|registers| WV[WorkspaceView ItemView<br/>story-forge-workspace]
+    Main[main.ts] -->|registers| WV[WorkspaceView ItemView<br/>story-forge-workspace<br/>layout: timeline·plotlines]
     Main -->|active-leaf-change| WV
-    WV -->|derive scope| Scope[resolveWorkspaceScope<br/>src/scoping]
+    SB[SidebarView leaf] -->|3rd tab| NAV[Navigator tab<br/>renderNavigator]
+    SB -->|active-leaf-change| NAV
+
+    subgraph core[shared data core — pure, Bases-free]
+      Scope[resolveWorkspaceScope<br/>src/scoping]
+      Model[workspaceModel<br/>timelineModel·plotlineModel<br/>actLabel·plotlineColor·statusTally]
+    end
+
+    NAV --> Scope
+    WV --> Scope
     Scope -->|reads| MC[(metadataCache)]
-    WV -->|collect scenes| MC
-    WV -->|layout=timeline| TL[timelineModel<br/>sort+group]
-    WV -->|layout=plotlines| PL[plotlineModel<br/>group+buckets]
-    TL --> R[renderWorkspace<br/>pure DOM]
-    PL --> R
-    R -->|reuses| C[panel/components<br/>section·linkRow·stampLinkEl]
-    R -->|scene click data-sf-link| SB[SidebarView.showFile<br/>drill seam]
-    WV -->|collapse state| CS[collapseStore<br/>per view+scope+group]
+    NAV --> Model
+    WV --> Model
+    Model -->|reads| MC
+
+    WV -->|layout=timeline| RT[renderTimeline<br/>rail + cards + act pills]
+    WV -->|layout=plotlines| RP[renderPlotlines<br/>list + Unassigned]
+    NAV --> RN[renderNavigator<br/>filter list + act rows + progress]
+
+    RT -->|scene click data-sf-link| DR[SidebarView.showFile<br/>drill seam → Context tab]
+    RP --> DR
+    RN --> DR
+    NAV -->|collapse| CS[collapseStore<br/>per surface+scope+group]
+    WV --> CS
 ```
 
 ### Directory Map
 
-**Component**: workspace views (NEW)
+**Component**: workspace views (NEW) + Navigator tab (MODIFY SidebarView)
 ```
 .
 ├── src/
 │   ├── workspace/
-│   │   ├── WorkspaceView.ts        # NEW: ItemView host; onOpen, follow, layout switch, render orchestration
-│   │   ├── workspaceModel.ts       # NEW: SceneRow mapping + timelineModel()/plotlineModel() (pure, testable)
-│   │   ├── renderWorkspace.ts      # NEW: pure-DOM render of grouped rows via panel/components
-│   │   └── collapseStore.ts        # NEW: transient collapse state keyed by view+scope+group (ADR-6)
+│   │   ├── WorkspaceView.ts        # NEW: main-area ItemView host (Timeline/Plotlines); onOpen, follow, layout toggle
+│   │   ├── workspaceModel.ts       # (P1 DONE, EXTEND) SceneRow mapping + timelineModel/plotlineModel; + actLabel, plotlineColor, statusTally
+│   │   ├── renderTimeline.ts       # NEW: rail + scene cards + act-divider pills (act label via actLabel)
+│   │   ├── renderPlotlines.ts      # NEW: list mode — plotline groups + Unassigned + unresolved
+│   │   ├── renderNavigator.ts      # NEW: sidebar Navigator — filter list + act-grouped rows + progress
+│   │   └── collapseStore.ts        # NEW: transient collapse state keyed by surface+scope+group (ADR-6)
 │   ├── scoping/
 │   │   └── workspaceScope.ts       # NEW: resolveWorkspaceScope(app, activeFile) → Scope + scene TFiles (ADR-4)
-│   ├── main.ts                     # MODIFY: register WORKSPACE_VIEW_TYPE, open commands, active-leaf-change follow
-│   └── pluginConstants.ts          # MODIFY: WORKSPACE_VIEW_TYPE constant
-├── styles.css                      # MODIFY: sf-tl-* / sf-pl-* / shared sf-ws-* classes
+│   ├── views/
+│   │   └── SidebarView.ts          # MODIFY: register the Navigator tab; route its render + follow (ADR-10)
+│   ├── main.ts                     # MODIFY: register WORKSPACE_VIEW_TYPE, open commands, follow
+│   └── pluginConstants.ts          # MODIFY: WORKSPACE_VIEW_TYPE + NAVIGATOR_TAB_ID constants
+├── styles.css                      # MODIFY: sf-nav-* (Navigator) / sf-tl-* (timeline rail/card) / sf-pl-* (plotline list/dots)
+├── NOTICE                          # NEW/MODIFY: StoryLine visual-reference attribution (CON-8)
 ├── test/
-│   ├── workspace/                  # NEW: unit tests (model sort/group; render; scope; view)
-│   └── StoryForge/                 # MODIFY: seed extension (F0) — see ADR-9
+│   ├── workspace/                  # NEW/EXTEND: model (P1), scope, actLabel, render, navigator, view
+│   └── StoryForge/                 # MODIFY: seed extension (F0) — beat notes + act-2 + edge scenes (ADR-9)
 └── docs/XDD/specs/006-declarative-views/
-    └── mockups.html                # NEW: S59–S70 states
+    └── mockups.html                # DONE: S59–S72 (M5 + M6-tagged states)
 ```
 
 ### Interface Specifications
 
 #### Data Storage Changes
-None. No database, no persisted plugin state beyond Obsidian's own note frontmatter (which the
-views only read). Collapse state is in-memory and transient (ADR-6).
+None. No database, no persisted plugin state beyond note frontmatter (read-only). Collapse and
+Navigator filter state are in-memory and transient (ADR-6).
 
-#### Internal API Changes (module interfaces, not HTTP)
+#### Internal API Changes (module interfaces)
 
 ```typescript
 // src/scoping/workspaceScope.ts  (ADR-4)
@@ -223,91 +263,106 @@ export type WorkspaceScope =
   | { kind: "plotline"; ref: TFile }    // scenes whose `plotlines` include ref
   | { kind: "none" };                   // active note yields no scope → whole-vault books + hint
 
-export interface ResolvedScope {
-  scope: WorkspaceScope;
-  scenes: TFile[];                      // in-scope scene notes (unsorted)
-}
+export interface ResolvedScope { scope: WorkspaceScope; scenes: TFile[]; }
 
-// Derives scope from the active note (book note → book; plotline note → plotline;
-// scene note → its book; else none), then collects in-scope scenes from metadataCache.
+export const DEFAULT_EXCLUDED_FOLDERS = ["00 Meta"];   // CON-7; future excludedFolders setting
+
 export function resolveWorkspaceScope(app: App, activeFile: TFile | null): ResolvedScope;
 ```
 
 ```typescript
-// src/workspace/workspaceModel.ts  (ADR-5)
+// src/workspace/workspaceModel.ts  (ADR-5, ADR-11, ADR-12)
 export interface SceneRow {
   file: TFile;
-  title: string;                  // basename / frontmatter title
+  title: string;
   act: number | null;
   order: number | null;
   storyDay: number | null;
   when: string;                   // display label ("" when absent)
   status: string;                 // enum value or ""
   pov: string;                    // resolved basename or ""
+  location: string;               // resolved basename or ""
+  characters: string[];           // resolved basenames (for cards)
   plotlines: string[];            // raw link targets (may be unresolved)
+  beat: string;                   // raw `beat` link text ("" when empty)
+  beatName: string;               // resolved beat-note alias/title ("" when empty/unresolved)
+  wordcount: number | null;
 }
 
 export interface Group {
-  key: string;                    // "Act 1" | "The Dying Light" | "Unassigned" | "No act"
-  label: string;                  // display label
+  key: string; label: string;
   kind: "act" | "plotline" | "unassigned" | "no-act" | "unresolved";
   scenes: SceneRow[];
 }
 
-// Timeline: sort by coalesce(storyDay, order) asc, tiebreak order asc, then a stable
-// tertiary key; group by act (+ trailing "No act"). Never drops a scene.
+// Timeline: sort by coalesce(storyDay, order) asc, tiebreak order asc, then title; group by act
+// (+ trailing "No act"). Group label for act groups is produced by actLabel(). Never drops a scene.
 export function timelineModel(rows: SceneRow[]): Group[];
 
-// Plotlines: fan each scene into one group per plotline link; empty plotlines → "Unassigned";
-// unresolved link target → its own "unresolved"-flagged group (ADR-7).
-export function plotlineModel(rows: SceneRow[], app: App, sourcePath: string): Group[];
+// Plotlines: fan each scene into one group per plotline link; empty → "Unassigned";
+// unresolved link → its own flagged "unresolved" group (ADR-7).
+export function plotlineModel(rows: SceneRow[], resolve: LinkResolver): Group[];
+
+// Act label = the beat name shared by the act's scenes, else "Act N" (ADR-11).
+export function actLabel(act: number | null, scenes: SceneRow[]): string;
+
+// Deterministic, stable per-plotline color from its name → a fixed palette (ADR-12).
+export function plotlineColor(name: string): string;
+
+// Status → count map, for the Navigator progress bar.
+export function statusTally(rows: SceneRow[]): Record<string, number>;
 ```
 
 ```typescript
-// src/workspace/WorkspaceView.ts  (ADR-2, ADR-3)
+// src/workspace/WorkspaceView.ts  (ADR-2, ADR-3, ADR-13)
 export const WORKSPACE_VIEW_TYPE = "story-forge-workspace";
 export class WorkspaceView extends ItemView {
-  // state: layout: "timeline" | "plotlines"; current ResolvedScope
-  // getViewType() → WORKSPACE_VIEW_TYPE; getDisplayText() per layout
-  // onOpen(): initial scope + render; subscribes to active-leaf-change (re-scope+render)
-  // setLayout(layout): switch timeline↔plotlines (toolbar toggle) and re-render
-  // render(): resolveWorkspaceScope → model → renderWorkspace(host, groups, deps)
+  // layout: "timeline" | "plotlines"; current ResolvedScope
+  // onOpen(): initial scope + render; subscribe active-leaf-change (re-scope+render, debounced)
+  // setLayout(): timeline↔plotlines toggle → re-render (preserve per-scope collapse)
+  // render(): resolveWorkspaceScope → model → renderTimeline | renderPlotlines
+  // M6 seam: renderTimeline(mode: "rail"|"swimlane"), renderPlotlines(mode: "list"|"subway")
 }
 ```
 
+```typescript
+// src/workspace/renderNavigator.ts  (ADR-10)  — rendered into SidebarView's body for the Nav tab
+export interface NavigatorDeps { onScene(file: TFile): void; collapse: CollapseStore; }
+export interface NavigatorState { plotlineFilter: string | null; }
+export function renderNavigator(
+  host: HTMLElement, resolved: ResolvedScope, app: App,
+  state: NavigatorState, deps: NavigatorDeps,
+): void;   // plotline filter list (dot+count) + act-grouped rows + progress
+```
+
 #### Application Data Models
-The only models are the plain, Bases-free `SceneRow` and `Group` above (no Obsidian typings
-beyond `TFile`). Rendering consumes `Group[]`; `renderWorkspace` maps each `Group` to a
-reused `section()` with `linkRow`/`stampLinkEl` scene rows carrying `data-sf-link`.
+Plain, Bases-free `SceneRow` / `Group` (no Obsidian typings beyond `TFile`). All three renderers
+consume `Group[]` (Navigator additionally consumes the plotline groups for its filter list and a
+`statusTally`). Scene rows carry `data-sf-link` for the drill seam.
 
 #### Integration Points
 ```yaml
-- from: WorkspaceView (main area)
-  to: SidebarView (sidebar)
-    - protocol: in-process — reveal sidebar leaf + call showFile(file)
-    - seam: SidebarView.showFile → _drillInto → navStack (the M4 S56 seam, unchanged)
-    - data_flow: "clicked scene path → panel re-subjects to that scene"
-- from: WorkspaceView
-  to: resolveWorkspaceScope (scoping)
-    - protocol: function call on active-leaf-change / open
+- from: Navigator tab (SidebarView) / WorkspaceView (main area)
+  to: SidebarView Context tab
+    - protocol: in-process — select Context tab / reveal leaf + showFile(file)
+    - seam: SidebarView.showFile → _drillInto → navStack (M4 S56 seam, unchanged)
+- from: both surfaces
+  to: resolveWorkspaceScope
     - data_flow: "active TFile → {scope, scenes[]}"
-- from: WorkspaceView / models
-  to: metadataCache (Obsidian)
+- from: models
+  to: metadataCache
     - protocol: getFileCache / getFirstLinkpathDest / resolvedLinks
-    - data_flow: "read scene + plotline frontmatter/links; resolve wikilinks"
+    - data_flow: "read scene/plotline/beat frontmatter + links; resolve wikilinks + aliases"
 ```
 
 ### Implementation Examples
 
 #### Example: Timeline sort with coalesced key + tie-break (ADR-5)
 
-**Why this example:** the `storyDay`→`order` fallback plus tie-break is the load-bearing
-Timeline rule and the easiest to get subtly wrong. Field names are verified against
-`schema/scene.json` (`storyDay`, `order` — both `number`).
+**Why this example:** the `storyDay`→`order` fallback plus tie-break is the load-bearing Timeline
+rule. Field names verified against `schema/scene.json` (`storyDay`, `order` — both `number`).
 
 ```typescript
-// Sort key: primary = storyDay ?? order ?? +Infinity (unplaced go last, never dropped);
-// tiebreak = order ?? +Infinity; final tiebreak = basename for stability.
 function compareTimeline(a: SceneRow, b: SceneRow): number {
   const ak = a.storyDay ?? a.order ?? Number.POSITIVE_INFINITY;
   const bk = b.storyDay ?? b.order ?? Number.POSITIVE_INFINITY;
@@ -319,109 +374,120 @@ function compareTimeline(a: SceneRow, b: SceneRow): number {
 }
 ```
 
-**Traced walkthrough** (seed data — `test/StoryForge/10 Manuscript/Wardens of Moonharbor/`):
+**Traced walkthrough** (seed — `test/StoryForge/10 Manuscript/Wardens of Moonharbor/`):
 
-| Scene | storyDay | order | primary key | result order |
-|-------|----------|-------|-------------|--------------|
-| Scene 1 — The Extinguished Fire | 1 | 1 | 1 | 1st |
-| Scene 2 — The Salty Gull | 1 | 2 | 1 | 2nd (tie on day 1 → order 1<2) |
-| Scene 3 — The Black Cliffs | 2 | 3 | 2 | 3rd |
+| Scene | storyDay | order | primary key | result |
+|-------|----------|-------|-------------|--------|
+| The Extinguished Fire | 1 | 1 | 1 | 1st |
+| The Salty Gull | 1 | 2 | 1 | 2nd (tie on day 1 → order 1<2) |
+| The Black Cliffs | 2 | 3 | 2 | 3rd |
 
-Extended-seed case: a scene with `storyDay` absent, `order: 5` → primary key = 5, sorts by
-`order` among keyed scenes. A scene missing both → primary key +Infinity → appended last,
-never dropped.
+Extended-seed: a scene with `storyDay` absent, `order: 5` → key 5, sorts by `order`. Missing both →
+key +Infinity → appended last, never dropped.
 
-**Edge cases:** empty group set → `renderWorkspace` shows the empty-state (F5). All-Infinity
-(no scene has storyDay/order) → stable basename order, all under their act groups.
+#### Example: Act label from the beat note (ADR-11)
+
+**Why this example:** acts have no name field; the divider name is derived from the act's scenes'
+`beat` link. Verified against the _forge vault: `scene.beat` → `type: beat` note (`aliases`/`title`),
+1:1 with `act` in the canon.
+
+```typescript
+export function actLabel(act: number | null, scenes: SceneRow[]): string {
+  if (act == null) return "No act";
+  const names = new Set(scenes.map(s => s.beatName).filter(Boolean));
+  return names.size === 1 ? `Act ${act} · ${[...names][0]}` : `Act ${act}`;
+}
+```
+
+**Walkthrough:** Wardens of Moonharbor Act 1 scenes all set `beat: [[201 🎬 The Failing Light]]`
+(alias "The Failing Light") → `"Act 1 · The Failing Light"`. If the act's scenes carried two
+different beats → falls back to `"Act 1"` (never guesses). Empty `beat` (as in today's seed) →
+`beatName === ""` → `"Act 1"`.
 
 #### Example: Plotline fan-out + Unassigned/unresolved buckets (ADR-5/ADR-7)
 
-**Why this example:** `plotlines` is a **list** (`schema/scene.json` `"type":"list"`); a scene
-must appear under each plotline it links, empty → Unassigned, unresolved link → its own flagged
-group.
+**Why:** `plotlines` is a **list** (`schema/scene.json` `"type":"list"`); a scene appears under each
+plotline it links, empty → Unassigned, unresolved link → its own flagged group.
 
 ```typescript
-// For each scene, for each raw plotline link: resolve; bucket by resolved basename,
-// or by raw text into an "unresolved"-flagged group; scenes with no links → "Unassigned".
 for (const row of rows) {
   if (row.plotlines.length === 0) { pushInto(groups, unassignedKey, row); continue; }
   for (const raw of row.plotlines) {
-    const dest = app.metadataCache.getFirstLinkpathDest(strip(raw), sourcePath);
+    const dest = resolve(strip(raw));                 // metadataCache.getFirstLinkpathDest
     if (dest) pushInto(groups, dest.basename, row, "plotline");
-    else pushInto(groups, strip(raw), row, "unresolved");  // visible, flagged (ADR-7)
+    else pushInto(groups, strip(raw), row, "unresolved");   // visible, flagged (ADR-7)
   }
 }
-// Order: plotline groups (by name), then unresolved groups, then "Unassigned" last.
+// Order: plotline groups (by name) → unresolved groups → "Unassigned" last.
 ```
 
 #### Test Examples as Interface Documentation
-`test/workspace/workspaceModel.test.ts` documents the contracts: `timelineModel` ordering +
-act grouping + no-act bucket; `plotlineModel` fan-out + Unassigned + unresolved; both pure and
-deterministic (no DOM, no Obsidian runtime — `SceneRow[]` in, `Group[]` out).
+`test/workspace/workspaceModel.test.ts` (P1, green) documents `timelineModel`/`plotlineModel`
+contracts (ordering, act grouping, no-act bucket, fan-out, Unassigned, unresolved) — pure,
+deterministic, no DOM. New: `actLabel`/`plotlineColor` tests; `workspaceScope.test.ts`.
 
 ## Runtime View
 
-### Primary Flow: open Timeline, scoped to the active book, drill into a scene
+### Primary Flow: Navigator follows a book; drill a scene; open the main-area Timeline
 
-1. Author runs "Open Timeline" (or switches an open workspace view's layout to Timeline).
-2. `WorkspaceView.onOpen()` reads the active leaf's file and calls `resolveWorkspaceScope`.
-3. Scope seam: active note is the book → `{kind:"book", ref}`; collect scenes whose `book`
-   links `ref` from `metadataCache`.
-4. `timelineModel(rows)` sorts (coalesced key) and groups by act.
-5. `renderWorkspace` empties the host and renders one collapsible `section()` per act, each
-   scene a `linkRow` with `data-sf-link`.
-6. Author clicks a scene → delegated handler reveals the sidebar leaf and calls
-   `SidebarView.showFile(file)` → M3 panel shows the scene detail with a `from Timeline ›` trail.
-7. On active-leaf-change to another book/plotline/scene, the view re-scopes and re-renders;
-   collapse state is restored per (view+scope+group).
+1. Author focuses a book/scene note; `SidebarView`'s active-leaf follow calls the Navigator render
+   (if its tab is active) → `resolveWorkspaceScope` → scenes.
+2. `renderNavigator` shows the plotline filter list (`plotlineColor` dots + counts from
+   `plotlineModel`), act-grouped rows (`timelineModel` + `actLabel`), and a `statusTally` progress.
+3. Author clicks a scene → `showFile` re-subjects the **Context** tab to it (drill seam).
+4. Author runs "Open Timeline" → `WorkspaceView` (layout=timeline) resolves the same scope, renders
+   the **rail**: act-divider pills (via `actLabel`), scene **cards** (title, POV, 📍location, status
+   badge + wordcount, character chips), plotline-colored rail nodes.
+5. On active-leaf-change, both surfaces re-scope and re-render; collapse restored per
+   (surface+scope+group).
 
 ```mermaid
 sequenceDiagram
     actor Author
-    participant WV as WorkspaceView
+    participant SB as SidebarView(Navigator tab)
+    participant WV as WorkspaceView(Timeline)
     participant Scope as resolveWorkspaceScope
-    participant MC as metadataCache
     participant Model as timeline/plotlineModel
-    participant R as renderWorkspace
-    participant SB as SidebarView
-    Author->>WV: open / active-leaf-change
+    Author->>SB: focus book note
+    SB->>Scope: resolve(app, activeFile)
+    Scope-->>SB: {scope, scenes[]}
+    SB->>Model: build Group[] + statusTally
+    Model-->>SB: groups
+    SB-->>Author: Navigator (filter list + act rows + progress)
+    Author->>SB: click scene (data-sf-link)
+    SB->>SB: select Context tab + showFile(file)
+    Author->>WV: Open Timeline
     WV->>Scope: resolve(app, activeFile)
-    Scope->>MC: read book/plotline + scenes
-    Scope-->>WV: {scope, scenes[]}
-    WV->>Model: build Group[]
-    Model-->>WV: Group[]
-    WV->>R: render(host, groups, deps)
-    Author->>R: click scene (data-sf-link)
-    R->>SB: showFile(file)  (drill seam)
-    SB-->>Author: panel shows scene detail
+    WV->>Model: timelineModel + actLabel
+    WV-->>Author: rail + cards
 ```
 
 ### Error Handling
-- **No scenes in scope:** render the empty-state (`emptyLine`/empty box), never a blank host (F5).
-- **Active note has no derivable scope:** `{kind:"none"}` → whole-vault book scope + a muted
-  "not scoped to a book/plotline" hint (F3 AC-4). Never throw.
-- **Missing scene fields** (`when`/`storyDay`/`pov`/`status`): render blank/placeholder cells;
-  the scene still appears; sort/group tolerate `null` (F5).
-- **Unresolved scene link** (a listed scene note that doesn't exist): `unresolvedEl` treatment,
-  non-clickable, never throws.
-- **Unresolved plotline link:** its own flagged group (ADR-7), not a crash and not hidden.
+- **No scenes in scope:** empty-state (never a blank host) — F5.
+- **No derivable scope:** `{kind:"none"}` → whole-vault books + muted "not scoped" hint — F3 AC-4.
+  Never throws.
+- **Missing scene fields** (`when`/`storyDay`/`pov`/`status`/`beat`/`wordcount`): blank/placeholder
+  cells; the scene still appears; sort/group/actLabel tolerate `null`/`""` — F5.
+- **Unresolved scene/beat link:** `unresolvedEl` / `beatName===""` fallback, non-clickable, no throw.
+- **Unresolved plotline link:** own flagged group (ADR-7), not hidden, not a crash.
 
 ### Complex Logic
 ```
-ALGORITHM: renderWorkspace(layout, activeFile)
+ALGORITHM: renderSurface(surface, layout, activeFile)
 1. RESOLVE scope ← resolveWorkspaceScope(app, activeFile)
-2. MAP scenes → SceneRow[] (read frontmatter via metadataCache; resolve pov)
-3. BUILD groups ← layout=timeline ? timelineModel(rows) : plotlineModel(rows, app, path)
+2. MAP scenes → SceneRow[] (metadataCache: read frontmatter; resolve pov/location/characters/beatName)
+3. BUILD groups ← layout=timeline ? timelineModel(rows) : plotlineModel(rows, resolve)
 4. IF groups empty → render empty-state; RETURN
-5. FOR each group: section(host, group.label, {count, collapsed: collapseStore.get(view,scope,group)})
-     FOR each scene: linkRow(body, scene.title, {path, tag/when}); unresolvedEl if unresolved
-6. WIRE (once) delegated click/keydown: data-sf-section-toggle → collapse; data-sf-link → drill
+5. surface=navigator: render plotline filter list (plotlineColor+counts) + act rows (actLabel) + statusTally
+   surface=timeline : per group → act pill (actLabel) + rail; per scene → card (status badge, plotline node)
+   surface=plotlines: per group → section(); per scene → list row
+6. WIRE (once) delegated handlers: data-sf-section-toggle → collapse; data-sf-link → drill
 ```
 
 ## Deployment View
-No change. Same single-artifact Obsidian plugin bundle (esbuild) deployed into the vault's
-`.obsidian/plugins/story-forge/`. No new dependencies, env vars, or services. The new view type
-+ commands register at `onload`; unregister automatically at `onunload` via `this.register*`.
+No change. Single-artifact esbuild bundle into `.obsidian/plugins/story-forge/`. New main-area view
+type + commands register at `onload`; the Navigator tab registers with `SidebarView`. All
+unregister automatically at `onunload` via `this.register*`. No new dependencies.
 
 ## Cross-Cutting Concepts
 
@@ -429,232 +495,243 @@ No change. Same single-artifact Obsidian plugin bundle (esbuild) deployed into t
 ```yaml
 - pattern: NativeScopingEngine metadataCache-scan + pure-DOM render
   relevance: CRITICAL
-  why: "The workspace host mirrors this (incl. its collapse-state approach)"
-- pattern: M3 panel components (section/collapse/linkRow/stampLinkEl/unresolvedEl/emptyLine)
+  why: "The shared core mirrors this; no Bases"
+- pattern: SidebarView tab strip + active-leaf follow + showFile drill seam
   relevance: CRITICAL
-  why: "Reused verbatim for group headers + scene rows + empty/unresolved states"
-- pattern: M4 Codex ItemView host + S56 drill seam (SidebarView.showFile)
-  relevance: HIGH
-  why: "Main-area view registration + scene→panel drill"
-- pattern: delegated single-listener body handler (data-sf-section-toggle / data-sf-link)
+  why: "Hosts the Navigator tab (ADR-10) and receives drills from all three surfaces"
+- pattern: M3 delegated single-listener body handler (data-sf-section-toggle / data-sf-link)
   relevance: HIGH
   why: "Collapse + drill routing with one listener, no per-row leak (CON-4)"
+- pattern: M4 Codex ItemView host
+  relevance: HIGH
+  why: "Main-area registration + onOpen/activation for WorkspaceView"
 ```
 
 ### User Interface & UX
 
-**Information Architecture:** two main-area workspace views (one polymorphic host, layout
-toggle) — the "opposite of follow-the-active-note" browsers, complementing the sidebar panel.
-Scene click → sidebar panel detail (tandem, S69).
+**Information Architecture:** the sidebar **Navigator** (compact, follow-the-note) complements the
+main-area **Timeline/Plotlines** (wide overviews). Both drill the Context tab (tandem). Visual
+language modelled on StoryLine (CON-8).
 
-**Design System:** reuse `sf-section`/`sf-sec-head`/`sf-sec-body`, `sf-lrow`/`sf-lrow-lnk`,
-`sf-count`, `sf-trail`, `sf-unres`, `sf-empty*`. Add `sf-ws-*` (host), `sf-tl-*` (timeline
-row/when-label), `sf-pl-*` (plotline group/unassigned/unresolved cue).
+**Design System:** reuse `sf-section`/`sf-sec-head`/`sf-sec-body`, `sf-count`, `sf-trail`,
+`sf-unres`, `sf-empty*`, `sf-lrow`/`sf-lrow-lnk`. Add:
+- `sf-nav-*` — Navigator: filter box, plotline filter rows (color dot + count), act group rows,
+  scene rows (dot·order·title·when), progress bar.
+- `sf-tl-*` — Timeline rail: `-rail`, `-node` (plotline color), `-when` gutter, `-card`, status
+  badge (`-st-draft`/`-st-outline`/`-st-written`), chips.
+- `sf-pl-*` — Plotlines list: group header + dot, Unassigned/unresolved cues.
 
 **Interaction Design:** collapse via the existing delegated `data-sf-section-toggle` handler
-(click/Enter/Space, `aria-expanded`, chevron); drill via `data-sf-link`. Read-only — no drag,
-no edit (M6 seam left in place).
+(click/Enter/Space, `aria-expanded`, chevron); drill via `data-sf-link`; Navigator plotline row
+toggles the filter. Read-only — no drag/edit (M6 seam left in place).
 
-#### UI Visualization Guide — mockup states (author draws ASCII/HTML in mockups.html)
-Continue the S-scheme from **S58** → **S59–S70** (from UX research):
-- **S59** Timeline — populated (single act) · **S60** Timeline — act boundary (collapsible act
-  headers) · **S61** Timeline — storyDay→order fallback · **S62** Timeline — empty · **S63**
-  ~~Timeline — Bases-off degrade~~ **superseded by ADR-1** (no Bases dependency → no degrade;
-  re-purpose S63 as "Timeline — no-act bucket" or drop).
-- **S64** Plotlines — multiple groups · **S65** Plotlines — Unassigned bucket · **S66**
-  Plotlines — scene in multiple plotlines · **S67** Plotlines — all groups collapsed · **S68**
-  ~~Plotlines — Bases-off degrade~~ **superseded**; re-purpose as "Plotlines — unresolved link
-  group" (ADR-7).
-- **S69** Workspace scene → sidebar panel drill-in (side-by-side) · **S70** (optional) scope
-  hint when active note yields no book/plotline (F3 AC-4).
-
-```
-┌───────────────────────────────────────────────┐
-│  Story Forge · Timeline        [Timeline|Plot] │  ← layout toggle in view header
-├───────────────────────────────────────────────┤
-│  ▼ Act 1                                   (3) │  ← collapsible section (reused)
-│    Night 1  Scene 1 — The Extinguished Fire pov│  ← when-label · scene link · role
-│    Night 1  Scene 2 — The Salty Gull           │
-│    Night 2  Scene 3 — The Black Cliffs          │
-│  ▶ No act                                   (0) │
-└───────────────────────────────────────────────┘
-```
+#### UI Visualization Guide — mockup states (mockups.html, DONE)
+S59–S72. **M5:** S59–S61 Navigator (populated / filter-active / empty); S62–S63, S65 Timeline rail
+(populated + act pills / `storyDay`→`order` fallback / empty); S69 Plotlines list + Unassigned;
+S70 drill; S71 no-scope hint; S72 placement chrome. **M6-tagged:** S64 swimlane, S66–S68 subway.
 
 ### System-Wide Patterns
-- **Security:** none beyond vault-local reads; no code execution (no DataviewJS path, so no
-  consent gate needed — a simplification vs M4).
+- **Security:** vault-local reads only; no code execution (no DataviewJS → no consent gate; a
+  simplification vs M4).
 - **Error Handling:** local, non-throwing render with empty/placeholder fallbacks (above).
-- **Performance:** vault-scale small; scan is O(scenes in scope); re-render on scope change is
-  a full host repaint (cheap). Debounce active-leaf-change like `SidebarView` to coalesce.
+- **Performance:** O(scenes in scope); re-render is a full host repaint (cheap). Debounce
+  active-leaf-change like `SidebarView`.
 - **i18n:** English only (CON-5).
-- **Logging:** `console.debug` only for diagnostics (obsidian rule: no `console.log`).
+- **Logging:** `console.debug` only (obsidian rule: no `console.log`).
 
 ## Architecture Decisions
 
-- [x] **ADR-1 Data source = `metadataCache` scan, not a Bases view.** Choice: the workspace
-  views read scenes directly from `metadataCache` (the `NativeScopingEngine` pattern).
-  - Rationale: scope-following must be parameterised by the active note; static Bases `.base`
-    filters cannot reference the active note. A scan makes scope natural, removes the Bases
-    dependency, gives full DOM ownership for M6.
-  - Trade-offs: we re-implement sort/group in TS (vs free Bases groupBy); we don't get the
-    Bases toolbar/sort UI. Accepted — it's the price of scope-following + M6 readiness.
-  - Consequence: **PRD F5's "Bases-off degrade" is superseded** — the views need no Bases, so
-    there is nothing to degrade from; the empty/missing-field parts of F5 still apply.
+- [x] **ADR-1 Data source = `metadataCache` scan, not a Bases view.** Read scenes directly
+  (`NativeScopingEngine` pattern).
+  - Rationale: scope-following must be parameterised by the active note; static `.base` filters
+    can't. A scan makes scope natural, removes the Bases dependency, gives full DOM ownership for M6.
+  - Trade-offs: re-implement sort/group in TS; no Bases toolbar. Accepted.
+  - Consequence: **PRD F5 "Bases-off degrade" is superseded** (nothing to degrade from); the
+    empty/missing-field parts of F5 still apply.
   - User confirmed: **Yes**
 
-- [x] **ADR-2 Surface = main-area ItemView that follows the active note.** Choice: a main-area
-  `ItemView` (like `CodexView`) subscribing to active-leaf-change to re-scope.
-  - Rationale: build-plan classes Timeline/Plotlines as workspace views; wide overviews suit
-    the main area; scene click drills the sidebar (S56 tandem).
-  - Trade-offs: not a sidebar tab (won't appear alongside Context tabs). Accepted.
-  - User confirmed: **Yes (derived from the locked surface decision)**
+- [x] **ADR-2 Surface split — Navigator (sidebar tab) + Timeline/Plotlines (main area).** *(revised
+  v2.0)* Two surfaces over one core, not a single view.
+  - Rationale: user's call after reviewing StoryLine — a compact scene Navigator belongs beside
+    Context; the graphical Timeline/Plotlines belong in the wide main area. Matches StoryLine's own
+    Navigator-vs-graphical split.
+  - Trade-offs: two render hosts to build. Accepted — they share the pure core.
+  - User confirmed: **Yes**
 
-- [x] **ADR-3 One polymorphic view type `story-forge-workspace` (layout: timeline|plotlines).**
-  - Rationale: mirrors the M4 Codex single-type decision; shares scope+scan+render; a layout
-    toggle switches strategy. Less registration/boilerplate.
+- [x] **ADR-3 One polymorphic main-area view `story-forge-workspace` (layout: timeline|plotlines).**
+  - Rationale: mirrors M4 Codex's single-type decision; shares scope+scan+render; a layout toggle
+    switches strategy. (Navigator is separate — it lives in `SidebarView`, ADR-10.)
   - Trade-offs: a `layout` discriminant threads through the host. Accepted.
   - User confirmed: **Yes**
 
-- [x] **ADR-4 Scope seam `resolveWorkspaceScope` in `src/scoping/`.** Choice: a pure helper
-  deriving `{book|plotline|none}` + in-scope scene `TFile[]` from the active note.
-  - Rationale: no "current book/plotline" concept exists; a small, testable seam beside
-    `ScopingService` is the least-invasive home.
-  - **Alignment note:** book and plotline notes both live in `20 Planning/` — the seam MUST
-    distinguish them by `type`/tag (`type: book` vs `type: plotline`), NOT by folder. `activeKind`
-    already carries this (`book`/`plotline`/`scene`).
-  - **Folder exclusion (structure-agnostic):** the seam INCLUDES scenes by tag/type (never by
-    folder — the plugin must not impose a vault structure) and EXCLUDES notes in configured
-    folders (templates carry the same tags). M5 uses a module constant
-    `DEFAULT_EXCLUDED_FOLDERS = ["00 Meta"]`, clearly marked to be replaced by a future
-    `excludedFolders` **settings picker** (deferred per the 2026-07-23 decision — see the
-    project memory / spec-005 debt note). This keeps M5 correct today with no rework when the
-    setting lands.
-  - Trade-offs: net-new code; multi-book scope selector deferred (F10). Accepted.
-  - User confirmed: **Yes (derived from the locked scope decision)**
+- [x] **ADR-4 Scope seam `resolveWorkspaceScope` in `src/scoping/`.** Pure helper →
+  `{book|plotline|none}` + in-scope scene `TFile[]`.
+  - **Alignment note:** book & plotline notes co-live in `20 Planning/` → distinguish by
+    `type`/tag, NOT folder (`activeKind` carries this).
+  - **Folder exclusion (CON-7):** INCLUDE scenes by tag/type; EXCLUDE `DEFAULT_EXCLUDED_FOLDERS =
+    ["00 Meta"]` (templates carry the same tags), marked to become the deferred `excludedFolders`
+    settings picker. Correct today, no rework later.
+  - Trade-offs: net-new; multi-book selector deferred (F10). User confirmed: **Yes**
 
-- [x] **ADR-5 Sort/group in TypeScript.** Coalesce(`storyDay`,`order`) + tiebreak for Timeline;
-  act grouping (+ "No act"); plotline fan-out + "Unassigned" for Plotlines.
-  - Rationale: follows from ADR-1 (no native Bases groupBy); handles list-valued grouping,
-    coalesced keys, and labelled buckets that plain `.base` can't.
-  - Trade-offs: our code owns correctness (covered by pure unit tests). Accepted.
-  - User confirmed: **Yes (derived from the build/buy decision)**
+- [x] **ADR-5 Sort/group in TypeScript.** Coalesce(`storyDay`,`order`)+tiebreak; act grouping (+"No
+  act"); plotline fan-out + "Unassigned". Follows ADR-1. User confirmed: **Yes**
 
-- [x] **ADR-6 Collapse state per (view + scope + group label), transient in-memory.**
-  - Rationale: satisfies F8 — collapsing acts in Book A must not collapse them in Book B.
-  - Trade-offs: not persisted across plugin reloads (acceptable; matches M3 transience).
+- [x] **ADR-6 Collapse state per (surface + scope + group label), transient in-memory.** Satisfies
+  F8 (collapsing acts in Book A ≠ Book B); Navigator and main-area keep independent keys.
+  User confirmed: **Yes**
+
+- [x] **ADR-7 Unresolved plotline link → own flagged "unresolved" group** (distinct from
+  "Unassigned"). Surfaces broken links. User confirmed: **Yes**
+
+- [x] **ADR-8 StoryLine visual language; new `src/workspace/` module; read-only with an M6 seam.**
+  *(revised v2.0)* Build fresh (no code port, CON-8); reuse collapse/drill/empty primitives. The
+  delegated `data-*` handlers + `render*(mode)` signatures are the hooks M6 extends for
+  swimlane/subway/drag.
+  - Trade-offs: more custom CSS than v1.0's list reuse. Accepted (it's the point of the reground).
   - User confirmed: **Yes**
 
-- [x] **ADR-7 Unresolved plotline link → its own flagged "unresolved" group.**
-  - Rationale: surfaces broken links to the author instead of hiding them; distinct from
-    "Unassigned" (no plotline at all).
-  - Trade-offs: an extra group kind + cue styling. Accepted.
+- [x] **ADR-9 Extend the seed incl. beat notes.** *(revised v2.0)* Add: a couple `type: beat` notes
+  + populate `scene.beat` (for `actLabel`); an act-2 scene; a `storyDay`-less scene; a
+  multi-plotline scene; a no-plotline scene (→ Unassigned); a zero-scene plotline; one unresolved
+  plotline link.
+  - **Alignment finding (kept):** M4 Codex tests use in-code fixtures, not live-vault counts →
+    adding seed notes does NOT break the M4 suite (plan safety-check, not a change task).
   - User confirmed: **Yes**
 
-- [x] **ADR-8 Reuse M3 components; new `src/workspace/` module; read-only with an M6 seam.**
-  - Rationale: visual + behavioural consistency; the delegated `data-*` handlers are the hook
-    M6 will extend for drag→frontmatter without re-architecting.
-  - Trade-offs: none material. User confirmed: **Yes (derived)**
+- [x] **ADR-10 Navigator = a third tab inside `SidebarView`, not its own leaf.** *(new v2.0)*
+  - Rationale: user's call ("third tab"); reuses SidebarView's tab strip, active-leaf follow, and
+    drill seam; sits naturally beside Context.
+  - Trade-offs: SidebarView gains a fixed tab + a render branch. Accepted; smaller than a new leaf.
+  - User confirmed: **Yes**
 
-- [x] **ADR-9 Extend the test-vault seed (M4 reconciliation is a no-op).** Add an act-2 scene, a
-  storyDay-less scene, a multi-plotline scene, a no-plotline scene, and a zero-scene plotline.
-  - Rationale: makes AC-T3/T4 + AC-P2/P3/P5 testable (F0).
-  - **Post-PLAN alignment finding (correction):** the M4 Codex tests use **in-code fixtures**,
-    not live test-vault counts — `test/bases/codexBase.test.ts` reads `.base` YAML structure,
-    `CodexBasesView.test.ts` uses `makeEntry`/`makeResult`, and the integration tests use mock
-    factories. The only live-vault test (`test/seed-vault-gaps.test.ts`) asserts
-    `toBeGreaterThan(0)`. **Therefore adding seed notes does NOT break the M4 suite**; the
-    "reconcile counts" step is a no-op safety check (plan T5.2), not a change task.
-  - Trade-offs: none. User confirmed: **Yes (derived from the seed decision; scope refined by alignment check)**
+- [x] **ADR-11 Act divider label derived from the `beat` note — no schema change.** *(new v2.0)*
+  `actLabel(act, scenes)` returns `Act N · <beat alias>` when the act's scenes share one beat, else
+  `Act N`.
+  - Rationale: verified in the _forge vault — acts have no name; each act's scenes share one named
+    `beat` note (1:1 in canon). `beat` already exists on `scene`.
+  - Trade-offs: relies on the (non-enforced) 1:1; the fallback keeps it safe. Non-blocking
+    follow-up: confirm the invariant with _forge.
+  - User confirmed: **Yes**
+
+- [x] **ADR-12 Plotline color derived deterministically from the plotline name.** *(new v2.0)*
+  `plotlineColor(name)` hashes to a fixed palette.
+  - Rationale: Navigator dots + Timeline nodes need stable colors; `plotline.json` has no `color`
+    field and we impose no schema change in M5 (CON-6). Deterministic = stable across renders.
+  - Trade-offs: no user-chosen colors yet (StoryLine's palette button is M6/deferred; an optional
+    `color` frontmatter override can supersede later). Accepted.
+  - User confirmed: **Yes**
+
+- [x] **ADR-13 Swimlanes / subway map / drag → M6.** *(new v2.0)* M5 ships Timeline **rail** +
+  Plotlines **list** + Navigator. `renderTimeline(mode)`/`renderPlotlines(mode)` reserve
+  `"swimlane"`/`"subway"`; M6 adds them + drag→frontmatter on the same core.
+  - Rationale: user's scoping call — graphical swimlane/subway is heavier than read-only lists;
+    ship value now, keep the seam.
+  - User confirmed: **Yes**
 
 ## Quality Requirements
-- **Correctness:** `timelineModel`/`plotlineModel` are pure and fully unit-tested (sort,
-  tiebreak, act grouping, no-act bucket, plotline fan-out, Unassigned, unresolved). 100% of
-  F1–F6 ACs pass.
-- **Usability/Accessibility:** collapse via keyboard (Enter/Space) with `aria-expanded`; scene
-  links are `role="link"` + `tabindex=0`; unresolved links `aria-disabled`.
+- **Correctness:** `timelineModel`/`plotlineModel`/`actLabel`/`plotlineColor` pure and fully
+  unit-tested. 100% of M5 F0–F6 ACs pass.
+- **Usability/Accessibility:** collapse via keyboard (Enter/Space) + `aria-expanded`; scene links
+  `role="link"` + `tabindex=0`; unresolved links `aria-disabled`; color dots are not the sole
+  signal (name + count accompany).
 - **Reliability:** no crash on empty/sparse/no-scope data; never drops a scene; deterministic
-  ordering.
+  ordering + colors + labels.
 - **Maintainability:** zero Bases typings in `src/workspace/`; reuse over reimplementation;
-  lint/typecheck (src/test/mock)/schema:check/build all green.
+  lint/typecheck(src/test/mock)/schema:check/build green.
 
 ## Acceptance Criteria (EARS)
 
-**Timeline (PRD F1)**
+**Navigator (PRD F1/F2/F3 — sidebar surface)**
+- [ ] WHILE its tab is active, THE SYSTEM SHALL list in-scope scenes grouped by act (collapsible),
+  each row showing a plotline-color dot, `order`, title, and `when`.
+- [ ] THE SYSTEM SHALL show a plotline filter list (color dot + name + scene count); selecting one
+  SHALL filter the scene rows to that plotline's members.
+- [ ] THE SYSTEM SHALL show a status progress indicator derived from `statusTally`.
+
+**Timeline — rail (PRD F1)**
 - [ ] THE SYSTEM SHALL order in-scope scenes by ascending coalesce(`storyDay`,`order`), tie-broken
   by `order` then title.
-- [ ] WHEN scenes span acts, THE SYSTEM SHALL group them under ascending `act` headers, with a
-  trailing "No act" group for scenes lacking `act`.
-- [ ] THE SYSTEM SHALL display `when` as each scene's label without it affecting order.
-- [ ] IF a scene lacks both `storyDay` and `order`, THEN THE SYSTEM SHALL still render it,
-  appended after keyed scenes.
+- [ ] WHEN scenes span acts, THE SYSTEM SHALL group them under ascending `act` dividers labelled via
+  `actLabel` (beat name when shared, else `Act N`), with a trailing "No act" group.
+- [ ] THE SYSTEM SHALL render each scene as a card (title, POV, location, status badge, wordcount)
+  with a plotline-colored rail node; `when` shown, never affecting order.
+- [ ] IF a scene lacks both `storyDay` and `order`, THEN THE SYSTEM SHALL still render it, appended
+  after keyed scenes.
 
-**Plotlines (PRD F2)**
-- [ ] THE SYSTEM SHALL render one group per plotline, placing a scene under every plotline it links.
+**Plotlines — list (PRD F2)**
+- [ ] THE SYSTEM SHALL render one collapsible group per plotline (dot + count), placing a scene
+  under every plotline it links.
 - [ ] IF a scene has no `plotlines`, THEN THE SYSTEM SHALL place it in a trailing "Unassigned" group.
-- [ ] IF a plotline link is unresolved, THEN THE SYSTEM SHALL render it in a flagged "unresolved"
-  group, not merged into "Unassigned".
-- [ ] WHEN a group header is activated (click/Enter/Space), THE SYSTEM SHALL toggle that group's
-  collapsed state and update chevron + `aria-expanded`.
+- [ ] IF a plotline link is unresolved, THEN THE SYSTEM SHALL render a flagged "unresolved" group,
+  not merged into "Unassigned".
+- [ ] WHEN a group header is activated (click/Enter/Space), THE SYSTEM SHALL toggle collapse and
+  update chevron + `aria-expanded`.
 
 **Scope + drill (PRD F3/F4)**
-- [ ] WHILE the active note is a book/plotline/scene, THE SYSTEM SHALL scope the view to that
+- [ ] WHILE the active note is a book/plotline/scene, THE SYSTEM SHALL scope both surfaces to that
   book (or plotline), re-scoping on active-leaf-change.
 - [ ] IF the active note yields no book/plotline, THEN THE SYSTEM SHALL fall back to whole-vault
   book scope and show a non-blocking "not scoped" hint.
-- [ ] WHEN a scene row is clicked, THE SYSTEM SHALL re-subject the sidebar panel to that scene
+- [ ] WHEN a scene row/card is clicked, THE SYSTEM SHALL re-subject the Context tab to that scene
   via `showFile` (modifier-click opens the note, per the setting).
 
 **Robustness (PRD F5/F6)**
 - [ ] WHILE no scenes are in scope, THE SYSTEM SHALL render an empty-state, never a blank host.
-- [ ] THE SYSTEM SHALL render scenes with missing `when`/`pov`/`status` using placeholders,
-  never dropping them.
+- [ ] THE SYSTEM SHALL render scenes with missing `when`/`pov`/`status`/`beat`/`wordcount` using
+  placeholders, never dropping them.
 - [ ] THE SYSTEM SHALL NOT write frontmatter from any M5 interaction.
 
 ## Risks and Technical Debt
 
 ### Known Technical Issues
-- No "current book/plotline" concept exists today; the scope seam is net-new and the single
-  biggest correctness surface — mitigated by pure unit tests over `resolveWorkspaceScope`.
+- No "current book/plotline" concept exists; the scope seam is net-new and the biggest correctness
+  surface — mitigated by pure unit tests over `resolveWorkspaceScope`.
+- `actLabel` relies on the non-enforced 1:1 act↔beat invariant; the `Act N` fallback contains the
+  risk. Confirm with _forge (non-blocking).
 
 ### Technical Debt
-- `src/workspace/` and the future plugin-owned Codex ItemView will share concerns (main-area
-  host, metadataCache scan, grouped render). Debt risk: divergence. Mitigation: factor shared
-  render/host helpers so the future Codex can reuse them (noted, not built now).
-- The M4 Codex tab-bar/columns/links/sort/grouping remain deferred (separate memory) — M5 does
-  not touch them.
+- `src/workspace/` and the future plugin-owned Codex ItemView will share concerns (main-area host,
+  metadataCache scan, grouped render). Factor shared render/host helpers so Codex can reuse (noted).
+- Plotline colors are name-derived (ADR-12); a user-chosen `color` override + StoryLine's palette
+  button are deferred to M6.
+- `excludedFolders` remains a `DEFAULT_EXCLUDED_FOLDERS` constant until the settings picker lands
+  (deferred decision).
 
 ### Implementation Gotchas
-- `metadataCache` frontmatter links may be stored with or without `[[ ]]`; strip before
-  resolving (as the Inspector already does).
-- Active-leaf-change fires often; debounce like `SidebarView` to avoid thrash.
-- Adding seed scenes shifts M4 Codex counts — update those assertions in the SAME change
-  (ADR-9) or the suite goes red.
-- The layout toggle must re-render but preserve per-scope collapse state (ADR-6 keying).
+- Frontmatter links may be stored with/without `[[ ]]`; strip before resolving (as the Inspector
+  does). Beat resolution should prefer the beat note's `aliases[0]`, else title stripped of emoji.
+- Active-leaf-change fires often; debounce like `SidebarView`.
+- The layout toggle must re-render but preserve per-scope collapse (ADR-6 keying).
+- Navigator lives in `SidebarView` — its render must not fight the Context/Inspector lifecycle
+  (guard by active tab).
 
 ## Glossary
 
 ### Domain Terms
 | Term | Definition | Context |
 |------|------------|---------|
-| Timeline (view) | Scenes in in-world chronological order, grouped by act | M5 F1 |
-| Plotlines (view) | Scenes grouped by the plotlines they advance | M5 F2 |
-| Scope | The book or plotline the workspace view is filtered to | F3 |
-| Unassigned bucket | Group collecting scenes with no `plotlines` | F2 |
-| `storyDay` / `order` | Chronological day (sort key) / reading-order (fallback sort) | schema/scene.json |
-| `when` | Free-text story-time label; display only, never sorts | schema/scene.json |
+| Navigator | Compact sidebar scene browser (filter list + act rows + progress) | M5, ADR-10 |
+| Timeline (view) | Scenes in chronological order, grouped by act; rail (M5) / swimlane (M6) | F1 |
+| Plotlines (view) | Scenes grouped by plotline; list (M5) / subway (M6) | F2 |
+| Scope | The book or plotline the surfaces are filtered to | F3 |
+| Act label | `Act N · <beat name>` derived from `scene.beat`; fallback `Act N` | ADR-11 |
+| Unassigned bucket | Group of scenes with no `plotlines` | F2 |
+| `storyDay` / `order` / `when` | Chrono day (sort) / reading order (fallback) / display label | schema/scene.json |
+| `beat` | `[[beat note]]` link a scene realises; source of the act name | schema/scene.json |
 
 ### Technical Terms
 | Term | Definition | Context |
 |------|------------|---------|
 | ItemView | Obsidian main-area view base class | WorkspaceView host |
 | metadataCache | Obsidian's parsed frontmatter/link index | Data source (ADR-1) |
-| Drill seam | `SidebarView.showFile`→`_drillInto`→`navStack` | Scene→panel (S56) |
+| Drill seam | `SidebarView.showFile`→`_drillInto`→`navStack` | Scene→Context (S56) |
 | CON-3 firewall | Bases typings confined to `src/bases/` | Not crossed (no Bases in M5) |
 | Delegated handler | One body listener routing `data-*` targets | Collapse + drill (CON-4) |
 
 ### API/Interface Terms
 | Term | Definition | Context |
 |------|------------|---------|
-| `WORKSPACE_VIEW_TYPE` | `"story-forge-workspace"` view id | Registration |
+| `WORKSPACE_VIEW_TYPE` | `"story-forge-workspace"` main-area view id | Registration |
 | `ResolvedScope` | `{scope, scenes[]}` from the scope seam | ADR-4 |
 | `SceneRow` / `Group` | Plain, Bases-free render models | ADR-5 |
+| `actLabel` / `plotlineColor` / `statusTally` | Pure derivations (label / color / progress) | ADR-11/12 |
