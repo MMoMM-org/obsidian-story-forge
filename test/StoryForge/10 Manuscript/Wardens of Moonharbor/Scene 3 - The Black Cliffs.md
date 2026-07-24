@@ -18,7 +18,7 @@ location: "[[The Black Cliffs]]"
 plotlines:
   - "[[The Dying Light]]"
 arc: "Mara faces the darkness"
-beat: ""
+beat: "[[The Failing Light]]"
 wordcount: null
 prev:
   - "[[Scene 2 - The Salty Gull]]"

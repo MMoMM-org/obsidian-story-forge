@@ -1,0 +1,19 @@
+Story Forge
+Copyright (c) Marcus Breiden
+
+This product includes original work by the Story Forge authors.
+
+--------------------------------------------------------------------------------
+Visual-reference attribution
+--------------------------------------------------------------------------------
+
+The declarative workspace views (Navigator, Timeline, Plotlines) take their
+VISUAL LANGUAGE as inspiration from the "StoryLine" Obsidian plugin:
+
+    obsidian-storyline — https://github.com/pixerojan/obsidian-storyline
+    Licensed under the MIT License.
+
+Story Forge's views are an independent, from-scratch implementation on its own
+frontmatter model. No source code from obsidian-storyline was copied or derived;
+only the look and interaction patterns served as a reference. This notice is
+provided as a courtesy acknowledgement.

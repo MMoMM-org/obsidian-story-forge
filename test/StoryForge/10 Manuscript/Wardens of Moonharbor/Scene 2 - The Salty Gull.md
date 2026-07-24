@@ -18,7 +18,7 @@ location: "[[The Salty Gull]]"
 plotlines:
   - "[[The Dying Light]]"
 arc: "Mara gathers allies"
-beat: ""
+beat: "[[The Failing Light]]"
 wordcount: null
 prev:
   - "[[Scene 1 - The Extinguished Fire]]"

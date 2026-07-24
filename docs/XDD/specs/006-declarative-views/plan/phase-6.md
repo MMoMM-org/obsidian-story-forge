@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Seed (beat notes) + integration/E2E + gates + finalize"
-status: pending
+status: done
 version: "2.0"
 phase: 6
 ---

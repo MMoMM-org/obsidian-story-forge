@@ -17,7 +17,7 @@ location: "[[Moonharbor Lighthouse]]"
 plotlines:
   - "[[The Dying Light]]"
 arc: "Mara takes responsibility"
-beat: ""
+beat: "[[The Failing Light]]"
 wordcount: null
 prev: []
 next:
