@@ -82,6 +82,12 @@ export class WorkspaceView extends ItemView {
 		this.registerDomEvent(ce, "click", (e: MouseEvent) => {
 			this._onClick(e.target, e.metaKey || e.ctrlKey);
 		});
+		// Keyboard parity: Enter/Space on a focused card or section header.
+		this.registerDomEvent(ce, "keydown", (e: KeyboardEvent) => {
+			if (e.key !== "Enter" && e.key !== " ") return;
+			e.preventDefault();
+			this._onClick(e.target, e.metaKey || e.ctrlKey);
+		});
 		// Follow the active note.
 		this.registerEvent(this.app.workspace.on("active-leaf-change", () => { this._debouncedRender(); }));
 
@@ -128,7 +134,12 @@ export class WorkspaceView extends ItemView {
 		const rows = scenes.map((s) => mapSceneRow(this.app, s));
 
 		if (this._layout === "timeline") {
-			renderTimeline(body, timelineModel(rows), "rail");
+			renderTimeline(
+				body,
+				timelineModel(rows),
+				{ isCollapsed: (g) => this._collapse.isCollapsed("main", this._scopeKey, g) },
+				"rail",
+			);
 		} else {
 			const sourcePath = f?.path ?? "";
 			const resolve: LinkResolver = (t) => this.app.metadataCache.getFirstLinkpathDest(t, sourcePath);

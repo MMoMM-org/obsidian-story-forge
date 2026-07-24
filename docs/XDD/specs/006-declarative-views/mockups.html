@@ -310,6 +310,12 @@ meaningful. <b>Status:</b> <span class="sd">draft</span> · <span class="so">out
 
 <!-- =================== TIMELINE =================== -->
 <h2>Timeline — main-area view <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">(rail = M5 · swimlane = M6)</span></h2>
+<p class="note" style="max-width:96ch"><b>Post-implementation refinements (shipped):</b> act dividers are
+<b>collapsible sections</b> (chevron + count, persisted per scope); the <b>whole card drills</b> the Context
+panel (not just the title); <b>POV</b> renders as a coloured pill and location keeps its 📍 pin; the
+<code>when</code> gutter is <b>always shown</b> (S62/S63 merged); node dots are <b>larger</b>, coloured by the
+scene's plotline. The <b>Rail | Swimlane</b> toggle, <b>By POV</b> grouping and <b>zoom</b> shown in these
+toolbars are <b>deferred to M6</b>.</p>
 <div class="gallery">
 
   <figure style="width:720px">
@@ -321,10 +327,9 @@ meaningful. <b>Status:</b> <span class="sd">draft</span> · <span class="so">out
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">◷ Timeline</span><span>⑃ Plotlines</span></div>
-        <div class="ctrl"><div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div>
-          <span class="drop">By POV ▾</span><span class="drop">– 100% +</span></div></div>
+        <div class="ctrl"><span class="drop" style="opacity:.5">Swimlane · By POV · zoom — M6</span></div></div>
       <div class="mbody">
-        <div class="actpill">ACT 1 · The Failing Light</div>
+        <div class="actpill">▾ ACT 1 · The Failing Light</div>
         <div class="rail">
           <div class="tl-item"><div class="tl-node dying"></div>
             <div class="card"><div class="ct">The Extinguished Fire</div>
@@ -362,7 +367,7 @@ meaningful. <b>Status:</b> <span class="sd">draft</span> · <span class="so">out
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">◷ Timeline</span><span>⑃ Plotlines</span></div>
-        <div class="ctrl"><div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div><span class="drop">– 100% +</span></div></div>
+        <div class="ctrl"><span class="drop" style="opacity:.5">Swimlane · zoom — M6</span></div></div>
       <div class="mbody">
         <div class="actpill">ACT 2 · The Gathering Dark</div>
         <div class="rail withwhen">

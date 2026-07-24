@@ -169,8 +169,8 @@ describe("M5 integration — Navigator + WorkspaceView over the extended seed", 
 		await view.onOpen();
 
 		const body = view.contentEl.querySelector(".sf-ws-body") as HTMLElement;
-		// Timeline rail: act pills carry beat-derived labels; one card per scene.
-		expect(texts(body, ".sf-tl-actpill")).toEqual(["Act 1 · The Failing Light", "Act 2 · The Gathering Dark"]);
+		// Timeline rail: collapsible act sections carry beat-derived labels; one card per scene.
+		expect(texts(body, ".sf-sec-label")).toEqual(["Act 1 · The Failing Light", "Act 2 · The Gathering Dark"]);
 		expect(body.querySelectorAll(".sf-tl-card")).toHaveLength(6);
 
 		// Switch to Plotlines list.

@@ -101,8 +101,16 @@ describe("WorkspaceView", () => {
 	it("has the workspace view type and renders the Timeline rail with a header toggle", () => {
 		expect(view.getViewType()).toBe(WORKSPACE_VIEW_TYPE);
 		expect(content(view).querySelector(".sf-ws-toggle")).not.toBeNull();
-		expect(bodyOf(view).querySelectorAll(".sf-tl-actpill").length).toBeGreaterThan(0);
+		// Acts are collapsible sections; one card per scene.
+		expect(bodyOf(view).querySelectorAll(".sf-section").length).toBe(2);
 		expect(bodyOf(view).querySelectorAll(".sf-tl-card")).toHaveLength(3);
+	});
+
+	it("drills when the card body (not just the title) is clicked", () => {
+		// Click the plain-text title inside the card — closest([data-sf-link]) is the card.
+		click(bodyOf(view).querySelector(".sf-tl-card .sf-tl-ct"));
+		expect(drill).toHaveBeenCalledTimes(1);
+		expect((drill.mock.calls[0]![0] as TFile).path).toBe(s1.path);
 	});
 
 	it("switches to the Plotlines list via setLayout and via the header toggle", () => {

@@ -1792,27 +1792,23 @@ body {
 }
 
 /* ---- Timeline (main area, rail mode) ---- */
-.sf-tl-actpill {
-	display: inline-block;
-	margin: 12px 0 8px;
-	padding: 3px 12px;
-	border-radius: 12px;
-	background: var(--background-secondary);
+/* Act header: reuse the collapsible section() chrome, styled as an act divider. */
+.sf-tl-acthead .sf-sec-label {
 	color: var(--text-accent);
-	font-weight: var(--font-semibold);
-	font-size: 11px;
+	text-transform: uppercase;
 	letter-spacing: 0.03em;
+	font-size: 11px;
 }
 
 .sf-tl-rail {
 	position: relative;
-	padding-left: 22px;
+	padding-left: 74px;
 }
 
 .sf-tl-rail::before {
 	content: "";
 	position: absolute;
-	left: 7px;
+	left: 60px;
 	top: 6px;
 	bottom: 6px;
 	width: 2px;
@@ -1824,18 +1820,43 @@ body {
 	margin-bottom: 10px;
 }
 
-.sf-tl-node {
+/* `when` gutter, aligned left of the rail. */
+.sf-tl-when {
 	position: absolute;
-	left: -21px;
-	top: 13px;
-	border: 2px solid var(--background-primary);
+	left: -74px;
+	top: 12px;
+	width: 50px;
+	text-align: right;
+	color: var(--text-faint);
+	font-size: 10.5px;
 }
 
+.sf-tl-node {
+	position: absolute;
+	left: -18px;
+	top: 12px;
+	width: 14px;
+	height: 14px;
+	border: 2px solid var(--background-primary);
+	box-shadow: 0 0 0 1px var(--background-modifier-border);
+}
+
+/* The whole card drills (data-sf-link). */
 .sf-tl-card {
 	background: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);
 	padding: 9px 12px;
+	cursor: pointer;
+}
+
+.sf-tl-card:hover {
+	background: var(--background-modifier-hover);
+}
+
+.sf-tl-card:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
 }
 
 .sf-tl-ct {
@@ -1847,10 +1868,25 @@ body {
 .sf-tl-cm {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 10px;
+	align-items: center;
+	gap: 8px;
 	color: var(--text-muted);
 	font-size: 11.5px;
 	margin-bottom: 5px;
+}
+
+/* POV as a coloured pill; location prefixed with a pin. */
+.sf-tl-pov {
+	padding: 0 8px;
+	border-radius: 9px;
+	background: var(--background-modifier-hover);
+	color: var(--text-accent);
+	font-weight: var(--font-medium);
+	font-size: 10.5px;
+}
+
+.sf-tl-loc::before {
+	content: "📍 ";
 }
 
 .sf-tl-meta {
