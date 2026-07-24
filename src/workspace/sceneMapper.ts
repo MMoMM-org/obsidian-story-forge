@@ -11,7 +11,7 @@
  */
 
 import type { App, TFile } from "obsidian";
-import type { SceneRow } from "./workspaceModel";
+import type { Link, SceneRow } from "./workspaceModel";
 
 function fmNumber(v: unknown): number | null {
 	return typeof v === "number" ? v : null;
@@ -37,13 +37,17 @@ export function mapSceneRow(app: App, file: TFile): SceneRow {
 	const linksByField = (field: string): string[] =>
 		links.filter((l) => l.key === field || l.key.startsWith(`${field}.`)).map((l) => l.link);
 
-	const resolveName = (linktext: string | null): string => {
-		if (!linktext) return "";
+	// Resolve a link text to a {name, path} Link. Null only when there is no link text;
+	// an unresolved link keeps its text as the name with an empty path (not clickable).
+	const resolveLink = (linktext: string | null): Link | null => {
+		if (!linktext) return null;
 		const dest = app.metadataCache.getFirstLinkpathDest(linktext, file.path);
-		return dest ? dest.basename : linktext;
+		return dest ? { name: dest.basename, path: dest.path } : { name: linktext, path: "" };
 	};
 
 	const beat = linkByKey("beat") ?? "";
+	const beatDest = beat !== "" ? app.metadataCache.getFirstLinkpathDest(beat, file.path) : null;
+	const plotlineLinks = linksByField("plotlines");
 
 	return {
 		file,
@@ -53,21 +57,20 @@ export function mapSceneRow(app: App, file: TFile): SceneRow {
 		storyDay: fmNumber(fm["storyDay"]),
 		when: fmString(fm["when"]),
 		status: fmString(fm["status"]),
-		pov: resolveName(linkByKey("pov")),
-		location: resolveName(linkByKey("location")),
-		characters: linksByField("characters").map(resolveName),
-		plotlines: linksByField("plotlines"), // raw; the model resolves/strips these
+		pov: resolveLink(linkByKey("pov")),
+		location: resolveLink(linkByKey("location")),
+		characters: linksByField("characters").flatMap((t) => resolveLink(t) ?? []),
+		plotline: plotlineLinks.length > 0 ? resolveLink(plotlineLinks[0]!) : null,
+		plotlines: plotlineLinks, // raw; the model resolves/strips these
 		beat,
-		beatName: resolveBeatName(app, beat, file.path),
+		beatName: beatDest ? beatDisplayName(app, beatDest) : "",
+		beatPath: beatDest?.path ?? "",
 		wordcount: fmNumber(fm["wordcount"]),
 	};
 }
 
-/** Resolve a beat link to its display name: alias first, else the emoji-stripped title. */
-function resolveBeatName(app: App, beatLink: string, sourcePath: string): string {
-	if (!beatLink) return "";
-	const dest = app.metadataCache.getFirstLinkpathDest(beatLink, sourcePath);
-	if (!dest) return "";
+/** A beat note's display name: alias first, else the emoji-stripped title. */
+function beatDisplayName(app: App, dest: TFile): string {
 	const fm = app.metadataCache.getFileCache(dest)?.frontmatter ?? {};
 	const aliases: unknown = fm["aliases"];
 	if (Array.isArray(aliases) && typeof aliases[0] === "string" && aliases[0] !== "") {

@@ -23,12 +23,14 @@ function row(o: Partial<SceneRow> & { title: string }): SceneRow {
 		storyDay: o.storyDay ?? null,
 		when: o.when ?? "",
 		status: o.status ?? "",
-		pov: o.pov ?? "",
-		location: o.location ?? "",
+		pov: o.pov ?? null,
+		location: o.location ?? null,
 		characters: o.characters ?? [],
+		plotline: o.plotline ?? null,
 		plotlines: o.plotlines ?? [],
 		beat: o.beat ?? "",
 		beatName: o.beatName ?? "",
+		beatPath: o.beatPath ?? "",
 		wordcount: o.wordcount ?? null,
 	};
 }
@@ -54,7 +56,19 @@ describe("renderTimeline (rail)", () => {
 		]);
 	});
 
-	it("renders a scene card that drills as a whole (data-sf-link on the card), with when/POV/status/words/chips", () => {
+	it("makes the act label drill its shared beat note", () => {
+		const el = host();
+		const groups = timelineModel([
+			row({ title: "S1", act: 1, order: 1, beatName: "The Failing Light", beatPath: "The Failing Light.md" }),
+			row({ title: "S2", act: 1, order: 2, beatName: "The Failing Light", beatPath: "The Failing Light.md" }),
+		]);
+		renderTimeline(el, groups, expanded);
+		const label = el.querySelector(".sf-sec-label") as HTMLElement;
+		expect(label.textContent).toBe("Act 1 · The Failing Light");
+		expect(label.getAttribute("data-sf-link")).toBe("The Failing Light.md");
+	});
+
+	it("renders a scene card whose whole body + fields are drill links", () => {
 		const el = host();
 		const groups = timelineModel([
 			row({
@@ -63,31 +77,43 @@ describe("renderTimeline (rail)", () => {
 				order: 1,
 				when: "Night 1",
 				status: "draft",
-				pov: "Mara Stoneway",
-				location: "The Salty Gull",
+				pov: { name: "Mara Stoneway", path: "Mara Stoneway.md" },
+				location: { name: "The Salty Gull", path: "The Salty Gull.md" },
 				wordcount: 185,
+				plotline: { name: "The Dying Light", path: "The Dying Light.md" },
 				plotlines: ["[[The Dying Light]]"],
-				characters: ["Mara Stoneway", "Jonas Kell"],
+				characters: [
+					{ name: "Mara Stoneway", path: "Mara Stoneway.md" },
+					{ name: "Jonas Kell", path: "Jonas Kell.md" },
+				],
 			}),
 		]);
 		renderTimeline(el, groups, expanded);
 
 		const card = el.querySelector(".sf-tl-card") as HTMLElement;
 		expect(card.getAttribute("data-sf-link")).toBe("The Salty Gull.md");
-		expect(card.getAttribute("role")).toBe("link");
 		expect(card.querySelector(".sf-tl-ct")?.textContent).toBe("The Salty Gull");
-
 		expect(el.querySelector(".sf-tl-when")?.textContent).toBe("Night 1");
-		expect(el.querySelector(".sf-tl-pov")?.textContent).toBe("Mara Stoneway");
-		expect(el.querySelector(".sf-tl-loc")?.textContent).toBe("The Salty Gull");
 
+		// POV + location are drill links.
+		const pov = el.querySelector(".sf-tl-pov .sf-tl-flink") as HTMLElement;
+		expect(pov.textContent).toBe("Mara Stoneway");
+		expect(pov.getAttribute("data-sf-link")).toBe("Mara Stoneway.md");
+		expect((el.querySelector(".sf-tl-loc .sf-tl-flink") as HTMLElement).getAttribute("data-sf-link")).toBe("The Salty Gull.md");
+
+		// Dot: hover title + plotline drill; colour by plotline.
 		const node = el.querySelector(".sf-tl-node") as HTMLElement;
+		expect(node.getAttribute("title")).toBe("The Dying Light");
+		expect(node.getAttribute("data-sf-link")).toBe("The Dying Light.md");
 		expect(node.style.background).toBe(hexToRgb(plotlineColor("The Dying Light")));
 
-		const badge = el.querySelector(".sf-tl-st") as HTMLElement;
-		expect(badge.classList.contains("sf-tl-st--draft")).toBe(true);
+		// Character chips are links; the POV character's chip is highlighted.
+		const chips = [...el.querySelectorAll(".sf-tl-chip")] as HTMLElement[];
+		expect(chips.map((c) => c.getAttribute("data-sf-link"))).toEqual(["Mara Stoneway.md", "Jonas Kell.md"]);
+		expect(chips.find((c) => c.classList.contains("sf-tl-chip--pov"))?.textContent).toBe("Mara Stoneway");
+
+		expect((el.querySelector(".sf-tl-st") as HTMLElement).classList.contains("sf-tl-st--draft")).toBe(true);
 		expect(el.querySelector(".sf-tl-words")?.textContent).toContain("185");
-		expect(el.querySelectorAll(".sf-tl-chip")).toHaveLength(2);
 	});
 
 	it("shows a — placeholder in the when gutter when `when` is empty", () => {

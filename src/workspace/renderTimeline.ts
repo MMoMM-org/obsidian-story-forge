@@ -1,21 +1,34 @@
 /**
  * renderTimeline — read-only rail render of act-grouped scenes (mockup S62/S63).
  *
- * Each act is a collapsible `section()` (chevron + count, persisted via CollapseStore),
- * its body a vertical rail: a left `when` gutter, a plotline-coloured rail node, and a
- * scene card. The whole card drills (it carries `data-sf-link`). Swimlane mode is M6.
+ * Each act is a collapsible `section()`; its label drills the act's beat note. The body
+ * is a rail: a `when` gutter, a plotline-coloured node (hover = plotline name, click =
+ * drill the plotline), and a scene card. The whole card drills the scene; the card's
+ * fields (POV, location, characters) are individual drill/open links, with the POV
+ * character's chip highlighted. Swimlane mode is M6.
  *
  * @ref docs/XDD/specs/006-declarative-views/solution.md — ADR-8, ADR-13
  */
 
 import { section, emptyLine } from "../panel/components";
-import type { Group } from "./workspaceModel";
+import { actBeatLink, type Group } from "./workspaceModel";
 import { appendDot, appendStatusBadge, rowColor } from "./renderShared";
 
 export type TimelineMode = "rail" | "swimlane";
 
 export interface TimelineDeps {
 	isCollapsed: (groupKey: string) => boolean;
+}
+
+/** Append a drill link span; a "" path renders as plain (non-clickable) text. */
+function fieldLink(parent: HTMLElement, cls: string, name: string, path: string): HTMLElement {
+	const el = parent.createEl("span", { cls, text: name });
+	if (path !== "") {
+		el.setAttribute("data-sf-link", path);
+		el.setAttribute("role", "link");
+		el.setAttribute("tabindex", "0");
+	}
+	return el;
 }
 
 export function renderTimeline(
@@ -42,14 +55,32 @@ export function renderTimeline(
 		if (head instanceof HTMLElement) {
 			head.setAttribute("data-sf-group-key", group.key);
 			head.classList.add("sf-tl-acthead");
+			// The act label drills its shared beat note (when resolved).
+			const beat = actBeatLink(group.scenes);
+			const label = head.querySelector(".sf-sec-label");
+			if (beat && beat.path !== "" && label instanceof HTMLElement) {
+				label.setAttribute("data-sf-link", beat.path);
+				label.setAttribute("role", "link");
+			}
 		}
 
 		const rail = bodyEl.createEl("div", { cls: "sf-tl-rail" });
 		for (const scene of group.scenes) {
 			const item = rail.createEl("div", { cls: "sf-tl-item" });
 			item.createEl("div", { cls: "sf-tl-when", text: scene.when !== "" ? scene.when : "—" });
-			appendDot(item, "sf-tl-node", rowColor(scene));
 
+			// Rail node: plotline colour + hover name + drill the plotline.
+			const dot = appendDot(item, "sf-tl-node", rowColor(scene));
+			if (scene.plotline) {
+				dot.setAttribute("title", scene.plotline.name);
+				if (scene.plotline.path !== "") {
+					dot.setAttribute("data-sf-link", scene.plotline.path);
+					dot.setAttribute("role", "link");
+					dot.setAttribute("tabindex", "0");
+				}
+			}
+
+			// The whole card drills the scene; its fields drill their own notes.
 			const card = item.createEl("div", { cls: "sf-tl-card" });
 			card.setAttribute("data-sf-link", scene.file.path);
 			card.setAttribute("role", "link");
@@ -57,8 +88,16 @@ export function renderTimeline(
 			card.createEl("div", { cls: "sf-tl-ct", text: scene.title });
 
 			const cm = card.createEl("div", { cls: "sf-tl-cm" });
-			if (scene.pov !== "") cm.createEl("span", { cls: "sf-tl-pov", text: scene.pov });
-			if (scene.location !== "") cm.createEl("span", { cls: "sf-tl-loc", text: scene.location });
+			if (scene.pov) {
+				const pov = cm.createEl("span", { cls: "sf-tl-pov" });
+				// eslint-disable-next-line obsidianmd/ui/sentence-case -- "POV" is an acronym
+				pov.createEl("span", { cls: "sf-tl-pov-k", text: "POV: " });
+				fieldLink(pov, "sf-tl-flink", scene.pov.name, scene.pov.path);
+			}
+			if (scene.location) {
+				const loc = cm.createEl("span", { cls: "sf-tl-loc" });
+				fieldLink(loc, "sf-tl-flink", scene.location.name, scene.location.path);
+			}
 
 			const meta = card.createEl("div", { cls: "sf-tl-meta" });
 			appendStatusBadge(meta, scene.status);
@@ -68,7 +107,13 @@ export function renderTimeline(
 
 			if (scene.characters.length > 0) {
 				const chips = card.createEl("div", { cls: "sf-tl-chips" });
-				for (const c of scene.characters) chips.createEl("span", { cls: "sf-tl-chip", text: c });
+				for (const c of scene.characters) {
+					const chip = fieldLink(chips, "sf-tl-chip", c.name, c.path);
+					const isPov =
+						scene.pov !== null &&
+						(scene.pov.path !== "" ? c.path === scene.pov.path : c.name === scene.pov.name);
+					if (isPov) chip.classList.add("sf-tl-chip--pov");
+				}
 			}
 		}
 	}

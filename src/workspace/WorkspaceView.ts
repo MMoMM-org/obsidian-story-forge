@@ -163,7 +163,26 @@ export class WorkspaceView extends ItemView {
 			return;
 		}
 
-		// Plotlines section collapse — persist + re-render.
+		// Link (drill/open) FIRST — a nearest data-sf-link wins over a surrounding section
+		// header, so an act label / dot / card field drills while the chevron collapses.
+		const linkEl = target.closest("[data-sf-link]");
+		if (linkEl instanceof HTMLElement) {
+			const path = linkEl.getAttribute("data-sf-link");
+			if (path !== null && path !== "") {
+				const file =
+					this.app.vault.getAbstractFileByPath(path) ??
+					this.app.metadataCache.getFirstLinkpathDest(path, "");
+				if (file instanceof TFile) {
+					const action = this.getLinkClickAction();
+					const drill = action === "drill" ? !modifier : modifier;
+					if (drill) this._drill(file);
+					else void this.app.workspace.openLinkText(file.path, "", false);
+				}
+			}
+			return;
+		}
+
+		// Section header (chevron / rest) — collapse, persist + re-render.
 		const secHead = target.closest("[data-sf-section-toggle]");
 		if (secHead instanceof HTMLElement) {
 			const key = secHead.getAttribute("data-sf-group-key");
@@ -171,22 +190,6 @@ export class WorkspaceView extends ItemView {
 				this._collapse.toggle("main", this._scopeKey, key);
 				this._render();
 			}
-			return;
 		}
-
-		// Scene link — drill (plain) or open (modifier), per the setting XOR modifier.
-		const linkEl = target.closest("[data-sf-link]");
-		if (!linkEl) return;
-		const path = linkEl.getAttribute("data-sf-link");
-		if (!path) return;
-		const file =
-			this.app.vault.getAbstractFileByPath(path) ??
-			this.app.metadataCache.getFirstLinkpathDest(path, "");
-		if (!(file instanceof TFile)) return;
-
-		const action = this.getLinkClickAction();
-		const drill = action === "drill" ? !modifier : modifier;
-		if (drill) this._drill(file);
-		else void this.app.workspace.openLinkText(file.path, "", false);
 	}
 }

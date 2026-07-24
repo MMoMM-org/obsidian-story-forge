@@ -173,6 +173,12 @@ describe("M5 integration — Navigator + WorkspaceView over the extended seed", 
 		expect(texts(body, ".sf-sec-label")).toEqual(["Act 1 · The Failing Light", "Act 2 · The Gathering Dark"]);
 		expect(body.querySelectorAll(".sf-tl-card")).toHaveLength(6);
 
+		// The act label drills its beat note; the rail dot drills its plotline (hover = name).
+		expect(body.querySelector(".sf-sec-label")?.getAttribute("data-sf-link")).toBe("20 Planning/The Failing Light.md");
+		const dot = body.querySelector(".sf-tl-node") as HTMLElement;
+		expect(dot.getAttribute("title")).toBe("The Dying Light");
+		expect(dot.getAttribute("data-sf-link")).toBe("20 Planning/The Dying Light.md");
+
 		// Switch to Plotlines list.
 		view.setLayout("plotlines");
 		const labels = texts(body, ".sf-sec-label");

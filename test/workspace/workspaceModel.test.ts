@@ -14,6 +14,7 @@ import {
 	timelineModel,
 	plotlineModel,
 	actLabel,
+	actBeatLink,
 	plotlineColor,
 	statusTally,
 	type SceneRow,
@@ -32,12 +33,14 @@ function row(o: Partial<SceneRow> & { title: string }): SceneRow {
 		storyDay: o.storyDay ?? null,
 		when: o.when ?? "",
 		status: o.status ?? "",
-		pov: o.pov ?? "",
-		location: o.location ?? "",
+		pov: o.pov ?? null,
+		location: o.location ?? null,
 		characters: o.characters ?? [],
+		plotline: o.plotline ?? null,
 		plotlines: o.plotlines ?? [],
 		beat: o.beat ?? "",
 		beatName: o.beatName ?? "",
+		beatPath: o.beatPath ?? "",
 		wordcount: o.wordcount ?? null,
 	};
 }
@@ -217,6 +220,29 @@ describe("actLabel", () => {
 
 	it("returns 'No act' for a null act", () => {
 		expect(actLabel(null, [])).toBe("No act");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// actBeatLink
+// ---------------------------------------------------------------------------
+
+describe("actBeatLink", () => {
+	it("returns the shared beat as a link", () => {
+		const scenes = [
+			row({ title: "a", beatName: "The Failing Light", beatPath: "The Failing Light.md" }),
+			row({ title: "b", beatName: "The Failing Light", beatPath: "The Failing Light.md" }),
+		];
+		expect(actBeatLink(scenes)).toEqual({ name: "The Failing Light", path: "The Failing Light.md" });
+	});
+
+	it("returns a link with empty path when the shared beat is unresolved", () => {
+		expect(actBeatLink([row({ title: "a", beatName: "Ghost Beat" })])).toEqual({ name: "Ghost Beat", path: "" });
+	});
+
+	it("returns null when scenes disagree on the beat or have none", () => {
+		expect(actBeatLink([row({ title: "a", beatName: "X" }), row({ title: "b", beatName: "Y" })])).toBeNull();
+		expect(actBeatLink([row({ title: "a" })])).toBeNull();
 	});
 });
 

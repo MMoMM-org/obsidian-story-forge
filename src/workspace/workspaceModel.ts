@@ -19,6 +19,12 @@ import type { TFile } from "obsidian";
 // Types
 // ---------------------------------------------------------------------------
 
+/** A resolved relation target: display name + vault path (`path: ""` = unresolved, not clickable). */
+export interface Link {
+	name: string;
+	path: string;
+}
+
 /** A plain, Bases-free render row mapped from a scene note. */
 export interface SceneRow {
 	file: TFile;
@@ -28,17 +34,22 @@ export interface SceneRow {
 	storyDay: number | null;
 	when: string;
 	status: string;
-	pov: string;
-	/** Resolved location basename, or "" when absent/unresolved. */
-	location: string;
-	/** Resolved character basenames present in the scene. */
-	characters: string[];
+	/** Point-of-view character, or null when absent. */
+	pov: Link | null;
+	/** Location, or null when absent. */
+	location: Link | null;
+	/** Characters present in the scene. */
+	characters: Link[];
+	/** Primary plotline (first) — drives the rail dot's colour + drill. */
+	plotline: Link | null;
 	/** Raw plotline link targets (may be `[[wrapped]]` and/or unresolved). */
 	plotlines: string[];
 	/** Raw `beat` link text ("" when empty). */
 	beat: string;
 	/** Resolved beat-note display name (alias/title), or "" when empty/unresolved. */
 	beatName: string;
+	/** Resolved beat-note path, or "" when empty/unresolved. */
+	beatPath: string;
 	wordcount: number | null;
 }
 
@@ -108,6 +119,19 @@ export function actLabel(act: number | null, scenes: SceneRow[]): string {
 	if (act === null) return "No act";
 	const names = new Set(scenes.map((s) => s.beatName).filter((n) => n !== ""));
 	return names.size === 1 ? `Act ${act} · ${[...names][0]!}` : `Act ${act}`;
+}
+
+/**
+ * The beat shared by an act's scenes (same "one shared beat" rule as `actLabel`), as a
+ * drillable Link. Returns null when the scenes disagree on the beat or have none; the
+ * `path` may be "" when the beat note is unresolved (name shown, not clickable).
+ */
+export function actBeatLink(scenes: SceneRow[]): Link | null {
+	const names = new Set(scenes.map((s) => s.beatName).filter((n) => n !== ""));
+	if (names.size !== 1) return null;
+	const name = [...names][0]!;
+	const withPath = scenes.find((s) => s.beatName === name && s.beatPath !== "");
+	return { name, path: withPath?.beatPath ?? "" };
 }
 
 // ---------------------------------------------------------------------------

@@ -22,12 +22,14 @@ function row(o: Partial<SceneRow> & { title: string }): SceneRow {
 		storyDay: o.storyDay ?? null,
 		when: o.when ?? "",
 		status: o.status ?? "",
-		pov: o.pov ?? "",
-		location: o.location ?? "",
+		pov: o.pov ?? null,
+		location: o.location ?? null,
 		characters: o.characters ?? [],
+		plotline: o.plotline ?? null,
 		plotlines: o.plotlines ?? [],
 		beat: o.beat ?? "",
 		beatName: o.beatName ?? "",
+		beatPath: o.beatPath ?? "",
 		wordcount: o.wordcount ?? null,
 	};
 }

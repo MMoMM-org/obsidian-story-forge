@@ -84,12 +84,17 @@ describe("mapSceneRow", () => {
 		expect(rowResult.when).toBe("Night 1");
 		expect(rowResult.status).toBe("draft");
 		expect(rowResult.wordcount).toBe(210);
-		expect(rowResult.pov).toBe("Mara Stoneway");
-		expect(rowResult.location).toBe("Moonharbor Lighthouse");
-		expect(rowResult.characters).toEqual(["Mara Stoneway", "Tobias Ferro"]);
+		expect(rowResult.pov).toEqual({ name: "Mara Stoneway", path: mara.path });
+		expect(rowResult.location).toEqual({ name: "Moonharbor Lighthouse", path: lighthouse.path });
+		expect(rowResult.characters).toEqual([
+			{ name: "Mara Stoneway", path: mara.path },
+			{ name: "Tobias Ferro", path: tobias.path },
+		]);
 		expect(rowResult.plotlines).toEqual(["The Dying Light"]); // raw, unresolved kept
+		expect(rowResult.plotline).toEqual({ name: "The Dying Light", path: "" }); // unresolved → no path
 		expect(rowResult.beat).toBe("201 🎬 The Failing Light");
 		expect(rowResult.beatName).toBe("The Failing Light"); // from alias
+		expect(rowResult.beatPath).toBe(beat.path);
 	});
 
 	it("falls back to the emoji-stripped beat title when the beat has no alias", () => {
@@ -121,12 +126,14 @@ describe("mapSceneRow", () => {
 		expect(rowResult.storyDay).toBeNull();
 		expect(rowResult.when).toBe("");
 		expect(rowResult.status).toBe("");
-		expect(rowResult.pov).toBe("");
-		expect(rowResult.location).toBe("");
+		expect(rowResult.pov).toBeNull();
+		expect(rowResult.location).toBeNull();
 		expect(rowResult.characters).toEqual([]);
+		expect(rowResult.plotline).toBeNull();
 		expect(rowResult.plotlines).toEqual([]);
 		expect(rowResult.beat).toBe("");
 		expect(rowResult.beatName).toBe("");
+		expect(rowResult.beatPath).toBe("");
 		expect(rowResult.wordcount).toBeNull();
 	});
 

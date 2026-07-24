@@ -1863,6 +1863,11 @@ body {
 	font-weight: var(--font-semibold);
 	font-size: 13px;
 	margin-bottom: 3px;
+	color: var(--text-accent);
+}
+
+.sf-tl-card:hover .sf-tl-ct {
+	text-decoration: underline;
 }
 
 .sf-tl-cm {
@@ -1875,18 +1880,34 @@ body {
 	margin-bottom: 5px;
 }
 
-/* POV as a coloured pill; location prefixed with a pin. */
-.sf-tl-pov {
-	padding: 0 8px;
-	border-radius: 9px;
-	background: var(--background-modifier-hover);
-	color: var(--text-accent);
-	font-weight: var(--font-medium);
-	font-size: 10.5px;
+/* "POV:" label + linked name; location prefixed with a pin. */
+.sf-tl-pov,
+.sf-tl-loc {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 3px;
+}
+
+.sf-tl-pov-k {
+	color: var(--text-faint);
 }
 
 .sf-tl-loc::before {
-	content: "📍 ";
+	content: "📍";
+}
+
+/* Card field links (name / pov / location); muted + non-clickable when unresolved. */
+.sf-tl-flink {
+	color: var(--text-muted);
+}
+
+.sf-tl-flink[data-sf-link] {
+	color: var(--text-accent);
+	cursor: pointer;
+}
+
+.sf-tl-flink[data-sf-link]:hover {
+	text-decoration: underline;
 }
 
 .sf-tl-meta {
@@ -1933,6 +1954,34 @@ body {
 	background: var(--background-modifier-hover);
 	color: var(--text-muted);
 	font-size: 10px;
+}
+
+.sf-tl-chip[data-sf-link] {
+	cursor: pointer;
+}
+
+.sf-tl-chip[data-sf-link]:hover {
+	background: var(--background-modifier-border);
+}
+
+/* The POV character's chip, highlighted. */
+.sf-tl-chip--pov {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-weight: var(--font-medium);
+}
+
+/* Clickable act label + rail node. */
+.sf-tl-acthead .sf-sec-label[data-sf-link] {
+	cursor: pointer;
+}
+
+.sf-tl-acthead .sf-sec-label[data-sf-link]:hover {
+	text-decoration: underline;
+}
+
+.sf-tl-node[data-sf-link] {
+	cursor: pointer;
 }
 
 /* ---- Plotlines (main area, list mode) ---- */
