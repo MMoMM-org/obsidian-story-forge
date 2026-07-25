@@ -2235,6 +2235,159 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * Plotgrid (M6 / T5.2) — Plotline × scene membership matrix.
+ * sf-pg-* classes: table, header, rows, cells, filled state.
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+.sf-pg-table {
+	display: flex;
+	flex-direction: column;
+	overflow: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+.sf-pg-thead,
+.sf-pg-tbody {
+	display: flex;
+	flex-direction: column;
+}
+
+.sf-pg-tr {
+	display: flex;
+	flex-direction: row;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-pg-tr:last-child {
+	border-bottom: none;
+}
+
+/* Column header (scene titles) */
+
+.sf-pg-th {
+	min-width: 64px;
+	max-width: 100px;
+	flex: 1 0 64px;
+	padding: 4px 6px;
+	font-size: 10px;
+	font-weight: 600;
+	text-align: center;
+	color: var(--text-muted);
+	border-right: 1px solid var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.sf-pg-th:last-child {
+	border-right: none;
+}
+
+.sf-pg-corner {
+	min-width: 100px;
+	max-width: 160px;
+	flex: 0 0 120px;
+	background: var(--background-secondary);
+}
+
+.sf-pg-scene-title {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sf-pg-scene-title[data-sf-link] {
+	color: var(--link-color);
+	cursor: pointer;
+}
+
+.sf-pg-scene-title[data-sf-link]:hover {
+	text-decoration: underline;
+}
+
+/* Row header (plotline labels) */
+
+.sf-pg-row-head {
+	min-width: 100px;
+	max-width: 160px;
+	flex: 0 0 120px;
+	padding: 4px 6px;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--text-normal);
+	background: var(--background-secondary);
+	border-right: 1px solid var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.sf-pg-row-head--unresolved .sf-pg-plotline-label {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.sf-pg-plotline-label {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sf-pg-plotline-label[data-sf-link] {
+	color: var(--link-color);
+	cursor: pointer;
+}
+
+.sf-pg-plotline-label[data-sf-link]:hover {
+	text-decoration: underline;
+}
+
+/* Grid cells */
+
+.sf-pg-cell {
+	min-width: 64px;
+	max-width: 100px;
+	flex: 1 0 64px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 28px;
+	border-right: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	cursor: pointer;
+	transition: background 0.1s;
+}
+
+.sf-pg-cell:last-child {
+	border-right: none;
+}
+
+.sf-pg-cell[tabindex="0"]:hover {
+	background: var(--background-modifier-hover);
+}
+
+.sf-pg-cell[tabindex="0"]:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/* Filled cell */
+.sf-pg-cell--filled {
+	background: var(--interactive-accent);
+}
+
+.sf-pg-cell--filled::after {
+	content: "●";
+	color: var(--text-on-accent);
+	font-size: 10px;
+}
+
+/* Disabled cell (unresolved plotline) */
+.sf-pg-cell[aria-disabled="true"] {
+	cursor: not-allowed;
+	opacity: 0.4;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * Swimlane (M6 / T4.2) — Timeline grouped by pov/location/plotline.
  * sf-sw-* classes: one lane per Group from swimlaneModel.
  * ═════════════════════════════════════════════════════════════════════════ */
