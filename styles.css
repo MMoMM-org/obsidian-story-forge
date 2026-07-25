@@ -2056,6 +2056,58 @@ body {
 	font-size: 11.5px;
 }
 
+/* ---- WorkspaceView M6 toolbar: Timeline Rail|Swimlane + By-key selector ---- */
+.sf-ws-tlbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.sf-ws-tlbar--hidden {
+	display: none;
+}
+
+.sf-ws-tlmode,
+.sf-ws-tlkey {
+	display: flex;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.sf-ws-tlmode-opt,
+.sf-ws-tlkey-opt {
+	padding: 3px 10px;
+	font-size: 11px;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.sf-ws-tlmode-opt--sel,
+.sf-ws-tlkey-opt--sel {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+/* ---- Visually-hidden aria-live region (F8, AC-11) ---- */
+.sf-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* ---- Write-error surface (ADR-24): failed write marks the card ---- */
+.sf-card--error {
+	outline: 1px solid var(--text-error);
+	box-shadow: 0 0 0 1px var(--text-error);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * Location Tree (M6 / T4.1) — read-only nested world/location hierarchy.
  * sf-lt-* classes mirror the sf-tl-* visual grammar but for tree nodes.
