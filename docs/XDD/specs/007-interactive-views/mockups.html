@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — Interactive views mockups (M6 / spec 007)</title>
+<style>
+  :root{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --link:#8b8bf0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    /* status badges (map: draft→amber, outline→blue, written/final→green) */
+    --st-draft:#e0a34a; --st-outline:#5b8bd0; --st-written:#6ac47a;
+    /* plotline palette (per-tag colours, like StoryLine's dots/lanes) */
+    --pl-dying:#d9a441;   /* The Dying Light  */
+    --pl-oath:#5b8bd0;    /* The Warden's Oath */
+    --pl-shadow:#b06a86;  /* Shadow Trade      */
+    --pl-unres:#7a6a55;   /* unresolved lane   */
+    --pl-none:#6b6b6b;    /* Unassigned        */
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:34px 0 14px;border-bottom:1px solid var(--border);padding-bottom:6px;
+    text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:96ch}
+  .sub code,.legend code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .legend{color:var(--muted);font-size:12.5px;max-width:96ch;margin:0 0 10px}
+  .legend b{color:var(--text)}
+  .banner{border:1px solid var(--border-2);border-left:3px solid var(--accent);background:var(--panel);
+    border-radius:6px;padding:10px 14px;margin:0 0 20px;max-width:96ch;font-size:12.5px;color:var(--muted)}
+  .banner b{color:var(--text)}
+  table.inv{border-collapse:collapse;font-size:12.5px;margin:0 0 8px}
+  table.inv th,table.inv td{border:1px solid var(--border);padding:4px 10px;text-align:left;vertical-align:top}
+  table.inv th{color:var(--faint);font-weight:600}
+  .gallery{display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-start}
+  figure{margin:0}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:40px;max-width:60ch}
+  figcaption b{color:var(--text);font-weight:600}
+  .note{font-size:11px;color:var(--faint);margin-top:7px;max-width:64ch}
+  .note b{color:var(--muted)}
+  .sd{color:var(--st-draft)} .so{color:var(--st-outline)} .sw{color:var(--st-written)}
+
+  /* ---- generic view shell (Obsidian leaf) ---- */
+  .view{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;
+    display:flex;flex-direction:column;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .vhead{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--header);border-bottom:1px solid var(--border)}
+  .tabs{display:flex;gap:2px}
+  .tabs span{font-size:11px;padding:3px 9px;border-radius:6px;color:var(--muted);cursor:pointer}
+  .tabs span.sel{background:var(--accent);color:#fff}
+  .vhead .sp{flex:1}
+  .icons{display:flex;gap:6px}
+  .icons span{width:20px;height:20px;display:grid;place-items:center;border-radius:4px;color:var(--faint);font-size:12px}
+  .icons span.on{color:var(--accent)}
+
+  /* ================= NAVIGATOR (sidebar, next to Context) ================= */
+  .nav{width:290px}
+  .nav .filter{display:flex;align-items:center;gap:6px;margin:8px 10px 6px;padding:5px 9px;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:7px;color:var(--faint);font-size:12px}
+  .nav .filter .sort{margin-left:auto;color:var(--faint)}
+  .nsec{border-top:1px solid var(--border)}
+  .nsec-head{display:flex;align-items:center;gap:6px;padding:6px 11px;cursor:pointer;
+    font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:700}
+  .nsec-head .chev{width:9px;color:var(--faint)}
+  .nsec-head .n{margin-left:auto;color:var(--faint);font-weight:600}
+  .pl{max-height:150px;overflow:auto;padding:0 0 4px}
+  .pl-row{display:flex;align-items:center;gap:9px;padding:3px 12px;font-size:12.5px;cursor:pointer}
+  .pl-row:hover{background:var(--hover)}
+  .pl-row.sel{background:var(--panel-2)}
+  .pl-row .cnt{margin-left:auto;color:var(--faint);font-size:11px}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.25) inset}
+  .dot.dying{background:var(--pl-dying)} .dot.oath{background:var(--pl-oath)}
+  .dot.shadow{background:var(--pl-shadow)} .dot.none{background:var(--pl-none)}
+  .dot.unres{background:transparent;box-shadow:0 0 0 1.5px var(--pl-unres)}
+  .dot.all{background:#8a8a8a}
+  .agrp-head{display:flex;align-items:center;gap:6px;padding:5px 11px;cursor:pointer;
+    font-size:12px;font-weight:700;color:var(--text);border-top:1px solid var(--border)}
+  .agrp-head .chev{width:9px;color:var(--faint)}
+  .agrp-head .n{margin-left:auto;color:var(--faint);font-size:10px;background:var(--panel-2);border-radius:8px;padding:0 7px;font-weight:600}
+  .sc-row{display:grid;grid-template-columns:9px 16px 1fr auto;align-items:center;gap:8px;
+    padding:4px 12px 4px 16px;font-size:12.5px;cursor:pointer}
+  .sc-row:hover{background:var(--hover)}
+  .sc-row .idx{color:var(--faint);font-size:11px;text-align:right}
+  .sc-row .ti{color:var(--link);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sc-row.sel .ti{color:#fff}
+  .sc-row .meta{color:var(--faint);font-size:10.5px;white-space:nowrap}
+  .prog{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--faint)}
+  .bar{flex:1;height:6px;border-radius:4px;background:var(--panel-2);overflow:hidden}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--st-written),var(--accent))}
+
+  /* ================= main-area toolbar ================= */
+  .main{width:720px}
+  .brand{font-weight:700;font-size:13px;color:var(--text);padding-right:6px}
+  .mtabs{display:flex;gap:2px}
+  .mtabs span{font-size:11.5px;padding:3px 8px;border-radius:6px;color:var(--muted);cursor:pointer;display:flex;gap:5px;align-items:center}
+  .mtabs span.sel{color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0}
+  .ctrl{margin-left:auto;display:flex;gap:6px;align-items:center}
+  .seg{display:flex;border:1px solid var(--border-2);border-radius:6px;overflow:hidden}
+  .seg span{font-size:11px;padding:2px 9px;color:var(--muted);cursor:pointer}
+  .seg span.sel{background:var(--accent);color:#fff}
+  .drop{font-size:11px;padding:2px 9px;border:1px solid var(--border-2);border-radius:6px;color:var(--muted)}
+  .mbody{padding:14px 16px 18px;max-height:560px;overflow:auto}
+
+  /* act divider pill */
+  .actpill{display:inline-block;background:var(--panel-2);color:var(--accent);font-weight:700;
+    font-size:11px;letter-spacing:.04em;padding:4px 12px;border-radius:14px;margin:10px 0 8px}
+
+  /* ---- Timeline: rail mode ---- */
+  .rail{position:relative;padding-left:26px}
+  .rail::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--border-2)}
+  .tl-item{position:relative;margin:0 0 12px}
+  .tl-node{position:absolute;left:-22px;top:14px;width:12px;height:12px;border-radius:50%;border:2px solid var(--panel)}
+  .tl-node.dying{background:var(--pl-dying)} .tl-node.oath{background:var(--pl-oath)} .tl-node.none{background:var(--pl-none)}
+  .tl-when{position:absolute;left:-84px;top:12px;width:52px;text-align:right;color:var(--faint);font-size:10.5px}
+  .rail.withwhen{padding-left:96px}
+  .rail.withwhen::before{left:78px}
+  .rail.withwhen .tl-node{left:64px}
+  .card{background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 13px}
+  .card .ct{font-weight:600;font-size:13.5px;margin:0 0 3px}
+  .card .cm{color:var(--muted);font-size:11.5px;display:flex;gap:12px;flex-wrap:wrap;margin:0 0 6px}
+  .card .cm .pin::before{content:"\1F4CD  ";}
+  .stat{font-size:10.5px;font-weight:600}
+  .words{color:var(--faint);font-size:10.5px;margin-left:6px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+  .chip{font-size:10px;padding:1px 8px;border-radius:9px;background:var(--pill);color:var(--muted)}
+  .chip.pov{color:var(--pill-text);background:#33304a}
+  .fb{background:rgba(224,163,74,.10);color:var(--st-draft);border:1px dashed rgba(224,163,74,.4);
+    font-size:10px;padding:1px 8px;border-radius:9px}
+
+  /* ---- Timeline: swimlane mode ---- */
+  .swim{display:grid;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .swim .sh{display:grid;background:var(--header);font-size:11px;font-weight:700;color:var(--muted)}
+  .swim .sh div{padding:7px 10px;border-right:1px solid var(--border)}
+  .swim .srow{display:grid;border-top:1px solid var(--border)}
+  .swim .cell{border-right:1px solid var(--border);padding:8px;min-height:40px}
+  .swim .idxcell{color:var(--faint);font-size:10.5px;padding:8px;border-right:1px solid var(--border)}
+  .swim .actrow{background:var(--panel-2);color:var(--accent);font-weight:700;font-size:10.5px;
+    letter-spacing:.04em;padding:5px 10px;border-top:1px solid var(--border)}
+  .minicard{background:var(--panel);border:1px solid var(--border-2);border-radius:6px;padding:7px 9px;position:relative}
+  .minicard .node{position:absolute;top:-5px;left:9px;width:9px;height:9px;border-radius:50%}
+  .minicard .mt{font-weight:600;font-size:12px}
+  .minicard .mm{color:var(--faint);font-size:10px;margin-top:2px}
+
+  /* ---- Plotlines: subway map ---- */
+  .subway{position:relative;padding:6px 0}
+  .actbound{position:absolute;top:0;bottom:0;border-left:1px dashed var(--border-2)}
+  .actlabel{position:absolute;top:-2px;font-size:11px;font-weight:700;color:var(--muted)}
+  .lane{position:relative;height:74px}
+  .lane .llabel{position:absolute;left:0;top:8px;width:110px;font-weight:700;font-size:12.5px}
+  .lane .track{position:absolute;left:120px;right:8px;top:15px;height:8px;border-radius:5px;opacity:.9}
+  .lane .station{position:absolute;top:9px;width:20px;height:20px;border-radius:50%;
+    background:var(--panel);border:3px solid #999;transform:translateX(-50%)}
+  .lane .slabel{position:absolute;top:32px;transform:translateX(-50%);text-align:center;white-space:nowrap}
+  .lane .slabel .sn{font-size:10.5px;color:var(--text)}
+  .lane .slabel .tp{display:flex;gap:3px;justify-content:center;margin-top:3px}
+  .lane .slabel .tp b{font-size:8.5px;font-weight:500;color:#111;padding:0 5px;border-radius:7px}
+  .connector{position:absolute;width:3px;border-radius:2px;opacity:.55}
+  .lane.dying .llabel{color:var(--pl-dying)} .lane.dying .track{background:var(--pl-dying)} .lane.dying .station{border-color:var(--pl-dying)}
+  .lane.oath .llabel{color:var(--pl-oath)} .lane.oath .track{background:var(--pl-oath)} .lane.oath .station{border-color:var(--pl-oath)}
+  .lane.shadow .llabel{color:var(--pl-shadow)} .lane.shadow .track{background:var(--pl-shadow)} .lane.shadow .station{border-color:var(--pl-shadow)}
+  .lane.unres .llabel{color:var(--pl-unres)} .lane.unres .track{background:var(--pl-unres);opacity:.4}
+  .lane.unres .station{border-color:var(--pl-unres);border-style:dashed}
+  .flag{font-size:9px;color:var(--pl-unres);margin-left:6px}
+
+  /* empty + trail */
+  .emptybox{padding:46px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+  .emptybox .glyph{font-size:26px;color:var(--faint)}
+  .emptybox .lead{color:var(--text);font-size:13px}
+  .emptybox .hint{font-size:12px;color:var(--faint);max-width:44ch}
+  .scopehint{font-size:11.5px;color:var(--st-draft);padding:6px 14px;border-bottom:1px solid var(--border);background:rgba(224,163,74,.07)}
+  .trail{font-size:11.5px;color:var(--faint);padding:8px 12px}
+  .trail .lnk{color:var(--link)}
+  .arrow{display:flex;align-items:center;color:var(--faint);font-size:24px;align-self:center;padding:0 4px}
+
+  /* ============================================================= */
+  /* ===== M6 interaction affordances — extend, don't fork ======= */
+  /* ============================================================= */
+  .grab{cursor:grab}
+  .dragging{opacity:.5;border-style:double;border-width:3px;cursor:grabbing}
+  .ghost{opacity:.5;border:2px dashed var(--accent);background:rgba(124,108,240,.08)}
+  .drop-line{height:0;border-top:2px solid var(--accent);margin:6px 0;position:relative;border-radius:2px}
+  .drop-line::before{content:"";position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  /* toast / write feedback */
+  .toast{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:6px 14px;
+    border-bottom:1px solid var(--border);background:rgba(106,196,122,.10);color:var(--st-written)}
+  .toast.err{background:rgba(224,163,74,.10);color:var(--st-draft)}
+  /* Kanban board */
+  .kanban{display:flex;gap:12px;align-items:flex-start;overflow-x:auto}
+  .col{flex:1;min-width:150px;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:8px}
+  .col-head{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--faint);padding:2px 2px 6px;border-bottom:1px solid var(--border)}
+  .col-head .n{margin-left:auto;color:var(--faint);font-size:10px;background:var(--panel);border-radius:8px;padding:0 7px}
+  .col.drop-target{outline:2px dashed var(--accent);outline-offset:2px}
+  .kcard{background:var(--panel);border:1px solid var(--border-2);border-radius:7px;padding:8px 10px;position:relative}
+  .kcard .kt{font-weight:600;font-size:12.5px;margin:0 0 3px;color:var(--link)}
+  .kcard .km{color:var(--faint);font-size:10.5px;display:flex;align-items:center;gap:7px}
+  .kcard .kdot{width:8px;height:8px;border-radius:50%;flex:none}
+  .kcard .kbadge{font-size:9.5px;font-weight:700;padding:0 6px;border-radius:8px}
+  /* Plotgrid matrix */
+  .grid{display:grid;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .grid .gh{background:var(--header);font-size:10.5px;font-weight:700;color:var(--muted);
+    padding:7px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);text-align:center}
+  .grid .gh.row{text-align:left}
+  .grid .rh{font-size:11.5px;font-weight:700;padding:8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:7px}
+  .cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-height:34px;cursor:pointer;position:relative}
+  .cell:hover{outline:1.5px solid var(--accent);outline-offset:-1px;z-index:1}
+  .cell.on{background:currentColor}
+  .cell.on::after{content:"●";position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.85);font-size:11px}
+  .cell.dying{color:rgba(217,164,65,.32)} .cell.oath{color:rgba(91,139,208,.32)} .cell.shadow{color:rgba(176,106,134,.32)}
+  .cell.hovering{outline:1.5px solid var(--accent);outline-offset:-1px;background:rgba(124,108,240,.10)}
+  /* Locations tree */
+  .tree{font-size:12.5px}
+  .node{display:flex;align-items:center;gap:7px;padding:3px 6px;border-radius:5px;cursor:pointer}
+  .node:hover{background:var(--hover)}
+  .node .chv{width:10px;color:var(--faint);font-size:10px}
+  .node .loc{color:var(--link);text-decoration:underline;text-decoration-color:var(--border-2);text-underline-offset:2px}
+  .node .kind{color:var(--faint);font-size:10px}
+  .node .cnt{margin-left:auto;color:var(--faint);font-size:10px;background:var(--panel-2);border-radius:8px;padding:0 7px}
+  .node.scene .loc{color:var(--text);text-decoration:none}
+  .node.flagged .loc{color:var(--pl-unres);text-decoration-style:dashed}
+  .indent-1{padding-left:22px} .indent-2{padding-left:44px} .indent-3{padding-left:66px}
+  /* zoom controls */
+  .zoom{display:flex;align-items:center;border:1px solid var(--border-2);border-radius:6px;overflow:hidden}
+  .zoom span{font-size:11px;padding:2px 9px;color:var(--muted);cursor:pointer;border-right:1px solid var(--border-2)}
+  .zoom span:last-child{border-right:none}
+  .zoom span.lvl{color:var(--text);min-width:44px;text-align:center}
+</style>
+</head>
+<body>
+
+<h1>Story Forge — Interactive views mockups (M6 / spec 007)</h1>
+<p class="sub"><b>Making the M5 read views interactive.</b> M5 (spec 006) shipped the frontmatter-driven
+workspace surfaces (Navigator, Timeline rail, Plotlines list) as <b>read-only</b>. M6 adds direct manipulation
+that <b>writes plain frontmatter back</b> (per the founding frontmatter-is-truth decision — the plugin writes,
+Bases/the views render; the plugin never owns state) plus three new read-only spatial views. Every figure here
+is tagged <b>M6</b>.</p>
+<p class="sub" style="margin-top:8px"><b>M6 ships six features.</b> <b>Write-back (3):</b>
+<b>F1 Kanban</b> (drag a card between status columns → writes <code>status</code> + re-sequences
+<code>order</code>), <b>F2 Plotgrid</b> (toggle a matrix cell → adds/removes a scene's <code>plotlines</code>
+link), <b>F3 Timeline placement</b> (drag a card to a new day → snaps <code>storyDay</code> to an integer, never
+touches <code>order</code>). <b>Read-only (3):</b> <b>F4 Locations tree</b> (nested <code>world</code> hierarchy),
+<b>F5 Swimlanes</b> (Timeline in lane mode, keyed by POV or plotline), <b>F6 Zoom / pan</b> (ephemeral timeline
+scaling). The Plotlines <b>subway map stays M7</b>.</p>
+
+<div class="banner">
+<b>Continues the M5 mockup numbering.</b> M5 ran S59→S72; M6 continues at <b>S73→S84</b>. Visual language is
+unchanged — this file <b>reuses the M5 <code>&lt;style&gt;</code> block verbatim</b> and only <b>extends</b> it
+with interaction affordances (drag ghosts, drop lines, toasts, Kanban/Plotgrid/tree/zoom classes). The theme,
+status badges, and plotline palette are identical so the two spec files read as one. <b>Ours vs StoryLine:</b>
+StoryLine's board and grid mutate its own database; ours mutate <b>plain frontmatter</b> — every write is a value
+a human could have typed, and is fully reversible in the file.
+</div>
+
+<p class="legend">
+<b>Seed data</b> (book <b>Wardens of Moonharbor</b>): scene 1 <b>The Extinguished Fire</b>
+(POV Mara Stoneway, Dying Light, draft, Night 1), 2 <b>The Salty Gull</b> (POV Mara, Dying Light, draft, Night 1),
+3 <b>The Black Cliffs</b> (POV Mara, Dying Light, outline, Night 2), 4 <b>The Signal Tower</b>
+(POV Tobias Ferro, Warden's Oath, outline, Night 3), 5 <b>A Message in Salt</b> (POV Mara, Warden's Oath, outline,
+—), 6 <b>The Long Watch</b> (POV Elke Stoneway, no plotline → Unassigned, draft, Night 4). Plotlines:
+<b>The Dying Light</b> <span class="dot dying" style="display:inline-block;vertical-align:middle"></span>,
+<b>The Warden's Oath</b> <span class="dot oath" style="display:inline-block;vertical-align:middle"></span>,
+<b>Shadow Trade</b> <span class="dot shadow" style="display:inline-block;vertical-align:middle"></span> (0 scenes),
+<b>Unassigned</b> <span class="dot none" style="display:inline-block;vertical-align:middle"></span>. Locations
+nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The Salty Gull, Signal Tower.
+<b>Status:</b> <span class="sd">draft</span> · <span class="so">outline</span> · <span class="sw">done</span>.
+</p>
+
+<h2>State inventory (S73–S84)</h2>
+<table class="inv">
+<tr><th>S</th><th>State</th><th>Feature</th><th>Write?</th><th>Shows</th></tr>
+<tr><td><b>S73</b></td><td>Kanban — populated</td><td>F1</td><td>—</td><td>status columns, cards (name + POV + status badge + plotline dot), grab affordance</td></tr>
+<tr><td><b>S74</b></td><td>Kanban — card mid-drag</td><td>F1</td><td>✎</td><td>ghost card, drop/insertion line; drop writes <code>status</code> + sparse-int <code>order</code></td></tr>
+<tr><td><b>S75</b></td><td>Plotgrid — populated matrix</td><td>F2</td><td>—</td><td>plotline rows × scene cols; filled vs empty cells; one hovering cell</td></tr>
+<tr><td><b>S76</b></td><td>Plotgrid — cell toggle (post-write)</td><td>F2</td><td>✎</td><td>previously-empty cell now filled + success toast</td></tr>
+<tr><td><b>S77</b></td><td>Timeline placement — mid-drag</td><td>F3</td><td>✎</td><td>rail with a dragged ghost + day insertion line; act-divider highlight</td></tr>
+<tr><td><b>S78</b></td><td>Timeline placement — post-drop</td><td>F3</td><td>✎</td><td>card landed at new day; <code>storyDay</code> updated; success note</td></tr>
+<tr><td><b>S79</b></td><td>Locations tree — populated &amp; expanded</td><td>F4</td><td>—</td><td>nested <code>world</code> tree, chevrons, scene leaves, drill links</td></tr>
+<tr><td><b>S80</b></td><td>Locations tree — unresolved / cycle guard</td><td>F4</td><td>—</td><td>unresolved <code>world</code> flagged at root; depth/cycle guard note</td></tr>
+<tr><td><b>S81</b></td><td>Swimlanes — By POV</td><td>F5</td><td>—</td><td>lanes per POV + No-POV lane; act rows; Rail|Swimlane toggle</td></tr>
+<tr><td><b>S82</b></td><td>Swimlanes — By plotline (fan-out)</td><td>F5</td><td>—</td><td>multi-plotline scene in both lanes; Unassigned lane</td></tr>
+<tr><td><b>S83</b></td><td>Zoom / pan</td><td>F6</td><td>—</td><td>zoom controls; names clickable at all levels; ephemeral</td></tr>
+<tr><td><b>S84</b></td><td>Error &amp; empty</td><td>F7/F8</td><td>✎</td><td>write-failed rollback + error toast; empty scope</td></tr>
+</table>
+
+<!-- =================== KANBAN (F1) =================== -->
+<h2>Kanban (F1) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · write-back: status + order</span></h2>
+<div class="gallery">
+
+  <figure style="width:720px">
+    <figcaption><b>S73 · Kanban — populated.</b> One column per <code>status</code> value in the schema order
+    (idea · outline · draft · revised · done · final); empty columns are hidden. Each card = scene name + POV +
+    status badge + plotline dot. Cards carry a <span class="grab" style="color:var(--muted)">grab</span> cursor —
+    the whole board is draggable. <b>M6.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span><span>⑃ Plotlines</span></div>
+        <div class="ctrl"><span class="drop">⇅ by status</span></div></div>
+      <div class="mbody">
+        <div class="kanban">
+          <div class="col">
+            <div class="col-head">Outline <span class="n">3</span></div>
+            <div class="kcard grab"><div class="kt">The Black Cliffs</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-dying)"></span>POV Mara Stoneway
+                <span class="kbadge" style="background:rgba(91,139,208,.18);color:var(--st-outline)">outline</span></div></div>
+            <div class="kcard grab"><div class="kt">The Signal Tower</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-oath)"></span>POV Tobias Ferro
+                <span class="kbadge" style="background:rgba(91,139,208,.18);color:var(--st-outline)">outline</span></div></div>
+            <div class="kcard grab"><div class="kt">A Message in Salt</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-oath)"></span>POV Mara Stoneway
+                <span class="kbadge" style="background:rgba(91,139,208,.18);color:var(--st-outline)">outline</span></div></div>
+          </div>
+          <div class="col">
+            <div class="col-head">Draft <span class="n">3</span></div>
+            <div class="kcard grab"><div class="kt">The Extinguished Fire</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-dying)"></span>POV Mara Stoneway
+                <span class="kbadge" style="background:rgba(224,163,74,.18);color:var(--st-draft)">draft</span></div></div>
+            <div class="kcard grab"><div class="kt">The Salty Gull</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-dying)"></span>POV Mara Stoneway
+                <span class="kbadge" style="background:rgba(224,163,74,.18);color:var(--st-draft)">draft</span></div></div>
+            <div class="kcard grab"><div class="kt">The Long Watch</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-none)"></span>POV Elke Stoneway
+                <span class="kbadge" style="background:rgba(224,163,74,.18);color:var(--st-draft)">draft</span></div></div>
+          </div>
+          <div class="col">
+            <div class="col-head">Done <span class="n">0</span></div>
+            <div style="color:var(--faint);font-size:11px;padding:14px 4px;text-align:center">drop here</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Ours vs StoryLine:</b> StoryLine's board is backed by its own DB; ours reads the
+    <code>status</code> frontmatter field and columns follow the <b>schema enum order</b>. Columns with zero scenes
+    (idea, revised, final here) are hidden to stay compact — a settings toggle can show them all.</p>
+  </figure>
+
+  <figure style="width:720px">
+    <figcaption><b>S74 · Kanban — card mid-drag.</b> "The Long Watch" is being dragged from <b>Draft</b> toward
+    <b>Done</b>: the source card shows as a <span style="color:var(--accent)">ghost</span> (opacity .5, double
+    border), and a <b>drop line</b> marks the insertion point in the target column. Releasing writes the new
+    <code>status</code> and a sparse-int <code>order</code>. <b>M6.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span><span>⑃ Plotlines</span></div></div>
+      <div class="mbody">
+        <div class="kanban">
+          <div class="col">
+            <div class="col-head">Draft <span class="n">2</span></div>
+            <div class="kcard grab"><div class="kt">The Extinguished Fire</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-dying)"></span>POV Mara Stoneway
+                <span class="kbadge" style="background:rgba(224,163,74,.18);color:var(--st-draft)">draft</span></div></div>
+            <div class="kcard grab"><div class="kt">The Salty Gull</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-dying)"></span>POV Mara Stoneway
+                <span class="kbadge" style="background:rgba(224,163,74,.18);color:var(--st-draft)">draft</span></div></div>
+            <div class="kcard dragging"><div class="kt">The Long Watch</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-none)"></span>POV Elke Stoneway
+                <span class="kbadge" style="background:rgba(224,163,74,.18);color:var(--st-draft)">draft</span></div></div>
+          </div>
+          <div class="col drop-target">
+            <div class="col-head">Done <span class="n">0</span></div>
+            <div class="drop-line"></div>
+            <div class="ghost kcard"><div class="kt">The Long Watch</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-none)"></span>POV Elke Stoneway
+                <span class="kbadge" style="background:rgba(106,196,122,.18);color:var(--st-written)">done →</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Write on drop:</b> <code>status: done</code> is set on the scene, and <code>order</code> is
+    rewritten with a <b>sparse integer</b> (midpoint of neighbours, or +10 at the tail) so re-sequencing rarely
+    rewrites siblings. Two frontmatter fields change; nothing else in the file is touched.</p>
+  </figure>
+
+</div>
+
+<!-- =================== PLOTGRID (F2) =================== -->
+<h2>Plotgrid (F2) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · write-back: plotlines</span></h2>
+<div class="gallery">
+
+  <figure style="width:720px">
+    <figcaption><b>S75 · Plotgrid — populated matrix.</b> Rows = plotlines, columns = scenes. A <b>filled</b> cell
+    (plotline-coloured, low opacity + dot) means the scene lists that plotline; an <b>empty</b> cell means it
+    doesn't. One cell is shown in its <span style="color:var(--accent)">hover</span> state (click to toggle).
+    <b>M6.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">▦ Plotgrid</span><span>◷ Timeline</span><span>⑃ Plotlines</span></div></div>
+      <div class="mbody" style="overflow-x:auto">
+        <div class="grid" style="grid-template-columns:150px repeat(5,1fr);width:660px">
+          <div class="gh row">Plotline \ Scene</div>
+          <div class="gh">1 · Extinguished Fire</div><div class="gh">3 · Black Cliffs</div>
+          <div class="gh">4 · Signal Tower</div><div class="gh">5 · Msg in Salt</div><div class="gh">6 · Long Watch</div>
+          <!-- Dying Light -->
+          <div class="rh"><span class="dot dying"></span>The Dying Light</div>
+          <div class="cell dying on"></div><div class="cell dying on"></div>
+          <div class="cell dying on"></div><div class="cell"></div><div class="cell"></div>
+          <!-- Warden's Oath -->
+          <div class="rh"><span class="dot oath"></span>The Warden's Oath</div>
+          <div class="cell"></div><div class="cell"></div>
+          <div class="cell oath on"></div><div class="cell oath on"></div><div class="cell"></div>
+          <!-- Shadow Trade -->
+          <div class="rh"><span class="dot shadow"></span>Shadow Trade</div>
+          <div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell hovering"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">"The Signal Tower" is a <b>multi-plotline</b> scene — both Dying Light and Warden's Oath cells
+    are filled in its column. Shadow Trade has zero scenes, so its whole row is empty until a cell is toggled on.
+    x-order across columns is reading order.</p>
+  </figure>
+
+  <figure style="width:720px">
+    <figcaption><b>S76 · Plotgrid — cell toggle (post-write).</b> The user clicked the empty
+    <b>Scene 6 × Shadow Trade</b> cell. It is now filled, and a header <b>toast</b> confirms the write — the
+    scene's <code>plotlines</code> list gained a <code>[[Shadow Trade]]</code> link. <b>M6.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">▦ Plotgrid</span><span>◷ Timeline</span><span>⑃ Plotlines</span></div></div>
+      <div class="toast">✓ Added <b style="color:var(--text)">The Long Watch</b> to <b style="color:var(--text)">Shadow Trade</b></div>
+      <div class="mbody" style="overflow-x:auto">
+        <div class="grid" style="grid-template-columns:150px repeat(5,1fr);width:660px">
+          <div class="gh row">Plotline \ Scene</div>
+          <div class="gh">1 · Extinguished Fire</div><div class="gh">3 · Black Cliffs</div>
+          <div class="gh">4 · Signal Tower</div><div class="gh">5 · Msg in Salt</div><div class="gh">6 · Long Watch</div>
+          <div class="rh"><span class="dot dying"></span>The Dying Light</div>
+          <div class="cell dying on"></div><div class="cell dying on"></div>
+          <div class="cell dying on"></div><div class="cell"></div><div class="cell"></div>
+          <div class="rh"><span class="dot oath"></span>The Warden's Oath</div>
+          <div class="cell"></div><div class="cell"></div>
+          <div class="cell oath on"></div><div class="cell oath on"></div><div class="cell"></div>
+          <div class="rh"><span class="dot shadow"></span>Shadow Trade</div>
+          <div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell shadow on"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Ours vs StoryLine:</b> the toggle appends/removes one <code>[[wikilink]]</code> in
+    <code>plotlines</code> — a value a human could have typed by hand. Toggling off would drop the scene from
+    Unassigned; toggling on removes it. The write is a single frontmatter-field edit, undoable in the file.</p>
+  </figure>
+
+</div>
+
+<!-- =================== TIMELINE PLACEMENT (F3) =================== -->
+<h2>Timeline placement (F3) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · write-back: storyDay (integer snap)</span></h2>
+<div class="gallery">
+
+  <figure style="width:720px">
+    <figcaption><b>S77 · Timeline placement — mid-drag.</b> Reuses the S62 rail. "The Long Watch" (Night 4) is
+    dragged up toward Night 2: the source shows as a <span style="color:var(--accent)">ghost</span> and a
+    <b>day insertion line</b> appears between the Night-1 and Night-2 rows. The act divider highlights because the
+    drop would cross into Act 1. <b>M6.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
+        <div class="ctrl"><div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div></div></div>
+      <div class="mbody">
+        <div class="actpill" style="outline:2px solid var(--accent);outline-offset:2px">▾ ACT 1 · The Failing Light</div>
+        <div class="rail withwhen">
+          <div class="tl-item"><div class="tl-when">Night 1</div><div class="tl-node dying"></div>
+            <div class="card grab"><div class="ct">The Salty Gull</div>
+              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Salty Gull</span></div>
+              <div><span class="stat sd">Draft</span><span class="words">storyDay 1</span></div></div></div>
+          <div class="drop-line" style="margin-left:96px"></div>
+          <div class="tl-item"><div class="tl-when" style="color:var(--accent)">Night 2</div><div class="tl-node dying"></div>
+            <div class="card ghost"><div class="ct">The Long Watch</div>
+              <div class="cm"><span>POV: Elke Stoneway</span><span class="pin">Moonharbor Lighthouse</span></div>
+              <div><span class="stat sd">Draft</span><span class="words">→ storyDay 2</span></div></div></div>
+          <div class="tl-item"><div class="tl-when">Night 2</div><div class="tl-node dying"></div>
+            <div class="card grab"><div class="ct">The Black Cliffs</div>
+              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Black Cliffs</span></div>
+              <div><span class="stat so">Outline</span><span class="words">storyDay 2</span></div></div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Placement ≠ Kanban:</b> the drop writes only <code>storyDay</code>, snapped to the target
+    day's <b>integer</b> — <code>order</code> is <b>never</b> touched (that's the Kanban's job). storyDay ties are
+    broken by the existing <code>order</code>, so the card slots without a re-sequence.</p>
+  </figure>
+
+  <figure style="width:720px">
+    <figcaption><b>S78 · Timeline placement — post-drop.</b> "The Long Watch" landed at Night 2; its
+    <code>storyDay</code> is now <code>2</code> and it sits between the two Night-2 scenes by its existing
+    <code>order</code>. A brief success note confirms the single-field write. <b>M6.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
+        <div class="ctrl"><div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div></div></div>
+      <div class="toast">✓ <b style="color:var(--text)">The Long Watch</b> moved to <b style="color:var(--text)">storyDay 2</b></div>
+      <div class="mbody">
+        <div class="actpill">▾ ACT 1 · The Failing Light</div>
+        <div class="rail withwhen">
+          <div class="tl-item"><div class="tl-when">Night 1</div><div class="tl-node dying"></div>
+            <div class="card"><div class="ct">The Salty Gull</div>
+              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Salty Gull</span></div>
+              <div><span class="stat sd">Draft</span><span class="words">storyDay 1</span></div></div></div>
+          <div class="tl-item"><div class="tl-when">Night 2</div><div class="tl-node dying"></div>
+            <div class="card"><div class="ct">The Black Cliffs</div>
+              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Black Cliffs</span></div>
+              <div><span class="stat so">Outline</span><span class="words">storyDay 2 · order 3</span></div></div></div>
+          <div class="tl-item"><div class="tl-when">Night 2</div><div class="tl-node none"></div>
+            <div class="card"><div class="ct">The Long Watch</div>
+              <div class="cm"><span>POV: Elke Stoneway</span><span class="pin">Moonharbor Lighthouse</span></div>
+              <div><span class="stat sd">Draft</span><span class="words">storyDay 2 · order 6</span></div></div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Only <code>storyDay</code> changed (Night 4 → Night 2). <code>order</code> stays 6, so within the
+    Night-2 group the card sorts after Black Cliffs (order 3). Reopen and the placement is exactly what's in the
+    file — no hidden view state.</p>
+  </figure>
+
+</div>
+
+<!-- =================== LOCATIONS TREE (F4) =================== -->
+<h2>Locations tree (F4) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only</span></h2>
+<div class="gallery">
+
+  <figure style="width:400px">
+    <figcaption><b>S79 · Locations tree — populated &amp; expanded.</b> A nested tree over the <code>world</code>
+    relation: Moonharbor (root) contains three child locations, each expandable to the scenes set there. Chevrons
+    <b>▾/▸</b> collapse; location names are <span style="color:var(--link);text-decoration:underline">drill
+    links</span>; scene leaves drill the scene. Read-only. <b>M6.</b></figcaption>
+    <div class="view main" style="width:400px">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">⌖ Locations</span><span>◷ Timeline</span></div></div>
+      <div class="mbody">
+        <div class="tree">
+          <div class="node"><span class="chv">▾</span><span class="loc">Moonharbor</span>
+            <span class="kind">root</span><span class="cnt">3</span></div>
+          <!-- Lighthouse -->
+          <div class="node indent-1"><span class="chv">▾</span><span class="loc">Moonharbor Lighthouse</span>
+            <span class="kind">location</span><span class="cnt">3</span></div>
+          <div class="node scene indent-2"><span class="chv"></span><span class="loc">The Extinguished Fire</span><span class="kind sd">draft</span></div>
+          <div class="node scene indent-2"><span class="chv"></span><span class="loc">A Message in Salt</span><span class="kind so">outline</span></div>
+          <div class="node scene indent-2"><span class="chv"></span><span class="loc">The Long Watch</span><span class="kind sd">draft</span></div>
+          <!-- Salty Gull -->
+          <div class="node indent-1"><span class="chv">▾</span><span class="loc">The Salty Gull</span>
+            <span class="kind">location · inn</span><span class="cnt">2</span></div>
+          <div class="node scene indent-2"><span class="chv"></span><span class="loc">The Salty Gull</span><span class="kind sd">draft</span></div>
+          <div class="node scene indent-2"><span class="chv"></span><span class="loc">The Black Cliffs</span><span class="kind so">outline</span></div>
+          <!-- Signal Tower collapsed -->
+          <div class="node indent-1"><span class="chv">▸</span><span class="loc">Signal Tower</span>
+            <span class="kind">location</span><span class="cnt">1</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Ours vs StoryLine:</b> StoryLine has no location hierarchy; we build one from the
+    <code>world</code> parent link (location→location) and place scenes under their <code>location</code>. The tree
+    is a pure read view — drilling a node opens that note in the Context panel.</p>
+  </figure>
+
+  <figure style="width:400px">
+    <figcaption><b>S80 · Locations tree — unresolved / cycle guard.</b> "The Old Wharf" links
+    <code>world: [[Harbor District]]</code> but no such note resolves, so it's <b>flagged at the root</b> rather
+    than dropped. A depth/cycle guard also caps runaway nesting. <b>M6.</b></figcaption>
+    <div class="view main" style="width:400px">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">⌖ Locations</span><span>◷ Timeline</span></div></div>
+      <div class="mbody">
+        <div class="tree">
+          <div class="node"><span class="chv">▾</span><span class="loc">Moonharbor</span>
+            <span class="kind">root</span><span class="cnt">3</span></div>
+          <div class="node indent-1"><span class="chv">▸</span><span class="loc">Moonharbor Lighthouse</span>
+            <span class="kind">location</span><span class="cnt">3</span></div>
+          <div class="node flagged"><span class="chv">▸</span><span class="loc">The Old Wharf</span>
+            <span class="flag">⊘ world → [[Harbor District]] unresolved</span></div>
+        </div>
+        <div class="scopehint" style="margin-top:10px;border:1px solid var(--border);border-radius:6px">
+          ⚠ Cycle/depth guard: a <code>world</code> link that loops or nests past the depth cap is placed at the
+          root and flagged, never expanded infinitely.</div>
+      </div>
+    </div>
+    <p class="note">Unresolved and cyclic parents are surfaced (like the Plotlines unresolved lane), so a broken
+    <code>world</code> link is visible and fixable, not silently swallowed.</p>
+  </figure>
+
+</div>
+
+<!-- =================== SWIMLANES (F5) =================== -->
+<h2>Swimlanes (F5) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only</span></h2>
+<div class="gallery">
+
+  <figure style="width:720px">
+    <figcaption><b>S81 · Swimlanes — By POV.</b> The Timeline in swimlane mode: one lane per POV character plus a
+    <b>No POV</b> lane, act rows spanning full width, each scene a mini-card in its POV lane. The
+    <b>Rail | Swimlane</b> toggle and a <b>By POV ▾</b> key selector sit in the header. Read-only. <b>M6.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
+        <div class="ctrl"><div class="seg"><span>Rail</span><span class="sel">Swimlane</span></div><span class="drop">By POV ▾</span></div></div>
+      <div class="mbody">
+        <div class="swim">
+          <div class="sh" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
+            <div>#</div><div>Mara Stoneway</div><div>Tobias Ferro</div><div>Elke Stoneway</div><div>No POV</div></div>
+          <div class="actrow">ACT 1 · The Failing Light</div>
+          <div class="srow" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
+            <div class="idxcell">1</div>
+            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-dying)"></div>
+              <div class="mt">The Extinguished Fire</div><div class="mm"><span class="sd">Draft</span> · Night 1</div></div></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+          <div class="srow" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
+            <div class="idxcell">3</div>
+            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-dying)"></div>
+              <div class="mt">The Black Cliffs</div><div class="mm"><span class="so">Outline</span> · Night 2</div></div></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+          <div class="actrow">ACT 2 · The Gathering Dark</div>
+          <div class="srow" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
+            <div class="idxcell">4</div>
+            <div class="cell"></div>
+            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-oath)"></div>
+              <div class="mt">The Signal Tower</div><div class="mm"><span class="so">Outline</span> · Night 3</div></div></div>
+            <div class="cell"></div><div class="cell"></div></div>
+          <div class="srow" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
+            <div class="idxcell">6</div>
+            <div class="cell"></div><div class="cell"></div>
+            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-none)"></div>
+              <div class="mt">The Long Watch</div><div class="mm"><span class="sd">Draft</span> · Night 4</div></div></div>
+            <div class="cell"></div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">A scene with no <code>pov</code> would fall into the <b>No POV</b> lane (empty here — all seed
+    scenes have a POV). The swimlane key is a header selector; POV / plotline are both shipped (location deferred).</p>
+  </figure>
+
+  <figure style="width:720px">
+    <figcaption><b>S82 · Swimlanes — By plotline (multi-lane fan-out).</b> Same view keyed by plotline.
+    "The Signal Tower" is on <i>both</i> Dying Light and Warden's Oath, so it appears as a mini-card in
+    <b>both lanes</b>. "The Long Watch" has no plotline → the <b>Unassigned</b> lane. Read-only. <b>M6.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
+        <div class="ctrl"><div class="seg"><span>Rail</span><span class="sel">Swimlane</span></div><span class="drop">By plotline ▾</span></div></div>
+      <div class="mbody">
+        <div class="swim">
+          <div class="sh" style="grid-template-columns:44px 1fr 1fr 0.8fr">
+            <div>#</div><div>The Dying Light</div><div>The Warden's Oath</div><div>Unassigned</div></div>
+          <div class="actrow">ACT 2 · The Gathering Dark</div>
+          <div class="srow" style="grid-template-columns:44px 1fr 1fr 0.8fr">
+            <div class="idxcell">4</div>
+            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-dying)"></div>
+              <div class="mt">The Signal Tower</div><div class="mm"><span class="so">Outline</span> · both lanes</div></div></div>
+            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-oath)"></div>
+              <div class="mt">The Signal Tower</div><div class="mm"><span class="so">Outline</span> · both lanes</div></div></div>
+            <div class="cell"></div></div>
+          <div class="srow" style="grid-template-columns:44px 1fr 1fr 0.8fr">
+            <div class="idxcell">5</div>
+            <div class="cell"></div>
+            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-oath)"></div>
+              <div class="mt">A Message in Salt</div><div class="mm"><span class="so">Outline</span> · —</div></div></div>
+            <div class="cell"></div></div>
+          <div class="srow" style="grid-template-columns:44px 1fr 1fr 0.8fr">
+            <div class="idxcell">6</div>
+            <div class="cell"></div><div class="cell"></div>
+            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-none)"></div>
+              <div class="mt">The Long Watch</div><div class="mm"><span class="sd">Draft</span> · Night 4</div></div></div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Fan-out mirrors the M5 <code>plotlineModel</code>: a multi-plotline scene is drawn once per
+    lane it belongs to. Zero-scene plotlines (Shadow Trade) show an empty lane; no-plotline scenes bucket into
+    <b>Unassigned</b>. Read-only in M6 — dragging between lanes would rewrite <code>plotlines</code>, but that path
+    is the Plotgrid's job.</p>
+  </figure>
+
+</div>
+
+<!-- =================== ZOOM / PAN (F6) =================== -->
+<h2>Zoom / pan (F6) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only, ephemeral</span></h2>
+<div class="gallery">
+
+  <figure style="width:720px">
+    <figcaption><b>S83 · Zoom / pan.</b> Timeline header gains zoom controls
+    <b>(− / 100% / + / ⟲ reset)</b>. Zooming scales the rail/swimlane spacing; scene names stay
+    <b>clickable at every level</b>. Zoom is <b>ephemeral</b> — it isn't written anywhere and resets when the leaf
+    reopens. Modifier+wheel also zooms. <b>M6.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
+        <div class="ctrl">
+          <div class="zoom"><span>−</span><span class="lvl">100%</span><span>+</span><span>⟲</span></div></div></div>
+      <div class="mbody">
+        <div class="actpill">▾ ACT 1 · The Failing Light</div>
+        <div class="rail withwhen">
+          <div class="tl-item"><div class="tl-when">Night 1</div><div class="tl-node dying"></div>
+            <div class="card"><div class="ct">The Extinguished Fire</div>
+              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">Moonharbor Lighthouse</span></div>
+              <div><span class="stat sd">Draft</span><span class="words">storyDay 1</span></div></div></div>
+          <div class="tl-item"><div class="tl-when">Night 2</div><div class="tl-node dying"></div>
+            <div class="card"><div class="ct">The Black Cliffs</div>
+              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Black Cliffs</span></div>
+              <div><span class="stat so">Outline</span><span class="words">storyDay 2</span></div></div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Ephemeral by design (frontmatter-is-truth):</b> zoom/pan is pure view state — nothing about
+    the story changes, so nothing is persisted. This keeps write surfaces (F1–F3) cleanly separate from
+    navigation. Clickability at all zoom levels is the one hard constraint carried from the M5 subway note.</p>
+  </figure>
+
+</div>
+
+<!-- =================== ERROR & EMPTY (F7/F8) =================== -->
+<h2>Error &amp; empty states (F7 / F8) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6</span></h2>
+<div class="gallery">
+
+  <figure style="width:360px">
+    <figcaption><b>S84a · Kanban — write failed (rollback).</b> A drop's frontmatter write failed (file locked /
+    read-only). The card <b>rolls back</b> to its origin column and an <b>error toast</b> explains the edit was
+    kept, not lost. <b>M6 · F7.</b></figcaption>
+    <div class="view main" style="width:360px">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span></div></div>
+      <div class="toast err">⚠ Couldn't update status — your edit was kept</div>
+      <div class="mbody">
+        <div class="kanban">
+          <div class="col">
+            <div class="col-head">Draft <span class="n">1</span></div>
+            <div class="kcard grab" style="outline:1.5px dashed var(--st-draft);outline-offset:2px">
+              <div class="kt">The Long Watch</div>
+              <div class="km"><span class="kdot" style="background:var(--pl-none)"></span>POV Elke Stoneway
+                <span class="kbadge" style="background:rgba(224,163,74,.18);color:var(--st-draft)">draft ↩</span></div></div>
+          </div>
+          <div class="col">
+            <div class="col-head">Done <span class="n">0</span></div>
+            <div style="color:var(--faint);font-size:11px;padding:14px 4px;text-align:center">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">The board reflects the file, so a failed write must undo the optimistic move (↩). No partial
+    state is left on screen that doesn't exist in frontmatter.</p>
+  </figure>
+
+  <figure style="width:360px">
+    <figcaption><b>S84b · Kanban — empty scope.</b> No scenes in the active scope. Reuses the M5 <b>S65</b>
+    empty-state affordance verbatim. <b>M6 · F8.</b></figcaption>
+    <div class="view main" style="width:360px">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span></div></div>
+      <div class="emptybox"><div class="glyph">◷</div><div class="lead">No scenes to place</div>
+        <div class="hint">No scene notes are in scope. Open a book or scene note, or create a scene.</div></div>
+    </div>
+  </figure>
+
+</div>
+
+<p class="note" style="margin-top:26px;max-width:96ch">
+<b>Scope (M6, spec 007):</b> six features — three <b>write-back</b> (F1 Kanban → <code>status</code> + sparse-int
+<code>order</code>; F2 Plotgrid → <code>plotlines</code> links; F3 Timeline placement → integer-snap
+<code>storyDay</code>, never <code>order</code>) and three <b>read-only</b> (F4 Locations tree, F5 Swimlanes by
+POV/plotline, F6 ephemeral zoom/pan). Every write is a single plain-frontmatter field a human could have typed,
+optimistic with rollback on failure, and fully reversible in the file — the plugin never owns state. The Plotlines
+<b>subway map is deferred to M7</b>. Continues the M5 mockup numbering (S72 → S73–S84).
+</p>
+
+</body>
+</html>
