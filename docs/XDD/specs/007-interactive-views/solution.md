@@ -206,8 +206,11 @@ export function plotgridModel(rows: SceneRow[], resolve: LinkResolver): Plotgrid
 // F3 — whole-day snap from a fractional drop ratio across the rail (never fractional out).
 export function snapStoryDay(rows: SceneRow[], dropRatio: number): number;
 // F5 — group by pov|location|plotline into lanes (+ "No POV"/"No location"/"Unassigned").
+// Optional `resolve` lets the plotline key flag unresolved lanes (kind "unresolved"), mirroring
+// plotgridModel/plotlineModel; pov/location lanes carry kind "pov"/"location". `GroupKind` gains
+// "pov" | "location" (additive).
 export type SwimlaneKey = "pov" | "location" | "plotline";
-export function swimlaneModel(rows: SceneRow[], key: SwimlaneKey): Group[];
+export function swimlaneModel(rows: SceneRow[], key: SwimlaneKey, resolve?: LinkResolver): Group[];
 // F4 — nest locations by `world`; cycle/depth-guarded; unresolved parent → flagged root.
 export interface LocationNode { file: TFile; name: string; children: LocationNode[]; flagged: boolean; }
 export function locationTreeModel(locations: LocationRow[], resolve: LinkResolver): LocationNode[];

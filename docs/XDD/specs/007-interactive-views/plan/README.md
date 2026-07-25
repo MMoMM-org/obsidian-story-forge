@@ -89,7 +89,7 @@ npm run dev                 # watch → redeploy into test/StoryForge/
 Each phase is defined in a separate file. Tasks follow red-green-refactor: **Prime** (context),
 **Test** (red), **Implement** (green), **Validate** (refactor + verify).
 
-- [ ] [Phase 1: Pure models (kanban/plotgrid/swimlane/locationTree + order/day math)](phase-1.md)
+- [x] [Phase 1: Pure models (kanban/plotgrid/swimlane/locationTree + order/day math)](phase-1.md)
 - [ ] [Phase 2: Write seam — commitMany + spy-able mock](phase-2.md)
 - [ ] [Phase 3: InteractionHandler — pointer drag + keyboard + debounced commit](phase-3.md)
 - [ ] [Phase 4: Read-only renderers — Locations tree + Swimlanes + Zoom/pan](phase-4.md)
