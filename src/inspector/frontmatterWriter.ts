@@ -131,6 +131,84 @@ function isOutOfVocab(field: FieldSpec, value: unknown): boolean {
 // ---------------------------------------------------------------------------
 
 /**
+ * One entry in an atomic multi-key write (commitMany).
+ * Maps a frontmatter key to its new value and field descriptor.
+ */
+export interface CommitEntry {
+	readonly key: string;
+	readonly value: unknown;
+	readonly field: FieldSpec;
+}
+
+/**
+ * Atomically write multiple frontmatter keys on `file` in a single
+ * processFrontMatter call.
+ *
+ * Contract (ADR-14):
+ *  - Validates every entry in memory FIRST. If any entry is a type error,
+ *    returns {ok:false, reason:"validation"} and calls processFrontMatter
+ *    ZERO times — nothing is written to the vault.
+ *  - All entries valid → a single processFrontMatter sets all keys atomically.
+ *  - Sibling keys not present in `entries` are untouched.
+ *  - Out-of-vocab select values are advisory (console.warn), never block.
+ *  - If processFrontMatter rejects → {ok:false, reason:"write", keepDirty:true}.
+ *  - Empty entries array → short-circuit {ok:true} (nothing to validate or write).
+ *
+ * @param app     - Obsidian App (for fileManager access)
+ * @param file    - the target TFile
+ * @param entries - key/value/field triples to write atomically
+ */
+export async function commitMany(
+	app: App,
+	file: TFile,
+	entries: CommitEntry[],
+): Promise<CommitResult> {
+	// Short-circuit: nothing to validate or write.
+	if (entries.length === 0) {
+		return { ok: true };
+	}
+
+	// 1. Validate ALL entries in memory — nothing touches the vault yet.
+	for (const entry of entries) {
+		const validation = validateField(entry.field, entry.value);
+		if (validation.kind === "type-error") {
+			return {
+				ok: false,
+				reason: "validation",
+				message: validation.message,
+				keepDirty: true,
+			};
+		}
+	}
+
+	// 2. Advisory warn for out-of-vocab selects (ADR-7 — not a block).
+	for (const entry of entries) {
+		if (isOutOfVocab(entry.field, entry.value)) {
+			console.warn(
+				`[StoryForge] Inspector: "${String(entry.value)}" is not in the declared vocabulary for field "${entry.key}". Writing anyway (frontmatter is truth).`,
+			);
+		}
+	}
+
+	// 3. Single processFrontMatter — sets all keys atomically (CON-2, ADR-14).
+	try {
+		await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			for (const entry of entries) {
+				fm[entry.key] = entry.value;
+			}
+		});
+		return { ok: true };
+	} catch {
+		return {
+			ok: false,
+			reason: "write",
+			message: "Couldn't write frontmatter. Your edits are kept.",
+			keepDirty: true,
+		};
+	}
+}
+
+/**
  * Commit `value` for `key` on `file` via processFrontMatter.
  *
  * Validation runs in memory first. On type error, returns an error result
