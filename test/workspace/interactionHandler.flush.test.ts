@@ -342,7 +342,7 @@ describe("InteractionHandler — per-file debounce + flush + cleanup", () => {
 				pointerId: 1,
 			}),
 		);
-		document.dispatchEvent(
+		window.dispatchEvent(
 			new PointerEvent("pointermove", {
 				bubbles: true,
 				clientX: 110,
@@ -351,7 +351,7 @@ describe("InteractionHandler — per-file debounce + flush + cleanup", () => {
 				pointerId: 1,
 			}),
 		);
-		document.dispatchEvent(
+		window.dispatchEvent(
 			new PointerEvent("pointerup", {
 				bubbles: true,
 				clientX: 110,

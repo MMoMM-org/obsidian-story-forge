@@ -15,7 +15,7 @@ declare global {
 	/** Obsidian's popout-window-aware document reference. */
 	const activeDocument: Document;
 	/** Obsidian's popout-window-aware window reference. */
-	const activeWindow: Window & typeof globalThis;
+	const activeWindow: Window;
 
 	interface HTMLElement {
 		// Generic over the tag name, mirroring real obsidian.d.ts so createEl("input")

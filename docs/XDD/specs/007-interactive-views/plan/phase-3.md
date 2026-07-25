@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: InteractionHandler — pointer drag + keyboard + debounced commit"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 3
 ---

@@ -333,4 +333,74 @@ describe("InteractionHandler — pointer state machine", () => {
 
 		expect(card.classList.contains("sf-dragging")).toBe(false);
 	});
+
+	// -----------------------------------------------------------------------
+	// T3.1-9: Pointer drop does NOT call announce (announce is keyboard-only)
+	// -----------------------------------------------------------------------
+	it("pointer drop does NOT call announce even when announce opt is wired", async () => {
+		vi.useFakeTimers();
+		const announce = vi.fn();
+		const entry = makeEntry();
+		const card = makeCard(host);
+		const localHandler = new InteractionHandler(app, host, {
+			onWrite,
+			onAfter,
+			onError,
+			announce,
+			debounceMs: 0,
+			dragThreshold: 5,
+		});
+		handler.destroy(); // replace the beforeEach handler for this test
+
+		handler = localHandler;
+		handler.bind(card, file, makeDraggable([entry]));
+
+		stubElementFromPoint(card);
+
+		// Full armed drag.
+		pointerDown(card, 100, 100);
+		pointerMove(110, 100); // past threshold
+		pointerUp(110, 100);
+
+		// Advance debounce so flush runs.
+		await vi.runAllTimersAsync();
+
+		// onWrite must have been called (confirms entries were non-empty).
+		expect(onWrite).toHaveBeenCalledOnce();
+		// announce must NOT be called — pointer drop passes shouldAnnounce=false.
+		expect(announce).not.toHaveBeenCalled();
+
+		vi.useRealTimers();
+	});
+
+	// -----------------------------------------------------------------------
+	// T3.1-10: pointercancel cleans up — removes sf-dragging, no onWrite
+	// -----------------------------------------------------------------------
+	it("pointercancel removes sf-dragging class and does NOT call onWrite", async () => {
+		vi.useFakeTimers();
+		const card = makeCard(host);
+		handler.bind(card, file, makeDraggable([makeEntry()]));
+
+		// Arm the drag past threshold.
+		pointerDown(card, 100, 100);
+		pointerMove(110, 100);
+		expect(card.classList.contains("sf-dragging")).toBe(true);
+
+		// Dispatch pointercancel on window (where the handler is registered).
+		window.dispatchEvent(
+			new PointerEvent("pointercancel", {
+				bubbles: true,
+				pointerId: 1,
+			}),
+		);
+
+		// sf-dragging must be removed.
+		expect(card.classList.contains("sf-dragging")).toBe(false);
+
+		// onWrite must NOT be called — cancel aborts without committing.
+		await vi.runAllTimersAsync();
+		expect(onWrite).not.toHaveBeenCalled();
+
+		vi.useRealTimers();
+	});
 });

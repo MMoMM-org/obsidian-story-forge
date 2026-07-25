@@ -121,8 +121,6 @@ interface DragState {
  * keyboard-actionable by recording it in an internal map.
  */
 export class InteractionHandler {
-	private readonly _app: App;
-	private readonly _host: HTMLElement;
 	private readonly _opts: Required<Omit<InteractionHandlerOpts, "announce" | "onError">> & {
 		announce?: (msg: string) => void;
 		onError?: (file: TFile, result: CommitResult) => void;
@@ -160,9 +158,7 @@ export class InteractionHandler {
 	/** Current drag in-flight (null when idle). */
 	private _drag: DragState | null = null;
 
-	constructor(app: App, host: HTMLElement, opts: InteractionHandlerOpts) {
-		this._app = app;
-		this._host = host;
+	constructor(_app: App, host: HTMLElement, opts: InteractionHandlerOpts) {
 		this._opts = {
 			onWrite: opts.onWrite,
 			onAfter: opts.onAfter,

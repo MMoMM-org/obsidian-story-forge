@@ -113,11 +113,15 @@ export class Component {
 	 * modules that register pointer/key listeners on activeWindow compile and run
 	 * correctly in tests (CON-4 — pointer move/up need window-level tracking).
 	 */
-	registerDomEvent = vi.fn(
-		<K extends keyof (WindowEventMap & DocumentEventMap & HTMLElementEventMap)>(
+	registerDomEvent: {
+		<K extends keyof WindowEventMap>(el: Window, type: K, callback: (this: HTMLElement, ev: WindowEventMap[K]) => unknown, options?: boolean | AddEventListenerOptions): void;
+		<K extends keyof DocumentEventMap>(el: Document, type: K, callback: (this: HTMLElement, ev: DocumentEventMap[K]) => unknown, options?: boolean | AddEventListenerOptions): void;
+		<K extends keyof HTMLElementEventMap>(el: HTMLElement, type: K, callback: (this: HTMLElement, ev: HTMLElementEventMap[K]) => unknown, options?: boolean | AddEventListenerOptions): void;
+	} = vi.fn(
+		(
 			el: Window | Document | HTMLElement,
-			type: K,
-			listener: (ev: (WindowEventMap & DocumentEventMap & HTMLElementEventMap)[K]) => void,
+			type: string,
+			listener: (ev: Event) => void,
 		): void => {
 			(el as EventTarget).addEventListener(type, listener as EventListener);
 			this._cleanupFns.push(() => {
