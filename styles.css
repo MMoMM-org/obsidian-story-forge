@@ -2097,6 +2097,144 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * Kanban (M6 / T5.1) — Status columns of draggable scene cards.
+ * sf-kb-* classes: board, columns, column headers, cards, drag ghost, drop line.
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+.sf-kb-board {
+	display: flex;
+	flex-direction: row;
+	gap: 8px;
+	overflow-x: auto;
+	padding: 4px;
+	min-height: 200px;
+}
+
+.sf-kb-col {
+	display: flex;
+	flex-direction: column;
+	min-width: 160px;
+	max-width: 220px;
+	flex: 1 0 160px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-m);
+	padding: 0;
+}
+
+.sf-kb-col--neutral {
+	opacity: 0.75;
+}
+
+.sf-kb-col-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 8px 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.sf-kb-col-dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.sf-kb-col-label {
+	flex: 1;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sf-kb-col-count {
+	color: var(--text-faint);
+	font-size: 10px;
+	background: var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 0 4px;
+}
+
+.sf-kb-col-body {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px;
+	flex: 1;
+	min-height: 40px;
+}
+
+/* Cards */
+
+.sf-kb-card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px 8px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: grab;
+	user-select: none;
+}
+
+.sf-kb-card:hover {
+	border-color: var(--interactive-accent);
+	background: var(--background-primary-alt);
+}
+
+.sf-kb-card:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Title span — drill link, NOT the drag surface */
+.sf-kb-card-title {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-normal);
+	cursor: default;
+	pointer-events: auto;
+	text-decoration: none;
+}
+
+.sf-kb-card-title[data-sf-link] {
+	color: var(--link-color);
+	cursor: pointer;
+}
+
+.sf-kb-card-title[data-sf-link]:hover {
+	text-decoration: underline;
+}
+
+/* Meta row */
+.sf-kb-card-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	align-items: center;
+}
+
+.sf-kb-card-day,
+.sf-kb-card-words {
+	font-size: 10px;
+	color: var(--text-faint);
+}
+
+/* Drag-in-flight state */
+.sf-kb-card.sf-dragging {
+	opacity: 0.5;
+	cursor: grabbing;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * Swimlane (M6 / T4.2) — Timeline grouped by pov/location/plotline.
  * sf-sw-* classes: one lane per Group from swimlaneModel.
  * ═════════════════════════════════════════════════════════════════════════ */
