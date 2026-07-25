@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Read-only renderers — Locations tree + Swimlanes + Zoom/pan"
-status: pending
+status: done
 version: "1.0"
 phase: 4
 ---
@@ -32,7 +32,7 @@ phase: 4
 
 Delivers the three non-writing view additions on the existing render host.
 
-- [ ] **T4.1 Location scope resolver + renderLocationsTree** `[activity: frontend-ui]` `[parallel: true]` `[ref: SDD/ADR-19; PRD/F4, AC-F4.*]`
+- [x] **T4.1 Location scope resolver + renderLocationsTree** `[activity: frontend-ui]` `[parallel: true]` `[ref: SDD/ADR-19; PRD/F4, AC-F4.*]`
 
   1. Prime: Read `resolveWorkspaceScope` + `DEFAULT_EXCLUDED_FOLDERS`; the `LocationNode`/`locationTreeModel` from Phase 1; the `section`/`emptyLine` primitives.
   2. Test (RED): a location-scope resolver gathers in-scope `location` notes (by type/tag, excluding the denylist — CON-7); `renderLocationsTree(host, nodes, deps)` renders nested collapsible nodes (chevron expand/collapse via the existing `data-sf-section-toggle` seam), location names as `[data-sf-link]` drill spans, unresolved/flagged nodes shown muted at root, and writes **nothing** on any interaction; empty scope → empty-state line.
@@ -42,7 +42,7 @@ Delivers the three non-writing view additions on the existing render host.
      - [ ] Nesting + drill + collapse; unresolved flagged; no writes `[ref: PRD/AC-F4.1, AC-F4.3, AC-F4.5]`
      - [ ] Cycle/depth-guarded input renders safely `[ref: PRD/AC-F4.4]`
 
-- [ ] **T4.2 renderTimeline "swimlane" mode + grouping key** `[activity: frontend-ui]` `[parallel: true]` `[ref: SDD/ADR-20; PRD/F5, AC-F5.*]`
+- [x] **T4.2 renderTimeline "swimlane" mode + grouping key** `[activity: frontend-ui]` `[parallel: true]` `[ref: SDD/ADR-20; PRD/F5, AC-F5.*]`
 
   1. Prime: Read the throwing `"swimlane"` branch in `renderTimeline.ts` + `swimlaneModel` (Phase 1) + the M5 rail card structure to reuse card rendering.
   2. Test (RED): `renderTimeline(host, groups, deps, "swimlane")` renders one lane per group (from `swimlaneModel`) with neutral lanes for absent values; a multi-plotline scene appears in each of its plotline lanes; act dividers remain identifiable; scene cards are `[data-sf-link]` drillable; collapse persists per (surface, scope, group); **no writes**; the `"rail"` path is unchanged.
@@ -52,7 +52,7 @@ Delivers the three non-writing view additions on the existing render host.
      - [ ] Lanes per key + neutral buckets + multi-plotline fan-out `[ref: PRD/AC-F5.2, AC-F5.3]`
      - [ ] Read-only, drill only; rail unaffected `[ref: PRD/AC-F5.4, SDD/ADR-20]`
 
-- [ ] **T4.3 Timeline zoom / pan (ephemeral)** `[activity: frontend-ui]` `[parallel: true]` `[ref: SDD/ADR-21; PRD/F6, AC-F6.*]`
+- [x] **T4.3 Timeline zoom / pan (ephemeral)** `[activity: frontend-ui]` `[parallel: true]` `[ref: SDD/ADR-21; PRD/F6, AC-F6.*]`
 
   1. Prime: Read ADR-21 (CSS transform, ephemeral, names clickable); the rail DOM in `renderTimeline.ts`.
   2. Test (RED): a zoom wrapper scales the rail between capped min/max via buttons (−/reset/+) and modifier+wheel; scene name `[data-sf-link]` spans remain clickable at every level; pan scrolls; zoom/pan state lives in-memory only (a fresh render resets it — no persistence); the By-POV toolbar control maps to the swimlane grouping (F6↔F5 bridge).
@@ -62,6 +62,6 @@ Delivers the three non-writing view additions on the existing render host.
      - [ ] Zoom caps + clickable names at all levels `[ref: PRD/AC-F6.1, AC-F6.2]`
      - [ ] Ephemeral (resets on reopen); no persisted state `[ref: PRD/AC-F6.3, SDD/CON-1]`
 
-- [ ] **T4.4 Phase Validation** `[activity: validate]`
+- [x] **T4.4 Phase Validation** `[activity: validate]`
 
   Run Phase 4 tests; confirm **zero** write calls from any of the three features (grep/spy assertion). Lint + stylelint + `typecheck`+`typecheck:test`. Verify the rail mode + M5 Timeline tests are unaffected.
