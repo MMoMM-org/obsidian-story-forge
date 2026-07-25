@@ -5,7 +5,7 @@
  * Interactive renderers (Kanban, Plotgrid, Timeline-placement) bind their
  * cards to this handler. Read-only renderers do NOT use it.
  *
- * Design decisions documented here:
+ * Design decisions:
  *
  * KEYBOARD KEYS (T3.2):
  *   ArrowLeft / ArrowRight — move card to the previous/next column or slot.
@@ -21,6 +21,12 @@
  *   All listeners are registered via `registerDomEvent` on a private Component
  *   delegate. `destroy()` calls `_unload()` on that delegate, which removes
  *   all DOM listeners. Pending debounce timers are also cancelled.
+ *
+ * ANNOUNCE (T3.2 — F8, AC-11):
+ *   The keyboard path sets a per-file announce flag before scheduling the
+ *   debounced flush. A pointer-drop path does not set it. The flush reads the
+ *   flag once at the time of the flush call, so coalescing always reflects
+ *   whether the most recent apply came from the keyboard.
  *
  * @ref docs/XDD/specs/007-interactive-views/plan/phase-3.md
  * @ref docs/XDD/specs/007-interactive-views/solution.md
@@ -45,7 +51,7 @@ export type { CommitEntry };
  * Strategy supplied by each interactive renderer.
  *
  * The handler is view-agnostic: all domain semantics live here.
- * Both computeDrop and computeKey must return the SAME shape so drag and
+ * Both computeDrop and computeKey must return the SAME entry shape so drag and
  * keyboard share one commit path (F8, AC-11).
  */
 export interface Draggable {
@@ -58,14 +64,13 @@ export interface Draggable {
 	/**
 	 * Keyboard parity: same entries for a discrete key move.
 	 *
-	 * Supported keys (documented per ADR-15):
-	 *   "ArrowLeft"  — move to previous column/slot
-	 *   "ArrowRight" — move to next column/slot
-	 *   "Alt+ArrowUp"   — move position up (e.g. earlier storyDay)
-	 *   "Alt+ArrowDown" — move position down (e.g. later storyDay)
+	 * Supported key strings passed by the handler (documented per ADR-15):
+	 *   "ArrowLeft"      — move to previous column/slot
+	 *   "ArrowRight"     — move to next column/slot
+	 *   "Alt+ArrowUp"    — move position up (e.g. earlier storyDay)
+	 *   "Alt+ArrowDown"  — move position down (e.g. later storyDay)
 	 *
-	 * Any other key string is passed through; the renderer decides if it is
-	 * meaningful. Returning [] means no-op (no write).
+	 * Returning [] means no-op (no write).
 	 */
 	computeKey(card: HTMLElement, key: string): CommitEntry[];
 }
@@ -80,7 +85,7 @@ export interface InteractionHandlerOpts {
 	onAfter: (file: TFile) => void;
 	/**
 	 * Called when onWrite returns {ok:false} — the rollback signal (ADR-24).
-	 * Optional; if absent, failures are silently dropped (onAfter is NOT called).
+	 * Optional; if absent, failures are silently surfaced (onAfter is NOT called).
 	 */
 	onError?: (file: TFile, result: CommitResult) => void;
 	/** Wired to the view's aria-live region (F8, AC-11). Optional. */
@@ -128,13 +133,21 @@ export class InteractionHandler {
 
 	/**
 	 * Per-file pending entry queue.
-	 * Key: file.path → ordered CommitEntry[] (last value per key wins on flush).
+	 * Key: file.path → CommitEntry[] (last value per key wins on merge — ADR-23).
 	 */
 	private readonly _pending = new Map<string, CommitEntry[]>();
 
 	/**
+	 * Per-file announce flag.
+	 * Set to true when the most recent _apply for this file came from the keyboard
+	 * path, so _flush() knows to call announce() on success.
+	 * Pointer-drop applies set it to false, preventing spurious announcements.
+	 */
+	private readonly _announceOnFlush = new Map<string, boolean>();
+
+	/**
 	 * Per-file debounced flush functions.
-	 * Created lazily on first apply(); cancelled on destroy().
+	 * Created lazily on first _apply(); cancelled on destroy().
 	 */
 	private readonly _flushFns = new Map<
 		string,
@@ -161,14 +174,13 @@ export class InteractionHandler {
 
 		this._delegate = new Component();
 
-		// Pointer events — delegated on host (ADR-15).
+		// Pointer events — pointerdown on the host; move/up/cancel on document so
+		// the pointer is tracked even when it leaves the host boundaries (ADR-15).
 		this._delegate.registerDomEvent(
 			host,
 			"pointerdown",
 			this._onPointerDown.bind(this) as (e: PointerEvent) => void,
 		);
-		// pointermove and pointerup are delegated on document so they track
-		// the pointer even when it leaves the host element.
 		this._delegate.registerDomEvent(
 			document as unknown as HTMLElement,
 			"pointermove",
@@ -185,7 +197,7 @@ export class InteractionHandler {
 			this._onPointerCancel.bind(this) as (e: PointerEvent) => void,
 		);
 
-		// Keyboard events — delegated on host for focused cards.
+		// Keyboard events — delegated on host for focused bound cards.
 		this._delegate.registerDomEvent(
 			host,
 			"keydown",
@@ -201,8 +213,8 @@ export class InteractionHandler {
 	 * Register a card element as draggable + keyboard-actionable.
 	 *
 	 * The card must be a descendant of `host`. The handler records the mapping;
-	 * pointer + keyboard events are delegated from the host and resolved via
-	 * `closest` / the internal map.
+	 * pointer + keyboard events are delegated from the host and resolved via the
+	 * internal ancestor-walk.
 	 */
 	bind(card: HTMLElement, file: TFile, strategy: Draggable): void {
 		this._cards.set(card, { file, strategy });
@@ -221,9 +233,10 @@ export class InteractionHandler {
 		}
 		this._flushFns.clear();
 		this._pending.clear();
+		this._announceOnFlush.clear();
 		this._cards.clear();
 		this._drag = null;
-		// Remove all DOM listeners.
+		// Remove all DOM listeners (CON-4).
 		this._delegate._unload();
 	}
 
@@ -232,16 +245,16 @@ export class InteractionHandler {
 	// ---------------------------------------------------------------------------
 
 	private _onPointerDown(e: PointerEvent): void {
-		// Primary button only; no modifier shortcuts.
+		// Primary button only.
 		if (e.button !== 0) return;
 
 		const target = e.target as Element | null;
 		if (!target) return;
 
-		// Drill wins: if the pointerdown target is inside a [data-sf-link], do not arm.
+		// AC-F8.3: Drill wins — a [data-sf-link] target never starts a drag.
 		if (target.closest("[data-sf-link]")) return;
 
-		// Resolve the bound card via the internal map.
+		// Resolve the bound card via ancestor walk.
 		const card = this._resolveCard(target);
 		if (!card) return;
 
@@ -277,7 +290,7 @@ export class InteractionHandler {
 		const drag = this._drag;
 		this._drag = null;
 
-		// Clean up drag class regardless.
+		// Clean up drag class regardless of whether the drag was armed.
 		drag.card.classList.remove("sf-dragging");
 
 		if (!drag.armed) return; // threshold not reached — no-op
@@ -288,7 +301,8 @@ export class InteractionHandler {
 
 		if (entries.length === 0) return; // no-op (AC-F1.6, AC-F3.5)
 
-		this._apply(drag.file, entries);
+		// Pointer drop — no announce.
+		this._apply(drag.file, entries, false);
 	}
 
 	private _onPointerCancel(_e: PointerEvent): void {
@@ -318,7 +332,7 @@ export class InteractionHandler {
 		const binding = this._cards.get(card);
 		if (!binding) return;
 
-		// Build a canonical key string that includes Alt modifier for arrow keys.
+		// Build a canonical key string; include Alt modifier for vertical arrows.
 		let key = e.key;
 		if (e.altKey && (key === "ArrowUp" || key === "ArrowDown")) {
 			key = `Alt+${key}`;
@@ -337,12 +351,12 @@ export class InteractionHandler {
 		const entries = binding.strategy.computeKey(card, key);
 		if (entries.length === 0) return; // no-op
 
-		// Same commit path as drag (F8, AC-11).
-		void this._applyAsync(binding.file, entries, card);
+		// Keyboard path — announce on success (F8, AC-11).
+		this._apply(binding.file, entries, true);
 	}
 
 	// ---------------------------------------------------------------------------
-	// Internal apply path — shared by pointer drop and keyboard
+	// Internal apply path — shared by pointer drop and keyboard (F8, AC-11)
 	// ---------------------------------------------------------------------------
 
 	/**
@@ -350,15 +364,23 @@ export class InteractionHandler {
 	 *
 	 * Merge rule (ADR-23): latest value wins per key.
 	 * Entries from different files flush independently.
+	 *
+	 * @param shouldAnnounce — true when called from the keyboard path; announce()
+	 *   will be called on successful flush. The pointer path passes false.
 	 */
-	private _apply(file: TFile, entries: CommitEntry[]): void {
-		// Merge: build a key→entry map, latest wins.
+	private _apply(file: TFile, entries: CommitEntry[], shouldAnnounce: boolean): void {
+		// Merge: build a key→entry map, latest wins per key.
 		const existing = this._pending.get(file.path) ?? [];
 		const map = new Map<string, CommitEntry>(existing.map((e) => [e.key, e]));
 		for (const entry of entries) {
 			map.set(entry.key, entry);
 		}
 		this._pending.set(file.path, Array.from(map.values()));
+
+		// Update the per-file announce flag.
+		// Most-recent write determines whether the flush announces:
+		// if the last apply was a keyboard action, announce; otherwise don't.
+		this._announceOnFlush.set(file.path, shouldAnnounce);
 
 		// Schedule or reset the per-file debounced flush.
 		if (!this._flushFns.has(file.path)) {
@@ -375,43 +397,20 @@ export class InteractionHandler {
 	}
 
 	/**
-	 * Async wrapper for keyboard path — the keyboard handler is synchronous and
-	 * calls _applyAsync so that announce() can be called after the write resolves.
-	 *
-	 * The card reference is passed so we can announce a card-specific message.
-	 */
-	private async _applyAsync(
-		file: TFile,
-		entries: CommitEntry[],
-		_card: HTMLElement,
-	): Promise<void> {
-		// We use the same debounced path as pointer drops, then wait for the flush.
-		// Because debounceMs may be 0 in tests, we flush immediately.
-		this._apply(file, entries);
-		// Wait for any microtasks (Promise resolutions) to settle.
-		// The announce is called after the flush completes in _flush().
-		// We store a reference here so we can announce after flush.
-		// This is handled via the _pendingAnnounce mechanism below.
-		this._pendingAnnounce = true;
-	}
-
-	/** Set to true when the keyboard path wants an announcement after flush. */
-	private _pendingAnnounce = false;
-
-	/**
 	 * Flush the pending entries for `file` to onWrite.
-	 * Called by the debounced flush function.
 	 *
-	 * On success: calls onAfter(file); optionally announces (keyboard path).
-	 * On failure: calls onError(file, result); does NOT call onAfter; does NOT throw.
+	 * On success: calls onAfter(file); if announce flag is set, calls announce().
+	 * On failure: calls onError?(file, result); does NOT call onAfter; does NOT throw.
 	 */
 	private async _flush(file: TFile): Promise<void> {
 		const entries = this._pending.get(file.path);
 		if (!entries || entries.length === 0) return;
 
-		// Clear the pending queue before the write so re-entrant applies
-		// start fresh.
+		const shouldAnnounce = this._announceOnFlush.get(file.path) ?? false;
+
+		// Clear pending state before the write so re-entrant applies start fresh.
 		this._pending.delete(file.path);
+		this._announceOnFlush.delete(file.path);
 
 		let result: CommitResult;
 		try {
@@ -427,15 +426,11 @@ export class InteractionHandler {
 
 		if (result.ok) {
 			this._opts.onAfter(file);
-			if (this._pendingAnnounce && this._opts.announce) {
-				this._pendingAnnounce = false;
+			if (shouldAnnounce && this._opts.announce) {
 				const keyStr = entries.map((e) => `${e.key}=${String(e.value)}`).join(", ");
 				this._opts.announce(`Updated ${file.basename ?? file.name}: ${keyStr}`);
-			} else {
-				this._pendingAnnounce = false;
 			}
 		} else {
-			this._pendingAnnounce = false;
 			this._opts.onError?.(file, result);
 		}
 	}
