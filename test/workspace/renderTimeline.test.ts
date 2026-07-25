@@ -136,8 +136,9 @@ describe("renderTimeline (rail)", () => {
 		expect(el.querySelector(".sf-section")).toBeNull();
 	});
 
-	it("throws for a non-rail mode (swimlane is M6)", () => {
-		expect(() => renderTimeline(host(), [], expanded, "swimlane")).toThrow(/M6/);
+	it("does not throw for swimlane mode (M6 swimlane is now implemented)", () => {
+		// Swimlane mode is implemented in T4.2 — rail tests must stay green.
+		expect(() => renderTimeline(host(), [], expanded, "swimlane")).not.toThrow();
 	});
 });
 
