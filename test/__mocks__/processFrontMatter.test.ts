@@ -124,11 +124,12 @@ describe("processFrontMatter mock", () => {
 		expect(handler).toHaveBeenCalledWith(file);
 	});
 
-	it("'changed' event fires only for the mutated file (not for other registrations)", async () => {
+	it("'changed' fires for every write — handler receives the written TFile each time", async () => {
 		const fileA = makeFile("scenes/A.md");
 		const fileB = makeFile("scenes/B.md");
 		const handlerA = vi.fn();
-		// One handler registered — should fire once (for fileA's write)
+		// "changed" is a global metadataCache event (not file-scoped), so one handler
+		// fires once per write regardless of which file changed.
 		app.metadataCache.on("changed", handlerA);
 
 		await app.fileManager.processFrontMatter(fileA, (fm: Record<string, unknown>) => {

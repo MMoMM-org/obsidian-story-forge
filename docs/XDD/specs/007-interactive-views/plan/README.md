@@ -90,7 +90,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 **Test** (red), **Implement** (green), **Validate** (refactor + verify).
 
 - [x] [Phase 1: Pure models (kanban/plotgrid/swimlane/locationTree + order/day math)](phase-1.md)
-- [ ] [Phase 2: Write seam — commitMany + spy-able mock](phase-2.md)
+- [x] [Phase 2: Write seam — commitMany + spy-able mock](phase-2.md)
 - [ ] [Phase 3: InteractionHandler — pointer drag + keyboard + debounced commit](phase-3.md)
 - [ ] [Phase 4: Read-only renderers — Locations tree + Swimlanes + Zoom/pan](phase-4.md)
 - [ ] [Phase 5: Write-back renderers — Kanban + Plotgrid](phase-5.md)

@@ -127,6 +127,18 @@ function isOutOfVocab(field: FieldSpec, value: unknown): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Shared messages (used by both commit and commitMany — keep in one place).
+// ---------------------------------------------------------------------------
+
+/** Advisory warning for an out-of-vocab select value (ADR-7 — writes anyway). */
+function outOfVocabWarning(value: unknown, key: string): string {
+	return `[StoryForge] Inspector: "${String(value)}" is not in the declared vocabulary for field "${key}". Writing anyway (frontmatter is truth).`;
+}
+
+/** User-facing message when processFrontMatter rejects. */
+const WRITE_ERROR_MESSAGE = "Couldn't write frontmatter. Your edits are kept.";
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -184,9 +196,7 @@ export async function commitMany(
 	// 2. Advisory warn for out-of-vocab selects (ADR-7 — not a block).
 	for (const entry of entries) {
 		if (isOutOfVocab(entry.field, entry.value)) {
-			console.warn(
-				`[StoryForge] Inspector: "${String(entry.value)}" is not in the declared vocabulary for field "${entry.key}". Writing anyway (frontmatter is truth).`,
-			);
+			console.warn(outOfVocabWarning(entry.value, entry.key));
 		}
 	}
 
@@ -202,7 +212,7 @@ export async function commitMany(
 		return {
 			ok: false,
 			reason: "write",
-			message: "Couldn't write frontmatter. Your edits are kept.",
+			message: WRITE_ERROR_MESSAGE,
 			keepDirty: true,
 		};
 	}
@@ -241,9 +251,7 @@ export async function commit(
 
 	// 2. Advisory warn for out-of-vocab select (ADR-7, not a block).
 	if (isOutOfVocab(field, value)) {
-		console.warn(
-			`[StoryForge] Inspector: "${String(value)}" is not in the declared vocabulary for field "${key}". Writing anyway (frontmatter is truth).`,
-		);
+		console.warn(outOfVocabWarning(value, key));
 	}
 
 	// 3. Write via processFrontMatter — the ONLY vault write path (CON-1, CON-7).
@@ -256,7 +264,7 @@ export async function commit(
 		return {
 			ok: false,
 			reason: "write",
-			message: "Couldn't write frontmatter. Your edits are kept.",
+			message: WRITE_ERROR_MESSAGE,
 			keepDirty: true,
 		};
 	}
