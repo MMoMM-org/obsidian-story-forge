@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-07-24 |
-| **Current Phase** | SDD |
+| **Current Phase** | PLAN |
 | **Last Updated** | 2026-07-24 |
 
 ## Documents
@@ -15,7 +15,7 @@
 | requirements.md | completed | M6 PRD — F1–F3 write-back (Kanban/Plotgrid/Timeline-placement) + F4–F6 read-only views (Locations tree/Swimlanes/Zoom-pan) + F7 write-discipline + F8 accessibility. All flat Must. ~35 Gherkin ACs, no schema changes. No telemetry (ACs + manual walk). 7 SDD-level open questions (non-blocking) |
 | solution.md | completed | **SDD — 13 ADRs (ADR-14…ADR-26, all confirmed).** Reuse `frontmatterWriter` (+ atomic `commitMany` for status+order, ADR-14); pointer-event `interactionHandler` (ADR-15); extend `WorkspaceView` layout union, pure DOM (ADR-16); sparse-int `order` (ADR-17); integer `storyDay` snap (ADR-18); read-only location scope + cycle guard (ADR-19); swimlane read-only mode + per-scope key (ADR-20); ephemeral zoom buttons+wheel (ADR-21); hybrid re-render (ADR-22); per-file debounce (ADR-23); inline+notice errors (ADR-24); last-write-wins (ADR-25); spy-able mock (ADR-26). Component reuse/extend/new map + EARS ACs (AC-1…AC-11) tracing F1–F8 |
 | mockups.html | completed | **S73–S84** (13 figures) — Kanban populated/mid-drag, Plotgrid matrix/toggle, Timeline-placement mid-drag/post-drop, Locations tree populated/unresolved, Swimlanes By-POV/By-plotline fan-out, Zoom/pan, Error+empty. M5 visual grammar (act dividers, plotline dots, status badges) reused verbatim + extended with drag-state CSS |
-| plan/ | pending | M6 PLAN — not started |
+| plan/ | completed | **6 TDD phases.** P1 pure models (kanban/plotgrid/swimlane/locationTree + insertOrder/snapStoryDay) ∥ P2 write seam (`commitMany` + spy-able mock); P3 `InteractionHandler` (pointer+keyboard+debounce, ←P2); P4 read-only renderers (Locations tree + Swimlanes + Zoom, ←P1, ∥); P5 write-back renderers (Kanban ∥ Plotgrid, ←P1+P2+P3); P6 host wiring + integration + gates + finalize (←P4+P5). Every F1–F8 AC + every SDD component mapped to a task; deps explicit; cross-cutting gates (frontmatter-truth, cleanup, keyboard-alt) on every task |
 
 **Status values**: `pending` | `in_progress` | `completed` | `skipped`
 
