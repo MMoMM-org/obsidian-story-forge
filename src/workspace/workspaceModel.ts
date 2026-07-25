@@ -53,7 +53,7 @@ export interface SceneRow {
 	wordcount: number | null;
 }
 
-export type GroupKind = "act" | "plotline" | "status" | "unassigned" | "no-act" | "unresolved";
+export type GroupKind = "act" | "plotline" | "pov" | "location" | "status" | "unassigned" | "no-act" | "unresolved";
 
 export interface Group {
 	key: string;
@@ -244,10 +244,14 @@ export const RENUMBER: null = null;
  *
  * Returns `null` (RENUMBER) to signal the column must be renumbered.
  * Returns `number` in all other cases.
+ *
+ * @precondition Callers should pass `before < after` for a real insertion.
+ * Passing equal or inverted values (before ≥ after) returns RENUMBER (null)
+ * and the column must be renumbered before retrying.
  */
 export function insertOrder(before: number | null, after: number | null): number | null {
 	if (before === null && after === null) return 10;
-	if (before === null) return (after as number) - 10;
+	if (before === null) return Math.max(0, after! - 10);
 	if (after === null) return before + 10;
 	const gap = after - before;
 	if (gap <= 1) return RENUMBER;
@@ -263,8 +267,6 @@ export function insertOrder(before: number | null, after: number | null): number
  * still emitted (no scenes, just the column header).
  */
 export function kanbanModel(rows: SceneRow[], statuses: string[]): Group[] {
-	const INF_ORDER = Number.POSITIVE_INFINITY;
-
 	// Build a column map keyed by status, preserving input order.
 	const columns = new Map<string, SceneRow[]>();
 	for (const s of statuses) {
@@ -283,8 +285,8 @@ export function kanbanModel(rows: SceneRow[], statuses: string[]): Group[] {
 	// Sort within each column by order asc, tiebreak by title.
 	function sortScenes(scenes: SceneRow[]): SceneRow[] {
 		return [...scenes].sort((a, b) => {
-			const ao = a.order ?? INF_ORDER;
-			const bo = b.order ?? INF_ORDER;
+			const ao = a.order ?? INF;
+			const bo = b.order ?? INF;
 			if (ao !== bo) return ao - bo;
 			return a.title.localeCompare(b.title);
 		});
@@ -413,7 +415,7 @@ export function snapStoryDay(rows: SceneRow[], dropRatio: number): number {
 	if (maxDay === minDay) {
 		// Single distinct day: before → minDay, after → minDay+1
 		const raw = minDay + dropRatio; // ratio 0 → minDay, ratio 1 → minDay+1
-		return Math.max(minDay, Math.min(maxDay + 1, Math.round(raw)));
+		return Math.max(1, Math.min(maxDay + 1, Math.round(raw)));
 	}
 
 	const raw = minDay + dropRatio * (maxDay - minDay);
@@ -445,8 +447,12 @@ const NEUTRAL_LANE: Record<SwimlaneKey, string> = {
  * - Within each lane: scenes sorted by coalesce(storyDay, order) ascending,
  *   tiebroken by title.
  * - Unresolved lanes have key `unresolved:<text>` and kind `"unresolved"`.
+ * @param resolve Optional link resolver. When provided and a plotline link
+ *   does not resolve, that lane is emitted with `kind:"unresolved"`. Resolved
+ *   plotline lanes keep `kind:"plotline"`. Without a resolver all plotline lanes
+ *   use `kind:"plotline"` (backwards-compatible behaviour).
  */
-export function swimlaneModel(rows: SceneRow[], key: SwimlaneKey): Group[] {
+export function swimlaneModel(rows: SceneRow[], key: SwimlaneKey, resolve?: LinkResolver): Group[] {
 	type LaneEntry = { label: string; kind: GroupKind; scenes: SceneRow[] };
 	const lanes = new Map<string, LaneEntry>(); // lane key → entry
 	const neutral: SceneRow[] = [];
@@ -459,7 +465,7 @@ export function swimlaneModel(rows: SceneRow[], key: SwimlaneKey): Group[] {
 	}
 
 	function sortKey(r: SceneRow): number {
-		return r.storyDay ?? r.order ?? Number.POSITIVE_INFINITY;
+		return r.storyDay ?? r.order ?? INF;
 	}
 
 	function sortScenes(scenes: SceneRow[]): SceneRow[] {
@@ -481,7 +487,7 @@ export function swimlaneModel(rows: SceneRow[], key: SwimlaneKey): Group[] {
 				ensureLane(lk, r.pov.name, "unresolved").push(r);
 			} else {
 				const lk = `pov:${r.pov.name}`;
-				ensureLane(lk, r.pov.name, "plotline").push(r);
+				ensureLane(lk, r.pov.name, "pov").push(r);
 			}
 		}
 	} else if (key === "location") {
@@ -493,7 +499,7 @@ export function swimlaneModel(rows: SceneRow[], key: SwimlaneKey): Group[] {
 				ensureLane(lk, r.location.name, "unresolved").push(r);
 			} else {
 				const lk = `location:${r.location.name}`;
-				ensureLane(lk, r.location.name, "plotline").push(r);
+				ensureLane(lk, r.location.name, "location").push(r);
 			}
 		}
 	} else {
@@ -504,14 +510,20 @@ export function swimlaneModel(rows: SceneRow[], key: SwimlaneKey): Group[] {
 			} else {
 				for (const raw of r.plotlines) {
 					const text = stripLink(raw);
-					// We treat a non-empty text as a valid name; unresolved if we can't
-					// tell, but swimlaneModel does not take a resolver.
-					// Per spec: fan-out, unresolved lane flagged by presence in plotlines
-					// (swimlaneModel receives resolved Link[] from sceneMapper so text
-					// is already a resolved name when it's in plotlines).
-					// However sceneMapper stores raw strings. We strip the brackets.
-					const lk = `plotline:${text}`;
-					ensureLane(lk, text, "plotline").push(r);
+					if (resolve) {
+						const dest = resolve(text);
+						if (dest) {
+							const lk = `plotline:${dest.basename}`;
+							ensureLane(lk, dest.basename, "plotline").push(r);
+						} else {
+							const lk = `unresolved:${text}`;
+							ensureLane(lk, text, "unresolved").push(r);
+						}
+					} else {
+						// No resolver: treat stripped text as the lane name (backwards-compatible).
+						const lk = `plotline:${text}`;
+						ensureLane(lk, text, "plotline").push(r);
+					}
 				}
 			}
 		}
@@ -582,10 +594,18 @@ export function locationTreeModel(
 	locations: LocationRow[],
 	resolve: LinkResolver,
 ): LocationNode[] {
+	// Build a map from file.path → LocationRow for fast parent-id lookup.
+	// The resolver returns a basename; we need to map that basename to a file.path
+	// so that childRows is keyed by stable file.path, not by row.name which may differ.
+	const basenameToPath = new Map<string, string>();
+	for (const loc of locations) {
+		basenameToPath.set(loc.file.basename, loc.file.path);
+	}
+
 	// Identify roots: no world, or unresolved world.
 	const roots: Array<{ row: LocationRow; flagged: boolean }> = [];
+	// childRows keyed by PARENT's file.path (stable identity), not by name.
 	const childRows = new Map<string, Array<{ row: LocationRow; flagged: boolean }>>();
-	// parentBasename → children
 
 	for (const loc of locations) {
 		if (loc.world === "") {
@@ -597,10 +617,16 @@ export function locationTreeModel(
 				// Unresolved parent → place at root, flagged
 				roots.push({ row: loc, flagged: true });
 			} else {
-				const parentName = dest.basename;
-				const bucket = childRows.get(parentName) ?? [];
-				bucket.push({ row: loc, flagged: false });
-				childRows.set(parentName, bucket);
+				// Key by parent's file.path for stable identity regardless of row.name.
+				const parentPath = basenameToPath.get(dest.basename);
+				if (!parentPath) {
+					// Resolved basename has no matching location in this set → treat as root, flagged.
+					roots.push({ row: loc, flagged: true });
+				} else {
+					const bucket = childRows.get(parentPath) ?? [];
+					bucket.push({ row: loc, flagged: false });
+					childRows.set(parentPath, bucket);
+				}
 			}
 		}
 	}
@@ -626,7 +652,8 @@ export function locationTreeModel(
 		const childVisited = new Set(visited);
 		childVisited.add(path);
 
-		const children = (childRows.get(row.name) ?? [])
+		// Look up children by parent's file.path (stable id), not by row.name.
+		const children = (childRows.get(path) ?? [])
 			.sort((a, b) => a.row.name.localeCompare(b.row.name))
 			.map((child) => buildNode(child, childVisited, depth + 1));
 

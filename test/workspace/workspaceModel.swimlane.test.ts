@@ -15,6 +15,7 @@ import {
 	type SwimlaneKey,
 	type SceneRow,
 	type Group,
+	type LinkResolver,
 } from "workspace/workspaceModel";
 
 // ---------------------------------------------------------------------------
@@ -300,5 +301,51 @@ describe("SwimlaneKey", () => {
 		for (const k of keys) {
 			expect(() => swimlaneModel([], k)).not.toThrow();
 		}
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Fix 3: swimlaneModel correct lane kinds + resolver for unresolved plotlines
+// ---------------------------------------------------------------------------
+
+describe("swimlaneModel — Fix 3: correct GroupKind per lane type", () => {
+	it("resolved POV lane has kind 'pov'", () => {
+		const rows = [row({ title: "S1", pov: link("Alice"), storyDay: 1 })];
+		const groups = swimlaneModel(rows, "pov");
+		const alice = groups.find((g) => g.label === "Alice")!;
+		expect(alice).toBeDefined();
+		expect(alice.kind).toBe("pov");
+	});
+
+	it("resolved location lane has kind 'location'", () => {
+		const rows = [row({ title: "S1", location: link("Forest"), storyDay: 1 })];
+		const groups = swimlaneModel(rows, "location");
+		const forest = groups.find((g) => g.label === "Forest")!;
+		expect(forest).toBeDefined();
+		expect(forest.kind).toBe("location");
+	});
+
+	it("resolved plotline lane has kind 'plotline' when resolver is provided", () => {
+		const resolve: LinkResolver = (t) => ({ basename: t });
+		const rows = [row({ title: "S1", plotlines: ["[[Alpha]]"], storyDay: 1 })];
+		const groups = swimlaneModel(rows, "plotline", resolve);
+		const alpha = groups.find((g) => g.label === "Alpha")!;
+		expect(alpha).toBeDefined();
+		expect(alpha.kind).toBe("plotline");
+	});
+
+	it("unresolved plotline (resolver returns null) → lane with kind 'unresolved'", () => {
+		const resolve: LinkResolver = (_t) => null; // nothing resolves
+		const rows = [row({ title: "S1", plotlines: ["[[Ghost]]"], storyDay: 1 })];
+		const groups = swimlaneModel(rows, "plotline", resolve);
+		const ghost = groups.find((g) => g.label === "Ghost")!;
+		expect(ghost).toBeDefined();
+		expect(ghost.kind).toBe("unresolved");
+	});
+
+	it("existing callers still compile: swimlaneModel without resolver param", () => {
+		// Optional resolver: existing signature still works
+		const rows = [row({ title: "S1", plotlines: ["[[Alpha]]"], storyDay: 1 })];
+		expect(() => swimlaneModel(rows, "plotline")).not.toThrow();
 	});
 });

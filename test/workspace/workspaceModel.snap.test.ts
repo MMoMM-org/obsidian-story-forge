@@ -53,17 +53,23 @@ describe("snapStoryDay", () => {
 		expect(snapStoryDay(rows, 0)).toBe(3);
 	});
 
-	it("maps ratio 1.0 to maxDay+1", () => {
+	it("ratio exactly 1.0 → maxDay (last scene's day)", () => {
+		// raw = minDay + 1.0 * (maxDay - minDay) = maxDay; round(maxDay) = maxDay; clamp = maxDay
 		const rows = [
 			row({ title: "S1", storyDay: 1 }),
 			row({ title: "S2", storyDay: 5 }),
 		];
-		// ratio 1 → clamp(round(1 + 1*(5-1)), 1, 6) = clamp(5, 1, 6) = 5
-		// But we want after-last → maxDay+1 = 6
-		// ratio 1.0 → raw = 1 + 1*(5-1) = 5; clamp(5,1,6)=5 — actually maxDay
-		// Let's use a ratio that goes past the last: the clamp ceiling is maxDay+1=6
-		expect(snapStoyDayResult(rows, 1.0)).toBeLessThanOrEqual(6);
-		expect(snapStoyDayResult(rows, 1.0)).toBeGreaterThanOrEqual(1);
+		// raw = 1 + 1*(5-1) = 5 = maxDay; clamp(5, 1, 6) = 5
+		expect(snapStoryDay(rows, 1.0)).toBe(5);
+	});
+
+	it("ratio > 1.0 (past the end) → maxDay+1", () => {
+		const rows = [
+			row({ title: "S1", storyDay: 1 }),
+			row({ title: "S2", storyDay: 5 }),
+		];
+		// raw = 1 + 2*(5-1) = 9; clamp(9, 1, 6) = 6 = maxDay+1
+		expect(snapStoryDay(rows, 2.0)).toBe(6);
 	});
 
 	it("always returns an integer", () => {
@@ -149,6 +155,14 @@ describe("snapStoryDay", () => {
 		}
 	});
 
+	// Fix 4: single-day lower clamp — storyDay:0 → result ≥ 1
+	it("single-day scene at storyDay 0: result is ≥ 1 (lower clamp applied)", () => {
+		// minDay=maxDay=0; raw = 0 + 0*dropRatio = 0; Math.max(1, ...) = 1
+		const rows = [row({ title: "Zero", storyDay: 0 })];
+		const result = snapStoryDay(rows, 0);
+		expect(result).toBeGreaterThanOrEqual(1);
+	});
+
 	it("does not return an order value — only a storyDay integer", () => {
 		// Confirm the function returns a plausible day number, not the order field.
 		const rows = [
@@ -162,7 +176,3 @@ describe("snapStoryDay", () => {
 	});
 });
 
-// Helper to call snapStoryDay and get the result (avoids TS error for unused var)
-function snapStoyDayResult(rows: SceneRow[], ratio: number): number {
-	return snapStoryDay(rows, ratio);
-}

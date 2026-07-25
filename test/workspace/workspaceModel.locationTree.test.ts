@@ -254,6 +254,44 @@ describe("locationTreeModel — depth guard", () => {
 });
 
 // ---------------------------------------------------------------------------
+// locationTreeModel — Fix 1: key mismatch (name ≠ file basename)
+// ---------------------------------------------------------------------------
+
+describe("locationTreeModel — name differs from file basename", () => {
+	it("still nests child correctly when LocationRow.name differs from file.basename", () => {
+		// The resolver returns dest.basename. If we key childRows by basename but look
+		// up by row.name, children are lost when name !== basename. This test catches it.
+		//
+		// Setup: parent note file is "world-earth.md" (basename="world-earth") but
+		// its frontmatter name is "Earth". Child references "world-earth" via world field.
+		// The resolver maps "world-earth" → { basename: "world-earth" }.
+		// Earth's LocationRow.name = "Earth" (differs from basename).
+		// The child should nest under Earth, not be orphaned.
+		const parentFile = createMockTFile({ basename: "world-earth", path: "world-earth.md" });
+		const childFile = createMockTFile({ basename: "forest", path: "forest.md" });
+
+		const parent: LocationRow = { file: parentFile, name: "Earth", world: "" };
+		const child: LocationRow = { file: childFile, name: "Forest", world: "world-earth" };
+
+		// Resolver resolves "world-earth" → { basename: "world-earth" }
+		const resolve = (_t: string): { basename: string } | null => {
+			if (_t === "world-earth") return { basename: "world-earth" };
+			return null;
+		};
+
+		const tree = locationTreeModel([parent, child], resolve);
+
+		// Earth should be a root
+		const earth = tree.find((n) => n.name === "Earth");
+		expect(earth).toBeDefined();
+		// Forest must be nested under Earth, not orphaned at root
+		expect(earth!.children.map((c) => c.name)).toContain("Forest");
+		// Forest must NOT appear at root level
+		expect(tree.map((n) => n.name)).not.toContain("Forest");
+	});
+});
+
+// ---------------------------------------------------------------------------
 // LocationNode + LocationRow type checks
 // ---------------------------------------------------------------------------
 

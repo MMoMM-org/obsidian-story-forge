@@ -214,4 +214,18 @@ describe("insertOrder", () => {
 		// floor((1000 + 2000) / 2) = 1500
 		expect(insertOrder(1000, 2000)).toBe(1500);
 	});
+
+	// Fix 2: insertOrder open-start clamp to 0
+	it("clamps open-start result to 0 when after ≤ 10 (e.g. after=5 → max(0, 5-10)=0)", () => {
+		expect(insertOrder(null, 5)).toBe(0);
+	});
+
+	// Fix 6: edge cases — gap=0 and inverted → RENUMBER sentinel
+	it("returns RENUMBER when gap is 0 (before === after)", () => {
+		expect(insertOrder(5, 5)).toBe(RENUMBER);
+	});
+
+	it("returns RENUMBER when inverted (before > after)", () => {
+		expect(insertOrder(20, 10)).toBe(RENUMBER);
+	});
 });
