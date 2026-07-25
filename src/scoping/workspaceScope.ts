@@ -45,6 +45,22 @@ function uniqueByPath(files: TFile[]): TFile[] {
 	return out;
 }
 
+/**
+ * Gather all in-scope `location` notes from the vault (ADR-19).
+ *
+ * Uses `ScopingService.classify` to identify location notes by tag/type (CON-7),
+ * and filters out notes under `DEFAULT_EXCLUDED_FOLDERS`. Structure-agnostic —
+ * never assumes a folder layout. Returns a deduplicated, ordered list.
+ */
+export function resolveLocationScope(app: App): TFile[] {
+	const scoping = new ScopingService(app);
+	return uniqueByPath(
+		app.vault.getMarkdownFiles().filter(
+			(f) => scoping.classify(f) === "location" && !isExcluded(f.path),
+		),
+	);
+}
+
 /** Resolve the active note to a workspace scope + its in-scope scene notes. Never throws. */
 export function resolveWorkspaceScope(app: App, activeFile: TFile | null): ResolvedScope {
 	const scoping = new ScopingService(app);

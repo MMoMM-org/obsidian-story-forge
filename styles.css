@@ -2055,3 +2055,125 @@ body {
 	color: var(--text-warning);
 	font-size: 11.5px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Location Tree (M6 / T4.1) — read-only nested world/location hierarchy.
+ * sf-lt-* classes mirror the sf-tl-* visual grammar but for tree nodes.
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+.sf-lt-list {
+	padding-left: 14px;
+	border-left: 1px solid var(--background-modifier-border);
+	margin-left: 6px;
+}
+
+.sf-lt-row {
+	display: flex;
+	align-items: center;
+	padding: 2px 4px;
+	border-radius: var(--radius-s);
+}
+
+.sf-lt-node {
+	font-size: 12.5px;
+	color: var(--text-normal);
+	border-radius: var(--radius-s);
+	padding: 1px 3px;
+}
+
+.sf-lt-node[data-sf-link] {
+	cursor: pointer;
+	color: var(--text-accent);
+}
+
+.sf-lt-node[data-sf-link]:hover {
+	text-decoration: underline;
+}
+
+.sf-lt-node--flagged {
+	color: var(--text-muted);
+	cursor: default;
+	font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Swimlane (M6 / T4.2) — Timeline grouped by pov/location/plotline.
+ * sf-sw-* classes: one lane per Group from swimlaneModel.
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+.sf-sw-lanes {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+.sf-sw-lane {
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-sw-lane:last-child {
+	border-bottom: none;
+}
+
+.sf-sw-lane--unresolved .sf-sec-label {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.sf-sw-lane--neutral .sf-sec-label {
+	color: var(--text-faint);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Zoom / Pan (M6 / T4.3) — ephemeral CSS scaling wrapper for the rail.
+ * sf-zoom-* classes: control bar + scaled wrapper.
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+.sf-zoom-wrap {
+	overflow: auto;
+}
+
+.sf-zoom-scaled {
+	transform-origin: top left;
+	/* scale is set inline via CSS custom property */
+	transform: scale(var(--sf-zoom, 1));
+	/* Keep a stable layout box even when scaled down. */
+	width: fit-content;
+	min-width: 100%;
+}
+
+.sf-zoom-bar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 6px;
+	margin-bottom: 4px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+}
+
+.sf-zoom-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: 13px;
+	line-height: 1;
+}
+
+.sf-zoom-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+.sf-zoom-label {
+	font-size: 11px;
+	color: var(--text-muted);
+	min-width: 34px;
+	text-align: center;
+}
