@@ -574,6 +574,7 @@ export interface LocationNode {
  * - Roots: locations whose `world` is `""` or cannot be resolved.
  * - Unresolved `world` → location placed at root with `flagged: true`.
  * - Cycle or depth > MAX_DEPTH → offending node `flagged`, recursion stops.
+ * - Pure-cycle members (no external anchor) are surfaced as flagged roots.
  * - Siblings ordered by name (deterministic).
  * - Never infinite-loops (visited Set<path> + depth counter guard).
  */
@@ -581,15 +582,6 @@ export function locationTreeModel(
 	locations: LocationRow[],
 	resolve: LinkResolver,
 ): LocationNode[] {
-	// Build a lookup from resolved name (basename) → LocationRow[].
-	const byBasename = new Map<string, LocationRow[]>();
-	for (const loc of locations) {
-		const name = loc.name;
-		const bucket = byBasename.get(name) ?? [];
-		bucket.push(loc);
-		byBasename.set(name, bucket);
-	}
-
 	// Identify roots: no world, or unresolved world.
 	const roots: Array<{ row: LocationRow; flagged: boolean }> = [];
 	const childRows = new Map<string, Array<{ row: LocationRow; flagged: boolean }>>();
@@ -613,6 +605,9 @@ export function locationTreeModel(
 		}
 	}
 
+	// Track which paths are placed during DFS so we can detect pure-cycle orphans.
+	const placed = new Set<string>();
+
 	// DFS to build the tree; visited set prevents cycles.
 	function buildNode(
 		entry: { row: LocationRow; flagged: boolean },
@@ -621,6 +616,7 @@ export function locationTreeModel(
 	): LocationNode {
 		const { row, flagged } = entry;
 		const path = row.file.path;
+		placed.add(path);
 
 		if (visited.has(path) || depth > MAX_DEPTH) {
 			// Cycle or depth limit — flag, no children.
@@ -637,7 +633,19 @@ export function locationTreeModel(
 		return { file: row.file, name: row.name, children, flagged };
 	}
 
-	return roots
+	const result = roots
 		.sort((a, b) => a.row.name.localeCompare(b.row.name))
 		.map((entry) => buildNode(entry, new Set<string>(), 0));
+
+	// Second pass: any location not yet placed is part of a pure cycle (every
+	// member points to another member — no external root). Surface them as
+	// flagged roots in deterministic name order.
+	const orphans = locations
+		.filter((loc) => !placed.has(loc.file.path))
+		.sort((a, b) => a.name.localeCompare(b.name));
+	for (const loc of orphans) {
+		result.push({ file: loc.file, name: loc.name, children: [], flagged: true });
+	}
+
+	return result;
 }
