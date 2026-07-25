@@ -146,6 +146,32 @@ export default class StoryForgePlugin extends Plugin {
 			},
 		});
 
+		// M6: interactive Kanban / Plotgrid + read-only Locations views (same host).
+		this.addCommand({
+			id: "open-kanban",
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Kanban" is a proper noun + action
+			name: "Open Kanban",
+			callback: () => {
+				void this._openWorkspace("kanban");
+			},
+		});
+		this.addCommand({
+			id: "open-plotgrid",
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Plotgrid" is a proper noun + action
+			name: "Open Plotgrid",
+			callback: () => {
+				void this._openWorkspace("plotgrid");
+			},
+		});
+		this.addCommand({
+			id: "open-locations",
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Locations" is a proper noun + action
+			name: "Open Locations",
+			callback: () => {
+				void this._openWorkspace("locations");
+			},
+		});
+
 		// T4.5: "Browse official views" command — opens the curated catalog modal.
 		// CatalogService receives the bundled catalog-index.json (static import, no
 		// fetch). The index is built by catalog:build before esbuild bundles main.ts.
