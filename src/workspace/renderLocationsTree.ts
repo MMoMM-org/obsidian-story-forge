@@ -51,6 +51,7 @@ function renderNode(
 		const key = nodeKey(node);
 		const { sectionEl, bodyEl } = section(container, node.name, {
 			collapsed: deps.isCollapsed(key),
+			// Badge shows direct children count only (not deep descendants).
 			count: node.children.length,
 		});
 

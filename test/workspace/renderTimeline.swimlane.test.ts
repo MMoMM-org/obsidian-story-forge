@@ -9,7 +9,7 @@
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-20
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { augmentEl, createMockTFile } from "../__mocks__/obsidian";
 import { swimlaneModel, type SceneRow } from "workspace/workspaceModel";
 import { renderTimeline } from "workspace/renderTimeline";
@@ -151,11 +151,21 @@ describe("renderTimeline (swimlane mode)", () => {
 		expect(el.querySelector(".sf-tl-words")?.textContent).toContain("200");
 	});
 
-	it("is strictly read-only: no processFrontMatter or commit calls", () => {
-		const writeSpy = vi.fn();
+	it("is read-only by construction: signature accepts no App or writer, output contains only drill-link cards (no write affordances)", () => {
+		// renderTimeline takes only (host, groups, deps, mode) — no App, no writer parameter.
+		// It cannot write frontmatter regardless of behavior.
+		// Assert structurally: the rendered output contains read-only drill cards
+		// and no interactive write affordances (e.g. no buttons, no inputs).
 		const el = host();
 		const groups = swimlaneModel([row({ title: "S1" })], "pov");
 		renderTimeline(el, groups, expanded, "swimlane");
-		expect(writeSpy).not.toHaveBeenCalled();
+
+		// Read-only: produces drill cards, not write controls
+		const card = el.querySelector(".sf-tl-card");
+		expect(card).not.toBeNull();
+		expect(card!.getAttribute("role")).toBe("link");
+		// No form elements that could trigger writes
+		expect(el.querySelector("button")).toBeNull();
+		expect(el.querySelector("input")).toBeNull();
 	});
 });

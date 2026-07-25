@@ -8,7 +8,7 @@
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-19
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { augmentEl, createMockTFile } from "../__mocks__/obsidian";
 import { locationTreeModel, type LocationNode, type LocationRow } from "workspace/workspaceModel";
 import { renderLocationsTree } from "workspace/renderLocationsTree";
@@ -130,16 +130,53 @@ describe("renderLocationsTree", () => {
 		expect(paths).toContain("City.md");
 	});
 
-	it("asserts no processFrontMatter or commit calls (strictly read-only)", () => {
-		const commitSpy = vi.fn();
-		const pfmSpy = vi.fn();
-		// These spies should never be called
+	it("is read-only by construction: signature accepts no App or writer, output contains only drill-link spans (no write affordances)", () => {
+		// renderLocationsTree takes only (host, nodes, deps) — no App, no writer parameter.
+		// It cannot write frontmatter regardless of behavior.
+		// Assert structurally: the rendered output contains read-only drill links
+		// and no interactive write affordances (e.g. no buttons, no inputs).
 		const el = host();
 		const rows = [makeRow("Place")];
 		const nodes = locationTreeModel(rows, resolve([]));
 		renderLocationsTree(el, nodes, noDeps);
-		// No write functions are imported or called in renderLocationsTree
-		expect(commitSpy).not.toHaveBeenCalled();
-		expect(pfmSpy).not.toHaveBeenCalled();
+
+		// Read-only: produces drill spans, not write controls
+		const link = el.querySelector("[data-sf-link]");
+		expect(link).not.toBeNull();
+		expect(link!.tagName.toLowerCase()).not.toBe("button");
+		expect(link!.tagName.toLowerCase()).not.toBe("input");
+		// No form elements that could trigger writes
+		expect(el.querySelector("button")).toBeNull();
+		expect(el.querySelector("input")).toBeNull();
+	});
+
+	it("flagged PARENT node (has children): section label carries sf-lt-node--flagged and has no data-sf-link", () => {
+		// Build a LocationNode directly: flagged=true AND children.length > 0.
+		// This takes the section() path (parent branch) in renderNode, so the
+		// flagged modifier must land on the .sf-sec-label, not on a leaf span.
+		const child: LocationNode = {
+			file: createMockTFile({ basename: "Sublocation", path: "Sublocation.md" }),
+			name: "Sublocation",
+			children: [],
+			flagged: false,
+		};
+		const parent: LocationNode = {
+			file: createMockTFile({ basename: "GhostRegion", path: "GhostRegion.md" }),
+			name: "GhostRegion",
+			children: [child],
+			flagged: true,
+		};
+
+		const el = host();
+		renderLocationsTree(el, [parent], noDeps);
+
+		// The section label for the flagged parent must carry the muted modifier
+		const flaggedLabel = el.querySelector(".sf-sec-label.sf-lt-node--flagged");
+		expect(flaggedLabel).not.toBeNull();
+		// Flagged parent must NOT have a data-sf-link (non-clickable)
+		expect(flaggedLabel!.hasAttribute("data-sf-link")).toBe(false);
+		// The child (unflagged leaf) should still render with its drill link
+		const childLink = el.querySelector("[data-sf-link='Sublocation.md']");
+		expect(childLink).not.toBeNull();
 	});
 });
