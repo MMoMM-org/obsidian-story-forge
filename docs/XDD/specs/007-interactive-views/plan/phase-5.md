@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Write-back renderers — Kanban + Plotgrid"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 5
 ---
@@ -47,8 +47,8 @@ Delivers the two interactive write surfaces.
 - [ ] **T5.2 renderPlotgrid (toggle cell → plotlines)** `[activity: frontend-ui]` `[parallel: true]` `[ref: SDD/AC-3, AC-4; PRD/F2, AC-F2.*]`
 
   1. Prime: Read `plotgridModel`/`PlotgridModel.has` (Phase 1); the `commit` list-field write path; `role="table"`/`gridcell`/`aria-checked` a11y notes in the SDD.
-  2. Test (RED): `renderPlotgrid(host, model, deps, handler)` renders the plotline×scene matrix (filled where `has(i, pl)`); clicking an empty cell appends `[[Plotline]]` to the scene's `plotlines` and shows filled; clicking a filled cell removes it **preserving remaining order** and shows empty; an unresolved plotline axis is flagged and its cells are non-interactive; keyboard (Space/Enter on a focused cell) toggles identically; a scene toggled to zero plotlines is reported for the Unassigned bucket.
-  3. Implement (GREEN): create `src/workspace/renderPlotgrid.ts` (cells `bind` to the handler with a toggle `Draggable`/click strategy → single-key `commit`); add `sf-pg-*` CSS.
+  2. Test (RED): `renderPlotgrid(host, model, deps)` renders the plotline×scene matrix (filled where `has(i, pl)`); clicking an empty cell appends `[[Plotline]]` to the scene's `plotlines` and shows filled; clicking a filled cell removes it **preserving remaining order** and shows empty; an unresolved plotline axis is flagged and its cells are non-interactive; keyboard (Space/Enter on a focused cell) toggles identically; a scene toggled to zero plotlines is reported for the Unassigned bucket.
+  3. Implement (GREEN): create `src/workspace/renderPlotgrid.ts`. **Interaction refinement (see SDD "Interaction-mechanism split"):** Plotgrid is a **click-toggle**, not a drag — it does NOT use the drag `InteractionHandler`. Cells register their own `click` + `Space`/`Enter` listeners via `Component.registerDomEvent` (CON-4 cleanup) and write through the **same single seam** `commit(app, file, "plotlines", newArray, {type:"list"})`, with optimistic flip + reconcile. Add `sf-pg-*` CSS.
   4. Validate: `test/workspace/renderPlotgrid.test.ts` green; lint; stylelint; types.
   5. Success:
      - [ ] Toggle add/remove writes `plotlines` correctly, order preserved `[ref: PRD/AC-F2.2, AC-F2.3]`
@@ -56,4 +56,4 @@ Delivers the two interactive write surfaces.
 
 - [ ] **T5.3 Phase Validation** `[activity: validate]`
 
-  Run Phase 5 tests; assert each write touches **only** its target field(s) (sibling-untouched via the spy mock). Confirm both renderers use the shared handler (no bespoke pointer code). Lint + stylelint + `typecheck`+`typecheck:test`. Cross-check AC-F1.* / AC-F2.*.
+  Run Phase 5 tests; assert each write touches **only** its target field(s) (sibling-untouched via the spy mock). Confirm the **single write seam** (`commit`/`commitMany`) is the only write path and each surface has a keyboard alternative (F8): Kanban binds cards to the drag `InteractionHandler`; Plotgrid uses a click-toggle via `registerDomEvent` (per the SDD interaction-mechanism split). Lint + stylelint + `typecheck`+`typecheck:test`. Cross-check AC-F1.* / AC-F2.*.

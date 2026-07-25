@@ -11,12 +11,13 @@
  *   NORMAL DROP: computeDrop returns [status, order] → handler → onWrite →
  *     commitMany(app, file, entries) — single-file, atomic.
  *   RENUMBER: insertOrder(before, after) === null → renderKanban calls
- *     deps.renumber([{file, order},...]) for all cards in the target column
- *     (including dragged card at its new position) and writes the dragged card's
- *     new status via the handler's onWrite for the single file.
+ *     deps.renumber([{file, order},...]) for the OTHER cards in the target column
+ *     (excluding dragged card) and returns BOTH status+order entries for the
+ *     dragged card via the handler's onWrite so the dragged file is written
+ *     atomically once (AC-1, ADR-14).
  *
  * Card DOM:
- *   .sf-kb-card[data-sf-card-path][data-sf-status]
+ *   .sf-kb-card[data-sf-card-path][data-sf-card-status]
  *     .sf-kb-card-title  [data-sf-link] — drill span (NOT drag surface)
  *     .sf-kb-card-meta   — status badge etc.
  *
@@ -137,22 +138,20 @@ function neighbourOrders(
 /**
  * Build a Draggable strategy for a single card.
  *
- * @param card          The card DOM element
- * @param row           The SceneRow the card represents
- * @param allGroups     All kanban groups (to know adjacent columns for keyboard)
- * @param deps          Injected deps for renumber
- * @param handler       The InteractionHandler (for its onWrite via handler opts)
- * @param onStatusWrite Called when a renumber-triggered status write is needed
+ * @param row                        The SceneRow the card represents
+ * @param allGroups                  All kanban groups (to know adjacent columns for keyboard)
+ * @param onRenumberAndStatusWrite   Called when insertOrder returns RENUMBER; returns
+ *                                   entries for BOTH status+order of the dragged card
+ *                                   so the handler writes them atomically via commitMany.
  */
 function makeKanbanDraggable(
-	card: HTMLElement,
 	row: SceneRow,
 	allGroups: Group[],
-	deps: KanbanDeps,
 	onRenumberAndStatusWrite: (
 		targetStatus: string,
 		colBody: HTMLElement,
 		draggedCard: HTMLElement,
+		dropTarget: Element,
 	) => CommitEntry[],
 ): Draggable {
 	const statuses = allGroups
@@ -188,8 +187,9 @@ function makeKanbanDraggable(
 			const orderResult = insertOrder(before, after);
 
 			if (orderResult === RENUMBER) {
-				// Renumber path: delegate to renderKanban via callback
-				return onRenumberAndStatusWrite(targetStatus, colBody, dragCard);
+				// Renumber path: delegate to renderKanban via callback.
+				// Pass dropTarget so the callback can determine insertion position.
+				return onRenumberAndStatusWrite(targetStatus, colBody, dragCard, dropTarget);
 			}
 
 			// Same-column no-op: status is the same and the computed order equals
@@ -361,78 +361,93 @@ function bindCard(
 ): void {
 	/**
 	 * Renumber-and-status-write callback. Called by computeDrop when insertOrder
-	 * returns RENUMBER. Computes fresh orders for the entire target column,
-	 * calls deps.renumber (cross-file batch), and returns entries for only the
-	 * dragged card's status change (order is handled by renumber batch).
+	 * returns RENUMBER.
 	 *
-	 * Returns a non-empty CommitEntry[] so the handler proceeds with onWrite
-	 * for the dragged file's status entry.
+	 * Determines the correct insertion position for the dragged card in the target
+	 * column using the same hovered-card logic as neighbourOrders, then assigns
+	 * fresh sparse orders (10, 20, 30, …) across the whole post-drop sequence.
+	 *
+	 * The dragged card's new order and (if changed) status are returned as
+	 * CommitEntry[] so the handler writes them atomically via a single commitMany
+	 * call (AC-1, ADR-14). deps.renumber receives only the OTHER cards' writes —
+	 * the dragged file is excluded so it is written exactly once (no race).
 	 */
 	function onRenumberAndStatusWrite(
 		targetStatus: string,
 		colBody: HTMLElement,
 		draggedCard: HTMLElement,
+		dropTarget: Element,
 	): CommitEntry[] {
+		// All cards currently in the target column, excluding the dragged card.
+		const existingCards = Array.from(
+			colBody.querySelectorAll<HTMLElement>(".sf-kb-card"),
+		).filter((c) => c !== draggedCard);
+
+		// Determine insertion index: find the hovered card in existingCards.
+		// If dropping onto a specific card → insert before it (same slot logic as
+		// neighbourOrders). If no hovered card in this column → append at end.
+		const hoveredCard = dropTarget.closest<HTMLElement>(".sf-kb-card");
+		const insertBeforeIdx =
+			hoveredCard && colBody.contains(hoveredCard) && hoveredCard !== draggedCard
+				? existingCards.indexOf(hoveredCard)
+				: -1; // -1 → append at end
+
+		// Build the post-drop sequence with dragged card spliced at the right position.
+		const newColumnOrder: HTMLElement[] = insertBeforeIdx >= 0
+			? [
+				...existingCards.slice(0, insertBeforeIdx),
+				draggedCard,
+				...existingCards.slice(insertBeforeIdx),
+			]
+			: [...existingCards, draggedCard];
+
+		// Assign fresh sparse orders 10, 20, 30, … across the full sequence.
+		const draggedNewOrder = (newColumnOrder.indexOf(draggedCard) + 1) * 10;
+
 		if (!deps.renumber) {
-			// No renumber fn provided — fall back to open-end append
-			const cards = Array.from(colBody.querySelectorAll<HTMLElement>(".sf-kb-card"));
-			const lastCard = cards[cards.length - 1];
-			const lastOrder = lastCard && lastCard !== draggedCard
-				? getCardOrder(lastCard)
-				: null;
-			const fallbackOrder = lastOrder !== null ? lastOrder + 10 : 10;
+			// No renumber fn provided — fall back to sparse-order for dragged card only.
 			const entries: CommitEntry[] = [
-				{ key: "order", value: fallbackOrder, field: ORDER_FIELD },
+				{ key: "order", value: draggedNewOrder, field: ORDER_FIELD },
 			];
-			if (targetStatus !== (draggedCard.getAttribute("data-sf-card-status") ?? "")) {
+			const currentStatus = draggedCard.getAttribute("data-sf-card-status") ?? "";
+			if (targetStatus !== currentStatus) {
 				entries.unshift({ key: "status", value: targetStatus, field: STATUS_FIELD });
 			}
 			return entries;
 		}
 
-		// Gather all cards in target column (excluding dragged card, since it's
-		// moving from another column or another slot)
-		const existingCards = Array.from(
-			colBody.querySelectorAll<HTMLElement>(".sf-kb-card"),
-		).filter((c) => c !== draggedCard);
-
-		// Determine drop position: find the card being dropped before
-		// The dragged card is dropped at the start of the column (simple: prepend)
-		// For simplicity: append at end, renumber entire column
-		// A fuller implementation would find the insertion point; for the
-		// renumber test case, appending is the correct behavior
-		const newColumnOrder: HTMLElement[] = [...existingCards, draggedCard];
-
-		// Assign fresh sparse orders 10, 20, 30, ...
-		const writes: RenumberWrite[] = newColumnOrder
-			.map((card, i) => {
+		// Build renumber writes for the OTHER cards only (exclude dragged file so
+		// the dragged file is written exactly once via the handler's onWrite).
+		const otherWrites: RenumberWrite[] = newColumnOrder
+			.filter((card) => card !== draggedCard)
+			.map((card, _idx) => {
 				const cardPath = card.getAttribute("data-sf-card-path") ?? "";
-				// Find the corresponding TFile from allGroups
 				const matchingScene = findSceneByPath(allGroups, cardPath);
 				if (!matchingScene) return null;
-				return { file: matchingScene.file, order: (i + 1) * 10 };
+				// Position in the full newColumnOrder sequence determines the order.
+				const posInFull = newColumnOrder.indexOf(card);
+				return { file: matchingScene.file, order: (posInFull + 1) * 10 };
 			})
 			.filter((w): w is RenumberWrite => w !== null);
 
-		// Call the renumber batch writer (async, fire-and-forget from sync context)
-		void deps.renumber(writes);
+		// Fire the batch write for sibling cards (async, fire-and-forget).
+		void deps.renumber(otherWrites);
 
-		// Return entries for the dragged card's status change
+		// Return BOTH status + order for the dragged card so the handler writes
+		// them atomically in one commitMany call (AC-1, ADR-14).
 		const currentStatus = draggedCard.getAttribute("data-sf-card-status") ?? "";
-		if (targetStatus === currentStatus) {
-			// Only order needed (renumber handles it) — but we need something to write
-			// return a placeholder so handler calls onWrite
-			return [{ key: "order", value: (writes.length) * 10, field: ORDER_FIELD }];
+		const entries: CommitEntry[] = [
+			{ key: "order", value: draggedNewOrder, field: ORDER_FIELD },
+		];
+		if (targetStatus !== currentStatus) {
+			entries.unshift({ key: "status", value: targetStatus, field: STATUS_FIELD });
 		}
-
-		return [{ key: "status", value: targetStatus, field: STATUS_FIELD }];
+		return entries;
 	}
 
 	const strategy = makeKanbanDraggable(
-		cardEl,
 		scene,
 		allGroups,
-		deps,
 		onRenumberAndStatusWrite,
 	);
 

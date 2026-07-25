@@ -123,10 +123,7 @@ describe("renderPlotgrid", () => {
 			storyDay: 3,
 		});
 
-		const model = plotgridModel([{ ...s1, file: s1file }], resolver);
-		// Add Alpha to model plotlines by adding a row that has it
-		// Actually plotgridModel needs a row with Alpha to include it in the plotline axis.
-		// Let's use a scene that has Alpha:
+		// plotgridModel needs a row with Alpha to include it in the plotline axis.
 		const s2 = makeSceneRow({ title: "S2", plotlines: ["[[Alpha]]"] });
 		const s2file = createMockTFile({ path: "scenes/S2.md", basename: "S2" });
 		app.fileManager._setFrontmatter("scenes/S2.md", { plotlines: ["[[Alpha]]"] });
@@ -428,5 +425,48 @@ describe("renderPlotgrid", () => {
 		for (const cell of interactiveCells) {
 			expect(cell.getAttribute("tabindex")).toBe("0");
 		}
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-13: Rollback on write failure — optimistic flip is reverted
+	// -------------------------------------------------------------------------
+	it("rolls back the optimistic cell flip when the write fails", async () => {
+		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
+		const s1file = createMockTFile({ path: "scenes/S1.md", basename: "S1" });
+		app.fileManager._setFrontmatter("scenes/S1.md", { plotlines: ["[[Alpha]]"] });
+
+		// Make processFrontMatter reject to simulate write failure
+		vi.mocked(app.fileManager.processFrontMatter).mockRejectedValueOnce(
+			new Error("simulated write failure"),
+		);
+
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([{ ...s1, file: s1file }], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+		renderPlotgrid(host, model, deps);
+
+		// Find the filled Alpha cell (aria-checked=true, sf-pg-cell--filled)
+		const filledCell = host.querySelector(
+			"[role='gridcell'][aria-checked='true'][data-sf-scene='scenes/S1.md'][data-sf-plotline='Alpha']",
+		) as HTMLElement;
+		expect(filledCell).not.toBeNull();
+		expect(filledCell.classList.contains("sf-pg-cell--filled")).toBe(true);
+
+		// Record pre-click state
+		const priorChecked = filledCell.getAttribute("aria-checked");
+		const priorFilled = filledCell.classList.contains("sf-pg-cell--filled");
+
+		// Click — triggers optimistic flip then async write failure
+		filledCell.click();
+
+		// Let the optimistic flip happen (sync), then drain the rejected promise
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+		// After failure, aria-checked and class must revert to their pre-click values
+		expect(filledCell.getAttribute("aria-checked")).toBe(priorChecked);
+		expect(filledCell.classList.contains("sf-pg-cell--filled")).toBe(priorFilled);
+
+		// onAfter must NOT have been called (write did not succeed)
+		expect(onAfter).not.toHaveBeenCalled();
 	});
 });

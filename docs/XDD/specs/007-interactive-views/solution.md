@@ -216,10 +216,21 @@ export interface LocationNode { file: TFile; name: string; children: LocationNod
 export function locationTreeModel(locations: LocationRow[], resolve: LinkResolver): LocationNode[];
 ```
 
-**Renderer signatures** mirror the M5 shape `render*(host, model, deps, mode?)`; interactive
-renderers additionally receive the `InteractionHandler` to `bind` their cards. `WorkspaceLayout`
+**Renderer signatures** mirror the M5 shape `render*(host, model, deps, mode?)`. `WorkspaceLayout`
 becomes `"timeline" | "plotlines" | "kanban" | "plotgrid" | "locations"` (swimlane is a Timeline
 *mode*, not a top-level layout; zoom is a Timeline control).
+
+**Interaction-mechanism split (implementation refinement, 2026-07-25).** The `InteractionHandler`
+is a *drag* state machine (pointerdown → threshold → pointerup) — the right fit for **Kanban**,
+whose cards are dragged between columns; `renderKanban(host, groups, deps, handler)` binds each
+card via `handler.bind`. **Plotgrid**, however, is a *click-toggle* (a stationary cell click, which
+never arms a drag), so `renderPlotgrid(host, model, deps)` owns its own click + `Space`/`Enter`
+listeners via `Component.registerDomEvent` and writes through the **same single seam** (`commit`).
+Forcing Plotgrid through the drag handler would still require bespoke click code (the handler has no
+tap concept) or would scope-creep the handler with a click mode — so the two surfaces use the tool
+that fits, while both preserve the invariants that matter: one write seam (`commit`/`commitMany`),
+a keyboard alternative (F8), and optimistic-write-then-reconcile. This refines the earlier
+"both renderers bind to the shared handler" phrasing without changing any AC.
 
 ### Implementation Examples
 

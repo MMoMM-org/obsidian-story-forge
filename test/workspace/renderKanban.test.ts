@@ -258,15 +258,15 @@ describe("renderKanban", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.1-5: Renumber drop → batch writes clean 10,20,30
+	// T5.1-5: Renumber drop → batch writes clean 10,20,30; position + atomicity
 	// -------------------------------------------------------------------------
-	it("renumber drop: when insertOrder returns null, batch-writes order to whole target column", async () => {
+	it("renumber drop: correct position, atomic dragged-card write, renumber excludes dragged file", async () => {
 		vi.useFakeTimers();
 
 		// Two scenes in "draft" with adjacent order values (no gap)
 		const s1 = makeSceneRow({ title: "S1", status: "draft", order: 10 });
 		const s2 = makeSceneRow({ title: "S2", status: "draft", order: 11 });
-		// scene to drag from "idea" to between s1 and s2 in draft → needs renumber
+		// scene to drag from "idea" to before s2 in draft → needs renumber
 		const dragged = makeSceneRow({ title: "Drag", status: "idea", order: 5 });
 
 		app.fileManager._setFrontmatter("scenes/S1.md", { status: "draft", order: 10, storyDay: 5 });
@@ -289,14 +289,42 @@ describe("renderKanban", () => {
 		armedDrag(dragCard, s2Card);
 		await vi.runAllTimersAsync();
 
-		// Renumber should have been called with the column's cards in new order
+		// --- Assert renumber was called for OTHER cards only (dragged file excluded) ---
 		expect(renumber).toHaveBeenCalledOnce();
 		const renumberArg = renumber.mock.calls[0]![0] as { file: TFile; order: number }[];
-		// Orders must be multiples of 10
-		const orders = renumberArg.map((w) => w.order).sort((a, b) => a - b);
-		for (let i = 0; i < orders.length; i++) {
-			expect(orders[i]).toBe((i + 1) * 10);
+
+		// Dragged file must NOT be in the renumber batch (it is written via onWrite)
+		const draggedInBatch = renumberArg.find((w) => w.file.path === "scenes/Drag.md");
+		expect(draggedInBatch).toBeUndefined();
+
+		// Renumber batch orders must be multiples of 10
+		const batchOrders = renumberArg.map((w) => w.order);
+		for (const o of batchOrders) {
+			expect(o % 10).toBe(0);
 		}
+
+		// --- Assert dragged card's status+order written atomically via onWrite ---
+		expect(onWrite).toHaveBeenCalledOnce();
+		const [writtenFile, writtenEntries] = onWrite.mock.calls[0] as [TFile, CommitEntry[]];
+		expect(writtenFile.path).toBe("scenes/Drag.md");
+
+		const writtenStatus = writtenEntries.find((e) => e.key === "status");
+		const writtenOrder  = writtenEntries.find((e) => e.key === "order");
+		// Both status AND order must be in the single atomic onWrite call
+		expect(writtenStatus).toBeDefined();
+		expect(writtenStatus!.value).toBe("draft");
+		expect(writtenStatus!.field).toEqual(STATUS_FIELD);
+		expect(writtenOrder).toBeDefined();
+		expect(typeof writtenOrder!.value).toBe("number");
+		expect(writtenOrder!.field).toEqual(ORDER_FIELD);
+
+		// --- Assert correct drop position: dragged card before S2 ---
+		// Sequence after drop: [S1, Drag, S2] → orders 10, 20, 30
+		// Drag's order must be < S2's order (positional, not just "multiple of 10")
+		const draggedOrder = writtenOrder!.value as number;
+		const s2Write = renumberArg.find((w) => w.file.path === "scenes/S2.md");
+		expect(s2Write).toBeDefined();
+		expect(draggedOrder).toBeLessThan(s2Write!.order);
 
 		vi.useRealTimers();
 	});

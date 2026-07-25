@@ -162,7 +162,7 @@ function renderPlotlineRow(
 		} else {
 			// Interactive: tabindex + click + Space/Enter keyboard
 			cellEl.setAttribute("tabindex", "0");
-			bindCellToggle(cellEl, scene.file, plotline, isFilled, scene.plotlines, deps);
+			bindCellToggle(cellEl, scene.file, plotline, scene.plotlines, deps);
 		}
 	}
 }
@@ -179,7 +179,6 @@ function renderPlotlineRow(
  * @param cell          The gridcell element
  * @param file          The scene's TFile
  * @param plotline      The plotline link to toggle
- * @param isFilled      Current membership state
  * @param rawPlotlines  Raw `plotlines` array from the SceneRow (original strings)
  * @param deps          App + Component + onAfter
  */
@@ -187,7 +186,6 @@ function bindCellToggle(
 	cell: HTMLElement,
 	file: TFile,
 	plotline: Link,
-	isFilled: boolean,
 	rawPlotlines: string[],
 	deps: PlotgridDeps,
 ): void {
