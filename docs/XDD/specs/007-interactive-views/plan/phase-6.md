@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Host wiring + integration + gates + finalize"
-status: pending
+status: done
 version: "1.0"
 phase: 6
 ---
@@ -34,7 +34,7 @@ phase: 6
 
 Wires the pieces into the live views and proves the end-to-end write round-trip, then closes the spec.
 
-- [ ] **T6.0 Seed fixtures (only if needed)** `[activity: test-data]` `[parallel: true]` `[ref: PRD/F4, F5]`
+- [x] **T6.0 Seed fixtures (only if needed)** `[activity: test-data]` `[parallel: true]` `[ref: PRD/F4, F5]`
 
   1. Prime: Inspect `test/StoryForge/` for existing `location` notes + `world` links and the plotline/POV coverage swimlanes need.
   2. Test (RED): identify any AC lacking a fixture — e.g. a `location` with a `world` parent chain (F4 nesting), an **unresolved-`world`** location (AC-F4.3), a scene set exercising multi-plotline swimlane fan-out (AC-F5.3).
@@ -43,7 +43,7 @@ Wires the pieces into the live views and proves the end-to-end write round-trip,
   5. Success:
      - [ ] Every F4/F5 AC has a live fixture, or documented as already-covered `[ref: PRD/AC-F4.1, AC-F5.3]`
 
-- [ ] **T6.1 WorkspaceView layout union + toolbar + handler + error surface** `[activity: frontend-ui]` `[ref: SDD/ADR-16, ADR-22, ADR-24]`
+- [x] **T6.1 WorkspaceView layout union + toolbar + handler + error surface** `[activity: frontend-ui]` `[ref: SDD/ADR-16, ADR-22, ADR-24]`
 
   1. Prime: Read `WorkspaceView` end-to-end (the `_layout` union, `_render`, `_onClick`, `setLayout`, `onClose`); the handler + renderer APIs.
   2. Test (RED): the expanded `WorkspaceLayout` routes each mode to its renderer (kanban→`renderKanban`, plotgrid→`renderPlotgrid`, locations→`renderLocationsTree`, timeline rail/swimlane, zoom); the toolbar switches mode + swimlane key + zoom and persists key per-scope; the view constructs one `InteractionHandler` and passes it to write renderers; on a write failure the card shows the error class + a `Notice` fires (mock the `Notice`); `onClose` calls `handler.destroy()` (no leaks); an `aria-live` region is created and announced into.
@@ -53,7 +53,7 @@ Wires the pieces into the live views and proves the end-to-end write round-trip,
      - [ ] All five layouts route + toolbar controls work; key persists per-scope `[ref: SDD/ADR-16, ADR-20]`
      - [ ] Error surface + live region + clean teardown `[ref: SDD/ADR-24; CON-4]`
 
-- [ ] **T6.2 Command registration** `[activity: backend-api]` `[ref: SDD/Deployment View]`
+- [x] **T6.2 Command registration** `[activity: backend-api]` `[ref: SDD/Deployment View]`
 
   1. Prime: Read how M5 registers the workspace view + Open Timeline/Plotlines commands in `main.ts`.
   2. Test (RED): commands **Open Kanban**, **Open Plotgrid**, **Open Locations** activate the workspace view in the corresponding layout (following the M5 command pattern); no duplicate view types.
@@ -62,7 +62,7 @@ Wires the pieces into the live views and proves the end-to-end write round-trip,
   5. Success:
      - [ ] Three commands open the right layout `[ref: SDD/Deployment View]`
 
-- [ ] **T6.3 Integration — drag → write → re-render round-trip** `[activity: integration-test]` `[ref: PRD/AC-F7.1, AC-F7.3, AC-F7.4]`
+- [x] **T6.3 Integration — drag → write → re-render round-trip** `[activity: integration-test]` `[ref: PRD/AC-F7.1, AC-F7.3, AC-F7.4]`
 
   1. Prime: Read the M5 `test/integration/workspace-views.test.ts` pattern; the spy-able mock (Phase 2).
   2. Test (RED): end-to-end over the seed — (a) a Kanban drop writes `status`+`order` and the view + a second open view both reflect it via `metadataCache.changed` (AC-F7.3); (b) a Plotgrid toggle writes `plotlines`; (c) a Timeline drop writes an integer `storyDay` and leaves `order` untouched; (d) a simulated external frontmatter change re-renders (last-write-wins, ADR-25); (e) a `Cmd+Z`-style revert (frontmatter restored → `changed`) updates the view (AC-F7.4).
@@ -72,7 +72,7 @@ Wires the pieces into the live views and proves the end-to-end write round-trip,
      - [ ] Round-trip + two-view consistency + revert proven `[ref: PRD/AC-F7.3, AC-F7.4]`
      - [ ] Timeline write leaves `order` untouched `[ref: PRD/AC-F3.2]`
 
-- [ ] **T6.4 Full gates + finalize** `[activity: validate]` `[ref: SDD/Quality Requirements]`
+- [x] **T6.4 Full gates + finalize** `[activity: validate]` `[ref: SDD/Quality Requirements]`
 
   1. Prime: Re-read the SDD Quality Requirements + this plan's cross-cutting gates.
   2. Test: run the **full** suite + all gates.

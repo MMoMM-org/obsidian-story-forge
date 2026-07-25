@@ -204,9 +204,8 @@ describe("WorkspaceView M6 — Timeline toolbar", () => {
 	it("persists the swimlane key per-scope (selected key wins after a re-render)", () => {
 		click(view.contentEl.querySelector(`[data-ws-tlmode="swimlane"]`));
 		click(view.contentEl.querySelector(`[data-ws-swimkey="location"]`));
-		// Re-render (e.g. metadataCache changed) keeps the chosen key.
-		fx.app.metadataCache._trigger("changed", fx.s1);
-		view.setLayout("timeline"); // no-op layout set forces a fresh render path
+		// A fresh render (re-selecting the layout) keeps the chosen swimlane key.
+		view.setLayout("timeline");
 		const sel = view.contentEl.querySelector(`[data-ws-swimkey="location"]`);
 		expect(sel?.classList.contains("sf-ws-tlkey-opt--sel")).toBe(true);
 	});

@@ -94,7 +94,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 - [x] [Phase 3: InteractionHandler — pointer drag + keyboard + debounced commit](phase-3.md)
 - [x] [Phase 4: Read-only renderers — Locations tree + Swimlanes + Zoom/pan](phase-4.md)
 - [x] [Phase 5: Write-back renderers — Kanban + Plotgrid](phase-5.md)
-- [ ] [Phase 6: Host wiring + integration + gates + finalize](phase-6.md)
+- [x] [Phase 6: Host wiring + integration + gates + finalize](phase-6.md)
 
 **Dependency graph**
 - **Phase 1** (pure models) and **Phase 2** (write seam + mock) are independent → **parallel** from the start.

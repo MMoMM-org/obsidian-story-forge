@@ -51,7 +51,7 @@ import { renderPlotgrid } from "workspace/renderPlotgrid";
 import { renderLocationsTree } from "workspace/renderLocationsTree";
 import { createTimelineZoom } from "workspace/timelineZoom";
 import { InteractionHandler, type Draggable, type CommitEntry } from "workspace/interactionHandler";
-import { commit, commitMany, type CommitResult } from "../inspector/frontmatterWriter";
+import { commit, commitMany, type CommitResult, type CommitError } from "../inspector/frontmatterWriter";
 import { CollapseStore } from "workspace/collapseStore";
 
 export const WORKSPACE_VIEW_TYPE = "story-forge-workspace";
@@ -188,7 +188,7 @@ export class WorkspaceView extends ItemView {
 					? commitMany(this.app, file, entries)
 					: commit(this.app, file, entries[0]!.key, entries[0]!.value, entries[0]!.field),
 			onAfter: (): void => { this._render(); },
-			onError: (file, result): void => { this._surfaceWriteError(file, result); },
+			onError: (file, result): void => { if (!result.ok) this._surfaceWriteError(file, result); },
 			announce: (msg): void => { this._announce(msg); },
 		});
 
@@ -290,7 +290,7 @@ export class WorkspaceView extends ItemView {
 					onAfter: (): void => { this._render(); },
 				});
 				break;
-			default: // "plotlines"
+			case "plotlines":
 				renderPlotlines(
 					body,
 					plotlineModel(rows, resolve),
@@ -418,11 +418,10 @@ export class WorkspaceView extends ItemView {
 	// --- Write-error surface (ADR-24) ---------------------------------------
 
 	/** Mark the offending card with an error class + fire a transient Notice. */
-	private _surfaceWriteError(file: TFile, result: CommitResult): void {
+	private _surfaceWriteError(file: TFile, result: CommitError): void {
 		const card = this._findCardEl(file.path);
 		card?.classList.add("sf-card--error");
-		const message = result.ok ? "" : result.message;
-		new Notice(message);
+		new Notice(result.message);
 	}
 
 	/**

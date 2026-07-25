@@ -241,6 +241,10 @@ describe("M6 integration — interactive write → re-render round-trip", () => 
 		// order MUST be untouched.
 		expect(after["order"]).toBe(orderBefore);
 
+		// The write is announced end-to-end via the aria-live region (F8 / AC-11):
+		// if the handler's announce→_announce wiring were severed this stays empty.
+		expect(view.contentEl.querySelector(".sf-ws-live")?.textContent).toBeTruthy();
+
 		await view.onClose();
 	});
 
