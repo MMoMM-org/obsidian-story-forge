@@ -19,8 +19,8 @@
  *
  * LISTENER CLEANUP (CON-4):
  *   All listeners are registered via `registerDomEvent` on a private Component
- *   delegate. `destroy()` calls `_unload()` on that delegate, which removes
- *   all DOM listeners. Pending debounce timers are also cancelled.
+ *   delegate. `destroy()` calls the public `unload()` on that delegate, which
+ *   removes all DOM listeners. Pending debounce timers are also cancelled.
  *
  * ANNOUNCE (T3.2 — F8, AC-11):
  *   The keyboard path sets a per-file announce flag before scheduling the
@@ -35,7 +35,7 @@
 import type { App, TFile } from "obsidian";
 import { Component, debounce } from "obsidian";
 import { DEBOUNCE_MS } from "pluginConstants";
-import type { CommitEntry, CommitResult } from "inspector/frontmatterWriter";
+import type { CommitEntry, CommitResult } from "../inspector/frontmatterWriter";
 
 // ---------------------------------------------------------------------------
 // Re-export CommitEntry so renderers don't need a second import path.
@@ -174,34 +174,35 @@ export class InteractionHandler {
 
 		this._delegate = new Component();
 
-		// Pointer events — pointerdown on the host; move/up/cancel on document so
-		// the pointer is tracked even when it leaves the host boundaries (ADR-15).
+		// Pointer events — pointerdown on the host; move/up/cancel on activeWindow
+		// so the pointer is tracked even when it leaves the host boundaries (ADR-15).
+		// Using activeWindow (not document) for cross-popout-window safety.
 		this._delegate.registerDomEvent(
 			host,
 			"pointerdown",
-			this._onPointerDown.bind(this) as (e: PointerEvent) => void,
+			this._onPointerDown.bind(this),
 		);
 		this._delegate.registerDomEvent(
-			document as unknown as HTMLElement,
+			activeWindow,
 			"pointermove",
-			this._onPointerMove.bind(this) as (e: PointerEvent) => void,
+			this._onPointerMove.bind(this),
 		);
 		this._delegate.registerDomEvent(
-			document as unknown as HTMLElement,
+			activeWindow,
 			"pointerup",
-			this._onPointerUp.bind(this) as (e: PointerEvent) => void,
+			this._onPointerUp.bind(this),
 		);
 		this._delegate.registerDomEvent(
-			document as unknown as HTMLElement,
+			activeWindow,
 			"pointercancel",
-			this._onPointerCancel.bind(this) as (e: PointerEvent) => void,
+			this._onPointerCancel.bind(this),
 		);
 
 		// Keyboard events — delegated on host for focused bound cards.
 		this._delegate.registerDomEvent(
 			host,
 			"keydown",
-			this._onKeyDown.bind(this) as (e: KeyboardEvent) => void,
+			this._onKeyDown.bind(this),
 		);
 	}
 
@@ -236,8 +237,8 @@ export class InteractionHandler {
 		this._announceOnFlush.clear();
 		this._cards.clear();
 		this._drag = null;
-		// Remove all DOM listeners (CON-4).
-		this._delegate._unload();
+		// Remove all DOM listeners via the real public Component.unload() (CON-4).
+		this._delegate.unload();
 	}
 
 	// ---------------------------------------------------------------------------
@@ -296,7 +297,8 @@ export class InteractionHandler {
 		if (!drag.armed) return; // threshold not reached — no-op
 
 		// Resolve drop target via elementFromPoint (ADR-15).
-		const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+		// activeDocument is the cross-popout-window-safe equivalent of document.
+		const dropTarget = activeDocument.elementFromPoint(e.clientX, e.clientY);
 		const entries = drag.strategy.computeDrop(drag.card, dropTarget);
 
 		if (entries.length === 0) return; // no-op (AC-F1.6, AC-F3.5)
@@ -446,6 +448,7 @@ export class InteractionHandler {
 	private _resolveCard(target: Element): HTMLElement | null {
 		let el: Element | null = target;
 		while (el) {
+			// eslint-disable-next-line obsidianmd/prefer-instanceof
 			if (el instanceof HTMLElement && this._cards.has(el)) {
 				return el;
 			}

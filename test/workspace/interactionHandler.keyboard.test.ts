@@ -239,8 +239,8 @@ describe("InteractionHandler — keyboard command parity", () => {
 			configurable: true,
 		});
 		card.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 0, clientY: 0, button: 0, buttons: 1, pointerId: 1 }));
-		document.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 10, clientY: 0, button: 0, buttons: 1, pointerId: 1 }));
-		document.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 10, clientY: 0, button: 0, pointerId: 1 }));
+		window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 10, clientY: 0, button: 0, buttons: 1, pointerId: 1 }));
+		window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 10, clientY: 0, button: 0, pointerId: 1 }));
 		await vi.runAllTimersAsync();
 
 		const [, ptrEntries] = onWrite.mock.calls[0] as [TFile, CommitEntry[]];

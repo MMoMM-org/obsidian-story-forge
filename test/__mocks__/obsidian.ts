@@ -24,12 +24,20 @@ import { vi } from "vitest";
 // --- Obsidian globals not present in jsdom ---
 
 /**
- * activeDocument — Obsidian's popout-window-aware document reference.
- * In tests (jsdom) there is only one document, so we expose it as a global
- * to match Obsidian's runtime API without requiring @types/obsidian changes.
+ * activeDocument / activeWindow — Obsidian's popout-window-aware document and
+ * window references. In tests (jsdom) there is only one document/window, so we
+ * expose them as globals to match Obsidian's runtime API without requiring
+ * @types/obsidian changes.
+ *
+ * The `declare let` statements mirror the real obsidian.d.ts global declarations
+ * so that src/ code referencing activeWindow/activeDocument typechecks under
+ * tsconfig.test.json (which aliases "obsidian" → this file).
  */
 if (typeof (globalThis as Record<string, unknown>).activeDocument === "undefined") {
 	(globalThis as Record<string, unknown>).activeDocument = document;
+}
+if (typeof (globalThis as Record<string, unknown>).activeWindow === "undefined") {
+	(globalThis as Record<string, unknown>).activeWindow = window;
 }
 
 // --- Core types ---
@@ -100,16 +108,20 @@ export class Component {
 	 * tests can dispatch real DOM events (click, keydown, etc.), and the call is
 	 * tracked by vi.fn() so tests can assert it was used. The removeEventListener
 	 * is queued as a cleanup so unload genuinely detaches the DOM handler.
+	 *
+	 * Mirrors the real API's three overloads (Window, Document, HTMLElement) so
+	 * modules that register pointer/key listeners on activeWindow compile and run
+	 * correctly in tests (CON-4 — pointer move/up need window-level tracking).
 	 */
 	registerDomEvent = vi.fn(
-		<K extends keyof HTMLElementEventMap>(
-			el: HTMLElement,
+		<K extends keyof (WindowEventMap & DocumentEventMap & HTMLElementEventMap)>(
+			el: Window | Document | HTMLElement,
 			type: K,
-			listener: (ev: HTMLElementEventMap[K]) => void,
+			listener: (ev: (WindowEventMap & DocumentEventMap & HTMLElementEventMap)[K]) => void,
 		): void => {
-			el.addEventListener(type, listener as EventListener);
+			(el as EventTarget).addEventListener(type, listener as EventListener);
 			this._cleanupFns.push(() => {
-				el.removeEventListener(type, listener as EventListener);
+				(el as EventTarget).removeEventListener(type, listener as EventListener);
 			});
 		},
 	);

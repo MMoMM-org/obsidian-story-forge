@@ -123,9 +123,9 @@ function pointerDown(target: Element, x = 100, y = 100, button = 0): void {
 	);
 }
 
-function pointerMove(target: Element | Document, x: number, y: number): void {
-	const el = target instanceof Document ? document : target;
-	el.dispatchEvent(
+function pointerMove(x: number, y: number): void {
+	// Dispatched on window because the handler registers on activeWindow.
+	window.dispatchEvent(
 		new PointerEvent("pointermove", {
 			bubbles: true,
 			cancelable: true,
@@ -139,9 +139,9 @@ function pointerMove(target: Element | Document, x: number, y: number): void {
 	);
 }
 
-function pointerUp(target: Element | Document, x = 120, y = 120): void {
-	const el = target instanceof Document ? document : target;
-	el.dispatchEvent(
+function pointerUp(x = 120, y = 120): void {
+	// Dispatched on window because the handler registers on activeWindow.
+	window.dispatchEvent(
 		new PointerEvent("pointerup", {
 			bubbles: true,
 			cancelable: true,
@@ -200,7 +200,7 @@ describe("InteractionHandler — pointer state machine", () => {
 		handler.bind(card, file, makeDraggable([makeEntry()]));
 
 		pointerDown(card, 100, 100);
-		pointerMove(document, 110, 100); // 10px > threshold of 5
+		pointerMove(110, 100); // 10px > threshold of 5
 
 		expect(card.classList.contains("sf-dragging")).toBe(true);
 	});
@@ -214,7 +214,7 @@ describe("InteractionHandler — pointer state machine", () => {
 
 		const linkEl = card.querySelector("[data-sf-link]") as HTMLElement;
 		pointerDown(linkEl, 100, 100);
-		pointerMove(document, 110, 100);
+		pointerMove(110, 100);
 
 		expect(card.classList.contains("sf-dragging")).toBe(false);
 	});
@@ -227,7 +227,7 @@ describe("InteractionHandler — pointer state machine", () => {
 		handler.bind(card, file, makeDraggable([makeEntry()]));
 
 		pointerDown(card, 100, 100);
-		pointerMove(document, 103, 100); // 3px < threshold of 5
+		pointerMove(103, 100); // 3px < threshold of 5
 
 		expect(card.classList.contains("sf-dragging")).toBe(false);
 	});
@@ -247,8 +247,8 @@ describe("InteractionHandler — pointer state machine", () => {
 		stubElementFromPoint(dropTarget);
 
 		pointerDown(card, 100, 100);
-		pointerMove(document, 110, 100);
-		pointerUp(document, 110, 100);
+		pointerMove(110, 100);
+		pointerUp(110, 100);
 
 		await vi.runAllTimersAsync();
 
@@ -268,8 +268,8 @@ describe("InteractionHandler — pointer state machine", () => {
 		stubElementFromPoint(card);
 
 		pointerDown(card, 100, 100);
-		pointerMove(document, 110, 100);
-		pointerUp(document, 110, 100);
+		pointerMove(110, 100);
+		pointerUp(110, 100);
 
 		await vi.runAllTimersAsync();
 
@@ -291,8 +291,8 @@ describe("InteractionHandler — pointer state machine", () => {
 		stubElementFromPoint(card);
 
 		pointerDown(card, 100, 100);
-		pointerMove(document, 110, 100);
-		pointerUp(document, 110, 100);
+		pointerMove(110, 100);
+		pointerUp(110, 100);
 
 		await vi.runAllTimersAsync();
 
@@ -311,10 +311,10 @@ describe("InteractionHandler — pointer state machine", () => {
 		stubElementFromPoint(card);
 
 		pointerDown(card, 100, 100);
-		pointerMove(document, 110, 100);
+		pointerMove(110, 100);
 		expect(card.classList.contains("sf-dragging")).toBe(true);
 
-		pointerUp(document, 110, 100);
+		pointerUp(110, 100);
 		expect(card.classList.contains("sf-dragging")).toBe(false);
 
 		await vi.runAllTimersAsync();
@@ -329,7 +329,7 @@ describe("InteractionHandler — pointer state machine", () => {
 		handler.bind(card, file, makeDraggable([makeEntry()]));
 
 		pointerDown(card, 100, 100, 2 /* right button */);
-		pointerMove(document, 110, 100);
+		pointerMove(110, 100);
 
 		expect(card.classList.contains("sf-dragging")).toBe(false);
 	});
