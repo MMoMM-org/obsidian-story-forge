@@ -273,6 +273,63 @@ export class Workspace {
 	}
 }
 
+/** Minimal interface for the metadataCache methods MockFileManager needs. */
+interface MetadataCacheTrigger {
+	_trigger: (event: string, ...args: unknown[]) => void;
+}
+
+/**
+ * MockFileManager — spy-able processFrontMatter backed by a per-path store.
+ *
+ * ADR-26: Tests can assert the exact fm mutation after a write, and a registered
+ * `metadataCache.on("changed")` handler fires after each mutation.
+ *
+ * processFrontMatter is a vi.fn() so existing tests can use
+ * `vi.mocked(app.fileManager.processFrontMatter).mockResolvedValue(undefined)`
+ * (which overrides the default impl — the store is not consulted when the spy
+ * is overridden, which is intentional and harmless).
+ *
+ * Helpers (_-prefixed, test-only):
+ *   _setFrontmatter(path, obj) — pre-seed a file's frontmatter before a write
+ *   _getFrontmatter(path)      — read back the stored frontmatter for assertions
+ *
+ * Real API shape (obsidian.d.ts:2954):
+ *   processFrontMatter(file: TFile, fn: (fm: Record<string,unknown>) => void, options?: unknown): Promise<void>
+ */
+class MockFileManager {
+	/** Per-path frontmatter store. Missing paths initialise to {}. */
+	private _store: Map<string, Record<string, unknown>> = new Map();
+
+	/** Back-reference to the owning App's metadataCache (set by App constructor). */
+	_metadataCache: MetadataCacheTrigger | null = null;
+
+	processFrontMatter: ReturnType<typeof vi.fn> = vi.fn(
+		async (
+			file: TFile,
+			fn: (fm: Record<string, unknown>) => void,
+			_options?: unknown,
+		): Promise<void> => {
+			// Run the mutator against the stored (or freshly-created) fm object.
+			const fm = this._store.get(file.path) ?? {};
+			fn(fm);
+			this._store.set(file.path, fm);
+
+			// Emit metadataCache "changed" so Phase 3/6 re-render round-trip tests work.
+			this._metadataCache?._trigger("changed", file);
+		},
+	);
+
+	/** Pre-seed a file's frontmatter. Copies the object so mutations are isolated. */
+	_setFrontmatter(path: string, obj: Record<string, unknown>): void {
+		this._store.set(path, { ...obj });
+	}
+
+	/** Read back a file's current frontmatter from the store. Returns {} when absent. */
+	_getFrontmatter(path: string): Record<string, unknown> {
+		return this._store.get(path) ?? {};
+	}
+}
+
 export class App {
 	vault = {
 		getRoot: vi.fn(() => new TFolder()),
@@ -307,9 +364,7 @@ export class App {
 		},
 		configDir: ".obsidian",
 	};
-	fileManager = {
-		processFrontMatter: vi.fn(),
-	};
+	fileManager: MockFileManager = new MockFileManager();
 	workspace: Workspace = new Workspace();
 	metadataCache = {
 		getFileCache: vi.fn((_file: TFile): CachedMetadata | null => null),
@@ -365,6 +420,12 @@ export class App {
 			for (const cb of callbacks) cb(...args);
 		},
 	};
+
+	constructor() {
+		// Wire the fileManager's _metadataCache back-reference so processFrontMatter
+		// can emit "changed" events via the metadataCache._trigger mechanism (ADR-26).
+		this.fileManager._metadataCache = this.metadataCache;
+	}
 }
 
 // --- Plugin ---
