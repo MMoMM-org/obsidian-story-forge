@@ -13,6 +13,14 @@ version: "1.0"
 > `schema/*.json`. The SDD's ADRs + EARS-level ACs are the implementation source of truth; this PRD
 > fixes WHAT and WHY.
 
+> **Scope revised — post-implementation polish (2026-07-26; see README decision log).** Two of the
+> six features were cut from M6 after live review: **F3 Timeline-placement (drag → `storyDay`) is
+> DEFERRED** (Longform owns scene order/date; writing it desyncs Longform — GH #7); the Timeline rail
+> is now **read-only**. **F4 Locations tree is REMOVED** — it belongs in the Codex as an entity
+> browser (hero-card + editable frontmatter — GH #6). **Shipped:** F1 Kanban (`status`+`order`),
+> F2 Plotgrid (`plotlines`) as the write surfaces; F5 Swimlanes (rebuilt as a columns grid) + F6
+> Zoom read-only; F7/F8 cross-cutting. See [[longform-owns-scene-ordering]].
+
 ## Validation Checklist
 
 ### CRITICAL GATES (Must Pass)

@@ -11,6 +11,20 @@ version: "1.0"
 > M5 ADR numbering: M5 owns ADR-1…ADR-13; M6 adds **ADR-14…ADR-26**. Every cited file/export was
 > verified against the tree at `main` (`77f398d`). No schema changes.
 
+> **Post-implementation reality (2026-07-26 polish round — see README decision log).** After the
+> plugin was reviewed live against StoryLine, several ADRs were superseded by user decisions:
+> **ADR-18 (Timeline-placement / `snapStoryDay`) is REMOVED** — Longform owns scene order/date in its
+> own index file, so `storyDay`/`order` writes desync it; Timeline **rail is read-only**, drag deferred
+> to GH #7 (Kanban's `order` write kept for the MVP, GH #4). **ADR-19 (Locations tree) is REMOVED** —
+> location/character browsing belongs in the Codex (hero-card + editable frontmatter), GH #6; the
+> `locationTreeModel`/renderer/scope/mapper were deleted. **ADR-20 (swimlane)**: the read-only decision
+> stands, but the layout was rebuilt as a **columns-per-group-value grid** (scenes as rows), not stacked
+> lanes (spec-006 S64 / StoryLine). **ADR-21 (zoom)**: stands, but the **group-by control is a `<select>`
+> dropdown** and zoom controls sit in the **toolbar** row (S62/StoryLine); zoom listeners bounded via a
+> per-render child Component. The Plotgrid (ADR-14 write path unchanged) was **transposed to
+> scenes-rows × plotlines-columns** with richer cells. The remaining write surfaces are **Kanban
+> (`status`+`order`) + Plotgrid (`plotlines`)**; Timeline (rail+swimlane+zoom) is read-only.
+
 ## Validation Checklist
 
 ### CRITICAL GATES (Must Pass)

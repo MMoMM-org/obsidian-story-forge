@@ -36,6 +36,8 @@
   table.inv{border-collapse:collapse;font-size:12.5px;margin:0 0 8px}
   table.inv th,table.inv td{border:1px solid var(--border);padding:4px 10px;text-align:left;vertical-align:top}
   table.inv th{color:var(--faint);font-weight:600}
+  table.inv tr.superseded td,table.inv tr.superseded th{color:var(--faint);text-decoration:line-through}
+  table.inv tr.superseded td:first-child{text-decoration:none}
   .gallery{display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-start}
   figure{margin:0}
   figcaption{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:40px;max-width:60ch}
@@ -43,6 +45,15 @@
   .note{font-size:11px;color:var(--faint);margin-top:7px;max-width:64ch}
   .note b{color:var(--muted)}
   .sd{color:var(--st-draft)} .so{color:var(--st-outline)} .sw{color:var(--st-written)}
+
+  /* ---- superseded figure banner ---- */
+  .superseded-banner{
+    border:1px solid var(--border-2);border-left:3px solid var(--st-draft);
+    background:rgba(224,163,74,.07);border-radius:6px;padding:7px 12px;
+    font-size:11.5px;color:var(--st-draft);margin-bottom:8px;max-width:60ch}
+  .superseded-banner b{color:var(--text)}
+  figure.superseded figcaption{opacity:.55}
+  figure.superseded .view{opacity:.40;pointer-events:none;filter:grayscale(.5)}
 
   /* ---- generic view shell (Obsidian leaf) ---- */
   .view{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;
@@ -104,6 +115,22 @@
   .drop{font-size:11px;padding:2px 9px;border:1px solid var(--border-2);border-radius:6px;color:var(--muted)}
   .mbody{padding:14px 16px 18px;max-height:560px;overflow:auto}
 
+  /* ---- Timeline toolbar row (sf-ws-tlbar): seg + group-by select + zoom slot in one row ---- */
+  .tlbar{
+    display:flex;align-items:center;gap:8px;padding:4px 10px;
+    background:var(--header);border-bottom:1px solid var(--border);
+    font-size:11px}
+  .tlbar .seg{/* inherits */}
+  .tlbar select{
+    font-size:11px;padding:2px 8px;border:1px solid var(--border-2);border-radius:6px;
+    background:var(--panel);color:var(--muted);cursor:pointer}
+  .tlbar select:disabled{opacity:.45;cursor:default}
+  /* zoom bar inside tlbar */
+  .zoombar{display:flex;align-items:center;border:1px solid var(--border-2);border-radius:6px;overflow:hidden;margin-left:auto}
+  .zoombar span{font-size:11px;padding:2px 9px;color:var(--muted);cursor:pointer;border-right:1px solid var(--border-2)}
+  .zoombar span:last-child{border-right:none}
+  .zoombar span.lvl{color:var(--text);min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+
   /* act divider pill */
   .actpill{display:inline-block;background:var(--panel-2);color:var(--accent);font-weight:700;
     font-size:11px;letter-spacing:.04em;padding:4px 12px;border-radius:14px;margin:10px 0 8px}
@@ -130,19 +157,45 @@
   .fb{background:rgba(224,163,74,.10);color:var(--st-draft);border:1px dashed rgba(224,163,74,.4);
     font-size:10px;padding:1px 8px;border-radius:9px}
 
-  /* ---- Timeline: swimlane mode ---- */
-  .swim{display:grid;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden}
-  .swim .sh{display:grid;background:var(--header);font-size:11px;font-weight:700;color:var(--muted)}
-  .swim .sh div{padding:7px 10px;border-right:1px solid var(--border)}
-  .swim .srow{display:grid;border-top:1px solid var(--border)}
-  .swim .cell{border-right:1px solid var(--border);padding:8px;min-height:40px}
-  .swim .idxcell{color:var(--faint);font-size:10.5px;padding:8px;border-right:1px solid var(--border)}
-  .swim .actrow{background:var(--panel-2);color:var(--accent);font-weight:700;font-size:10.5px;
+  /* ---- Timeline: swimlane GRID mode (sf-sw-*) ----
+     COLUMNS per group value (one per lane); ROWS per scene.
+     Column 1 = sequence axis (#/storyDay); header row = lane values.
+     Act-divider rows span ALL columns. Multi-plotline scene appears in each column. */
+  .sw-grid{
+    display:grid;
+    /* --sf-sw-cols is set inline per figure to match the dynamic lane count */
+    grid-template-columns:var(--sf-sw-cols);
+    border:1px solid var(--border);border-radius:8px;overflow:hidden;
+    font-size:12px}
+  .sw-corner{
+    background:var(--header);font-weight:700;font-size:11px;color:var(--muted);
+    padding:7px 10px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    position:sticky;left:0;z-index:2}
+  .sw-lanehead{
+    background:var(--header);font-weight:700;font-size:11px;color:var(--text);
+    padding:7px 10px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+  .sw-lanehead.unresolved{color:var(--pl-unres);opacity:.7}
+  .sw-lanehead.neutral{color:var(--pl-none)}
+  .sw-actrow{
+    /* span all columns — set grid-column inline */
+    background:var(--panel-2);color:var(--accent);font-weight:700;font-size:10.5px;
     letter-spacing:.04em;padding:5px 10px;border-top:1px solid var(--border)}
-  .minicard{background:var(--panel);border:1px solid var(--border-2);border-radius:6px;padding:7px 9px;position:relative}
-  .minicard .node{position:absolute;top:-5px;left:9px;width:9px;height:9px;border-radius:50%}
-  .minicard .mt{font-weight:600;font-size:12px}
-  .minicard .mm{color:var(--faint);font-size:10px;margin-top:2px}
+  .sw-seq{
+    background:var(--panel);border-right:1px solid var(--border);border-top:1px solid var(--border);
+    padding:6px 8px;display:flex;flex-direction:column;gap:2px;
+    font-size:10.5px;color:var(--faint);position:sticky;left:0;z-index:1}
+  .sw-seq .seqn{font-weight:700;color:var(--muted)}
+  .sw-seq .seqwhen{font-size:9.5px;color:var(--faint)}
+  .sw-cell{
+    border-right:1px solid var(--border);border-top:1px solid var(--border);
+    padding:6px 8px;min-height:52px}
+  .sw-mini{
+    background:var(--panel);border:1px solid var(--border-2);border-radius:6px;
+    padding:6px 8px;position:relative;font-size:11.5px}
+  .sw-mini-dot{
+    width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+  .sw-mini-title{color:var(--link);font-weight:600;font-size:12px;display:block;margin:0 0 3px}
+  .sw-mini-meta{color:var(--faint);font-size:10px;display:flex;gap:6px;align-items:center}
 
   /* ---- Plotlines: subway map ---- */
   .subway{position:relative;padding:6px 0}
@@ -179,7 +232,29 @@
   /* ===== M6 interaction affordances — extend, don't fork ======= */
   /* ============================================================= */
   .grab{cursor:grab}
+  /* sf-dragging: original card while its ghost follows pointer — dimmed, no grab cursor */
+  .sf-dragging{opacity:.4;cursor:grabbing;border-style:dashed!important}
+  /* Legacy alias used in older figures */
   .dragging{opacity:.5;border-style:double;border-width:3px;cursor:grabbing}
+  /* sf-drag-ghost: floating clone following pointer — tilted, elevated, semi-opaque.
+     Matches .sf-drag-ghost in styles.css: position:fixed, rotate:2deg, opacity:.85,
+     box-shadow, pointer-events:none, z-index:9999.
+     In the mockup we approximate with absolute positioning inside a relative container. */
+  .drag-ghost-wrap{position:relative;height:0}
+  .sf-drag-ghost{
+    position:absolute;right:-20px;top:-50px;
+    opacity:.85;
+    transform:rotate(2deg);
+    box-shadow:0 8px 24px rgba(0,0,0,.55);
+    border-radius:7px;
+    pointer-events:none;
+    z-index:9;
+    max-width:220px;
+    background:var(--panel);border:1px solid var(--border-2);padding:8px 10px}
+  .sf-drag-ghost .kt{font-weight:600;font-size:12.5px;margin:0 0 3px;color:var(--link)}
+  .sf-drag-ghost .km{color:var(--faint);font-size:10.5px;display:flex;align-items:center;gap:7px}
+  .sf-drag-ghost .kdot{width:8px;height:8px;border-radius:50%;flex:none}
+  /* drop line */
   .ghost{opacity:.5;border:2px dashed var(--accent);background:rgba(124,108,240,.08)}
   .drop-line{height:0;border-top:2px solid var(--accent);margin:6px 0;position:relative;border-radius:2px}
   .drop-line::before{content:"";position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
@@ -199,20 +274,51 @@
   .kcard .km{color:var(--faint);font-size:10.5px;display:flex;align-items:center;gap:7px}
   .kcard .kdot{width:8px;height:8px;border-radius:50%;flex:none}
   .kcard .kbadge{font-size:9.5px;font-weight:700;padding:0 6px;border-radius:8px}
-  /* Plotgrid matrix */
-  .grid{display:grid;border:1px solid var(--border);border-radius:8px;overflow:hidden}
-  .grid .gh{background:var(--header);font-size:10.5px;font-weight:700;color:var(--muted);
-    padding:7px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);text-align:center}
-  .grid .gh.row{text-align:left}
-  .grid .rh{font-size:11.5px;font-weight:700;padding:8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
-    display:flex;align-items:center;gap:7px}
-  .cell{border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-height:34px;cursor:pointer;position:relative}
-  .cell:hover{outline:1.5px solid var(--accent);outline-offset:-1px;z-index:1}
-  .cell.on{background:currentColor}
-  .cell.on::after{content:"●";position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.85);font-size:11px}
-  .cell.dying{color:rgba(217,164,65,.32)} .cell.oath{color:rgba(91,139,208,.32)} .cell.shadow{color:rgba(176,106,134,.32)}
-  .cell.hovering{outline:1.5px solid var(--accent);outline-offset:-1px;background:rgba(124,108,240,.10)}
-  /* Locations tree */
+
+  /* ---- Plotgrid — SCENES as ROWS × PLOTLINES as COLUMNS (sf-pg-*, M3 orientation) ----
+     Row 1 = header (corner + plotline col heads with colour dots).
+     Each subsequent row = one scene (row-header = order+title; cells = plotline membership).
+     Filled cell = status badge + when (interactive: click/Space/Enter toggles). */
+  .pg-table{
+    display:flex;flex-direction:column;
+    border:1px solid var(--border);border-radius:8px;overflow:auto;font-size:12px}
+  .pg-thead,.pg-tbody{display:contents}
+  .pg-tr{display:flex}
+  .pg-th{
+    background:var(--header);font-size:10.5px;font-weight:700;color:var(--muted);
+    padding:7px 10px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    min-width:110px;flex:none}
+  .pg-corner{min-width:160px;text-align:left;color:var(--faint)}
+  .pg-col-head{
+    min-width:130px;flex:1;display:flex;align-items:center;gap:5px;
+    border-left:3px solid var(--border-2)}
+  .pg-col-head.dying{border-left-color:var(--pl-dying)}
+  .pg-col-head.oath{border-left-color:var(--pl-oath)}
+  .pg-col-head.shadow{border-left-color:var(--pl-shadow)}
+  .pg-col-head.unresolved{opacity:.5}
+  .pg-col-dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .pg-col-name{color:var(--link);font-size:10.5px}
+  .pg-row-head{
+    min-width:160px;flex:none;padding:7px 10px;
+    border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:6px;color:var(--link)}
+  .pg-cell{
+    flex:1;min-width:130px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    min-height:36px;cursor:pointer;padding:5px 8px;position:relative;display:flex;align-items:center}
+  .pg-cell:hover{outline:1.5px solid var(--accent);outline-offset:-1px;z-index:1}
+  .pg-cell.filled{
+    border-left:3px solid currentColor}
+  .pg-cell.filled.dying{color:var(--pl-dying);background:rgba(217,164,65,.14)}
+  .pg-cell.filled.oath{color:var(--pl-oath);background:rgba(91,139,208,.14)}
+  .pg-cell.filled.shadow{color:var(--pl-shadow);background:rgba(176,106,134,.14)}
+  .pg-cell-inner{display:flex;align-items:center;gap:6px;font-size:10.5px}
+  .pg-cell-status{font-size:9.5px;font-weight:700;padding:0 5px;border-radius:7px;
+    background:rgba(255,255,255,.07)}
+  .pg-cell-when{color:var(--faint);font-size:10px}
+  .pg-cell[aria-disabled="true"]{opacity:.3;cursor:default}
+  .pg-cell.hovering{outline:1.5px solid var(--accent);outline-offset:-1px;background:rgba(124,108,240,.10)}
+
+  /* Locations tree (legacy — kept for superseded figures S79/S80) */
   .tree{font-size:12.5px}
   .node{display:flex;align-items:center;gap:7px;padding:3px 6px;border-radius:5px;cursor:pointer}
   .node:hover{background:var(--hover)}
@@ -223,7 +329,7 @@
   .node.scene .loc{color:var(--text);text-decoration:none}
   .node.flagged .loc{color:var(--pl-unres);text-decoration-style:dashed}
   .indent-1{padding-left:22px} .indent-2{padding-left:44px} .indent-3{padding-left:66px}
-  /* zoom controls */
+  /* zoom controls (legacy .zoom alias; real implementation uses .zoombar above) */
   .zoom{display:flex;align-items:center;border:1px solid var(--border-2);border-radius:6px;overflow:hidden}
   .zoom span{font-size:11px;padding:2px 9px;color:var(--muted);cursor:pointer;border-right:1px solid var(--border-2)}
   .zoom span:last-child{border-right:none}
@@ -236,54 +342,61 @@
 <p class="sub"><b>Making the M5 read views interactive.</b> M5 (spec 006) shipped the frontmatter-driven
 workspace surfaces (Navigator, Timeline rail, Plotlines list) as <b>read-only</b>. M6 adds direct manipulation
 that <b>writes plain frontmatter back</b> (per the founding frontmatter-is-truth decision — the plugin writes,
-Bases/the views render; the plugin never owns state) plus three new read-only spatial views. Every figure here
-is tagged <b>M6</b>.</p>
-<p class="sub" style="margin-top:8px"><b>M6 ships six features.</b> <b>Write-back (3):</b>
+Bases/the views render; the plugin never owns state). Every figure here is tagged <b>M6</b>.</p>
+<p class="sub" style="margin-top:8px"><b>M6 ships two write surfaces and one rich read surface.</b>
+<b>Write-back (2):</b>
 <b>F1 Kanban</b> (drag a card between status columns → writes <code>status</code> + re-sequences
-<code>order</code>), <b>F2 Plotgrid</b> (toggle a matrix cell → adds/removes a scene's <code>plotlines</code>
-link), <b>F3 Timeline placement</b> (drag a card to a new day → snaps <code>storyDay</code> to an integer, never
-touches <code>order</code>). <b>Read-only (3):</b> <b>F4 Locations tree</b> (nested <code>world</code> hierarchy),
-<b>F5 Swimlanes</b> (Timeline in lane mode, keyed by POV or plotline), <b>F6 Zoom / pan</b> (ephemeral timeline
-scaling). The Plotlines <b>subway map stays M7</b>.</p>
+<code>order</code>), <b>F2 Plotgrid</b> (click/keyboard toggle a matrix cell → adds/removes a scene's
+<code>plotlines</code> link).
+<b>Read-only:</b> <b>F5 Swimlanes</b> (Timeline in columns-grid mode, keyed by POV/location/plotline), <b>F6 Zoom</b>
+(ephemeral CSS-scale on the rail; Ctrl+wheel also zooms). Timeline is <b>strictly read-only</b> — no placement drag.
+<b>Removed from M6:</b> F3 Timeline placement (deferred) and F4 Locations tree (moved to the Codex milestone).
+The Plotlines subway map stays M7.</p>
 
 <div class="banner">
-<b>Continues the M5 mockup numbering.</b> M5 ran S59→S72; M6 continues at <b>S73→S84</b>. Visual language is
-unchanged — this file <b>reuses the M5 <code>&lt;style&gt;</code> block verbatim</b> and only <b>extends</b> it
-with interaction affordances (drag ghosts, drop lines, toasts, Kanban/Plotgrid/tree/zoom classes). The theme,
-status badges, and plotline palette are identical so the two spec files read as one. <b>Ours vs StoryLine:</b>
-StoryLine's board and grid mutate its own database; ours mutate <b>plain frontmatter</b> — every write is a value
-a human could have typed, and is fully reversible in the file.
+<b>Continues the M5 mockup numbering.</b> M5 ran S59→S72; M6 continues at <b>S73–S84</b> (original range) and
+adds <b>S85–S89</b> for the reworked toolbar, swimlane grid, plotgrid, and drag ghost. Superseded figures (S77,
+S78, S79, S80) are kept with their original numbers and a superseded banner — the spec history stays readable.
+Visual language is unchanged — this file reuses the M5 <code>&lt;style&gt;</code> block verbatim and only extends
+it. <b>Ours vs StoryLine:</b> StoryLine's board and grid mutate its own database; ours mutate <b>plain
+frontmatter</b> — every write is a value a human could have typed, and is fully reversible in the file.
 </div>
 
 <p class="legend">
 <b>Seed data</b> (book <b>Wardens of Moonharbor</b>): scene 1 <b>The Extinguished Fire</b>
 (POV Mara Stoneway, Dying Light, draft, Night 1), 2 <b>The Salty Gull</b> (POV Mara, Dying Light, draft, Night 1),
 3 <b>The Black Cliffs</b> (POV Mara, Dying Light, outline, Night 2), 4 <b>The Signal Tower</b>
-(POV Tobias Ferro, Warden's Oath, outline, Night 3), 5 <b>A Message in Salt</b> (POV Mara, Warden's Oath, outline,
-—), 6 <b>The Long Watch</b> (POV Elke Stoneway, no plotline → Unassigned, draft, Night 4). Plotlines:
+(POV Tobias Ferro, Warden's Oath + Dying Light, outline, Night 3), 5 <b>A Message in Salt</b>
+(POV Mara, Warden's Oath, outline, —), 6 <b>The Long Watch</b> (POV Elke Stoneway, no plotline → Unassigned,
+draft, Night 4). Plotlines:
 <b>The Dying Light</b> <span class="dot dying" style="display:inline-block;vertical-align:middle"></span>,
 <b>The Warden's Oath</b> <span class="dot oath" style="display:inline-block;vertical-align:middle"></span>,
 <b>Shadow Trade</b> <span class="dot shadow" style="display:inline-block;vertical-align:middle"></span> (0 scenes),
-<b>Unassigned</b> <span class="dot none" style="display:inline-block;vertical-align:middle"></span>. Locations
-nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The Salty Gull, Signal Tower.
+<b>Unassigned</b> <span class="dot none" style="display:inline-block;vertical-align:middle"></span>.
 <b>Status:</b> <span class="sd">draft</span> · <span class="so">outline</span> · <span class="sw">done</span>.
 </p>
 
-<h2>State inventory (S73–S84)</h2>
+<h2>State inventory (S73–S89)</h2>
 <table class="inv">
 <tr><th>S</th><th>State</th><th>Feature</th><th>Write?</th><th>Shows</th></tr>
 <tr><td><b>S73</b></td><td>Kanban — populated</td><td>F1</td><td>—</td><td>status columns, cards (name + POV + status badge + plotline dot), grab affordance</td></tr>
-<tr><td><b>S74</b></td><td>Kanban — card mid-drag</td><td>F1</td><td>✎</td><td>ghost card, drop/insertion line; drop writes <code>status</code> + sparse-int <code>order</code></td></tr>
-<tr><td><b>S75</b></td><td>Plotgrid — populated matrix</td><td>F2</td><td>—</td><td>plotline rows × scene cols; filled vs empty cells; one hovering cell</td></tr>
-<tr><td><b>S76</b></td><td>Plotgrid — cell toggle (post-write)</td><td>F2</td><td>✎</td><td>previously-empty cell now filled + success toast</td></tr>
-<tr><td><b>S77</b></td><td>Timeline placement — mid-drag</td><td>F3</td><td>✎</td><td>rail with a dragged ghost + day insertion line; act-divider highlight</td></tr>
-<tr><td><b>S78</b></td><td>Timeline placement — post-drop</td><td>F3</td><td>✎</td><td>card landed at new day; <code>storyDay</code> updated; success note</td></tr>
-<tr><td><b>S79</b></td><td>Locations tree — populated &amp; expanded</td><td>F4</td><td>—</td><td>nested <code>world</code> tree, chevrons, scene leaves, drill links</td></tr>
-<tr><td><b>S80</b></td><td>Locations tree — unresolved / cycle guard</td><td>F4</td><td>—</td><td>unresolved <code>world</code> flagged at root; depth/cycle guard note</td></tr>
-<tr><td><b>S81</b></td><td>Swimlanes — By POV</td><td>F5</td><td>—</td><td>lanes per POV + No-POV lane; act rows; Rail|Swimlane toggle</td></tr>
-<tr><td><b>S82</b></td><td>Swimlanes — By plotline (fan-out)</td><td>F5</td><td>—</td><td>multi-plotline scene in both lanes; Unassigned lane</td></tr>
-<tr><td><b>S83</b></td><td>Zoom / pan</td><td>F6</td><td>—</td><td>zoom controls; names clickable at all levels; ephemeral</td></tr>
-<tr><td><b>S84</b></td><td>Error &amp; empty</td><td>F7/F8</td><td>✎</td><td>write-failed rollback + error toast; empty scope</td></tr>
+<tr><td><b>S74</b></td><td>Kanban — card mid-drag (ghost)</td><td>F1</td><td>✎</td><td><code>.sf-drag-ghost</code> follows pointer (tilted, elevated, semi-opaque); original card <code>.sf-dragging</code> (dimmed); drop line marks insertion point</td></tr>
+<tr class="superseded"><td><b>S75</b></td><td colspan="4"><s>Plotgrid (old) — plotlines rows × scenes cols — SUPERSEDED by S85 (M3 orientation: scenes rows × plotlines cols)</s></td></tr>
+<tr class="superseded"><td><b>S76</b></td><td colspan="4"><s>Plotgrid cell toggle (old orientation) — SUPERSEDED by S86</s></td></tr>
+<tr class="superseded"><td><b>S77</b></td><td colspan="4"><s>Timeline placement — mid-drag — SUPERSEDED: Timeline placement deferred (#7)</s></td></tr>
+<tr class="superseded"><td><b>S78</b></td><td colspan="4"><s>Timeline placement — post-drop — SUPERSEDED: Timeline placement deferred (#7)</s></td></tr>
+<tr class="superseded"><td><b>S79</b></td><td colspan="4"><s>Locations tree — populated — SUPERSEDED: Locations moved to Codex (#6)</s></td></tr>
+<tr class="superseded"><td><b>S80</b></td><td colspan="4"><s>Locations tree — unresolved — SUPERSEDED: Locations moved to Codex (#6)</s></td></tr>
+<tr class="superseded"><td><b>S81</b></td><td colspan="4"><s>Swimlanes (old rows layout) By POV — SUPERSEDED by S87</s></td></tr>
+<tr class="superseded"><td><b>S82</b></td><td colspan="4"><s>Swimlanes (old rows layout) By plotline — SUPERSEDED by S88</s></td></tr>
+<tr><td><b>S83</b></td><td>Zoom — rail at 150%</td><td>F6</td><td>—</td><td>zoom controls in toolbar row; rail scaled; Ctrl+wheel zooms; ephemeral</td></tr>
+<tr><td><b>S84a</b></td><td>Kanban — write failed (rollback)</td><td>—</td><td>✎</td><td>card rolls back, error toast</td></tr>
+<tr><td><b>S84b</b></td><td>Kanban — empty scope</td><td>—</td><td>—</td><td>empty-state affordance</td></tr>
+<tr><td><b>S85</b></td><td>Toolbar — Timeline controls row</td><td>F5/F6</td><td>—</td><td>Rail|Swimlane seg + By…▾ group-by select + zoom − 100% + in one row (<code>.sf-ws-tlbar</code>)</td></tr>
+<tr><td><b>S86</b></td><td>Plotgrid (M3) — populated matrix</td><td>F2</td><td>—</td><td>ROWS = scenes, COLUMNS = plotlines; colour dots in col heads; filled cell = status+when; hover state</td></tr>
+<tr><td><b>S87</b></td><td>Plotgrid (M3) — cell toggle (post-write)</td><td>F2</td><td>✎</td><td>empty cell → filled; optimistic update + success toast</td></tr>
+<tr><td><b>S88</b></td><td>Swimlane grid — By POV</td><td>F5</td><td>—</td><td>COLUMNS per POV; ROWS per scene; act-divider row spans all cols; seq axis col 1</td></tr>
+<tr><td><b>S89</b></td><td>Swimlane grid — By plotline (fan-out)</td><td>F5</td><td>—</td><td>multi-plotline scene in each plotline column; Unassigned column</td></tr>
 </table>
 
 <!-- =================== KANBAN (F1) =================== -->
@@ -297,7 +410,7 @@ nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The 
     the whole board is draggable. <b>M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
-        <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span><span>⑃ Plotlines</span></div>
+        <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div>
         <div class="ctrl"><span class="drop">⇅ by status</span></div></div>
       <div class="mbody">
         <div class="kanban">
@@ -334,19 +447,21 @@ nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The 
     </div>
     <p class="note"><b>Ours vs StoryLine:</b> StoryLine's board is backed by its own DB; ours reads the
     <code>status</code> frontmatter field and columns follow the <b>schema enum order</b>. Columns with zero scenes
-    (idea, revised, final here) are hidden to stay compact — a settings toggle can show them all.</p>
+    (idea, revised, final here) are hidden to stay compact.</p>
   </figure>
 
+  <!-- S74: updated to show sf-drag-ghost pattern -->
   <figure style="width:720px">
-    <figcaption><b>S74 · Kanban — card mid-drag.</b> "The Long Watch" is being dragged from <b>Draft</b> toward
-    <b>Done</b>: the source card shows as a <span style="color:var(--accent)">ghost</span> (opacity .5, double
-    border), and a <b>drop line</b> marks the insertion point in the target column. Releasing writes the new
-    <code>status</code> and a sparse-int <code>order</code>. <b>M6.</b></figcaption>
+    <figcaption><b>S74 · Kanban — card mid-drag (ghost).</b> "The Long Watch" is dragged from <b>Draft</b> toward
+    <b>Done</b>: the <b>original card</b> stays in place with class <code>.sf-dragging</code> (dimmed, dashed border,
+    opacity 0.4). A <code>.sf-drag-ghost</code> — a <b>tilted, elevated, semi-opaque clone</b> — follows the
+    pointer (position:fixed, rotate:2deg, opacity:.85, z-index:9999). A <b>drop line</b> marks the insertion point
+    in the target column. Releasing writes <code>status</code> + sparse-int <code>order</code>. <b>M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
-        <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span><span>⑃ Plotlines</span></div></div>
+        <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div></div>
       <div class="mbody">
-        <div class="kanban">
+        <div class="kanban" style="position:relative">
           <div class="col">
             <div class="col-head">Draft <span class="n">2</span></div>
             <div class="kcard grab"><div class="kt">The Extinguished Fire</div>
@@ -355,105 +470,102 @@ nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The 
             <div class="kcard grab"><div class="kt">The Salty Gull</div>
               <div class="km"><span class="kdot" style="background:var(--pl-dying)"></span>POV Mara Stoneway
                 <span class="kbadge" style="background:rgba(224,163,74,.18);color:var(--st-draft)">draft</span></div></div>
-            <div class="kcard dragging"><div class="kt">The Long Watch</div>
+            <!-- original card: sf-dragging = dimmed, dashed border -->
+            <div class="kcard sf-dragging" style="opacity:.4;border-style:dashed"><div class="kt">The Long Watch</div>
               <div class="km"><span class="kdot" style="background:var(--pl-none)"></span>POV Elke Stoneway
                 <span class="kbadge" style="background:rgba(224,163,74,.18);color:var(--st-draft)">draft</span></div></div>
           </div>
-          <div class="col drop-target">
+          <div class="col drop-target" style="position:relative">
             <div class="col-head">Done <span class="n">0</span></div>
             <div class="drop-line"></div>
-            <div class="ghost kcard"><div class="kt">The Long Watch</div>
+            <!-- ghost card: tilted clone near pointer -->
+            <div class="sf-drag-ghost">
+              <div class="kt">The Long Watch</div>
               <div class="km"><span class="kdot" style="background:var(--pl-none)"></span>POV Elke Stoneway
-                <span class="kbadge" style="background:rgba(106,196,122,.18);color:var(--st-written)">done →</span></div></div>
+                <span class="kbadge" style="background:rgba(106,196,122,.18);color:var(--st-written)">done →</span></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-    <p class="note"><b>Write on drop:</b> <code>status: done</code> is set on the scene, and <code>order</code> is
-    rewritten with a <b>sparse integer</b> (midpoint of neighbours, or +10 at the tail) so re-sequencing rarely
-    rewrites siblings. Two frontmatter fields change; nothing else in the file is touched.</p>
+    <p class="note"><b>Ghost vs ghost-in-column:</b> the <code>.sf-drag-ghost</code> is <code>position:fixed</code>
+    and follows the pointer anywhere on screen (not confined to the column). The source card
+    (<code>.sf-dragging</code>) stays in the DOM at its original slot — dimmed — so column layout doesn't reflow
+    during drag. On drop: <code>status: done</code> + sparse-int <code>order</code> written to frontmatter.</p>
   </figure>
 
 </div>
 
-<!-- =================== PLOTGRID (F2) =================== -->
-<h2>Plotgrid (F2) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · write-back: plotlines</span></h2>
+<!-- =================== PLOTGRID OLD FIGURES — SUPERSEDED =================== -->
+<h2>Plotgrid (F2) — original orientation figures (SUPERSEDED) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· see S85–S87 for the current M3 layout</span></h2>
 <div class="gallery">
 
-  <figure style="width:720px">
-    <figcaption><b>S75 · Plotgrid — populated matrix.</b> Rows = plotlines, columns = scenes. A <b>filled</b> cell
-    (plotline-coloured, low opacity + dot) means the scene lists that plotline; an <b>empty</b> cell means it
-    doesn't. One cell is shown in its <span style="color:var(--accent)">hover</span> state (click to toggle).
-    <b>M6.</b></figcaption>
+  <figure class="superseded" style="width:720px">
+    <div class="superseded-banner">SUPERSEDED — orientation replaced by M3 (scenes rows × plotlines cols). See <b>S85</b> and <b>S86</b> below. Original S75 figure kept for spec history.</div>
+    <figcaption><b>S75 · Plotgrid — populated matrix (old orientation: plotlines rows × scenes cols).</b>
+    SUPERSEDED. <b>M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">▦ Plotgrid</span><span>◷ Timeline</span><span>⑃ Plotlines</span></div></div>
       <div class="mbody" style="overflow-x:auto">
-        <div class="grid" style="grid-template-columns:150px repeat(5,1fr);width:660px">
-          <div class="gh row">Plotline \ Scene</div>
-          <div class="gh">1 · Extinguished Fire</div><div class="gh">3 · Black Cliffs</div>
-          <div class="gh">4 · Signal Tower</div><div class="gh">5 · Msg in Salt</div><div class="gh">6 · Long Watch</div>
-          <!-- Dying Light -->
-          <div class="rh"><span class="dot dying"></span>The Dying Light</div>
-          <div class="cell dying on"></div><div class="cell dying on"></div>
-          <div class="cell dying on"></div><div class="cell"></div><div class="cell"></div>
-          <!-- Warden's Oath -->
-          <div class="rh"><span class="dot oath"></span>The Warden's Oath</div>
-          <div class="cell"></div><div class="cell"></div>
-          <div class="cell oath on"></div><div class="cell oath on"></div><div class="cell"></div>
-          <!-- Shadow Trade -->
-          <div class="rh"><span class="dot shadow"></span>Shadow Trade</div>
-          <div class="cell"></div><div class="cell"></div>
-          <div class="cell"></div><div class="cell"></div><div class="cell hovering"></div>
+        <!-- old orientation: rows=plotlines, cols=scenes -->
+        <div style="display:grid;grid-template-columns:150px repeat(5,1fr);width:660px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div class="pg-th pg-corner" style="min-width:150px">Plotline \ Scene</div>
+          <div class="pg-th">1 · Extinguished</div><div class="pg-th">3 · Black Cliffs</div>
+          <div class="pg-th">4 · Signal Tower</div><div class="pg-th">5 · Msg in Salt</div><div class="pg-th">6 · Long Watch</div>
+          <div class="pg-row-head"><span class="dot dying"></span>The Dying Light</div>
+          <div class="pg-cell filled dying"><div class="pg-cell-inner"><span class="pg-cell-status">draft</span><span class="pg-cell-when">Night 1</span></div></div>
+          <div class="pg-cell filled dying"><div class="pg-cell-inner"><span class="pg-cell-status">outline</span><span class="pg-cell-when">Night 2</span></div></div>
+          <div class="pg-cell filled dying"><div class="pg-cell-inner"><span class="pg-cell-status">outline</span></div></div>
+          <div class="pg-cell"></div><div class="pg-cell"></div>
+          <div class="pg-row-head"><span class="dot oath"></span>The Warden's Oath</div>
+          <div class="pg-cell"></div><div class="pg-cell"></div>
+          <div class="pg-cell filled oath"><div class="pg-cell-inner"><span class="pg-cell-status">outline</span></div></div>
+          <div class="pg-cell filled oath"><div class="pg-cell-inner"><span class="pg-cell-status">outline</span></div></div>
+          <div class="pg-cell"></div>
+          <div class="pg-row-head"><span class="dot shadow"></span>Shadow Trade</div>
+          <div class="pg-cell"></div><div class="pg-cell"></div>
+          <div class="pg-cell"></div><div class="pg-cell"></div><div class="pg-cell hovering"></div>
         </div>
       </div>
     </div>
-    <p class="note">"The Signal Tower" is a <b>multi-plotline</b> scene — both Dying Light and Warden's Oath cells
-    are filled in its column. Shadow Trade has zero scenes, so its whole row is empty until a cell is toggled on.
-    x-order across columns is reading order.</p>
   </figure>
 
-  <figure style="width:720px">
-    <figcaption><b>S76 · Plotgrid — cell toggle (post-write).</b> The user clicked the empty
-    <b>Scene 6 × Shadow Trade</b> cell. It is now filled, and a header <b>toast</b> confirms the write — the
-    scene's <code>plotlines</code> list gained a <code>[[Shadow Trade]]</code> link. <b>M6.</b></figcaption>
+  <figure class="superseded" style="width:720px">
+    <div class="superseded-banner">SUPERSEDED — orientation replaced by M3 (scenes rows × plotlines cols). See <b>S87</b> below. Original S76 figure kept for spec history.</div>
+    <figcaption><b>S76 · Plotgrid — cell toggle, old orientation. SUPERSEDED. M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">▦ Plotgrid</span><span>◷ Timeline</span><span>⑃ Plotlines</span></div></div>
       <div class="toast">✓ Added <b style="color:var(--text)">The Long Watch</b> to <b style="color:var(--text)">Shadow Trade</b></div>
       <div class="mbody" style="overflow-x:auto">
-        <div class="grid" style="grid-template-columns:150px repeat(5,1fr);width:660px">
-          <div class="gh row">Plotline \ Scene</div>
-          <div class="gh">1 · Extinguished Fire</div><div class="gh">3 · Black Cliffs</div>
-          <div class="gh">4 · Signal Tower</div><div class="gh">5 · Msg in Salt</div><div class="gh">6 · Long Watch</div>
-          <div class="rh"><span class="dot dying"></span>The Dying Light</div>
-          <div class="cell dying on"></div><div class="cell dying on"></div>
-          <div class="cell dying on"></div><div class="cell"></div><div class="cell"></div>
-          <div class="rh"><span class="dot oath"></span>The Warden's Oath</div>
-          <div class="cell"></div><div class="cell"></div>
-          <div class="cell oath on"></div><div class="cell oath on"></div><div class="cell"></div>
-          <div class="rh"><span class="dot shadow"></span>Shadow Trade</div>
-          <div class="cell"></div><div class="cell"></div>
-          <div class="cell"></div><div class="cell"></div><div class="cell shadow on"></div>
+        <div style="display:grid;grid-template-columns:150px repeat(5,1fr);width:660px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+          <div class="pg-th pg-corner" style="min-width:150px">Plotline \ Scene</div>
+          <div class="pg-th">1 · Extinguished</div><div class="pg-th">3 · Black Cliffs</div>
+          <div class="pg-th">4 · Signal Tower</div><div class="pg-th">5 · Msg in Salt</div><div class="pg-th">6 · Long Watch</div>
+          <div class="pg-row-head"><span class="dot dying"></span>The Dying Light</div>
+          <div class="pg-cell filled dying"></div><div class="pg-cell filled dying"></div>
+          <div class="pg-cell filled dying"></div><div class="pg-cell"></div><div class="pg-cell"></div>
+          <div class="pg-row-head"><span class="dot oath"></span>The Warden's Oath</div>
+          <div class="pg-cell"></div><div class="pg-cell"></div>
+          <div class="pg-cell filled oath"></div><div class="pg-cell filled oath"></div><div class="pg-cell"></div>
+          <div class="pg-row-head"><span class="dot shadow"></span>Shadow Trade</div>
+          <div class="pg-cell"></div><div class="pg-cell"></div>
+          <div class="pg-cell"></div><div class="pg-cell"></div><div class="pg-cell filled shadow"></div>
         </div>
       </div>
     </div>
-    <p class="note"><b>Ours vs StoryLine:</b> the toggle appends/removes one <code>[[wikilink]]</code> in
-    <code>plotlines</code> — a value a human could have typed by hand. Toggling off would drop the scene from
-    Unassigned; toggling on removes it. The write is a single frontmatter-field edit, undoable in the file.</p>
   </figure>
 
 </div>
 
-<!-- =================== TIMELINE PLACEMENT (F3) =================== -->
-<h2>Timeline placement (F3) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · write-back: storyDay (integer snap)</span></h2>
+<!-- =================== TIMELINE PLACEMENT (F3) — SUPERSEDED =================== -->
+<h2>Timeline placement (F3) — SUPERSEDED <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· deferred; Timeline is read-only in M6</span></h2>
 <div class="gallery">
 
-  <figure style="width:720px">
-    <figcaption><b>S77 · Timeline placement — mid-drag.</b> Reuses the S62 rail. "The Long Watch" (Night 4) is
-    dragged up toward Night 2: the source shows as a <span style="color:var(--accent)">ghost</span> and a
-    <b>day insertion line</b> appears between the Night-1 and Night-2 rows. The act divider highlights because the
-    drop would cross into Act 1. <b>M6.</b></figcaption>
+  <figure class="superseded" style="width:720px">
+    <div class="superseded-banner">SUPERSEDED — Timeline placement drag deferred (#7 in the backlog). Timeline is <b>read-only</b> in M6; only Kanban and Plotgrid write back. Original S77 figure kept for spec history.</div>
+    <figcaption><b>S77 · Timeline placement — mid-drag. SUPERSEDED. M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
@@ -463,29 +575,21 @@ nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The 
         <div class="rail withwhen">
           <div class="tl-item"><div class="tl-when">Night 1</div><div class="tl-node dying"></div>
             <div class="card grab"><div class="ct">The Salty Gull</div>
-              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Salty Gull</span></div>
+              <div class="cm"><span>POV: Mara Stoneway</span></div>
               <div><span class="stat sd">Draft</span><span class="words">storyDay 1</span></div></div></div>
           <div class="drop-line" style="margin-left:96px"></div>
-          <div class="tl-item"><div class="tl-when" style="color:var(--accent)">Night 2</div><div class="tl-node dying"></div>
+          <div class="tl-item"><div class="tl-when dying" style="color:var(--accent)">Night 2</div><div class="tl-node dying"></div>
             <div class="card ghost"><div class="ct">The Long Watch</div>
-              <div class="cm"><span>POV: Elke Stoneway</span><span class="pin">Moonharbor Lighthouse</span></div>
+              <div class="cm"><span>POV: Elke Stoneway</span></div>
               <div><span class="stat sd">Draft</span><span class="words">→ storyDay 2</span></div></div></div>
-          <div class="tl-item"><div class="tl-when">Night 2</div><div class="tl-node dying"></div>
-            <div class="card grab"><div class="ct">The Black Cliffs</div>
-              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Black Cliffs</span></div>
-              <div><span class="stat so">Outline</span><span class="words">storyDay 2</span></div></div></div>
         </div>
       </div>
     </div>
-    <p class="note"><b>Placement ≠ Kanban:</b> the drop writes only <code>storyDay</code>, snapped to the target
-    day's <b>integer</b> — <code>order</code> is <b>never</b> touched (that's the Kanban's job). storyDay ties are
-    broken by the existing <code>order</code>, so the card slots without a re-sequence.</p>
   </figure>
 
-  <figure style="width:720px">
-    <figcaption><b>S78 · Timeline placement — post-drop.</b> "The Long Watch" landed at Night 2; its
-    <code>storyDay</code> is now <code>2</code> and it sits between the two Night-2 scenes by its existing
-    <code>order</code>. A brief success note confirms the single-field write. <b>M6.</b></figcaption>
+  <figure class="superseded" style="width:720px">
+    <div class="superseded-banner">SUPERSEDED — Timeline placement drag deferred (#7). Original S78 figure kept for spec history.</div>
+    <figcaption><b>S78 · Timeline placement — post-drop. SUPERSEDED. M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
@@ -496,35 +600,27 @@ nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The 
         <div class="rail withwhen">
           <div class="tl-item"><div class="tl-when">Night 1</div><div class="tl-node dying"></div>
             <div class="card"><div class="ct">The Salty Gull</div>
-              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Salty Gull</span></div>
               <div><span class="stat sd">Draft</span><span class="words">storyDay 1</span></div></div></div>
           <div class="tl-item"><div class="tl-when">Night 2</div><div class="tl-node dying"></div>
             <div class="card"><div class="ct">The Black Cliffs</div>
-              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Black Cliffs</span></div>
               <div><span class="stat so">Outline</span><span class="words">storyDay 2 · order 3</span></div></div></div>
           <div class="tl-item"><div class="tl-when">Night 2</div><div class="tl-node none"></div>
             <div class="card"><div class="ct">The Long Watch</div>
-              <div class="cm"><span>POV: Elke Stoneway</span><span class="pin">Moonharbor Lighthouse</span></div>
               <div><span class="stat sd">Draft</span><span class="words">storyDay 2 · order 6</span></div></div></div>
         </div>
       </div>
     </div>
-    <p class="note">Only <code>storyDay</code> changed (Night 4 → Night 2). <code>order</code> stays 6, so within the
-    Night-2 group the card sorts after Black Cliffs (order 3). Reopen and the placement is exactly what's in the
-    file — no hidden view state.</p>
   </figure>
 
 </div>
 
-<!-- =================== LOCATIONS TREE (F4) =================== -->
-<h2>Locations tree (F4) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only</span></h2>
+<!-- =================== LOCATIONS TREE (F4) — SUPERSEDED =================== -->
+<h2>Locations tree (F4) — SUPERSEDED <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· moved to the Codex milestone (#6)</span></h2>
 <div class="gallery">
 
-  <figure style="width:400px">
-    <figcaption><b>S79 · Locations tree — populated &amp; expanded.</b> A nested tree over the <code>world</code>
-    relation: Moonharbor (root) contains three child locations, each expandable to the scenes set there. Chevrons
-    <b>▾/▸</b> collapse; location names are <span style="color:var(--link);text-decoration:underline">drill
-    links</span>; scene leaves drill the scene. Read-only. <b>M6.</b></figcaption>
+  <figure class="superseded" style="width:400px">
+    <div class="superseded-banner">SUPERSEDED — Locations tree moved to the <b>Codex ItemView milestone (#6)</b>. Not shipped in M6. Original S79 figure kept for spec history.</div>
+    <figcaption><b>S79 · Locations tree — populated &amp; expanded. SUPERSEDED. M6.</b></figcaption>
     <div class="view main" style="width:400px">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">⌖ Locations</span><span>◷ Timeline</span></div></div>
@@ -532,32 +628,25 @@ nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The 
         <div class="tree">
           <div class="node"><span class="chv">▾</span><span class="loc">Moonharbor</span>
             <span class="kind">root</span><span class="cnt">3</span></div>
-          <!-- Lighthouse -->
           <div class="node indent-1"><span class="chv">▾</span><span class="loc">Moonharbor Lighthouse</span>
             <span class="kind">location</span><span class="cnt">3</span></div>
           <div class="node scene indent-2"><span class="chv"></span><span class="loc">The Extinguished Fire</span><span class="kind sd">draft</span></div>
           <div class="node scene indent-2"><span class="chv"></span><span class="loc">A Message in Salt</span><span class="kind so">outline</span></div>
           <div class="node scene indent-2"><span class="chv"></span><span class="loc">The Long Watch</span><span class="kind sd">draft</span></div>
-          <!-- Salty Gull -->
           <div class="node indent-1"><span class="chv">▾</span><span class="loc">The Salty Gull</span>
             <span class="kind">location · inn</span><span class="cnt">2</span></div>
           <div class="node scene indent-2"><span class="chv"></span><span class="loc">The Salty Gull</span><span class="kind sd">draft</span></div>
           <div class="node scene indent-2"><span class="chv"></span><span class="loc">The Black Cliffs</span><span class="kind so">outline</span></div>
-          <!-- Signal Tower collapsed -->
           <div class="node indent-1"><span class="chv">▸</span><span class="loc">Signal Tower</span>
             <span class="kind">location</span><span class="cnt">1</span></div>
         </div>
       </div>
     </div>
-    <p class="note"><b>Ours vs StoryLine:</b> StoryLine has no location hierarchy; we build one from the
-    <code>world</code> parent link (location→location) and place scenes under their <code>location</code>. The tree
-    is a pure read view — drilling a node opens that note in the Context panel.</p>
   </figure>
 
-  <figure style="width:400px">
-    <figcaption><b>S80 · Locations tree — unresolved / cycle guard.</b> "The Old Wharf" links
-    <code>world: [[Harbor District]]</code> but no such note resolves, so it's <b>flagged at the root</b> rather
-    than dropped. A depth/cycle guard also caps runaway nesting. <b>M6.</b></figcaption>
+  <figure class="superseded" style="width:400px">
+    <div class="superseded-banner">SUPERSEDED — Locations tree moved to the <b>Codex ItemView milestone (#6)</b>. Original S80 figure kept for spec history.</div>
+    <figcaption><b>S80 · Locations tree — unresolved / cycle guard. SUPERSEDED. M6.</b></figcaption>
     <div class="view main" style="width:400px">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">⌖ Locations</span><span>◷ Timeline</span></div></div>
@@ -575,144 +664,123 @@ nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The 
           root and flagged, never expanded infinitely.</div>
       </div>
     </div>
-    <p class="note">Unresolved and cyclic parents are surfaced (like the Plotlines unresolved lane), so a broken
-    <code>world</code> link is visible and fixable, not silently swallowed.</p>
   </figure>
 
 </div>
 
-<!-- =================== SWIMLANES (F5) =================== -->
-<h2>Swimlanes (F5) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only</span></h2>
+<!-- =================== SWIMLANES OLD FIGURES — SUPERSEDED =================== -->
+<h2>Swimlanes — old row layout (SUPERSEDED) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· see S88–S89 for the columns-grid layout</span></h2>
 <div class="gallery">
 
-  <figure style="width:720px">
-    <figcaption><b>S81 · Swimlanes — By POV.</b> The Timeline in swimlane mode: one lane per POV character plus a
-    <b>No POV</b> lane, act rows spanning full width, each scene a mini-card in its POV lane. The
-    <b>Rail | Swimlane</b> toggle and a <b>By POV ▾</b> key selector sit in the header. Read-only. <b>M6.</b></figcaption>
+  <figure class="superseded" style="width:720px">
+    <div class="superseded-banner">SUPERSEDED — swimlane layout changed from rows-per-lane to <b>columns-per-lane grid</b> (<code>.sf-sw-grid</code>). See <b>S88</b> below. Original S81 figure kept for spec history.</div>
+    <figcaption><b>S81 · Swimlanes — By POV (old rows layout). SUPERSEDED. M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
         <div class="ctrl"><div class="seg"><span>Rail</span><span class="sel">Swimlane</span></div><span class="drop">By POV ▾</span></div></div>
       <div class="mbody">
-        <div class="swim">
-          <div class="sh" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
-            <div>#</div><div>Mara Stoneway</div><div>Tobias Ferro</div><div>Elke Stoneway</div><div>No POV</div></div>
-          <div class="actrow">ACT 1 · The Failing Light</div>
-          <div class="srow" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
-            <div class="idxcell">1</div>
-            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-dying)"></div>
-              <div class="mt">The Extinguished Fire</div><div class="mm"><span class="sd">Draft</span> · Night 1</div></div></div>
-            <div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
-          <div class="srow" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
-            <div class="idxcell">3</div>
-            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-dying)"></div>
-              <div class="mt">The Black Cliffs</div><div class="mm"><span class="so">Outline</span> · Night 2</div></div></div>
-            <div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
-          <div class="actrow">ACT 2 · The Gathering Dark</div>
-          <div class="srow" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
-            <div class="idxcell">4</div>
-            <div class="cell"></div>
-            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-oath)"></div>
-              <div class="mt">The Signal Tower</div><div class="mm"><span class="so">Outline</span> · Night 3</div></div></div>
-            <div class="cell"></div><div class="cell"></div></div>
-          <div class="srow" style="grid-template-columns:44px 1fr 1fr 1fr 0.8fr">
-            <div class="idxcell">6</div>
-            <div class="cell"></div><div class="cell"></div>
-            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-none)"></div>
-              <div class="mt">The Long Watch</div><div class="mm"><span class="sd">Draft</span> · Night 4</div></div></div>
-            <div class="cell"></div></div>
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:12px">
+          <div style="background:var(--header);display:grid;grid-template-columns:44px 1fr 1fr 1fr 0.8fr;font-size:11px;font-weight:700;color:var(--muted)">
+            <div style="padding:7px 10px;border-right:1px solid var(--border)">#</div>
+            <div style="padding:7px 10px;border-right:1px solid var(--border)">Mara Stoneway</div>
+            <div style="padding:7px 10px;border-right:1px solid var(--border)">Tobias Ferro</div>
+            <div style="padding:7px 10px;border-right:1px solid var(--border)">Elke Stoneway</div>
+            <div style="padding:7px 10px">No POV</div>
+          </div>
+          <div style="background:var(--panel-2);color:var(--accent);font-weight:700;font-size:10.5px;letter-spacing:.04em;padding:5px 10px;border-top:1px solid var(--border)">ACT 1 · The Failing Light</div>
+          <div style="display:grid;grid-template-columns:44px 1fr 1fr 1fr 0.8fr;border-top:1px solid var(--border)">
+            <div style="color:var(--faint);font-size:10.5px;padding:8px;border-right:1px solid var(--border)">1</div>
+            <div style="border-right:1px solid var(--border);padding:8px;min-height:40px">
+              <div style="background:var(--panel);border:1px solid var(--border-2);border-radius:6px;padding:6px 8px;font-size:11.5px">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pl-dying);margin-right:4px;vertical-align:middle"></span>
+                <span style="font-weight:600">The Extinguished Fire</span>
+                <div style="color:var(--faint);font-size:10px;margin-top:2px"><span class="sd">Draft</span> · Night 1</div>
+              </div>
+            </div>
+            <div style="border-right:1px solid var(--border);padding:8px"></div>
+            <div style="border-right:1px solid var(--border);padding:8px"></div>
+            <div style="padding:8px"></div>
+          </div>
         </div>
       </div>
     </div>
-    <p class="note">A scene with no <code>pov</code> would fall into the <b>No POV</b> lane (empty here — all seed
-    scenes have a POV). The swimlane key is a header selector; POV / plotline are both shipped (location deferred).</p>
   </figure>
 
-  <figure style="width:720px">
-    <figcaption><b>S82 · Swimlanes — By plotline (multi-lane fan-out).</b> Same view keyed by plotline.
-    "The Signal Tower" is on <i>both</i> Dying Light and Warden's Oath, so it appears as a mini-card in
-    <b>both lanes</b>. "The Long Watch" has no plotline → the <b>Unassigned</b> lane. Read-only. <b>M6.</b></figcaption>
+  <figure class="superseded" style="width:720px">
+    <div class="superseded-banner">SUPERSEDED — swimlane layout changed to columns-grid. See <b>S89</b> below. Original S82 figure kept for spec history.</div>
+    <figcaption><b>S82 · Swimlanes — By plotline (old rows layout). SUPERSEDED. M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
         <div class="ctrl"><div class="seg"><span>Rail</span><span class="sel">Swimlane</span></div><span class="drop">By plotline ▾</span></div></div>
       <div class="mbody">
-        <div class="swim">
-          <div class="sh" style="grid-template-columns:44px 1fr 1fr 0.8fr">
-            <div>#</div><div>The Dying Light</div><div>The Warden's Oath</div><div>Unassigned</div></div>
-          <div class="actrow">ACT 2 · The Gathering Dark</div>
-          <div class="srow" style="grid-template-columns:44px 1fr 1fr 0.8fr">
-            <div class="idxcell">4</div>
-            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-dying)"></div>
-              <div class="mt">The Signal Tower</div><div class="mm"><span class="so">Outline</span> · both lanes</div></div></div>
-            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-oath)"></div>
-              <div class="mt">The Signal Tower</div><div class="mm"><span class="so">Outline</span> · both lanes</div></div></div>
-            <div class="cell"></div></div>
-          <div class="srow" style="grid-template-columns:44px 1fr 1fr 0.8fr">
-            <div class="idxcell">5</div>
-            <div class="cell"></div>
-            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-oath)"></div>
-              <div class="mt">A Message in Salt</div><div class="mm"><span class="so">Outline</span> · —</div></div></div>
-            <div class="cell"></div></div>
-          <div class="srow" style="grid-template-columns:44px 1fr 1fr 0.8fr">
-            <div class="idxcell">6</div>
-            <div class="cell"></div><div class="cell"></div>
-            <div class="cell"><div class="minicard"><div class="node" style="background:var(--pl-none)"></div>
-              <div class="mt">The Long Watch</div><div class="mm"><span class="sd">Draft</span> · Night 4</div></div></div></div>
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:12px;color:var(--faint);padding:12px;text-align:center">
+          [Old rows-per-lane layout — superseded by S89 columns-grid]
         </div>
       </div>
     </div>
-    <p class="note">Fan-out mirrors the M5 <code>plotlineModel</code>: a multi-plotline scene is drawn once per
-    lane it belongs to. Zero-scene plotlines (Shadow Trade) show an empty lane; no-plotline scenes bucket into
-    <b>Unassigned</b>. Read-only in M6 — dragging between lanes would rewrite <code>plotlines</code>, but that path
-    is the Plotgrid's job.</p>
   </figure>
 
 </div>
 
 <!-- =================== ZOOM / PAN (F6) =================== -->
-<h2>Zoom / pan (F6) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only, ephemeral</span></h2>
+<h2>Zoom (F6) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only, ephemeral · toolbar slot</span></h2>
 <div class="gallery">
 
   <figure style="width:720px">
-    <figcaption><b>S83 · Zoom / pan.</b> Timeline header gains zoom controls
-    <b>(− / 100% / + / ⟲ reset)</b>. Zooming scales the rail/swimlane spacing; scene names stay
-    <b>clickable at every level</b>. Zoom is <b>ephemeral</b> — it isn't written anywhere and resets when the leaf
-    reopens. Modifier+wheel also zooms. <b>M6.</b></figcaption>
+    <figcaption><b>S83 · Zoom — rail at 150%.</b> The zoom controls (<b>− / 100% / ⊙ reset / +</b>) live in the
+    Timeline toolbar row (<code>.sf-ws-zoomslot</code> → <code>.sf-zoom-bar</code>) — not in the main vhead.
+    The rail body sits inside <code>.sf-zoom-wrap &gt; .sf-zoom-scaled</code>; the scale transform
+    (<code>--sf-zoom</code>) is applied to <code>.sf-zoom-scaled</code>. Modifier+wheel also zooms (25%–300%).
+    Zoom is <b>ephemeral</b> — not persisted. <b>M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
-        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
-        <div class="ctrl">
-          <div class="zoom"><span>−</span><span class="lvl">100%</span><span>+</span><span>⟲</span></div></div></div>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div></div>
+      <!-- Timeline toolbar row: sf-ws-tlbar -->
+      <div class="tlbar">
+        <div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div>
+        <select disabled style="opacity:.45"><option>By POV</option></select>
+        <div class="zoombar">
+          <span>−</span>
+          <span class="lvl">150%</span>
+          <span>⊙</span>
+          <span>+</span>
+        </div>
+      </div>
       <div class="mbody">
-        <div class="actpill">▾ ACT 1 · The Failing Light</div>
-        <div class="rail withwhen">
-          <div class="tl-item"><div class="tl-when">Night 1</div><div class="tl-node dying"></div>
-            <div class="card"><div class="ct">The Extinguished Fire</div>
-              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">Moonharbor Lighthouse</span></div>
-              <div><span class="stat sd">Draft</span><span class="words">storyDay 1</span></div></div></div>
-          <div class="tl-item"><div class="tl-when">Night 2</div><div class="tl-node dying"></div>
-            <div class="card"><div class="ct">The Black Cliffs</div>
-              <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Black Cliffs</span></div>
-              <div><span class="stat so">Outline</span><span class="words">storyDay 2</span></div></div></div>
+        <!-- sf-zoom-wrap > sf-zoom-scaled; content scaled at 1.5x (simulated with larger text) -->
+        <div style="transform:scale(1.5);transform-origin:top left;width:66.6%">
+          <div class="actpill">▾ ACT 1 · The Failing Light</div>
+          <div class="rail withwhen">
+            <div class="tl-item"><div class="tl-when">Night 1</div><div class="tl-node dying"></div>
+              <div class="card"><div class="ct">The Extinguished Fire</div>
+                <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">Moonharbor Lighthouse</span></div>
+                <div><span class="stat sd">Draft</span><span class="words">storyDay 1</span></div></div></div>
+            <div class="tl-item"><div class="tl-when">Night 2</div><div class="tl-node dying"></div>
+              <div class="card"><div class="ct">The Black Cliffs</div>
+                <div class="cm"><span>POV: Mara Stoneway</span><span class="pin">The Black Cliffs</span></div>
+                <div><span class="stat so">Outline</span><span class="words">storyDay 2</span></div></div></div>
+          </div>
         </div>
       </div>
     </div>
-    <p class="note"><b>Ephemeral by design (frontmatter-is-truth):</b> zoom/pan is pure view state — nothing about
-    the story changes, so nothing is persisted. This keeps write surfaces (F1–F3) cleanly separate from
-    navigation. Clickability at all zoom levels is the one hard constraint carried from the M5 subway note.</p>
+    <p class="note"><b>Ephemeral by design (frontmatter-is-truth):</b> zoom is pure view state — nothing about
+    the story changes, so nothing is persisted. The zoom child Component is replaced on every timeline re-render
+    so listeners don't accumulate (CON-4). Range: 25%–300%, step 10%. <code>⊙</code> resets to 100%.
+    In Swimlane mode the zoom slot is empty (swimlane uses the grid's own scroll).</p>
   </figure>
 
 </div>
 
 <!-- =================== ERROR & EMPTY (F7/F8) =================== -->
-<h2>Error &amp; empty states (F7 / F8) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6</span></h2>
+<h2>Error &amp; empty states <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6</span></h2>
 <div class="gallery">
 
   <figure style="width:360px">
     <figcaption><b>S84a · Kanban — write failed (rollback).</b> A drop's frontmatter write failed (file locked /
     read-only). The card <b>rolls back</b> to its origin column and an <b>error toast</b> explains the edit was
-    kept, not lost. <b>M6 · F7.</b></figcaption>
+    kept, not lost. Card marked with error class <code>.sf-card--error</code> + a Notice fires. <b>M6.</b></figcaption>
     <div class="view main" style="width:360px">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span></div></div>
@@ -739,7 +807,7 @@ nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The 
 
   <figure style="width:360px">
     <figcaption><b>S84b · Kanban — empty scope.</b> No scenes in the active scope. Reuses the M5 <b>S65</b>
-    empty-state affordance verbatim. <b>M6 · F8.</b></figcaption>
+    empty-state affordance verbatim. <b>M6.</b></figcaption>
     <div class="view main" style="width:360px">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">▤ Kanban</span><span>◷ Timeline</span></div></div>
@@ -750,13 +818,537 @@ nest under <code>world</code>: Moonharbor (root) → Moonharbor Lighthouse, The 
 
 </div>
 
+<!-- =================== S85: TOOLBAR (NEW) =================== -->
+<h2>S85 — Timeline toolbar row (new) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · <code>.sf-ws-tlbar</code></span></h2>
+<div class="gallery">
+
+  <figure style="width:720px">
+    <figcaption><b>S85 · Timeline toolbar — one row: seg + group-by select + zoom.</b>
+    When Timeline is active, a second toolbar row (<code>.sf-ws-tlbar</code>) appears below the main vhead.
+    It contains: <b>[Rail | Swimlane]</b> segmented toggle (<code>.sf-ws-tlmode</code>), a
+    <b><code>By … ▾</code> group-by <code>&lt;select&gt;</code></b> dropdown (<code>.sf-ws-tlkey-select</code>,
+    options: POV / Location / Plotline — disabled + dimmed in Rail mode), and inline zoom controls
+    (<code>.sf-zoom-bar</code>: − / 100% / ⊙ / +). All three are in a single flex row. The group-by dropdown
+    is disabled (dimmed) when Rail is active. <b>M6 · S85.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div></div>
+      <!-- Rail mode: seg Rail selected, select disabled, zoom active -->
+      <div class="tlbar">
+        <div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div>
+        <select disabled title="Group by (available in Swimlane mode)" style="opacity:.45;font-size:11px;padding:2px 8px;border:1px solid var(--border-2);border-radius:6px;background:var(--panel);color:var(--muted)">
+          <option>By POV</option><option>By Location</option><option>By Plotline</option>
+        </select>
+        <div class="zoombar">
+          <span>−</span>
+          <span class="lvl">100%</span>
+          <span>⊙</span>
+          <span>+</span>
+        </div>
+      </div>
+      <div class="mbody" style="padding:10px 14px">
+        <p style="color:var(--faint);font-size:12px;margin:0">Timeline rail body (zoom target: <code>.sf-zoom-scaled</code>) …</p>
+      </div>
+    </div>
+    <p class="note">Rail mode: select is <code>disabled</code> + class <code>.sf-ws-tlkey-select--disabled</code>
+    (opacity .45). Swimlane mode: select is enabled; chosen option persists per scope (in-memory Map — not written
+    to frontmatter). Zoom slot (<code>.sf-ws-zoomslot</code>) is empty in Swimlane mode — the grid scrolls
+    natively. The whole <code>.sf-ws-tlbar</code> row is hidden (<code>.sf-ws-tlbar--hidden</code>) when any
+    non-Timeline layout is active.</p>
+  </figure>
+
+  <figure style="width:720px">
+    <figcaption><b>S85b · Timeline toolbar — Swimlane mode, By Plotline selected.</b>
+    Swimlane is active: Rail|Swimlane seg shows Swimlane selected; group-by select is <b>enabled</b> and shows
+    "By Plotline"; zoom slot is <b>empty</b> (swimlane uses native grid scroll). <b>M6 · S85b.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div></div>
+      <!-- Swimlane mode: select enabled, zoom slot empty -->
+      <div class="tlbar">
+        <div class="seg"><span>Rail</span><span class="sel">Swimlane</span></div>
+        <select title="Group by" style="font-size:11px;padding:2px 8px;border:1px solid var(--border-2);border-radius:6px;background:var(--panel);color:var(--muted)">
+          <option>By POV</option><option>By Location</option><option selected>By Plotline</option>
+        </select>
+        <!-- zoom slot empty in swimlane -->
+      </div>
+      <div class="mbody" style="padding:10px 14px">
+        <p style="color:var(--faint);font-size:12px;margin:0">Swimlane grid body (<code>.sf-sw-grid</code>) … zoom slot intentionally empty.</p>
+      </div>
+    </div>
+  </figure>
+
+</div>
+
+<!-- =================== S86–S87: PLOTGRID M3 ORIENTATION (NEW) =================== -->
+<h2>S86–S87 — Plotgrid (M3 orientation: scenes rows × plotlines cols) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · write-back: plotlines · <code>.sf-pg-*</code></span></h2>
+<div class="gallery">
+
+  <figure style="width:720px">
+    <figcaption><b>S86 · Plotgrid — populated matrix (M3: scenes as ROWS, plotlines as COLUMNS).</b>
+    Row header (col 1) = scene order + title as drill link (<code>.sf-pg-row-head</code>).
+    Column headers = plotline name with colour dot (<code>.sf-pg-col-head</code>, <code>.sf-pg-col-dot</code>);
+    border-left carries plotline colour (<code>--sf-pg-col-color</code>); unresolved column muted
+    (<code>.sf-pg-col-head--unresolved</code>).
+    <b>Filled cell</b> (<code>.sf-pg-cell--filled</code>) — low-opacity plotline background + left accent border —
+    shows status badge + <code>when</code> (<code>.sf-pg-cell-inner</code>).
+    <b>Empty cell</b> — transparent, hover outline. One cell shown in hover state. <b>M6 · S86.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">▦ Plotgrid</span><span>◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div></div>
+      <div class="mbody" style="overflow-x:auto;padding:12px 14px">
+        <!-- pg-table: role=table, aria-label="Plotgrid: scenes × plotlines" -->
+        <div class="pg-table" style="min-width:580px">
+          <!-- header row -->
+          <div class="pg-thead">
+            <div class="pg-tr">
+              <div class="pg-th pg-corner" style="min-width:160px">Plotgrid</div>
+              <div class="pg-th pg-col-head dying" style="border-left-color:var(--pl-dying)">
+                <span class="pg-col-dot" style="background:var(--pl-dying)"></span>
+                <span class="pg-col-name" style="color:var(--link)">The Dying Light</span>
+              </div>
+              <div class="pg-th pg-col-head oath" style="border-left-color:var(--pl-oath)">
+                <span class="pg-col-dot" style="background:var(--pl-oath)"></span>
+                <span class="pg-col-name" style="color:var(--link)">The Warden's Oath</span>
+              </div>
+              <div class="pg-th pg-col-head shadow" style="border-left-color:var(--pl-shadow)">
+                <span class="pg-col-dot" style="background:var(--pl-shadow)"></span>
+                <span class="pg-col-name" style="color:var(--link)">Shadow Trade</span>
+              </div>
+              <div class="pg-th pg-col-head unresolved" style="border-left-color:var(--pl-unres)">
+                <span class="pg-col-name">Unresolved</span>
+              </div>
+            </div>
+          </div>
+          <!-- body rows: one per scene -->
+          <div class="pg-tbody">
+            <!-- scene 1: Extinguished Fire (Dying Light) -->
+            <div class="pg-tr">
+              <div class="pg-row-head">1. The Extinguished Fire</div>
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+                <div class="pg-cell-inner">
+                  <span class="pg-cell-status" style="color:var(--pl-dying)">draft</span>
+                  <span class="pg-cell-when">Night 1</span>
+                </div>
+              </div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
+            </div>
+            <!-- scene 2: Salty Gull (Dying Light) -->
+            <div class="pg-tr">
+              <div class="pg-row-head">2. The Salty Gull</div>
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+                <div class="pg-cell-inner">
+                  <span class="pg-cell-status" style="color:var(--pl-dying)">draft</span>
+                  <span class="pg-cell-when">Night 1</span>
+                </div>
+              </div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
+            </div>
+            <!-- scene 3: Black Cliffs (Dying Light) -->
+            <div class="pg-tr">
+              <div class="pg-row-head">3. The Black Cliffs</div>
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+                <div class="pg-cell-inner">
+                  <span class="pg-cell-status" style="color:var(--pl-dying)">outline</span>
+                  <span class="pg-cell-when">Night 2</span>
+                </div>
+              </div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
+            </div>
+            <!-- scene 4: Signal Tower (Dying Light + Warden's Oath — multi-plotline) -->
+            <div class="pg-tr">
+              <div class="pg-row-head">4. The Signal Tower</div>
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+                <div class="pg-cell-inner">
+                  <span class="pg-cell-status" style="color:var(--pl-dying)">outline</span>
+                  <span class="pg-cell-when">Night 3</span>
+                </div>
+              </div>
+              <div class="pg-cell filled oath" style="--sf-pg-col-color:var(--pl-oath)">
+                <div class="pg-cell-inner">
+                  <span class="pg-cell-status" style="color:var(--pl-oath)">outline</span>
+                  <span class="pg-cell-when">Night 3</span>
+                </div>
+              </div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
+            </div>
+            <!-- scene 5: A Message in Salt (Warden's Oath) -->
+            <div class="pg-tr">
+              <div class="pg-row-head">5. A Message in Salt</div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell filled oath" style="--sf-pg-col-color:var(--pl-oath)">
+                <div class="pg-cell-inner">
+                  <span class="pg-cell-status" style="color:var(--pl-oath)">outline</span>
+                </div>
+              </div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
+            </div>
+            <!-- scene 6: Long Watch (Unassigned — hovering on Shadow Trade) -->
+            <div class="pg-tr">
+              <div class="pg-row-head">6. The Long Watch</div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell hovering"></div>
+              <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>M3 orientation:</b> ROWS = scenes (order-sorted within each act group), COLUMNS = plotlines
+    (colour-coded). Corner cell reads "Plotgrid" (<code>.sf-pg-corner</code>). Unresolved plotline columns are
+    muted + <code>aria-disabled="true"</code> — no listeners. The Signal Tower is a multi-plotline scene: both
+    Dying Light and Warden's Oath cells in its row are filled. Shadow Trade (0 scenes) column is fully empty until
+    a cell is toggled. Clicking/Space/Enter on an interactive cell toggles <code>plotlines</code> membership.</p>
+  </figure>
+
+  <figure style="width:720px">
+    <figcaption><b>S87 · Plotgrid — cell toggle (post-write).</b> The user clicked empty <b>Scene 6 × Shadow
+    Trade</b>. The cell is now filled: <code>.sf-pg-cell--filled</code> + plotline-colour left border + inner
+    status/when badge. A success <b>toast</b> confirms the write — <code>plotlines</code> gained
+    <code>[[Shadow Trade]]</code>. Optimistic update fires immediately; <code>onAfter</code> triggers re-render
+    from <code>metadataCache.changed</code>. <b>M6 · S87.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">▦ Plotgrid</span><span>◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div></div>
+      <div class="toast">✓ Added <b style="color:var(--text)">The Long Watch</b> to <b style="color:var(--text)">Shadow Trade</b></div>
+      <div class="mbody" style="overflow-x:auto;padding:12px 14px">
+        <div class="pg-table" style="min-width:580px">
+          <div class="pg-thead">
+            <div class="pg-tr">
+              <div class="pg-th pg-corner" style="min-width:160px">Plotgrid</div>
+              <div class="pg-th pg-col-head dying" style="border-left-color:var(--pl-dying)">
+                <span class="pg-col-dot" style="background:var(--pl-dying)"></span>
+                <span class="pg-col-name" style="color:var(--link)">The Dying Light</span>
+              </div>
+              <div class="pg-th pg-col-head oath" style="border-left-color:var(--pl-oath)">
+                <span class="pg-col-dot" style="background:var(--pl-oath)"></span>
+                <span class="pg-col-name" style="color:var(--link)">The Warden's Oath</span>
+              </div>
+              <div class="pg-th pg-col-head shadow" style="border-left-color:var(--pl-shadow)">
+                <span class="pg-col-dot" style="background:var(--pl-shadow)"></span>
+                <span class="pg-col-name" style="color:var(--link)">Shadow Trade</span>
+              </div>
+            </div>
+          </div>
+          <div class="pg-tbody">
+            <div class="pg-tr">
+              <div class="pg-row-head">1. The Extinguished Fire</div>
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+                <div class="pg-cell-inner"><span class="pg-cell-status" style="color:var(--pl-dying)">draft</span><span class="pg-cell-when">Night 1</span></div>
+              </div>
+              <div class="pg-cell"></div><div class="pg-cell"></div>
+            </div>
+            <div class="pg-tr">
+              <div class="pg-row-head">2. The Salty Gull</div>
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+                <div class="pg-cell-inner"><span class="pg-cell-status" style="color:var(--pl-dying)">draft</span><span class="pg-cell-when">Night 1</span></div>
+              </div>
+              <div class="pg-cell"></div><div class="pg-cell"></div>
+            </div>
+            <div class="pg-tr">
+              <div class="pg-row-head">3. The Black Cliffs</div>
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+                <div class="pg-cell-inner"><span class="pg-cell-status" style="color:var(--pl-dying)">outline</span><span class="pg-cell-when">Night 2</span></div>
+              </div>
+              <div class="pg-cell"></div><div class="pg-cell"></div>
+            </div>
+            <div class="pg-tr">
+              <div class="pg-row-head">4. The Signal Tower</div>
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+                <div class="pg-cell-inner"><span class="pg-cell-status" style="color:var(--pl-dying)">outline</span></div>
+              </div>
+              <div class="pg-cell filled oath" style="--sf-pg-col-color:var(--pl-oath)">
+                <div class="pg-cell-inner"><span class="pg-cell-status" style="color:var(--pl-oath)">outline</span></div>
+              </div>
+              <div class="pg-cell"></div>
+            </div>
+            <div class="pg-tr">
+              <div class="pg-row-head">5. A Message in Salt</div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell filled oath" style="--sf-pg-col-color:var(--pl-oath)">
+                <div class="pg-cell-inner"><span class="pg-cell-status" style="color:var(--pl-oath)">outline</span></div>
+              </div>
+              <div class="pg-cell"></div>
+            </div>
+            <!-- scene 6: now filled in Shadow Trade column -->
+            <div class="pg-tr">
+              <div class="pg-row-head">6. The Long Watch</div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell"></div>
+              <div class="pg-cell filled shadow" style="--sf-pg-col-color:var(--pl-shadow)">
+                <div class="pg-cell-inner">
+                  <span class="pg-cell-status" style="color:var(--pl-shadow)">draft</span>
+                  <span class="pg-cell-when">Night 4</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Ours vs StoryLine:</b> the toggle appends/removes one <code>[[wikilink]]</code> in the
+    <code>plotlines</code> array — a value a human could have typed by hand. Toggling off filters by stripped
+    name (handles both raw and wikilink forms). The write is a single frontmatter-field edit; rollback on failure
+    restores the exact pre-click DOM state (<code>aria-checked</code> + inner content).</p>
+  </figure>
+
+</div>
+
+<!-- =================== S88–S89: SWIMLANE GRID (NEW) =================== -->
+<h2>S88–S89 — Swimlane grid (<code>.sf-sw-grid</code>) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only · COLUMNS per lane value, ROWS per scene</span></h2>
+<div class="gallery">
+
+  <figure style="width:720px">
+    <figcaption><b>S88 · Swimlane grid — By POV.</b>
+    The swimlane is a <b>CSS grid</b> (<code>.sf-sw-grid</code>) with dynamic <code>grid-template-columns</code>
+    driven by <code>--sf-sw-cols</code> (set inline):
+    <b>column 1 = sequence axis</b> (<code>.sf-sw-seq</code> — seq# + storyDay badge, sticky left);
+    <b>remaining columns = one per lane value</b> (<code>.sf-sw-lanehead</code> per header; <code>.sf-sw-cell</code>
+    per body cell). <b>Header row</b> = sticky corner (<code>.sf-sw-corner</code>) + lane headers.
+    <b>Act-divider rows</b> (<code>.sf-sw-actrow</code>) span <em>all</em> columns.
+    <b>Each scene row</b>: seq cell + one <code>.sf-sw-cell</code> per lane — the lane the scene belongs to
+    contains a <code>.sf-sw-mini</code> card (dot + title drill link + status/when); other cells empty.
+    Read-only. <b>M6 · S88.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div></div>
+      <div class="tlbar">
+        <div class="seg"><span>Rail</span><span class="sel">Swimlane</span></div>
+        <select title="Group by" style="font-size:11px;padding:2px 8px;border:1px solid var(--border-2);border-radius:6px;background:var(--panel);color:var(--muted)">
+          <option selected>By POV</option><option>By Location</option><option>By Plotline</option>
+        </select>
+      </div>
+      <div class="mbody" style="padding:10px 14px;overflow:auto">
+        <!--
+          .sf-sw-grid: grid-template-columns = --sf-sw-cols = "80px minmax(180px,1fr) minmax(180px,1fr) minmax(180px,1fr) minmax(140px,0.8fr)"
+          Simulated with fixed widths for the mockup.
+        -->
+        <div class="sw-grid" style="--sf-sw-cols:80px minmax(160px,1fr) minmax(160px,1fr) minmax(160px,1fr) minmax(130px,.8fr)">
+          <!-- header row -->
+          <div class="sw-corner">#</div>
+          <div class="sw-lanehead">Mara Stoneway</div>
+          <div class="sw-lanehead">Tobias Ferro</div>
+          <div class="sw-lanehead">Elke Stoneway</div>
+          <div class="sw-lanehead neutral">No POV</div>
+          <!-- act divider: spans all 5 columns -->
+          <div class="sw-actrow" style="grid-column:1/-1">ACT 1 · The Failing Light</div>
+          <!-- scene 1: Mara -->
+          <div class="sw-seq"><span class="seqn">1</span><span class="seqwhen">D1</span></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-dying)"></span>
+              <span class="sw-mini-title">The Extinguished Fire</span>
+              <div class="sw-mini-meta"><span class="sd">draft</span><span>· Night 1</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <!-- scene 2: Mara -->
+          <div class="sw-seq"><span class="seqn">2</span><span class="seqwhen">D1</span></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-dying)"></span>
+              <span class="sw-mini-title">The Salty Gull</span>
+              <div class="sw-mini-meta"><span class="sd">draft</span><span>· Night 1</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <!-- scene 3: Mara -->
+          <div class="sw-seq"><span class="seqn">3</span><span class="seqwhen">D2</span></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-dying)"></span>
+              <span class="sw-mini-title">The Black Cliffs</span>
+              <div class="sw-mini-meta"><span class="so">outline</span><span>· Night 2</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <!-- act divider -->
+          <div class="sw-actrow" style="grid-column:1/-1">ACT 2 · The Gathering Dark</div>
+          <!-- scene 4: Tobias -->
+          <div class="sw-seq"><span class="seqn">4</span><span class="seqwhen">D3</span></div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-oath)"></span>
+              <span class="sw-mini-title">The Signal Tower</span>
+              <div class="sw-mini-meta"><span class="so">outline</span><span>· Night 3</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <!-- scene 5: Mara -->
+          <div class="sw-seq"><span class="seqn">5</span><span class="seqwhen">—</span></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-oath)"></span>
+              <span class="sw-mini-title">A Message in Salt</span>
+              <div class="sw-mini-meta"><span class="so">outline</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <!-- scene 6: Elke -->
+          <div class="sw-seq"><span class="seqn">6</span><span class="seqwhen">D4</span></div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-none)"></span>
+              <span class="sw-mini-title">The Long Watch</span>
+              <div class="sw-mini-meta"><span class="sd">draft</span><span>· Night 4</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Column template is generated at render time: <code>--sf-sw-cols: 80px repeat(N, minmax(180px, 1fr))</code>.
+    The corner and lane headers are sticky. Act dividers span the full grid width via
+    <code>grid-column: 1 / -1</code>. The sequence axis (col 1) carries the seq# + storyDay badge
+    (<code>.sf-sw-seqn</code> + <code>.sf-sw-seqwhen</code>). Read-only — clicking a mini-card title drills the
+    scene note.</p>
+  </figure>
+
+  <figure style="width:720px">
+    <figcaption><b>S89 · Swimlane grid — By plotline (multi-lane fan-out).</b>
+    Same grid, grouped by plotline. "The Signal Tower" belongs to <b>both</b> Dying Light and Warden's Oath, so
+    its row has a <code>.sf-sw-mini</code> card in <b>each</b> of those columns. "The Long Watch" has no plotline
+    → it appears in the <b>Unassigned</b> column (<code>.sf-sw-lanehead--neutral</code>). Shadow Trade (0 scenes)
+    has a lane header but all its cells are empty. Read-only. <b>M6 · S89.</b></figcaption>
+    <div class="view main">
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div></div>
+      <div class="tlbar">
+        <div class="seg"><span>Rail</span><span class="sel">Swimlane</span></div>
+        <select title="Group by" style="font-size:11px;padding:2px 8px;border:1px solid var(--border-2);border-radius:6px;background:var(--panel);color:var(--muted)">
+          <option>By POV</option><option>By Location</option><option selected>By Plotline</option>
+        </select>
+      </div>
+      <div class="mbody" style="padding:10px 14px;overflow:auto">
+        <div class="sw-grid" style="--sf-sw-cols:80px minmax(150px,1fr) minmax(150px,1fr) minmax(130px,.9fr) minmax(110px,.8fr)">
+          <!-- header row -->
+          <div class="sw-corner">#</div>
+          <div class="sw-lanehead dying" style="color:var(--pl-dying)">
+            <span class="sw-mini-dot" style="background:var(--pl-dying);display:inline-block;margin-right:5px;vertical-align:middle"></span>The Dying Light
+          </div>
+          <div class="sw-lanehead oath" style="color:var(--pl-oath)">
+            <span class="sw-mini-dot" style="background:var(--pl-oath);display:inline-block;margin-right:5px;vertical-align:middle"></span>The Warden's Oath
+          </div>
+          <div class="sw-lanehead shadow" style="color:var(--pl-shadow)">
+            <span class="sw-mini-dot" style="background:var(--pl-shadow);display:inline-block;margin-right:5px;vertical-align:middle"></span>Shadow Trade
+          </div>
+          <div class="sw-lanehead neutral">Unassigned</div>
+          <!-- act divider -->
+          <div class="sw-actrow" style="grid-column:1/-1">ACT 1 · The Failing Light</div>
+          <!-- scene 1: Dying Light -->
+          <div class="sw-seq"><span class="seqn">1</span><span class="seqwhen">D1</span></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-dying)"></span>
+              <span class="sw-mini-title">The Extinguished Fire</span>
+              <div class="sw-mini-meta"><span class="sd">draft</span><span>· Night 1</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div><div class="sw-cell"></div><div class="sw-cell"></div>
+          <!-- scene 2: Dying Light -->
+          <div class="sw-seq"><span class="seqn">2</span><span class="seqwhen">D1</span></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-dying)"></span>
+              <span class="sw-mini-title">The Salty Gull</span>
+              <div class="sw-mini-meta"><span class="sd">draft</span><span>· Night 1</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div><div class="sw-cell"></div><div class="sw-cell"></div>
+          <!-- scene 3: Dying Light -->
+          <div class="sw-seq"><span class="seqn">3</span><span class="seqwhen">D2</span></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-dying)"></span>
+              <span class="sw-mini-title">The Black Cliffs</span>
+              <div class="sw-mini-meta"><span class="so">outline</span><span>· Night 2</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div><div class="sw-cell"></div><div class="sw-cell"></div>
+          <!-- act divider -->
+          <div class="sw-actrow" style="grid-column:1/-1">ACT 2 · The Gathering Dark</div>
+          <!-- scene 4: Signal Tower — fan-out: appears in BOTH Dying Light and Warden's Oath columns -->
+          <div class="sw-seq"><span class="seqn">4</span><span class="seqwhen">D3</span></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-dying)"></span>
+              <span class="sw-mini-title">The Signal Tower</span>
+              <div class="sw-mini-meta"><span class="so">outline</span><span>· fan-out</span></div>
+            </div>
+          </div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-oath)"></span>
+              <span class="sw-mini-title">The Signal Tower</span>
+              <div class="sw-mini-meta"><span class="so">outline</span><span>· fan-out</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell"></div>
+          <!-- scene 5: Warden's Oath -->
+          <div class="sw-seq"><span class="seqn">5</span><span class="seqwhen">—</span></div>
+          <div class="sw-cell"></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-oath)"></span>
+              <span class="sw-mini-title">A Message in Salt</span>
+              <div class="sw-mini-meta"><span class="so">outline</span></div>
+            </div>
+          </div>
+          <div class="sw-cell"></div><div class="sw-cell"></div>
+          <!-- scene 6: Unassigned -->
+          <div class="sw-seq"><span class="seqn">6</span><span class="seqwhen">D4</span></div>
+          <div class="sw-cell"></div><div class="sw-cell"></div><div class="sw-cell"></div>
+          <div class="sw-cell">
+            <div class="sw-mini">
+              <span class="sw-mini-dot" style="background:var(--pl-none)"></span>
+              <span class="sw-mini-title">The Long Watch</span>
+              <div class="sw-mini-meta"><span class="sd">draft</span><span>· Night 4</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Fan-out: <code>laneOf(scene)</code> returns a Set of lane keys; each scene row has a mini-card
+    in every matching column, empty cells elsewhere. A multi-plotline scene appears once per plotline column it
+    belongs to — no deduplication. The Unassigned lane key is <code>"__unassigned__"</code> in the model;
+    <code>.sf-sw-lanehead--neutral</code> gives it the muted style. Zero-scene plotlines (Shadow Trade) show a
+    lane header with all empty cells — not hidden.</p>
+  </figure>
+
+</div>
+
 <p class="note" style="margin-top:26px;max-width:96ch">
-<b>Scope (M6, spec 007):</b> six features — three <b>write-back</b> (F1 Kanban → <code>status</code> + sparse-int
-<code>order</code>; F2 Plotgrid → <code>plotlines</code> links; F3 Timeline placement → integer-snap
-<code>storyDay</code>, never <code>order</code>) and three <b>read-only</b> (F4 Locations tree, F5 Swimlanes by
-POV/plotline, F6 ephemeral zoom/pan). Every write is a single plain-frontmatter field a human could have typed,
-optimistic with rollback on failure, and fully reversible in the file — the plugin never owns state. The Plotlines
-<b>subway map is deferred to M7</b>. Continues the M5 mockup numbering (S72 → S73–S84).
+<b>Scope (M6, spec 007 — polished):</b> two <b>write-back</b> surfaces: <b>F1 Kanban</b> (drag →
+<code>status</code> + sparse-int <code>order</code>) and <b>F2 Plotgrid</b> (click-toggle →
+<code>plotlines</code> links, M3 orientation: scenes rows × plotlines cols). <b>Read-only:</b> <b>F5 Swimlanes</b>
+(columns-grid: one column per lane value, rows per scene, act dividers span all cols) and <b>F6 ephemeral zoom</b>
+(toolbar row: Rail|Swimlane seg + group-by select + zoom bar). <b>Timeline is read-only</b> — placement drag
+deferred. <b>Locations tree removed</b> — moved to the Codex milestone. Superseded figures (S75–S82) are
+preserved with banners. New figures: S85 (toolbar row), S86–S87 (Plotgrid M3), S88–S89 (swimlane columns-grid).
+Total figures: <b>18</b> (14 active + 4 superseded pairs S75/S76, S77/S78, S79/S80, S81/S82).
+Continues M5 numbering (S72 → S73–S89).
 </p>
 
 </body>
