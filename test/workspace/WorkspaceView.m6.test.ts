@@ -261,6 +261,59 @@ describe("WorkspaceView M6 — handler lifecycle + aria-live", () => {
 	});
 });
 
+describe("WorkspaceView M6 — zoom listener lifecycle (W2)", () => {
+	it("zoom listeners are bounded per render: prior child is unloaded on re-render", async () => {
+		const fx = makeFixture();
+		const view = makeView(fx.app);
+		await view.onOpen();
+
+		// After onOpen() the view is in rail mode and has rendered once.
+		// Inspect via the private field.
+		const pv = view as unknown as { _zoomChild: { _cleanupFns: Array<() => unknown>; _children: unknown[] } | null; _render: () => void };
+
+		// Capture the first zoom child.
+		const firstChild = pv._zoomChild;
+		expect(firstChild).not.toBeNull();
+		// The first child has exactly 4 cleanup fns (3 buttons + 1 wheel listener).
+		expect(firstChild!._cleanupFns.length).toBe(4);
+
+		// Re-render (simulates metadataCache.changed) twice more.
+		pv._render();
+		const secondChild = pv._zoomChild;
+		expect(secondChild).not.toBeNull();
+		expect(secondChild).not.toBe(firstChild);
+		// The first child has been unloaded: its cleanup fns are cleared.
+		expect(firstChild!._cleanupFns.length).toBe(0);
+		// The second child now holds exactly 4 fns.
+		expect(secondChild!._cleanupFns.length).toBe(4);
+
+		pv._render();
+		const thirdChild = pv._zoomChild;
+		expect(thirdChild).not.toBe(secondChild);
+		// Second child is also unloaded.
+		expect(secondChild!._cleanupFns.length).toBe(0);
+		// Only the latest child's 4 listeners remain — no unbounded accumulation.
+		expect(thirdChild!._cleanupFns.length).toBe(4);
+	});
+
+	it("onClose unloads the zoom child releasing its listeners (belt-and-suspenders)", async () => {
+		const fx = makeFixture();
+		const view = makeView(fx.app);
+		await view.onOpen();
+
+		const pv = view as unknown as { _zoomChild: { _cleanupFns: Array<() => unknown> } | null };
+		const child = pv._zoomChild;
+		expect(child).not.toBeNull();
+		expect(child!._cleanupFns.length).toBe(4);
+
+		await view.onClose();
+
+		// After close the child is nulled and its cleanups have run.
+		expect(pv._zoomChild).toBeNull();
+		expect(child!._cleanupFns.length).toBe(0);
+	});
+});
+
 describe("WorkspaceView M6 — write-error surface (ADR-24)", () => {
 	it("marks the card with an error class and fires a Notice on write failure", async () => {
 		Notice._reset();

@@ -26,7 +26,7 @@
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-16, ADR-20, ADR-21, ADR-22, ADR-24, ADR-25
  */
 
-import { ItemView, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
+import { Component, ItemView, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
 import { DEBOUNCE_MS } from "pluginConstants";
 import { revealAndShowFile } from "views/SidebarView";
 import { resolveWorkspaceScope } from "scoping/workspaceScope";
@@ -105,6 +105,8 @@ export class WorkspaceView extends ItemView {
 	private _zoomSlotEl: HTMLElement | null = null;
 	private _liveEl: HTMLElement | null = null;
 	private _handler: InteractionHandler | null = null;
+	/** Child Component owning the current zoom listeners. Replaced on every rail render. */
+	private _zoomChild: Component | null = null;
 	private readonly getLinkClickAction: () => "drill" | "open";
 	private readonly _drill: (file: TFile) => void;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
@@ -224,6 +226,13 @@ export class WorkspaceView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this._debouncedRender.cancel();
+		// Belt-and-suspenders: removeChild unloads the zoom child's listeners even if
+		// a re-render didn't run since the last rail render. addChild already ties the
+		// child to this view's lifecycle, but explicit removal here is the safe default.
+		if (this._zoomChild !== null) {
+			this.removeChild(this._zoomChild);
+			this._zoomChild = null;
+		}
 		this._handler?.destroy();
 		this._handler = null;
 		this._collapse.clear();
@@ -306,6 +315,12 @@ export class WorkspaceView extends ItemView {
 
 	/** Timeline layout: rail (with zoom, read-only) or swimlane grid (read-only). */
 	private _renderTimeline(body: HTMLElement, rows: SceneRow[]): void {
+		// Tear down the previous zoom child (releases its 4 DOM listeners) so they
+		// don't accumulate across re-renders triggered by metadataCache.changed (ADR-22).
+		if (this._zoomChild !== null) {
+			this.removeChild(this._zoomChild);
+			this._zoomChild = null;
+		}
 		// The zoom controls live in the toolbar slot; reset it each render.
 		this._zoomSlotEl?.empty();
 
@@ -323,9 +338,16 @@ export class WorkspaceView extends ItemView {
 			return;
 		}
 
+		// Rail: fresh child Component owns the 4 zoom listeners this render cycle.
+		// Each re-render removes the previous child (unloading its listeners) and
+		// creates a new one — preventing unbounded listener accumulation.
+		const zoomChild = new Component();
+		this.addChild(zoomChild);
+		this._zoomChild = zoomChild;
+
 		// Rail: split zoom — controls in the toolbar slot, scaled body in the main
 		// body. Read-only — drill only, no placement drag.
-		const zoom = createTimelineZoom(this, {
+		const zoom = createTimelineZoom(zoomChild, {
 			controlsHost: this._zoomSlotEl ?? body,
 			scaledHost: body,
 		});

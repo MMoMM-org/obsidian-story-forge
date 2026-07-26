@@ -118,18 +118,52 @@ describe("renderTimeline (swimlane columns grid)", () => {
 		expect(heads).toContain("PlotB");
 		// The mini-card appears in BOTH plotline columns.
 		expect(el.querySelectorAll(".sf-sw-mini").length).toBe(2);
+
+		// Positional check: the grid has 2 lanes (PlotA col 0, PlotB col 1 after
+		// name-ascending sort). Children: [0] corner, [1] PlotA-head, [2] PlotB-head,
+		// [3] act-divider, [4] seq-cell, [5] PlotA-cell, [6] PlotB-cell.
+		// Both PlotA and PlotB cells must contain a mini-card; no other cell type
+		// receives one.
+		const grid = el.querySelector(".sf-sw-grid")!;
+		const kids = [...grid.children];
+		const plotACell = kids[5]!;
+		const plotBCell = kids[6]!;
+		expect(plotACell.querySelector(".sf-sw-mini")).not.toBeNull();
+		expect(plotBCell.querySelector(".sf-sw-mini")).not.toBeNull();
 	});
 
 	it("leaves other lane cells empty (no mini-card) for a single-lane scene", () => {
 		const el = host();
-		const rows = [
-			row({ title: "S1", act: 1, order: 10, pov: { name: "Alice", path: "Alice.md" } }),
-			row({ title: "S2", act: 1, order: 20, pov: { name: "Bob", path: "Bob.md" } }),
-		];
-		renderGrid(el, rows, "pov");
-		// 2 lanes × 2 scene rows = 4 cells, but only 2 filled (one per scene).
+		// Alice (col 0) and Bob (col 1) — swimlaneModel sorts by name ascending.
+		const alice = row({ title: "S1", act: 1, order: 10, pov: { name: "Alice", path: "Alice.md" } });
+		const bob   = row({ title: "S2", act: 1, order: 20, pov: { name: "Bob",   path: "Bob.md"   } });
+		renderGrid(el, [alice, bob], "pov");
+
+		// Overall counts are unchanged.
 		expect(el.querySelectorAll(".sf-sw-cell").length).toBe(4);
 		expect(el.querySelectorAll(".sf-sw-mini").length).toBe(2);
+
+		// Grid children order (all direct children of .sf-sw-grid):
+		//   [0] corner, [1] Alice-head, [2] Bob-head,
+		//   [3] act-divider,
+		//   [4] seq-S1, [5] S1-cell-Alice, [6] S1-cell-Bob,
+		//   [7] seq-S2, [8] S2-cell-Alice, [9] S2-cell-Bob.
+		const grid = el.querySelector(".sf-sw-grid")!;
+		const kids = [...grid.children];
+
+		// Alice's scene (S1) occupies Alice's column cell → has a mini-card.
+		const s1AliceCell = kids[5]!;
+		expect(s1AliceCell.querySelector(".sf-sw-mini")).not.toBeNull();
+		// Bob's column cell for S1's row → empty.
+		const s1BobCell = kids[6]!;
+		expect(s1BobCell.querySelector(".sf-sw-mini")).toBeNull();
+
+		// Bob's scene (S2) occupies Bob's column cell → has a mini-card.
+		const s2BobCell = kids[9]!;
+		expect(s2BobCell.querySelector(".sf-sw-mini")).not.toBeNull();
+		// Alice's column cell for S2's row → empty.
+		const s2AliceCell = kids[8]!;
+		expect(s2AliceCell.querySelector(".sf-sw-mini")).toBeNull();
 	});
 
 	it("renders full-width act-divider rows spanning all columns", () => {

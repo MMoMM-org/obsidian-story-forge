@@ -101,4 +101,27 @@ describe("swimlaneGrid", () => {
 		expect(last.label).toBe("No act");
 		expect(last.scenes.map((s) => s.title)).toEqual(["S2"]);
 	});
+
+	it("laneOf returns unresolved:<name> for a scene whose pov.path is empty (unresolved link)", () => {
+		// pov.path === "" means the wikilink could not be resolved to a vault file.
+		const s = row({ title: "S1", act: 1, pov: { name: "Ghost", path: "" } });
+		const grid = swimlaneGrid([s], "pov");
+		// The lane key must be unresolved:<name>, not pov:<name>.
+		const laneKey = grid.laneOf(s)[0];
+		expect(laneKey).toBe("unresolved:Ghost");
+		expect(laneKey).not.toContain("pov:");
+		// The lane in the grid must carry kind "unresolved".
+		const lane = grid.lanes.find((l) => l.key === "unresolved:Ghost");
+		expect(lane?.kind).toBe("unresolved");
+	});
+
+	it("laneOf returns unresolved:<name> for a scene whose location.path is empty (unresolved link)", () => {
+		const s = row({ title: "S1", act: 1, location: { name: "Limbo", path: "" } });
+		const grid = swimlaneGrid([s], "location");
+		const laneKey = grid.laneOf(s)[0];
+		expect(laneKey).toBe("unresolved:Limbo");
+		expect(laneKey).not.toContain("location:");
+		const lane = grid.lanes.find((l) => l.key === "unresolved:Limbo");
+		expect(lane?.kind).toBe("unresolved");
+	});
 });

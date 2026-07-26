@@ -101,6 +101,35 @@ export class Component {
 	protected _cleanupFns: Array<() => unknown> = [];
 
 	/**
+	 * Registered child components (faithful to real Obsidian Component.addChild).
+	 * Exposed as `_children` for test-side inspection of child count / identity.
+	 */
+	_children: Component[] = [];
+
+	/**
+	 * addChild — mirrors real Obsidian Component.addChild<T extends Component>(component: T): T.
+	 * Registers `component` as a child: stores it in `_children` and queues a cleanup
+	 * so that when THIS component is unloaded, the child is also unloaded (removeChild).
+	 * Returns the child (mirrors real API).
+	 */
+	addChild<T extends Component>(component: T): T {
+		this._children.push(component);
+		this._cleanupFns.push(() => { this.removeChild(component); });
+		return component;
+	}
+
+	/**
+	 * removeChild — mirrors real Obsidian Component.removeChild<T extends Component>(component: T): T.
+	 * Unloads the child component and detaches it from `_children`. Returns the child.
+	 */
+	removeChild<T extends Component>(component: T): T {
+		component._unload();
+		const idx = this._children.indexOf(component);
+		if (idx !== -1) this._children.splice(idx, 1);
+		return component;
+	}
+
+	/**
 	 * registerDomEvent — tracks registration AND wires the real DOM listener.
 	 *
 	 * The real Obsidian registerDomEvent attaches the listener AND stores it for

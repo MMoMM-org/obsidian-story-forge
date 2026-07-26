@@ -8,8 +8,10 @@
  * card's fields (POV, location, characters) are individual drill/open links, with the
  * POV character's chip highlighted.
  *
- * Swimlane mode: one collapsible lane per Group (caller passes groups from swimlaneModel).
- * Both modes share the same card-render helper — no card DOM duplication.
+ * Swimlane mode (M6 rework): a CSS grid — COLUMNS per group value (one per lane),
+ * ROWS per scene grouped by act. The caller passes a `SwimlaneGrid` (from `swimlaneGrid()`);
+ * each scene's compact mini-card sits in its lane column(s) via `laneOf()`; other cells
+ * are empty. Uses `renderMiniCard` as the card helper (no rail card duplication).
  *
  * Both modes are strictly read-only: no writes, no imports of interactionHandler.
  *
