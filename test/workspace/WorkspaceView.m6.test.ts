@@ -222,6 +222,18 @@ describe("WorkspaceView M6 — Timeline toolbar", () => {
 		expect(scaled.style.getPropertyValue("--sf-zoom")).not.toBe("1");
 	});
 
+	it("zoom-in is functional for the kanban layout (hoisted zoom child listeners are live)", () => {
+		view.setLayout("kanban");
+		const scaled = body(view).querySelector(".sf-zoom-scaled") as HTMLElement;
+		expect(scaled).not.toBeNull();
+		// Before clicking, scale is at default (unset or "1").
+		expect(scaled.style.getPropertyValue("--sf-zoom") || "1").toBe("1");
+		click(view.contentEl.querySelector(`[aria-label="Zoom in"]`));
+		const zoom = scaled.style.getPropertyValue("--sf-zoom");
+		expect(zoom).not.toBe("");
+		expect(zoom).not.toBe("1");
+	});
+
 	it("zoom controls are present in the head for the kanban layout", () => {
 		view.setLayout("kanban");
 		expect(view.contentEl.querySelector(".sf-ws-head > .sf-ws-zoomslot .sf-zoom-bar")).not.toBeNull();

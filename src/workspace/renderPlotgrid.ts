@@ -163,11 +163,8 @@ function renderSceneRow(
 
 		if (isUnresolved) {
 			cellEl.setAttribute("aria-disabled", "true");
-		}
-
-		if (!isUnresolved) {
-			const color = plotlineColor(plotline.name);
-			cellEl.style.setProperty("--sf-pg-col-color", color);
+		} else {
+			cellEl.style.setProperty("--sf-pg-col-color", plotlineColor(plotline.name));
 		}
 
 		if (isFilled) {

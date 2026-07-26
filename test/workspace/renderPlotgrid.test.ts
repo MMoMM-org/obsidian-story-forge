@@ -359,6 +359,36 @@ describe("renderPlotgrid (read-only coverage view)", () => {
 	});
 
 	// -------------------------------------------------------------------------
+	// PG-RO-13b: Empty plotlines scope + scenes with no plotline refs → no crash
+	// -------------------------------------------------------------------------
+	it("empty allPlotlines + scenes with no plotline refs → renders corner + row-headers, no column headers, no crash", () => {
+		// Symmetric to the empty-scenes guard (PG-RO-13): now the OTHER axis is empty.
+		const resolver: LinkResolver = (_text) => null;
+		const s1 = makeSceneRow({ title: "S1", plotlines: [] });
+		const s2 = makeSceneRow({ title: "S2", plotlines: [] });
+		const model = plotgridModelFromScope([s1, s2], [], resolver);
+
+		// Must not throw.
+		renderPlotgrid(host, model);
+
+		// The table renders (scenes exist).
+		const table = host.querySelector("[role='table']");
+		expect(table).not.toBeNull();
+
+		// Only the corner — no plotline column headers.
+		const colHeaders = host.querySelectorAll("[role='columnheader']");
+		expect(colHeaders.length).toBe(1);
+		expect(colHeaders[0]?.classList.contains("sf-pg-corner")).toBe(true);
+
+		// Both scene rows are present.
+		const rowHeaders = host.querySelectorAll("[role='rowheader']");
+		expect(rowHeaders.length).toBe(2);
+		const texts = Array.from(rowHeaders).map((el) => el.textContent ?? "");
+		expect(texts.some((t) => t.includes("S1"))).toBe(true);
+		expect(texts.some((t) => t.includes("S2"))).toBe(true);
+	});
+
+	// -------------------------------------------------------------------------
 	// PG-RO-14: NO write path — clicking a cell does NOT call processFrontMatter
 	// -------------------------------------------------------------------------
 	it("clicking a filled cell does NOT call processFrontMatter (no write path)", async () => {

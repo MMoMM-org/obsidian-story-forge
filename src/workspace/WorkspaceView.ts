@@ -8,11 +8,10 @@
  *   timeline  — rail OR swimlane (read; M6 adds swimlane + zoom)
  *   plotlines — Plotlines list (read, M5)
  *   kanban    — status columns, drag→status+order write-back (M6)
- *   plotgrid  — plotline × scene matrix, click-toggle plotlines write-back (M6)
+ *   plotgrid  — read-only Scene × Plotline coverage matrix (M6; editable/configurable → GH #8)
  *
  * The view OWNS one `InteractionHandler` (constructed in onOpen, destroyed in onClose —
- * CON-4) used by the Kanban board; the Plotgrid uses a click-toggle (not the drag
- * machine). A write:
+ * CON-4) used by the Kanban board (the sole write surface). A Kanban write:
  *   - is committed via the single seam (`commit` / `commitMany`),
  *   - optimistically re-renders (`onAfter`),
  *   - on failure marks the card + fires a `Notice` (ADR-24),
