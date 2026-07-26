@@ -1,8 +1,10 @@
 /**
- * renderPlotgrid.test.ts — T5.2 (RED → GREEN)
+ * renderPlotgrid.test.ts — T5.2 (M3 orientation: rows=scenes, columns=plotlines)
  *
- * Tests for renderPlotgrid: click/Space/Enter toggle → plotlines write,
- * unresolved axis non-interactive, sibling fields untouched, keyboard parity.
+ * Tests for renderPlotgrid: scenes×plotlines layout, click/Space/Enter toggle,
+ * plotline colour coding, filled-cell status+when content, unresolved-column
+ * non-interactive, sibling fields untouched, keyboard parity, rollback on
+ * write failure.
  *
  * Design Clarification 2: Plotgrid uses a click-toggle (not the drag machine).
  * Writes via commit(app, file, "plotlines", newArray, {name:"plotlines",type:"list"}).
@@ -32,7 +34,7 @@ function makeSceneRow(
 		act: null,
 		order: o.order ?? null,
 		storyDay: null,
-		when: "",
+		when: o.when ?? "",
 		status: o.status ?? "",
 		pov: null,
 		location: null,
@@ -84,9 +86,10 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-1: Matrix renders rows × cols (role=table / gridcell / aria-checked)
+	// T5.2-1: Scenes are rows, plotlines are columns (role=table / columnheader /
+	//          rowheader / gridcell / aria-checked)
 	// -------------------------------------------------------------------------
-	it("renders plotline×scene matrix with role=table/gridcell and aria-checked", () => {
+	it("renders scene rows × plotline columns: rowheaders are scenes, columnheaders are plotlines", () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
 		const s2 = makeSceneRow({ title: "S2", plotlines: ["[[Beta]]"] });
 		const resolver = makeResolver(["Alpha", "Beta"]);
@@ -99,9 +102,28 @@ describe("renderPlotgrid", () => {
 		const table = host.querySelector("[role='table']");
 		expect(table).not.toBeNull();
 
-		// gridcell elements
+		// Column headers: one per plotline (Alpha, Beta) + corner
+		const colHeaders = host.querySelectorAll("[role='columnheader']");
+		// corner + Alpha + Beta = 3
+		expect(colHeaders.length).toBe(3);
+
+		// Row headers: one per scene (S1, S2)
+		const rowHeaders = host.querySelectorAll("[role='rowheader']");
+		expect(rowHeaders.length).toBe(2);
+
+		// Column headers should contain plotline names
+		const colHeaderTexts = Array.from(colHeaders).map((el) => el.textContent ?? "");
+		expect(colHeaderTexts.some((t) => t.includes("Alpha"))).toBe(true);
+		expect(colHeaderTexts.some((t) => t.includes("Beta"))).toBe(true);
+
+		// Row headers should contain scene titles
+		const rowHeaderTexts = Array.from(rowHeaders).map((el) => el.textContent ?? "");
+		expect(rowHeaderTexts.some((t) => t.includes("S1"))).toBe(true);
+		expect(rowHeaderTexts.some((t) => t.includes("S2"))).toBe(true);
+
+		// gridcell elements: 2 scenes × 2 plotlines = 4 cells
 		const cells = host.querySelectorAll("[role='gridcell']");
-		expect(cells.length).toBeGreaterThan(0);
+		expect(cells.length).toBe(4);
 
 		// aria-checked on cells
 		const checkedCells = host.querySelectorAll("[aria-checked='true']");
@@ -109,13 +131,120 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-2: Empty cell click → appends plotline to scene's plotlines
+	// T5.2-2: Structural position — S1×Alpha is filled, S1×Beta is empty
+	// -------------------------------------------------------------------------
+	it("correctly marks filled vs empty cells for scene×plotline membership", () => {
+		// S1 is on Alpha only; S2 is on Beta only
+		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
+		const s2 = makeSceneRow({ title: "S2", plotlines: ["[[Beta]]"] });
+		const resolver = makeResolver(["Alpha", "Beta"]);
+		const model = plotgridModel([s1, s2], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+
+		renderPlotgrid(host, model, deps);
+
+		// S1×Alpha: filled
+		const s1Alpha = host.querySelector(
+			"[role='gridcell'][data-sf-scene='scenes/S1.md'][data-sf-plotline='Alpha']",
+		) as HTMLElement;
+		expect(s1Alpha).not.toBeNull();
+		expect(s1Alpha.getAttribute("aria-checked")).toBe("true");
+		expect(s1Alpha.classList.contains("sf-pg-cell--filled")).toBe(true);
+
+		// S1×Beta: empty
+		const s1Beta = host.querySelector(
+			"[role='gridcell'][data-sf-scene='scenes/S1.md'][data-sf-plotline='Beta']",
+		) as HTMLElement;
+		expect(s1Beta).not.toBeNull();
+		expect(s1Beta.getAttribute("aria-checked")).toBe("false");
+		expect(s1Beta.classList.contains("sf-pg-cell--filled")).toBe(false);
+
+		// S2×Alpha: empty
+		const s2Alpha = host.querySelector(
+			"[role='gridcell'][data-sf-scene='scenes/S2.md'][data-sf-plotline='Alpha']",
+		) as HTMLElement;
+		expect(s2Alpha).not.toBeNull();
+		expect(s2Alpha.getAttribute("aria-checked")).toBe("false");
+
+		// S2×Beta: filled
+		const s2Beta = host.querySelector(
+			"[role='gridcell'][data-sf-scene='scenes/S2.md'][data-sf-plotline='Beta']",
+		) as HTMLElement;
+		expect(s2Beta).not.toBeNull();
+		expect(s2Beta.getAttribute("aria-checked")).toBe("true");
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-3: Filled cell shows status + when content
+	// -------------------------------------------------------------------------
+	it("filled cell contains status and when text", () => {
+		const s1 = makeSceneRow({
+			title: "S1",
+			plotlines: ["[[Alpha]]"],
+			status: "Draft",
+			when: "Night 1",
+		});
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([s1], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+
+		renderPlotgrid(host, model, deps);
+
+		const filledCell = host.querySelector(
+			"[role='gridcell'][aria-checked='true'][data-sf-scene='scenes/S1.md'][data-sf-plotline='Alpha']",
+		) as HTMLElement;
+		expect(filledCell).not.toBeNull();
+
+		// Should contain status text somewhere inside
+		expect(filledCell.textContent).toContain("Draft");
+		// Should contain when text somewhere inside
+		expect(filledCell.textContent).toContain("Night 1");
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-4: Plotline column headers are colour-coded
+	// -------------------------------------------------------------------------
+	it("plotline column headers have a colour dot (data-driven colour)", () => {
+		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([s1], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+
+		renderPlotgrid(host, model, deps);
+
+		// The column header for Alpha should have a colour dot element
+		const colDot = host.querySelector(".sf-pg-col-dot") as HTMLElement;
+		expect(colDot).not.toBeNull();
+		// The dot should have an inline background color
+		expect(colDot.style.background).not.toBe("");
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-5: Row header contains scene order + title as drill link
+	// -------------------------------------------------------------------------
+	it("row header shows scene title as a drill link (data-sf-link)", () => {
+		const s1 = makeSceneRow({ title: "S1", order: 3, plotlines: ["[[Alpha]]"] });
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([s1], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+
+		renderPlotgrid(host, model, deps);
+
+		const drillSpan = host.querySelector("[role='rowheader'] [data-sf-link]") as HTMLElement;
+		expect(drillSpan).not.toBeNull();
+		expect(drillSpan.getAttribute("data-sf-link")).toBe("scenes/S1.md");
+		expect(drillSpan.textContent).toContain("S1");
+		// order=3 should appear in the label
+		expect(drillSpan.textContent).toContain("3");
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-6: Empty cell click → appends plotline to scene's plotlines
 	// -------------------------------------------------------------------------
 	it("clicking an empty cell appends the plotline to scene plotlines", async () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: [] });
 		const resolver = makeResolver(["Alpha"]);
 
-		// Pre-seed so we can assert after write
 		const s1file = createMockTFile({ path: "scenes/S1.md", basename: "S1" });
 		app.fileManager._setFrontmatter("scenes/S1.md", {
 			plotlines: [],
@@ -123,31 +252,29 @@ describe("renderPlotgrid", () => {
 			storyDay: 3,
 		});
 
-		// plotgridModel needs a row with Alpha to include it in the plotline axis.
+		// S2 carries Alpha so the plotline appears in the model's axis
 		const s2 = makeSceneRow({ title: "S2", plotlines: ["[[Alpha]]"] });
 		const s2file = createMockTFile({ path: "scenes/S2.md", basename: "S2" });
 		app.fileManager._setFrontmatter("scenes/S2.md", { plotlines: ["[[Alpha]]"] });
-		const model2 = plotgridModel(
+
+		const model = plotgridModel(
 			[{ ...s1, file: s1file }, { ...s2, file: s2file }],
 			resolver,
 		);
 
 		const deps: PlotgridDeps = { app, component, onAfter };
-		renderPlotgrid(host, model2, deps);
+		renderPlotgrid(host, model, deps);
 
-		// Find the empty cell for S1×Alpha (S1 has no plotlines, so it's empty)
-		// Cells are identified by [data-sf-scene][data-sf-plotline]
+		// Find the empty cell for S1×Alpha
 		const emptyCell = host.querySelector(
 			"[role='gridcell'][aria-checked='false'][data-sf-scene='scenes/S1.md'][data-sf-plotline='Alpha']",
 		) as HTMLElement;
 		expect(emptyCell).not.toBeNull();
 
 		emptyCell.click();
-
-		// Wait for async write
 		await Promise.resolve();
 
-		// The frontmatter should now include Alpha
+		// Frontmatter should now include Alpha
 		const fm = app.fileManager._getFrontmatter("scenes/S1.md");
 		const plotlines = fm["plotlines"] as string[];
 		expect(plotlines).toBeDefined();
@@ -155,7 +282,7 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-3: Filled cell click → removes plotline preserving order
+	// T5.2-7: Filled cell click → removes plotline preserving order
 	// -------------------------------------------------------------------------
 	it("clicking a filled cell removes the plotline preserving remaining order", async () => {
 		const s1 = makeSceneRow({
@@ -173,7 +300,7 @@ describe("renderPlotgrid", () => {
 		const deps: PlotgridDeps = { app, component, onAfter };
 		renderPlotgrid(host, model, deps);
 
-		// Click the Alpha cell (should be filled since S1 has Alpha)
+		// Click the filled Alpha cell
 		const filledCell = host.querySelector(
 			"[role='gridcell'][aria-checked='true'][data-sf-scene='scenes/S1.md'][data-sf-plotline='Alpha']",
 		) as HTMLElement;
@@ -182,7 +309,7 @@ describe("renderPlotgrid", () => {
 		filledCell.click();
 		await Promise.resolve();
 
-		// Alpha should be removed, Beta should remain
+		// Alpha removed, Beta remains
 		const fm = app.fileManager._getFrontmatter("scenes/S1.md");
 		const plotlines = fm["plotlines"] as string[];
 		expect(plotlines.some((pl: string) => pl.includes("Alpha"))).toBe(false);
@@ -190,10 +317,10 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-4: Unresolved plotline axis — cells are non-interactive
+	// T5.2-8: Unresolved plotline column — cells are non-interactive
 	// -------------------------------------------------------------------------
-	it("unresolved plotline axis is flagged and cells are non-interactive (no write on click)", async () => {
-		// Resolver that resolves nothing
+	it("unresolved plotline column cells are aria-disabled and do not write on click", async () => {
+		// Resolver resolves nothing → all plotlines unresolved
 		const resolver: LinkResolver = (_text) => null;
 		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Unknown]]"] });
 		const s1file = createMockTFile({ path: "scenes/S1.md", basename: "S1" });
@@ -203,11 +330,12 @@ describe("renderPlotgrid", () => {
 		const deps: PlotgridDeps = { app, component, onAfter };
 		renderPlotgrid(host, model, deps);
 
-		// Unresolved plotline cells should have aria-disabled or not be clickable
+		// Cells in unresolved columns have aria-disabled
 		const unresolvedCell = host.querySelector(
 			"[data-sf-plotline='Unknown']",
 		) as HTMLElement;
 		expect(unresolvedCell).not.toBeNull();
+		expect(unresolvedCell.getAttribute("aria-disabled")).toBe("true");
 
 		// Click should NOT trigger a write
 		unresolvedCell.click();
@@ -217,9 +345,9 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-5: Keyboard Space/Enter toggle — same as click
+	// T5.2-9: Keyboard Space key toggle — same as click
 	// -------------------------------------------------------------------------
-	it("Space key on a filled cell toggles the plotline (keyboard parity)", async () => {
+	it("Space key on a filled cell removes the plotline (keyboard parity)", async () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
 		const s1file = createMockTFile({ path: "scenes/S1.md", basename: "S1" });
 		app.fileManager._setFrontmatter("scenes/S1.md", {
@@ -236,7 +364,6 @@ describe("renderPlotgrid", () => {
 		) as HTMLElement;
 		expect(filledCell).not.toBeNull();
 
-		// Dispatch Space keydown
 		filledCell.dispatchEvent(new KeyboardEvent("keydown", {
 			key: " ",
 			bubbles: true,
@@ -251,7 +378,7 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-6: Keyboard Enter toggle — same as click
+	// T5.2-10: Keyboard Enter toggle — same as click
 	// -------------------------------------------------------------------------
 	it("Enter key on an empty cell appends the plotline (keyboard parity)", async () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: [] });
@@ -274,7 +401,6 @@ describe("renderPlotgrid", () => {
 		) as HTMLElement;
 		expect(emptyCell).not.toBeNull();
 
-		// Dispatch Enter keydown
 		emptyCell.dispatchEvent(new KeyboardEvent("keydown", {
 			key: "Enter",
 			bubbles: true,
@@ -288,7 +414,7 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-7: Sibling fields untouched (status, storyDay unchanged)
+	// T5.2-11: Sibling fields untouched (status, storyDay unchanged)
 	// -------------------------------------------------------------------------
 	it("only plotlines field changes on toggle — sibling fields untouched", async () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
@@ -322,7 +448,7 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-8: Toggle to zero plotlines works (scene can have empty plotlines)
+	// T5.2-12: Toggle to zero plotlines works (scene can have empty plotlines)
 	// -------------------------------------------------------------------------
 	it("toggling last plotline off results in empty plotlines array (no crash)", async () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
@@ -348,7 +474,7 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-9: onAfter is called after a successful write
+	// T5.2-13: onAfter is called after a successful write
 	// -------------------------------------------------------------------------
 	it("onAfter is called after a successful toggle write", async () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
@@ -372,7 +498,7 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-10: Empty scope → empty-state
+	// T5.2-14: Empty scope → empty-state
 	// -------------------------------------------------------------------------
 	it("empty model → renders empty-state message", () => {
 		const resolver = makeResolver([]);
@@ -385,7 +511,7 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-11: processFrontMatter is the write path (single writer seam)
+	// T5.2-15: processFrontMatter is the write path (single writer seam)
 	// -------------------------------------------------------------------------
 	it("uses processFrontMatter as the single write path — not raw DOM mutations", async () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
@@ -408,7 +534,7 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-12: Cells have tabindex=0 for keyboard reachability (a11y)
+	// T5.2-16: Interactive cells have tabindex=0 for keyboard reachability (a11y)
 	// -------------------------------------------------------------------------
 	it("interactive cells have tabindex='0' for keyboard accessibility", () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
@@ -428,7 +554,7 @@ describe("renderPlotgrid", () => {
 	});
 
 	// -------------------------------------------------------------------------
-	// T5.2-13: Rollback on write failure — optimistic flip is reverted
+	// T5.2-17: Rollback on write failure — optimistic flip is reverted
 	// -------------------------------------------------------------------------
 	it("rolls back the optimistic cell flip when the write fails", async () => {
 		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
@@ -468,5 +594,38 @@ describe("renderPlotgrid", () => {
 
 		// onAfter must NOT have been called (write did not succeed)
 		expect(onAfter).not.toHaveBeenCalled();
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-18: Corner cell is labelled "Plotgrid"
+	// -------------------------------------------------------------------------
+	it("corner cell contains 'Plotgrid' label", () => {
+		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([s1], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+
+		renderPlotgrid(host, model, deps);
+
+		const corner = host.querySelector(".sf-pg-corner");
+		expect(corner).not.toBeNull();
+		expect(corner?.textContent).toContain("Plotgrid");
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-19: Unresolved column header is muted/flagged
+	// -------------------------------------------------------------------------
+	it("unresolved plotline column header has the unresolved modifier class", () => {
+		const resolver: LinkResolver = (_text) => null;
+		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Phantom]]"] });
+		const model = plotgridModel([s1], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+
+		renderPlotgrid(host, model, deps);
+
+		// Header for the unresolved plotline should have the --unresolved class
+		const unresolvedHeader = host.querySelector(".sf-pg-col-head--unresolved");
+		expect(unresolvedHeader).not.toBeNull();
+		expect(unresolvedHeader?.getAttribute("data-sf-plotline-col")).toBe("Phantom");
 	});
 });

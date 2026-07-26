@@ -1,9 +1,9 @@
 /**
- * renderPlotgrid — F2: Plotline × scene matrix with click-toggle write-back.
+ * renderPlotgrid — F2: Scene × Plotline matrix with click-toggle write-back.
  *
- * Renders a grid where rows=plotlines, columns=scenes. Each cell shows whether
- * the scene belongs to that plotline. Clicking a cell toggles the plotline in
- * the scene's `plotlines` frontmatter list.
+ * Renders a grid where ROWS = scenes, COLUMNS = plotlines (M3 orientation).
+ * Each cell shows whether the scene belongs to that plotline. Clicking a cell
+ * toggles the plotline in the scene's `plotlines` frontmatter list.
  *
  * Design Clarification 2: This surface uses a click/keyboard toggle, NOT the
  * drag machine (InteractionHandler). The toggle writes via the single write
@@ -12,16 +12,27 @@
  * Listeners are registered via component.registerDomEvent so cleanup is owned
  * by the Obsidian Component lifecycle (CON-4).
  *
+ * Row header (col 1):  scene order index + title as a [data-sf-link] drill span.
+ * Column headers:      plotline name, colour-coded via plotlineColor(name).
+ *                      Unresolved plotline (path === "") columns are flagged/muted.
+ *
+ * Filled cell (has(sceneIdx, plotline) === true):
+ *   Shows compact indicator: status badge + `when` field ("Draft · Night 1").
+ *
  * Cell DOM:
  *   [role="gridcell"][aria-checked][tabindex="0"]
  *   [data-sf-scene=<file.path>][data-sf-plotline=<plotline.name>]
- *   - Resolved plotline: interactive (click/Space/Enter toggles)
- *   - Unresolved plotline: [aria-disabled="true"], no listeners
+ *   - Resolved plotline column: interactive (click/Space/Enter toggles)
+ *   - Unresolved plotline column: [aria-disabled="true"], no listeners
  *
  * Table DOM:
  *   [role="table"].sf-pg-table
- *     .sf-pg-thead > .sf-pg-tr > [role="columnheader"].sf-pg-th  (per scene)
- *     .sf-pg-tbody > .sf-pg-tr > [role="rowheader"]+[role="gridcell"]  (per plotline)
+ *     .sf-pg-thead > .sf-pg-tr
+ *       [role="columnheader"].sf-pg-corner          (top-left corner)
+ *       [role="columnheader"].sf-pg-col-head        (one per plotline, colour-coded)
+ *     .sf-pg-tbody > .sf-pg-tr                      (one per scene)
+ *       [role="rowheader"].sf-pg-row-head           (scene order + title)
+ *       [role="gridcell"].sf-pg-cell                (one per plotline)
  *
  * @ref docs/XDD/specs/007-interactive-views/plan/phase-5.md — T5.2
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-14, AC-3/AC-4
@@ -30,7 +41,14 @@
 import type { App, Component, TFile } from "obsidian";
 import { emptyLine } from "../panel/components";
 import { commit } from "../inspector/frontmatterWriter";
-import { type PlotgridModel, stripLink, type Link } from "./workspaceModel";
+import {
+	type PlotgridModel,
+	stripLink,
+	type Link,
+	plotlineColor,
+	type SceneRow,
+} from "./workspaceModel";
+import { statusSlug } from "./renderShared";
 
 // ---------------------------------------------------------------------------
 // Field spec for plotlines (list type)
@@ -64,7 +82,7 @@ export interface PlotgridDeps {
 // ---------------------------------------------------------------------------
 
 /**
- * Render a Plotline × Scene matrix into `host`.
+ * Render a Scene × Plotline matrix into `host` (M3 orientation).
  *
  * @param host  Host element to render into
  * @param model Output of plotgridModel()
@@ -83,32 +101,55 @@ export function renderPlotgrid(
 	// Build the grid table
 	const tableEl = host.createEl("div", { cls: "sf-pg-table" });
 	tableEl.setAttribute("role", "table");
-	tableEl.setAttribute("aria-label", "Plotgrid: plotlines × scenes");
+	tableEl.setAttribute("aria-label", "Plotgrid: scenes × plotlines");
 
-	// Header row: one column header per scene
+	// Header row: corner + one column header per plotline
 	const theadEl = tableEl.createEl("div", { cls: "sf-pg-thead" });
 	const headRowEl = theadEl.createEl("div", { cls: "sf-pg-tr" });
-	// Corner cell (plotline label column)
-	headRowEl.createEl("div", { cls: "sf-pg-th sf-pg-corner" }).setAttribute("role", "columnheader");
 
-	for (const scene of model.scenes) {
-		const thEl = headRowEl.createEl("div", { cls: "sf-pg-th" });
-		thEl.setAttribute("role", "columnheader");
-		thEl.setAttribute("aria-label", scene.title);
-		thEl.setAttribute("title", scene.title);
-		// Scene header as drill link
-		const titleSpan = thEl.createEl("span", { cls: "sf-pg-scene-title", text: scene.title });
-		titleSpan.setAttribute("data-sf-link", scene.file.path);
-		titleSpan.setAttribute("role", "link");
-		titleSpan.setAttribute("tabindex", "0");
-	}
+	// Corner cell (top-left)
+	const cornerEl = headRowEl.createEl("div", { cls: "sf-pg-th sf-pg-corner" });
+	cornerEl.setAttribute("role", "columnheader");
+	cornerEl.textContent = "Plotgrid";
 
-	// Body rows: one row per plotline
-	const tbodyEl = tableEl.createEl("div", { cls: "sf-pg-tbody" });
-
+	// One column header per plotline, colour-coded
 	for (const plotline of model.plotlines) {
 		const isUnresolved = plotline.path === "";
-		renderPlotlineRow(tbodyEl, plotline, model, deps, isUnresolved);
+		const thEl = headRowEl.createEl("div", {
+			cls: isUnresolved
+				? "sf-pg-th sf-pg-col-head sf-pg-col-head--unresolved"
+				: "sf-pg-th sf-pg-col-head",
+		});
+		thEl.setAttribute("role", "columnheader");
+		thEl.setAttribute("aria-label", plotline.name);
+		thEl.setAttribute("title", isUnresolved ? `${plotline.name} (unresolved)` : plotline.name);
+		thEl.setAttribute("data-sf-plotline-col", plotline.name);
+
+		// Colour dot + name
+		if (!isUnresolved) {
+			const color = plotlineColor(plotline.name);
+			const dotEl = thEl.createEl("span", { cls: "sf-pg-col-dot" });
+			dotEl.style.background = color;
+			thEl.style.setProperty("--sf-pg-col-color", color);
+		}
+
+		const nameSpan = thEl.createEl("span", {
+			cls: "sf-pg-col-name",
+			text: plotline.name,
+		});
+		if (!isUnresolved) {
+			nameSpan.setAttribute("data-sf-link", plotline.path);
+			nameSpan.setAttribute("role", "link");
+			nameSpan.setAttribute("tabindex", "0");
+		}
+	}
+
+	// Body rows: one row per scene
+	const tbodyEl = tableEl.createEl("div", { cls: "sf-pg-tbody" });
+
+	for (let sceneIdx = 0; sceneIdx < model.scenes.length; sceneIdx++) {
+		const scene = model.scenes[sceneIdx]!;
+		renderSceneRow(tbodyEl, scene, sceneIdx, model, deps);
 	}
 }
 
@@ -116,45 +157,43 @@ export function renderPlotgrid(
 // Row rendering
 // ---------------------------------------------------------------------------
 
-function renderPlotlineRow(
+function renderSceneRow(
 	tbody: HTMLElement,
-	plotline: Link,
+	scene: SceneRow,
+	sceneIdx: number,
 	model: PlotgridModel,
 	deps: PlotgridDeps,
-	isUnresolved: boolean,
 ): void {
 	const rowEl = tbody.createEl("div", { cls: "sf-pg-tr" });
 	rowEl.setAttribute("role", "row");
 
-	// Row header: plotline name
+	// Row header: scene order index + title as drill link
 	const rhEl = rowEl.createEl("div", { cls: "sf-pg-row-head" });
 	rhEl.setAttribute("role", "rowheader");
-	if (isUnresolved) {
-		rhEl.classList.add("sf-pg-row-head--unresolved");
-		rhEl.setAttribute("title", "Unresolved plotline link");
-	}
-	const labelEl = rhEl.createEl("span", {
-		cls: "sf-pg-plotline-label",
-		text: plotline.name,
-	});
-	// Resolved plotlines are drillable
-	if (!isUnresolved) {
-		labelEl.setAttribute("data-sf-link", plotline.path);
-		labelEl.setAttribute("role", "link");
-		labelEl.setAttribute("tabindex", "0");
-	}
 
-	// Cells: one per scene
-	for (let sceneIdx = 0; sceneIdx < model.scenes.length; sceneIdx++) {
-		const scene = model.scenes[sceneIdx]!;
+	const orderLabel = scene.order !== null ? `${scene.order}. ` : "";
+	const titleSpan = rhEl.createEl("span", {
+		cls: "sf-pg-scene-title",
+		text: `${orderLabel}${scene.title}`,
+	});
+	titleSpan.setAttribute("data-sf-link", scene.file.path);
+	titleSpan.setAttribute("role", "link");
+	titleSpan.setAttribute("tabindex", "0");
+
+	// One cell per plotline column
+	for (const plotline of model.plotlines) {
+		const isUnresolved = plotline.path === "";
 		const isFilled = model.has(sceneIdx, plotline);
 
-		const cellEl = rowEl.createEl("div", { cls: "sf-pg-cell" });
+		const cellEl = rowEl.createEl("div", {
+			cls: isFilled
+				? "sf-pg-cell sf-pg-cell--filled"
+				: "sf-pg-cell",
+		});
 		cellEl.setAttribute("role", "gridcell");
 		cellEl.setAttribute("aria-checked", String(isFilled));
 		cellEl.setAttribute("data-sf-scene", scene.file.path);
 		cellEl.setAttribute("data-sf-plotline", plotline.name);
-		if (isFilled) cellEl.classList.add("sf-pg-cell--filled");
 
 		if (isUnresolved) {
 			// Non-interactive: no listeners, aria-disabled
@@ -162,8 +201,45 @@ function renderPlotlineRow(
 		} else {
 			// Interactive: tabindex + click + Space/Enter keyboard
 			cellEl.setAttribute("tabindex", "0");
+
+			// Set column accent color on the cell (for filled indicator)
+			const color = plotlineColor(plotline.name);
+			cellEl.style.setProperty("--sf-pg-col-color", color);
+
+			if (isFilled) {
+				renderFilledContent(cellEl, scene);
+			}
+
 			bindCellToggle(cellEl, scene.file, plotline, scene.plotlines, deps);
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Filled cell content
+// ---------------------------------------------------------------------------
+
+/**
+ * Render the compact indicator inside a filled cell:
+ * status badge + when field (e.g. "Draft · Night 1").
+ */
+function renderFilledContent(cell: HTMLElement, scene: SceneRow): void {
+	const innerEl = cell.createEl("span", { cls: "sf-pg-cell-inner" });
+
+	// Status badge (skips if empty)
+	if (scene.status !== "") {
+		innerEl.createEl("span", {
+			cls: `sf-pg-cell-status sf-pg-cell-status--${statusSlug(scene.status)}`,
+			text: scene.status,
+		});
+	}
+
+	// When field
+	if (scene.when !== "") {
+		innerEl.createEl("span", {
+			cls: "sf-pg-cell-when",
+			text: scene.when,
+		});
 	}
 }
 

@@ -2263,7 +2263,9 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * Plotgrid (M6 / T5.2) — Plotline × scene membership matrix.
+ * Plotgrid (M6 / T5.2, M3 orientation) — Scene × Plotline membership matrix.
+ * ROWS = scenes; COLUMNS = plotlines (colour-coded).
+ * Filled cells show status badge + when field.
  * sf-pg-* classes: table, header, rows, cells, filled state.
  * ═════════════════════════════════════════════════════════════════════════ */
 
@@ -2291,12 +2293,12 @@ body {
 	border-bottom: none;
 }
 
-/* Column header (scene titles) */
+/* ── Column headers (plotline names, colour-coded) ── */
 
 .sf-pg-th {
-	min-width: 64px;
-	max-width: 100px;
-	flex: 1 0 64px;
+	min-width: 72px;
+	max-width: 120px;
+	flex: 1 0 72px;
 	padding: 4px 6px;
 	font-size: 10px;
 	font-weight: 600;
@@ -2310,13 +2312,87 @@ body {
 	border-right: none;
 }
 
+/* Top-left corner cell */
 .sf-pg-corner {
-	min-width: 100px;
-	max-width: 160px;
-	flex: 0 0 120px;
+	min-width: 110px;
+	max-width: 180px;
+	flex: 0 0 130px;
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--text-faint);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
 	background: var(--background-secondary);
+	display: flex;
+	align-items: center;
+	padding: 4px 8px;
 }
 
+/* Plotline column header — coloured accent stripe on left edge */
+.sf-pg-col-head {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	padding-top: 5px;
+	padding-bottom: 5px;
+	background: var(--background-secondary);
+	border-left: 3px solid var(--sf-pg-col-color, var(--background-modifier-border));
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
+.sf-pg-col-head--unresolved {
+	opacity: 0.45;
+	border-left-color: var(--text-faint);
+}
+
+/* Colour dot inside the column header */
+.sf-pg-col-dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.sf-pg-col-name {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 100%;
+}
+
+.sf-pg-col-name[data-sf-link] {
+	color: var(--link-color);
+	cursor: pointer;
+}
+
+.sf-pg-col-name[data-sf-link]:hover {
+	text-decoration: underline;
+}
+
+/* ── Row headers (scene order + title) ── */
+
+.sf-pg-row-head {
+	min-width: 110px;
+	max-width: 180px;
+	flex: 0 0 130px;
+	padding: 4px 8px;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--text-normal);
+	background: var(--background-secondary);
+	border-right: 1px solid var(--background-modifier-border);
+	overflow: hidden;
+	position: sticky;
+	left: 0;
+	z-index: 1;
+}
+
+/* Scene title — drillable link */
 .sf-pg-scene-title {
 	display: block;
 	overflow: hidden;
@@ -2333,60 +2409,29 @@ body {
 	text-decoration: underline;
 }
 
-/* Row header (plotline labels) */
-
-.sf-pg-row-head {
-	min-width: 100px;
-	max-width: 160px;
-	flex: 0 0 120px;
-	padding: 4px 6px;
-	font-size: 11px;
-	font-weight: 500;
-	color: var(--text-normal);
-	background: var(--background-secondary);
-	border-right: 1px solid var(--background-modifier-border);
-	overflow: hidden;
-}
-
-.sf-pg-row-head--unresolved .sf-pg-plotline-label {
-	color: var(--text-muted);
-	font-style: italic;
-}
-
-.sf-pg-plotline-label {
-	display: block;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.sf-pg-plotline-label[data-sf-link] {
-	color: var(--link-color);
-	cursor: pointer;
-}
-
-.sf-pg-plotline-label[data-sf-link]:hover {
-	text-decoration: underline;
-}
-
-/* Grid cells */
+/* ── Grid cells ── */
 
 .sf-pg-cell {
-	min-width: 64px;
-	max-width: 100px;
-	flex: 1 0 64px;
+	min-width: 72px;
+	max-width: 120px;
+	flex: 1 0 72px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	height: 28px;
+	height: 36px;
 	border-right: 1px solid var(--background-modifier-border);
 	background: var(--background-primary);
-	cursor: pointer;
 	transition: background 0.1s;
+	overflow: hidden;
 }
 
 .sf-pg-cell:last-child {
 	border-right: none;
+}
+
+/* Interactive (resolved) cells */
+.sf-pg-cell[tabindex="0"] {
+	cursor: pointer;
 }
 
 .sf-pg-cell[tabindex="0"]:hover {
@@ -2398,21 +2443,55 @@ body {
 	outline-offset: -2px;
 }
 
-/* Filled cell */
+/* Filled cell — coloured by plotline via CSS custom property */
 .sf-pg-cell--filled {
-	background: var(--interactive-accent);
+	background: color-mix(in srgb, var(--sf-pg-col-color, var(--interactive-accent)) 20%, var(--background-primary));
+	border-left: 3px solid var(--sf-pg-col-color, var(--interactive-accent));
 }
 
-.sf-pg-cell--filled::after {
-	content: "●";
-	color: var(--text-on-accent);
-	font-size: 10px;
+.sf-pg-cell--filled:hover {
+	background: color-mix(in srgb, var(--sf-pg-col-color, var(--interactive-accent)) 30%, var(--background-primary));
 }
 
-/* Disabled cell (unresolved plotline) */
+/* Content inside a filled cell */
+.sf-pg-cell-inner {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 1px;
+	padding: 2px 4px;
+	overflow: hidden;
+	width: 100%;
+}
+
+/* Status badge inside filled cell */
+.sf-pg-cell-status {
+	font-size: 9px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--sf-pg-col-color, var(--text-muted));
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 100%;
+}
+
+/* When field inside filled cell */
+.sf-pg-cell-when {
+	font-size: 9px;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 100%;
+}
+
+/* Disabled cell (unresolved plotline column) */
 .sf-pg-cell[aria-disabled="true"] {
 	cursor: not-allowed;
-	opacity: 0.4;
+	opacity: 0.35;
+	background: var(--background-secondary);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
