@@ -40,6 +40,34 @@ as intended, 3 shipped on the wrong substrate, 2 shipped partially, 4 missing
 (not by decision), 3 closed by decision.** The "about 50% missing" instinct is
 accurate.
 
+A fourth cluster surfaced during review of this document and is registered in
+**§2.G**: the plugin drifted from Storyline as the reference model, and it has no
+place to keep the *operational* state (undo history) that safe drag-and-drop
+requires — which is part of why interactions kept retreating to read-only.
+
+### 1.1 Two invariants, previously conflated
+
+This audit initially read "frontmatter is truth" as "the plugin persists nothing".
+That is stricter than the actual decision, and the over-strict reading is itself a
+cause of gaps. The invariant splits in two:
+
+- **Story data — frontmatter only.** Everything a story needs (facts, typed
+  relations, status, order, `storyDay`) lives in the entity note's frontmatter as
+  plain Properties, readable and writable by the Properties UI, metadata-menu,
+  meta-bind or any script. This is the lock-in we refuse. It is intact today.
+- **Operational state — the plugin directory is fair game.** Undo history for
+  drag-and-drop, UI preferences, collapse state, view selection: none of this is
+  story data, none of it belongs in a note, and keeping it in `data.json` (or a
+  sibling file in the plugin folder) breaks no promise. Nothing here exists yet —
+  see **G20**.
+
+Two Longform frictions sit on the story-data side and are **deliberately unsolved
+for now**: Longform keeps scene order in its own index note, and story versions
+are separate directories. The expected end-game is taking Longform's role over
+and adapting it, rather than syncing against it (see §2.E / #3). Until then,
+Timeline/Kanban keep `order` and `storyDay` as separate axes and never write
+Longform's ordering.
+
 ## 2. Gap register
 
 Ranked by how much each blocks the founding idea. `Issue` = existing GitHub
@@ -53,6 +81,8 @@ issue, or `—` for gaps with no issue yet.
 | **G2** | The `_forge` view set is **hardcoded, not catalog data** | — |
 | **G3** | Workspace views are **unconfigurable hardcoded renderers** | partial: #4, #8 |
 | **G4** | **No scope/folder configuration** anywhere in settings | — |
+| **G19** | Plugin ships **no custom Bases views** (hero cards) | — |
+| **G20** | **User cannot extend entities** with own fields and see them | — |
 
 **G1 — Catalog and import flow cover disjoint engines.**
 *Promise:* `DESIGN.md §3` — one library, two provenances (`curated` | `imported`),
@@ -107,6 +137,38 @@ default exclusion).
 `Codex.base` hardcodes folder inclusion.
 *Impact:* the plugin only fits a vault laid out exactly like `test/StoryForge/`.
 For a "no structure lock-in" plugin this is the sharpest contradiction.
+
+**G19 — The plugin ships no custom Bases views.**
+*Promise:* ADR-0001 decision 2 establishes `registerBasesView` as the sanctioned
+way to render our own DOM inside a user's `.base` — we get the query, filter and
+formula engine for free, and the result is interactive. The point of paying that
+API-churn risk was to *use* it.
+*Reality:* exactly one view type is registered, `story-forge-codex`
+(`src/bases/BasesAdapter.ts`, wired at `src/main.ts:118`), and its only job is the
+Codex. There is no **hero card** view type for characters, locations or objects —
+the presentation that makes an entity browser feel like Storyline rather than a
+spreadsheet — and no card/gallery/profile type a user could select in their own
+`.base`.
+*Impact:* the five curated entries are plain tables. A user who writes their own
+`.base` gets whatever core Bases offers and nothing of ours, so the "build your
+own view" path (G20) has almost no Story-Forge-specific building blocks to build
+*with*. This is the cheapest large win in the register: the registration seam,
+the adapter and the write path all already exist.
+
+**G20 — Entities cannot be extended by the user.**
+*Promise:* the substrate is meant to be genre-agnostic — a user writing an isekai
+adds `skills` to characters, builds a skill codex, and sees skills in the sidebar
+panel, without the plugin knowing what a skill is.
+*Reality:* fields are compiled in three places: `schema/*.json` → generated vault
+artifacts (regenerating requires the repo and `npm run schema:gen`),
+`src/inspector/inspectorFields.ts` (the editable field list), and
+`src/panel/kindFields.ts` (what the panel renders per kind). An unknown
+frontmatter key is invisible everywhere; an unknown *entity kind* falls through
+to the flat fallback renderer (`src/panel/renderPanel.ts:48`).
+*Impact:* the plugin currently supports **one** story model — the `_forge` model
+that ships with it. Every other genre is a fork or a pull request. This is the
+same rigidity as G3, one layer down, and it is what the "curated **+
+user-authored**" library was supposed to prevent.
 
 ### B — Surfaces
 
@@ -214,8 +276,18 @@ frontmatter.
 
 | ID | Gap | Issue |
 |---|---|---|
-| **G15** | Longform integration is documented, **not verified or built** | #3 |
+| **G15** | Longform: documented, not built; **end-game is takeover** | #3 |
 | **G16** | Calendarium / `storyDate` absent; `when` is display-only | — |
+
+**G15 —** the division of labour says *"Longform owns the manuscript; we never
+touch it"*, and `order`/`storyDay` are kept as separate axes so the two tools do
+not fight. Two frictions make that stance temporary: Longform stores **scene
+order in its own index note** (not in frontmatter, so it is invisible to every
+frontmatter-driven view) and keeps **story versions as separate directories**.
+The current expectation is that Story Forge eventually **takes that role over and
+adapts it**, rather than syncing forever against a second source of truth. That
+is an end-game item, deliberately not scheduled — but it should be recorded on
+#3, because it changes what "integration" means: not a bridge, a replacement.
 
 **G16 —** `views-and-integration.md` designs `storyDate` forward-compatibly and
 *"two-calendar-aware"*; `schema/scene.json` carries `storyDay` + `when` and says
@@ -237,6 +309,63 @@ community-submission blocker under the obsidian-plugin rules; it costs minutes.
 M5 shipping v0.3 and M6 v0.4. Release CI is intentionally paused, so nothing is
 broken — but the version no longer identifies what is installed.
 
+### G — Reference fidelity, interaction safety, process
+
+| ID | Gap | Issue |
+|---|---|---|
+| **G21** | **Drift from Storyline** as the reference model, repeatedly | — |
+| **G22** | **No undo for view writes** — why interactions retreat to read-only | — |
+| **G23** | Mockups get signed off, then **not implemented as approved** | — |
+
+**G21 — Drift from the reference model.**
+*Promise:* `DESIGN.md §1` — *"View model → Storyline … We reproduce the views we
+want, driven off `_forge` properties"*; `storyline-analysis.md` exists solely to
+map Storyline view-by-view. The intent was: **copy what Storyline does well**,
+refuse only its ownership layer.
+*Reality:* deviations accumulated without ever being weighed against Storyline —
+the Plotgrid became scenes × plotlines with "richer cells" and then read-only;
+the Codex became a `.base` table instead of a card browser (G19); the Locations
+tree was dropped (G7); the Inspector renders our own field list rather than
+Storyline's section/pill/portrait template, which `storyline-analysis.md §6`
+explicitly named as an adoptable layout. Each deviation had a local reason; none
+was recorded as *"here is where we deliberately differ from Storyline, and why"*.
+*Impact:* the reference model stopped being a check on the work. The correction
+is not "copy Storyline literally" — it is that a deviation must be a **decision**
+with a reason, not a side effect. Two concrete mechanisms: a per-view fidelity
+pass against Storyline v1.10.41 that records adopt / deviate / reject per view,
+and a deviation note in each spec's decision log.
+
+**G22 — No undo for view writes.**
+*Promise:* none, historically — undo was classed as part of Storyline's *owning*
+layer (`storyline-analysis.md §6`: *"Do not adopt: the owning layer (`*Manager`,
+Undo, …)"*) and therefore refused.
+*Reality:* that refusal conflated two things. Storyline's `UndoManager` is
+objectionable because it sits on a plugin-owned data model — but an undo history
+for *our own writes* is operational state (§1.1), belongs in the plugin
+directory, and takes nothing away from frontmatter being truth. Today a drag
+writes through `frontmatterWriter.commit`/`commitMany` with no journal, no
+"undo last change", and no batch revert. Obsidian's editor undo does not cover
+`processFrontMatter` writes from a plugin view.
+*Impact:* **this is the root cause behind two other gaps.** Plotgrid was reverted
+to read-only (G9) after a click-toggle emptied five vault notes, and Timeline
+drag (G8) was never enabled — in both cases because a wrong write was
+unrecoverable. Ship a plugin-local undo journal (last N writes, file + field +
+previous value, "undo last Story Forge change" command) and the write-back tier
+becomes safe enough to finish. Sequence it **before** #7 and #8, not after.
+
+**G23 — Approved mockups are not the delivered thing.**
+*Promise:* the working agreement is mockups-first — author HTML states in the
+spec's `mockups.html`, get sign-off, *then* build what was signed off.
+*Reality:* the practice degrades in two ways: mockups get written as a
+by-the-way artifact rather than a review gate, and after sign-off the
+implementation diverges without the mockup being updated or the divergence
+flagged. `007`'s mockups were re-synced *after* the code changed (commits
+`1e53275`, `107392e` — "sync spec + mockups"), which is the tell: the mockup
+became a record of what was built rather than a specification of what to build.
+*Impact:* process, not code — but it is the mechanism by which G21 happens. Fix:
+sign-off is a gate; post-sign-off divergence is raised before it is coded, not
+documented afterwards.
+
 ## 3. Closed by decision (not gaps)
 
 Recorded so they are not re-opened by accident:
@@ -244,6 +373,10 @@ Recorded so they are not re-opened by accident:
 - **Corkboard**, **manuscript view** (Longform owns it), **stats/analytics**, and
   **plot-holes/warnings** — dropped in `views-and-integration.md`; the analysis
   track lives in the `_forge` Claude skills (`claude-skills.md`).
+- **Storyline's owning layer** (`*Manager`, export/import, embedded editors) —
+  still refused. **Revised in one respect:** the blanket refusal of *undo* was an
+  over-reach; see G22. What we reject is a plugin-owned *data* model, not a
+  journal of our own writes.
 - **Bases inline-edit reuse** — impossible, not deferred: ADR-0001 establishes
   there is no public API for Bases cell read/write. This is why the Inspector is
   custom DOM (`③`), and it retroactively answers the `S0` spike gate in
@@ -274,6 +407,11 @@ Recorded so they are not re-opened by accident:
 | G16 Calendarium / `storyDate` | — | file (low) |
 | G17 sample residue | — | fix directly, no issue |
 | G18 version drift | — | fix directly, no issue |
+| G19 hero-card Bases views | — | **file** |
+| G20 user-extensible entities | — | **file** |
+| G21 Storyline fidelity | — | **file** |
+| G22 undo journal | — | **file** (unblocks #7, #8) |
+| G23 mockup discipline | — | repo rule, not an issue |
 
 Also open and unmapped to a gap: **#1** (contextual view switcher — filter tabs by
 active-note kind), a UX refinement rather than a structural gap.
@@ -283,23 +421,37 @@ active-note kind), a UX refinement rather than a structural gap.
 Ordered by *how much of the founding idea each unlocks per unit of work*, not by
 size. Nothing here is scheduled — this is the argument for an order, not a plan.
 
-1. **G1 + G2 together — make the substrate real.** One spec: unify the engine
-   union across catalog and import, then re-author the three `_forge` note-scoped
-   views as catalog view definitions and let the hardcoded renderers become the
-   zero-dependency fallback rather than the only implementation. This is the
-   smallest change that turns "views are data" from a slogan into a fact, and it
-   directly answers the "custom views via Bases or Dataview" half of the idea.
-2. **G4 — scope settings.** Small, and it removes the vault-layout lock-in that
+1. **G1 + G2 + G19 + G20 together — make the substrate real.** One spec, because
+   they are one idea: unify the engine coverage across catalog and import (G1),
+   re-author the three `_forge` note-scoped views as catalog view definitions so
+   the hardcoded renderers become the zero-dependency fallback rather than the
+   only implementation (G2), ship hero-card Bases view types the user can select
+   in their own `.base` (G19), and make unknown fields and kinds render instead
+   of vanish (G20). Together these are the "pick a view, or build your own —
+   including for a story model we never anticipated" promise. Everything else in
+   this register is smaller than this.
+2. **G22 — the undo journal.** Cheap, plugin-local, and it is the precondition
+   for finishing the write-back tier: do it **before** #7 and #8, which were both
+   blocked by exactly the risk it removes.
+3. **G4 — scope settings.** Small, and it removes the vault-layout lock-in that
    currently contradicts the plugin's core claim.
-3. **G5 — decide the note panel A/B, then build the smaller of the two.** Six
+4. **G21 — the Storyline fidelity pass.** Do it *while* the substrate work is
+   being specced, so the new views are measured against the reference before they
+   are built rather than after.
+5. **G5 — decide the note panel A/B, then build the smaller of the two.** Six
    milestones of deferral is a decision by default; make it deliberately.
-4. **G13 + G14 — relation editing.** Decide once whether relations are edited by
+6. **G13 + G14 — relation editing.** Decide once whether relations are edited by
    us (chips) or by meta-bind/metadata-menu, then ship that path. Today neither
    exists, which is the worst of both.
-5. **G3 — workspace views as data.** The largest item; #4 and #8 fold into it and
+7. **G3 — workspace views as data.** The largest item; #4 and #8 fold into it and
    should not be built separately first.
-6. **G11, G7, then the tracked `③` backlog** (#7, #8, #5, #6).
-7. **G17, G18** — do them opportunistically; they are minutes, not milestones.
+8. **G11, G7, then the tracked `③` backlog** (#7, #8, #5, #6).
+9. **G15 — the Longform question**, last and deliberately: taking over ordering
+   and versioning is a scope decision, not a task.
+10. **G17, G18** — do them opportunistically; they are minutes, not milestones.
+
+**G23 is not in this list** because it is not work — it is how the work is done.
+It applies from the next spec onward.
 
 M7 (`release-hardening`) should stay where it is: hardening a plugin whose
 substrate is still being decided would have to be redone.
