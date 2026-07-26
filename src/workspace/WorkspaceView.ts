@@ -3,17 +3,16 @@
  *
  * One polymorphic `ItemView` (ADR-16) with a header toolbar. It follows the active
  * note (active-leaf-change), resolves scope via the shared core, maps rows, and routes
- * to one of five layouts:
+ * to one of four layouts:
  *
- *   timeline  — rail OR swimlane (read; M6 adds swimlane + zoom + placement drag)
+ *   timeline  — rail OR swimlane (read; M6 adds swimlane + zoom)
  *   plotlines — Plotlines list (read, M5)
  *   kanban    — status columns, drag→status+order write-back (M6)
  *   plotgrid  — plotline × scene matrix, click-toggle plotlines write-back (M6)
- *   locations — nested world/location tree (read, M6)
  *
  * The view OWNS one `InteractionHandler` (constructed in onOpen, destroyed in onClose —
- * CON-4) shared by the Kanban board and the Timeline-placement rail; the Plotgrid uses a
- * click-toggle (not the drag machine). A write:
+ * CON-4) used by the Kanban board; the Plotgrid uses a click-toggle (not the drag
+ * machine). A write:
  *   - is committed via the single seam (`commit` / `commitMany`),
  *   - optimistically re-renders (`onAfter`),
  *   - on failure marks the card + fires a `Notice` (ADR-24),
@@ -30,16 +29,14 @@
 import { ItemView, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
 import { DEBOUNCE_MS } from "pluginConstants";
 import { revealAndShowFile } from "views/SidebarView";
-import { resolveWorkspaceScope, resolveLocationScope } from "scoping/workspaceScope";
-import { mapSceneRow, mapLocationRow } from "workspace/sceneMapper";
+import { resolveWorkspaceScope } from "scoping/workspaceScope";
+import { mapSceneRow } from "workspace/sceneMapper";
 import {
 	timelineModel,
 	plotlineModel,
 	kanbanModel,
 	plotgridModel,
 	swimlaneModel,
-	locationTreeModel,
-	snapStoryDay,
 	type LinkResolver,
 	type SwimlaneKey,
 	type SceneRow,
@@ -48,15 +45,14 @@ import { renderTimeline } from "workspace/renderTimeline";
 import { renderPlotlines } from "workspace/renderPlotlines";
 import { renderKanban, type RenumberWrite } from "workspace/renderKanban";
 import { renderPlotgrid } from "workspace/renderPlotgrid";
-import { renderLocationsTree } from "workspace/renderLocationsTree";
 import { createTimelineZoom } from "workspace/timelineZoom";
-import { InteractionHandler, type Draggable, type CommitEntry } from "workspace/interactionHandler";
+import { InteractionHandler } from "workspace/interactionHandler";
 import { commit, commitMany, type CommitResult, type CommitError } from "../inspector/frontmatterWriter";
 import { CollapseStore } from "workspace/collapseStore";
 
 export const WORKSPACE_VIEW_TYPE = "story-forge-workspace";
 
-export type WorkspaceLayout = "timeline" | "plotlines" | "kanban" | "plotgrid" | "locations";
+export type WorkspaceLayout = "timeline" | "plotlines" | "kanban" | "plotgrid";
 
 /** The Timeline sub-mode toggle (ADR-16 / mockup S62 vs S76). */
 type TimelineMode = "rail" | "swimlane";
@@ -66,9 +62,6 @@ const STATUS_VOCAB = ["idea", "outline", "draft", "revised", "done", "final"];
 
 /** The `order` field spec used by the Kanban renumber path. */
 const ORDER_FIELD = { name: "order", type: "number" as const };
-
-/** The `storyDay` field spec used by the Timeline-placement drag. */
-const STORY_DAY_FIELD = { name: "storyDay", type: "number" as const };
 
 export interface WorkspaceViewOpts {
 	/** Reads the live link-click setting (getter — main.ts reassigns settings). */
@@ -82,8 +75,7 @@ function isLayout(v: unknown): v is WorkspaceLayout {
 		v === "timeline" ||
 		v === "plotlines" ||
 		v === "kanban" ||
-		v === "plotgrid" ||
-		v === "locations"
+		v === "plotgrid"
 	);
 }
 
@@ -91,13 +83,12 @@ function isSwimlaneKey(v: unknown): v is SwimlaneKey {
 	return v === "pov" || v === "location" || v === "plotline";
 }
 
-/** Human labels for the five layout modes (sentence-case UI). */
+/** Human labels for the four layout modes (sentence-case UI). */
 const LAYOUT_LABEL: Record<WorkspaceLayout, string> = {
 	timeline: "Timeline",
 	plotlines: "Plotlines",
 	kanban: "Kanban",
 	plotgrid: "Plotgrid",
-	locations: "Locations",
 };
 
 export class WorkspaceView extends ItemView {
@@ -137,7 +128,6 @@ export class WorkspaceView extends ItemView {
 			case "plotlines": return "git-branch";
 			case "kanban": return "columns";
 			case "plotgrid": return "grid";
-			case "locations": return "map";
 			default: return "clock";
 		}
 	}
@@ -153,7 +143,7 @@ export class WorkspaceView extends ItemView {
 		// Mode toggle — one pill per layout. The two M5 pills keep their exact
 		// data-ws-layout hooks so existing tests + delegated routing are preserved.
 		const toggle = head.createDiv({ cls: "sf-ws-toggle" });
-		(["timeline", "plotlines", "kanban", "plotgrid", "locations"] as const).forEach((l) => {
+		(["timeline", "plotlines", "kanban", "plotgrid"] as const).forEach((l) => {
 			toggle
 				.createEl("span", { cls: "sf-ws-mode", text: LAYOUT_LABEL[l] })
 				.setAttribute("data-ws-layout", l);
@@ -180,7 +170,7 @@ export class WorkspaceView extends ItemView {
 		live.setAttribute("role", "status");
 		this._liveEl = live;
 
-		// One InteractionHandler for the whole view (Kanban + Timeline placement).
+		// One InteractionHandler for the whole view (Kanban).
 		// Constructed once; destroyed in onClose (CON-4).
 		this._handler = new InteractionHandler(this.app, ce, {
 			onWrite: (file, entries): Promise<CommitResult> =>
@@ -253,14 +243,6 @@ export class WorkspaceView extends ItemView {
 
 		const f = this.app.workspace.getActiveFile();
 
-		// The Locations layout has its own scope (all location notes, ADR-19).
-		if (this._layout === "locations") {
-			this._scopeKey = "locations";
-			this._syncToggle();
-			this._renderLocations(body, f);
-			return;
-		}
-
 		const { scope, scenes } = resolveWorkspaceScope(this.app, f);
 		this._scopeKey = scope.kind === "none" ? "none" : `${scope.kind}:${scope.ref.path}`;
 		this._syncToggle();
@@ -300,7 +282,7 @@ export class WorkspaceView extends ItemView {
 		}
 	}
 
-	/** Timeline layout: rail (with zoom + placement drag) or swimlane (read-only). */
+	/** Timeline layout: rail (with zoom, read-only) or swimlane (read-only). */
 	private _renderTimeline(body: HTMLElement, rows: SceneRow[]): void {
 		if (this._timelineMode === "swimlane") {
 			const key = this._swimKeyByScope.get(this._scopeKey) ?? "plotline";
@@ -315,8 +297,7 @@ export class WorkspaceView extends ItemView {
 			return;
 		}
 
-		// Rail: wrap in the zoom controller, then bind each rail card to the handler
-		// with a Timeline-placement Draggable that writes an integer storyDay (F3).
+		// Rail: wrap in the zoom controller. Read-only — drill only, no placement drag.
 		const zoom = createTimelineZoom(body, this);
 		renderTimeline(
 			zoom.scaledEl,
@@ -324,64 +305,6 @@ export class WorkspaceView extends ItemView {
 			{ isCollapsed: (g) => this._collapse.isCollapsed("main", this._scopeKey, g) },
 			"rail",
 		);
-		this._bindTimelinePlacement(zoom.scaledEl, rows);
-	}
-
-	/**
-	 * Bind each rail scene *item* to the shared handler with a placement Draggable.
-	 *
-	 * The bound element is the `.sf-tl-item` wrapper (gutter + dot + card), NOT the
-	 * `.sf-tl-card` itself — the card carries `data-sf-link` and the handler's
-	 * drill-wins rule (AC-F8.3) aborts a drag that starts on a link. Starting the
-	 * drag from the item's `when` gutter therefore places the scene, while a click
-	 * on the card still drills. The item's `data-sf-item-path` carries the scene
-	 * path for keyboard-move lookup. A drop computes an integer `storyDay` from the
-	 * vertical drop ratio via `snapStoryDay` and writes ONLY `storyDay` (AC-F3.2).
-	 */
-	private _bindTimelinePlacement(scaled: HTMLElement, rows: SceneRow[]): void {
-		if (!this._handler) return;
-		const railEls = scaled.querySelectorAll<HTMLElement>(".sf-tl-rail");
-		const byPath = new Map<string, SceneRow>(rows.map((r) => [r.file.path, r]));
-
-		for (const rail of Array.from(railEls)) {
-			const items = rail.querySelectorAll<HTMLElement>(".sf-tl-item");
-			for (const item of Array.from(items)) {
-				const path = item.querySelector<HTMLElement>(".sf-tl-card")?.getAttribute("data-sf-link");
-				const row = path !== null && path !== undefined ? byPath.get(path) : undefined;
-				if (!row) continue;
-				item.setAttribute("data-sf-item-path", row.file.path);
-				this._handler.bind(item, row.file, this._makePlacementDraggable(rail, rows));
-			}
-		}
-	}
-
-	/** A Timeline-placement Draggable: writes an integer `storyDay` (never `order`). */
-	private _makePlacementDraggable(rail: HTMLElement, rows: SceneRow[]): Draggable {
-		const dropRatio = (dropTarget: Element | null): number => {
-			const box = rail.getBoundingClientRect();
-			if (box.height <= 0 || !(dropTarget instanceof HTMLElement)) return 1;
-			const tbox = dropTarget.getBoundingClientRect();
-			const rel = (tbox.top + tbox.height / 2 - box.top) / box.height;
-			return Math.max(0, Math.min(1, rel));
-		};
-		return {
-			computeDrop: (_card: HTMLElement, dropTarget: Element | null): CommitEntry[] => {
-				if (!dropTarget) return [];
-				const day = snapStoryDay(rows, dropRatio(dropTarget));
-				return [{ key: "storyDay", value: day, field: STORY_DAY_FIELD }];
-			},
-			computeKey: (card: HTMLElement, key: string): CommitEntry[] => {
-				const path = card.getAttribute("data-sf-item-path") ?? "";
-				const current = rows.find((r) => r.file.path === path)?.storyDay ?? 1;
-				if (key === "Alt+ArrowUp") {
-					return [{ key: "storyDay", value: Math.max(1, current - 1), field: STORY_DAY_FIELD }];
-				}
-				if (key === "Alt+ArrowDown") {
-					return [{ key: "storyDay", value: current + 1, field: STORY_DAY_FIELD }];
-				}
-				return [];
-			},
-		};
 	}
 
 	/** Kanban layout: status columns with drag→status+order write-back (F1). */
@@ -399,19 +322,6 @@ export class WorkspaceView extends ItemView {
 				},
 			},
 			this._handler,
-		);
-	}
-
-	/** Locations layout: nested world/location tree (read-only, ADR-19). */
-	private _renderLocations(body: HTMLElement, f: TFile | null): void {
-		const files = resolveLocationScope(this.app);
-		const rows = files.map((file) => mapLocationRow(this.app, file));
-		const sourcePath = f?.path ?? "";
-		const resolve: LinkResolver = (t) => this.app.metadataCache.getFirstLinkpathDest(t, sourcePath);
-		renderLocationsTree(
-			body,
-			locationTreeModel(rows, resolve),
-			{ isCollapsed: (k) => this._collapse.isCollapsed("main", this._scopeKey, k) },
 		);
 	}
 

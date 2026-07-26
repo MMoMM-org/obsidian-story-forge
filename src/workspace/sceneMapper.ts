@@ -11,7 +11,7 @@
  */
 
 import type { App, TFile } from "obsidian";
-import type { Link, LocationRow, SceneRow } from "./workspaceModel";
+import type { Link, SceneRow } from "./workspaceModel";
 
 function fmNumber(v: unknown): number | null {
 	return typeof v === "number" ? v : null;
@@ -66,35 +66,6 @@ export function mapSceneRow(app: App, file: TFile): SceneRow {
 		beatName: beatDest ? beatDisplayName(app, beatDest) : "",
 		beatPath: beatDest?.path ?? "",
 		wordcount: fmNumber(fm["wordcount"]),
-	};
-}
-
-/**
- * Map a location note to a render-ready `LocationRow` (M6 / T6.1).
- *
- * Impure adapter (reads `metadataCache`) — kept beside `mapSceneRow` for the same
- * reason: `workspaceModel.locationTreeModel` stays pure and takes `LocationRow[]`.
- *
- * `name`  = frontmatter `name` ?? file.basename (never empty).
- * `world` = the raw `world` parent-link text ("" when absent). The value is read
- *   from `frontmatterLinks` first (so a `[[wrapped]]` link keeps its target text),
- *   falling back to a plain-string frontmatter value. `locationTreeModel` strips
- *   the `[[ ]]` and resolves it through the injected resolver.
- *
- * Never throws; missing data → ""/basename.
- */
-export function mapLocationRow(app: App, file: TFile): LocationRow {
-	const cache = app.metadataCache.getFileCache(file);
-	const fm = cache?.frontmatter ?? {};
-	const links = cache?.frontmatterLinks ?? [];
-
-	const worldLink = links.find((l) => l.key === "world")?.link ?? null;
-	const world = worldLink ?? fmString(fm["world"]);
-
-	return {
-		file,
-		name: fmString(fm["name"]) || file.basename,
-		world,
 	};
 }
 

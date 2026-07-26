@@ -2109,46 +2109,6 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * Location Tree (M6 / T4.1) — read-only nested world/location hierarchy.
- * sf-lt-* classes mirror the sf-tl-* visual grammar but for tree nodes.
- * ═════════════════════════════════════════════════════════════════════════ */
-
-.sf-lt-list {
-	padding-left: 14px;
-	border-left: 1px solid var(--background-modifier-border);
-	margin-left: 6px;
-}
-
-.sf-lt-row {
-	display: flex;
-	align-items: center;
-	padding: 2px 4px;
-	border-radius: var(--radius-s);
-}
-
-.sf-lt-node {
-	font-size: 12.5px;
-	color: var(--text-normal);
-	border-radius: var(--radius-s);
-	padding: 1px 3px;
-}
-
-.sf-lt-node[data-sf-link] {
-	cursor: pointer;
-	color: var(--text-accent);
-}
-
-.sf-lt-node[data-sf-link]:hover {
-	text-decoration: underline;
-}
-
-.sf-lt-node--flagged {
-	color: var(--text-muted);
-	cursor: default;
-	font-style: italic;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
  * Kanban (M6 / T5.1) — Status columns of draggable scene cards.
  * sf-kb-* classes: board, columns, column headers, cards, drag ghost, drop line.
  * ═════════════════════════════════════════════════════════════════════════ */

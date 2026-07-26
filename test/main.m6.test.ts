@@ -1,9 +1,11 @@
 /**
- * main.m6.test.ts — M6 / T6.2 (RED).
+ * main.m6.test.ts — M6 / T6.2.
  *
- * The three new palette commands (Open Kanban / Open Plotgrid / Open Locations)
- * open the main-area WorkspaceView at the corresponding layout, mirroring the M5
- * open-timeline / open-plotlines pattern. No duplicate view types are registered.
+ * The two new palette commands (Open Kanban / Open Plotgrid) open the main-area
+ * WorkspaceView at the corresponding layout, mirroring the M5 open-timeline /
+ * open-plotlines pattern. No duplicate view types are registered.
+ *
+ * Open Locations removed from M6 (→ Codex, tracked in GH #6).
  *
  * @ref docs/XDD/specs/007-interactive-views/plan/phase-6.md — T6.2
  */
@@ -22,13 +24,12 @@ async function makePlugin(): Promise<{
 	return { plugin, app };
 }
 
-describe("StoryForgePlugin M6 — Open Kanban/Plotgrid/Locations commands", () => {
-	it("registers open-kanban, open-plotgrid, and open-locations commands", async () => {
+describe("StoryForgePlugin M6 — Open Kanban/Plotgrid commands", () => {
+	it("registers open-kanban and open-plotgrid commands", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
 		expect(plugin.addCommand).toHaveBeenCalledWith(expect.objectContaining({ id: "open-kanban" }));
 		expect(plugin.addCommand).toHaveBeenCalledWith(expect.objectContaining({ id: "open-plotgrid" }));
-		expect(plugin.addCommand).toHaveBeenCalledWith(expect.objectContaining({ id: "open-locations" }));
 	});
 
 	it("registers the workspace view type exactly once (no duplicate view types)", async () => {
@@ -41,7 +42,6 @@ describe("StoryForgePlugin M6 — Open Kanban/Plotgrid/Locations commands", () =
 	it.each([
 		["open-kanban", "kanban"],
 		["open-plotgrid", "plotgrid"],
-		["open-locations", "locations"],
 	])("%s opens the workspace view at the %s layout", async (id, layout) => {
 		const { plugin, app } = await makePlugin();
 		await plugin.onload();

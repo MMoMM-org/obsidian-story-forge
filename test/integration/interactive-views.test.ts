@@ -8,17 +8,17 @@
  *   (a) Kanban move writes status + order; the view re-renders and a SECOND
  *       WorkspaceView on the same scope reflects it after "changed" (AC-F7.3).
  *   (b) Plotgrid toggle writes plotlines.
- *   (c) Timeline placement writes an integer storyDay and leaves order untouched
- *       (AC-F3.2).
  *   (d) A simulated external frontmatter change re-renders (last-write-wins,
  *       ADR-25).
  *   (e) A Cmd+Z-style revert (frontmatter restored → "changed") updates the view
  *       (AC-F7.4).
  *
- * Kanban/Timeline moves are driven via the InteractionHandler KEYBOARD path
- * (ArrowRight / Alt+ArrowDown) — it shares the exact same commit seam as a
- * pointer drop (F8, AC-11) and is deterministic in jsdom (elementFromPoint is
- * null there). The plotgrid uses its click toggle.
+ * (c) Timeline-placement drag deferred to GH #7 — rail is now read-only.
+ *
+ * Kanban moves are driven via the InteractionHandler KEYBOARD path (ArrowRight) —
+ * it shares the exact same commit seam as a pointer drop (F8, AC-11) and is
+ * deterministic in jsdom (elementFromPoint is null there). The plotgrid uses its
+ * click toggle.
  *
  * @ref docs/XDD/specs/007-interactive-views/plan/phase-6.md — T6.3
  */
@@ -140,13 +140,6 @@ function kbCard(view: WorkspaceView, path: string): HTMLElement {
 	if (!card) throw new Error(`no kanban card for ${path}`);
 	return card;
 }
-function tlItem(view: WorkspaceView, path: string): HTMLElement {
-	const item = [...body(view).querySelectorAll<HTMLElement>(".sf-tl-item")].find(
-		(i) => i.getAttribute("data-sf-item-path") === path,
-	);
-	if (!item) throw new Error(`no rail item for ${path}`);
-	return item;
-}
 
 describe("M6 integration — interactive write → re-render round-trip", () => {
 	let fx: ReturnType<typeof makeFixture>;
@@ -218,32 +211,6 @@ describe("M6 integration — interactive write → re-render round-trip", () => 
 		const plotlines = fx.app.fileManager._getFrontmatter(s1.path)["plotlines"];
 		expect(Array.isArray(plotlines)).toBe(true);
 		expect((plotlines as string[]).some((p) => p.includes("The Warden's Oath"))).toBe(true);
-
-		await view.onClose();
-	});
-
-	it("(c) Timeline placement writes an integer storyDay and leaves order untouched (AC-F3.2)", async () => {
-		const view = makeView(fx.app);
-		await view.onOpen(); // defaults to timeline rail
-
-		const s2 = fx.scenes.get(2)!;
-		const before = fx.app.fileManager._getFrontmatter(s2.path);
-		const orderBefore = before["order"];
-
-		// Alt+ArrowDown → move the scene one story day later (storyDay only).
-		keyDown(tlItem(view, s2.path), "ArrowDown", true);
-		await vi.runAllTimersAsync();
-
-		const after = fx.app.fileManager._getFrontmatter(s2.path);
-		expect(typeof after["storyDay"]).toBe("number");
-		expect(Number.isInteger(after["storyDay"])).toBe(true);
-		expect(after["storyDay"]).toBe(3); // 2 + 1
-		// order MUST be untouched.
-		expect(after["order"]).toBe(orderBefore);
-
-		// The write is announced end-to-end via the aria-live region (F8 / AC-11):
-		// if the handler's announce→_announce wiring were severed this stays empty.
-		expect(view.contentEl.querySelector(".sf-ws-live")?.textContent).toBeTruthy();
 
 		await view.onClose();
 	});

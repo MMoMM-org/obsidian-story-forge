@@ -146,7 +146,7 @@ export default class StoryForgePlugin extends Plugin {
 			},
 		});
 
-		// M6: interactive Kanban / Plotgrid + read-only Locations views (same host).
+		// M6: interactive Kanban / Plotgrid views (same host).
 		this.addCommand({
 			id: "open-kanban",
 			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Kanban" is a proper noun + action
@@ -161,14 +161,6 @@ export default class StoryForgePlugin extends Plugin {
 			name: "Open Plotgrid",
 			callback: () => {
 				void this._openWorkspace("plotgrid");
-			},
-		});
-		this.addCommand({
-			id: "open-locations",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Locations" is a proper noun + action
-			name: "Open Locations",
-			callback: () => {
-				void this._openWorkspace("locations");
 			},
 		});
 

@@ -1,9 +1,9 @@
 /**
- * WorkspaceView.m6.test.ts — M6 / T6.1 (RED).
+ * WorkspaceView.m6.test.ts — M6 / T6.1.
  *
- * The workspace host gains three interactive/read layouts (kanban, plotgrid,
- * locations) plus a Timeline Rail|Swimlane toggle + By-key selector + zoom, and
- * OWNS one InteractionHandler + an aria-live region. This suite proves:
+ * The workspace host gains two interactive layouts (kanban, plotgrid)
+ * plus a Timeline Rail|Swimlane toggle + By-key selector + zoom (read-only rail),
+ * and OWNS one InteractionHandler + an aria-live region. This suite proves:
  *   - each layout routes to the right renderer,
  *   - the toolbar switches mode / swimlane key / zoom,
  *   - the swimlane key persists per-scope (ADR-20),
@@ -12,6 +12,9 @@
  *   - the aria-live region is created and announced into (F8),
  *   - a metadataCache.changed subscription is registered (ADR-22),
  *   - the M5 rail/list still render (no regression).
+ *
+ * Locations layout removed from M6 (→ Codex, tracked in GH #6).
+ * Timeline-placement drag deferred (→ GH #7; rail is now read-only).
  *
  * @ref docs/XDD/specs/007-interactive-views/plan/phase-6.md — T6.1
  */
@@ -55,23 +58,12 @@ function makeFixture() {
 	const tag = (t: string): CachedMetadata => createMockCachedMetadata({ tags: [{ tag: t }] });
 	const plCache = (name: string): CachedMetadata =>
 		createMockCachedMetadata({ tags: [{ tag: "#planning/plotline" }], frontmatter: { type: "plotline", name } });
-	const locCache = (name: string, world: string): CachedMetadata =>
-		createMockCachedMetadata({
-			tags: [{ tag: "#canon/location" }],
-			frontmatter: { type: "location", name, world },
-			frontmatterLinks: world !== "" ? [createMockFrontmatterLink("world", world.replace(/\[\[|\]\]/g, ""))] : [],
-		});
 
 	const book = reg(mk("Wardens of Moonharbor", "20 Planning/Wardens of Moonharbor.md"), tag("#planning/book"), "Wardens of Moonharbor");
 	reg(mk("The Dying Light", "20 Planning/The Dying Light.md"), plCache("The Dying Light"), "The Dying Light");
 	reg(mk("The Warden's Oath", "20 Planning/The Warden's Oath.md"), plCache("The Warden's Oath"), "The Warden's Oath");
 	reg(mk("Mara Stoneway", "30 Canon/Mara Stoneway.md"), tag("#canon/character"), "Mara Stoneway");
 	reg(mk("Jonas Kell", "30 Canon/Jonas Kell.md"), tag("#canon/character"), "Jonas Kell");
-
-	// Locations: a nested world chain + an unresolved-world flagged root.
-	reg(mk("Moonharbor", "30 Canon/32 Locations/Moonharbor.md"), locCache("Moonharbor", ""), "Moonharbor");
-	reg(mk("The Salty Gull", "30 Canon/32 Locations/The Salty Gull.md"), locCache("The Salty Gull", "[[Moonharbor]]"), "The Salty Gull");
-	reg(mk("The Sunken Chapel", "30 Canon/32 Locations/The Sunken Chapel.md"), locCache("The Sunken Chapel", "[[The Drowned Coast]]"), "The Sunken Chapel");
 
 	const scene = (n: number, o: SceneOpts): TFile => {
 		const path = `10 Manuscript/WoM/Scene ${n}.md`;
@@ -157,18 +149,6 @@ describe("WorkspaceView M6 — layout routing", () => {
 		view.setLayout("plotgrid");
 		expect(body(view).querySelector(".sf-pg-table")).not.toBeNull();
 		expect(body(view).querySelectorAll(".sf-pg-cell").length).toBeGreaterThan(0);
-	});
-
-	it("routes the locations layout to the Locations tree (with a flagged unresolved-world root)", () => {
-		view.setLayout("locations");
-		const b = body(view);
-		expect(b.querySelector(".sf-kb-board")).toBeNull();
-		expect(b.querySelector(".sf-tl-card")).toBeNull();
-		// Moonharbor (parent) + The Sunken Chapel (unresolved world → flagged root).
-		const nodeTexts = [...b.querySelectorAll(".sf-lt-node, .sf-sec-label")].map((e) => e.textContent);
-		expect(nodeTexts).toContain("Moonharbor");
-		expect(nodeTexts).toContain("The Sunken Chapel");
-		expect(b.querySelector(".sf-lt-node--flagged")).not.toBeNull();
 	});
 });
 
