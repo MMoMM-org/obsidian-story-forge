@@ -2416,30 +2416,153 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * Swimlane (M6 / T4.2) — Timeline grouped by pov/location/plotline.
- * sf-sw-* classes: one lane per Group from swimlaneModel.
+ * Swimlane (M6 rework, mockup M2) — COLUMNS per group value, ROWS per scene.
+ * A CSS grid: col 1 = sticky sequence axis; header row = sticky lane values;
+ * each scene = one row with its mini-card in its group column(s); act dividers
+ * span all columns. sf-sw-* classes.
  * ═════════════════════════════════════════════════════════════════════════ */
 
-.sf-sw-lanes {
-	display: flex;
-	flex-direction: column;
-	gap: 0;
+.sf-sw-grid {
+	display: grid;
+	/* Column template is dynamic (lane count) — driven by --sf-sw-cols. */
+	grid-template-columns: var(--sf-sw-cols);
+	align-items: stretch;
+	overflow: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
 }
 
-.sf-sw-lane {
+/* Sticky corner (top-left). */
+.sf-sw-corner {
+	position: sticky;
+	top: 0;
+	left: 0;
+	z-index: 3;
+	padding: 6px 8px;
+	background: var(--background-secondary);
+	border-right: 1px solid var(--background-modifier-border);
 	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-faint);
 }
 
-.sf-sw-lane:last-child {
-	border-bottom: none;
+/* Sticky lane headers (group values). */
+.sf-sw-lanehead {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	padding: 6px 10px;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-left: 1px solid var(--background-modifier-border);
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.sf-sw-lane--unresolved .sf-sec-label {
+.sf-sw-lanehead--unresolved {
 	color: var(--text-muted);
 	font-style: italic;
 }
 
-.sf-sw-lane--neutral .sf-sec-label {
+.sf-sw-lanehead--neutral {
+	color: var(--text-faint);
+}
+
+/* Full-width act-divider row spanning all columns. */
+.sf-sw-actrow {
+	grid-column: 1 / -1;
+	position: sticky;
+	left: 0;
+	padding: 4px 10px;
+	background: var(--background-secondary-alt);
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.03em;
+	color: var(--text-muted);
+}
+
+.sf-sw-actrow[role="link"] {
+	cursor: pointer;
+}
+
+/* Sequence cell (col 1, sticky left). */
+.sf-sw-seq {
+	position: sticky;
+	left: 0;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 6px 8px;
+	background: var(--background-primary);
+	border-right: 1px solid var(--background-modifier-border);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-sw-seqn {
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.sf-sw-seqwhen {
+	font-size: 10px;
+	color: var(--text-faint);
+}
+
+/* Lane cell (may be empty). */
+.sf-sw-cell {
+	padding: 4px;
+	border-left: 1px solid var(--background-modifier-border);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* Compact mini-card inside a filled lane cell. */
+.sf-sw-mini {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 5px 7px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+}
+
+.sf-sw-mini-dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.sf-sw-mini-title {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--text-normal);
+	cursor: pointer;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sf-sw-mini-title:hover {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.sf-sw-mini-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.sf-sw-mini-when {
+	font-size: 10px;
 	color: var(--text-faint);
 }
 

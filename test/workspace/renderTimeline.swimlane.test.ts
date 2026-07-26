@@ -1,17 +1,18 @@
 /**
- * renderTimeline.swimlane.test.ts — swimlane mode (T4.2, ADR-20).
+ * renderTimeline.swimlane.test.ts — swimlane COLUMNS grid (M6 rework, mockup M2).
  *
- * One lane per Group from swimlaneModel. Multi-plotline scenes fan into each
- * plotline lane. Collapse seam works per group key. Read-only (no writes).
- * Rail mode tests in renderTimeline.test.ts must remain unaffected.
+ * Swimlane is a CSS grid: COLUMNS per group value (lane per POV/location/plotline
+ * + neutral + unresolved), ROWS per scene grouped by act with full-width act
+ * dividers. A scene's mini-card sits in its group column(s) (fan-out for plotline);
+ * other cells empty. Sequence axis in col 1. Read-only (drill only, no writes).
+ * Rail-mode tests live in renderTimeline.test.ts and must stay green.
  *
- * @ref docs/XDD/specs/007-interactive-views/plan/phase-4.md — T4.2
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-20
  */
 
 import { describe, it, expect } from "vitest";
 import { augmentEl, createMockTFile } from "../__mocks__/obsidian";
-import { swimlaneModel, type SceneRow } from "workspace/workspaceModel";
+import { swimlaneGrid, type SceneRow, type LinkResolver } from "workspace/workspaceModel";
 import { renderTimeline } from "workspace/renderTimeline";
 
 function host(): HTMLElement {
@@ -41,130 +42,147 @@ function row(o: Partial<SceneRow> & { title: string }): SceneRow {
 
 const expanded = { isCollapsed: () => false };
 
-describe("renderTimeline (swimlane mode)", () => {
-	it("does not throw for swimlane mode (M6 stub removed)", () => {
+/** Render swimlane grid mode with the grid derived from rows. */
+function renderGrid(el: HTMLElement, rows: SceneRow[], key: Parameters<typeof swimlaneGrid>[1], resolve?: LinkResolver): void {
+	renderTimeline(el, [], expanded, "swimlane", { swimlane: swimlaneGrid(rows, key, resolve) });
+}
+
+describe("renderTimeline (swimlane columns grid)", () => {
+	it("does not throw for an empty grid", () => {
 		const el = host();
-		const groups = swimlaneModel([], "pov");
-		expect(() => renderTimeline(el, groups, expanded, "swimlane")).not.toThrow();
+		expect(() => renderGrid(el, [], "pov")).not.toThrow();
 	});
 
-	it("renders an empty-state for empty swimlane groups", () => {
+	it("renders an empty-state when there are no scenes", () => {
 		const el = host();
-		renderTimeline(el, [], expanded, "swimlane");
+		renderGrid(el, [], "pov");
 		expect(el.querySelector(".sf-emptyline")).not.toBeNull();
 	});
 
-	it("renders one lane (section) per group from swimlaneModel", () => {
+	it("renders a grid with one column per group value (pov) as sticky lane headers", () => {
 		const el = host();
 		const rows = [
-			row({ title: "S1", pov: { name: "Alice", path: "Alice.md" } }),
-			row({ title: "S2", pov: { name: "Bob", path: "Bob.md" } }),
+			row({ title: "S1", act: 1, order: 10, pov: { name: "Alice", path: "Alice.md" } }),
+			row({ title: "S2", act: 1, order: 20, pov: { name: "Bob", path: "Bob.md" } }),
 		];
-		const groups = swimlaneModel(rows, "pov");
-		renderTimeline(el, groups, expanded, "swimlane");
+		renderGrid(el, rows, "pov");
 
-		const sections = el.querySelectorAll(".sf-section");
-		expect(sections.length).toBe(2);
+		const grid = el.querySelector(".sf-sw-grid") as HTMLElement | null;
+		expect(grid).not.toBeNull();
+		// Column template (seq axis + 2 lanes) driven via the --sf-sw-cols custom prop.
+		expect(grid!.style.getPropertyValue("--sf-sw-cols")).toContain("repeat(2,");
 
-		const labels = [...el.querySelectorAll(".sf-sec-label")].map((l) => l.textContent);
-		expect(labels).toContain("Alice");
-		expect(labels).toContain("Bob");
+		const heads = [...el.querySelectorAll(".sf-sw-lanehead")].map((h) => h.textContent);
+		expect(heads).toEqual(["Alice", "Bob"]);
+		// A sticky corner cell.
+		expect(el.querySelector(".sf-sw-corner")).not.toBeNull();
 	});
 
-	it("renders scene cards as drill links inside each lane", () => {
+	it("renders one row per scene with a sequence cell", () => {
 		const el = host();
-		const rows = [row({ title: "TheScene", pov: { name: "Alice", path: "Alice.md" } })];
-		const groups = swimlaneModel(rows, "pov");
-		renderTimeline(el, groups, expanded, "swimlane");
-
-		const card = el.querySelector(".sf-tl-card") as HTMLElement | null;
-		expect(card).not.toBeNull();
-		expect(card!.getAttribute("data-sf-link")).toBe("TheScene.md");
-		expect(card!.getAttribute("role")).toBe("link");
+		const rows = [
+			row({ title: "S1", act: 1, order: 10, storyDay: 1, pov: { name: "Alice", path: "Alice.md" } }),
+			row({ title: "S2", act: 1, order: 20, storyDay: 2, pov: { name: "Alice", path: "Alice.md" } }),
+		];
+		renderGrid(el, rows, "pov");
+		const seqCells = el.querySelectorAll(".sf-sw-seq");
+		expect(seqCells.length).toBe(2);
+		// First sequence cell shows index 1 and a storyDay badge.
+		expect(el.querySelector(".sf-sw-seqn")?.textContent).toBe("1");
+		expect(el.querySelector(".sf-sw-seqwhen")?.textContent).toBe("D1");
 	});
 
-	it("fans a multi-plotline scene into each plotline lane", () => {
+	it("places a scene's mini-card in its group column (drill link present)", () => {
 		const el = host();
-		const scene = row({
-			title: "FanScene",
-			plotlines: ["PlotA", "PlotB"],
-			plotline: { name: "PlotA", path: "PlotA.md" },
-		});
-		const resolve = (text: string): { basename: string } | null =>
-			["PlotA", "PlotB"].includes(text) ? { basename: text } : null;
-		const groups = swimlaneModel([scene], "plotline", resolve);
-		renderTimeline(el, groups, expanded, "swimlane");
+		const rows = [row({ title: "TheScene", act: 1, pov: { name: "Alice", path: "Alice.md" } })];
+		renderGrid(el, rows, "pov");
 
-		const labels = [...el.querySelectorAll(".sf-sec-label")].map((l) => l.textContent);
-		expect(labels).toContain("PlotA");
-		expect(labels).toContain("PlotB");
+		const mini = el.querySelector(".sf-sw-mini") as HTMLElement | null;
+		expect(mini).not.toBeNull();
+		const link = mini!.querySelector(".sf-sw-mini-title") as HTMLElement | null;
+		expect(link!.getAttribute("data-sf-link")).toBe("TheScene.md");
+		expect(link!.getAttribute("role")).toBe("link");
 
-		// The scene card should appear in both lanes
-		const cards = el.querySelectorAll(".sf-tl-card");
-		expect(cards.length).toBe(2);
+		// One lane => one filled cell, no empty cells besides the (single) lane.
+		expect(el.querySelectorAll(".sf-sw-mini").length).toBe(1);
 	});
 
-	it("neutral lane (no POV) renders normally with scenes", () => {
+	it("fans a multi-plotline scene into each plotline column", () => {
 		const el = host();
-		const rows = [row({ title: "NoPovScene" })]; // pov: null
-		const groups = swimlaneModel(rows, "pov");
-		renderTimeline(el, groups, expanded, "swimlane");
+		const scene = row({ title: "FanScene", act: 1, plotlines: ["PlotA", "PlotB"] });
+		const resolve: LinkResolver = (t) => (["PlotA", "PlotB"].includes(t) ? { basename: t } : null);
+		renderGrid(el, [scene], "plotline", resolve);
 
-		const labels = [...el.querySelectorAll(".sf-sec-label")].map((l) => l.textContent);
-		expect(labels).toContain("No POV");
-
-		const card = el.querySelector(".sf-tl-card") as HTMLElement | null;
-		expect(card).not.toBeNull();
-		expect(card!.getAttribute("data-sf-link")).toBe("NoPovScene.md");
+		const heads = [...el.querySelectorAll(".sf-sw-lanehead")].map((h) => h.textContent);
+		expect(heads).toContain("PlotA");
+		expect(heads).toContain("PlotB");
+		// The mini-card appears in BOTH plotline columns.
+		expect(el.querySelectorAll(".sf-sw-mini").length).toBe(2);
 	});
 
-	it("honors the collapse seam: collapses a lane when deps.isCollapsed returns true", () => {
+	it("leaves other lane cells empty (no mini-card) for a single-lane scene", () => {
 		const el = host();
-		const rows = [row({ title: "S1", pov: { name: "Alice", path: "Alice.md" } })];
-		const groups = swimlaneModel(rows, "pov");
-		renderTimeline(el, groups, { isCollapsed: () => true }, "swimlane");
-
-		const body = el.querySelector(".sf-sec-body");
-		expect(body?.classList.contains("sf-sec-body--collapsed")).toBe(true);
+		const rows = [
+			row({ title: "S1", act: 1, order: 10, pov: { name: "Alice", path: "Alice.md" } }),
+			row({ title: "S2", act: 1, order: 20, pov: { name: "Bob", path: "Bob.md" } }),
+		];
+		renderGrid(el, rows, "pov");
+		// 2 lanes × 2 scene rows = 4 cells, but only 2 filled (one per scene).
+		expect(el.querySelectorAll(".sf-sw-cell").length).toBe(4);
+		expect(el.querySelectorAll(".sf-sw-mini").length).toBe(2);
 	});
 
-	it("adds the group key to the section head for collapse persistence", () => {
+	it("renders full-width act-divider rows spanning all columns", () => {
 		const el = host();
-		const rows = [row({ title: "S1", pov: { name: "Alice", path: "Alice.md" } })];
-		const groups = swimlaneModel(rows, "pov");
-		renderTimeline(el, groups, expanded, "swimlane");
+		const rows = [
+			row({ title: "S1", act: 1, order: 10, beatName: "Setup", beatPath: "Setup.md", pov: { name: "A", path: "A.md" } }),
+			row({ title: "S2", act: 2, order: 20, pov: { name: "A", path: "A.md" } }),
+		];
+		renderGrid(el, rows, "pov");
 
-		const head = el.querySelector(".sf-sec-head") as HTMLElement | null;
-		expect(head).not.toBeNull();
-		const key = head!.getAttribute("data-sf-group-key");
-		expect(key).not.toBeNull();
-		expect(key).toContain("pov:Alice");
+		const dividers = [...el.querySelectorAll(".sf-sw-actrow")] as HTMLElement[];
+		expect(dividers.length).toBe(2);
+		// Full-width span comes from the .sf-sw-actrow class (grid-column: 1 / -1).
+		expect(dividers[0]!.classList.contains("sf-sw-actrow")).toBe(true);
+		expect(dividers[0]!.textContent).toContain("Act 1");
+		// Beat-resolved act label drills.
+		expect(dividers[0]!.getAttribute("data-sf-link")).toBe("Setup.md");
 	});
 
-	it("renders status badges and wordcount inside swimlane cards (shared card helper)", () => {
+	it("renders a neutral column for scenes with no POV", () => {
 		const el = host();
-		const rows = [row({ title: "Sc", status: "draft", wordcount: 200, pov: { name: "X", path: "X.md" } })];
-		const groups = swimlaneModel(rows, "pov");
-		renderTimeline(el, groups, expanded, "swimlane");
+		const rows = [row({ title: "NoPov", act: 1, pov: null })];
+		renderGrid(el, rows, "pov");
+		const heads = [...el.querySelectorAll(".sf-sw-lanehead")].map((h) => h.textContent);
+		expect(heads).toContain("No POV");
+		expect(el.querySelector(".sf-sw-lanehead--neutral")).not.toBeNull();
+		expect(el.querySelector(".sf-sw-mini-title")?.getAttribute("data-sf-link")).toBe("NoPov.md");
+	});
 
+	it("flags an unresolved plotline column", () => {
+		const el = host();
+		const resolve: LinkResolver = (t) => (t === "Known" ? { basename: "Known" } : null);
+		const rows = [row({ title: "S1", act: 1, plotlines: ["Ghost"] })];
+		renderGrid(el, rows, "plotline", resolve);
+		const unres = el.querySelector(".sf-sw-lanehead--unresolved");
+		expect(unres).not.toBeNull();
+		expect(unres!.textContent).toBe("Ghost");
+	});
+
+	it("renders status badge inside the mini-card", () => {
+		const el = host();
+		const rows = [row({ title: "Sc", act: 1, status: "draft", when: "Night 1", pov: { name: "X", path: "X.md" } })];
+		renderGrid(el, rows, "pov");
 		expect(el.querySelector(".sf-tl-st--draft")).not.toBeNull();
-		expect(el.querySelector(".sf-tl-words")?.textContent).toContain("200");
+		expect(el.querySelector(".sf-sw-mini-when")?.textContent).toBe("Night 1");
 	});
 
-	it("is read-only by construction: signature accepts no App or writer, output contains only drill-link cards (no write affordances)", () => {
-		// renderTimeline takes only (host, groups, deps, mode) — no App, no writer parameter.
-		// It cannot write frontmatter regardless of behavior.
-		// Assert structurally: the rendered output contains read-only drill cards
-		// and no interactive write affordances (e.g. no buttons, no inputs).
+	it("is read-only: drill links only, no buttons or inputs", () => {
 		const el = host();
-		const groups = swimlaneModel([row({ title: "S1" })], "pov");
-		renderTimeline(el, groups, expanded, "swimlane");
-
-		// Read-only: produces drill cards, not write controls
-		const card = el.querySelector(".sf-tl-card");
-		expect(card).not.toBeNull();
-		expect(card!.getAttribute("role")).toBe("link");
-		// No form elements that could trigger writes
+		const rows = [row({ title: "S1", act: 1, pov: { name: "A", path: "A.md" } })];
+		renderGrid(el, rows, "pov");
+		const link = el.querySelector(".sf-sw-mini-title");
+		expect(link!.getAttribute("role")).toBe("link");
 		expect(el.querySelector("button")).toBeNull();
 		expect(el.querySelector("input")).toBeNull();
 	});
