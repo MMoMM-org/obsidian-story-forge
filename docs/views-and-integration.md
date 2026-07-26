@@ -16,6 +16,24 @@ render it; the plugin writes back only plain Properties, never a plugin store.**
 2. **Workspace views** — full-tab views: Codex, Kanban, Plotgrid, Timeline,
    Plotlines. (Story Graph = the core Obsidian graph for now.)
 
+## Surface vocabulary — Codex and Anvil *(decided 2026-07-26)*
+
+The list above is *where* we render. Cutting the same views the other way — by
+*what they are for* — gives two classes with **different obligations**, and those
+are the names the user sees:
+
+| Name | Covers | Obligation |
+|---|---|---|
+| **Codex** | the entity browser (main area) + the following sidebar, the **Codex panel** | **Substitutable.** Curated views are a default, not a fixture: a user can author or import their own `.base`/view — including over frontmatter we never shipped — and use it *instead of* ours. They compose from our building blocks (hero card, table), not their own renderers. |
+| **Anvil** | Timeline, Kanban, Plotgrid, Plotlines, Navigator — one view with a layout switcher | **Deliberately opinionated.** These exist to *manage and survey* the manuscript, not to display everything. Configurable (grouping key, columns/lanes, status vocabulary, scope) — not user-authored. |
+
+**Codex is what you know; Anvil is what you are working on.** The anvil is the
+surface the work is shaped on, which is exactly what these views do — and it
+reflects the plugin's own name.
+
+Rationale, and the gap this closes, in `gap-analysis.md` G24 / §1.2. Execution
+(folding today's four commands into one Anvil view) is tracked as issue #26.
+
 ## Plugin division of labour
 
 | Concern | Owner |

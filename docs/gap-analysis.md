@@ -438,9 +438,17 @@ substitutable, that class is deliberately opinionated* — cannot be explained t
 user who has no word for either class. It also blocks honest UI: a surface picker,
 a settings section, and the docs all need the noun first.
 
-*Done when:* both classes have names, the management surface is one view with a
-layout switcher (not four commands), and the names are used consistently in
-commands, settings and docs. **This is a decision, not a task** — see §5.
+**DECIDED 2026-07-26 — the names are `Codex` and `Anvil`.**
+
+| Class | Name | Rationale |
+|---|---|---|
+| Entity / collection | **Codex** | Kept. Story vocabulary an author reads without explanation, already established in code, vault (`Codex.base`) and six issues. The forge metaphor does not have to colour every noun. The following side panel becomes the **Codex panel** — it shows the Codex entry for the active note. |
+| Management / overview | **Anvil** | The anvil is literally *the surface on which the work is shaped* — which is what Timeline, Kanban, Plotgrid, Plotlines and Navigator do. One word, reflects Story Forge, and it makes the pair explainable: **Codex is what you know, Anvil is what you are working on.** |
+
+*Done when:* the management surface is **one view named Anvil with a layout
+switcher** rather than four commands; `Codex`/`Anvil` are used consistently across
+commands, settings sections, docs and mockups; and the two classes' differing
+obligations (§1.2) are explained in those terms. Tracked as **#26**.
 
 ## 3. Closed by decision (not gaps)
 
@@ -517,10 +525,13 @@ rule — process belongs where it binds the next change, not on a board.
 Ordered by *how much of the founding idea each unlocks per unit of work*, not by
 size. Nothing here is scheduled — this is the argument for an order, not a plan.
 
-0. **G24 — name the two surface classes.** A decision, not work, and it costs one
-   conversation. Do it first: §1.2's distinction between *substitutable* and
+0. **G24 — ✅ decided: `Codex` and `Anvil`** (2026-07-26). The naming was the
+   blocker, not the work: §1.2's distinction between *substitutable* and
    *deliberately opinionated* surfaces is unexplainable without the nouns, and
-   every item below writes UI text, settings labels or docs that need them.
+   every item below writes UI text, settings labels or docs that need them. What
+   remains is execution — fold the four commands into one **Anvil** view with a
+   layout switcher (#26), ideally as part of step 1 rather than as a separate
+   pass.
 1. **G1 + G2 + G19 + G20 together — make the substrate real.** One spec, because
    they are one idea: unify the engine coverage across catalog and import (G1),
    re-author the three `_forge` note-scoped views as catalog view definitions so
