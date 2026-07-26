@@ -61,6 +61,37 @@ cause of gaps. The invariant splits in two:
   sibling file in the plugin folder) breaks no promise. Nothing here exists yet —
   see **G20**.
 
+### 1.2 What extensibility means here (and what it does not)
+
+The first draft of this audit treated "the plugin supports one story model" as a
+flat failure. That over-shoots. The actual contract — the markdown-mason pattern
+this repo took its store, catalog and consent code from (`DESIGN.md §3`) — is
+narrower and more defensible:
+
+- **`_forge` types and frontmatter are the default we build on.** The shipped
+  schema, the vetted views, the curated catalog: that is the supported path, and
+  it is meant to stay opinionated.
+- **Other frontmatter arrives through user views, not through the plugin learning
+  new schemas.** Someone writing an isekai adds `skills` to their characters and
+  **authors or imports a view** that surfaces them. The plugin does not need to
+  know what a skill is; it needs to render a view definition that does.
+- **The building blocks stay ours and stay closed.** The user composes from what
+  we ship — hero card, table, the Codex and side-panel surfaces — rather than
+  bringing their own renderer. That is the boundary that keeps the plugin
+  maintainable, and it is not a gap.
+- **Replacement, not just addition.** The concrete case: a user dislikes what the
+  shipped Codex base shows, writes their own `.base`, and uses it *instead of*
+  ours. Curated views are a default, not a fixture.
+
+This also splits the view surfaces into two classes with **different obligations**:
+
+| Class | Views | Obligation |
+|---|---|---|
+| **Entity / collection** | Codex, side panel | Fully substitutable — user views replace or extend ours |
+| **Management / overview** | Timeline, Kanban, Plotgrid, Plotlines, Navigator | Legitimately rigid — they exist to *manage and survey*, not to display everything. Configuration, not user-authored definitions |
+
+G3 and G20 below are corrected against this contract.
+
 Two Longform frictions sit on the story-data side and are **deliberately unsolved
 for now**: Longform keeps scene order in its own index note, and story versions
 are separate directories. The expected end-game is taking Longform's role over
@@ -122,10 +153,20 @@ built-in tab (`src/views/SidebarView.ts:899`). Columns, grouping keys, fields
 shown, and sort are compiled in (e.g. `STATUS_VOCAB` at `WorkspaceView.ts:60`).
 No workspace view is a store record, none appears in the catalog, none can be
 duplicated or varied by the user.
-*Impact:* this is the rigidity we set out to avoid, relocated. We do not own the
-*data* — that invariant holds — but we fully own the *views*, which is the other
-half of what makes Storyline inflexible. #4 (Kanban by act) and #8 (configurable
-Plotgrid) are symptoms of this; the general case has no issue.
+*Impact — **corrected against §1.2**.* The first draft read this as "the rigidity
+we set out to avoid, relocated", and asked for user-authored workspace views. That
+over-reaches. Timeline, Kanban, Plotgrid, Plotlines and Navigator are **management
+and overview** surfaces: they exist to survey and move work, not to display
+arbitrary data, and being opinionated is part of their job. Storyline's rigidity
+is not that its board has fixed columns — it is that its data is captive, and ours
+is not.
+
+So the real gap is **narrower**: not *"make them user-authored"* but *"make them
+configurable"*. What is genuinely wrong is that the `status` vocabulary, the
+grouping key, the visible columns/lanes and the scope are **compile-time
+constants**, so #4 (Kanban by `act`) has to be shipped as a feature instead of
+being a dropdown. The substitutability requirement of §1.2 lands on the
+**entity/collection** surfaces instead (G19, G20).
 
 **G4 — No scope/folder configuration.**
 *Promise:* views scope to a book / a folder set the user controls (implied
@@ -155,20 +196,33 @@ own view" path (G20) has almost no Story-Forge-specific building blocks to build
 *with*. This is the cheapest large win in the register: the registration seam,
 the adapter and the write path all already exist.
 
-**G20 — Entities cannot be extended by the user.**
-*Promise:* the substrate is meant to be genre-agnostic — a user writing an isekai
-adds `skills` to characters, builds a skill codex, and sees skills in the sidebar
-panel, without the plugin knowing what a skill is.
+**G20 — The user cannot bring their own frontmatter into our surfaces.**
+*Promise (per §1.2):* `_forge` is the default we build on and stays opinionated.
+Everything beyond it arrives **through user-authored or imported views** — the
+markdown-mason pattern. A user writing an isekai adds `skills` to their characters,
+authors a view that surfaces them, and sees it rendered in our Codex and side
+panel using our building blocks. The plugin never learns what a skill is; it
+renders a view definition that does. Equally: a user who dislikes what our Codex
+base shows writes their own `.base` and uses it **instead of** ours — curated views
+are a default, not a fixture.
 *Reality:* fields are compiled in three places: `schema/*.json` → generated vault
 artifacts (regenerating requires the repo and `npm run schema:gen`),
 `src/inspector/inspectorFields.ts` (the editable field list), and
 `src/panel/kindFields.ts` (what the panel renders per kind). An unknown
 frontmatter key is invisible everywhere; an unknown *entity kind* falls through
 to the flat fallback renderer (`src/panel/renderPanel.ts:48`).
-*Impact:* the plugin currently supports **one** story model — the `_forge` model
-that ships with it. Every other genre is a fork or a pull request. This is the
-same rigidity as G3, one layer down, and it is what the "curated **+
-user-authored**" library was supposed to prevent.
+*Impact:* extending the model currently requires **forking the plugin**, because
+the only route to a new field runs through `schema/*.json` and two compiled field
+lists — not through a view. The "curated **+ user-authored**" library was supposed
+to make the second route the normal one. Note what is *not* being asked for here:
+no user-supplied renderers, no plugin-side schema inference. The user composes
+from what we ship (G19's hero card, tables, the Codex and panel surfaces) and
+points it at their own frontmatter.
+
+*Smallest useful version:* a user `.base` or view definition can (a) be selected in
+place of a curated one, and (b) name fields we have never heard of and get them
+rendered by our card/table blocks. Everything else — a settings UI for schema
+extension, per-kind panel sections — is a later refinement.
 
 ### B — Surfaces
 
@@ -316,6 +370,7 @@ broken — but the version no longer identifies what is installed.
 | **G21** | **Drift from Storyline** as the reference model, repeatedly | — |
 | **G22** | **No undo for view writes** — why interactions retreat to read-only | — |
 | **G23** | Mockups get signed off, then **not implemented as approved** | — |
+| **G24** | The **management surface has no name**; "Codex" names only a collection | — |
 
 **G21 — Drift from the reference model.**
 *Promise:* `DESIGN.md §1` — *"View model → Storyline … We reproduce the views we
@@ -366,6 +421,27 @@ became a record of what was built rather than a specification of what to build.
 sign-off is a gate; post-sign-off divergence is raised before it is coded, not
 documented afterwards.
 
+**G24 — The two surface classes are not named.**
+*Reality:* §1.2 establishes two classes with different obligations, and neither has
+a usable public name.
+
+- **"Codex"** names the *collection* well — characters, locations, objects, lore —
+  but it is currently just `Codex.base`, and the class is bigger than one base.
+- The **management class has no name at all.** Internally it is `WorkspaceView`;
+  externally there is no surface, only four commands, one of which — **"Open
+  Timeline"** — is the entry point behind which Kanban, Plotgrid, Plotlines,
+  swimlanes and zoom actually live. A user has no way to learn that these are one
+  thing, and no vocabulary for "the place where I manage the manuscript".
+
+*Impact:* naming is not cosmetic here. §1.2's whole argument — *this class is
+substitutable, that class is deliberately opinionated* — cannot be explained to a
+user who has no word for either class. It also blocks honest UI: a surface picker,
+a settings section, and the docs all need the noun first.
+
+*Done when:* both classes have names, the management surface is one view with a
+layout switcher (not four commands), and the names are used consistently in
+commands, settings and docs. **This is a decision, not a task** — see §5.
+
 ## 3. Closed by decision (not gaps)
 
 Recorded so they are not re-opened by accident:
@@ -400,7 +476,8 @@ from this document `gap-analysis`.
 | G19 hero-card Bases view types | **#12** |
 | G20 user-extensible entities | **#13** |
 | G4 scope/folder settings | **#14** |
-| G3 workspace views as data | **#15** ← absorbs #4 (Kanban by act) |
+| G3 workspace views **configurable** (revised) | **#15** ← absorbs #4 (Kanban by act) |
+| G24 naming the two surface classes | **#26** |
 
 **#16 — Epic: Safe write-back — undo, then finish the interaction tier**
 
@@ -440,6 +517,10 @@ rule — process belongs where it binds the next change, not on a board.
 Ordered by *how much of the founding idea each unlocks per unit of work*, not by
 size. Nothing here is scheduled — this is the argument for an order, not a plan.
 
+0. **G24 — name the two surface classes.** A decision, not work, and it costs one
+   conversation. Do it first: §1.2's distinction between *substitutable* and
+   *deliberately opinionated* surfaces is unexplainable without the nouns, and
+   every item below writes UI text, settings labels or docs that need them.
 1. **G1 + G2 + G19 + G20 together — make the substrate real.** One spec, because
    they are one idea: unify the engine coverage across catalog and import (G1),
    re-author the three `_forge` note-scoped views as catalog view definitions so
@@ -462,8 +543,10 @@ size. Nothing here is scheduled — this is the argument for an order, not a pla
 6. **G13 + G14 — relation editing.** Decide once whether relations are edited by
    us (chips) or by meta-bind/metadata-menu, then ship that path. Today neither
    exists, which is the worst of both.
-7. **G3 — workspace views as data.** The largest item; #4 and #8 fold into it and
-   should not be built separately first.
+7. **G3 — make the management views configurable** (grouping key, visible
+   columns/lanes, status vocabulary, scope). Revised down from "views as data":
+   these surfaces are allowed to be opinionated (§1.2), so this is a settings
+   job, not a substrate job. Absorbs #4.
 8. **G11, G7, then the tracked `③` backlog** (#7, #8, #5, #6).
 9. **G15 — the Longform question**, last and deliberately: taking over ordering
    and versioning is a scope decision, not a task.
