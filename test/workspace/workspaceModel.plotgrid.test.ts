@@ -12,8 +12,10 @@ import { describe, it, expect } from "vitest";
 import { createMockTFile } from "../__mocks__/obsidian";
 import {
 	plotgridModel,
+	plotgridModelFromScope,
 	type PlotgridModel,
 	type SceneRow,
+	type Link,
 } from "workspace/workspaceModel";
 
 // ---------------------------------------------------------------------------
@@ -177,6 +179,97 @@ describe("plotgridModel", () => {
 describe("PlotgridModel interface", () => {
 	it("is satisfied by plotgridModel return value", () => {
 		const model: PlotgridModel = plotgridModel([], resolverFor([]));
+		expect(Array.isArray(model.plotlines)).toBe(true);
+		expect(Array.isArray(model.scenes)).toBe(true);
+		expect(typeof model.has).toBe("function");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// plotgridModelFromScope — persistent-column variant
+// ---------------------------------------------------------------------------
+
+function scopeLink(name: string): Link {
+	return { name, path: `20 Planning/${name}.md` };
+}
+
+describe("plotgridModelFromScope", () => {
+	it("columns = allPlotlines even when no scene references them (grid never collapses)", () => {
+		// Gamma is in scope but no scene references it.
+		const allPlotlines = [scopeLink("Alpha"), scopeLink("Gamma")];
+		const rows = [row({ title: "S1", plotlines: ["[[Alpha]]"] })];
+		const model = plotgridModelFromScope(rows, allPlotlines, resolverFor(["Alpha", "Gamma"]));
+
+		expect(model.plotlines.map((p) => p.name)).toContain("Gamma");
+		expect(model.plotlines.map((p) => p.name)).toContain("Alpha");
+	});
+
+	it("scope plotlines retain their non-empty path (resolved)", () => {
+		const allPlotlines = [scopeLink("Alpha")];
+		const rows = [row({ title: "S1", plotlines: ["[[Alpha]]"] })];
+		const model = plotgridModelFromScope(rows, allPlotlines, resolverFor(["Alpha"]));
+
+		const alpha = model.plotlines.find((p) => p.name === "Alpha")!;
+		expect(alpha.path).toBe("20 Planning/Alpha.md");
+		expect(alpha.path).not.toBe("");
+	});
+
+	it("scene-referenced plotline not in scope appears as unresolved extra (path empty)", () => {
+		// "Ghost" is referenced by a scene but not in scope → unresolved extra
+		const allPlotlines = [scopeLink("Alpha")];
+		const rows = [row({ title: "S1", plotlines: ["[[Alpha]]", "[[Ghost]]"] })];
+		const model = plotgridModelFromScope(rows, allPlotlines, resolverFor(["Alpha"]));
+
+		const ghost = model.plotlines.find((p) => p.name === "Ghost");
+		expect(ghost).toBeDefined();
+		expect(ghost!.path).toBe(""); // unresolved
+	});
+
+	it("has() returns true for scope plotline membership", () => {
+		const allPlotlines = [scopeLink("Alpha"), scopeLink("Beta")];
+		const rows = [
+			row({ title: "S1", plotlines: ["[[Alpha]]"] }),
+			row({ title: "S2", plotlines: ["[[Beta]]"] }),
+		];
+		const model = plotgridModelFromScope(rows, allPlotlines, resolverFor(["Alpha", "Beta"]));
+		const alpha = model.plotlines.find((p) => p.name === "Alpha")!;
+		const beta = model.plotlines.find((p) => p.name === "Beta")!;
+
+		expect(model.has(0, alpha)).toBe(true);  // S1 ∈ Alpha
+		expect(model.has(0, beta)).toBe(false);  // S1 ∉ Beta
+		expect(model.has(1, beta)).toBe(true);   // S2 ∈ Beta
+		expect(model.has(1, alpha)).toBe(false); // S2 ∉ Alpha
+	});
+
+	it("has() returns false for a 0-plotline scene against any plotline", () => {
+		const allPlotlines = [scopeLink("Alpha")];
+		const rows = [row({ title: "S1", plotlines: [] })];
+		const model = plotgridModelFromScope(rows, allPlotlines, resolverFor(["Alpha"]));
+
+		expect(model.has(0, model.plotlines[0]!)).toBe(false);
+	});
+
+	it("scenes axis preserves input order including 0-plotline scenes", () => {
+		const allPlotlines = [scopeLink("Alpha")];
+		const rows = [
+			row({ title: "S1", plotlines: [] }),
+			row({ title: "S2", plotlines: ["[[Alpha]]"] }),
+			row({ title: "S3", plotlines: [] }),
+		];
+		const model = plotgridModelFromScope(rows, allPlotlines, resolverFor(["Alpha"]));
+		expect(model.scenes.map((s) => s.title)).toEqual(["S1", "S2", "S3"]);
+	});
+
+	it("scope plotlines appear before unresolved extras in the axis", () => {
+		const allPlotlines = [scopeLink("Zeta")];
+		const rows = [row({ title: "S1", plotlines: ["[[Zeta]]", "[[Phantom]]"] })];
+		const model = plotgridModelFromScope(rows, allPlotlines, resolverFor(["Zeta"]));
+		const names = model.plotlines.map((p) => p.name);
+		expect(names.indexOf("Zeta")).toBeLessThan(names.indexOf("Phantom"));
+	});
+
+	it("satisfies the PlotgridModel interface", () => {
+		const model: PlotgridModel = plotgridModelFromScope([], [], resolverFor([]));
 		expect(Array.isArray(model.plotlines)).toBe(true);
 		expect(Array.isArray(model.scenes)).toBe(true);
 		expect(typeof model.has).toBe("function");

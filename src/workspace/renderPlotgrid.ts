@@ -1,16 +1,13 @@
 /**
- * renderPlotgrid — F2: Scene × Plotline matrix with click-toggle write-back.
+ * renderPlotgrid — read-only Scene × Plotline coverage matrix (M6 rework).
  *
- * Renders a grid where ROWS = scenes, COLUMNS = plotlines (M3 orientation).
- * Each cell shows whether the scene belongs to that plotline. Clicking a cell
- * toggles the plotline in the scene's `plotlines` frontmatter list.
+ * Renders a grid where ROWS = ALL in-scope scenes, COLUMNS = ALL in-scope plotlines.
+ * Columns are persistent: they come from the full plotline scope (resolvePlotlineScope),
+ * so the grid NEVER collapses even when a plotline has zero scene memberships or when a
+ * scene has zero plotlines.
  *
- * Design Clarification 2: This surface uses a click/keyboard toggle, NOT the
- * drag machine (InteractionHandler). The toggle writes via the single write
- * seam: commit(app, file, "plotlines", newArray, {name:"plotlines",type:"list"}).
- *
- * Listeners are registered via component.registerDomEvent so cleanup is owned
- * by the Obsidian Component lifecycle (CON-4).
+ * This surface is READ-ONLY. There is NO click/keydown write path, no commit, no
+ * processFrontMatter call, no InteractionHandler. Cells are purely informational.
  *
  * Row header (col 1):  scene order index + title as a [data-sf-link] drill span.
  * Column headers:      plotline name, colour-coded via plotlineColor(name).
@@ -19,11 +16,11 @@
  * Filled cell (has(sceneIdx, plotline) === true):
  *   Shows compact indicator: status badge + `when` field ("Draft · Night 1").
  *
- * Cell DOM:
- *   [role="gridcell"][aria-checked][tabindex="0"]
+ * Cell DOM (read-only):
+ *   [role="cell"].sf-pg-cell
  *   [data-sf-scene=<file.path>][data-sf-plotline=<plotline.name>]
- *   - Resolved plotline column: interactive (click/Space/Enter toggles)
- *   - Unresolved plotline column: [aria-disabled="true"], no listeners
+ *   - Filled cells: class sf-pg-cell--filled, aria-label with status+when
+ *   - Unresolved column cells: [aria-disabled="true"]
  *
  * Table DOM:
  *   [role="table"].sf-pg-table
@@ -32,69 +29,39 @@
  *       [role="columnheader"].sf-pg-col-head        (one per plotline, colour-coded)
  *     .sf-pg-tbody > .sf-pg-tr                      (one per scene)
  *       [role="rowheader"].sf-pg-row-head           (scene order + title)
- *       [role="gridcell"].sf-pg-cell                (one per plotline)
+ *       [role="cell"].sf-pg-cell                    (one per plotline, read-only)
  *
- * @ref docs/XDD/specs/007-interactive-views/plan/phase-5.md — T5.2
- * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-14, AC-3/AC-4
+ * @ref docs/XDD/specs/007-interactive-views/plan/ — M6 rework
+ * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-14
  */
 
-import type { App, Component, TFile } from "obsidian";
 import { emptyLine } from "../panel/components";
-import { commit } from "../inspector/frontmatterWriter";
 import {
 	type PlotgridModel,
-	stripLink,
-	type Link,
 	plotlineColor,
 	type SceneRow,
 } from "./workspaceModel";
 import { statusSlug } from "./renderShared";
 
 // ---------------------------------------------------------------------------
-// Field spec for plotlines (list type)
-// ---------------------------------------------------------------------------
-
-const PLOTLINES_FIELD = {
-	name: "plotlines",
-	type: "list" as const,
-};
-
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
-
-/** Dependencies injected into renderPlotgrid. */
-export interface PlotgridDeps {
-	/** Obsidian App — used by commit() to call processFrontMatter. */
-	app: App;
-	/**
-	 * Obsidian Component (or host view) whose lifecycle owns the DOM listeners.
-	 * All click/keydown listeners are registered via component.registerDomEvent
-	 * so they are cleaned up on unload (CON-4).
-	 */
-	component: Component;
-	/** Called after a successful write — triggers optimistic re-render (ADR-22). */
-	onAfter: (file: TFile) => void;
-}
-
-// ---------------------------------------------------------------------------
-// Main render
+// Main render (read-only)
 // ---------------------------------------------------------------------------
 
 /**
- * Render a Scene × Plotline matrix into `host` (M3 orientation).
+ * Render a read-only Scene × Plotline coverage matrix into `host`.
+ *
+ * Columns = all in-scope plotlines (persistent — never collapses).
+ * Rows = all in-scope scenes (including 0-plotline scenes).
  *
  * @param host  Host element to render into
- * @param model Output of plotgridModel()
- * @param deps  App + Component + onAfter callback
+ * @param model Output of plotgridModelFromScope()
  */
 export function renderPlotgrid(
 	host: HTMLElement,
 	model: PlotgridModel,
-	deps: PlotgridDeps,
 ): void {
-	if (model.plotlines.length === 0 || model.scenes.length === 0) {
-		emptyLine(host, "No plotlines or scenes in scope.");
+	if (model.scenes.length === 0) {
+		emptyLine(host, "No scenes in scope.");
 		return;
 	}
 
@@ -149,7 +116,7 @@ export function renderPlotgrid(
 
 	for (let sceneIdx = 0; sceneIdx < model.scenes.length; sceneIdx++) {
 		const scene = model.scenes[sceneIdx]!;
-		renderSceneRow(tbodyEl, scene, sceneIdx, model, deps);
+		renderSceneRow(tbodyEl, scene, sceneIdx, model);
 	}
 }
 
@@ -162,7 +129,6 @@ function renderSceneRow(
 	scene: SceneRow,
 	sceneIdx: number,
 	model: PlotgridModel,
-	deps: PlotgridDeps,
 ): void {
 	const rowEl = tbody.createEl("div", { cls: "sf-pg-tr" });
 	rowEl.setAttribute("role", "row");
@@ -180,7 +146,7 @@ function renderSceneRow(
 	titleSpan.setAttribute("role", "link");
 	titleSpan.setAttribute("tabindex", "0");
 
-	// One cell per plotline column
+	// One read-only cell per plotline column
 	for (const plotline of model.plotlines) {
 		const isUnresolved = plotline.path === "";
 		const isFilled = model.has(sceneIdx, plotline);
@@ -190,28 +156,24 @@ function renderSceneRow(
 				? "sf-pg-cell sf-pg-cell--filled"
 				: "sf-pg-cell",
 		});
-		cellEl.setAttribute("role", "gridcell");
-		cellEl.setAttribute("aria-checked", String(isFilled));
+		// Read-only: role="cell" (not gridcell — no interactivity)
+		cellEl.setAttribute("role", "cell");
 		cellEl.setAttribute("data-sf-scene", scene.file.path);
 		cellEl.setAttribute("data-sf-plotline", plotline.name);
 
 		if (isUnresolved) {
-			// Non-interactive: no listeners, aria-disabled
 			cellEl.setAttribute("aria-disabled", "true");
-		} else {
-			// Interactive: tabindex + click + Space/Enter keyboard
-			cellEl.setAttribute("tabindex", "0");
+		}
 
-			// Set column accent color on the cell (for filled indicator)
+		if (!isUnresolved) {
 			const color = plotlineColor(plotline.name);
 			cellEl.style.setProperty("--sf-pg-col-color", color);
-
-			if (isFilled) {
-				renderFilledContent(cellEl, scene);
-			}
-
-			bindCellToggle(cellEl, scene.file, plotline, scene.plotlines, scene, deps);
 		}
+
+		if (isFilled) {
+			renderFilledContent(cellEl, scene);
+		}
+		// No event listeners — read-only.
 	}
 }
 
@@ -240,118 +202,5 @@ function renderFilledContent(cell: HTMLElement, scene: SceneRow): void {
 			cls: "sf-pg-cell-when",
 			text: scene.when,
 		});
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Cell toggle binding
-// ---------------------------------------------------------------------------
-
-/**
- * Bind click and keydown (Space/Enter) to toggle `plotline` in the scene's
- * `plotlines` list. All listeners are registered via component.registerDomEvent
- * for CON-4 lifecycle cleanup.
- *
- * @param cell          The gridcell element
- * @param file          The scene's TFile
- * @param plotline      The plotline link to toggle
- * @param rawPlotlines  Raw `plotlines` array from the SceneRow (original strings)
- * @param scene         The SceneRow, for optimistic inner-content sync on fill
- * @param deps          App + Component + onAfter
- */
-function bindCellToggle(
-	cell: HTMLElement,
-	file: TFile,
-	plotline: Link,
-	rawPlotlines: string[],
-	scene: SceneRow,
-	deps: PlotgridDeps,
-): void {
-	const toggle = (): void => {
-		void performToggle(cell, file, plotline, rawPlotlines, scene, deps);
-	};
-
-	deps.component.registerDomEvent(cell, "click", toggle);
-	deps.component.registerDomEvent(cell, "keydown", (e: KeyboardEvent): void => {
-		if (e.key === " " || e.key === "Enter") {
-			e.preventDefault();
-			toggle();
-		}
-	});
-}
-
-// ---------------------------------------------------------------------------
-// Toggle write
-// ---------------------------------------------------------------------------
-
-/**
- * Compute the new `plotlines` array (append or order-preserving remove),
- * write it via commit() (the single writer seam), and call onAfter on success.
- *
- * Optimistic cell update: flip aria-checked + cell content immediately;
- * reconcile via onAfter which triggers a re-render from metadataCache (ADR-22).
- *
- * @param scene  SceneRow snapshot — used to render fill content on optimistic fill.
- */
-async function performToggle(
-	cell: HTMLElement,
-	file: TFile,
-	plotline: Link,
-	rawPlotlines: string[],
-	sceneForContent: SceneRow,
-	deps: PlotgridDeps,
-): Promise<void> {
-	const wasFilled = cell.getAttribute("aria-checked") === "true";
-
-	// Compute new plotlines array
-	let newPlotlines: string[];
-	if (wasFilled) {
-		// Remove plotline: filter out entries that match by stripped name
-		newPlotlines = rawPlotlines.filter((raw) => {
-			const stripped = stripLink(raw);
-			return stripped !== plotline.name;
-		});
-	} else {
-		// Append plotline: use [[Name]] wikilink format
-		newPlotlines = [...rawPlotlines, `[[${plotline.name}]]`];
-	}
-
-	// Snapshot pre-click inner content for rollback
-	const priorInner = cell.querySelector(".sf-pg-cell-inner");
-	// Clone the inner node so we can restore it on rollback; null if cell was empty
-	const priorInnerClone = priorInner ? (priorInner.cloneNode(true) as HTMLElement) : null;
-
-	// Optimistic update — flip the cell immediately
-	const newFilled = !wasFilled;
-	cell.setAttribute("aria-checked", String(newFilled));
-	if (newFilled) {
-		cell.classList.add("sf-pg-cell--filled");
-		// Optimistic fill: render status+when immediately so the filled cell
-		// is visually correct before the async write + onAfter re-render.
-		renderFilledContent(cell, sceneForContent);
-	} else {
-		cell.classList.remove("sf-pg-cell--filled");
-		// Optimistic un-fill: remove inner content immediately
-		cell.querySelector(".sf-pg-cell-inner")?.remove();
-	}
-
-	// Write via the single write seam (CON-2, ADR-14)
-	const result = await commit(deps.app, file, "plotlines", newPlotlines, PLOTLINES_FIELD);
-
-	if (result.ok) {
-		deps.onAfter(file);
-	} else {
-		// Roll back the optimistic update on failure — restore exact pre-click DOM
-		cell.setAttribute("aria-checked", String(wasFilled));
-		if (wasFilled) {
-			cell.classList.add("sf-pg-cell--filled");
-		} else {
-			cell.classList.remove("sf-pg-cell--filled");
-		}
-		// Restore inner content to pre-click state
-		cell.querySelector(".sf-pg-cell-inner")?.remove();
-		if (priorInnerClone !== null) {
-			cell.appendChild(priorInnerClone);
-		}
 	}
 }

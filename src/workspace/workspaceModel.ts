@@ -386,6 +386,66 @@ export function plotgridModel(rows: SceneRow[], resolve: LinkResolver): Plotgrid
 	};
 }
 
+/**
+ * Build the plotgrid matrix from an explicit, scope-wide plotline column list
+ * (the persistent-column variant for the read-only coverage view).
+ *
+ * Unlike `plotgridModel`, columns are NOT derived from scene references alone:
+ * `allPlotlines` is the full scope-wide plotline list (from `resolvePlotlineScope`).
+ * Scenes that reference a plotline NOT in `allPlotlines` are unioned in as unresolved
+ * entries (path === "") so they still appear in the grid even if the vault note is
+ * missing from scope.
+ *
+ * This guarantees the grid NEVER collapses: even a plotline with 0 scenes still
+ * has a column; even a scene with 0 plotlines still has a row with all-empty cells.
+ *
+ * @param rows          All in-scope scenes (may be 0-plotline scenes).
+ * @param allPlotlines  All in-scope plotline notes as Link objects (path non-empty).
+ * @param resolve       Link resolver for scene plotline refs not in allPlotlines.
+ */
+export function plotgridModelFromScope(
+	rows: SceneRow[],
+	allPlotlines: Link[],
+	resolve: LinkResolver,
+): PlotgridModel {
+	// Build membership: Set<plotlineName> per scene.
+	const membership: Set<string>[] = rows.map(() => new Set<string>());
+	// Collect unresolved plotline names referenced by scenes but not in allPlotlines.
+	const unresolvedExtra = new Map<string, true>();
+	// Build a name→path map for scope plotlines (fast lookup).
+	const scopeByName = new Map<string, string>(allPlotlines.map((p) => [p.name, p.path]));
+
+	for (let i = 0; i < rows.length; i++) {
+		const r = rows[i]!;
+		for (const raw of r.plotlines) {
+			const text = stripLink(raw);
+			const dest = resolve(text);
+			const name = dest ? dest.basename : text;
+			membership[i]!.add(name);
+			if (!scopeByName.has(name)) {
+				// Scene references a plotline not in scope (unresolved or out-of-scope).
+				unresolvedExtra.set(name, true);
+			}
+		}
+	}
+
+	// Columns = all scope plotlines (resolved, sorted by name) + unresolved extras.
+	const plotlines: Link[] = [
+		...allPlotlines, // already sorted by resolvePlotlineScope
+		...[...unresolvedExtra.keys()]
+			.sort((a, b) => a.localeCompare(b))
+			.map((n) => ({ name: n, path: "" })),
+	];
+
+	return {
+		plotlines,
+		scenes: rows,
+		has(sceneIdx: number, plotline: Link): boolean {
+			return membership[sceneIdx]?.has(plotline.name) ?? false;
+		},
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Swimlane (M6 — T1.4)
 // ---------------------------------------------------------------------------

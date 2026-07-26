@@ -6,6 +6,9 @@
  * rather than re-implementing the reverse-lookup: a book/plotline's scenes are its typed
  * backlinks; a scene scopes to its book; anything else falls back to whole-vault scenes.
  *
+ * Also exports `resolvePlotlineScope` for the Plotgrid read-only view: gathers ALL
+ * plotline-type notes in scope (excluding meta folders), resolved as Link objects.
+ *
  * Structure-agnostic (CON-7): scenes are INCLUDED by kind (tag/type), and notes under
  * DEFAULT_EXCLUDED_FOLDERS are EXCLUDED so template/meta notes never surface. This
  * constant is the placeholder for the future `excludedFolders` settings picker.
@@ -16,6 +19,7 @@
 
 import { TFile, type App } from "obsidian";
 import { ScopingService } from "./ScopingService";
+import type { Link } from "../workspace/workspaceModel";
 
 export type WorkspaceScope =
 	| { kind: "book"; ref: TFile }
@@ -43,6 +47,23 @@ function uniqueByPath(files: TFile[]): TFile[] {
 		out.push(f);
 	}
 	return out;
+}
+
+/**
+ * Gather ALL plotline-type notes in scope as Link objects (for the Plotgrid read-only
+ * coverage view). Each plotline note has `name = file.basename` and `path = file.path`.
+ * Notes under DEFAULT_EXCLUDED_FOLDERS are excluded.
+ *
+ * This is the persistent column set: the Plotgrid will never collapse even if no scene
+ * references a given plotline, because columns come from this scope-wide list.
+ */
+export function resolvePlotlineScope(app: App): Link[] {
+	const scoping = new ScopingService(app);
+	return app.vault
+		.getMarkdownFiles()
+		.filter((f) => !isExcluded(f.path) && scoping.classify(f) === "plotline")
+		.map((f) => ({ name: f.basename, path: f.path }))
+		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** Resolve the active note to a workspace scope + its in-scope scene notes. Never throws. */

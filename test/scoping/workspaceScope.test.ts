@@ -18,7 +18,7 @@ import {
 	type CachedMetadata,
 	type TFile,
 } from "../__mocks__/obsidian";
-import { resolveWorkspaceScope } from "scoping/workspaceScope";
+import { resolveWorkspaceScope, resolvePlotlineScope } from "scoping/workspaceScope";
 
 // Mini-vault fixtures
 const book = createMockTFile({ basename: "Wardens of Moonharbor", path: "20 Planning/Wardens of Moonharbor.md" });
@@ -126,5 +126,41 @@ describe("resolveWorkspaceScope", () => {
 		const out = resolveWorkspaceScope(bare, scene1);
 		expect(out.scope).toEqual({ kind: "none" });
 		expect(out.scenes).toEqual([]);
+	});
+});
+
+describe("resolvePlotlineScope", () => {
+	it("returns all plotline-type notes in scope as Link objects sorted by name", () => {
+		const app = new App();
+		const pl1 = createMockTFile({ basename: "Zephyr Arc", path: "20 Planning/Zephyr Arc.md" });
+		const pl2 = createMockTFile({ basename: "Alpha Arc", path: "20 Planning/Alpha Arc.md" });
+		const scene = createMockTFile({ basename: "Scene 1", path: "10 Manuscript/WoM/Scene 1.md" });
+		const meta = createMockTFile({ basename: "Plotline Template", path: "00 Meta/Plotline Template.md" });
+
+		vi.mocked(app.metadataCache.getFileCache).mockImplementation((f) => {
+			if (f === pl1 || f === pl2) return createMockCachedMetadata({ tags: [{ tag: "#planning/plotline" }] });
+			if (f === scene) return createMockCachedMetadata({ tags: [{ tag: "#manuscript/scene" }] });
+			if (f === meta) return createMockCachedMetadata({ tags: [{ tag: "#planning/plotline" }] });
+			return null;
+		});
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([pl1, pl2, scene, meta]);
+
+		const result = resolvePlotlineScope(app);
+
+		// Should contain both plotlines sorted by name, meta excluded
+		expect(result.map((l) => l.name)).toEqual(["Alpha Arc", "Zephyr Arc"]);
+		expect(result[0]).toEqual({ name: "Alpha Arc", path: "20 Planning/Alpha Arc.md" });
+		expect(result[1]).toEqual({ name: "Zephyr Arc", path: "20 Planning/Zephyr Arc.md" });
+		// Meta template excluded (under 00 Meta)
+		expect(result.some((l) => l.name === "Plotline Template")).toBe(false);
+		// Scene not included (wrong kind)
+		expect(result.some((l) => l.name === "Scene 1")).toBe(false);
+	});
+
+	it("returns empty array on empty vault", () => {
+		const app = new App();
+		vi.mocked(app.metadataCache.getFileCache).mockReturnValue(null);
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([]);
+		expect(resolvePlotlineScope(app)).toEqual([]);
 	});
 });

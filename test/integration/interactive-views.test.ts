@@ -7,7 +7,7 @@
  *
  *   (a) Kanban move writes status + order; the view re-renders and a SECOND
  *       WorkspaceView on the same scope reflects it after "changed" (AC-F7.3).
- *   (b) Plotgrid toggle writes plotlines.
+ *   (b) Plotgrid is read-only: clicking a cell does NOT write (M6 rework).
  *   (d) A simulated external frontmatter change re-renders (last-write-wins,
  *       ADR-25).
  *   (e) A Cmd+Z-style revert (frontmatter restored → "changed") updates the view
@@ -17,8 +17,7 @@
  *
  * Kanban moves are driven via the InteractionHandler KEYBOARD path (ArrowRight) —
  * it shares the exact same commit seam as a pointer drop (F8, AC-11) and is
- * deterministic in jsdom (elementFromPoint is null there). The plotgrid uses its
- * click toggle.
+ * deterministic in jsdom (elementFromPoint is null there).
  *
  * @ref docs/XDD/specs/007-interactive-views/plan/phase-6.md — T6.3
  */
@@ -194,23 +193,22 @@ describe("M6 integration — interactive write → re-render round-trip", () => 
 		await viewB.onClose();
 	});
 
-	it("(b) Plotgrid toggle writes the plotlines list", async () => {
+	it("(b) Plotgrid is read-only: clicking a cell does NOT write (no processFrontMatter call)", async () => {
 		const view = makeView(fx.app);
 		await view.onOpen();
 		view.setLayout("plotgrid");
 
 		const s1 = fx.scenes.get(1)!;
-		// s1 is NOT on "The Warden's Oath" — toggling that cell adds it.
+		// Find any cell for s1 in the Plotgrid and click it.
 		const cell = [...body(view).querySelectorAll<HTMLElement>(".sf-pg-cell")].find(
-			(c) => c.getAttribute("data-sf-scene") === s1.path && c.getAttribute("data-sf-plotline") === "The Warden's Oath",
+			(c) => c.getAttribute("data-sf-scene") === s1.path,
 		);
 		expect(cell).toBeDefined();
 		cell!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await vi.runAllTimersAsync();
 
-		const plotlines = fx.app.fileManager._getFrontmatter(s1.path)["plotlines"];
-		expect(Array.isArray(plotlines)).toBe(true);
-		expect((plotlines as string[]).some((p) => p.includes("The Warden's Oath"))).toBe(true);
+		// Read-only: no frontmatter write should have occurred.
+		expect(vi.mocked(fx.app.fileManager.processFrontMatter)).not.toHaveBeenCalled();
 
 		await view.onClose();
 	});
