@@ -2098,7 +2098,8 @@ body {
 	cursor: not-allowed;
 }
 
-/* Inline zoom slot — pushes the zoom controls to the end of the toolbar row. */
+/* Zoom slot — always present in the head row, pushes zoom controls to the far right.
+   Lives outside .sf-ws-tlbar so it is visible for ALL layouts (not just timeline). */
 .sf-ws-zoomslot {
 	display: flex;
 	align-items: center;
@@ -2275,9 +2276,10 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * Plotgrid (M6 / T5.2, M3 orientation) — Scene × Plotline membership matrix.
- * ROWS = scenes; COLUMNS = plotlines (colour-coded).
- * Filled cells show status badge + when field.
+ * Plotgrid (M6 rework) — READ-ONLY Scene × Plotline coverage matrix.
+ * ROWS = ALL in-scope scenes; COLUMNS = ALL in-scope plotlines (persistent,
+ * never collapses). Filled cells show status badge + when field. READ-ONLY:
+ * no click/hover interactive states on cells.
  * sf-pg-* classes: table, header, rows, cells, filled state.
  * ═════════════════════════════════════════════════════════════════════════ */
 
@@ -2445,28 +2447,10 @@ body {
 	border-right: none;
 }
 
-/* Interactive (resolved) cells */
-.sf-pg-cell[tabindex="0"] {
-	cursor: pointer;
-}
-
-.sf-pg-cell[tabindex="0"]:hover {
-	background: var(--background-modifier-hover);
-}
-
-.sf-pg-cell[tabindex="0"]:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: -2px;
-}
-
 /* Filled cell — coloured by plotline via CSS custom property */
 .sf-pg-cell--filled {
 	background: color-mix(in srgb, var(--sf-pg-col-color, var(--interactive-accent)) 20%, var(--background-primary));
 	border-left: 3px solid var(--sf-pg-col-color, var(--interactive-accent));
-}
-
-.sf-pg-cell--filled:hover {
-	background: color-mix(in srgb, var(--sf-pg-col-color, var(--interactive-accent)) 30%, var(--background-primary));
 }
 
 /* Content inside a filled cell */
@@ -2503,9 +2487,8 @@ body {
 	max-width: 100%;
 }
 
-/* Disabled cell (unresolved plotline column) */
+/* Unresolved plotline column cell — muted */
 .sf-pg-cell[aria-disabled="true"] {
-	cursor: not-allowed;
 	opacity: 0.35;
 	background: var(--background-secondary);
 }

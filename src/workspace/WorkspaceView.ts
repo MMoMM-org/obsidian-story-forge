@@ -29,13 +29,13 @@
 import { Component, ItemView, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
 import { DEBOUNCE_MS } from "pluginConstants";
 import { revealAndShowFile } from "views/SidebarView";
-import { resolveWorkspaceScope } from "scoping/workspaceScope";
+import { resolveWorkspaceScope, resolvePlotlineScope } from "scoping/workspaceScope";
 import { mapSceneRow } from "workspace/sceneMapper";
 import {
 	timelineModel,
 	plotlineModel,
 	kanbanModel,
-	plotgridModel,
+	plotgridModelFromScope,
 	swimlaneGrid,
 	type LinkResolver,
 	type SwimlaneKey,
@@ -177,11 +177,13 @@ export class WorkspaceView extends ItemView {
 		});
 		this._keySelectEl = keySelect;
 
-		// Zoom controls slot — the actual controls bar is mounted here per-render
-		// (createTimelineZoom places its .sf-zoom-bar in this host; the scaled body
-		// goes into the main body). Kept empty in swimlane mode.
-		this._zoomSlotEl = tlBar.createDiv({ cls: "sf-ws-zoomslot" });
 		this._timelineBarEl = tlBar;
+
+		// Zoom controls slot — always present in the header, outside the
+		// timeline-specific bar, so zoom is available for ALL layouts.
+		// createTimelineZoom places its .sf-zoom-bar in this host; the scaled
+		// body goes into the main body (zoom.scaledEl).
+		this._zoomSlotEl = head.createDiv({ cls: "sf-ws-zoomslot" });
 
 		this._bodyEl = ce.createDiv({ cls: "sf-ws-body" });
 
@@ -272,6 +274,21 @@ export class WorkspaceView extends ItemView {
 		const body = this._bodyEl;
 		body.empty();
 
+		// Tear down prior zoom child (releases DOM listeners, CON-4).
+		if (this._zoomChild !== null) {
+			this.removeChild(this._zoomChild);
+			this._zoomChild = null;
+		}
+		this._zoomSlotEl?.empty();
+		// Fresh child Component owns zoom listeners this render cycle.
+		const zoomChild = new Component();
+		this.addChild(zoomChild);
+		this._zoomChild = zoomChild;
+		const zoom = createTimelineZoom(zoomChild, {
+			controlsHost: this._zoomSlotEl ?? body,
+			scaledHost: body,
+		});
+
 		const f = this.app.workspace.getActiveFile();
 
 		const { scope, scenes } = resolveWorkspaceScope(this.app, f);
@@ -279,7 +296,7 @@ export class WorkspaceView extends ItemView {
 		this._syncToggle();
 
 		if (scope.kind === "none") {
-			body.createDiv({
+			zoom.scaledEl.createDiv({
 				cls: "sf-ws-hint",
 				text: "No book/plotline in focus — showing all scenes in the vault.",
 			});
@@ -291,21 +308,21 @@ export class WorkspaceView extends ItemView {
 
 		switch (this._layout) {
 			case "timeline":
-				this._renderTimeline(body, rows);
+				this._renderTimeline(zoom.scaledEl, rows);
 				break;
 			case "kanban":
-				this._renderKanban(body, rows);
+				this._renderKanban(zoom.scaledEl, rows);
 				break;
-			case "plotgrid":
-				renderPlotgrid(body, plotgridModel(rows, resolve), {
-					app: this.app,
-					component: this,
-					onAfter: (): void => { this._render(); },
-				});
+			case "plotgrid": {
+				// Plotgrid is read-only: columns = all scope plotlines (persistent);
+				// rows = all scenes. No write deps — no app/component/onAfter needed.
+				const allPlotlines = resolvePlotlineScope(this.app);
+				renderPlotgrid(zoom.scaledEl, plotgridModelFromScope(rows, allPlotlines, resolve));
 				break;
+			}
 			case "plotlines":
 				renderPlotlines(
-					body,
+					zoom.scaledEl,
 					plotlineModel(rows, resolve),
 					{ isCollapsed: (g) => this._collapse.isCollapsed("main", this._scopeKey, g) },
 					"list",
@@ -313,17 +330,8 @@ export class WorkspaceView extends ItemView {
 		}
 	}
 
-	/** Timeline layout: rail (with zoom, read-only) or swimlane grid (read-only). */
+	/** Timeline layout: rail or swimlane grid (read-only). `body` is `zoom.scaledEl`. */
 	private _renderTimeline(body: HTMLElement, rows: SceneRow[]): void {
-		// Tear down the previous zoom child (releases its 4 DOM listeners) so they
-		// don't accumulate across re-renders triggered by metadataCache.changed (ADR-22).
-		if (this._zoomChild !== null) {
-			this.removeChild(this._zoomChild);
-			this._zoomChild = null;
-		}
-		// The zoom controls live in the toolbar slot; reset it each render.
-		this._zoomSlotEl?.empty();
-
 		if (this._timelineMode === "swimlane") {
 			const key = this._swimKeyByScope.get(this._scopeKey) ?? "plotline";
 			const resolve: LinkResolver = (t) =>
@@ -338,21 +346,9 @@ export class WorkspaceView extends ItemView {
 			return;
 		}
 
-		// Rail: fresh child Component owns the 4 zoom listeners this render cycle.
-		// Each re-render removes the previous child (unloading its listeners) and
-		// creates a new one — preventing unbounded listener accumulation.
-		const zoomChild = new Component();
-		this.addChild(zoomChild);
-		this._zoomChild = zoomChild;
-
-		// Rail: split zoom — controls in the toolbar slot, scaled body in the main
-		// body. Read-only — drill only, no placement drag.
-		const zoom = createTimelineZoom(zoomChild, {
-			controlsHost: this._zoomSlotEl ?? body,
-			scaledHost: body,
-		});
+		// Rail: render into the zoom-scaled element (zoom already created in _render).
 		renderTimeline(
-			zoom.scaledEl,
+			body,
 			timelineModel(rows),
 			{ isCollapsed: (g) => this._collapse.isCollapsed("main", this._scopeKey, g) },
 			"rail",

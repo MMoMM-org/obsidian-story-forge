@@ -176,18 +176,19 @@ describe("WorkspaceView M6 — Timeline toolbar", () => {
 		expect(opts).toEqual(["pov", "location", "plotline"]);
 	});
 
-	it("mounts the zoom controls in the toolbar (not the body) in rail mode", () => {
-		// Controls live in the toolbar row.
-		expect(view.contentEl.querySelector(".sf-ws-tlbar .sf-zoom-bar")).not.toBeNull();
+	it("mounts the zoom controls in the head (not the tlbar) in rail mode", () => {
+		// Controls live in the head row, outside the timeline-specific bar.
+		expect(view.contentEl.querySelector(".sf-ws-head > .sf-ws-zoomslot .sf-zoom-bar")).not.toBeNull();
+		// NOT inside the tlbar.
+		expect(view.contentEl.querySelector(".sf-ws-tlbar .sf-zoom-bar")).toBeNull();
 		// The scaled timeline body lives in the main body.
 		expect(body(view).querySelector(".sf-zoom-scaled .sf-tl-rail")).not.toBeNull();
 	});
 
-	it("switches Rail → Swimlane and renders the columns grid (no zoom body)", () => {
+	it("switches Rail → Swimlane and renders the columns grid inside the zoom wrapper", () => {
 		click(view.contentEl.querySelector(`[data-ws-tlmode="swimlane"]`));
-		expect(body(view).querySelector(".sf-sw-grid")).not.toBeNull();
-		// No scaled body in swimlane mode.
-		expect(body(view).querySelector(".sf-zoom-scaled")).toBeNull();
+		// The swimlane grid is rendered inside the zoom-scaled element (zoom applies to all layouts).
+		expect(body(view).querySelector(".sf-zoom-scaled .sf-sw-grid")).not.toBeNull();
 	});
 
 	it("disables the group-by dropdown in rail mode, enables it in swimlane", () => {
@@ -219,6 +220,21 @@ describe("WorkspaceView M6 — Timeline toolbar", () => {
 		expect(scaled.style.getPropertyValue("--sf-zoom") || "1").toBe("1");
 		click(view.contentEl.querySelector(`[aria-label="Zoom in"]`));
 		expect(scaled.style.getPropertyValue("--sf-zoom")).not.toBe("1");
+	});
+
+	it("zoom controls are present in the head for the kanban layout", () => {
+		view.setLayout("kanban");
+		expect(view.contentEl.querySelector(".sf-ws-head > .sf-ws-zoomslot .sf-zoom-bar")).not.toBeNull();
+	});
+
+	it("kanban board renders inside .sf-zoom-scaled", () => {
+		view.setLayout("kanban");
+		expect(body(view).querySelector(".sf-zoom-scaled .sf-kb-board")).not.toBeNull();
+	});
+
+	it("plotgrid renders inside .sf-zoom-scaled", () => {
+		view.setLayout("plotgrid");
+		expect(body(view).querySelector(".sf-zoom-scaled .sf-pg-table")).not.toBeNull();
 	});
 });
 
