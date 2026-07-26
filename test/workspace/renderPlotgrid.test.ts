@@ -274,11 +274,11 @@ describe("renderPlotgrid", () => {
 		emptyCell.click();
 		await Promise.resolve();
 
-		// Frontmatter should now include Alpha
+		// Frontmatter should now include Alpha in exact wikilink format
 		const fm = app.fileManager._getFrontmatter("scenes/S1.md");
 		const plotlines = fm["plotlines"] as string[];
 		expect(plotlines).toBeDefined();
-		expect(plotlines.some((pl: string) => pl.includes("Alpha"))).toBe(true);
+		expect(plotlines).toContain("[[Alpha]]");
 	});
 
 	// -------------------------------------------------------------------------
@@ -309,11 +309,10 @@ describe("renderPlotgrid", () => {
 		filledCell.click();
 		await Promise.resolve();
 
-		// Alpha removed, Beta remains
+		// Alpha removed, Beta remains — exact wikilink format + order preserved
 		const fm = app.fileManager._getFrontmatter("scenes/S1.md");
 		const plotlines = fm["plotlines"] as string[];
-		expect(plotlines.some((pl: string) => pl.includes("Alpha"))).toBe(false);
-		expect(plotlines.some((pl: string) => pl.includes("Beta"))).toBe(true);
+		expect(plotlines).toEqual(["[[Beta]]"]);
 	});
 
 	// -------------------------------------------------------------------------
@@ -410,7 +409,7 @@ describe("renderPlotgrid", () => {
 
 		const fm = app.fileManager._getFrontmatter("scenes/S1.md");
 		const plotlines = fm["plotlines"] as string[];
-		expect(plotlines.some((pl: string) => pl.includes("Alpha"))).toBe(true);
+		expect(plotlines).toContain("[[Alpha]]");
 	});
 
 	// -------------------------------------------------------------------------
@@ -627,5 +626,175 @@ describe("renderPlotgrid", () => {
 		const unresolvedHeader = host.querySelector(".sf-pg-col-head--unresolved");
 		expect(unresolvedHeader).not.toBeNull();
 		expect(unresolvedHeader?.getAttribute("data-sf-plotline-col")).toBe("Phantom");
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-20: Optimistic un-fill removes cell inner content immediately
+	// -------------------------------------------------------------------------
+	it("clicking a filled cell removes sf-pg-cell-inner optimistically (before onAfter re-render)", async () => {
+		const s1 = makeSceneRow({
+			title: "S1",
+			plotlines: ["[[Alpha]]"],
+			status: "Draft",
+			when: "Night 1",
+		});
+		const s1file = createMockTFile({ path: "scenes/S1.md", basename: "S1" });
+		app.fileManager._setFrontmatter("scenes/S1.md", { plotlines: ["[[Alpha]]"] });
+
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([{ ...s1, file: s1file }], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+		renderPlotgrid(host, model, deps);
+
+		const filledCell = host.querySelector(
+			"[role='gridcell'][aria-checked='true'][data-sf-scene='scenes/S1.md'][data-sf-plotline='Alpha']",
+		) as HTMLElement;
+		expect(filledCell).not.toBeNull();
+		// Pre-click: inner content is present
+		expect(filledCell.querySelector(".sf-pg-cell-inner")).not.toBeNull();
+		expect(filledCell.textContent).toContain("Draft");
+
+		filledCell.click();
+		// Drain only microtasks — optimistic update is sync, onAfter not yet called
+		await Promise.resolve();
+
+		// Optimistic un-fill: inner content must be gone
+		expect(filledCell.querySelector(".sf-pg-cell-inner")).toBeNull();
+		expect(filledCell.textContent).not.toContain("Draft");
+		expect(filledCell.getAttribute("aria-checked")).toBe("false");
+		expect(filledCell.classList.contains("sf-pg-cell--filled")).toBe(false);
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-21: Optimistic fill injects cell inner content immediately
+	// -------------------------------------------------------------------------
+	it("clicking an empty cell injects sf-pg-cell-inner optimistically (before onAfter re-render)", async () => {
+		const s1 = makeSceneRow({
+			title: "S1",
+			plotlines: [],
+			status: "Draft",
+			when: "Night 1",
+		});
+		const s2 = makeSceneRow({ title: "S2", plotlines: ["[[Alpha]]"] });
+		const s1file = createMockTFile({ path: "scenes/S1.md", basename: "S1" });
+		const s2file = createMockTFile({ path: "scenes/S2.md", basename: "S2" });
+		app.fileManager._setFrontmatter("scenes/S1.md", { plotlines: [] });
+		app.fileManager._setFrontmatter("scenes/S2.md", { plotlines: ["[[Alpha]]"] });
+
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel(
+			[{ ...s1, file: s1file }, { ...s2, file: s2file }],
+			resolver,
+		);
+		const deps: PlotgridDeps = { app, component, onAfter };
+		renderPlotgrid(host, model, deps);
+
+		const emptyCell = host.querySelector(
+			"[role='gridcell'][aria-checked='false'][data-sf-scene='scenes/S1.md'][data-sf-plotline='Alpha']",
+		) as HTMLElement;
+		expect(emptyCell).not.toBeNull();
+		// Pre-click: no inner content
+		expect(emptyCell.querySelector(".sf-pg-cell-inner")).toBeNull();
+
+		emptyCell.click();
+		// Drain only microtasks — optimistic update is sync, onAfter not yet called
+		await Promise.resolve();
+
+		// Optimistic fill: inner content must be present immediately
+		expect(emptyCell.querySelector(".sf-pg-cell-inner")).not.toBeNull();
+		expect(emptyCell.getAttribute("aria-checked")).toBe("true");
+		expect(emptyCell.classList.contains("sf-pg-cell--filled")).toBe(true);
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-22: Rollback restores exact pre-click DOM including inner content
+	// -------------------------------------------------------------------------
+	it("rolls back inner content to pre-click state when write fails (filled cell)", async () => {
+		const s1 = makeSceneRow({
+			title: "S1",
+			plotlines: ["[[Alpha]]"],
+			status: "Draft",
+			when: "Night 1",
+		});
+		const s1file = createMockTFile({ path: "scenes/S1.md", basename: "S1" });
+		app.fileManager._setFrontmatter("scenes/S1.md", { plotlines: ["[[Alpha]]"] });
+
+		vi.mocked(app.fileManager.processFrontMatter).mockRejectedValueOnce(
+			new Error("simulated write failure"),
+		);
+
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([{ ...s1, file: s1file }], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+		renderPlotgrid(host, model, deps);
+
+		const filledCell = host.querySelector(
+			"[role='gridcell'][aria-checked='true'][data-sf-scene='scenes/S1.md'][data-sf-plotline='Alpha']",
+		) as HTMLElement;
+		expect(filledCell.querySelector(".sf-pg-cell-inner")).not.toBeNull();
+
+		filledCell.click();
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+		// After rollback: class, aria-checked, AND inner content are all restored
+		expect(filledCell.getAttribute("aria-checked")).toBe("true");
+		expect(filledCell.classList.contains("sf-pg-cell--filled")).toBe(true);
+		expect(filledCell.querySelector(".sf-pg-cell-inner")).not.toBeNull();
+		expect(filledCell.textContent).toContain("Draft");
+		expect(onAfter).not.toHaveBeenCalled();
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-23: Resolved col-head carries --sf-pg-col-color custom property
+	// -------------------------------------------------------------------------
+	it("resolved plotline column header has a non-empty --sf-pg-col-color custom property", () => {
+		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([s1], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+
+		renderPlotgrid(host, model, deps);
+
+		const colHead = host.querySelector(
+			".sf-pg-col-head[data-sf-plotline-col='Alpha']",
+		) as HTMLElement;
+		expect(colHead).not.toBeNull();
+		expect(colHead.style.getPropertyValue("--sf-pg-col-color")).not.toBe("");
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-24: Row-header drill span has tabindex="0" for keyboard reachability
+	// -------------------------------------------------------------------------
+	it("row-header scene-title drill span has tabindex='0'", () => {
+		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([s1], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+
+		renderPlotgrid(host, model, deps);
+
+		const drillSpan = host.querySelector(
+			"[role='rowheader'] [data-sf-link]",
+		) as HTMLElement;
+		expect(drillSpan).not.toBeNull();
+		expect(drillSpan.getAttribute("tabindex")).toBe("0");
+	});
+
+	// -------------------------------------------------------------------------
+	// T5.2-25: Resolved col-head name span has tabindex="0" (keyboard-reachable)
+	// -------------------------------------------------------------------------
+	it("resolved column-header name span has tabindex='0'", () => {
+		const s1 = makeSceneRow({ title: "S1", plotlines: ["[[Alpha]]"] });
+		const resolver = makeResolver(["Alpha"]);
+		const model = plotgridModel([s1], resolver);
+		const deps: PlotgridDeps = { app, component, onAfter };
+
+		renderPlotgrid(host, model, deps);
+
+		const nameSpan = host.querySelector(
+			".sf-pg-col-head[data-sf-plotline-col='Alpha'] .sf-pg-col-name[data-sf-link]",
+		) as HTMLElement;
+		expect(nameSpan).not.toBeNull();
+		expect(nameSpan.getAttribute("tabindex")).toBe("0");
 	});
 });

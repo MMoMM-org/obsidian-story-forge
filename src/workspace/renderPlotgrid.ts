@@ -210,7 +210,7 @@ function renderSceneRow(
 				renderFilledContent(cellEl, scene);
 			}
 
-			bindCellToggle(cellEl, scene.file, plotline, scene.plotlines, deps);
+			bindCellToggle(cellEl, scene.file, plotline, scene.plotlines, scene, deps);
 		}
 	}
 }
@@ -256,6 +256,7 @@ function renderFilledContent(cell: HTMLElement, scene: SceneRow): void {
  * @param file          The scene's TFile
  * @param plotline      The plotline link to toggle
  * @param rawPlotlines  Raw `plotlines` array from the SceneRow (original strings)
+ * @param scene         The SceneRow, for optimistic inner-content sync on fill
  * @param deps          App + Component + onAfter
  */
 function bindCellToggle(
@@ -263,10 +264,11 @@ function bindCellToggle(
 	file: TFile,
 	plotline: Link,
 	rawPlotlines: string[],
+	scene: SceneRow,
 	deps: PlotgridDeps,
 ): void {
 	const toggle = (): void => {
-		void performToggle(cell, file, plotline, rawPlotlines, deps);
+		void performToggle(cell, file, plotline, rawPlotlines, scene, deps);
 	};
 
 	deps.component.registerDomEvent(cell, "click", toggle);
@@ -286,14 +288,17 @@ function bindCellToggle(
  * Compute the new `plotlines` array (append or order-preserving remove),
  * write it via commit() (the single writer seam), and call onAfter on success.
  *
- * Optimistic cell update: flip aria-checked immediately; reconcile via onAfter
- * which triggers a re-render from metadataCache (ADR-22).
+ * Optimistic cell update: flip aria-checked + cell content immediately;
+ * reconcile via onAfter which triggers a re-render from metadataCache (ADR-22).
+ *
+ * @param scene  SceneRow snapshot — used to render fill content on optimistic fill.
  */
 async function performToggle(
 	cell: HTMLElement,
 	file: TFile,
 	plotline: Link,
 	rawPlotlines: string[],
+	sceneForContent: SceneRow,
 	deps: PlotgridDeps,
 ): Promise<void> {
 	const wasFilled = cell.getAttribute("aria-checked") === "true";
@@ -311,13 +316,23 @@ async function performToggle(
 		newPlotlines = [...rawPlotlines, `[[${plotline.name}]]`];
 	}
 
+	// Snapshot pre-click inner content for rollback
+	const priorInner = cell.querySelector(".sf-pg-cell-inner");
+	// Clone the inner node so we can restore it on rollback; null if cell was empty
+	const priorInnerClone = priorInner ? (priorInner.cloneNode(true) as HTMLElement) : null;
+
 	// Optimistic update — flip the cell immediately
 	const newFilled = !wasFilled;
 	cell.setAttribute("aria-checked", String(newFilled));
 	if (newFilled) {
 		cell.classList.add("sf-pg-cell--filled");
+		// Optimistic fill: render status+when immediately so the filled cell
+		// is visually correct before the async write + onAfter re-render.
+		renderFilledContent(cell, sceneForContent);
 	} else {
 		cell.classList.remove("sf-pg-cell--filled");
+		// Optimistic un-fill: remove inner content immediately
+		cell.querySelector(".sf-pg-cell-inner")?.remove();
 	}
 
 	// Write via the single write seam (CON-2, ADR-14)
@@ -326,12 +341,17 @@ async function performToggle(
 	if (result.ok) {
 		deps.onAfter(file);
 	} else {
-		// Roll back the optimistic update on failure
+		// Roll back the optimistic update on failure — restore exact pre-click DOM
 		cell.setAttribute("aria-checked", String(wasFilled));
 		if (wasFilled) {
 			cell.classList.add("sf-pg-cell--filled");
 		} else {
 			cell.classList.remove("sf-pg-cell--filled");
+		}
+		// Restore inner content to pre-click state
+		cell.querySelector(".sf-pg-cell-inner")?.remove();
+		if (priorInnerClone !== null) {
+			cell.appendChild(priorInnerClone);
 		}
 	}
 }
