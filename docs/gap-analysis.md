@@ -387,34 +387,53 @@ Recorded so they are not re-opened by accident:
 
 ## 4. Issue coverage
 
-| Gap | Existing issue | Action |
-|---|---|---|
-| G1 catalog/import engine split | — | **file** |
-| G2 `_forge` view set as data | — | **file** |
-| G3 workspace views as data | #4, #8 (symptoms) | **file umbrella** |
-| G4 scope/folder settings | — | **file** |
-| G5 note panel surface | — | **file** (decide A/B first) |
-| G6 Codex entity browser | #6 | tracked |
-| G7 Locations tree | — (#6 does not cover it) | **file or amend #6** |
-| G8 Timeline drag → `storyDay` | #7 | tracked |
-| G9 Plotgrid write affordance | #8 | tracked |
-| G10 Subway map | #5 | tracked |
-| G11 Story graph preset / ports | — | **file** |
-| G12 Kanban by act | #4 | tracked |
-| G13 Relation editing | — | **file** |
-| G14 metadata-menu / meta-bind | — | **file** |
-| G15 Longform | #3 | tracked |
-| G16 Calendarium / `storyDate` | — | file (low) |
-| G17 sample residue | — | fix directly, no issue |
-| G18 version drift | — | fix directly, no issue |
-| G19 hero-card Bases views | — | **file** |
-| G20 user-extensible entities | — | **file** |
-| G21 Storyline fidelity | — | **file** |
-| G22 undo journal | — | **file** (unblocks #7, #8) |
-| G23 mockup discipline | — | repo rule, not an issue |
+Filed 2026-07-26 as four epics with native GitHub sub-issues (no project board —
+the sub-issue links carry the structure). Epics are labelled `epic`, everything
+from this document `gap-analysis`.
 
-Also open and unmapped to a gap: **#1** (contextual view switcher — filter tabs by
-active-note kind), a UX refinement rather than a structural gap.
+**#9 — Epic: Views as data — the flexible substrate**
+
+| Gap | Issue |
+|---|---|
+| G1 catalog/import engine split | **#10** |
+| G2 `_forge` view set as catalog data | **#11** |
+| G19 hero-card Bases view types | **#12** |
+| G20 user-extensible entities | **#13** |
+| G4 scope/folder settings | **#14** |
+| G3 workspace views as data | **#15** ← absorbs #4 (Kanban by act) |
+
+**#16 — Epic: Safe write-back — undo, then finish the interaction tier**
+
+| Gap | Issue |
+|---|---|
+| G22 undo journal | **#17** — precondition for #7 and #8 |
+| G13 relation editing | **#18** |
+| G14 metadata-menu / meta-bind | **#19** |
+| G8 Timeline drag → `storyDay` | #7 (existing) |
+| G9 Plotgrid write affordance | #8 (existing) |
+
+**#20 — Epic: Surfaces — finish what the plugin renders into**
+
+| Gap | Issue |
+|---|---|
+| G5 note-panel surface (decide A/B) | **#21** |
+| G7 Locations tree | **#22** |
+| G11 story graph preset / ports | **#23** |
+| G10 subway map | #5 (existing) |
+| G6 Codex entity browser | #6 (existing) |
+| — contextual view switcher | #1 (existing, UX refinement) |
+
+**#24 — Epic: Storyline fidelity — deviations must be decisions** (G21; no
+children — it is a pass over the existing view set, not new work)
+
+**Unparented:** **#25** (G16, Calendarium / `storyDate` — low, filed so it is not
+rediscovered a third time) and **#3** (G15, Longform — carries a comment recording
+the takeover end-game).
+
+**Not filed on purpose:** G17 (sample residue) and G18 (version drift) are
+minutes of work, not tracked items. **G23** (mockup discipline) is now a repo rule
+in `CLAUDE.md`, alongside the two invariants from §1.1 and the Storyline-fidelity
+rule — process belongs where it binds the next change, not on a board.
 
 ## 5. Recommended sequence
 
