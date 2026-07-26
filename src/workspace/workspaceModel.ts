@@ -516,3 +516,90 @@ export function swimlaneModel(rows: SceneRow[], key: SwimlaneKey, resolve?: Link
 	return result;
 }
 
+/**
+ * The lane key(s) a scene belongs to under `key`, using the exact same lane-key
+ * convention as `swimlaneModel` (so a cell can be matched to a lane column):
+ *  - pov/location: one lane (`pov:<name>` / `location:<name>`), `unresolved:<name>`
+ *    for an unresolved link, or `neutral` when the field is null.
+ *  - plotline: one key per plotline (fan-out) — `plotline:<basename>` or
+ *    `unresolved:<text>`; `neutral` when the scene has no plotlines.
+ */
+export function laneKeysFor(scene: SceneRow, key: SwimlaneKey, resolve?: LinkResolver): string[] {
+	if (key === "pov") {
+		if (scene.pov === null) return ["neutral"];
+		return [scene.pov.path === "" ? `unresolved:${scene.pov.name}` : `pov:${scene.pov.name}`];
+	}
+	if (key === "location") {
+		if (scene.location === null) return ["neutral"];
+		return [scene.location.path === "" ? `unresolved:${scene.location.name}` : `location:${scene.location.name}`];
+	}
+	// plotline — fan-out
+	if (scene.plotlines.length === 0) return ["neutral"];
+	const keys: string[] = [];
+	for (const raw of scene.plotlines) {
+		const text = stripLink(raw);
+		if (resolve) {
+			const dest = resolve(text);
+			keys.push(dest ? `plotline:${dest.basename}` : `unresolved:${text}`);
+		} else {
+			keys.push(`plotline:${text}`);
+		}
+	}
+	return keys;
+}
+
+// ---------------------------------------------------------------------------
+// Swimlane grid (M6 rework — columns-per-value grid, mockup M2)
+// ---------------------------------------------------------------------------
+
+/** One column of the swimlane grid (a group value). */
+export interface SwimlaneLane {
+	key: string;
+	label: string;
+	kind: GroupKind;
+}
+
+/** A full-width act divider row plus the scenes that fall in that act (timeline order). */
+export interface SwimlaneActRow {
+	act: number | null;
+	label: string;
+	scenes: SceneRow[];
+}
+
+/**
+ * The swimlane grid model (mockup M2): COLUMNS per group value, ROWS per scene,
+ * grouped by act. Columns come from `swimlaneModel` (lane order + kind); rows come
+ * from `timelineModel` (act grouping + chronological order). `laneOf(scene)` maps a
+ * scene to the lane column(s) it occupies (fan-out for multi-plotline scenes).
+ */
+export interface SwimlaneGrid {
+	lanes: SwimlaneLane[];
+	actRows: SwimlaneActRow[];
+	laneOf: (scene: SceneRow) => string[];
+}
+
+/**
+ * Build the swimlane grid. Lanes = `swimlaneModel(rows, key, resolve)` group values
+ * (columns). Act rows = `timelineModel(rows)` acts (rows, chronological). `laneOf`
+ * uses `laneKeysFor` so each scene lands in its group column(s).
+ */
+export function swimlaneGrid(rows: SceneRow[], key: SwimlaneKey, resolve?: LinkResolver): SwimlaneGrid {
+	const lanes: SwimlaneLane[] = swimlaneModel(rows, key, resolve).map((g) => ({
+		key: g.key,
+		label: g.label,
+		kind: g.kind,
+	}));
+
+	const actRows: SwimlaneActRow[] = timelineModel(rows).map((g) => ({
+		act: g.kind === "no-act" ? null : Number(g.key.slice("act:".length)),
+		label: g.label,
+		scenes: g.scenes,
+	}));
+
+	return {
+		lanes,
+		actRows,
+		laneOf: (scene): string[] => laneKeysFor(scene, key, resolve),
+	};
+}
+

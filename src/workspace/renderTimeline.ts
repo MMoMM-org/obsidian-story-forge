@@ -18,13 +18,19 @@
  */
 
 import { section, emptyLine } from "../panel/components";
-import { actBeatLink, type Group, type SceneRow } from "./workspaceModel";
+import { actBeatLink, type Group, type SceneRow, type SwimlaneGrid } from "./workspaceModel";
 import { appendDot, appendStatusBadge, rowColor } from "./renderShared";
 
 export type TimelineMode = "rail" | "swimlane";
 
 export interface TimelineDeps {
 	isCollapsed: (groupKey: string) => boolean;
+}
+
+/** Extra render inputs. `swimlane` supplies the columns-per-value grid (mockup M2). */
+export interface TimelineOptions {
+	/** The swimlane grid (lanes + act rows + laneOf). Required for swimlane mode. */
+	swimlane?: SwimlaneGrid;
 }
 
 /** Append a drill link span; a "" path renders as plain (non-clickable) text. */
@@ -99,17 +105,18 @@ export function renderTimeline(
 	groups: Group[],
 	deps: TimelineDeps = { isCollapsed: () => false },
 	mode: TimelineMode = "rail",
+	opts: TimelineOptions = {},
 ): void {
+	if (mode === "swimlane") {
+		renderSwimlane(host, opts.swimlane);
+		return;
+	}
+
 	if (groups.length === 0) {
 		emptyLine(host, "No scenes to place.");
 		return;
 	}
-
-	if (mode === "rail") {
-		renderRail(host, groups, deps);
-	} else {
-		renderSwimlane(host, groups, deps);
-	}
+	renderRail(host, groups, deps);
 }
 
 /** Rail mode: act-grouped sections with the timeline rail layout. */
@@ -139,36 +146,97 @@ function renderRail(host: HTMLElement, groups: Group[], deps: TimelineDeps): voi
 	}
 }
 
+/** Sequence-axis column width + minimum lane column width (matches styles.css). */
+const SW_SEQ_W = "80px";
+const SW_LANE_MIN = "minmax(180px, 1fr)";
+
 /**
- * Swimlane mode: one lane per Group (from swimlaneModel). Each lane is a collapsible
- * section; collapse persists per (surface, scope, group) via the deps.isCollapsed seam.
+ * Swimlane mode (mockup M2): a CSS grid of COLUMNS per group value and ROWS per
+ * scene. Column 1 is the sequence axis (sticky left); the header row shows lane
+ * values (sticky top); each scene is one row with its compact mini-card in its
+ * group column(s) (empty cells elsewhere, fanning out across plotline columns);
+ * act dividers are full-width rows spanning all columns. Strictly read-only.
  */
-function renderSwimlane(host: HTMLElement, groups: Group[], deps: TimelineDeps): void {
-	const lanesEl = host.createEl("div", { cls: "sf-sw-lanes" });
+function renderSwimlane(host: HTMLElement, grid: SwimlaneGrid | undefined): void {
+	if (!grid || (grid.actRows.length === 0 && grid.lanes.length === 0)) {
+		emptyLine(host, "No scenes to place.");
+		return;
+	}
 
-	for (const group of groups) {
-		const laneKindCls =
-			group.kind === "unresolved"
-				? "sf-sw-lane sf-sw-lane--unresolved"
-				: group.kind === "unassigned"
-					? "sf-sw-lane sf-sw-lane--neutral"
-					: "sf-sw-lane";
+	const { lanes, actRows } = grid;
+	const gridEl = host.createEl("div", { cls: "sf-sw-grid" });
+	// Drive the (dynamic) column template via a custom property; CSS reads it.
+	gridEl.style.setProperty(
+		"--sf-sw-cols",
+		`${SW_SEQ_W} repeat(${lanes.length}, ${SW_LANE_MIN})`,
+	);
 
-		const laneEl = lanesEl.createEl("div", { cls: laneKindCls });
+	// Header row: sticky corner ("#") + one sticky header per lane.
+	const corner = gridEl.createEl("div", { cls: "sf-sw-corner", text: "#" });
+	corner.setAttribute("role", "columnheader");
+	for (const lane of lanes) {
+		const laneCls =
+			lane.kind === "unresolved"
+				? "sf-sw-lanehead sf-sw-lanehead--unresolved"
+				: lane.kind === "unassigned"
+					? "sf-sw-lanehead sf-sw-lanehead--neutral"
+					: "sf-sw-lanehead";
+		const h = gridEl.createEl("div", { cls: laneCls, text: lane.label });
+		h.setAttribute("role", "columnheader");
+	}
 
-		const { sectionEl, bodyEl } = section(laneEl, group.label, {
-			collapsed: deps.isCollapsed(group.key),
-			count: group.scenes.length,
-		});
-
-		const head = sectionEl.querySelector(".sf-sec-head");
-		if (head instanceof HTMLElement) {
-			head.setAttribute("data-sf-group-key", group.key);
+	// Body: act-divider rows (full width) + one row per scene.
+	let seq = 0;
+	for (const actRow of actRows) {
+		const divider = gridEl.createEl("div", { cls: "sf-sw-actrow", text: actRow.label });
+		// The act label drills its shared beat note (when resolved).
+		const beat = actBeatLink(actRow.scenes);
+		if (beat && beat.path !== "") {
+			divider.setAttribute("data-sf-link", beat.path);
+			divider.setAttribute("role", "link");
 		}
 
-		const rail = bodyEl.createEl("div", { cls: "sf-tl-rail" });
-		for (const scene of group.scenes) {
-			renderSceneCard(rail, scene);
+		for (const scene of actRow.scenes) {
+			seq += 1;
+			renderSeqCell(gridEl, scene, seq);
+			const keys = new Set(grid.laneOf(scene));
+			for (const lane of lanes) {
+				const cell = gridEl.createEl("div", { cls: "sf-sw-cell" });
+				if (keys.has(lane.key)) {
+					renderMiniCard(cell, scene);
+				}
+			}
 		}
+	}
+}
+
+/** Sequence cell (grid col 1): order index + a storyDay/when badge. */
+function renderSeqCell(gridEl: HTMLElement, scene: SceneRow, seq: number): void {
+	const cell = gridEl.createEl("div", { cls: "sf-sw-seq" });
+	cell.createEl("span", { cls: "sf-sw-seqn", text: String(seq) });
+	const badge =
+		scene.storyDay !== null ? `D${scene.storyDay}` : scene.when !== "" ? scene.when : "";
+	if (badge !== "") {
+		cell.createEl("span", { cls: "sf-sw-seqwhen", text: badge });
+	}
+}
+
+/**
+ * Compact mini-card for a swimlane cell: a plotline-colour dot + title (drill span)
+ * + a small status·when line. Read-only — the title carries data-sf-link only.
+ */
+function renderMiniCard(cell: HTMLElement, scene: SceneRow): void {
+	const card = cell.createEl("div", { cls: "sf-sw-mini" });
+	appendDot(card, "sf-sw-mini-dot", rowColor(scene));
+
+	const title = card.createEl("span", { cls: "sf-sw-mini-title", text: scene.title });
+	title.setAttribute("data-sf-link", scene.file.path);
+	title.setAttribute("role", "link");
+	title.setAttribute("tabindex", "0");
+
+	const meta = card.createEl("div", { cls: "sf-sw-mini-meta" });
+	appendStatusBadge(meta, scene.status);
+	if (scene.when !== "") {
+		meta.createEl("span", { cls: "sf-sw-mini-when", text: scene.when });
 	}
 }

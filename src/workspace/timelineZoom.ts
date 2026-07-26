@@ -1,16 +1,22 @@
 /**
- * timelineZoom — ephemeral CSS zoom/pan controller for the Timeline rail (T4.3).
+ * timelineZoom — ephemeral CSS zoom controller for the Timeline body (M6, mockup M1).
  *
- * Wraps the rail in a scroll container (`sf-zoom-wrap`) containing a scale wrapper
- * (`sf-zoom-scaled`) whose `--sf-zoom` CSS custom property drives the transform.
- * A control bar (`sf-zoom-bar`) with −/reset/+ buttons and a label is prepended.
+ * Split API (M6 rework): the CONTROLS bar and the SCALED body are separable so the
+ * WorkspaceView can place the −/label/+ buttons in the toolbar row while the timeline
+ * body (rail or swimlane) lives in the main body under the scaled wrapper.
  *
- * State lives in-memory only (a fresh createTimelineZoom() starts at 1x).
+ * `createTimelineZoom(component, { controlsHost, scaledHost })`:
+ *  - builds a `.sf-zoom-bar` (−, label, reset, +) inside `controlsHost`,
+ *  - builds a `.sf-zoom-wrap > .sf-zoom-scaled` inside `scaledHost`,
+ *  - returns handles (`controlsEl`, `wrapEl`, `scaledEl`, zoomIn/out/reset, teardown).
+ *
+ * The `--sf-zoom` CSS custom property + `transform: scale()` on `.sf-zoom-scaled`
+ * drives the visual zoom. State lives in-memory only (a fresh controller starts at 1x).
  * Writes nothing. Does not import interactionHandler (ADR-21, CON-1).
  *
- * Listeners are registered via `component.registerDomEvent` (CON-4). Cleanup is
- * owned by the Component lifecycle. In Phase 6 the WorkspaceView (itself a
- * Component) passes `this` so unload automatically detaches all listeners.
+ * Listeners are registered via `component.registerDomEvent` (CON-4). Cleanup is owned
+ * by the Component lifecycle — WorkspaceView (a Component) passes `this`; on unload all
+ * listeners detach automatically.
  *
  * @ref docs/XDD/specs/007-interactive-views/plan/phase-4.md — T4.3
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-21
@@ -38,10 +44,20 @@ export interface ZoomComponentDelegate {
 	): void;
 }
 
+/** Where the zoom controller mounts its two separable pieces. */
+export interface TimelineZoomHosts {
+	/** Parent for the `.sf-zoom-bar` controls (e.g. the toolbar row). */
+	controlsHost: HTMLElement;
+	/** Parent for the `.sf-zoom-wrap > .sf-zoom-scaled` body (e.g. the main body). */
+	scaledHost: HTMLElement;
+}
+
 export interface TimelineZoomHandle {
-	/** The outer scroll wrapper — attach wheel listener target. */
+	/** The controls bar (buttons + label) — lives in the toolbar. */
+	controlsEl: HTMLElement;
+	/** The outer scroll wrapper — wheel listener target. */
 	wrapEl: HTMLElement;
-	/** The inner scaled element — put rail content inside here. */
+	/** The inner scaled element — put timeline body content inside here. */
 	scaledEl: HTMLElement;
 	/** Zoom in by one ZOOM_STEP. */
 	zoomIn: () => void;
@@ -57,46 +73,47 @@ export interface TimelineZoomHandle {
 }
 
 /**
- * Build the zoom wrapper structure inside `container` and return handles for
- * programmatic control. All DOM listeners are registered via `component` (CON-4);
- * the Component lifecycle owns cleanup — no manual teardown required.
+ * Build the split zoom structure and return handles for programmatic control.
+ * All DOM listeners are registered via `component` (CON-4); the Component lifecycle
+ * owns cleanup — no manual teardown required.
  *
- * In Phase 6, WorkspaceView (a Component) passes `this`. Tests pass a mock Component.
- *
- * DOM structure appended to `container`:
+ * DOM appended:
  * ```
- * .sf-zoom-bar          (control bar)
- *   .sf-zoom-btn        (zoom out −)
- *   .sf-zoom-label      (e.g. "100%")
- *   .sf-zoom-btn        (reset ⊙)
- *   .sf-zoom-btn        (zoom in +)
- * .sf-zoom-wrap         (scroll container)
- *   .sf-zoom-scaled     (CSS-scaled inner; put rail here)
+ * controlsHost:
+ *   .sf-zoom-bar          (control bar — sits in the toolbar row)
+ *     .sf-zoom-btn        (zoom out −)
+ *     .sf-zoom-label      ("100%")
+ *     .sf-zoom-btn        (reset ⊙)
+ *     .sf-zoom-btn        (zoom in +)
+ * scaledHost:
+ *   .sf-zoom-wrap         (scroll container)
+ *     .sf-zoom-scaled     (CSS-scaled inner; put timeline body here)
  * ```
  */
 export function createTimelineZoom(
-	container: HTMLElement,
 	component: ZoomComponentDelegate,
+	hosts: TimelineZoomHosts,
 ): TimelineZoomHandle {
 	let zoom = 1;
 
-	// --- Build DOM ---
-	const bar = container.createEl("div", { cls: "sf-zoom-bar" });
-	const btnOut = bar.createEl("button", { cls: "sf-zoom-btn", text: "−" });
+	// --- Build controls (in the toolbar) ---
+	const controlsEl = hosts.controlsHost.createEl("div", { cls: "sf-zoom-bar" });
+	const btnOut = controlsEl.createEl("button", { cls: "sf-zoom-btn", text: "−" });
 	btnOut.setAttribute("aria-label", "Zoom out");
 	btnOut.setAttribute("type", "button");
 
-	const label = bar.createEl("span", { cls: "sf-zoom-label", text: "100%" });
+	const label = controlsEl.createEl("span", { cls: "sf-zoom-label", text: "100%" });
 
-	const btnReset = bar.createEl("button", { cls: "sf-zoom-btn", text: "⊙" });
+	const btnReset = controlsEl.createEl("button", { cls: "sf-zoom-btn", text: "⊙" });
 	btnReset.setAttribute("aria-label", "Reset zoom");
 	btnReset.setAttribute("type", "button");
 
-	const btnIn = bar.createEl("button", { cls: "sf-zoom-btn", text: "+" });
+	const btnIn = controlsEl.createEl("button", { cls: "sf-zoom-btn", text: "+" });
 	btnIn.setAttribute("aria-label", "Zoom in");
 	btnIn.setAttribute("type", "button");
 
-	const wrapEl = container.createEl("div", { cls: "sf-zoom-wrap" });
+	// --- Build scaled body (in the main body) ---
+	const wrapEl = hosts.scaledHost.createEl("div", { cls: "sf-zoom-wrap" });
 	const scaledEl = wrapEl.createEl("div", { cls: "sf-zoom-scaled" });
 
 	// --- Zoom state ---
@@ -141,5 +158,5 @@ export function createTimelineZoom(
 	// a no-op for call-site compatibility; component.unload() does the real work.
 	function teardown(): void { /* no-op — Component lifecycle owns cleanup */ }
 
-	return { wrapEl, scaledEl, zoomIn, zoomOut, zoomReset, teardown };
+	return { controlsEl, wrapEl, scaledEl, zoomIn, zoomOut, zoomReset, teardown };
 }

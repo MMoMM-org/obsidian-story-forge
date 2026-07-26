@@ -36,7 +36,7 @@ import {
 	plotlineModel,
 	kanbanModel,
 	plotgridModel,
-	swimlaneModel,
+	swimlaneGrid,
 	type LinkResolver,
 	type SwimlaneKey,
 	type SceneRow,
@@ -101,6 +101,8 @@ export class WorkspaceView extends ItemView {
 	private _bodyEl: HTMLElement | null = null;
 	private _toggleEl: HTMLElement | null = null;
 	private _timelineBarEl: HTMLElement | null = null;
+	private _keySelectEl: HTMLSelectElement | null = null;
+	private _zoomSlotEl: HTMLElement | null = null;
 	private _liveEl: HTMLElement | null = null;
 	private _handler: InteractionHandler | null = null;
 	private readonly getLinkClickAction: () => "drill" | "open";
@@ -150,16 +152,33 @@ export class WorkspaceView extends ItemView {
 		});
 		this._toggleEl = toggle;
 
-		// Timeline sub-controls: Rail|Swimlane toggle + By-key selector + zoom slot.
-		// Only shown for the Timeline layout (visibility synced in _syncToggle).
+		// Timeline sub-controls (one row, mockup M1): Rail|Swimlane toggle +
+		// group-by dropdown + inline zoom controls. Only shown for the Timeline
+		// layout (visibility synced in _syncToggle).
 		const tlBar = head.createDiv({ cls: "sf-ws-tlbar" });
 		const modeGroup = tlBar.createDiv({ cls: "sf-ws-tlmode" });
 		modeGroup.createEl("span", { cls: "sf-ws-tlmode-opt", text: "Rail" }).setAttribute("data-ws-tlmode", "rail");
 		modeGroup.createEl("span", { cls: "sf-ws-tlmode-opt", text: "Swimlane" }).setAttribute("data-ws-tlmode", "swimlane");
-		const keyGroup = tlBar.createDiv({ cls: "sf-ws-tlkey" });
+
+		// Group-by dropdown (Obsidian .dropdown). Enabled only in Swimlane mode.
+		const keySelect = tlBar.createEl("select", { cls: "dropdown sf-ws-tlkey-select" });
+		keySelect.setAttribute("aria-label", "Group swimlanes by");
 		([["pov", "POV"], ["location", "Location"], ["plotline", "Plotline"]] as const).forEach(([k, label]) => {
-			keyGroup.createEl("span", { cls: "sf-ws-tlkey-opt", text: label }).setAttribute("data-ws-swimkey", k);
+			keySelect.createEl("option", { text: label, value: k });
 		});
+		this.registerDomEvent(keySelect, "change", () => {
+			const k = keySelect.value;
+			if (isSwimlaneKey(k)) {
+				this._swimKeyByScope.set(this._scopeKey, k);
+				this._render();
+			}
+		});
+		this._keySelectEl = keySelect;
+
+		// Zoom controls slot — the actual controls bar is mounted here per-render
+		// (createTimelineZoom places its .sf-zoom-bar in this host; the scaled body
+		// goes into the main body). Kept empty in swimlane mode.
+		this._zoomSlotEl = tlBar.createDiv({ cls: "sf-ws-zoomslot" });
 		this._timelineBarEl = tlBar;
 
 		this._bodyEl = ce.createDiv({ cls: "sf-ws-body" });
@@ -229,11 +248,14 @@ export class WorkspaceView extends ItemView {
 		tlModes.forEach((m) => {
 			m.classList.toggle("sf-ws-tlmode-opt--sel", m.getAttribute("data-ws-tlmode") === this._timelineMode);
 		});
+		// Group-by dropdown reflects the per-scope key; disabled/dimmed in Rail mode.
 		const swimKey = this._swimKeyByScope.get(this._scopeKey) ?? "plotline";
-		const keyOpts = this._timelineBarEl?.querySelectorAll<HTMLElement>("[data-ws-swimkey]") ?? [];
-		keyOpts.forEach((m) => {
-			m.classList.toggle("sf-ws-tlkey-opt--sel", m.getAttribute("data-ws-swimkey") === swimKey);
-		});
+		if (this._keySelectEl) {
+			this._keySelectEl.value = swimKey;
+			const railMode = this._timelineMode === "rail";
+			this._keySelectEl.disabled = railMode;
+			this._keySelectEl.classList.toggle("sf-ws-tlkey-select--disabled", railMode);
+		}
 	}
 
 	private _render(): void {
@@ -282,23 +304,31 @@ export class WorkspaceView extends ItemView {
 		}
 	}
 
-	/** Timeline layout: rail (with zoom, read-only) or swimlane (read-only). */
+	/** Timeline layout: rail (with zoom, read-only) or swimlane grid (read-only). */
 	private _renderTimeline(body: HTMLElement, rows: SceneRow[]): void {
+		// The zoom controls live in the toolbar slot; reset it each render.
+		this._zoomSlotEl?.empty();
+
 		if (this._timelineMode === "swimlane") {
 			const key = this._swimKeyByScope.get(this._scopeKey) ?? "plotline";
 			const resolve: LinkResolver = (t) =>
 				this.app.metadataCache.getFirstLinkpathDest(t, "");
 			renderTimeline(
 				body,
-				swimlaneModel(rows, key, resolve),
+				[],
 				{ isCollapsed: (g) => this._collapse.isCollapsed("main", this._scopeKey, g) },
 				"swimlane",
+				{ swimlane: swimlaneGrid(rows, key, resolve) },
 			);
 			return;
 		}
 
-		// Rail: wrap in the zoom controller. Read-only — drill only, no placement drag.
-		const zoom = createTimelineZoom(body, this);
+		// Rail: split zoom — controls in the toolbar slot, scaled body in the main
+		// body. Read-only — drill only, no placement drag.
+		const zoom = createTimelineZoom(this, {
+			controlsHost: this._zoomSlotEl ?? body,
+			scaledHost: body,
+		});
 		renderTimeline(
 			zoom.scaledEl,
 			timelineModel(rows),
@@ -378,18 +408,6 @@ export class WorkspaceView extends ItemView {
 			const m = tlModeEl.getAttribute("data-ws-tlmode");
 			if (m === "rail" || m === "swimlane") {
 				this._timelineMode = m;
-				this._syncToggle();
-				this._render();
-			}
-			return;
-		}
-
-		// Swimlane grouping key (persisted per-scope, ADR-20).
-		const keyEl = target.closest("[data-ws-swimkey]");
-		if (keyEl instanceof HTMLElement) {
-			const k = keyEl.getAttribute("data-ws-swimkey");
-			if (isSwimlaneKey(k)) {
-				this._swimKeyByScope.set(this._scopeKey, k);
 				this._syncToggle();
 				this._render();
 			}

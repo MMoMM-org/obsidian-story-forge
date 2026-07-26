@@ -156,44 +156,68 @@ describe("WorkspaceView M6 — Timeline toolbar", () => {
 	let fx: ReturnType<typeof makeFixture>;
 	let view: WorkspaceView;
 
+	function selectKey(k: string): void {
+		const sel = view.contentEl.querySelector(".sf-ws-tlkey-select") as HTMLSelectElement;
+		sel.value = k;
+		sel.dispatchEvent(new Event("change", { bubbles: true }));
+	}
+
 	beforeEach(async () => {
 		fx = makeFixture();
 		view = makeView(fx.app);
 		await view.onOpen();
 	});
 
-	it("switches Rail → Swimlane and renders lanes", () => {
-		click(view.contentEl.querySelector(`[data-ws-tlmode="swimlane"]`));
-		expect(body(view).querySelector(".sf-sw-lanes")).not.toBeNull();
-		expect(body(view).querySelector(".sf-zoom-bar")).toBeNull();
+	it("has a group-by <select> dropdown with POV / Location / Plotline options", () => {
+		const sel = view.contentEl.querySelector(".sf-ws-tlkey-select") as HTMLSelectElement;
+		expect(sel).not.toBeNull();
+		expect(sel.tagName).toBe("SELECT");
+		const opts = [...sel.querySelectorAll("option")].map((o) => (o as HTMLOptionElement).value);
+		expect(opts).toEqual(["pov", "location", "plotline"]);
 	});
 
-	it("rail mode wraps the timeline in a zoom control bar", () => {
-		expect(body(view).querySelector(".sf-zoom-bar")).not.toBeNull();
+	it("mounts the zoom controls in the toolbar (not the body) in rail mode", () => {
+		// Controls live in the toolbar row.
+		expect(view.contentEl.querySelector(".sf-ws-tlbar .sf-zoom-bar")).not.toBeNull();
+		// The scaled timeline body lives in the main body.
 		expect(body(view).querySelector(".sf-zoom-scaled .sf-tl-rail")).not.toBeNull();
 	});
 
-	it("changes the swimlane grouping key (By POV → lanes named for POV characters)", () => {
+	it("switches Rail → Swimlane and renders the columns grid (no zoom body)", () => {
 		click(view.contentEl.querySelector(`[data-ws-tlmode="swimlane"]`));
-		click(view.contentEl.querySelector(`[data-ws-swimkey="pov"]`));
-		const labels = [...body(view).querySelectorAll(".sf-sec-label")].map((e) => e.textContent);
-		expect(labels).toContain("Mara Stoneway");
-		expect(labels).toContain("Jonas Kell");
+		expect(body(view).querySelector(".sf-sw-grid")).not.toBeNull();
+		// No scaled body in swimlane mode.
+		expect(body(view).querySelector(".sf-zoom-scaled")).toBeNull();
+	});
+
+	it("disables the group-by dropdown in rail mode, enables it in swimlane", () => {
+		const sel = view.contentEl.querySelector(".sf-ws-tlkey-select") as HTMLSelectElement;
+		expect(sel.disabled).toBe(true);
+		click(view.contentEl.querySelector(`[data-ws-tlmode="swimlane"]`));
+		expect(sel.disabled).toBe(false);
+	});
+
+	it("changes the swimlane grouping key (By POV → columns named for POV characters)", () => {
+		click(view.contentEl.querySelector(`[data-ws-tlmode="swimlane"]`));
+		selectKey("pov");
+		const heads = [...body(view).querySelectorAll(".sf-sw-lanehead")].map((e) => e.textContent);
+		expect(heads).toContain("Mara Stoneway");
+		expect(heads).toContain("Jonas Kell");
 	});
 
 	it("persists the swimlane key per-scope (selected key wins after a re-render)", () => {
 		click(view.contentEl.querySelector(`[data-ws-tlmode="swimlane"]`));
-		click(view.contentEl.querySelector(`[data-ws-swimkey="location"]`));
+		selectKey("location");
 		// A fresh render (re-selecting the layout) keeps the chosen swimlane key.
 		view.setLayout("timeline");
-		const sel = view.contentEl.querySelector(`[data-ws-swimkey="location"]`);
-		expect(sel?.classList.contains("sf-ws-tlkey-opt--sel")).toBe(true);
+		const sel = view.contentEl.querySelector(".sf-ws-tlkey-select") as HTMLSelectElement;
+		expect(sel.value).toBe("location");
 	});
 
 	it("zoom-in changes the scale custom property", () => {
 		const scaled = body(view).querySelector(".sf-zoom-scaled") as HTMLElement;
 		expect(scaled.style.getPropertyValue("--sf-zoom") || "1").toBe("1");
-		click(body(view).querySelector(`[aria-label="Zoom in"]`));
+		click(view.contentEl.querySelector(`[aria-label="Zoom in"]`));
 		expect(scaled.style.getPropertyValue("--sf-zoom")).not.toBe("1");
 	});
 });
