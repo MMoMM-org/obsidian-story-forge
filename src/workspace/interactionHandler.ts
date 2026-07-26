@@ -158,6 +158,9 @@ export class InteractionHandler {
 	/** Current drag in-flight (null when idle). */
 	private _drag: DragState | null = null;
 
+	/** Ghost element following the pointer during an armed drag (null when idle). */
+	private _ghost: HTMLElement | null = null;
+
 	constructor(_app: App, host: HTMLElement, opts: InteractionHandlerOpts) {
 		this._opts = {
 			onWrite: opts.onWrite,
@@ -233,6 +236,8 @@ export class InteractionHandler {
 		this._announceOnFlush.clear();
 		this._cards.clear();
 		this._drag = null;
+		// Remove any live ghost (prevent leak if destroyed mid-drag).
+		this._removeGhost();
 		// Remove all DOM listeners via the real public Component.unload() (CON-4).
 		this._delegate.unload();
 	}
@@ -278,6 +283,18 @@ export class InteractionHandler {
 		if (!this._drag.armed && dist >= this._opts.dragThreshold) {
 			this._drag.armed = true;
 			this._drag.card.classList.add("sf-dragging");
+
+			// Create ghost — a clone of the dragged card that follows the pointer.
+			const ghost = this._drag.card.cloneNode(true) as HTMLElement;
+			ghost.classList.add("sf-drag-ghost");
+			ghost.style.left = `${e.clientX + 8}px`;
+			ghost.style.top = `${e.clientY + 8}px`;
+			activeDocument.body.appendChild(ghost);
+			this._ghost = ghost;
+		} else if (this._drag.armed && this._ghost) {
+			// Update ghost position to track the pointer.
+			this._ghost.style.left = `${e.clientX + 8}px`;
+			this._ghost.style.top = `${e.clientY + 8}px`;
 		}
 	}
 
@@ -286,6 +303,9 @@ export class InteractionHandler {
 
 		const drag = this._drag;
 		this._drag = null;
+
+		// Remove ghost from DOM.
+		this._removeGhost();
 
 		// Clean up drag class regardless of whether the drag was armed.
 		drag.card.classList.remove("sf-dragging");
@@ -307,6 +327,7 @@ export class InteractionHandler {
 		if (!this._drag) return;
 		this._drag.card.classList.remove("sf-dragging");
 		this._drag = null;
+		this._removeGhost();
 	}
 
 	// ---------------------------------------------------------------------------
@@ -436,6 +457,17 @@ export class InteractionHandler {
 	// ---------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------
+
+	/**
+	 * Remove the floating drag ghost from the DOM and null the reference.
+	 * Safe to call when no ghost is live.
+	 */
+	private _removeGhost(): void {
+		if (this._ghost) {
+			this._ghost.remove();
+			this._ghost = null;
+		}
+	}
 
 	/**
 	 * Walk up from `target` to find the nearest bound card element.

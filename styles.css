@@ -2255,11 +2255,23 @@ body {
 	color: var(--text-faint);
 }
 
-/* Drag-in-flight state */
+/* Drag-in-flight state — original card dims while ghost follows the pointer */
 .sf-kb-card.sf-dragging {
-	opacity: 0.5;
+	opacity: 0.4;
 	cursor: grabbing;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Floating ghost that follows the pointer during an armed drag */
+.sf-drag-ghost {
+	position: fixed;
+	pointer-events: none;
+	z-index: 9999;
+	opacity: 0.85;
+	max-width: 240px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+	border-radius: var(--radius-s);
+	cursor: grabbing;
+	rotate: 2deg;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

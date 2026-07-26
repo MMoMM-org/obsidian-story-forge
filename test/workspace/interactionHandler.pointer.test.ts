@@ -403,4 +403,97 @@ describe("InteractionHandler — pointer state machine", () => {
 
 		vi.useRealTimers();
 	});
+
+	// -----------------------------------------------------------------------
+	// T3.1-11: Ghost created on arm — sf-drag-ghost appended to body
+	// -----------------------------------------------------------------------
+	it("appends an .sf-drag-ghost to document.body when drag arms past threshold", () => {
+		const card = makeCard(host);
+		handler.bind(card, file, makeDraggable([makeEntry()]));
+
+		pointerDown(card, 100, 100);
+		// Below threshold — no ghost yet.
+		pointerMove(103, 100);
+		expect(document.querySelector(".sf-drag-ghost")).toBeNull();
+
+		// Past threshold — ghost must appear.
+		pointerMove(110, 100);
+		expect(document.querySelector(".sf-drag-ghost")).not.toBeNull();
+	});
+
+	// -----------------------------------------------------------------------
+	// T3.1-12: Ghost position tracks the pointer on subsequent pointermove
+	// -----------------------------------------------------------------------
+	it("updates ghost position to track clientX/clientY on pointermove", () => {
+		const card = makeCard(host);
+		handler.bind(card, file, makeDraggable([makeEntry()]));
+
+		// Arm at (110, 100).
+		pointerDown(card, 100, 100);
+		pointerMove(110, 100);
+
+		const ghost = document.querySelector(".sf-drag-ghost") as HTMLElement | null;
+		expect(ghost).not.toBeNull();
+
+		const leftAfterArm = ghost!.style.left;
+		const topAfterArm = ghost!.style.top;
+
+		// Move to a clearly different position.
+		pointerMove(200, 150);
+
+		// Position must have changed.
+		expect(ghost!.style.left).not.toBe(leftAfterArm);
+		expect(ghost!.style.top).not.toBe(topAfterArm);
+	});
+
+	// -----------------------------------------------------------------------
+	// T3.1-13: Ghost removed on pointerup
+	// -----------------------------------------------------------------------
+	it("removes the ghost from the document on pointerup", () => {
+		const card = makeCard(host);
+		handler.bind(card, file, makeDraggable([makeEntry()]));
+
+		pointerDown(card, 100, 100);
+		pointerMove(110, 100); // arm
+		expect(document.querySelector(".sf-drag-ghost")).not.toBeNull();
+
+		pointerUp(110, 100);
+		expect(document.querySelector(".sf-drag-ghost")).toBeNull();
+	});
+
+	// -----------------------------------------------------------------------
+	// T3.1-14: Ghost removed on pointercancel
+	// -----------------------------------------------------------------------
+	it("removes the ghost from the document on pointercancel", () => {
+		const card = makeCard(host);
+		handler.bind(card, file, makeDraggable([makeEntry()]));
+
+		pointerDown(card, 100, 100);
+		pointerMove(110, 100); // arm
+		expect(document.querySelector(".sf-drag-ghost")).not.toBeNull();
+
+		window.dispatchEvent(
+			new PointerEvent("pointercancel", {
+				bubbles: true,
+				pointerId: 1,
+			}),
+		);
+
+		expect(document.querySelector(".sf-drag-ghost")).toBeNull();
+	});
+
+	// -----------------------------------------------------------------------
+	// T3.1-15: Ghost removed on destroy() mid-drag (no leak)
+	// -----------------------------------------------------------------------
+	it("removes the ghost when destroy() is called mid-drag", () => {
+		const card = makeCard(host);
+		handler.bind(card, file, makeDraggable([makeEntry()]));
+
+		pointerDown(card, 100, 100);
+		pointerMove(110, 100); // arm — ghost is now live
+		expect(document.querySelector(".sf-drag-ghost")).not.toBeNull();
+
+		handler.destroy();
+		expect(document.querySelector(".sf-drag-ghost")).toBeNull();
+	});
 });
