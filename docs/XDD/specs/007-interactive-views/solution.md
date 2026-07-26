@@ -22,8 +22,12 @@ version: "1.0"
 > lanes (spec-006 S64 / StoryLine). **ADR-21 (zoom)**: stands, but the **group-by control is a `<select>`
 > dropdown** and zoom controls sit in the **toolbar** row (S62/StoryLine); zoom listeners bounded via a
 > per-render child Component. The Plotgrid (ADR-14 write path unchanged) was **transposed to
-> scenes-rows × plotlines-columns** with richer cells. The remaining write surfaces are **Kanban
-> (`status`+`order`) + Plotgrid (`plotlines`)**; Timeline (rail+swimlane+zoom) is read-only.
+> scenes-rows × plotlines-columns** with richer cells. **Plotgrid pt.2 (2026-07-26): now READ-ONLY**
+> — bare-click-to-write was destructive + collapsed the grid, so ADR-14's Plotgrid write path is
+> **removed**; columns = all plotlines in scope (`resolvePlotlineScope`, never collapses); the full
+> configurable/editable Plotgrid is deferred to GH #8 (needs plugin-owned grid state — a
+> frontmatter-is-truth decision). **Zoom (ADR-21) generalized to all layouts.** Net: **Kanban
+> (`status`+`order`) is the ONLY write surface**; Plotgrid + all Timeline modes are read-only.
 
 ## Validation Checklist
 

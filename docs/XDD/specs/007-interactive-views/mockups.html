@@ -343,22 +343,24 @@
 workspace surfaces (Navigator, Timeline rail, Plotlines list) as <b>read-only</b>. M6 adds direct manipulation
 that <b>writes plain frontmatter back</b> (per the founding frontmatter-is-truth decision — the plugin writes,
 Bases/the views render; the plugin never owns state). Every figure here is tagged <b>M6</b>.</p>
-<p class="sub" style="margin-top:8px"><b>M6 ships two write surfaces and one rich read surface.</b>
-<b>Write-back (2):</b>
+<p class="sub" style="margin-top:8px"><b>M6 ships one write surface and three rich read surfaces.</b>
+<b>Write-back (1):</b>
 <b>F1 Kanban</b> (drag a card between status columns → writes <code>status</code> + re-sequences
-<code>order</code>), <b>F2 Plotgrid</b> (click/keyboard toggle a matrix cell → adds/removes a scene's
-<code>plotlines</code> link).
-<b>Read-only:</b> <b>F5 Swimlanes</b> (Timeline in columns-grid mode, keyed by POV/location/plotline), <b>F6 Zoom</b>
-(ephemeral CSS-scale on the rail; Ctrl+wheel also zooms). Timeline is <b>strictly read-only</b> — no placement drag.
+<code>order</code>) — the <b>only</b> write surface in M6.
+<b>Read-only:</b> <b>F2 Plotgrid</b> (read-only Scene × Plotline coverage matrix — all in-scope plotlines as columns, including 0-scene ones; filled cell = status·when; no click-mutate; editable Plotgrid deferred → #8),
+<b>F5 Swimlanes</b> (Timeline in columns-grid mode, keyed by POV/location/plotline), <b>F6 Zoom</b>
+(ephemeral CSS-scale; Ctrl+wheel also zooms — applies to <b>all layouts</b>, not just Timeline; zoom slot is in the general header).
+Timeline is <b>strictly read-only</b> — no placement drag.
 <b>Removed from M6:</b> F3 Timeline placement (deferred) and F4 Locations tree (moved to the Codex milestone).
 The Plotlines subway map stays M7.</p>
 
 <div class="banner">
 <b>Continues the M5 mockup numbering.</b> M5 ran S59→S72; M6 continues at <b>S73–S84</b> (original range) and
-adds <b>S85–S89</b> for the reworked toolbar, swimlane grid, plotgrid, and drag ghost. Superseded figures (S77,
-S78, S79, S80) are kept with their original numbers and a superseded banner — the spec history stays readable.
+adds <b>S85–S90</b> for the reworked toolbar, swimlane grid, plotgrid (read-only), and drag ghost. Superseded figures (S75–S82,
+S87) are kept with their original numbers and a superseded banner — the spec history stays readable.
 Visual language is unchanged — this file reuses the M5 <code>&lt;style&gt;</code> block verbatim and only extends
-it. <b>Ours vs StoryLine:</b> StoryLine's board and grid mutate its own database; ours mutate <b>plain
+it. <b>Write surface:</b> Kanban only (<code>status</code> + <code>order</code>). Plotgrid + Timeline are read-only.
+<b>Ours vs StoryLine:</b> StoryLine's board and grid mutate its own database; ours mutate <b>plain
 frontmatter</b> — every write is a value a human could have typed, and is fully reversible in the file.
 </div>
 
@@ -376,10 +378,10 @@ draft, Night 4). Plotlines:
 <b>Status:</b> <span class="sd">draft</span> · <span class="so">outline</span> · <span class="sw">done</span>.
 </p>
 
-<h2>State inventory (S73–S89)</h2>
+<h2>State inventory (S73–S90)</h2>
 <table class="inv">
 <tr><th>S</th><th>State</th><th>Feature</th><th>Write?</th><th>Shows</th></tr>
-<tr><td><b>S73</b></td><td>Kanban — populated</td><td>F1</td><td>—</td><td>status columns, cards (name + POV + status badge + plotline dot), grab affordance</td></tr>
+<tr><td><b>S73</b></td><td>Kanban — populated</td><td>F1</td><td>✎</td><td>status columns, cards (name + POV + status badge + plotline dot), grab affordance; <b>only write surface</b></td></tr>
 <tr><td><b>S74</b></td><td>Kanban — card mid-drag (ghost)</td><td>F1</td><td>✎</td><td><code>.sf-drag-ghost</code> follows pointer (tilted, elevated, semi-opaque); original card <code>.sf-dragging</code> (dimmed); drop line marks insertion point</td></tr>
 <tr class="superseded"><td><b>S75</b></td><td colspan="4"><s>Plotgrid (old) — plotlines rows × scenes cols — SUPERSEDED by S85 (M3 orientation: scenes rows × plotlines cols)</s></td></tr>
 <tr class="superseded"><td><b>S76</b></td><td colspan="4"><s>Plotgrid cell toggle (old orientation) — SUPERSEDED by S86</s></td></tr>
@@ -387,16 +389,17 @@ draft, Night 4). Plotlines:
 <tr class="superseded"><td><b>S78</b></td><td colspan="4"><s>Timeline placement — post-drop — SUPERSEDED: Timeline placement deferred (#7)</s></td></tr>
 <tr class="superseded"><td><b>S79</b></td><td colspan="4"><s>Locations tree — populated — SUPERSEDED: Locations moved to Codex (#6)</s></td></tr>
 <tr class="superseded"><td><b>S80</b></td><td colspan="4"><s>Locations tree — unresolved — SUPERSEDED: Locations moved to Codex (#6)</s></td></tr>
-<tr class="superseded"><td><b>S81</b></td><td colspan="4"><s>Swimlanes (old rows layout) By POV — SUPERSEDED by S87</s></td></tr>
-<tr class="superseded"><td><b>S82</b></td><td colspan="4"><s>Swimlanes (old rows layout) By plotline — SUPERSEDED by S88</s></td></tr>
-<tr><td><b>S83</b></td><td>Zoom — rail at 150%</td><td>F6</td><td>—</td><td>zoom controls in toolbar row; rail scaled; Ctrl+wheel zooms; ephemeral</td></tr>
+<tr class="superseded"><td><b>S81</b></td><td colspan="4"><s>Swimlanes (old rows layout) By POV — SUPERSEDED by S88</s></td></tr>
+<tr class="superseded"><td><b>S82</b></td><td colspan="4"><s>Swimlanes (old rows layout) By plotline — SUPERSEDED by S89</s></td></tr>
+<tr><td><b>S83</b></td><td>Zoom — rail at 150%</td><td>F6</td><td>—</td><td>zoom controls in <b>general header slot</b> (<code>.sf-ws-zoomslot</code>); applies to all layouts (kanban, plotgrid, timeline, plotlines); Ctrl+wheel zooms; ephemeral</td></tr>
 <tr><td><b>S84a</b></td><td>Kanban — write failed (rollback)</td><td>—</td><td>✎</td><td>card rolls back, error toast</td></tr>
 <tr><td><b>S84b</b></td><td>Kanban — empty scope</td><td>—</td><td>—</td><td>empty-state affordance</td></tr>
-<tr><td><b>S85</b></td><td>Toolbar — Timeline controls row</td><td>F5/F6</td><td>—</td><td>Rail|Swimlane seg + By…▾ group-by select + zoom − 100% + in one row (<code>.sf-ws-tlbar</code>)</td></tr>
-<tr><td><b>S86</b></td><td>Plotgrid (M3) — populated matrix</td><td>F2</td><td>—</td><td>ROWS = scenes, COLUMNS = plotlines; colour dots in col heads; filled cell = status+when; hover state</td></tr>
-<tr><td><b>S87</b></td><td>Plotgrid (M3) — cell toggle (post-write)</td><td>F2</td><td>✎</td><td>empty cell → filled; optimistic update + success toast</td></tr>
+<tr><td><b>S85</b></td><td>Toolbar — Timeline-only controls row + general zoom header</td><td>F5/F6</td><td>—</td><td>Rail|Swimlane seg + By…▾ group-by select in <code>.sf-ws-tlbar</code> (Timeline-only, hidden otherwise); zoom <code>− 100% +</code> in <code>.sf-ws-zoomslot</code> (always present, all layouts)</td></tr>
+<tr><td><b>S86</b></td><td>Plotgrid (M3) — read-only coverage matrix</td><td>F2</td><td>—</td><td>ROWS = scenes (incl. 0-plotline), COLUMNS = ALL in-scope plotlines (incl. 0-scene e.g. Shadow Trade); colour dots in col heads; filled cell = status+when; <b>read-only — no click-mutate</b>; editable Plotgrid → #8</td></tr>
+<tr class="superseded"><td><b>S87</b></td><td colspan="4"><s>Plotgrid (M3) — cell toggle (post-write) — SUPERSEDED: Plotgrid is read-only; click-to-toggle removed (editable Plotgrid → #8)</s></td></tr>
 <tr><td><b>S88</b></td><td>Swimlane grid — By POV</td><td>F5</td><td>—</td><td>COLUMNS per POV; ROWS per scene; act-divider row spans all cols; seq axis col 1</td></tr>
-<tr><td><b>S89</b></td><td>Swimlane grid — By plotline (fan-out)</td><td>F5</td><td>—</td><td>multi-plotline scene in each plotline column; Unassigned column</td></tr>
+<tr><td><b>S89</b></td><td>Swimlane grid — By plotline (fan-out)</td><td>F5</td><td>—</td><td>multi-plotline scene in each plotline column; Unassigned column; Shadow Trade column (0 scenes) present but empty</td></tr>
+<tr><td><b>S90</b></td><td>Plotgrid (M3) — read-only, zoom applied</td><td>F2/F6</td><td>—</td><td>same all-plotlines matrix at 125% zoom; zoom slot in general header; no interactive affordance on cells</td></tr>
 </table>
 
 <!-- =================== KANBAN (F1) =================== -->
@@ -564,7 +567,7 @@ draft, Night 4). Plotlines:
 <div class="gallery">
 
   <figure class="superseded" style="width:720px">
-    <div class="superseded-banner">SUPERSEDED — Timeline placement drag deferred (#7 in the backlog). Timeline is <b>read-only</b> in M6; only Kanban and Plotgrid write back. Original S77 figure kept for spec history.</div>
+    <div class="superseded-banner">SUPERSEDED — Timeline placement drag deferred (#7 in the backlog). Timeline is <b>read-only</b> in M6; only <b>Kanban</b> writes back (Plotgrid is also read-only). Original S77 figure kept for spec history.</div>
     <figcaption><b>S77 · Timeline placement — mid-drag. SUPERSEDED. M6.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
@@ -725,28 +728,34 @@ draft, Night 4). Plotlines:
 </div>
 
 <!-- =================== ZOOM / PAN (F6) =================== -->
-<h2>Zoom (F6) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only, ephemeral · toolbar slot</span></h2>
+<h2>Zoom (F6) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · read-only, ephemeral · general header slot (all layouts)</span></h2>
 <div class="gallery">
 
   <figure style="width:720px">
-    <figcaption><b>S83 · Zoom — rail at 150%.</b> The zoom controls (<b>− / 100% / ⊙ reset / +</b>) live in the
-    Timeline toolbar row (<code>.sf-ws-zoomslot</code> → <code>.sf-zoom-bar</code>) — not in the main vhead.
-    The rail body sits inside <code>.sf-zoom-wrap &gt; .sf-zoom-scaled</code>; the scale transform
+    <figcaption><b>S83 · Zoom — rail at 150%.</b> The zoom controls (<b>− / 150% / ⊙ reset / +</b>) live in a
+    <b>general header slot</b> (<code>.sf-ws-zoomslot</code> → <code>.sf-zoom-bar</code>) that is always present
+    regardless of layout — <b>zoom works across Kanban, Plotgrid, Timeline, and Plotlines</b>.
+    The Rail|Swimlane toggle + group-by dropdown are Timeline-only (in <code>.sf-ws-tlbar</code>, hidden for other
+    layouts). The body sits inside <code>.sf-zoom-wrap &gt; .sf-zoom-scaled</code>; the scale transform
     (<code>--sf-zoom</code>) is applied to <code>.sf-zoom-scaled</code>. Modifier+wheel also zooms (25%–300%).
     Zoom is <b>ephemeral</b> — not persisted. <b>M6.</b></figcaption>
     <div class="view main">
+      <!-- General header: brand + layout tabs + zoom slot (always present) -->
       <div class="vhead"><span class="brand">Story Forge</span>
-        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div></div>
-      <!-- Timeline toolbar row: sf-ws-tlbar -->
-      <div class="tlbar">
-        <div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div>
-        <select disabled style="opacity:.45"><option>By POV</option></select>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div>
+        <div class="sp"></div>
+        <!-- sf-ws-zoomslot: general header slot, present for ALL layouts -->
         <div class="zoombar">
           <span>−</span>
           <span class="lvl">150%</span>
           <span>⊙</span>
           <span>+</span>
         </div>
+      </div>
+      <!-- Timeline-only toolbar row: Rail|Swimlane seg + group-by dropdown -->
+      <div class="tlbar">
+        <div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div>
+        <select disabled style="opacity:.45"><option>By POV</option></select>
       </div>
       <div class="mbody">
         <!-- sf-zoom-wrap > sf-zoom-scaled; content scaled at 1.5x (simulated with larger text) -->
@@ -766,9 +775,11 @@ draft, Night 4). Plotlines:
       </div>
     </div>
     <p class="note"><b>Ephemeral by design (frontmatter-is-truth):</b> zoom is pure view state — nothing about
-    the story changes, so nothing is persisted. The zoom child Component is replaced on every timeline re-render
-    so listeners don't accumulate (CON-4). Range: 25%–300%, step 10%. <code>⊙</code> resets to 100%.
-    In Swimlane mode the zoom slot is empty (swimlane uses the grid's own scroll).</p>
+    the story changes, so nothing is persisted. The zoom child Component is replaced on every render so listeners
+    don't accumulate (CON-4). Range: 25%–300%, step 10%. <code>⊙</code> resets to 100%.
+    <b>Zoom applies to all four layouts</b> (kanban, plotgrid, timeline rail, plotlines) — the zoom slot
+    (<code>.sf-ws-zoomslot</code>) lives in the persistent general header row, not inside the Timeline-only
+    <code>.sf-ws-tlbar</code>. The Swimlane grid uses native CSS scroll rather than the zoom transform.</p>
   </figure>
 
 </div>
@@ -819,26 +830,26 @@ draft, Night 4). Plotlines:
 </div>
 
 <!-- =================== S85: TOOLBAR (NEW) =================== -->
-<h2>S85 — Timeline toolbar row (new) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · <code>.sf-ws-tlbar</code></span></h2>
+<h2>S85 — General header zoom slot + Timeline-only toolbar row <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · <code>.sf-ws-zoomslot</code> (all layouts) · <code>.sf-ws-tlbar</code> (Timeline only)</span></h2>
 <div class="gallery">
 
   <figure style="width:720px">
-    <figcaption><b>S85 · Timeline toolbar — one row: seg + group-by select + zoom.</b>
-    When Timeline is active, a second toolbar row (<code>.sf-ws-tlbar</code>) appears below the main vhead.
-    It contains: <b>[Rail | Swimlane]</b> segmented toggle (<code>.sf-ws-tlmode</code>), a
-    <b><code>By … ▾</code> group-by <code>&lt;select&gt;</code></b> dropdown (<code>.sf-ws-tlkey-select</code>,
-    options: POV / Location / Plotline — disabled + dimmed in Rail mode), and inline zoom controls
-    (<code>.sf-zoom-bar</code>: − / 100% / ⊙ / +). All three are in a single flex row. The group-by dropdown
-    is disabled (dimmed) when Rail is active. <b>M6 · S85.</b></figcaption>
+    <figcaption><b>S85 · Toolbar — Timeline active: zoom in general header + Rail|Swimlane row below.</b>
+    The <b>zoom <code>− 100% +</code> control</b> lives in <code>.sf-ws-zoomslot</code> in the <b>general header</b>
+    (rightmost slot of the main vhead row) — it is <b>always present for all layouts</b> (kanban, plotgrid,
+    timeline rail, plotlines).
+    Below the header, a <b>Timeline-only secondary row</b> (<code>.sf-ws-tlbar</code>) contains:
+    <b>[Rail | Swimlane]</b> segmented toggle (<code>.sf-ws-tlmode</code>) and a
+    <b><code>By … ▾</code> group-by <code>&lt;select&gt;</code></b> (<code>.sf-ws-tlkey-select</code>;
+    options: POV / Location / Plotline — disabled + dimmed in Rail mode).
+    The <code>.sf-ws-tlbar</code> row is <b>hidden</b> (<code>.sf-ws-tlbar--hidden</code>) for all
+    non-Timeline layouts. <b>M6 · S85.</b></figcaption>
     <div class="view main">
+      <!-- General header: brand + layout tabs + zoom (always present) -->
       <div class="vhead"><span class="brand">Story Forge</span>
-        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div></div>
-      <!-- Rail mode: seg Rail selected, select disabled, zoom active -->
-      <div class="tlbar">
-        <div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div>
-        <select disabled title="Group by (available in Swimlane mode)" style="opacity:.45;font-size:11px;padding:2px 8px;border:1px solid var(--border-2);border-radius:6px;background:var(--panel);color:var(--muted)">
-          <option>By POV</option><option>By Location</option><option>By Plotline</option>
-        </select>
+        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div>
+        <div class="sp"></div>
+        <!-- sf-ws-zoomslot: always visible, all layouts -->
         <div class="zoombar">
           <span>−</span>
           <span class="lvl">100%</span>
@@ -846,58 +857,82 @@ draft, Night 4). Plotlines:
           <span>+</span>
         </div>
       </div>
+      <!-- Timeline-only secondary row: sf-ws-tlbar (Rail mode: select disabled) -->
+      <div class="tlbar">
+        <div class="seg"><span class="sel">Rail</span><span>Swimlane</span></div>
+        <select disabled title="Group by (available in Swimlane mode)" style="opacity:.45;font-size:11px;padding:2px 8px;border:1px solid var(--border-2);border-radius:6px;background:var(--panel);color:var(--muted)">
+          <option>By POV</option><option>By Location</option><option>By Plotline</option>
+        </select>
+      </div>
       <div class="mbody" style="padding:10px 14px">
         <p style="color:var(--faint);font-size:12px;margin:0">Timeline rail body (zoom target: <code>.sf-zoom-scaled</code>) …</p>
       </div>
     </div>
-    <p class="note">Rail mode: select is <code>disabled</code> + class <code>.sf-ws-tlkey-select--disabled</code>
+    <p class="note">Zoom slot (<code>.sf-ws-zoomslot</code>) is always rendered in the header — it targets
+    <code>.sf-zoom-scaled</code> (the body wrapper) regardless of active layout.
+    Rail mode: group-by select is <code>disabled</code> + class <code>.sf-ws-tlkey-select--disabled</code>
     (opacity .45). Swimlane mode: select is enabled; chosen option persists per scope (in-memory Map — not written
-    to frontmatter). Zoom slot (<code>.sf-ws-zoomslot</code>) is empty in Swimlane mode — the grid scrolls
-    natively. The whole <code>.sf-ws-tlbar</code> row is hidden (<code>.sf-ws-tlbar--hidden</code>) when any
+    to frontmatter). The <code>.sf-ws-tlbar</code> row is hidden (<code>.sf-ws-tlbar--hidden</code>) when any
     non-Timeline layout is active.</p>
   </figure>
 
   <figure style="width:720px">
-    <figcaption><b>S85b · Timeline toolbar — Swimlane mode, By Plotline selected.</b>
-    Swimlane is active: Rail|Swimlane seg shows Swimlane selected; group-by select is <b>enabled</b> and shows
-    "By Plotline"; zoom slot is <b>empty</b> (swimlane uses native grid scroll). <b>M6 · S85b.</b></figcaption>
+    <figcaption><b>S85b · Toolbar — Kanban active: zoom in general header; tlbar row hidden.</b>
+    Kanban is active: the <b>zoom slot</b> is still present in the main header row; the Timeline-only
+    <code>.sf-ws-tlbar</code> row is <b>hidden</b> — Rail|Swimlane and group-by controls are not shown.
+    This demonstrates that zoom is a <b>general affordance across all four layouts</b>. <b>M6 · S85b.</b></figcaption>
     <div class="view main">
+      <!-- General header: brand + Kanban tab active + zoom present -->
       <div class="vhead"><span class="brand">Story Forge</span>
-        <div class="mtabs"><span class="sel">◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div></div>
-      <!-- Swimlane mode: select enabled, zoom slot empty -->
-      <div class="tlbar">
-        <div class="seg"><span>Rail</span><span class="sel">Swimlane</span></div>
-        <select title="Group by" style="font-size:11px;padding:2px 8px;border:1px solid var(--border-2);border-radius:6px;background:var(--panel);color:var(--muted)">
-          <option>By POV</option><option>By Location</option><option selected>By Plotline</option>
-        </select>
-        <!-- zoom slot empty in swimlane -->
+        <div class="mtabs"><span>◷ Timeline</span><span class="sel">▤ Kanban</span><span>⑃ Plotlines</span><span>▦ Plotgrid</span></div>
+        <div class="sp"></div>
+        <!-- sf-ws-zoomslot: still present even though Kanban is active -->
+        <div class="zoombar">
+          <span>−</span>
+          <span class="lvl">100%</span>
+          <span>⊙</span>
+          <span>+</span>
+        </div>
       </div>
+      <!-- sf-ws-tlbar is hidden (sf-ws-tlbar--hidden) for non-Timeline layouts -->
+      <!-- (omitted from DOM — represented by absence here) -->
       <div class="mbody" style="padding:10px 14px">
-        <p style="color:var(--faint);font-size:12px;margin:0">Swimlane grid body (<code>.sf-sw-grid</code>) … zoom slot intentionally empty.</p>
+        <p style="color:var(--faint);font-size:12px;margin:0">Kanban body … <code>.sf-ws-tlbar</code> row is absent (hidden) when layout ≠ Timeline.</p>
       </div>
     </div>
   </figure>
 
 </div>
 
-<!-- =================== S86–S87: PLOTGRID M3 ORIENTATION (NEW) =================== -->
-<h2>S86–S87 — Plotgrid (M3 orientation: scenes rows × plotlines cols) <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · write-back: plotlines · <code>.sf-pg-*</code></span></h2>
+<!-- =================== S86–S87: PLOTGRID M3 ORIENTATION =================== -->
+<h2>S86 — Plotgrid (M3 orientation: scenes rows × plotlines cols) — read-only <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · <b>read-only</b> coverage view · <code>.sf-pg-*</code> · editable Plotgrid → #8</span></h2>
 <div class="gallery">
 
   <figure style="width:720px">
-    <figcaption><b>S86 · Plotgrid — populated matrix (M3: scenes as ROWS, plotlines as COLUMNS).</b>
+    <figcaption><b>S86 · Plotgrid — read-only coverage matrix (M3: scenes as ROWS, plotlines as COLUMNS).</b>
+    <b>Columns = ALL in-scope plotlines</b> — including 0-scene plotlines (e.g. Shadow Trade); a 0-plotline scene
+    still shows as a row with all empty cells. The grid <b>never collapses</b> (columns from
+    <code>resolvePlotlineScope</code>).
     Row header (col 1) = scene order + title as drill link (<code>.sf-pg-row-head</code>).
     Column headers = plotline name with colour dot (<code>.sf-pg-col-head</code>, <code>.sf-pg-col-dot</code>);
     border-left carries plotline colour (<code>--sf-pg-col-color</code>); unresolved column muted
     (<code>.sf-pg-col-head--unresolved</code>).
     <b>Filled cell</b> (<code>.sf-pg-cell--filled</code>) — low-opacity plotline background + left accent border —
     shows status badge + <code>when</code> (<code>.sf-pg-cell-inner</code>).
-    <b>Empty cell</b> — transparent, hover outline. One cell shown in hover state. <b>M6 · S86.</b></figcaption>
+    <b>Empty cell</b> — transparent, no interactive cursor. <b>READ-ONLY — no click-mutate; editable Plotgrid deferred → #8.</b>
+    <b>M6 · S86.</b></figcaption>
     <div class="view main">
+      <!-- General header: brand + layout tabs + zoom slot (always present, even for Plotgrid) -->
       <div class="vhead"><span class="brand">Story Forge</span>
-        <div class="mtabs"><span class="sel">▦ Plotgrid</span><span>◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div></div>
+        <div class="mtabs"><span class="sel">▦ Plotgrid</span><span>◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div>
+        <div class="sp"></div>
+        <div class="zoombar">
+          <span>−</span><span class="lvl">100%</span><span>⊙</span><span>+</span>
+        </div>
+      </div>
+      <!-- sf-ws-tlbar is absent (hidden) for Plotgrid layout -->
       <div class="mbody" style="overflow-x:auto;padding:12px 14px">
-        <!-- pg-table: role=table, aria-label="Plotgrid: scenes × plotlines" -->
+        <!-- pg-table: role=table, aria-label="Plotgrid: scenes × plotlines" — READ-ONLY, no event listeners on cells -->
         <div class="pg-table" style="min-width:580px">
           <!-- header row -->
           <div class="pg-thead">
@@ -920,102 +955,104 @@ draft, Night 4). Plotlines:
               </div>
             </div>
           </div>
-          <!-- body rows: one per scene -->
+          <!-- body rows: one per scene — all cells cursor:default (read-only) -->
           <div class="pg-tbody">
             <!-- scene 1: Extinguished Fire (Dying Light) -->
             <div class="pg-tr">
               <div class="pg-row-head">1. The Extinguished Fire</div>
-              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying);cursor:default">
                 <div class="pg-cell-inner">
                   <span class="pg-cell-status" style="color:var(--pl-dying)">draft</span>
                   <span class="pg-cell-when">Night 1</span>
                 </div>
               </div>
-              <div class="pg-cell"></div>
-              <div class="pg-cell"></div>
+              <div class="pg-cell" style="cursor:default"></div>
+              <div class="pg-cell" style="cursor:default"></div>
               <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
             </div>
             <!-- scene 2: Salty Gull (Dying Light) -->
             <div class="pg-tr">
               <div class="pg-row-head">2. The Salty Gull</div>
-              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying);cursor:default">
                 <div class="pg-cell-inner">
                   <span class="pg-cell-status" style="color:var(--pl-dying)">draft</span>
                   <span class="pg-cell-when">Night 1</span>
                 </div>
               </div>
-              <div class="pg-cell"></div>
-              <div class="pg-cell"></div>
+              <div class="pg-cell" style="cursor:default"></div>
+              <div class="pg-cell" style="cursor:default"></div>
               <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
             </div>
             <!-- scene 3: Black Cliffs (Dying Light) -->
             <div class="pg-tr">
               <div class="pg-row-head">3. The Black Cliffs</div>
-              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying);cursor:default">
                 <div class="pg-cell-inner">
                   <span class="pg-cell-status" style="color:var(--pl-dying)">outline</span>
                   <span class="pg-cell-when">Night 2</span>
                 </div>
               </div>
-              <div class="pg-cell"></div>
-              <div class="pg-cell"></div>
+              <div class="pg-cell" style="cursor:default"></div>
+              <div class="pg-cell" style="cursor:default"></div>
               <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
             </div>
             <!-- scene 4: Signal Tower (Dying Light + Warden's Oath — multi-plotline) -->
             <div class="pg-tr">
               <div class="pg-row-head">4. The Signal Tower</div>
-              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying)">
+              <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying);cursor:default">
                 <div class="pg-cell-inner">
                   <span class="pg-cell-status" style="color:var(--pl-dying)">outline</span>
                   <span class="pg-cell-when">Night 3</span>
                 </div>
               </div>
-              <div class="pg-cell filled oath" style="--sf-pg-col-color:var(--pl-oath)">
+              <div class="pg-cell filled oath" style="--sf-pg-col-color:var(--pl-oath);cursor:default">
                 <div class="pg-cell-inner">
                   <span class="pg-cell-status" style="color:var(--pl-oath)">outline</span>
                   <span class="pg-cell-when">Night 3</span>
                 </div>
               </div>
-              <div class="pg-cell"></div>
+              <div class="pg-cell" style="cursor:default"></div>
               <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
             </div>
             <!-- scene 5: A Message in Salt (Warden's Oath) -->
             <div class="pg-tr">
               <div class="pg-row-head">5. A Message in Salt</div>
-              <div class="pg-cell"></div>
-              <div class="pg-cell filled oath" style="--sf-pg-col-color:var(--pl-oath)">
+              <div class="pg-cell" style="cursor:default"></div>
+              <div class="pg-cell filled oath" style="--sf-pg-col-color:var(--pl-oath);cursor:default">
                 <div class="pg-cell-inner">
                   <span class="pg-cell-status" style="color:var(--pl-oath)">outline</span>
                 </div>
               </div>
-              <div class="pg-cell"></div>
+              <div class="pg-cell" style="cursor:default"></div>
               <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
             </div>
-            <!-- scene 6: Long Watch (Unassigned — hovering on Shadow Trade) -->
+            <!-- scene 6: Long Watch (Unassigned — no plotline; all plotline cells empty) -->
             <div class="pg-tr">
               <div class="pg-row-head">6. The Long Watch</div>
-              <div class="pg-cell"></div>
-              <div class="pg-cell"></div>
-              <div class="pg-cell hovering"></div>
+              <div class="pg-cell" style="cursor:default"></div>
+              <div class="pg-cell" style="cursor:default"></div>
+              <div class="pg-cell" style="cursor:default"></div>
               <div class="pg-cell" aria-disabled="true" style="opacity:.3;cursor:default"></div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <p class="note"><b>M3 orientation:</b> ROWS = scenes (order-sorted within each act group), COLUMNS = plotlines
-    (colour-coded). Corner cell reads "Plotgrid" (<code>.sf-pg-corner</code>). Unresolved plotline columns are
-    muted + <code>aria-disabled="true"</code> — no listeners. The Signal Tower is a multi-plotline scene: both
-    Dying Light and Warden's Oath cells in its row are filled. Shadow Trade (0 scenes) column is fully empty until
-    a cell is toggled. Clicking/Space/Enter on an interactive cell toggles <code>plotlines</code> membership.</p>
+    <p class="note"><b>Read-only coverage view.</b> ROWS = scenes (order-sorted; 0-plotline scenes included),
+    COLUMNS = ALL in-scope plotlines from <code>resolvePlotlineScope</code> — Shadow Trade (0 scenes) appears as
+    an empty column; the grid never collapses. Corner cell reads "Plotgrid" (<code>.sf-pg-corner</code>).
+    Unresolved columns muted + <code>aria-disabled="true"</code>. The Signal Tower (multi-plotline) has filled cells
+    in both Dying Light and Warden's Oath columns. <b>No event listeners on cells</b> — role="cell" not "gridcell",
+    no click/keydown write path. Editable/configurable Plotgrid deferred to spec #8.</p>
   </figure>
 
-  <figure style="width:720px">
-    <figcaption><b>S87 · Plotgrid — cell toggle (post-write).</b> The user clicked empty <b>Scene 6 × Shadow
+  <figure class="superseded" style="width:720px">
+    <div class="superseded-banner">SUPERSEDED — Plotgrid is read-only; click-to-toggle removed (editable Plotgrid → #8). Original S87 figure kept for spec history.</div>
+    <figcaption><b>S87 · Plotgrid — cell toggle (post-write). SUPERSEDED.</b> The user clicked empty <b>Scene 6 × Shadow
     Trade</b>. The cell is now filled: <code>.sf-pg-cell--filled</code> + plotline-colour left border + inner
     status/when badge. A success <b>toast</b> confirms the write — <code>plotlines</code> gained
     <code>[[Shadow Trade]]</code>. Optimistic update fires immediately; <code>onAfter</code> triggers re-render
-    from <code>metadataCache.changed</code>. <b>M6 · S87.</b></figcaption>
+    from <code>metadataCache.changed</code>. <b>M6 · S87 · SUPERSEDED.</b></figcaption>
     <div class="view main">
       <div class="vhead"><span class="brand">Story Forge</span>
         <div class="mtabs"><span class="sel">▦ Plotgrid</span><span>◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span></div></div>
@@ -1339,16 +1376,102 @@ draft, Night 4). Plotlines:
 
 </div>
 
+<!-- =================== S90: PLOTGRID READ-ONLY WITH ZOOM =================== -->
+<h2>S90 — Plotgrid read-only + zoom applied <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· M6 · <code>.sf-pg-*</code> · zoom from <code>.sf-ws-zoomslot</code></span></h2>
+<div class="gallery">
+
+  <figure style="width:720px">
+    <figcaption><b>S90 · Plotgrid — read-only coverage matrix at 125% zoom.</b>
+    Same all-in-scope-plotlines matrix as S86, now with zoom applied (<code>--sf-zoom:1.25</code> on
+    <code>.sf-zoom-scaled</code>). Zoom control (<code>− 125% ⊙ +</code>) lives in the
+    <b>general header slot</b> (<code>.sf-ws-zoomslot</code>), visible for all layouts.
+    The Plotgrid <b>Timeline-only tlbar</b> is absent (hidden — Plotgrid is not Timeline).
+    Cells have <b>no interactive affordance</b> — no hover outline, no pointer cursor, role="cell".
+    <b>READ-ONLY. M6 · S90.</b></figcaption>
+    <div class="view main">
+      <!-- General header with zoom at 125% -->
+      <div class="vhead"><span class="brand">Story Forge</span>
+        <div class="mtabs"><span>◷ Timeline</span><span>▤ Kanban</span><span>⑃ Plotlines</span><span class="sel">▦ Plotgrid</span></div>
+        <div class="sp"></div>
+        <div class="zoombar">
+          <span>−</span>
+          <span class="lvl">125%</span>
+          <span>⊙</span>
+          <span>+</span>
+        </div>
+      </div>
+      <!-- sf-ws-tlbar is absent (hidden) for Plotgrid layout -->
+      <div class="mbody" style="overflow-x:auto;padding:12px 14px">
+        <!-- Scaled at 1.25 (simulated) — body wider than container, scrolls -->
+        <div style="transform:scale(1.25);transform-origin:top left;width:80%;min-width:580px">
+          <div class="pg-table">
+            <div class="pg-thead">
+              <div class="pg-tr">
+                <div class="pg-th pg-corner" style="min-width:160px">Plotgrid</div>
+                <div class="pg-th pg-col-head dying" style="border-left-color:var(--pl-dying)">
+                  <span class="pg-col-dot" style="background:var(--pl-dying)"></span>
+                  <span class="pg-col-name" style="color:var(--link)">The Dying Light</span>
+                </div>
+                <div class="pg-th pg-col-head oath" style="border-left-color:var(--pl-oath)">
+                  <span class="pg-col-dot" style="background:var(--pl-oath)"></span>
+                  <span class="pg-col-name" style="color:var(--link)">The Warden's Oath</span>
+                </div>
+                <div class="pg-th pg-col-head shadow" style="border-left-color:var(--pl-shadow)">
+                  <span class="pg-col-dot" style="background:var(--pl-shadow)"></span>
+                  <span class="pg-col-name" style="color:var(--link)">Shadow Trade</span>
+                </div>
+              </div>
+            </div>
+            <div class="pg-tbody">
+              <div class="pg-tr">
+                <div class="pg-row-head">1. The Extinguished Fire</div>
+                <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying);cursor:default">
+                  <div class="pg-cell-inner"><span class="pg-cell-status" style="color:var(--pl-dying)">draft</span><span class="pg-cell-when">Night 1</span></div>
+                </div>
+                <div class="pg-cell" style="cursor:default"></div>
+                <div class="pg-cell" style="cursor:default"></div>
+              </div>
+              <div class="pg-tr">
+                <div class="pg-row-head">4. The Signal Tower</div>
+                <div class="pg-cell filled dying" style="--sf-pg-col-color:var(--pl-dying);cursor:default">
+                  <div class="pg-cell-inner"><span class="pg-cell-status" style="color:var(--pl-dying)">outline</span><span class="pg-cell-when">Night 3</span></div>
+                </div>
+                <div class="pg-cell filled oath" style="--sf-pg-col-color:var(--pl-oath);cursor:default">
+                  <div class="pg-cell-inner"><span class="pg-cell-status" style="color:var(--pl-oath)">outline</span><span class="pg-cell-when">Night 3</span></div>
+                </div>
+                <div class="pg-cell" style="cursor:default"></div>
+              </div>
+              <div class="pg-tr">
+                <div class="pg-row-head">6. The Long Watch</div>
+                <div class="pg-cell" style="cursor:default"></div>
+                <div class="pg-cell" style="cursor:default"></div>
+                <div class="pg-cell" style="cursor:default"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">S90 confirms two things: (1) zoom applies to Plotgrid (not just Timeline); (2) cells carry no
+    interactive affordance even at higher zoom. Shadow Trade column (0 scenes) is always present. The
+    <code>.sf-ws-tlbar</code> row is absent — it is hidden for all non-Timeline layouts via
+    <code>.sf-ws-tlbar--hidden</code>. Editable Plotgrid with configurable columns deferred to spec #8.</p>
+  </figure>
+
+</div>
+
 <p class="note" style="margin-top:26px;max-width:96ch">
-<b>Scope (M6, spec 007 — polished):</b> two <b>write-back</b> surfaces: <b>F1 Kanban</b> (drag →
-<code>status</code> + sparse-int <code>order</code>) and <b>F2 Plotgrid</b> (click-toggle →
-<code>plotlines</code> links, M3 orientation: scenes rows × plotlines cols). <b>Read-only:</b> <b>F5 Swimlanes</b>
-(columns-grid: one column per lane value, rows per scene, act dividers span all cols) and <b>F6 ephemeral zoom</b>
-(toolbar row: Rail|Swimlane seg + group-by select + zoom bar). <b>Timeline is read-only</b> — placement drag
-deferred. <b>Locations tree removed</b> — moved to the Codex milestone. Superseded figures (S75–S82) are
-preserved with banners. New figures: S85 (toolbar row), S86–S87 (Plotgrid M3), S88–S89 (swimlane columns-grid).
-Total figures: <b>18</b> (14 active + 4 superseded pairs S75/S76, S77/S78, S79/S80, S81/S82).
-Continues M5 numbering (S72 → S73–S89).
+<b>Scope (M6, spec 007 — updated):</b> one <b>write-back</b> surface: <b>F1 Kanban</b> (drag →
+<code>status</code> + sparse-int <code>order</code>). <b>Read-only:</b> <b>F2 Plotgrid</b> (read-only
+Scene × Plotline coverage matrix, M3 orientation: scenes rows × ALL-scope plotlines cols — never collapses;
+editable Plotgrid → spec #8), <b>F5 Swimlanes</b> (columns-grid: one column per lane value, rows per scene,
+act dividers span all cols) and <b>F6 ephemeral zoom</b> (general header slot <code>.sf-ws-zoomslot</code>
+— applies to all four layouts; Timeline-only tlbar has Rail|Swimlane seg + group-by select).
+<b>Timeline is read-only</b> — placement drag deferred. <b>Locations tree removed</b> — moved to the Codex milestone.
+Superseded figures (S75–S82, S87) are preserved with banners. New/updated figures: S85 (general zoom header +
+Timeline tlbar), S86 (Plotgrid M3 read-only), S87 (SUPERSEDED — click-toggle removed), S88–S89 (swimlane
+columns-grid), S90 (Plotgrid + zoom). Total figures: <b>20</b> (11 active + 9 superseded: S75/S76, S77/S78,
+S79/S80, S81/S82, S87). Continues M5 numbering (S72 → S73–S90).
 </p>
 
 </body>
