@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Story Forge — Anvil / Workbench / Codex mockups (surface taxonomy) — v2</title>
+<title>Story Forge — Anvil / Workbench / Codex mockups (surface taxonomy) — v3</title>
 <style>
   :root{
     --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
@@ -462,11 +462,22 @@
     font-size:10.5px;color:var(--st-draft);max-width:60ch}
   .q b{color:var(--text)}
   .ok{border-left-color:var(--st-written);background:rgba(106,196,122,.06);color:var(--st-written)}
+
+  /* --- editor sections driven by the FileClass chain (S102/S103) --- */
+  .ed-sec{grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:9px 0 1px}
+  .ed-sec:first-child{margin-top:0}
+  .ed-sec b{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    font-weight:600}
+  .ed-sec code{font-size:9.5px;color:var(--faint);background:var(--panel-2);
+    padding:1px 5px;border-radius:4px}
+  .ed-sec .ln{flex:1;height:1px;background:var(--border)}
+  .ed-sec.usr b{color:var(--pill-text)}
+  .ed-sec.other b{color:var(--faint)}
 </style>
 </head>
 <body>
 
-<h1>Story Forge — Anvil · Workbench · Codex (surface taxonomy) <span style="color:var(--faint);font-weight:400;font-size:14px">· v2</span></h1>
+<h1>Story Forge — Anvil · Workbench · Codex (surface taxonomy) <span style="color:var(--faint);font-weight:400;font-size:14px">· v3</span></h1>
 
 <p class="sub"><b>The two interfaces, drawn before any code.</b> The surface model was settled on
 2026-07-27 (<code>DESIGN.md §2</code>, <code>gap-analysis.md §1.3</code>): <b>Anvil</b> is the
@@ -475,7 +486,7 @@ main-window interface, <b>Workbench</b> is the sidebar interface, and <b>Codex</
 before it becomes code — per the repo rule, <b>a mockup is a gate, not a record.</b></p>
 
 <div class="banner">
-<b>v2 — after review round 1.</b> Figures are revised <i>in place</i> rather than superseded:
+<b>v3 — after review round 2.</b> New: <b>S102/S103</b> derive the editor's fields from the <code>fc-*.md</code> FileClass chain instead of a hardcoded list, which is what makes user properties first-class without an editor-styling system. Dock is <b>manual only</b>; <b>every</b> dock shows the full field set.<br><b>v2 — after review round 1.</b> Figures are revised <i>in place</i> rather than superseded:
 v1 was a draft in review, never signed off, so a supersede chain would be noise. What changed:
 <b>(1)</b> the header slot no longer shows the source <code>.base</code> — it is the
 <b>Card selector</b> (S91, S97), because two independent axes had been collapsed into one label;
@@ -510,7 +521,7 @@ Objects: <b>The Warden's Seal</b>. Plotlines:
 <b>Status:</b> <span class="sd">draft</span> · <span class="so">outline</span> · <span class="sw">done</span>.
 </p>
 
-<h2>State inventory (S91–S101)</h2>
+<h2>State inventory (S91–S103)</h2>
 <table class="inv">
 <tr><th>S</th><th>State</th><th>Surface</th><th>Write?</th><th>Shows</th></tr>
 <tr><td><b>S91</b></td><td>Anvil — Codex, nothing selected</td><td>Anvil</td><td>—</td><td>one view, tab strip <code>Codex · Timeline · Plotgrid · Plotlines · Board</code>; collection pills; <b>Card selector</b> in the header slot</td></tr>
@@ -523,6 +534,8 @@ Objects: <b>The Warden's Seal</b>. Plotlines:
 <tr><td><b>S98</b></td><td>Anvil — Codex empty / not set up</td><td>Anvil</td><td>—</td><td>degrade path; <b>Set up my vault</b> wizard (#27) + <b>Change tag</b> → settings</td></tr>
 <tr><td><b>S99</b></td><td>Anvil — editor beside the grid</td><td>Anvil</td><td>✎</td><td>position toggle: one card column left, editor right (wide screens)</td></tr>
 <tr><td><b>S100</b></td><td>Anvil — editor fullscreen</td><td>Anvil</td><td>✎</td><td>editor takes the card row's real estate too; <b>← Back</b> returns to S92/S99</td></tr>
+<tr><td><b>S102</b></td><td>Editor — sections from the FileClass chain</td><td>Anvil</td><td>✎</td><td>no hardcoded fields: sections per <code>fc-*.md</code>, order from <code>fieldsOrder</code>, enums from <code>options.valuesList</code></td></tr>
+<tr><td><b>S103</b></td><td>Editor — a user's own FileClass</td><td>Anvil</td><td>✎</td><td><code>fc-character-custom1.md</code> becomes its own section; undeclared keys land in <i>Other properties</i></td></tr>
 <tr><td><b>S101</b></td><td>Settings — Collections and Cards</td><td>Settings</td><td>—</td><td>built-in · from repo · imported; enable, <b>remove</b>, import — the source of S93 and S97</td></tr>
 </table>
 
@@ -674,8 +687,9 @@ wide screen this keeps a column of cards navigable while editing.</figcaption>
 <p class="note">Same pane, same fields — only the dock changes. The choice is persisted
 (operational state, plugin directory — not the vault). <b>Not</b> proposed: free dragging to
 arbitrary positions; two docks plus fullscreen covers the need without a layout engine.</p>
-<div class="q"><b>Open:</b> should the dock switch <b>automatically</b> above a width threshold,
-or only ever manually? Automatic is friendlier and surprises people who resize.</div>
+<div class="q ok"><b>Settled:</b> the dock switches <b>manually only</b>, from settings — never
+automatically on resize. A layout that moves under you while you work is worse than one you set
+once.</div>
 </figure>
 
 <figure>
@@ -718,15 +732,137 @@ or only ever manually? Automatic is friendlier and surprises people who resize.<
       <label>enemies</label><div class="ed-f span2"><span class="addx">+ link</span></div>
       <label>tags</label><div class="ed-f ro span2">canon/character</div>
     </div>
-    <div class="ed-foot">Fullscreen shows the <b>whole</b> field set; the docked panes show the
-      frequently-edited subset. Same write path either way.</div>
+    <div class="ed-foot">All docks show the <b>full</b> field set — fullscreen just gives it more
+      room. Sections come from the FileClass chain (S102).</div>
   </div>
 </div>
 <p class="note">This is the closest thing to StoryLine's entity editor — and the deliberate
 difference is that ours has <b>no auto-save/undo ownership layer</b>: each field is a plain
 frontmatter write, reversible in the file and journalled by us (#17).</p>
-<div class="q"><b>Open:</b> does fullscreen show <i>all</i> schema fields (as drawn) while the
-docked panes show a subset — or is it the same field list, just roomier? Drawn as the former.</div>
+<div class="q ok"><b>Settled:</b> <b>every</b> dock shows the <b>full</b> field set — bottom,
+right and fullscreen alike. Fullscreen only gives it more room. No hidden-field tier, no "where
+did that field go".</div>
+</figure>
+
+<figure>
+<figcaption><b>S102 · Editor — fields come from the FileClass chain.</b> No hardcoded field list:
+sections, order, types and enum values are all read from the <code>fc-*.md</code> files we already
+generate.</figcaption>
+<div class="view anvil">
+  <div class="vhead">
+    <span class="brand">⚒ Anvil</span>
+    <div class="mtabs">
+      <span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span>
+    </div>
+    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
+  </div>
+  <div class="ed" style="border-top:none">
+    <div class="ed-head"><span class="ed-tools" style="display:inline-flex"><span>← Back</span></span>
+      <b style="margin-left:6px">Mara Stoneway</b>
+      <span class="st">fc-character → fc-character-fantasy</span>
+      <span class="sp"></span>
+      <div class="ed-tools"><span title="exit fullscreen">⛶</span><span title="close">✕</span></div>
+    </div>
+    <div class="ed-grid">
+      <div class="ed-sec"><b>Character</b><code>fc-character.md</code><span class="ln"></span></div>
+      <label>name</label><div class="ed-f">Mara Stoneway</div>
+      <label>role</label><div class="ed-f sel-f">protagonist</div>
+      <label>status</label><div class="ed-f sel-f">alive</div>
+      <label>age</label><div class="ed-f">34</div>
+      <label>gender</label><div class="ed-f sel-f">female</div>
+      <label>occupation</label><div class="ed-f">harbour warden</div>
+      <label>height</label><div class="ed-f">172</div>
+      <label>build</label><div class="ed-f">wiry</div>
+      <label>tagline</label><div class="ed-f span2">Keeps the light burning.</div>
+      <label>allies</label><div class="ed-f span2">
+        <span class="chipx">Tobias Ferro <s>×</s></span>
+        <span class="chipx">Elke Stoneway <s>×</s></span><span class="addx">+ link</span></div>
+
+      <div class="ed-sec"><b>Fantasy</b><code>fc-character-fantasy.md · extends fc-character</code><span class="ln"></span></div>
+      <label>species</label><div class="ed-f sel-f">Human</div>
+      <label>combat_skills</label><div class="ed-f">
+        <span class="chipx">shortblade <s>×</s></span><span class="addx">+ add</span></div>
+      <label>magical_abilities</label><div class="ed-f span2">
+        <span class="chipx">ember sight <s>×</s></span><span class="addx">+ add</span></div>
+      <label>weapons</label><div class="ed-f span2">
+        <span class="chipx">The Warden's Seal <s>×</s></span><span class="addx">+ link</span></div>
+    </div>
+    <div class="ed-foot"><b>Nothing here is hardcoded.</b> Section titles come from each FileClass
+      in the <code>extends</code> chain; field order from <code>fieldsOrder</code>;
+      <code>species</code>'s dropdown from its <code>options.valuesList</code>.</div>
+  </div>
+</div>
+<p class="note"><b>The six generated types map 1:1 onto controls we already have:</b>
+<code>Input</code>→text (42×), <code>Select</code>→dropdown (17×), <code>Multi</code>→free chips
+(10×), <code>MultiFile</code>→wikilink chips (10×), <code>Number</code>→number (7×),
+<code>File</code>→single wikilink (5×). So <code>src/inspector/inspectorFields.ts</code> is not
+information — it is a <b>copy</b> of data the vault already holds, and can be derived away.
+<br><b>No metadata-menu required:</b> a FileClass is frontmatter in a markdown note, readable via
+<code>metadataCache</code>. Having the plugin installed adds <i>editing</i> those definitions;
+without it they are still perfectly readable.</p>
+<div class="q"><b>Risk, stated not hidden:</b> this couples us to metadata-menu's <i>file format</i>
+(v3), not to the plugin. A v4 would mean adapting. Mitigation: read defensively, unknown type →
+plain text, and keep <code>schema/*.json</code> as our build-time source of truth.</div>
+</figure>
+
+<figure>
+<figcaption><b>S103 · Editor — a user's own FileClass adds a section.</b> The answer to
+"first- or second-grade citizen": the question dissolves, because both come from the same
+mechanism.</figcaption>
+<div class="view anvil">
+  <div class="vhead">
+    <span class="brand">⚒ Anvil</span>
+    <div class="mtabs">
+      <span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span>
+    </div>
+    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
+  </div>
+  <div class="ed" style="border-top:none">
+    <div class="ed-head"><span class="ed-tools" style="display:inline-flex"><span>← Back</span></span>
+      <b style="margin-left:6px">Mara Stoneway</b>
+      <span class="st">fc-character → fc-character-custom1</span>
+      <span class="sp"></span>
+      <div class="ed-tools"><span title="exit fullscreen">⛶</span><span title="close">✕</span></div>
+    </div>
+    <div class="ed-grid">
+      <div class="ed-sec"><b>Character</b><code>fc-character.md</code><span class="ln"></span></div>
+      <label>name</label><div class="ed-f">Mara Stoneway</div>
+      <label>role</label><div class="ed-f sel-f">protagonist</div>
+      <label>status</label><div class="ed-f sel-f">alive</div>
+      <label>occupation</label><div class="ed-f">harbour warden</div>
+
+      <div class="ed-sec usr"><b>Isekai</b><code>fc-character-custom1.md · yours · extends fc-character</code><span class="ln"></span></div>
+      <label>level</label><div class="ed-f">12</div>
+      <label>affinity</label><div class="ed-f sel-f">fire</div>
+      <label>skills</label><div class="ed-f span2">
+        <span class="chipx">Ember Sight <s>×</s></span>
+        <span class="chipx">Tidecall <s>×</s></span>
+        <span class="chipx">Saltwalking <s>×</s></span><span class="addx">+ add</span></div>
+      <label>guild</label><div class="ed-f span2">
+        <span class="chipx">Salt Guild <s>×</s></span><span class="addx">+ link</span></div>
+
+      <div class="ed-sec other"><b>Other properties</b><code>on the note, not declared by any FileClass</code><span class="ln"></span></div>
+      <label>scratch</label><div class="ed-f span2">rewrite her introduction in ch. 3</div>
+    </div>
+    <div class="ed-foot">The user dropped <code>fc-character-custom1.md</code> into the FileClasses
+      folder. <b>No plugin release, no settings page, no editor styling.</b> They declared fields;
+      we render declarations.</div>
+  </div>
+</div>
+<p class="note"><b>Three data-driven tiers, no tier of privilege:</b>
+<b>(1)</b> a FileClass declares the field → typed, ordered, in its own named section;
+<b>(2)</b> no FileClass for this kind → we show the frontmatter keys that exist, typed by
+inspecting their values; <b>(3)</b> a key on the note that <i>no</i> FileClass declares → the
+<b>Other properties</b> section. Tier 3 is the only genuine "second-grade" case, and it is an
+edge, not the design.
+<br><b>Safe by construction:</b> <code>schema-gen.mjs</code> only ever writes
+(<code>writeFileSync</code>) — it has no delete path, so a user's extra FileClass is never
+clobbered by <code>npm run schema:gen</code>. Ours stay generated and gated by
+<code>schema:check</code>; theirs are additive and untouched.</p>
+<div class="q"><b>Open:</b> what remains a real MVP cut is <b>field types</b>, not authorship. The
+six we generate are covered. metadata-menu also has <code>Boolean</code>, <code>Date</code>,
+<code>Lookup</code>, <code>Formula</code>, <code>Canvas</code> — render them read-only, or ignore
+them until asked for?</div>
 </figure>
 
 <figure>
@@ -874,7 +1010,8 @@ Agreed direction is tag + <b>exclude</b>-folders from settings. <b>Who applies t
 Bases supports <code>not:</code> natively (<code>obsidian.d.ts:600</code>), so we could rewrite
 the <code>.base</code> when settings change — but then a <i>user's own</i> base ignores the
 setting. Applying it in our registered view type instead makes it hold everywhere. Drawn as the
-latter.</div>
+latter — <b>but deliberately left open</b>: it decides whether a user's own base obeys our scope
+settings at all, and that deserves its own round.</div>
 </figure>
 
 </div>
@@ -946,9 +1083,8 @@ figure shows it named and sitting beside the Codex.</figcaption>
 <p class="note">Frontmatter the plugin has never heard of, surfaced by something the user wrote —
 <b>no plugin release involved</b>. Missing today: the same route for a <code>.base</code> (#10),
 and binding such an entry into <b>Anvil</b> as well as the Workbench.</p>
-<div class="q"><b>Open:</b> a Workbench tab is neither a Collection nor a Card — it is a query
-<i>plus</i> a presentation, bound to a tab. Does it get a third name in settings, or is it simply
-"a Collection shown in the Workbench"? Drawn as the latter.</div>
+<div class="q ok"><b>Settled:</b> no third concept — a Workbench tab is simply <b>a Collection
+shown in the Workbench</b>. Two nouns carry the whole model.</div>
 </figure>
 
 </div>
@@ -1006,9 +1142,9 @@ removed, only disabled), <i>from repo</i> (the curated catalog, checksummed and 
 drift), <i>imported</i> (yours). Import validates what it can: for a Collection, that the query
 parses and resolves; for a Card, that it declares the fields it reads. The consent gate keeps its
 existing rule — DataviewJS gets the full gate, Bases and DQL are enable/disable.</p>
-<div class="q"><b>Open:</b> "Library" as the settings tab name for both lists — or list them
-flat, without an umbrella word? Also: <b>disable vs remove</b> — built-ins can only be disabled,
-which is drawn as a checkbox without a remove action. Right?</div>
+<div class="q ok"><b>Settled:</b> start exactly as drawn. <b>Built-in</b> entries can be
+<i>disabled</i> only; <b>imported</b> and <b>from repo</b> entries can be <i>disabled and
+removed</i>.</div>
 </figure>
 
 </div>
@@ -1023,7 +1159,10 @@ panel" surface;
 settings, the Card remembered per collection — and "view" disappears from the UI;
 <b>(4)</b> the editor pane docks bottom or right, goes fullscreen, and closes;
 <b>(5)</b> the sidebar is called Workbench, command <code>Open Workbench</code>;
-<b>(6)</b> selection is by <b>tag</b>; folders only ever <b>exclude</b>, from settings.
+<b>(6)</b> selection is by <b>tag</b>; folders only ever <b>exclude</b>, from settings;
+<b>(7)</b> the editor's fields, order, types, enum values and sections come from the
+<b>FileClass chain</b> — never from a hardcoded list — so a user's own <code>fc-*.md</code> is
+first-class without any editor-styling mechanism.
 The remaining amber callouts need your answer before the spec.</p>
 
 </body>
