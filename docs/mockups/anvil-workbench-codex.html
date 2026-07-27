@@ -507,8 +507,8 @@ before it becomes code — per the repo rule, <b>a mockup is a gate, not a recor
 approved. Per the repo rule, this file is now the <b>specification</b> for what gets built: an
 implementation that diverges from a figure here raises it <i>before</i> coding, and this file is
 not edited afterwards to match code that already shipped. Two items remain deliberately open and
-are marked amber: the Codex.base folder-exclusion question (S98) and the image fallback for a
-user's own field (S103).
+were marked amber at sign-off; both have since been settled — the Codex.base folder exclusion
+by ADR-0003 (S98), and the image fallback for a user's own field by value inspection (S103).
 </div>
 
 <div class="banner">
@@ -1058,14 +1058,16 @@ explicitly structure-agnostic (CON-7: included by kind, folders only <i>exclude<
 folders). So the empty state names the tag, and <b>Change tag</b> opens settings at that
 collection. <b>Set up my vault…</b> is the first-run wizard (#27): FileClasses, templates and the
 schema reference, also reachable from settings.</p>
-<div class="q"><b>Open:</b> the shipped <code>Codex.base</code> currently also filters
-<code>file.inFolder("30 Canon")</code> — include-by-folder, which contradicts the rule above.
-Agreed direction is tag + <b>exclude</b>-folders from settings. <b>Who applies the exclusion?</b>
-Bases supports <code>not:</code> natively (<code>obsidian.d.ts:600</code>), so we could rewrite
-the <code>.base</code> when settings change — but then a <i>user's own</i> base ignores the
-setting. Applying it in our registered view type instead makes it hold everywhere. Drawn as the
-latter — <b>but deliberately left open</b>: it decides whether a user's own base obeys our scope
-settings at all, and that deserves its own round.</div>
+<div class="q ok"><b>Settled — ADR-0003.</b> The shipped <code>Codex.base</code> filters
+<code>file.inFolder("30 Canon")</code> today — an <i>include</i>, which forces the vault layout.
+It becomes <b>tag selection plus generated <code>not: [file.inFolder(…)]</code> exclusions</b>
+(Bases supports <code>not</code> natively). The settings reach the file because the
+<code>.base</code> is <b>generated from a template</b>, not patched: import verifies the
+<b>source checksum</b>, the template is resolved with the settings parameters, the written file
+gets an <b>instance checksum</b>, and the stored parameters tell the two causes apart — settings
+changed (we regenerate silently) versus the file was edited (we ask). Per-collection, verification
+can be switched off, which means "this file is yours now": we stop verifying <i>and</i> stop
+regenerating.</div>
 </figure>
 
 </div>
