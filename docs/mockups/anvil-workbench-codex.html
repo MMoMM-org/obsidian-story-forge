@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Story Forge — Anvil / Workbench / Codex mockups (surface taxonomy) — v3</title>
+<title>Story Forge — Anvil / Workbench / Codex mockups (surface taxonomy) — v4</title>
 <style>
   :root{
     --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
@@ -473,11 +473,28 @@
   .ed-sec .ln{flex:1;height:1px;background:var(--border)}
   .ed-sec.usr b{color:var(--pill-text)}
   .ed-sec.other b{color:var(--faint)}
+
+  /* --- portrait / image control + width rule (v4) --- */
+  .ed-por{grid-column:1/-1;display:flex;gap:10px;align-items:flex-start;
+    background:var(--panel-2);border:1px solid var(--border-2);border-radius:6px;padding:8px}
+  .ed-por .pv{width:52px;height:66px;border-radius:5px;flex:none;
+    background:linear-gradient(150deg,#3a3a48,#2a2a33);border:1px solid var(--border-2);
+    display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--faint)}
+  .ed-por .pc{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+  .ed-por .pp{font-size:10.5px;color:var(--muted);background:var(--panel);
+    border:1px solid var(--border-2);border-radius:4px;padding:3px 7px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ed-por .pb{display:flex;gap:5px}
+  .ed-por .pb span{font-size:10px;color:var(--muted);border:1px solid var(--border-2);
+    border-radius:4px;padding:2px 8px;cursor:pointer}
+  .ed-por .pb span.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .whint{font-size:9px;color:var(--faint);margin-left:5px;font-weight:400;
+    text-transform:none;letter-spacing:0}
 </style>
 </head>
 <body>
 
-<h1>Story Forge — Anvil · Workbench · Codex (surface taxonomy) <span style="color:var(--faint);font-weight:400;font-size:14px">· v3</span></h1>
+<h1>Story Forge — Anvil · Workbench · Codex (surface taxonomy) <span style="color:var(--faint);font-weight:400;font-size:14px">· v4</span></h1>
 
 <p class="sub"><b>The two interfaces, drawn before any code.</b> The surface model was settled on
 2026-07-27 (<code>DESIGN.md §2</code>, <code>gap-analysis.md §1.3</code>): <b>Anvil</b> is the
@@ -486,7 +503,7 @@ main-window interface, <b>Workbench</b> is the sidebar interface, and <b>Codex</
 before it becomes code — per the repo rule, <b>a mockup is a gate, not a record.</b></p>
 
 <div class="banner">
-<b>v3 — after review round 2.</b> New: <b>S102/S103</b> derive the editor's fields from the <code>fc-*.md</code> FileClass chain instead of a hardcoded list, which is what makes user properties first-class without an editor-styling system. Dock is <b>manual only</b>; <b>every</b> dock shows the full field set.<br><b>v2 — after review round 1.</b> Figures are revised <i>in place</i> rather than superseded:
+<b>v4 — after review round 3.</b> <b>Layout</b> is now derived too: two columns for short field types, one for wide ones, so a user's fields get the same treatment as ours without writing a layout. Adds <code>Boolean</code>/<code>Date</code>, and the <b>portrait control</b> that v3 forgot.<br><b>v3 — after review round 2.</b> New: <b>S102/S103</b> derive the editor's fields from the <code>fc-*.md</code> FileClass chain instead of a hardcoded list, which is what makes user properties first-class without an editor-styling system. Dock is <b>manual only</b>; <b>every</b> dock shows the full field set.<br><b>v2 — after review round 1.</b> Figures are revised <i>in place</i> rather than superseded:
 v1 was a draft in review, never signed off, so a supersede chain would be noise. What changed:
 <b>(1)</b> the header slot no longer shows the source <code>.base</code> — it is the
 <b>Card selector</b> (S91, S97), because two independent axes had been collapsed into one label;
@@ -534,8 +551,8 @@ Objects: <b>The Warden's Seal</b>. Plotlines:
 <tr><td><b>S98</b></td><td>Anvil — Codex empty / not set up</td><td>Anvil</td><td>—</td><td>degrade path; <b>Set up my vault</b> wizard (#27) + <b>Change tag</b> → settings</td></tr>
 <tr><td><b>S99</b></td><td>Anvil — editor beside the grid</td><td>Anvil</td><td>✎</td><td>position toggle: one card column left, editor right (wide screens)</td></tr>
 <tr><td><b>S100</b></td><td>Anvil — editor fullscreen</td><td>Anvil</td><td>✎</td><td>editor takes the card row's real estate too; <b>← Back</b> returns to S92/S99</td></tr>
-<tr><td><b>S102</b></td><td>Editor — sections from the FileClass chain</td><td>Anvil</td><td>✎</td><td>no hardcoded fields: sections per <code>fc-*.md</code>, order from <code>fieldsOrder</code>, enums from <code>options.valuesList</code></td></tr>
-<tr><td><b>S103</b></td><td>Editor — a user's own FileClass</td><td>Anvil</td><td>✎</td><td><code>fc-character-custom1.md</code> becomes its own section; undeclared keys land in <i>Other properties</i></td></tr>
+<tr><td><b>S102</b></td><td>Editor — sections from the FileClass chain</td><td>Anvil</td><td>✎</td><td>no hardcoded fields: sections per <code>fc-*.md</code>, order from <code>fieldsOrder</code>, enums from <code>options.valuesList</code>, <b>column width from the type</b>; portrait control</td></tr>
+<tr><td><b>S103</b></td><td>Editor — a user's own FileClass</td><td>Anvil</td><td>✎</td><td><code>fc-character-custom1.md</code> becomes its own section <b>with the same two-column layout</b>; undeclared keys land in <i>Other properties</i></td></tr>
 <tr><td><b>S101</b></td><td>Settings — Collections and Cards</td><td>Settings</td><td>—</td><td>built-in · from repo · imported; enable, <b>remove</b>, import — the source of S93 and S97</td></tr>
 </table>
 
@@ -745,9 +762,9 @@ did that field go".</div>
 </figure>
 
 <figure>
-<figcaption><b>S102 · Editor — fields come from the FileClass chain.</b> No hardcoded field list:
-sections, order, types and enum values are all read from the <code>fc-*.md</code> files we already
-generate.</figcaption>
+<figcaption><b>S102 · Editor — fields, order, sections <i>and layout</i> from the FileClass
+chain.</b> Two columns for short fields, one for wide ones — derived from the field type, not from
+a layout file.</figcaption>
 <div class="view anvil">
   <div class="vhead">
     <span class="brand">⚒ Anvil</span>
@@ -765,50 +782,72 @@ generate.</figcaption>
     </div>
     <div class="ed-grid">
       <div class="ed-sec"><b>Character</b><code>fc-character.md</code><span class="ln"></span></div>
+      <div class="ed-por">
+        <div class="pv">👤</div>
+        <div class="pc">
+          <div class="pp">30 Canon/31 Characters/_img/mara.png</div>
+          <div class="pb"><span class="pri">Choose image…</span><span>Clear</span></div>
+          <div style="font-size:9.5px;color:var(--faint)">portrait · <code>Input</code> +
+            <code>ui: image</code></div>
+        </div>
+      </div>
       <label>name</label><div class="ed-f">Mara Stoneway</div>
       <label>role</label><div class="ed-f sel-f">protagonist</div>
       <label>status</label><div class="ed-f sel-f">alive</div>
+      <label>occupation</label><div class="ed-f">harbour warden</div>
       <label>age</label><div class="ed-f">34</div>
       <label>gender</label><div class="ed-f sel-f">female</div>
-      <label>occupation</label><div class="ed-f">harbour warden</div>
       <label>height</label><div class="ed-f">172</div>
       <label>build</label><div class="ed-f">wiry</div>
+      <label>hair</label><div class="ed-f">black, cropped</div>
+      <label>eyes</label><div class="ed-f">grey</div>
       <label>tagline</label><div class="ed-f span2">Keeps the light burning.</div>
+      <label>distinctive_features</label><div class="ed-f span2">
+        <span class="chipx">burn scar, left hand <s>×</s></span><span class="addx">+ add</span></div>
       <label>allies</label><div class="ed-f span2">
         <span class="chipx">Tobias Ferro <s>×</s></span>
         <span class="chipx">Elke Stoneway <s>×</s></span><span class="addx">+ link</span></div>
 
       <div class="ed-sec"><b>Fantasy</b><code>fc-character-fantasy.md · extends fc-character</code><span class="ln"></span></div>
       <label>species</label><div class="ed-f sel-f">Human</div>
-      <label>combat_skills</label><div class="ed-f">
+      <label>combat_skills</label><div class="ed-f span2">
         <span class="chipx">shortblade <s>×</s></span><span class="addx">+ add</span></div>
       <label>magical_abilities</label><div class="ed-f span2">
         <span class="chipx">ember sight <s>×</s></span><span class="addx">+ add</span></div>
       <label>weapons</label><div class="ed-f span2">
         <span class="chipx">The Warden's Seal <s>×</s></span><span class="addx">+ link</span></div>
     </div>
-    <div class="ed-foot"><b>Nothing here is hardcoded.</b> Section titles come from each FileClass
-      in the <code>extends</code> chain; field order from <code>fieldsOrder</code>;
-      <code>species</code>'s dropdown from its <code>options.valuesList</code>.</div>
+    <div class="ed-foot"><b>Nothing here is hardcoded.</b> Sections from the <code>extends</code>
+      chain, order from <code>fieldsOrder</code>, the <code>species</code> dropdown from
+      <code>options.valuesList</code>, and the column widths from the field type.</div>
   </div>
 </div>
-<p class="note"><b>The six generated types map 1:1 onto controls we already have:</b>
-<code>Input</code>→text (42×), <code>Select</code>→dropdown (17×), <code>Multi</code>→free chips
-(10×), <code>MultiFile</code>→wikilink chips (10×), <code>Number</code>→number (7×),
-<code>File</code>→single wikilink (5×). So <code>src/inspector/inspectorFields.ts</code> is not
-information — it is a <b>copy</b> of data the vault already holds, and can be derived away.
-<br><b>No metadata-menu required:</b> a FileClass is frontmatter in a markdown note, readable via
-<code>metadataCache</code>. Having the plugin installed adds <i>editing</i> those definitions;
-without it they are still perfectly readable.</p>
-<div class="q"><b>Risk, stated not hidden:</b> this couples us to metadata-menu's <i>file format</i>
-(v3), not to the plugin. A v4 would mean adapting. Mitigation: read defensively, unknown type →
-plain text, and keep <code>schema/*.json</code> as our build-time source of truth.</div>
+<p class="note"><b>The width rule</b> — no layout file, no configuration:
+<b>half width</b> for <code>Select</code> · <code>Number</code> · <code>Boolean</code> ·
+<code>Date</code> · <code>Input</code>; <b>full width</b> for <code>Multi</code> ·
+<code>MultiFile</code> (chips wrap). Two exceptions carry an explicit hint in
+<b>our</b> <code>schema/*.json</code>: <code>tagline</code> (<code>ui: wide</code>) and
+<code>portrait</code> (<code>ui: image</code>).
+<br><b>Why the hint lives in our schema and not in the fc-file:</b> metadata-menu writes those
+files through its own UI, so an unknown key we added could be dropped. <code>schema/*.json</code>
+is ours and already generates them.
+<br><b>Type coverage:</b> the six we generate — <code>Input</code> (42×), <code>Select</code>
+(17×), <code>Multi</code> (10×), <code>MultiFile</code> (10×), <code>Number</code> (7×),
+<code>File</code> (5×) — plus <code>Boolean</code> and <code>Date</code>.
+<code>Lookup</code>/<code>Formula</code>/<code>Canvas</code> are <b>out</b>: metadata-menu
+<i>computes</i> those, so without it there is no engine behind them — rendering one would break
+the add-ons-are-never-required rule.</p>
+<div class="q"><b>Found while drawing this:</b> <code>portrait</code> is
+<code>type: text</code>/<code>Input</code> in the schema, yet the panel already special-cases it
+by <i>field name</i> — <code>kindFields.ts</code>: "<code>portrait</code> triggers portraitTile,
+not a factRow". That hardcoding exists today and cannot be derived from the type. Declaring it as
+<code>ui: image</code> is what replaces it.</div>
 </figure>
 
 <figure>
-<figcaption><b>S103 · Editor — a user's own FileClass adds a section.</b> The answer to
-"first- or second-grade citizen": the question dissolves, because both come from the same
-mechanism.</figcaption>
+<figcaption><b>S103 · Editor — a user's own FileClass, same layout quality.</b> The answer to
+"first- or second-grade": their fields get the two-column treatment <i>for free</i>, because the
+rule keys off the type, not off who shipped the field.</figcaption>
 <div class="view anvil">
   <div class="vhead">
     <span class="brand">⚒ Anvil</span>
@@ -834,6 +873,8 @@ mechanism.</figcaption>
       <div class="ed-sec usr"><b>Isekai</b><code>fc-character-custom1.md · yours · extends fc-character</code><span class="ln"></span></div>
       <label>level</label><div class="ed-f">12</div>
       <label>affinity</label><div class="ed-f sel-f">fire</div>
+      <label>awakened</label><div class="ed-f">☑ true</div>
+      <label>awakened_on</label><div class="ed-f">Day 14</div>
       <label>skills</label><div class="ed-f span2">
         <span class="chipx">Ember Sight <s>×</s></span>
         <span class="chipx">Tidecall <s>×</s></span>
@@ -844,25 +885,29 @@ mechanism.</figcaption>
       <div class="ed-sec other"><b>Other properties</b><code>on the note, not declared by any FileClass</code><span class="ln"></span></div>
       <label>scratch</label><div class="ed-f span2">rewrite her introduction in ch. 3</div>
     </div>
-    <div class="ed-foot">The user dropped <code>fc-character-custom1.md</code> into the FileClasses
-      folder. <b>No plugin release, no settings page, no editor styling.</b> They declared fields;
-      we render declarations.</div>
+    <div class="ed-foot"><code>level</code>/<code>affinity</code> sit two-up because they are
+      <code>Number</code>/<code>Select</code>; <code>awakened</code>/<code>awakened_on</code>
+      because they are <code>Boolean</code>/<code>Date</code>; <code>skills</code>/<code>guild</code>
+      run full width because they are <code>Multi</code>/<code>MultiFile</code>. <b>The user wrote
+      no layout.</b></div>
   </div>
 </div>
 <p class="note"><b>Three data-driven tiers, no tier of privilege:</b>
-<b>(1)</b> a FileClass declares the field → typed, ordered, in its own named section;
-<b>(2)</b> no FileClass for this kind → we show the frontmatter keys that exist, typed by
-inspecting their values; <b>(3)</b> a key on the note that <i>no</i> FileClass declares → the
-<b>Other properties</b> section. Tier 3 is the only genuine "second-grade" case, and it is an
-edge, not the design.
+<b>(1)</b> a FileClass declares the field → typed, ordered, sectioned, laid out;
+<b>(2)</b> no FileClass for this kind → show the frontmatter keys that exist, type guessed from
+the value; <b>(3)</b> a key no FileClass declares → the <b>Other properties</b> section, full
+width. Tier 3 is the only genuine second-grade case, and it is an edge, not the design.
 <br><b>Safe by construction:</b> <code>schema-gen.mjs</code> only ever writes
-(<code>writeFileSync</code>) — it has no delete path, so a user's extra FileClass is never
-clobbered by <code>npm run schema:gen</code>. Ours stay generated and gated by
-<code>schema:check</code>; theirs are additive and untouched.</p>
-<div class="q"><b>Open:</b> what remains a real MVP cut is <b>field types</b>, not authorship. The
-six we generate are covered. metadata-menu also has <code>Boolean</code>, <code>Date</code>,
-<code>Lookup</code>, <code>Formula</code>, <code>Canvas</code> — render them read-only, or ignore
-them until asked for?</div>
+(<code>writeFileSync</code>, no delete path), so a user's extra FileClass survives
+<code>npm run schema:gen</code>. Ours stay generated and gated by <code>schema:check</code>;
+theirs are additive and untouched.
+<br><b>Deliberately not built:</b> per-FileClass <i>layout files</i>. They would be a new format to
+design, ship, version and validate — and the type rule already reproduces the layout that was
+asked for. Kept as a documented later escape hatch if someone genuinely needs to override it.</p>
+<div class="q"><b>Open:</b> a <i>user</i> field that wants an image (their own
+<code>banner</code>) cannot carry our <code>ui:</code> hint, since it lives in our schema. Fall
+back to inspecting the value — looks like an image path or embed → render a preview? It costs
+nothing and is right most of the time.</div>
 </figure>
 
 <figure>
@@ -1160,9 +1205,11 @@ settings, the Card remembered per collection — and "view" disappears from the 
 <b>(4)</b> the editor pane docks bottom or right, goes fullscreen, and closes;
 <b>(5)</b> the sidebar is called Workbench, command <code>Open Workbench</code>;
 <b>(6)</b> selection is by <b>tag</b>; folders only ever <b>exclude</b>, from settings;
-<b>(7)</b> the editor's fields, order, types, enum values and sections come from the
-<b>FileClass chain</b> — never from a hardcoded list — so a user's own <code>fc-*.md</code> is
-first-class without any editor-styling mechanism.
+<b>(7)</b> the editor's fields, order, types, enum values, sections <b>and column layout</b> come
+from the <b>FileClass chain</b> — never from a hardcoded list and never from a layout file — so a
+user's own <code>fc-*.md</code> is first-class in appearance as well as in data, with two
+declared exceptions (<code>ui: wide</code>, <code>ui: image</code>) living in our own
+<code>schema/*.json</code>.
 The remaining amber callouts need your answer before the spec.</p>
 
 </body>
