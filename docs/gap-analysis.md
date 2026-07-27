@@ -633,6 +633,7 @@ from this document `gap-analysis`.
 | G19 hero-card Bases view types | **#12** |
 | G20 user-extensible entities | **#13** |
 | G4 scope/folder settings | **#14** |
+| G25 ship the vault artifacts | **#27** |
 | G3 management tabs **configurable** (revised) | **#15** ← absorbs #4 (Kanban by act) |
 | G24 the Anvil / Workbench / Codex vocabulary | **#26** |
 
@@ -643,7 +644,6 @@ from this document `gap-analysis`.
 | G22 undo journal | **#17** — precondition for #7 and #8 |
 | G13 relation editing | **#18** |
 | G14 metadata-menu / meta-bind (documentation) | **#19** |
-| G25 ship the vault artifacts | **#27** |
 | G8 Timeline drag → `storyDay` | #7 (existing) |
 | G9 Plotgrid write affordance | #8 (existing) |
 
