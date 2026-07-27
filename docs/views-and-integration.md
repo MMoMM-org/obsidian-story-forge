@@ -85,12 +85,33 @@ value building block — e.g. "in the Codex on a character, see where they appea
 **Write-back:** optional inline via meta-bind / metadata-menu.
 
 ### Anvil — the Codex tab
-A hub for the story's *objects*, with a category switcher and a **card grid** —
-**hero cards** for characters, locations and items (portrait/image, key facts,
-relation pills). Selecting a card opens an **editor pane in the lower half** for that
-note's frontmatter. That pane is where entity editing lives; ADR-0001 settles that it
-is custom DOM over `processFrontMatter`, because Bases inline editing is not exposed
-to plugins.
+
+*Signed-off design: `docs/mockups/anvil-workbench-codex.html` S91–S103.*
+
+**Two independent axes** — conflating them was the modelling error of the first draft:
+
+| Term | Question | Where |
+|---|---|---|
+| **Collection** | *what* is shown — Characters, Locations, Organizations. A query. | the pill row; managed in settings |
+| **Card** | *how* an entry is drawn — Hero, Table, Compact, or the user's own. | the header dropdown; chosen **per collection and remembered** |
+
+The word **"view"** is retired from the UI — it meant five different things.
+`Codex.base` already carries `type: story-forge-codex` per entry: the base supplies the
+**query**, our registered view type supplies the **Card**.
+
+Selecting a card opens an **editor pane in the lower half**, dockable to the right or
+fullscreen, closable — every dock showing the full field set. That pane is where entity
+editing lives; ADR-0001 settles that it is custom DOM over `processFrontMatter`, because
+Bases inline editing is not exposed to plugins.
+
+**The editor is FileClass-driven (ADR-0002).** Fields, order, types, enum values, section
+grouping *and column layout* are read from the `fc-*.md` chain — not from a hardcoded
+list. One section per FileClass in the `extends` chain; half-width columns for
+`Select`/`Number`/`Boolean`/`Date`/`Input`, full width for `Multi`/`MultiFile`. A user
+dropping `fc-character-custom1.md` into the FileClasses folder gets a typed, laid-out,
+named section **without a plugin release and without styling anything**. Two exceptions
+carry a `ui:` hint in our own `schema/*.json`: `tagline` (`wide`) and `portrait`
+(`image`).
 
 **Categories are open.** We ship `character`, `location`, `object` and `lore`; the
 user adds the rest — creatures, organizations, cultures, systems, factions, magic

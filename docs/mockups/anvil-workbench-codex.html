@@ -502,6 +502,15 @@ main-window interface, <b>Workbench</b> is the sidebar interface, and <b>Codex</
 <i>content</i> that appears in both. These figures exist to test that model against a picture
 before it becomes code — per the repo rule, <b>a mockup is a gate, not a record.</b></p>
 
+<div class="banner" style="border-left-color:var(--st-written)">
+<b>✔ SIGNED OFF — 2026-07-27, at v4.</b> All figures and the assumptions stated in them are
+approved. Per the repo rule, this file is now the <b>specification</b> for what gets built: an
+implementation that diverges from a figure here raises it <i>before</i> coding, and this file is
+not edited afterwards to match code that already shipped. Two items remain deliberately open and
+are marked amber: the Codex.base folder-exclusion question (S98) and the image fallback for a
+user's own field (S103).
+</div>
+
 <div class="banner">
 <b>v4 — after review round 3.</b> <b>Layout</b> is now derived too: two columns for short field types, one for wide ones, so a user's fields get the same treatment as ours without writing a layout. Adds <code>Boolean</code>/<code>Date</code>, and the <b>portrait control</b> that v3 forgot.<br><b>v3 — after review round 2.</b> New: <b>S102/S103</b> derive the editor's fields from the <code>fc-*.md</code> FileClass chain instead of a hardcoded list, which is what makes user properties first-class without an editor-styling system. Dock is <b>manual only</b>; <b>every</b> dock shows the full field set.<br><b>v2 — after review round 1.</b> Figures are revised <i>in place</i> rather than superseded:
 v1 was a draft in review, never signed off, so a supersede chain would be noise. What changed:
