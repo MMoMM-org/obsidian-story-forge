@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Story Forge — Anvil / Workbench / Codex mockups (surface taxonomy)</title>
+<title>Story Forge — Anvil / Workbench / Codex mockups (surface taxonomy) — v2</title>
 <style>
   :root{
     --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
@@ -335,12 +335,11 @@
   .zoom span:last-child{border-right:none}
   .zoom span.lvl{color:var(--text);min-width:44px;text-align:center}
 
-  /* ================= NEW for the surface taxonomy (S91–S98) ================= */
-  /* Anvil is wider than the M6 .main — it hosts a grid + an editor pane */
+  /* ================= NEW for the surface taxonomy (S91–S101) ================= */
   .anvil{width:760px}
   .wb{width:300px}
 
-  /* --- Codex: category switcher --- */
+  /* --- Codex: category switcher + card selector --- */
   .cx-cats{display:flex;flex-wrap:wrap;gap:6px;align-items:center;
     padding:8px 10px;border-bottom:1px solid var(--border);background:var(--panel-2)}
   .cx-cats span{font-size:11px;padding:3px 9px;border-radius:20px;color:var(--muted);
@@ -349,11 +348,23 @@
   .cx-cats span.usr{border-style:dashed;color:var(--pill-text)}
   .cx-cats span.add{color:var(--faint);border-style:dashed}
   .cx-cats .sp{flex:1}
-  .cx-src{font-size:10.5px;color:var(--faint);white-space:nowrap}
-  .cx-src b{color:var(--pill-text);font-weight:600}
+  .cardsel{position:relative;font-size:11px;color:var(--muted);border:1px solid var(--border-2);
+    border-radius:6px;padding:3px 9px;white-space:nowrap;cursor:pointer}
+  .cardsel b{color:var(--text);font-weight:600}
+  .dd{position:absolute;right:0;top:calc(100% + 4px);z-index:5;min-width:168px;
+    background:var(--panel);border:1px solid var(--border-2);border-radius:6px;
+    box-shadow:0 6px 18px rgba(0,0,0,.5);padding:4px;text-align:left}
+  .dd i{display:block;font-style:normal;font-size:11px;padding:4px 8px;border-radius:4px;
+    color:var(--muted)}
+  .dd i.sel{background:var(--accent);color:#fff}
+  .dd i.usr{color:var(--pill-text)}
+  .dd hr{border:none;border-top:1px solid var(--border);margin:4px 2px}
+  .dd .hd{font-size:9.5px;color:var(--faint);padding:2px 8px;text-transform:uppercase;
+    letter-spacing:.05em}
 
   /* --- Codex: hero-card grid --- */
   .cx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px}
+  .cx-grid.one{grid-template-columns:1fr}
   .hero{background:var(--panel-2);border:1px solid var(--border-2);border-radius:8px;
     padding:9px;display:flex;gap:9px;cursor:pointer}
   .hero.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
@@ -368,15 +379,24 @@
   .hero .hp i{font-style:normal;font-size:9.5px;padding:1px 6px;border-radius:10px;
     background:var(--pill);color:var(--pill-text)}
   .hero .hx{font-size:9.5px;color:var(--faint)}
+  /* table card style */
+  .cx-tab{width:100%;border-collapse:collapse;font-size:11px}
+  .cx-tab th{font-size:9.5px;color:var(--faint);text-align:left;font-weight:600;
+    padding:5px 10px;border-bottom:1px solid var(--border)}
+  .cx-tab td{padding:4px 10px;border-bottom:1px solid var(--border);color:var(--text)}
 
-  /* --- Codex: editor pane (lower half) --- */
+  /* --- Codex: editor pane --- */
   .ed{border-top:2px solid var(--border-2);background:var(--header)}
   .ed-head{display:flex;align-items:center;gap:8px;padding:6px 11px;
     border-bottom:1px solid var(--border);font-size:11.5px}
   .ed-head b{color:var(--text)}
   .ed-head .sp{flex:1}
   .ed-head .st{font-size:10px;color:var(--faint)}
+  .ed-tools{display:flex;gap:4px}
+  .ed-tools span{font-size:11px;color:var(--muted);border:1px solid var(--border-2);
+    border-radius:4px;padding:1px 6px;cursor:pointer;line-height:1.4}
   .ed-grid{display:grid;grid-template-columns:96px 1fr 96px 1fr;gap:6px 10px;padding:10px 11px}
+  .ed-grid.narrow{grid-template-columns:88px 1fr}
   .ed-grid label{font-size:10.5px;color:var(--faint);align-self:center}
   .ed-f{background:var(--panel-2);border:1px solid var(--border-2);border-radius:4px;
     padding:2px 7px;font-size:11px;color:var(--text);min-height:20px;display:flex;
@@ -390,6 +410,13 @@
   .ed-f.ro{background:transparent;border-style:dashed;color:var(--muted)}
   .ed-foot{padding:5px 11px 9px;font-size:10px;color:var(--faint)}
   .span2{grid-column:span 3}
+  .span1{grid-column:span 1}
+  /* side-by-side variant */
+  .cx-split{display:flex;min-height:0}
+  .cx-split .left{width:236px;flex:none;border-right:1px solid var(--border);
+    display:flex;flex-direction:column;gap:9px;padding:11px}
+  .cx-split .right{flex:1;background:var(--header);min-width:0}
+  .cx-split .ed{border-top:none}
 
   /* --- Workbench body --- */
   .wb-sec{padding:8px 10px;border-bottom:1px solid var(--border)}
@@ -410,16 +437,36 @@
   .crumb{font-size:10px;color:var(--faint);padding:5px 10px;border-bottom:1px solid var(--border)}
   .crumb b{color:var(--muted)}
 
+  /* --- settings mockup --- */
+  .set{width:560px}
+  .set-sec{padding:11px 13px;border-bottom:1px solid var(--border)}
+  .set-sec h4{margin:0 0 2px;font-size:12px;color:var(--text);font-weight:600}
+  .set-sec .d{font-size:10.5px;color:var(--faint);margin-bottom:8px}
+  .set-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11.5px;
+    border-top:1px solid var(--border)}
+  .set-row .cb{width:13px;height:13px;border-radius:3px;border:1px solid var(--border-2);
+    flex:none;display:flex;align-items:center;justify-content:center;font-size:9px}
+  .set-row .cb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .set-row .nm{color:var(--text)}
+  .set-row .tagx{font-size:9.5px;padding:1px 6px;border-radius:10px;background:var(--pill);
+    color:var(--pill-text)}
+  .set-row .tagx.b{background:transparent;border:1px solid var(--border-2);color:var(--faint)}
+  .set-row .sp{flex:1}
+  .set-row .act{font-size:10px;color:var(--faint);cursor:pointer}
+  .set-row .act.rm{color:var(--st-draft)}
+  .set-add{font-size:10.5px;color:var(--accent);cursor:pointer;padding-top:7px;display:inline-block}
+
   /* --- callouts inside figures --- */
   .q{border:1px solid var(--border-2);border-left:3px solid var(--st-draft);
     background:rgba(224,163,74,.06);border-radius:5px;padding:6px 10px;margin-top:7px;
     font-size:10.5px;color:var(--st-draft);max-width:60ch}
   .q b{color:var(--text)}
+  .ok{border-left-color:var(--st-written);background:rgba(106,196,122,.06);color:var(--st-written)}
 </style>
 </head>
 <body>
 
-<h1>Story Forge — Anvil · Workbench · Codex (surface taxonomy)</h1>
+<h1>Story Forge — Anvil · Workbench · Codex (surface taxonomy) <span style="color:var(--faint);font-weight:400;font-size:14px">· v2</span></h1>
 
 <p class="sub"><b>The two interfaces, drawn before any code.</b> The surface model was settled on
 2026-07-27 (<code>DESIGN.md §2</code>, <code>gap-analysis.md §1.3</code>): <b>Anvil</b> is the
@@ -427,23 +474,27 @@ main-window interface, <b>Workbench</b> is the sidebar interface, and <b>Codex</
 <i>content</i> that appears in both. These figures exist to test that model against a picture
 before it becomes code — per the repo rule, <b>a mockup is a gate, not a record.</b></p>
 
-<p class="sub" style="margin-top:8px"><b>What changes versus today.</b> Four commands
-(<code>open-timeline</code>, <code>open-plotlines</code>, <code>open-kanban</code>,
-<code>open-plotgrid</code>) collapse into <b>one Anvil view with a tab switcher</b>; the Codex
-joins it as a first-class tab with a <b>hero-card grid and an editor pane beneath</b>; the sidebar
-gets a name and keeps the Codex as <i>one</i> of its tabs. Nothing about the existing Timeline,
-Plotgrid, Plotlines or Board rendering changes — only where they live and what they are called.</p>
-
 <div class="banner">
-<b>Continues the M6 numbering.</b> M6 ran S73–S90; this set is <b>S91–S98</b>. Visual language is
-unchanged — this file reuses the M6 <code>&lt;style&gt;</code> block verbatim and only adds classes
-for the card grid, the editor pane and the Workbench body.
-<b>Obligations differ per tab, not per interface:</b> the <b>Codex</b> tab is
-<b>substitutable</b> (bring your own <code>.base</code>, see S97); the <b>management</b> tabs
-(Timeline, Plotgrid, Plotlines, Board) are <b>deliberately opinionated</b> — configurable, not
-user-authored. <b>How a tab renders</b> (Bases, Dataview, custom DOM) is an implementation detail
-and never a surface boundary.
-<b>Amber callouts</b> mark open questions that need your answer, not decisions already taken.
+<b>v2 — after review round 1.</b> Figures are revised <i>in place</i> rather than superseded:
+v1 was a draft in review, never signed off, so a supersede chain would be noise. What changed:
+<b>(1)</b> the header slot no longer shows the source <code>.base</code> — it is the
+<b>Card selector</b> (S91, S97), because two independent axes had been collapsed into one label;
+<b>(2)</b> the editor pane gains <b>close, fullscreen and a position toggle</b> (S92, S99, S100);
+<b>(3)</b> S97 no longer swaps the data source — it swaps the <b>Card</b>, which is what makes it
+interesting; <b>(4)</b> S98's "Choose folders" became <b>"Change tag"</b>, since selection is by
+tag; <b>(5)</b> new <b>S101</b> shows the settings that make S93 and S97 possible.
+</div>
+
+<div class="banner" style="border-left-color:var(--st-written)">
+<b>Two axes, never one.</b> The v1 draft wrote <code>view: Codex.base (curated)</code> in the
+header, which mixed <i>what is shown</i> with <i>how it is drawn</i>. They are independent:
+<br><b>Collection</b> = <b>what</b> — Characters, Locations, Organizations. A query. Appears as
+the pill row; managed in settings (S101). <b>Card</b> = <b>how</b> — Hero, Table, Compact, or a
+user's own. Appears as the header dropdown; chosen <b>per collection and remembered</b>.
+<br>The word <b>"view"</b> is retired from the UI: it meant five different things.
+<code>Codex.base</code> already carries <code>type: story-forge-codex</code> per entry — the base
+supplies the <b>query</b>, our registered view type supplies the <b>Card</b>. The split exists in
+the code already; v1 only obscured it.
 </div>
 
 <p class="legend">
@@ -451,7 +502,7 @@ and never a surface boundary.
 Characters: <b>Mara Stoneway</b> (protagonist, alive, harbour warden),
 <b>Tobias Ferro</b> (supporting, alive, signal-keeper),
 <b>Elke Stoneway</b> (supporting, alive, Mara's sister).
-Locations: <b>Moonharbor</b> (world → Aerdis), <b>Moonharbor Lighthouse</b>, <b>The Salty Gull</b>.
+Locations: <b>Moonharbor</b>, <b>Moonharbor Lighthouse</b>, <b>The Salty Gull</b>.
 Objects: <b>The Warden's Seal</b>. Plotlines:
 <b>The Dying Light</b> <span class="dot dying" style="display:inline-block;vertical-align:middle"></span>,
 <b>The Warden's Oath</b> <span class="dot oath" style="display:inline-block;vertical-align:middle"></span>,
@@ -459,27 +510,29 @@ Objects: <b>The Warden's Seal</b>. Plotlines:
 <b>Status:</b> <span class="sd">draft</span> · <span class="so">outline</span> · <span class="sw">done</span>.
 </p>
 
-<h2>State inventory (S91–S98)</h2>
+<h2>State inventory (S91–S101)</h2>
 <table class="inv">
 <tr><th>S</th><th>State</th><th>Surface</th><th>Write?</th><th>Shows</th></tr>
-<tr><td><b>S91</b></td><td>Anvil — Codex tab, nothing selected</td><td>Anvil</td><td>—</td><td>one view, tab strip <code>Codex · Timeline · Plotgrid · Plotlines · Board</code>; category switcher; hero-card grid; editor pane collapsed to a hint</td></tr>
-<tr><td><b>S92</b></td><td>Anvil — Codex, card selected → editor pane</td><td>Anvil</td><td>✎</td><td>lower half edits the selected note's frontmatter; scalars/selects live today, relation chips are new (#18)</td></tr>
-<tr><td><b>S93</b></td><td>Anvil — Codex, user-added categories</td><td>Anvil</td><td>—</td><td>shipped four + user-added <i>Creatures</i>/<i>Organizations</i> (dashed) + <code>+ Category</code>; the isekai case</td></tr>
-<tr><td><b>S94</b></td><td>Anvil — Timeline tab</td><td>Anvil</td><td>—</td><td>same shell, existing M5/M6 rendering untouched; proves the switcher hosts what already works</td></tr>
-<tr><td><b>S95</b></td><td>Workbench — Codex tab (follows the note)</td><td>Workbench</td><td>—</td><td>named sidebar; Codex is <i>one</i> tab beside Navigator and imported views; compact drill-down form</td></tr>
-<tr><td><b>S96</b></td><td>Workbench — imported user view tab</td><td>Workbench</td><td>—</td><td><i>Skills</i> tab from a user-authored view over frontmatter we never shipped</td></tr>
-<tr><td><b>S97</b></td><td>Anvil — Codex rendered by the user's own base</td><td>Anvil</td><td>—</td><td>substitutability: <code>view: My characters ▾</code> — curated views are a default, not a fixture</td></tr>
-<tr><td><b>S98</b></td><td>Anvil — Codex empty / not set up</td><td>Anvil</td><td>—</td><td>degrade path when no entities resolve or the vault artifacts were never seeded (#27)</td></tr>
+<tr><td><b>S91</b></td><td>Anvil — Codex, nothing selected</td><td>Anvil</td><td>—</td><td>one view, tab strip <code>Codex · Timeline · Plotgrid · Plotlines · Board</code>; collection pills; <b>Card selector</b> in the header slot</td></tr>
+<tr><td><b>S92</b></td><td>Anvil — card selected, editor pane (bottom)</td><td>Anvil</td><td>✎</td><td>editor in the lower half; <b>close · fullscreen · position</b> tools; relation chips (#18)</td></tr>
+<tr><td><b>S93</b></td><td>Anvil — Codex, user-added collections</td><td>Anvil</td><td>—</td><td>shipped four + user <i>Creatures</i>/<i>Organizations</i> (dashed) + <code>+ Collection</code> picking from S101</td></tr>
+<tr><td><b>S94</b></td><td>Anvil — Timeline tab</td><td>Anvil</td><td>—</td><td>same shell, existing M5/M6 rendering untouched</td></tr>
+<tr><td><b>S95</b></td><td>Workbench — Codex tab (follows the note)</td><td>Workbench</td><td>—</td><td>named sidebar, command <code>Open Workbench</code>; Codex is <i>one</i> tab</td></tr>
+<tr><td><b>S96</b></td><td>Workbench — imported user view tab</td><td>Workbench</td><td>—</td><td><i>Skills</i> over frontmatter we never shipped</td></tr>
+<tr><td><b>S97</b></td><td>Anvil — Codex with a user's own Card</td><td>Anvil</td><td>—</td><td><b>same collection</b>, different Card: <i>Isekai hero</i> renders <code>level</code>/<code>skills</code>/<code>affinity</code>; dropdown open</td></tr>
+<tr><td><b>S98</b></td><td>Anvil — Codex empty / not set up</td><td>Anvil</td><td>—</td><td>degrade path; <b>Set up my vault</b> wizard (#27) + <b>Change tag</b> → settings</td></tr>
+<tr><td><b>S99</b></td><td>Anvil — editor beside the grid</td><td>Anvil</td><td>✎</td><td>position toggle: one card column left, editor right (wide screens)</td></tr>
+<tr><td><b>S100</b></td><td>Anvil — editor fullscreen</td><td>Anvil</td><td>✎</td><td>editor takes the card row's real estate too; <b>← Back</b> returns to S92/S99</td></tr>
+<tr><td><b>S101</b></td><td>Settings — Collections and Cards</td><td>Settings</td><td>—</td><td>built-in · from repo · imported; enable, <b>remove</b>, import — the source of S93 and S97</td></tr>
 </table>
 
-<!-- =================== ANVIL SHELL =================== -->
+<!-- =================== ANVIL =================== -->
 <h2>Anvil — the main-window interface <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· one view, one switcher</span></h2>
 <div class="gallery">
 
 <figure>
-<figcaption><b>S91 · Anvil — Codex tab, nothing selected.</b> The four commands become one view.
-The tab strip is the whole main-area surface; the Codex sits first because it is what you look
-things up in.</figcaption>
+<figcaption><b>S91 · Anvil — Codex, nothing selected.</b> Four commands become one view. The header
+slot holds the <b>Card selector</b>, not a source label.</figcaption>
 <div class="view anvil">
   <div class="vhead">
     <span class="brand">⚒ Anvil</span>
@@ -491,7 +544,7 @@ things up in.</figcaption>
   <div class="cx-cats">
     <span class="sel">Characters</span><span>Locations</span><span>Objects</span><span>Lore</span>
     <span class="sp"></span>
-    <span class="cx-src">view: <b>Codex.base</b> (curated)</span>
+    <span class="cardsel">Card: <b>Hero</b> ▾</span>
   </div>
   <div class="cx-grid">
     <div class="hero"><div class="por">👤</div><div class="hb">
@@ -508,15 +561,14 @@ things up in.</figcaption>
     <div class="ed-head"><span style="color:var(--faint)">Select a card to edit its frontmatter</span></div>
   </div>
 </div>
-<p class="note"><b>Read:</b> the grid is a Bases query rendered by <i>our</i> hero-card view type
-(#12); the category switcher picks which query. <b>Write:</b> none until a card is selected.</p>
-<div class="q"><b>Open:</b> tab order and labels. Is <b>Board</b> right (StoryLine's word), or
-<b>Kanban</b> (what our code and issues call it today)?</div>
+<p class="note"><b>Collection</b> (pills) = the query. <b>Card</b> (dropdown) = the presentation,
+remembered per collection — Characters as Hero, Lore as Table. Both are managed in
+settings (S101), so no provenance label is needed in the header.</p>
 </figure>
 
 <figure>
-<figcaption><b>S92 · Anvil — card selected, editor pane open.</b> This is the "editor in the lower
-half" — and the thing the withdrawn "note panel" surface was actually reaching for.</figcaption>
+<figcaption><b>S92 · Anvil — card selected, editor pane below.</b> The editor the withdrawn "note
+panel" surface was actually reaching for — now with a way out of it.</figcaption>
 <div class="view anvil">
   <div class="vhead">
     <span class="brand">⚒ Anvil</span>
@@ -527,8 +579,7 @@ half" — and the thing the withdrawn "note panel" surface was actually reaching
   </div>
   <div class="cx-cats">
     <span class="sel">Characters</span><span>Locations</span><span>Objects</span><span>Lore</span>
-    <span class="sp"></span>
-    <span class="cx-src">view: <b>Codex.base</b> (curated)</span>
+    <span class="sp"></span><span class="cardsel">Card: <b>Hero</b> ▾</span>
   </div>
   <div class="cx-grid">
     <div class="hero sel"><div class="por">👤</div><div class="hb">
@@ -543,7 +594,9 @@ half" — and the thing the withdrawn "note panel" surface was actually reaching
   </div>
   <div class="ed">
     <div class="ed-head"><b>Mara Stoneway</b><span class="st">30 Canon/Characters/Mara Stoneway.md</span>
-      <span class="sp"></span><span class="st">↗ open note</span></div>
+      <span class="sp"></span>
+      <div class="ed-tools"><span title="dock right">⇱</span><span title="fullscreen">⛶</span><span title="close">✕</span></div>
+    </div>
     <div class="ed-grid">
       <label>name</label><div class="ed-f">Mara Stoneway</div>
       <label>role</label><div class="ed-f sel-f">protagonist</div>
@@ -557,22 +610,128 @@ half" — and the thing the withdrawn "note panel" surface was actually reaching
         <span class="addx">+ link</span></div>
       <label>tags</label><div class="ed-f ro span2">canon/character</div>
     </div>
-    <div class="ed-foot">Every field writes a plain Property via <code>processFrontMatter</code> —
-      undo journalled (#17). Nothing here is plugin-owned state.</div>
+    <div class="ed-foot"><b>✕</b> closes back to S91 · <b>⛶</b> fullscreen (S100) ·
+      <b>⇱</b> dock beside the grid (S99). Every field writes a plain Property via
+      <code>processFrontMatter</code>, journalled for undo (#17).</div>
   </div>
 </div>
 <p class="note"><b>Exists today:</b> scalar + select commits (<code>InspectorController</code>,
-<code>editableFields</code>). <b>New:</b> the wikilink chips on <code>allies</code> (#18) and the
-pane itself in Anvil (#21). <code>tags</code> is shown read-only (dashed) — it classifies the
-entity and the views select on it.</p>
-<div class="q"><b>Open:</b> the pane sits <i>below</i> the grid, as you described. On a wide screen
-a right-hand column would keep more cards visible. Fixed bottom, or side-by-side above a width
-threshold?</div>
+<code>editableFields</code>). <b>New:</b> the wikilink chips on <code>allies</code> (#18), the
+pane in Anvil (#21), and the three pane tools. <code>tags</code> stays read-only (dashed) — it
+classifies the entity and the collections select on it.</p>
 </figure>
 
 <figure>
-<figcaption><b>S93 · Anvil — Codex with user-added categories.</b> We ship four; the user adds the
-rest. The isekai case: a <i>Skills</i> category over frontmatter we never designed.</figcaption>
+<figcaption><b>S99 · Anvil — editor docked beside the grid.</b> The position toggle from S92. On a
+wide screen this keeps a column of cards navigable while editing.</figcaption>
+<div class="view anvil">
+  <div class="vhead">
+    <span class="brand">⚒ Anvil</span>
+    <div class="mtabs">
+      <span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span>
+    </div>
+    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
+  </div>
+  <div class="cx-cats">
+    <span class="sel">Characters</span><span>Locations</span><span>Objects</span><span>Lore</span>
+    <span class="sp"></span><span class="cardsel">Card: <b>Hero</b> ▾</span>
+  </div>
+  <div class="cx-split">
+    <div class="left">
+      <div class="hero sel"><div class="por">👤</div><div class="hb">
+        <div class="hn">Mara Stoneway</div><div class="hf">protagonist · alive</div>
+        <div class="hx">12 scenes</div></div></div>
+      <div class="hero"><div class="por">👤</div><div class="hb">
+        <div class="hn">Tobias Ferro</div><div class="hf">supporting · alive</div>
+        <div class="hx">4 scenes</div></div></div>
+      <div class="hero"><div class="por">👤</div><div class="hb">
+        <div class="hn">Elke Stoneway</div><div class="hf">supporting · alive</div>
+        <div class="hx">3 scenes</div></div></div>
+    </div>
+    <div class="right">
+      <div class="ed">
+        <div class="ed-head"><b>Mara Stoneway</b><span class="sp"></span>
+          <div class="ed-tools"><span title="dock bottom">⇲</span><span title="fullscreen">⛶</span><span title="close">✕</span></div>
+        </div>
+        <div class="ed-grid narrow">
+          <label>name</label><div class="ed-f">Mara Stoneway</div>
+          <label>role</label><div class="ed-f sel-f">protagonist</div>
+          <label>status</label><div class="ed-f sel-f">alive</div>
+          <label>age</label><div class="ed-f">34</div>
+          <label>occupation</label><div class="ed-f">harbour warden</div>
+          <label>tagline</label><div class="ed-f">Keeps the light burning.</div>
+          <label>allies</label><div class="ed-f">
+            <span class="chipx">Tobias Ferro <s>×</s></span>
+            <span class="chipx">Elke Stoneway <s>×</s></span>
+            <span class="addx">+ link</span></div>
+          <label>tags</label><div class="ed-f ro">canon/character</div>
+        </div>
+        <div class="ed-foot"><b>⇲</b> docks back to the bottom (S92).</div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note">Same pane, same fields — only the dock changes. The choice is persisted
+(operational state, plugin directory — not the vault). <b>Not</b> proposed: free dragging to
+arbitrary positions; two docks plus fullscreen covers the need without a layout engine.</p>
+<div class="q"><b>Open:</b> should the dock switch <b>automatically</b> above a width threshold,
+or only ever manually? Automatic is friendlier and surprises people who resize.</div>
+</figure>
+
+<figure>
+<figcaption><b>S100 · Anvil — editor fullscreen.</b> Uses the card row's real estate too, with
+<b>← Back</b> to return. The tab strip stays, so Anvil is never a trap.</figcaption>
+<div class="view anvil">
+  <div class="vhead">
+    <span class="brand">⚒ Anvil</span>
+    <div class="mtabs">
+      <span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span>
+    </div>
+    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
+  </div>
+  <div class="ed" style="border-top:none">
+    <div class="ed-head"><span class="ed-tools" style="display:inline-flex"><span>← Back</span></span>
+      <b style="margin-left:6px">Mara Stoneway</b>
+      <span class="st">30 Canon/Characters/Mara Stoneway.md</span>
+      <span class="sp"></span>
+      <div class="ed-tools"><span title="exit fullscreen">⛶</span><span title="close">✕</span></div>
+    </div>
+    <div class="ed-grid">
+      <label>name</label><div class="ed-f">Mara Stoneway</div>
+      <label>role</label><div class="ed-f sel-f">protagonist</div>
+      <label>status</label><div class="ed-f sel-f">alive</div>
+      <label>age</label><div class="ed-f">34</div>
+      <label>gender</label><div class="ed-f sel-f">female</div>
+      <label>occupation</label><div class="ed-f">harbour warden</div>
+      <label>height</label><div class="ed-f">172</div>
+      <label>build</label><div class="ed-f">wiry</div>
+      <label>hair</label><div class="ed-f">black, cropped</div>
+      <label>eyes</label><div class="ed-f">grey</div>
+      <label>tagline</label><div class="ed-f span2">Keeps the light burning.</div>
+      <label>distinctive_features</label><div class="ed-f span2">
+        <span class="chipx">burn scar, left hand <s>×</s></span><span class="addx">+ add</span></div>
+      <label>allies</label><div class="ed-f span2">
+        <span class="chipx">Tobias Ferro <s>×</s></span>
+        <span class="chipx">Elke Stoneway <s>×</s></span><span class="addx">+ link</span></div>
+      <label>family</label><div class="ed-f span2">
+        <span class="chipx">Elke Stoneway <s>×</s></span><span class="addx">+ link</span></div>
+      <label>enemies</label><div class="ed-f span2"><span class="addx">+ link</span></div>
+      <label>tags</label><div class="ed-f ro span2">canon/character</div>
+    </div>
+    <div class="ed-foot">Fullscreen shows the <b>whole</b> field set; the docked panes show the
+      frequently-edited subset. Same write path either way.</div>
+  </div>
+</div>
+<p class="note">This is the closest thing to StoryLine's entity editor — and the deliberate
+difference is that ours has <b>no auto-save/undo ownership layer</b>: each field is a plain
+frontmatter write, reversible in the file and journalled by us (#17).</p>
+<div class="q"><b>Open:</b> does fullscreen show <i>all</i> schema fields (as drawn) while the
+docked panes show a subset — or is it the same field list, just roomier? Drawn as the former.</div>
+</figure>
+
+<figure>
+<figcaption><b>S93 · Anvil — Codex with user-added collections.</b> We ship four; the user adds the
+rest. Dashed pills are theirs.</figcaption>
 <div class="view anvil">
   <div class="vhead">
     <span class="brand">⚒ Anvil</span>
@@ -583,9 +742,8 @@ rest. The isekai case: a <i>Skills</i> category over frontmatter we never design
   </div>
   <div class="cx-cats">
     <span>Characters</span><span>Locations</span><span>Objects</span><span>Lore</span>
-    <span class="usr">Creatures</span><span class="usr sel">Organizations</span><span class="add">+ Category</span>
-    <span class="sp"></span>
-    <span class="cx-src">view: <b>Organizations.base</b> (yours)</span>
+    <span class="usr">Creatures</span><span class="usr sel">Organizations</span><span class="add">+ Collection</span>
+    <span class="sp"></span><span class="cardsel">Card: <b>Hero</b> ▾</span>
   </div>
   <div class="cx-grid">
     <div class="hero"><div class="por">🏛</div><div class="hb">
@@ -602,13 +760,56 @@ rest. The isekai case: a <i>Skills</i> category over frontmatter we never design
     <div class="ed-head"><span style="color:var(--faint)">Select a card to edit its frontmatter</span></div>
   </div>
 </div>
-<p class="note">Dashed pills are <b>user categories</b> (#13). They arrive as a view the user
-authors or imports — <b>not</b> as a plugin release. The plugin never learns what an
-"organization" is; it renders a view definition that does. <code>+ Category</code> is the entry
-point into that flow.</p>
-<div class="q"><b>Open:</b> what does <code>+ Category</code> actually do — pick an existing
-<code>.base</code> from the vault, or walk the user through creating one? The first is cheap and
-honest; the second is friendlier but means we generate <code>.base</code> files.</div>
+<p class="note"><code>+ Collection</code> does <b>not</b> author anything — it picks from the
+collections already imported and validated in settings (S101). The plugin never learns what an
+"organization" is; it runs a query someone else wrote. Removing a collection happens in settings
+too, so this row never becomes a dead end.</p>
+</figure>
+
+<figure>
+<figcaption><b>S97 · Anvil — the same collection, the user's own Card.</b> Corrected from v1: this
+swaps <b>how</b> entries are drawn, not <b>what</b> is queried.</figcaption>
+<div class="view anvil">
+  <div class="vhead">
+    <span class="brand">⚒ Anvil</span>
+    <div class="mtabs">
+      <span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span>
+    </div>
+    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
+  </div>
+  <div class="cx-cats">
+    <span class="sel">Characters</span><span>Locations</span><span>Objects</span><span>Lore</span>
+    <span class="sp"></span>
+    <span class="cardsel">Card: <b>Isekai hero</b> ▾
+      <span class="dd">
+        <span class="hd">Built-in</span>
+        <i>Hero</i><i>Table</i><i>Compact</i>
+        <hr>
+        <span class="hd">Yours</span>
+        <i class="sel usr">Isekai hero</i><i class="usr">Stat block</i>
+      </span>
+    </span>
+  </div>
+  <div class="cx-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="hero"><div class="por">👤</div><div class="hb">
+      <div class="hn">Mara Stoneway</div><div class="hf">Lv 12 · Warden · affinity fire</div>
+      <div class="hp"><i>Ember Sight A</i><i>Tidecall B</i><i>Saltwalking C</i></div>
+      <div class="hx">12 scenes</div></div></div>
+    <div class="hero"><div class="por">👤</div><div class="hb">
+      <div class="hn">Tobias Ferro</div><div class="hf">Lv 8 · Signal-keeper · affinity air</div>
+      <div class="hp"><i>Farsight A</i></div>
+      <div class="hx">4 scenes</div></div></div>
+  </div>
+  <div class="ed">
+    <div class="ed-head"><span style="color:var(--faint)">Select a card to edit its frontmatter</span></div>
+  </div>
+</div>
+<p class="note"><b>Same query</b> (collection <i>Characters</i>), <b>different Card</b>. The Card
+reads <code>level</code>, <code>skills</code> and <code>affinity</code> — frontmatter we never
+designed and never need to understand. The dropdown switches back to <i>Hero</i> at any time, and
+the choice is remembered for this collection.
+<br><b>This is the payoff of the whole substrate epic (#9):</b> the user brings a <i>Card</i>,
+never a renderer, and gets a first-class Codex over their own model.</p>
 </figure>
 
 <figure>
@@ -631,49 +832,14 @@ home and its name change. Same for Plotgrid, Plotlines and Board.</figcaption>
     unchanged M5/M6 Timeline rail — see spec 006 S59–S72 and spec 007 S83/S85
   </div>
 </div>
-<p class="note">The Timeline-only controls (<code>Rail | Swimlane</code>, group-by) and the general
-zoom slot keep the M6 behaviour and position. <b>The tab strip is the only new chrome.</b></p>
+<p class="note">Timeline-only controls (<code>Rail | Swimlane</code>, group-by) and the general
+zoom slot keep their M6 behaviour and position. <b>The tab strip is the only new chrome.</b>
+"Board" (not "Kanban") leaves room for more boards later.</p>
 </figure>
 
 <figure>
-<figcaption><b>S97 · Anvil — Codex rendered by the user's own base.</b> Substitutability made
-visible: curated views are a default, not a fixture.</figcaption>
-<div class="view anvil">
-  <div class="vhead">
-    <span class="brand">⚒ Anvil</span>
-    <div class="mtabs">
-      <span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span>
-    </div>
-    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
-  </div>
-  <div class="cx-cats">
-    <span class="sel">Characters</span><span>Locations</span><span>Objects</span><span>Lore</span>
-    <span class="sp"></span>
-    <span class="cx-src">view: <b>My characters ▾</b> (yours) · curated available</span>
-  </div>
-  <div class="cx-grid" style="grid-template-columns:repeat(2,1fr)">
-    <div class="hero"><div class="por">👤</div><div class="hb">
-      <div class="hn">Mara Stoneway</div><div class="hf">Lv 12 · Warden</div>
-      <div class="hp"><i>Ember Sight</i><i>Tidecall</i></div>
-      <div class="hx">affinity: fire · 12 scenes</div></div></div>
-    <div class="hero"><div class="por">👤</div><div class="hb">
-      <div class="hn">Tobias Ferro</div><div class="hf">Lv 8 · Signal-keeper</div>
-      <div class="hp"><i>Farsight</i></div>
-      <div class="hx">affinity: air · 4 scenes</div></div></div>
-  </div>
-  <div class="ed">
-    <div class="ed-head"><span style="color:var(--faint)">Select a card to edit its frontmatter</span></div>
-  </div>
-</div>
-<p class="note">Same hero-card building block, <b>different query and different fields</b> —
-<code>level</code>, <code>skills</code>, <code>affinity</code> are the user's own frontmatter. The
-dropdown swaps back to the curated view at any time. This is the whole point of #10 + #13: the
-user brings a <i>view</i>, never a renderer.</p>
-</figure>
-
-<figure>
-<figcaption><b>S98 · Anvil — Codex empty / not set up.</b> The honest degrade path — today a fresh
-install has no FileClasses, no templates and no seeded notes (#27).</figcaption>
+<figcaption><b>S98 · Anvil — Codex empty / not set up.</b> The honest degrade path: a fresh install
+has no FileClasses, no templates and no seeded notes (#27).</figcaption>
 <div class="view anvil">
   <div class="vhead">
     <span class="brand">⚒ Anvil</span>
@@ -684,25 +850,31 @@ install has no FileClasses, no templates and no seeded notes (#27).</figcaption>
   </div>
   <div class="cx-cats">
     <span class="sel">Characters</span><span>Locations</span><span>Objects</span><span>Lore</span>
-    <span class="sp"></span><span class="cx-src">view: <b>Codex.base</b> (curated)</span>
+    <span class="sp"></span><span class="cardsel">Card: <b>Hero</b> ▾</span>
   </div>
   <div style="padding:26px 18px;text-align:center;color:var(--muted);font-size:12px">
     <div style="font-size:22px;margin-bottom:8px;color:var(--faint)">⚒</div>
     <b style="color:var(--text)">No characters found</b>
-    <div style="margin-top:6px;font-size:11.5px;max-width:46ch;margin-inline:auto">
-      Story Forge looks for notes tagged <code>canon/character</code> in your story folders.
-      Nothing matched.</div>
+    <div style="margin-top:6px;font-size:11.5px;max-width:48ch;margin-inline:auto">
+      This collection looks for notes tagged <code>canon/character</code>. Nothing matched.</div>
     <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
-      <span style="font-size:11px;padding:4px 12px;border-radius:6px;background:var(--accent);color:#fff">Set up my vault</span>
-      <span style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid var(--border-2);color:var(--muted)">Choose folders…</span>
+      <span style="font-size:11px;padding:4px 12px;border-radius:6px;background:var(--accent);color:#fff">Set up my vault…</span>
+      <span style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid var(--border-2);color:var(--muted)">Change tag</span>
     </div>
   </div>
 </div>
-<p class="note"><b>Set up my vault</b> writes the FileClasses, templates and schema reference
-(#27); <b>Choose folders…</b> opens the scope settings (#14). Today neither exists, and the user
-sees an empty grid with no explanation.</p>
-<div class="q"><b>Open:</b> should "Set up my vault" write into the vault at all, or only show
-documentation? Writing is friendlier; it also means we create files a user did not ask for.</div>
+<p class="note"><b>Selection is by tag</b>, not by folder — <code>workspaceScope.ts</code> is
+explicitly structure-agnostic (CON-7: included by kind, folders only <i>exclude</i> meta
+folders). So the empty state names the tag, and <b>Change tag</b> opens settings at that
+collection. <b>Set up my vault…</b> is the first-run wizard (#27): FileClasses, templates and the
+schema reference, also reachable from settings.</p>
+<div class="q"><b>Open:</b> the shipped <code>Codex.base</code> currently also filters
+<code>file.inFolder("30 Canon")</code> — include-by-folder, which contradicts the rule above.
+Agreed direction is tag + <b>exclude</b>-folders from settings. <b>Who applies the exclusion?</b>
+Bases supports <code>not:</code> natively (<code>obsidian.d.ts:600</code>), so we could rewrite
+the <code>.base</code> when settings change — but then a <i>user's own</i> base ignores the
+setting. Applying it in our registered view type instead makes it hold everywhere. Drawn as the
+latter.</div>
 </figure>
 
 </div>
@@ -713,8 +885,7 @@ documentation? Writing is friendlier; it also means we create files a user did n
 
 <figure>
 <figcaption><b>S95 · Workbench — Codex tab.</b> The sidebar finally has a name. The Codex is
-<i>one</i> tab in it, not the whole thing — which is exactly the confusion the taxonomy
-fixed.</figcaption>
+<i>one</i> tab in it, not the whole thing — the confusion the taxonomy fixed.</figcaption>
 <div class="view wb">
   <div class="vhead">
     <span class="brand" style="font-size:12px">🛠 Workbench</span>
@@ -742,22 +913,20 @@ fixed.</figcaption>
   </div>
 </div>
 <p class="note"><b>Exists today</b> as the per-kind panel renderers — this figure mostly
-<b>renames</b> what is already built. The compact form stays compact: the full card grid and the
-editor live in Anvil (S91/S92).</p>
-<div class="q"><b>Open:</b> the ribbon and command say "open panel" today. Rename to
-<b>Story Forge: open Workbench</b> — and is the 🛠 icon right, or keep the current one?</div>
+<b>renames</b> what is already built. Command becomes <code>Story Forge: open Workbench</code>
+(today: "open panel"); everything else — docking, moving, closing — is Obsidian's. The compact
+form stays compact: the card grid and the editor live in Anvil.</p>
 </figure>
 
 <figure>
-<figcaption><b>S96 · Workbench — an imported user view.</b> This already works today for Dataview
-views; the figure shows what it should look like once it is <i>named</i> and sits beside the
-Codex.</figcaption>
+<figcaption><b>S96 · Workbench — an imported user view.</b> Already works today for Dataview; the
+figure shows it named and sitting beside the Codex.</figcaption>
 <div class="view wb">
   <div class="vhead">
     <span class="brand" style="font-size:12px">🛠 Workbench</span>
     <div class="tabs"><span>Codex</span><span>Navigator</span><span class="sel">Skills</span></div>
   </div>
-  <div class="crumb">following · <b>Mara Stoneway</b> · view: <b>Skills</b> (imported)</div>
+  <div class="crumb">following · <b>Mara Stoneway</b></div>
   <div class="wb-sec">
     <h4>Skills <span class="cnt">3</span></h4>
     <div class="wb-row"><span class="nm">Ember Sight</span><span class="mt">rank A</span></div>
@@ -774,24 +943,88 @@ Codex.</figcaption>
       <code>90 Views/Skills.md</code> · Dataview · enabled</div>
   </div>
 </div>
-<p class="note">Frontmatter the plugin has never heard of (<code>skills</code>,
-<code>affinity</code>, <code>level</code>), surfaced by a view the user wrote. <b>No plugin release
-was involved.</b> What is missing today is the same route for a <code>.base</code> (#10) and for
-binding such a view into <b>Anvil</b> as well (#10/#13).</p>
+<p class="note">Frontmatter the plugin has never heard of, surfaced by something the user wrote —
+<b>no plugin release involved</b>. Missing today: the same route for a <code>.base</code> (#10),
+and binding such an entry into <b>Anvil</b> as well as the Workbench.</p>
+<div class="q"><b>Open:</b> a Workbench tab is neither a Collection nor a Card — it is a query
+<i>plus</i> a presentation, bound to a tab. Does it get a third name in settings, or is it simply
+"a Collection shown in the Workbench"? Drawn as the latter.</div>
 </figure>
 
 </div>
 
-<h2>What these figures commit us to</h2>
+<!-- =================== SETTINGS =================== -->
+<h2>Settings — where Collections and Cards come from <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· the markdown-mason pattern</span></h2>
+<div class="gallery">
+
+<figure>
+<figcaption><b>S101 · Settings — Collections and Cards.</b> Two lists, three provenances, enable ·
+remove · import. This is what makes S93 and S97 possible.</figcaption>
+<div class="view set">
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs"><span class="sel">Library</span><span>Scope</span><span>Behaviour</span></div>
+  </div>
+  <div class="set-sec">
+    <h4>Collections</h4>
+    <div class="d">What the Codex can show. Each is a query over your vault.</div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Characters</span>
+      <span class="tagx b">built-in</span><span class="sp"></span><span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Locations</span>
+      <span class="tagx b">built-in</span><span class="sp"></span><span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Objects</span>
+      <span class="tagx b">built-in</span><span class="sp"></span><span class="act">configure</span></div>
+    <div class="set-row"><span class="cb">&nbsp;</span><span class="nm">Lore</span>
+      <span class="tagx b">built-in</span><span class="sp"></span><span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Creatures</span>
+      <span class="tagx">from repo</span><span class="sp"></span>
+      <span class="act">configure</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Organizations</span>
+      <span class="tagx">imported</span><span class="sp"></span>
+      <span class="act">configure</span><span class="act rm">remove</span></div>
+    <span class="set-add">+ Browse repo…&nbsp;&nbsp;+ Import from vault…</span>
+  </div>
+  <div class="set-sec">
+    <h4>Cards</h4>
+    <div class="d">How entries are drawn. Chosen per collection and remembered.</div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Hero</span>
+      <span class="tagx b">built-in</span><span class="sp"></span><span class="act">preview</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Table</span>
+      <span class="tagx b">built-in</span><span class="sp"></span><span class="act">preview</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Compact</span>
+      <span class="tagx b">built-in</span><span class="sp"></span><span class="act">preview</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Isekai hero</span>
+      <span class="tagx">imported</span><span class="sp"></span>
+      <span class="act">preview</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb">&nbsp;</span><span class="nm">Stat block</span>
+      <span class="tagx">imported</span><span class="sp"></span>
+      <span class="act">preview</span><span class="act rm">remove</span></div>
+    <span class="set-add">+ Browse repo…&nbsp;&nbsp;+ Import from vault…</span>
+  </div>
+</div>
+<p class="note"><b>Three provenances</b> — <i>built-in</i> (ships with the plugin, cannot be
+removed, only disabled), <i>from repo</i> (the curated catalog, checksummed and re-consented on
+drift), <i>imported</i> (yours). Import validates what it can: for a Collection, that the query
+parses and resolves; for a Card, that it declares the fields it reads. The consent gate keeps its
+existing rule — DataviewJS gets the full gate, Bases and DQL are enable/disable.</p>
+<div class="q"><b>Open:</b> "Library" as the settings tab name for both lists — or list them
+flat, without an umbrella word? Also: <b>disable vs remove</b> — built-ins can only be disabled,
+which is drawn as a checkbox without a remove action. Right?</div>
+</figure>
+
+</div>
+
+<h2>What v2 commits us to</h2>
 <p class="sub">If you sign this off, the following stop being open:
-<b>(1)</b> one Anvil view with a tab switcher, replacing four commands;
-<b>(2)</b> the Codex is a tab in Anvil, not a separate interface;
-<b>(3)</b> the editor pane lives beneath the Codex grid — and there is no third "note panel"
-surface;
-<b>(4)</b> the sidebar is called Workbench and the Codex is one of its tabs;
-<b>(5)</b> user categories and user views reach both interfaces as <i>views</i>, never as
-renderers.
-The four amber callouts stay open and need your answer before the spec.</p>
+<b>(1)</b> one Anvil view with a tab switcher, replacing four commands, tabs
+<code>Codex · Timeline · Plotgrid · Plotlines · Board</code>;
+<b>(2)</b> the Codex is a tab in Anvil, not a separate interface, and there is no third "note
+panel" surface;
+<b>(3)</b> <b>Collection</b> (what) and <b>Card</b> (how) are independent, both managed in
+settings, the Card remembered per collection — and "view" disappears from the UI;
+<b>(4)</b> the editor pane docks bottom or right, goes fullscreen, and closes;
+<b>(5)</b> the sidebar is called Workbench, command <code>Open Workbench</code>;
+<b>(6)</b> selection is by <b>tag</b>; folders only ever <b>exclude</b>, from settings.
+The remaining amber callouts need your answer before the spec.</p>
 
 </body>
 </html>
