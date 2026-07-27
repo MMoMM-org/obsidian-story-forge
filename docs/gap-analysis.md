@@ -28,9 +28,10 @@ What is missing is not spread evenly — it clusters in three places:
    ship *only* Bases views; the import flow accepts *only* Dataview views; and
    every view the plugin actually renders is hardcoded TypeScript. The
    distribution machinery and the views the user sees barely overlap.
-2. **The second surface (note panel) was never built.** It was deferred in five
-   consecutive specs. It is explicitly the surface Bases cannot produce, so
-   deferring it also deferred the reason the plugin owns rendering code at all.
+2. **The Codex is a table where it should be the plugin's centrepiece.** What
+   ships is a `.base` over four fixed kinds. What is wanted is a hero-card grid
+   over **open** categories with an **editor pane** beneath it — and *that*, not a
+   third surface, is what the never-built "note panel" was reaching for (G5).
 3. **The `③` view tier stalled at "read-only".** Locations tree removed,
    Timeline drag removed, Plotgrid reverted to read-only, subway map and the two
    `①` graph ports never started.
@@ -83,21 +84,50 @@ narrower and more defensible:
   shipped Codex base shows, writes their own `.base`, and uses it *instead of*
   ours. Curated views are a default, not a fixture.
 
-This also splits the view surfaces into two classes with **different obligations**:
+One qualification, added after review: **user-defined categories are not an
+optional extra of the Codex — they are its core feature.** Storyline sells it as
+*"a unified hub for Characters, Locations, and your own custom categories (Props,
+Factions, Magic Systems — whatever you need)"*. We ship four kinds; the user adds
+creatures, organizations, cultures, systems. A Codex that only knows our four is
+not the Codex we are rebuilding, so G20 is a **Codex requirement**, not a
+substrate refinement.
 
-| Class | Views | Obligation |
+### 1.3 Two interfaces, one content concept *(settled 2026-07-27)*
+
+The first draft named surfaces by *obligation* — "Codex is substitutable, Anvil is
+opinionated". That collapses the moment the Codex moves into the main window, which
+is where it belongs. **Obligation is a property of a tab, not a naming axis.** The
+names follow the interface, because that is what a user sees:
+
+| Term | Kind | What it is |
 |---|---|---|
-| **Entity / collection** | Codex, side panel | Fully substitutable — user views replace or extend ours |
-| **Management / overview** | Timeline, Kanban, Plotgrid, Plotlines, Navigator | Legitimately rigid — they exist to *manage and survey*, not to display everything. Configuration, not user-authored definitions |
+| **Anvil** | interface | **Main window.** One view, tab switcher: **Codex · Timeline · Plotgrid · Plotlines · Board** |
+| **Workbench** | interface | **Sidebar.** Follows the active note. Tabs: **Codex** (compact, drill-down), **Navigator**, imported user views |
+| **Codex** | content | The story *objects*. **Not an interface** — it appears as the card grid in Anvil and the following tab in the Workbench |
 
-G3 and G20 below are corrected against this contract.
+*Codex is what you know; Anvil is what you shape; Workbench is what's at hand.*
 
-Two Longform frictions sit on the story-data side and are **deliberately unsolved
-for now**: Longform keeps scene order in its own index note, and story versions
-are separate directories. The expected end-game is taking Longform's role over
-and adapting it, rather than syncing against it (see §2.E / #3). Until then,
-Timeline/Kanban keep `order` and `storyDay` as separate axes and never write
-Longform's ordering.
+Obligations then sit per tab: the **Codex** (in either interface) is substitutable;
+the **management tabs** (Timeline, Plotgrid, Plotlines, Board) are deliberately
+opinionated — configurable, not user-authored. **How a tab renders** (Bases,
+Dataview, custom DOM) is an implementation detail and not a surface boundary.
+
+G3, G5 and G20 below are corrected against this. Recorded in `DESIGN.md §2` and
+`views-and-integration.md`; execution is #26.
+
+### 1.4 Add-ons are never requirements
+
+Dataview, metadata-menu, meta-bind and Calendarium are **detected and used where
+they help, never required.** Everything falls back to native rendering when they
+are absent. Consequence for this register: a declarative view is an **additional**
+implementation of something that already works natively — never a replacement. G2
+is corrected against this. Two obligations follow, both currently unmet: ship the
+vault artifacts (G25), and document what each add-on adds and what is missing
+without it (G14).
+
+Longform is the one integration that does *not* end as an add-on: the plan is to
+**absorb** it (§2.E / #3), because its ordering lives outside frontmatter and no
+amount of syncing fixes that.
 
 ## 2. Gap register
 
@@ -124,9 +154,15 @@ catalog entries are Bases .base files"*. `src/import/ViewDefinition.ts:19` —
 shipped and a user `.base` cannot be imported. The `bases` engine slot in the
 registry exists and works (`src/engines/BasesFenceEngine.ts`) but nothing
 user-facing can ever reach it through the import path.
-*Impact:* the trust/distribution machinery — the single most-copied piece from
-markdown-mason — serves five static `.base` files. The "user-authored library"
-half is Dataview-only by accident, not by decision.
+*Impact — corrected after review.* The first draft said the machinery "serves five
+static `.base` files". Too harsh: **importing DQL and DataviewJS views works
+today**, and imported views appear as their own tabs in the Workbench next to the
+Codex. What is genuinely missing is narrower and still real:
+
+1. **Bases views cannot be imported** — a user's own `.base` has no route in.
+2. **Curated Dataview views cannot be shipped** — the catalog builder rejects them.
+3. **User views cannot be bound to the Anvil**, only to the Workbench. Custom views
+   are wanted in *both* interfaces (`DESIGN.md §3`).
 
 **G2 — The `_forge` view set is hardcoded, not catalog data.**
 *Promise:* `DESIGN.md §3` — the curated catalog is *"seeded with the `_forge`
@@ -144,6 +180,11 @@ proven, because the views that were supposed to prove it were hand-written
 instead. Changing what a character panel shows is a code change and a release,
 not a view edit.
 
+*Not a replacement (§1.4).* Dataview is an add-on, so the hardcoded renderers
+**stay** as the native path — the declarative versions are an *additional*
+implementation the user can install, swap or edit. "Re-author as catalog data"
+means adding a route, never removing the one that works without Dataview.
+
 **G3 — Workspace views are unconfigurable hardcoded renderers.**
 *Promise:* `storyline-analysis.md §1` — *"Views are data (catalog `.base` /
 query definitions), not hardcoded UI"*; the stated reason Storyline is rigid.
@@ -153,7 +194,7 @@ built-in tab (`src/views/SidebarView.ts:899`). Columns, grouping keys, fields
 shown, and sort are compiled in (e.g. `STATUS_VOCAB` at `WorkspaceView.ts:60`).
 No workspace view is a store record, none appears in the catalog, none can be
 duplicated or varied by the user.
-*Impact — **corrected against §1.2**.* The first draft read this as "the rigidity
+*Impact — **corrected against §1.3**.* The first draft read this as "the rigidity
 we set out to avoid, relocated", and asked for user-authored workspace views. That
 over-reaches. Timeline, Kanban, Plotgrid, Plotlines and Navigator are **management
 and overview** surfaces: they exist to survey and move work, not to display
@@ -165,7 +206,7 @@ So the real gap is **narrower**: not *"make them user-authored"* but *"make them
 configurable"*. What is genuinely wrong is that the `status` vocabulary, the
 grouping key, the visible columns/lanes and the scope are **compile-time
 constants**, so #4 (Kanban by `act`) has to be shipped as a feature instead of
-being a dropdown. The substitutability requirement of §1.2 lands on the
+being a dropdown. The substitutability requirement of §1.3 lands on the
 **entity/collection** surfaces instead (G19, G20).
 
 **G4 — No scope/folder configuration.**
@@ -231,26 +272,46 @@ extension, per-kind panel sections — is a later refinement.
 | **G5** | **Note panel surface never built** (surface 2 of 2) | — |
 | **G6** | Codex is a `.base` file, not the entity browser | #6 |
 
-**G5 — Note panel surface never built.**
-*Promise:* `DESIGN.md §2` — *two* surfaces, *"Storyline has both; the user wants
-both"*; and `§2` flags it as **"the surface that cannot be produced by Bases and
-therefore needs custom rendering code"**. `DESIGN.md §5` schedules it in slice 2,
-item 10, with an explicit A/B decision to settle.
-*Reality:* deferred in `002` (l.170), `004` (l.358), `005` (l.400, and again in
-the Won't table l.632), `006` (l.221), `007` (l.211). No code, no spec, no issue.
-The A/B decision from `DESIGN.md §2` was never made.
-*Impact:* half the surface model is unbuilt after six milestones. The panel it
-would host — Storyline's "Scene Details" inspector, the single feature the tool
-is best known for — has no home.
+**G5 — ~~Note panel surface never built~~ → the surface was a phantom; the
+editor pane is real.**
+*Promise:* `DESIGN.md §2` listed a third surface — a Storyline-style inspector
+rendering *in/with* the active note — and flagged it as *"the surface that cannot
+be produced by Bases"*, with an A/B decision (hand-coded vs. embedded Bases) to
+settle.
+*Reality:* deferred in `002` (l.170), `004` (l.358), `005` (l.400 + l.632), `006`
+(l.221), `007` (l.211). No code, no spec, no decision.
+
+***Reframed after review (2026-07-27).*** The description quotes Storyline's Scene
+Details inspector — *"a standalone inspector panel that follows the active editor
+file"* — which **is a sidebar**. It was written before the Workbench existed and
+describes it. There is no third surface, and the A/B question is moot: ADR-0001
+establishes that Bases inline editing is not exposed to plugins, so (B) was never
+available.
+
+What is real, and what this gap now tracks, is the **editor pane** — and it has two
+homes inside the interfaces we already have:
+
+1. **Anvil → Codex tab:** select a hero card, edit that note's frontmatter in the
+   lower half. This is the primary one, and it does not exist.
+2. **Workbench → Codex tab:** the compact form. Partly exists —
+   `InspectorController` + `editableFields` commit scalars and enums today; lists
+   and relations do not (G13).
+
+*Impact:* one of the three headline gaps shrinks from "a whole surface, deferred
+five times" to "the editor pane is missing in Anvil and incomplete in the
+Workbench". Issue #21 is re-pointed accordingly.
 
 **G6 — Codex is a `.base` file, not the entity browser.**
 *Promise:* `views-and-integration.md` — Codex = hub with category tabs, grid per
-category, click → detail in the contextual panel.
+category, click → detail.
 *Reality:* `Codex.base` seeded in the vault + a registered `story-forge-codex`
 Bases view type + `src/codex/CodexView.ts`, a degrade stub for when Bases is off
-(`src/main.ts:86`). Bases chrome cannot render the tab strip, which is exactly
-why #6 exists.
-*Impact:* known and tracked. Listed for completeness.
+(`src/main.ts:86`). Bases chrome cannot render the tab strip, which is why #6
+exists.
+*Scope, sharpened by §1.3:* the Codex tab in Anvil is a **hero-card grid over open
+categories, with the editor pane below** (G5). It ships four kinds; the user adds
+creatures, organizations, cultures, systems through a view they author (G20). #6,
+#12, #13 and #21 are four faces of this one surface and should be specced together.
 
 ### C — The `③` view tier
 
@@ -300,7 +361,8 @@ notes); it still leaves the promise open.
 | ID | Gap | Issue |
 |---|---|---|
 | **G13** | Inspector edits **scalars/enums only** — no relation editing | — |
-| **G14** | metadata-menu / meta-bind "reuse" is asserted, **never wired** | — |
+| **G14** | metadata-menu / meta-bind: **provision + documentation**, not integration | — |
+| **G25** | The plugin **ships no vault artifacts** — a fresh install gets nothing | — |
 
 **G13 — Relations cannot be edited.**
 *Promise:* `storyline-analysis.md §1` — *"writing **is** in scope where it makes
@@ -326,12 +388,36 @@ degradation path when either plugin is missing.
 practice, so their work falls back to G13 (which cannot do it) or to raw
 frontmatter.
 
+***Re-scoped after review.*** The original framing — *"decide: delegate to them or
+own the editing path"* — posed a false choice. **Neither plugin is ever required**
+(§1.4). What we owe is not integration but **provision and documentation**:
+
+- **ship** the FileClasses, the Templater and core-template templates (with the
+  `VIEW[]` parts once they exist), and the Schema reference — see **G25**;
+- **document** what installing metadata-menu or meta-bind adds, and precisely what
+  a user is missing without it;
+- **never** let a feature depend on either being present; if one ever does, say so
+  loudly in the docs.
+
+**G25 — The plugin ships no vault artifacts at all.**
+*Reality:* the FileClasses, entity/scene templates and the human-readable `Schema/`
+reference are generated by `npm run schema:gen` **into `test/StoryForge/00 Meta/`**.
+That is the development vault. A user who installs Story Forge from the community
+directory gets **none of it** — no FileClasses for metadata-menu, no templates, no
+schema reference. There is no seeding path, no "set up my vault" command, no docs
+telling them what to create by hand.
+*Impact:* the `_forge` model is the default we build on (§1.2), and a fresh install
+cannot reproduce it. Every add-on story above (metadata-menu value lists, meta-bind
+inputs, Templater scene creation) is unreachable in practice, and it silently
+assumes a vault laid out like ours — the same root as G4. Found while resolving the
+G14 comment; it was not in the original register.
+
 ### E — Integrations and schema
 
 | ID | Gap | Issue |
 |---|---|---|
-| **G15** | Longform: documented, not built; **end-game is takeover** | #3 |
-| **G16** | Calendarium / `storyDate` absent; `when` is display-only | — |
+| **G15** | Longform: **absorb it, don't sync** — scheduled after Storyline parity | #3 |
+| **G16** | **User-defined calendars** (not a Calendarium integration) | #25 |
 
 **G15 —** the division of labour says *"Longform owns the manuscript; we never
 touch it"*, and `order`/`storyDay` are kept as separate axes so the two tools do
@@ -340,14 +426,69 @@ order in its own index note** (not in frontmatter, so it is invisible to every
 frontmatter-driven view) and keeps **story versions as separate directories**.
 The current expectation is that Story Forge eventually **takes that role over and
 adapts it**, rather than syncing forever against a second source of truth. That
-is an end-game item, deliberately not scheduled — but it should be recorded on
-#3, because it changes what "integration" means: not a bridge, a replacement.
+is an end-game item — but it changes what "integration" means: not a bridge, a
+replacement.
 
-**G16 —** `views-and-integration.md` designs `storyDate` forward-compatibly and
-*"two-calendar-aware"*; `schema/scene.json` carries `storyDay` + `when` and says
-so explicitly (*"a calendar-aware absolute date … is a planned optional addition —
-not part of the schema yet"*). That is an honest deferral, not drift — recorded
-so it is not rediscovered a third time.
+***Sharpened after review.*** **Do not build a sync mechanism** for scene
+sequence — it is wasted work against a second source of truth. The plan:
+
+- **When:** directly after the Storyline adaptation works. Not "someday".
+- **How:** absorb Longform and rewrite that part frontmatter-only. The candidate is
+  a **`version` property** on scenes, so versions become a *filter* over one set of
+  notes instead of duplicated directories.
+- **The two quirks being fixed:** versions as directories (duplicate notes), and a
+  version file holding scene order as a plain list *without* wikilinks — renames
+  break it, and reordering via frontmatter never reaches Longform.
+- **The boundary that stays:** Longform is *not* a full editor, and we are not
+  building one either. That is precisely what we like about it.
+- **Feasibility:** Longform is unmaintained and its author is looking for a
+  maintainer (<https://github.com/kevboh/longform>).
+- **To verify first:** what else Longform covers that we would inherit — compile
+  and export in particular.
+
+**G16 — ~~Calendarium~~ → user-defined calendars.**
+*Reality:* `schema/scene.json` carries `storyDay` + `when` and states that an
+absolute calendar-aware date is *"a planned optional addition — not part of the
+schema yet"*.
+***Re-scoped twice after review (2026-07-27).***
+
+**No calendar interface from us — for now.** What is wanted is to *display* in-world
+date information where the writer already works: Plotgrid, Timeline, Codex cards.
+Calendarium can own the visual calendar; we do not build one.
+
+**Storage: configurable field mapping, never a sync.** Calendarium reads its own
+frontmatter keys (`fc-calendar`, `fc-date`, …) to place an event. Two options were
+on the table:
+
+- *Sync* — keep our own `storyDate` and mirror it into `fc-*`. **Rejected.** It
+  writes the same fact twice into one note: two sources of truth inside a single
+  file, which is the Longform failure mode (§2.E) in miniature. Every sync needs a
+  conflict policy — the user edits in Calendarium, we hold our copy, who wins? —
+  and every conflict policy eventually loses data. It also makes our schema depend
+  on Calendarium's shape anyway, which is the worst of both.
+- *Configurable mapping* — **chosen.** The absolute date is **not a field of ours**
+  but a **configured key**, defaulting to `fc-date` when Calendarium is detected;
+  likewise a configured "which calendar" key defaulting to `fc-calendar`. We read
+  it and render it. We never write both; if we write at all, we write the mapped
+  key. This is what §1.1 means in practice: the fact lives once, wherever the
+  user's ecosystem already keeps it.
+
+Multiple calendars then come for free — `fc-calendar` already models them.
+
+**The scope line that halves this gap:**
+
+| Capability | Requires |
+|---|---|
+| **Display** a date (what is wanted now) | just the configured key — trivial |
+| **Compute** with a date (sort, "two weeks later") | a calendar definition — 13 months, 8-day weeks, 48-hour days |
+
+Display is cheap and unblocks Plotgrid/Timeline. Computation stays deferred.
+
+**Unverified — spike before building:** the exact value shape of `fc-date` (plain
+string vs. nested `{year, month, day}`). Neither the Calendarium docs site nor the
+GitHub README returned usable content when checked on 2026-07-27. If it is
+structured, a small reader plus a display formatter is needed; sorting on it needs
+the calendar definition and therefore belongs to the deferred half.
 
 ### F — Hygiene (small, cheap, blocking nothing)
 
@@ -422,7 +563,7 @@ sign-off is a gate; post-sign-off divergence is raised before it is coded, not
 documented afterwards.
 
 **G24 — The two surface classes are not named.**
-*Reality:* §1.2 establishes two classes with different obligations, and neither has
+*Reality:* §1.3 establishes the interfaces and their obligations; neither had
 a usable public name.
 
 - **"Codex"** names the *collection* well — characters, locations, objects, lore —
@@ -433,22 +574,30 @@ a usable public name.
   swimlanes and zoom actually live. A user has no way to learn that these are one
   thing, and no vocabulary for "the place where I manage the manuscript".
 
-*Impact:* naming is not cosmetic here. §1.2's whole argument — *this class is
-substitutable, that class is deliberately opinionated* — cannot be explained to a
-user who has no word for either class. It also blocks honest UI: a surface picker,
-a settings section, and the docs all need the noun first.
+*Impact:* naming is not cosmetic here. The argument of §1.3 — *this tab is
+substitutable, that one is deliberately opinionated* — cannot be explained to a
+user who has no word for either interface. It also blocks honest UI: a surface
+picker, a settings section, and the docs all need the noun first.
 
-**DECIDED 2026-07-26 — the names are `Codex` and `Anvil`.**
+**DECIDED — see §1.3 for the settled model.** Two rounds:
 
-| Class | Name | Rationale |
-|---|---|---|
-| Entity / collection | **Codex** | Kept. Story vocabulary an author reads without explanation, already established in code, vault (`Codex.base`) and six issues. The forge metaphor does not have to colour every noun. The following side panel becomes the **Codex panel** — it shows the Codex entry for the active note. |
-| Management / overview | **Anvil** | The anvil is literally *the surface on which the work is shaped* — which is what Timeline, Kanban, Plotgrid, Plotlines and Navigator do. One word, reflects Story Forge, and it makes the pair explainable: **Codex is what you know, Anvil is what you are working on.** |
+1. **2026-07-26:** `Codex` and `Anvil`. This still named the classes by
+   *obligation*, which broke as soon as the Codex moved into the main window.
+2. **2026-07-27:** corrected to **three terms on two axes** — `Anvil` (main-window
+   interface) and `Workbench` (sidebar interface) are the *interfaces*; `Codex` is
+   *content* that appears in both. Obligation became a property of each tab.
+   `Workbench` was chosen for the sidebar: the bench beside the anvil, where what
+   you need lies ready.
 
-*Done when:* the management surface is **one view named Anvil with a layout
-switcher** rather than four commands; `Codex`/`Anvil` are used consistently across
-commands, settings sections, docs and mockups; and the two classes' differing
-obligations (§1.2) are explained in those terms. Tracked as **#26**.
+The Codex main view lives **as a tab inside Anvil**, not as a third interface — one
+main-window surface, one switcher, one command. That a Codex tab is substitutable
+while a Timeline tab is not is a property of the tab, never a reason for a second
+window.
+
+*Done when:* the four `open-*` commands become **one Anvil view with a tab
+switcher**; `WorkspaceView`/`WorkspaceLayout` and the CSS prefixes are renamed;
+`Anvil`/`Workbench`/`Codex` are used consistently in commands, settings, docs and
+mockups; and the per-tab obligations are stated in those terms. Tracked as **#26**.
 
 ## 3. Closed by decision (not gaps)
 
@@ -484,8 +633,8 @@ from this document `gap-analysis`.
 | G19 hero-card Bases view types | **#12** |
 | G20 user-extensible entities | **#13** |
 | G4 scope/folder settings | **#14** |
-| G3 workspace views **configurable** (revised) | **#15** ← absorbs #4 (Kanban by act) |
-| G24 naming the two surface classes | **#26** |
+| G3 management tabs **configurable** (revised) | **#15** ← absorbs #4 (Kanban by act) |
+| G24 the Anvil / Workbench / Codex vocabulary | **#26** |
 
 **#16 — Epic: Safe write-back — undo, then finish the interaction tier**
 
@@ -493,7 +642,8 @@ from this document `gap-analysis`.
 |---|---|
 | G22 undo journal | **#17** — precondition for #7 and #8 |
 | G13 relation editing | **#18** |
-| G14 metadata-menu / meta-bind | **#19** |
+| G14 metadata-menu / meta-bind (documentation) | **#19** |
+| G25 ship the vault artifacts | **#27** |
 | G8 Timeline drag → `storyDay` | #7 (existing) |
 | G9 Plotgrid write affordance | #8 (existing) |
 
@@ -501,19 +651,18 @@ from this document `gap-analysis`.
 
 | Gap | Issue |
 |---|---|
-| G5 note-panel surface (decide A/B) | **#21** |
+| G5 **Codex editor pane** (was: note-panel surface) | **#21** |
 | G7 Locations tree | **#22** |
 | G11 story graph preset / ports | **#23** |
-| G10 subway map | #5 (existing) |
-| G6 Codex entity browser | #6 (existing) |
+| G10 subway map — **wanted in this version** | #5 (existing) |
+| G6 Codex card grid + open categories | #6 (existing) |
 | — contextual view switcher | #1 (existing, UX refinement) |
 
 **#24 — Epic: Storyline fidelity — deviations must be decisions** (G21; no
 children — it is a pass over the existing view set, not new work)
 
-**Unparented:** **#25** (G16, Calendarium / `storyDate` — low, filed so it is not
-rediscovered a third time) and **#3** (G15, Longform — carries a comment recording
-the takeover end-game).
+**Unparented:** **#25** (G16 — re-scoped to user-defined calendars, no longer a
+Calendarium dependency) and **#3** (G15, Longform — carries the absorption plan).
 
 **Not filed on purpose:** G17 (sample residue) and G18 (version drift) are
 minutes of work, not tracked items. **G23** (mockup discipline) is now a repo rule
@@ -525,43 +674,43 @@ rule — process belongs where it binds the next change, not on a board.
 Ordered by *how much of the founding idea each unlocks per unit of work*, not by
 size. Nothing here is scheduled — this is the argument for an order, not a plan.
 
-0. **G24 — ✅ decided: `Codex` and `Anvil`** (2026-07-26). The naming was the
-   blocker, not the work: §1.2's distinction between *substitutable* and
-   *deliberately opinionated* surfaces is unexplainable without the nouns, and
-   every item below writes UI text, settings labels or docs that need them. What
-   remains is execution — fold the four commands into one **Anvil** view with a
-   layout switcher (#26), ideally as part of step 1 rather than as a separate
-   pass.
-1. **G1 + G2 + G19 + G20 together — make the substrate real.** One spec, because
-   they are one idea: unify the engine coverage across catalog and import (G1),
-   re-author the three `_forge` note-scoped views as catalog view definitions so
-   the hardcoded renderers become the zero-dependency fallback rather than the
-   only implementation (G2), ship hero-card Bases view types the user can select
-   in their own `.base` (G19), and make unknown fields and kinds render instead
-   of vanish (G20). Together these are the "pick a view, or build your own —
-   including for a story model we never anticipated" promise. Everything else in
-   this register is smaller than this.
-2. **G22 — the undo journal.** Cheap, plugin-local, and it is the precondition
-   for finishing the write-back tier: do it **before** #7 and #8, which were both
+0. **G24 — ✅ settled** (§1.3): `Anvil`, `Workbench`, `Codex`. What remains is
+   execution — fold the four commands into one Anvil view with a tab switcher
+   (#26) — and it belongs *inside* step 1, not before it: every item there writes
+   UI text and settings labels that need this vocabulary, and doing it separately
+   means writing those strings twice.
+1. **HTML mockups of both interfaces, and sign-off — before any code.** Anvil with
+   its tab switcher, the Workbench with its tabs, and the Codex card grid with the
+   editor pane beneath. This is the cheapest possible test of whether §1.3 holds,
+   and by the repo rule it is a gate, not a record.
+2. **The Codex, as one spec — G1 + G2 + G19 + G20 + G5 + G6.** These are six
+   register entries and *one surface*: engine coverage unified across catalog and
+   import (G1), the `_forge` note-scoped views added as catalog data with the
+   native renderers kept as the fallback (G2), hero-card Bases view types (G19),
+   open categories reachable through a user-authored view (G20), the editor pane
+   beneath the grid (G5) — which together *are* the entity browser (G6). Specced
+   apart they will be built three times.
+3. **G22 — the undo journal.** Cheap, plugin-local, and the precondition for
+   finishing the write-back tier: do it **before** #7 and #8, which were both
    blocked by exactly the risk it removes.
-3. **G4 — scope settings.** Small, and it removes the vault-layout lock-in that
-   currently contradicts the plugin's core claim.
-4. **G21 — the Storyline fidelity pass.** Do it *while* the substrate work is
-   being specced, so the new views are measured against the reference before they
-   are built rather than after.
-5. **G5 — decide the note panel A/B, then build the smaller of the two.** Six
-   milestones of deferral is a decision by default; make it deliberately.
-6. **G13 + G14 — relation editing.** Decide once whether relations are edited by
-   us (chips) or by meta-bind/metadata-menu, then ship that path. Today neither
-   exists, which is the worst of both.
-7. **G3 — make the management views configurable** (grouping key, visible
-   columns/lanes, status vocabulary, scope). Revised down from "views as data":
-   these surfaces are allowed to be opinionated (§1.2), so this is a settings
-   job, not a substrate job. Absorbs #4.
-8. **G11, G7, then the tracked `③` backlog** (#7, #8, #5, #6).
-9. **G15 — the Longform question**, last and deliberately: taking over ordering
-   and versioning is a scope decision, not a task.
-10. **G17, G18** — do them opportunistically; they are minutes, not milestones.
+4. **G25 + G4 — make a fresh install work.** Ship the vault artifacts and let the
+   user say where their story lives. Together these decide whether anyone but us
+   can run the plugin at all; neither is large.
+5. **G21 — the Storyline fidelity pass.** Do it *while* step 2 is being specced,
+   so the Codex is measured against the reference before it is built rather than
+   after.
+6. **G13 + G14 — relation editing.** Ship the chips (G13); for the add-ons, ship
+   the documentation rather than an integration (G14, §1.4).
+7. **G3 — make the management tabs configurable** (grouping key, visible
+   columns/lanes, status vocabulary, scope). A settings job, not a substrate job
+   (§1.3). Absorbs #4.
+8. **The `③` backlog:** #7 and #8 (both unblocked by step 3), then **#5 — the
+   subway map, now wanted in this version**, then G11 and G7.
+9. **G16 — user-defined calendars.** Self-contained; schedule it when the Timeline
+   is next opened rather than as its own milestone.
+10. **G15 — absorb Longform**, deliberately after Storyline parity. A scope
+    decision, not a task.
+11. **G17, G18** — minutes, not milestones; do them opportunistically.
 
 **G23 is not in this list** because it is not work — it is how the work is done.
 It applies from the next spec onward.

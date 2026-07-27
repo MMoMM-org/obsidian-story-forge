@@ -174,12 +174,32 @@ Today a scene only has `order`. The timeline needs time. Decided model:
   are authored as `storyDay: prev + 14` ("two weeks later").
 - **`when`** — free-text display label ("Day 1", "Two weeks later", or a date).
   Display only.
-- **`storyDate`** *(optional, future)* — an absolute in-world date. **Revised: this
-  is not a Calendarium integration.** What is actually needed is our own support for
-  **user-defined calendars with arbitrary date schemes** — 13 months, 8-day weeks,
-  48-hour days, several calendars side by side. Calendarium may be *one* optional
-  source of such a definition, but it is an add-on like any other and the feature
-  must work without it. Not in the MVP schema. Issue #25.
+- **Absolute in-world date** — **not a field of ours.** Revised twice: this is
+  neither a Calendarium integration nor a `storyDate` property we invent.
+
+  **No calendar interface from us for now.** The goal is to *display* date
+  information where the writer already works — Plotgrid, Timeline, Codex cards.
+  Calendarium can own the visual calendar; we do not build one.
+
+  **Storage: a configured key, never a sync.** Calendarium reads its own
+  frontmatter (`fc-calendar`, `fc-date`, …). We make the key a **setting**,
+  defaulting to `fc-date` (and `fc-calendar` for which-calendar) when Calendarium
+  is present, and we *read* it. We do **not** keep a parallel `storyDate` and
+  mirror it: that would write one fact twice into a single note, need a conflict
+  policy, and eventually lose data — the Longform failure mode in miniature. One
+  fact, one place, wherever the user's ecosystem already puts it.
+
+  Multiple calendars come for free — `fc-calendar` already models them.
+
+  | Capability | Requires |
+  |---|---|
+  | **Display** a date *(wanted now)* | just the configured key — trivial |
+  | **Compute** with a date (sort, "two weeks later") | a calendar definition — 13 months, 8-day weeks, 48-hour days |
+
+  Display unblocks Plotgrid and Timeline; computation stays deferred. **Spike
+  first:** the exact value shape of `fc-date` (string vs. nested `{year, month,
+  day}`) could not be confirmed from Calendarium's docs — verify before building.
+  Issue #25.
 
 MVP adds `storyDay` + `when` to `fc-scene` + the scene template + `Schema/scene.md`
 (kept green by `schema:check`). Timeline falls back to `order` when `storyDay` is
