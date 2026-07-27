@@ -5,51 +5,70 @@
 > the other vault plugins. Supersedes the per-view list in `view-roadmap.md`
 > (which keeps the phasing). Decisions here were made with Marcus.
 
-Guiding principle unchanged: **frontmatter is the source of truth; Bases/Dataview
-render it; the plugin writes back only plain Properties, never a plugin store.**
+Guiding principle unchanged: **frontmatter is the source of truth for story data;
+Bases/Dataview render it; the plugin writes back only plain Properties, never a
+plugin store.** Two refinements settled since:
 
-## Two surfaces
+- **Every third-party plugin is an add-on, never a requirement.** Dataview,
+  metadata-menu, meta-bind and Calendarium are detected and used where they help,
+  but **everything falls back to native rendering when they are absent.** The
+  native path is therefore a hard requirement — a declarative view is an
+  *additional* implementation, never a replacement.
+- **Operational state may live in the plugin directory.** Story data stays in
+  frontmatter, but a **journal of our own Anvil writes does not.** Drag-and-drop,
+  add and remove are fast and easy — and just as easily leave you unable to
+  reconstruct what you changed. Undo for Anvil edits is in scope (issue #17).
 
-1. **Contextual sidebar panel** — a dockable `ItemView` that **follows the active
-   note** and shows type-appropriate info. This is the heart of the plugin and
-   our main custom code.
-2. **Workspace views** — full-tab views: Codex, Kanban, Plotgrid, Timeline,
-   Plotlines. (Story Graph = the core Obsidian graph for now.)
+## The two interfaces and the one content concept *(settled 2026-07-27)*
 
-## Surface vocabulary — Codex and Anvil *(decided 2026-07-26)*
-
-The list above is *where* we render. Cutting the same views the other way — by
-*what they are for* — gives two classes with **different obligations**, and those
-are the names the user sees:
-
-| Name | Covers | Obligation |
+| Term | Kind | What it is |
 |---|---|---|
-| **Codex** | the entity browser (main area) + the following sidebar, the **Codex panel** | **Substitutable.** Curated views are a default, not a fixture: a user can author or import their own `.base`/view — including over frontmatter we never shipped — and use it *instead of* ours. They compose from our building blocks (hero card, table), not their own renderers. |
-| **Anvil** | Timeline, Kanban, Plotgrid, Plotlines, Navigator — one view with a layout switcher | **Deliberately opinionated.** These exist to *manage and survey* the manuscript, not to display everything. Configurable (grouping key, columns/lanes, status vocabulary, scope) — not user-authored. |
+| **Anvil** | interface | **Main window.** One view, tab switcher: **Codex · Timeline · Plotgrid · Plotlines · Board**. Manage and survey the manuscript. |
+| **Workbench** | interface | **Sidebar.** Follows the active note. Tabs: **Codex** (compact, drill-down), **Navigator**, plus any imported user views. |
+| **Codex** | content | The story *objects* — characters, locations, items, creatures, lore, organizations, cultures, systems, and whatever the user adds. **Not an interface**: it appears as the card grid in Anvil and as the following tab in the Workbench. |
 
-**Codex is what you know; Anvil is what you are working on.** The anvil is the
-surface the work is shaped on, which is exactly what these views do — and it
-reflects the plugin's own name.
+**Codex is what you know; Anvil is what you shape; Workbench is what's at hand.**
 
-Rationale, and the gap this closes, in `gap-analysis.md` G24 / §1.2. Execution
-(folding today's four commands into one Anvil view) is tracked as issue #26.
+**Different obligations, per tab — not per interface:**
+
+- The **Codex** (in either interface) is **substitutable**: a user can author or
+  import their own `.base`/view — over frontmatter we never shipped — and use it
+  *instead of* ours. They compose from our building blocks (hero card, table), not
+  their own renderers.
+- The **management tabs** (Timeline, Plotgrid, Plotlines, Board) are
+  **deliberately opinionated**: configurable (grouping key, columns/lanes, status
+  vocabulary, scope) but not user-authored. They exist to manage and survey, not to
+  display everything.
+
+**How a tab is rendered is an implementation detail** — Bases, Dataview or custom
+DOM — and may change without changing what the user sees.
+
+Rationale in `gap-analysis.md` §1.2 / G24. Execution (folding today's four commands
+into one Anvil view) is issue #26.
 
 ## Plugin division of labour
 
 | Concern | Owner |
 |---|---|
-| Manuscript authoring / compile | **Longform** — we never touch it |
-| In-world calendar / fixed dates | **Calendarium** (optional, future) |
-| Field editing + value lists | **metadata-menu** (FileClasses already defined) |
-| Inline fields / portrait *in* notes | **meta-bind** (`VIEW[]` / `INPUT[]` write frontmatter) |
-| Declarative rendering (tables/cards/groups) | **Bases** + **Dataview** |
-| Contextual panel + interactive views (drag → frontmatter) | **our plugin** |
+| Manuscript authoring / compile | **Longform** — for now; the end-game is absorbing it (below) |
+| In-world calendar / fixed dates | **ours**, with user-defined calendars; Calendarium optional |
+| Field editing + value lists | **metadata-menu** *(add-on)* — we ship the FileClasses |
+| Inline fields / portrait *in* notes | **meta-bind** *(add-on)* — `VIEW[]` / `INPUT[]` write frontmatter |
+| Declarative rendering (tables/cards/groups) | **Bases** + **Dataview** *(Dataview is an add-on)* |
+| Workbench + Anvil, interactive edits (drag → frontmatter) | **our plugin** |
 | Continuity, plot-holes, warnings | **_forge Claude Code skills** — see `claude-skills.md`, not plugin code |
+
+**None of the add-ons are required.** Everything degrades to native rendering when
+they are absent. Two things we owe the user in return: **ship the vault artifacts**
+(FileClasses, templates for Templater and the core template plugin, the Schema
+reference) — today they exist only in `test/StoryForge/` — and **document what each
+add-on adds and what is missing without it** (`gap-analysis.md` G14 / G25).
 
 ## The views
 
-### Contextual sidebar panel — core
-Narrow column, collapsible sections, follows the active note. Content by note type:
+### Workbench — the Codex tab (core)
+Narrow column, collapsible sections, follows the active note. This is the compact,
+drill-down form of the Codex; the Anvil holds the full card grid. Content by note type:
 
 | Active note | Panel shows |
 |---|---|
@@ -65,11 +84,28 @@ Narrow column, collapsible sections, follows the active note. Content by note ty
 value building block — e.g. "in the Codex on a character, see where they appear".
 **Write-back:** optional inline via meta-bind / metadata-menu.
 
-### Codex — yes
-Hub with category tabs (Characters / Locations / Objects / Lore), each a grid/table;
-click → detail in the contextual panel.
-**Render:** **Bases** is the natural fit (one `.base` per category, or one grouped
-base). Detail = the contextual panel. Almost no custom code.
+### Anvil — the Codex tab
+A hub for the story's *objects*, with a category switcher and a **card grid** —
+**hero cards** for characters, locations and items (portrait/image, key facts,
+relation pills). Selecting a card opens an **editor pane in the lower half** for that
+note's frontmatter. That pane is where entity editing lives; ADR-0001 settles that it
+is custom DOM over `processFrontMatter`, because Bases inline editing is not exposed
+to plugins.
+
+**Categories are open.** We ship `character`, `location`, `object` and `lore`; the
+user adds the rest — creatures, organizations, cultures, systems, factions, magic
+systems, whatever the story needs. This is not a nice-to-have: Storyline sells the
+Codex on exactly that — *"a unified hub for Characters, Locations, and your own custom
+categories (Props, Factions, Magic Systems — whatever you need)"* — and a Codex that
+only knows our four types is not the Codex we are rebuilding. It follows that a
+user-added category must reach the card grid and the Workbench **through a view they
+author or import**, not through a plugin release (issue #13).
+
+**Substitutable:** a user who dislikes what our shipped Codex base shows writes their
+own `.base` and uses it instead. Curated views are a default, not a fixture.
+
+**Render:** Bases fits the grid (one `.base` per category, or one grouped base); the
+hero-card presentation is our own registered Bases view type (issue #12).
 
 ### Kanban — yes
 Columns by `status` (idea → final); cards = scenes; optional grouping by `act`/`pov`.
@@ -77,24 +113,46 @@ Columns by `status` (idea → final); cards = scenes; optional grouping by `act`
 DOM. Drag → writes `status` (and optionally `order`).
 **Note:** not the "Obsidian Kanban" plugin — it uses its own markdown board format,
 not frontmatter. We stay frontmatter-driven.
+**Configurable columns (required):** the `status` vocabulary must be a setting, not a
+constant. Some writers want three stages, some six, and they will want their own
+names. The mechanic stays identical — only the column set and labels change. Issue
+#15; today `STATUS_VOCAB` is compiled into `src/workspace/WorkspaceView.ts:60`.
+
 
 ### Plotgrid — yes
 Matrix: rows = plotlines, columns = scenes (by `order`); a cell is marked when
 `scene.plotlines` contains the plotline.
 **Render:** fully derivable from frontmatter → DataviewJS can render the read-only
 matrix; toggling a cell writes the scene's `plotlines` (custom interaction).
-Simpler than Storyline's free-text cells.
+
+**The membership matrix is only the floor.** Storyline's Plotgrid does considerably
+more, and that is the target (issue #8):
+
+- rows = **scenes**, columns = plotlines / **themes / story threads** — not just plotlines
+- a cell holds **free text, formatting, colours and linked scene cards**; double-click edits
+- **act and chapter divider bands** mark story-section boundaries
+- scene rows **colour-coded by status**
+- **Auto-Note**: typing into an empty cell creates a linked note
+- detected characters/locations/codex entries appear as **colour-coded pills** in cell text
+
+Free-text cells mean cell content needs a home in frontmatter (or a linked note, as
+Auto-Note does) — a design question to settle before building, not during.
+Ref: <https://github.com/PixeroJan/obsidian-storyline/tree/main#plotgrid-view>
 
 ### Timeline — yes (fixed + relative time)
 Axis of scene cards, grouped by act/chapter; gaps express "two weeks later" as
 distance. **Scene time model** (see below) — a real schema addition.
 **Render:** custom layout; Calendarium optionally supplies fixed calendar dates.
 
+
 ### Plotlines — yes
 One collapsible section per plotline with its scenes (ordered) + an "unassigned"
 bucket.
-**Render:** declarative — Bases/Dataview `GROUP BY plotlines`. The "subway map"
-variant is custom → later/optional.
+**Render:** declarative — Bases/Dataview `GROUP BY plotlines`.
+
+**The "subway map" variant is wanted in this version** — promoted from
+"later/optional". Custom spatial layout (③), tracked as issue #5.
+
 
 ### Story graph — core graph (MVP)
 Use the **core Obsidian graph / local graph** with tag colour-groups (`canon/*`)
@@ -116,11 +174,12 @@ Today a scene only has `order`. The timeline needs time. Decided model:
   are authored as `storyDay: prev + 14` ("two weeks later").
 - **`when`** — free-text display label ("Day 1", "Two weeks later", or a date).
   Display only.
-- **`storyDate`** *(optional, future)* — an absolute in-world date via
-  **Calendarium**. Must be **calendar-aware and support two different calendars**,
-  so the field is designed forward-compatibly (e.g. a calendar-qualified value or
-  Calendarium's own event binding) rather than a single hard-coded date. Not in
-  the MVP schema; added when Calendarium integration lands.
+- **`storyDate`** *(optional, future)* — an absolute in-world date. **Revised: this
+  is not a Calendarium integration.** What is actually needed is our own support for
+  **user-defined calendars with arbitrary date schemes** — 13 months, 8-day weeks,
+  48-hour days, several calendars side by side. Calendarium may be *one* optional
+  source of such a definition, but it is an add-on like any other and the feature
+  must work without it. Not in the MVP schema. Issue #25.
 
 MVP adds `storyDay` + `when` to `fc-scene` + the scene template + `Schema/scene.md`
 (kept green by `schema:check`). Timeline falls back to `order` when `storyDay` is
@@ -133,3 +192,28 @@ Our scene notes **are** the Longform scenes. Longform owns the **manuscript orde
 `storyDay` (chronology) are **separate axes**; Kanban/Timeline operate on those
 without touching Longform's ordering. Keeping these axes distinct prevents the two
 tools from fighting.
+
+### The end-game: absorb Longform, do not sync with it
+
+The separate-axes rule above is a **holding position**, not the destination. We will
+not build a synchronisation mechanism between Longform's ordering and ours.
+
+**What we like:** Longform is *not* a full editor — and we do not want to build one
+either. That boundary stays.
+
+**The two quirks that work against us:**
+
+1. **Versions as directories** → duplicate notes for every version.
+2. **A version file holding the scene order** as a plain ordered list *without*
+   wikilinks. Renaming a note breaks the entry, and reordering via frontmatter — our
+   way — never shows up in Longform.
+
+**The plan:** once the Storyline adaptation works, absorb Longform into the plugin and
+rewrite that part frontmatter-only. The candidate mechanism is a **`version`
+property** on scenes, so versions become a filter over one set of notes rather than
+duplicated directories. Ordering then lives in frontmatter like everything else.
+
+Feasible in practice: Longform is currently unmaintained and its author is looking
+for a maintainer (<https://github.com/kevboh/longform>). Scope to verify before
+committing: what else Longform covers that we would inherit (compile/export in
+particular). Tracked as issue #3.
