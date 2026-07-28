@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-07-27 |
-| **Current Phase** | PRD |
+| **Current Phase** | SDD |
 | **Last Updated** | 2026-07-28 |
 
 ## Documents
@@ -13,7 +13,7 @@
 | Document | Status | Notes |
 |----------|--------|-------|
 | requirements.md | completed | **7 flat-Must features + 1 Should, 70 Gherkin ACs.** F1 Anvil (one view, tab switcher, old commands resolve to it, sidebar → Workbench) · **F2 Navigation semantics** (one target-kind matrix for every surface; inspect stays in place, open note never switches a panel's tab) · F3 Collections (tag + excluded folders **editable in settings** with shipped defaults; cleared tag = misconfigured, not "list the vault") · F4 Cards (Hero/Table/Compact, per-collection, native fallback; **core** Bases may be suggested, **community** plugins never) · F5 Editor pane (three docks, full field set in each, relation chips, external-change sync) · F6 FileClass-driven fields (sections from `extends`, order/types/enums/layout as data, three tiers; the plugin only writes files it authored) · F7 Library (three provenances, `.base` import, curated Dataview, per-entry Anvil/Workbench toggles). **F8 Capability disclosure** (Should): what each optional plugin adds and what is lost without it. Won't: undo journal (#17), management-tab config (#15), #8/#7/#5/#22/#23/#25/#3, in-plugin FileClass editing, `Lookup`/`Formula`/`Canvas`, telemetry. 3 SDD-level open questions. |
-| solution.md | pending | |
+| solution.md | in_progress | **ADR-27…ADR-36 pending user confirmation.** Pattern: *pure model → thin renderer → ItemView host* (the established repo shape), extend-don't-replace. Three new model layers: `collectionResolver`, `fieldModel`+`fileClassReader`, `baseGenerator`. Key calls: **ADR-27** view type **ids stay frozen** (`pluginConstants` says so), renaming is display-only · **ADR-28** one `NavigationController` implementing the F2 target-kind matrix for both surfaces · **ADR-29** store records gain a `kind` discriminant with legacy → `"view"` · **ADR-30** one `CardRenderer` contract, Bases + native backends (CON-3/CON-9) · **ADR-31** pure `FieldModel` between reader and editor, containing the metadata-menu format risk · **ADR-32** width from type, `ui` hints in *our* schema · **ADR-33** three docks, never automatic · **ADR-34** templates rendered whole, never patched · **ADR-35** two checksums + params, store keeps no YAML copy (fixes the double-copy defect) · **ADR-36** core may be suggested, community never. Includes traced walkthroughs for the width rule and the artifact classifier, and EARS ACs tracing F1–F7. |
 | mockups.html | **completed (pre-existing)** | `docs/mockups/anvil-workbench-codex.html` — **S91–S103, signed off 2026-07-27 at v4**. Authored and approved *before* this spec, over four review rounds. Moves into this directory when the PRD lands. |
 | plan/ | pending | |
 
