@@ -13,7 +13,7 @@ version: "1.0"
 - [x] All required sections are complete
 - [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Architecture pattern is clearly stated with rationale
-- [ ] **All architecture decisions confirmed by user** — ADR-27…ADR-36 are **Pending**
+- [x] **All architecture decisions confirmed by user** — ADR-27…ADR-36 confirmed 2026-07-28
 - [x] Every interface has specification
 
 ### QUALITY CHECKS (Should Pass)
@@ -791,82 +791,90 @@ Not applicable — single component.
 
 ## Architecture Decisions
 
-- [ ] **ADR-27 — The Anvil is the existing `WorkspaceView`, renamed in display only.** The layout
+- [x] **ADR-27 — The Anvil is the existing `WorkspaceView`, renamed in display only.** The layout
       union grows a `codex` member; `WORKSPACE_VIEW_TYPE` and `SIDEBAR_VIEW_TYPE` **keep their string
       values**.
   - Rationale: `pluginConstants.ts` states the ids are stable API ("never change after first
     release"). Changing them orphans saved workspace layouts. Renaming is a *display* concern.
-  - Trade-offs: internal names (`WorkspaceView`, `workspace/`) stay out of step with the UI vocabulary
-    unless we move the files; we accept a one-off file move with the id unchanged.
-  - User confirmed: _Pending_
+  - **Decided: the files move.** `src/workspace/WorkspaceView.ts` → `src/anvil/AnvilView.ts`, ids
+    unchanged. Vocabulary that exists only in the UI decays in the code — which is exactly how
+    "Codex" came to mean two things. One large rename diff, taken while the file is open anyway.
+  - User confirmed: **Yes** (2026-07-28)
 
-- [ ] **ADR-28 — One `NavigationController` implements the target-kind matrix for both surfaces.**
+- [x] **ADR-28 — One `NavigationController` implements the target-kind matrix for both surfaces.**
       Click handling is classify-then-act; surfaces contribute target markers, not behaviour.
   - Rationale: PRD F2 requires behaviour to depend on target kind, not on which tab. Today the rule
     is duplicated in `SidebarView` and `WorkspaceView` with different outcomes.
   - Trade-offs: a shared controller must not know about surfaces, so "inspect" is a callback each
     host supplies; the setting's stored values (`drill`/`open`) stay for compatibility while the UI
     says *inspect*.
-  - User confirmed: _Pending_
+  - User confirmed: **Yes** (2026-07-28)
 
-- [ ] **ADR-29 — Store records gain a `kind` discriminant** (`"view" | "collection" | "card"`), with
+- [x] **ADR-29 — Store records gain a `kind` discriminant** (`"view" | "collection" | "card"`), with
       `applyDefaults` defaulting legacy records to `"view"`.
   - Rationale: Collections and Cards need different fields; a single flat `ViewRecord` would collect
     optional members that are meaningless for two of the three kinds.
-  - Trade-offs: a migration path is required; `applyDefaults` stays fail-closed.
-  - User confirmed: _Pending_
+  - **Decided: migrate silently on load.** Legacy `bases` records become `kind:"collection"` with
+    `source` as a path, and the instance checksum is computed from the vault file that exists.
+    Nuance accepted deliberately: if that file was edited before the upgrade, its current content
+    becomes the baseline — which is correct here, because that file is the one actually rendered.
+    `applyDefaults` stays fail-closed.
+  - User confirmed: **Yes** (2026-07-28)
 
-- [ ] **ADR-30 — One `CardRenderer` contract, two backends.** A Card is registered both as a Bases
+- [x] **ADR-30 — One `CardRenderer` contract, two backends.** A Card is registered both as a Bases
       view type and as a native renderer; the Codex picks the backend by availability.
   - Rationale: CON-3 and CON-9 require the Codex to work without Bases and on mobile, while
     ADR-0001 makes `registerBasesView` the way to appear inside a user's `.base`.
-  - Trade-offs: each built-in Card is implemented once against a normalised entry shape, with a thin
-    adapter on each side — a small mapping cost to avoid two divergent card families.
-  - User confirmed: _Pending_
+  - **Decided: all three built-in Cards (Hero, Table, Compact) get both backends.** Each is written
+    once against a normalised entry shape with a thin adapter per side. The alternative — Hero only,
+    the rest Bases-only — would give the Card selector a different number of options depending on
+    whether a plugin is enabled, and would recreate the divergence the panel renderers already
+    suffer from.
+  - User confirmed: **Yes** (2026-07-28)
 
-- [ ] **ADR-31 — A pure `FieldModel` sits between the FileClass reader and the editor.** The reader
+- [x] **ADR-31 — A pure `FieldModel` sits between the FileClass reader and the editor.** The reader
       produces data; the editor renders it and never reads FileClasses itself.
   - Rationale: makes the whole of ADR-0002 unit-testable with fixtures and contains the metadata-menu
     format risk to one module.
   - Trade-offs: one more layer; worth it because the format is the accepted external risk.
-  - User confirmed: _Pending_
+  - User confirmed: **Yes** (2026-07-28)
 
-- [ ] **ADR-32 — Column width is derived from field type**, with `ui: "wide" | "image"` overrides
+- [x] **ADR-32 — Column width is derived from field type**, with `ui: "wide" | "image"` overrides
       stored in `schema/*.json`, never in the FileClass file.
   - Rationale: reproduces the signed-off layout for our fields and the user's alike with no
     configuration; metadata-menu rewrites FileClass files through its own UI and could drop unknown
     keys.
   - Trade-offs: a *user's* field cannot carry a hint; the value-inspection image fallback is a Could.
-  - User confirmed: _Pending_
+  - User confirmed: **Yes** (2026-07-28)
 
-- [ ] **ADR-33 — The editor pane is one component with three dock modes**, dock persisted in
+- [x] **ADR-33 — The editor pane is one component with three dock modes**, dock persisted in
       settings and **never switched automatically**.
   - Rationale: PRD F5; a layout that moves during a resize is worse than one set once.
   - Trade-offs: no responsive adaptation; accepted deliberately.
-  - User confirmed: _Pending_
+  - User confirmed: **Yes** (2026-07-28)
 
-- [ ] **ADR-34 — Curated `.base` files become templates rendered whole**, never patched.
+- [x] **ADR-34 — Curated `.base` files become templates rendered whole**, never patched.
   - Rationale: ADR-0003. Regex over YAML breaks on comments, quoting and nesting; whole-file render
     is deterministic and diffable.
   - Trade-offs: a template syntax must be specified and tested (empty parameters, folder names with
     spaces).
-  - User confirmed: _Pending_
+  - User confirmed: **Yes** (2026-07-28)
 
-- [ ] **ADR-35 — Generated collections carry `{sourceChecksum, params, instanceChecksum, verify}`
+- [x] **ADR-35 — Generated collections carry `{sourceChecksum, params, instanceChecksum, verify}`
       and the store keeps no YAML copy.**
   - Rationale: ADR-0003; also removes the existing double-copy defect where drift is computed over
     the store copy while `_openCodex` opens the vault file.
   - Trade-offs: one file read per evaluate (compare `mtime` first if it ever matters); a migration
     for existing bases records.
-  - User confirmed: _Pending_
+  - User confirmed: **Yes** (2026-07-28)
 
-- [ ] **ADR-36 — Capability disclosure distinguishes core from community.** Core plugins may be
+- [x] **ADR-36 — Capability disclosure distinguishes core from community.** Core plugins may be
       suggested once, dismissibly; community plugins appear only in a settings list.
   - Rationale: PRD F4/F8. Bases is enabled, not installed — a different act from installing a
     third-party plugin, and the community-directory norms differ accordingly.
   - Trade-offs: users who never open settings may not discover what Dataview would add; accepted, as
     nagging is worse.
-  - User confirmed: _Pending_
+  - User confirmed: **Yes** (2026-07-28)
 
 ## Quality Requirements
 
