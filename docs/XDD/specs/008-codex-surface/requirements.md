@@ -89,7 +89,9 @@ Two properties no other tool in this space combines:
 | **Collection** | *What* is shown — a query yielding a set of notes (Characters, Organizations). One pill in the Codex. |
 | **Card** | *How* an entry is drawn — Hero, Table, Compact, or the user's own. Chosen per collection. |
 | **FileClass** | A note in the vault whose frontmatter declares a set of fields — their names, types, selectable values, order, and which other FileClass they extend. The format is metadata-menu's; the plugin generates its own and reads any the user adds. Having metadata-menu installed is **not** required to read them. |
-| **Frontmatter / Property** | The YAML block at the top of a note. A *plain Property* is a value the core Obsidian Properties UI can display and edit. |
+| **Frontmatter / Property** | The YAML block at the top of a note. |
+| **Plain Property** | A frontmatter value **a human could have typed, and that the core Obsidian Properties UI can display and edit**. `status: alive`, `age: 34`, `allies: ["[[Tobias Ferro]]"]` are plain. A plugin-encoded blob (`sf-state: "{\"v\":2,\"sel\":…}"`), an opaque id, or a value only this plugin can interpret is **not** — and the plugin never writes one. The test: delete Story Forge, and every fact it ever wrote still reads correctly in Obsidian and in any other tool. |
+| **Core vs community plugin** | **Core** plugins (Bases, Properties) ship with Obsidian and are *enabled*, not installed. **Community** plugins (Dataview, metadata-menu, meta-bind, Calendarium) are third-party installs. The distinction matters for what we may suggest — see F8. |
 
 ## User Personas
 
@@ -170,7 +172,40 @@ The minimum for the Codex to be a surface rather than a table.
   - [ ] Given the sidebar view, When the user runs `Open Workbench`, Then the sidebar opens; and Then it is labelled **Workbench** in the command palette, ribbon tooltip and settings
   - [ ] Given an Anvil is already open, When the user runs `Open Anvil` again, Then the existing view is revealed rather than a second one created
 
-#### Feature F2: Codex collections
+#### Feature F2: Navigation semantics — one rule, every surface
+
+- **User Story:** As a writer, I want a click to do the same kind of thing wherever I am, so that I
+  can build a habit instead of guessing what a particular tab will do.
+- **Why this exists:** today the behaviour is defined only by code and differs by surface. A click in
+  the Anvil may reveal the Workbench and switch it to the Codex for that note; a link may open the
+  note in a tab; sometimes the Workbench appears showing the Navigator. There is a single global
+  `linkClickAction` setting (`drill` | `open`, modifier-click inverts it), but no stated rule for
+  *what is clickable* and *what each target does*. The rule must be **general across surfaces**, not
+  invented per tab.
+- **Acceptance Criteria:**
+  - [ ] Given any surface, When the user clicks an element, Then its behaviour is determined by **what kind of target it is**, not by which tab or panel it sits in
+  - [ ] Given the target kinds below, When the user clicks one, Then the behaviour matches this matrix:
+
+    | Target | Plain click | Modifier-click |
+    |---|---|---|
+    | **Entity name / link** | the configured action (default **inspect**) | the other action (**open note**) |
+    | **Card / row body** (not a name) | **inspect** — show it in place; never navigate away | **open note** |
+    | **Structural control** (chevron, collapse header, tab, pill, dropdown) | operate the control only | same — modifiers do not navigate |
+    | **Editable field** (in the editor pane) | focus the control for editing | same |
+
+  - [ ] Given **inspect** in the Anvil, When the user inspects an entry, Then it is shown **within the Anvil** (the editor pane) and Then no other leaf is opened, revealed or re-targeted
+  - [ ] Given **inspect** in the Workbench, When the user inspects an entry, Then the Workbench shows it and follow-the-active-note is suspended until Back or open-note resumes it
+  - [ ] Given **open note**, When the user opens an entry from any surface, Then the note opens in the workspace and no panel silently changes tab
+  - [ ] Given the user clicks the body of a card whose name is also clickable, When the click lands on the name, Then the name's behaviour wins over the card's
+  - [ ] Given a click resolves to no known target kind, When it is handled, Then nothing happens — no navigation, no write
+  - [ ] Given the configured action, When the user changes it in settings, Then every surface honours the new value without a reload
+
+*Naming note for the SDD: the setting's values are currently `drill` | `open`. "Drill" describes the
+Workbench's stack-navigation and reads oddly for the Anvil's editor pane. **Inspect** is the
+behaviour both share — showing the thing where you are — and is the term used above.*
+
+
+#### Feature F3: Codex collections
 
 - **User Story:** As a writer, I want to browse my story objects by category, so that I can find what
   I invented without writing a query or remembering a folder.
@@ -182,8 +217,11 @@ The minimum for the Codex to be a surface rather than a table.
   - [ ] Given the four built-in collections (`character`, `location`, `object`, `lore`), When the plugin is installed, Then all four are available and enabled by default
   - [ ] Given a collection resolves to no notes, When the grid renders, Then an empty state names **the tag it looked for** and offers **Set up my vault…** and **Change tag**
   - [ ] Given the user selects a different collection, When the grid re-renders, Then any open editor pane closes or follows the new selection — never shows a note from the previous collection
+  - [ ] Given a built-in collection, When the user opens its settings, Then **both its tag and its excluded folders are editable**, each pre-filled with a shipped default (`canon/character`… and `00 Meta`)
+  - [ ] Given the user changes a tag or an excluded folder, When they confirm, Then the Codex reflects it **without the user editing any file by hand**
+  - [ ] Given a collection whose tag has been cleared, When it resolves, Then it reports itself as misconfigured — it does **not** silently list the entire vault
 
-#### Feature F3: Cards — how an entry is drawn
+#### Feature F4: Cards — how an entry is drawn
 
 - **User Story:** As a writer, I want my characters shown as portrait cards and my lore as a table,
   so that each kind of thing is shown at the density it deserves.
@@ -194,9 +232,12 @@ The minimum for the Codex to be a surface rather than a table.
   - [ ] Given the user picked a Card for a collection, When they leave and return to that collection, Then their choice is **remembered per collection** — Characters may be Hero while Lore is Table
   - [ ] Given an imported Card, When the user selects it, Then it appears in the selector under a heading distinguishing it from built-ins
   - [ ] Given a Card reads a field an entry does not have, When it renders, Then that part of the card is omitted — never an error, never the literal text `undefined`
-  - [ ] Given Bases is unavailable, When the Codex renders, Then a native card grid is shown instead and the user is not told to install anything
+  - [ ] Given Bases is unavailable, When the Codex renders, Then a native card grid is shown instead, and Then the Codex stays fully usable
+  - [ ] Given Bases is **disabled but present** (it is a core plugin), When the Codex renders, Then a **dismissible** hint states that enabling it adds card options; and Then dismissing it is permanent
+  - [ ] Given a **community** plugin is absent (Dataview, metadata-menu), When the Codex renders, Then nothing prompts the user to install it — see F8
 
-#### Feature F4: The editor pane
+
+#### Feature F5: The editor pane
 
 - **User Story:** As a writer, I want to correct a fact where I noticed it was wrong, so that I do
   not have to open the note, find the frontmatter and lose my place.
@@ -211,7 +252,7 @@ The minimum for the Codex to be a surface rather than a table.
   - [ ] Given a note is changed outside the plugin, When the editor is showing it, Then the displayed values update to match the file
   - [ ] Given a relation field, When the user adds or removes a linked entity, Then the frontmatter list is written as `[[wikilinks]]` a human could have typed
 
-#### Feature F5: Fields come from the FileClass chain
+#### Feature F6: Fields come from the FileClass chain
 
 - **User Story:** As a writer whose story has fields the plugin never heard of, I want them edited
   like every other field, so that my model is as first-class as the shipped one.
@@ -226,9 +267,9 @@ The minimum for the Codex to be a surface rather than a table.
   - [ ] Given the note carries a key no FileClass declares, When the editor renders, Then it appears in a distinct **Other properties** section
   - [ ] Given short field types, When the editor lays out a section, Then they occupy **two columns**; and Given list-valued types, Then they occupy the **full width**
   - [ ] Given the fields declared as `wide` or `image`, When they render, Then they use the full width and (for `image`) show a preview with a file picker
-  - [ ] Given `npm run schema:gen` is run, When it completes, Then a user-authored FileClass in the same folder is **untouched**
+  - [ ] Given the plugin writes or updates **its own** FileClasses (setup wizard, or an upgrade), When it completes, Then a user-authored FileClass in the same folder is **untouched** — the plugin only ever writes files it authored
 
-#### Feature F6: The Library — Collections and Cards in settings
+#### Feature F7: The Library — Collections and Cards in settings
 
 - **User Story:** As a writer, I want to choose which collections and cards I use, and add my own,
   so that what ships is a starting point rather than a fixture.
@@ -252,6 +293,27 @@ The minimum for the Codex to be a surface rather than a table.
   reference into the vault (issue #27). Without it the Codex works but falls back to untyped fields
   for a fresh install.
 - **Card preview in settings.** Seeing what a Card looks like before selecting it.
+
+#### Feature F8: Capability disclosure — what Story Forge can use, and what you lose without it
+
+- **User Story:** As a writer, I want to know once what Story Forge can do with the plugins I have —
+  and what I am missing without them — so that I can decide deliberately instead of wondering why a
+  screen looks plainer than a screenshot.
+- **Why this is Should, not Must:** everything works without it. But a writer who never learns that
+  enabling a **core** plugin unlocks card options will conclude the feature does not exist.
+- **The line we hold:** **core** plugins may be *suggested* (they ship with Obsidian and cost only a
+  toggle); **community** plugins are **listed, never nagged**. Story Forge must never push a user
+  toward a third-party install, and no feature may be gated behind one.
+- **Acceptance Criteria:**
+  - [ ] Given first run, When the user opens Story Forge, Then a one-time screen lists what each optional plugin adds and marks each **core** or **community**
+  - [ ] Given that screen, When the user reads a row, Then it states **what is lost without it** in concrete terms, not marketing
+  - [ ] Given the screen, When the user dismisses it, Then it does not appear again and remains reachable from settings
+  - [ ] Given a **core** plugin that is present but disabled, When a surface would benefit, Then a single dismissible hint may say so
+  - [ ] Given a **community** plugin that is absent, When any surface renders, Then **no prompt, banner or nag is shown** — the capability list in settings is the only mention
+  - [ ] Given every optional plugin is absent, When the user works, Then no screen is empty, broken or blocked
+
+*This also discharges the obligation recorded as `gap-analysis.md` G14 / issue #19: document what each
+add-on adds and what is missing without it.*
 
 ### Could Have Features
 
@@ -280,7 +342,7 @@ The minimum for the Codex to be a surface rather than a table.
 
 ## Detailed Feature Specifications
 
-### Feature: F5 — Fields come from the FileClass chain
+### Feature: F6 — Fields come from the FileClass chain
 
 **Description:** The editor does not know what a character is. It resolves which FileClasses apply
 to the selected note, reads their field declarations, and renders controls from them. Everything the
@@ -396,7 +458,7 @@ observable behaviour, verified the way specs 006 and 007 were:
 
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|------------|------------|
-| **Scope**: six issues in one spec is large, and a partial delivery leaves the Codex worse than today | High | Medium | Sequence so each phase is independently shippable: the Anvil shell (F1) does not depend on the editor; the editor (F4) works on built-in fields before F5 derives them. Nothing is removed until its replacement passes its ACs. |
+| **Scope**: six issues in one spec is large, and a partial delivery leaves the Codex worse than today | High | Medium | Sequence so each phase is independently shippable: the Anvil shell (F1) does not depend on the editor; the editor (F5) works on built-in fields before F6 derives them. Nothing is removed until its replacement passes its ACs. |
 | Coupling to metadata-menu's FileClass format; a v4 breaks the editor | High | Low | Read defensively, unknown type → text, never write to those files; cover the reader with fixtures so a format change fails loudly in tests rather than silently in a user's vault. |
 | Deriving the field list removes a hardcoded behaviour that was carrying an unnoticed requirement (e.g. `portrait` is special-cased **by field name** today) | Medium | Medium | Inventory every existing hardcoded field behaviour before deleting the list, and give each one a declared equivalent. `portrait` → an `image` hint is the known case; look for others. |
 | The generated-artifact model (ADR-0003) mishandles an existing install and a user loses a customised `.base` | High | Low | Migration is explicit, not implicit: never overwrite a file whose instance checksum is unknown; on doubt, ask. |
@@ -413,8 +475,11 @@ observable behaviour, verified the way specs 006 and 007 were:
       and what is each one's declared equivalent? To be inventoried during SDD.
 - [ ] Should a **Card** be able to declare which fields it requires, so the Library can warn when it
       is applied to a collection that lacks them?
-- [ ] How does a user **bind an imported Collection to the Anvil** as opposed to the Workbench — a
-      per-entry setting, or by which list they import it into?
+- [x] **Resolved:** by **per-entry toggles in the Library row** (*Anvil* / *Workbench*), not by which
+      list it was imported into. Two toggles beside each entry keep one list authoritative; a
+      settings tab per surface would show the same entries twice and then need its own ordering
+      rules. *(Alternative offered and not taken: a per-surface settings tab listing every Collection
+      and Card with enable toggles.)*
 
 ---
 
