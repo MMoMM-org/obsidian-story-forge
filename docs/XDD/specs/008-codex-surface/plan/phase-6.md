@@ -14,11 +14,13 @@ phase: 6
 **Specification References**:
 - `[ref: PRD/F6]` — 11 ACs · `[ref: ADR-0002]` · `[ref: SDD/ADR-31]`, `[ref: SDD/ADR-32]`
 - `[ref: SDD/Technical Debt]` — the full inventory of hardcoded field behaviour
-- `[ref: SDD/CON-5]` — presentation hints only; `schema:check` stays green
+- `[ref: SDD/CON-5]` (revised) — one **type** change (`portrait`/`image` → media) plus the `wide`
+  hint; **read `docs/schema-change-runbook.md` before touching the schema**; `schema:check` stays green
 
 **Key Decisions**:
-- **ADR-32** — `ui` hints live in **our** `schema/*.json`, never in a FileClass file, because
-  metadata-menu rewrites those through its own UI and could drop unknown keys.
+- **ADR-32 (revised)** — only the `wide` hint survives, and it lives in **our** `schema/*.json`.
+  Images come from metadata-menu's native **`Media`** type, so the image control follows from the
+  type for our fields and the user's alike — no hint, no asymmetry.
 - **ADR-0002** — `inspectorFields.ts` is **deleted**, not extended.
 
 **Dependencies**: **Phase 5** (the editor renders from `FieldModel` already).
@@ -34,19 +36,40 @@ model".
 Removes the duplicated knowledge. Nothing here adds a feature; it removes the reason the plugin
 could only ever know four kinds of thing.
 
-- [ ] **T6.1 `ui` hints in the schema and the generator** `[activity: data-architecture]`
+- [ ] **T6.1 Schema change: media type + the `wide` hint** `[activity: data-architecture]`
 
-  1. Prime: Read `schema/character.json` (`portrait` is `type: text`), `scripts/schema-gen.mjs`
-     (write-only, **no delete path**) and `scripts/schema-check.mjs`; `[ref: SDD/CON-5]`.
-  2. Test: a field may carry `"ui": "wide" | "image"`; `schema:gen` emits unchanged FileClass output
-     for fields without a hint (**byte-identical** — the hint is ours, not metadata-menu's);
-     `schema:check` stays green; an unknown `ui` value is rejected at generation time.
-  3. Implement: optional `ui` in the schema files (`tagline` → `wide`, `portrait` → `image`, plus the
-     `image` field on location and object); thread it into the plugin's own hint table.
+  > **Read `docs/schema-change-runbook.md` first** — `CLAUDE.md` requires it before any schema
+  > change, and this task changes a field's **type and stored value shape**, not just a hint.
+
+  1. Prime: the runbook's flow (`edit schema/<type>.json → npm run schema:gen → npm run schema:check`)
+     and its rename/seed-note/XDD ripple section. Today `portrait` is `type: text` holding a **path**;
+     it becomes the media type holding a **wikilink**.
+  2. Test: the schema type vocabulary gains `media`; `schema-gen` maps it to metadata-menu's
+     **`Media`**; `schema:check` is green; the generated FileClass for `character` declares
+     `portrait` as `Media`, and `location`/`object` declare `image` the same way; **seed notes are
+     rewritten from path values to wikilinks** and still resolve; an optional `ui: "wide"` round-trips
+     (only `tagline` uses it).
+  3. Implement: `schema/character.json`, `schema/location.json`, `schema/object.json`; the generator's
+     type map; the seed-note values.
   4. Validate: `npm run schema:gen && npm run schema:check` green; unit tests; lint; types.
   5. Success:
-     - [ ] No story field added or changed `[ref: SDD/CON-5]`
-     - [ ] Hints never leave our schema for the FileClass files `[ref: ADR-32]`
+     - [ ] Image fields are wikilinks that survive a rename `[ref: PRD/F6 AC]`
+     - [ ] `ui: image` never exists — the control comes from the type `[ref: SDD/ADR-32]`
+     - [ ] No story **fact** was added `[ref: SDD/CON-5]`
+
+- [ ] **T6.1b The `wide` hint** `[activity: data-architecture]` `[parallel: true]`
+
+  1. Prime: `scripts/schema-gen.mjs` (write-only, **no delete path**) and `scripts/schema-check.mjs`;
+     `[ref: SDD/ADR-32]` — **`wide` is the only hint that survives**; images come from the `Media`
+     type (T6.1), so `ui: "image"` is never built.
+  2. Test: a field may carry `"ui": "wide"`; `schema:gen` emits **byte-identical** FileClass output
+     for fields without a hint — the hint is ours and must never reach the FileClass files;
+     `schema:check` stays green; an unknown `ui` value is rejected at generation time.
+  3. Implement: optional `ui` in the schema files (`tagline` only); thread it into the plugin's hint
+     table.
+  4. Validate: `npm run schema:gen && npm run schema:check` green; unit tests; lint; types.
+  5. Success:
+     - [ ] The hint never leaves our schema for a FileClass file `[ref: SDD/ADR-32]`
 
 - [ ] **T6.2 Replace the name coupling in the panel** `[activity: refactoring]`
 
@@ -56,11 +79,13 @@ could only ever know four kinds of thing.
      (`portrait`) and l.119 (`tagline`), `src/panel/components.ts` l.467 (`locationType` → "type"
      display remap). **If the inventory is incomplete, extend it and update the SDD** — deviation
      protocol.
-  2. Test: a character whose image field is **not** called `portrait` still renders a tile when the
-     field carries the `image` hint `[ref: PRD/F6]` — the case that is impossible today; the three
-     existing kinds render exactly as before (snapshot the current output first, then refactor).
-  3. Implement: drive the tile from the hint; keep `kindFields.ts` as the **native fallback config
-     only** `[ref: SDD/Implementation Boundaries]`.
+  2. Test: a character whose image field is **not** called `portrait` still renders a tile, because
+     the field is typed `Media` `[ref: PRD/F6]` — the case that is impossible today; the three
+     existing kinds render exactly as before (snapshot the current output first, then refactor);
+     a `Media` value that is a wikilink resolves, and one whose target is missing shows the monogram
+     fallback rather than a broken image.
+  3. Implement: drive the tile from the **field type**, not the field name; keep `kindFields.ts` as
+     the **native fallback config only** `[ref: SDD/Implementation Boundaries]`.
   4. Validate: unit tests including the pre-refactor snapshots; lint; types.
   5. Success:
      - [ ] A user's image field works without being named `portrait` `[ref: ADR-0002]`

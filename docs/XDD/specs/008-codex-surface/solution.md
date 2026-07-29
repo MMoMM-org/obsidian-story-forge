@@ -44,8 +44,14 @@ version: "1.0"
   the comment *"Stable — never change after first release"*; `WORKSPACE_VIEW_TYPE` likewise. Renaming
   a surface changes its **display name**, never its id — changing the id orphans every saved
   workspace layout that contains the leaf.
-- **CON-5 — No new story-schema fields.** This spec adds presentation hints to the plugin's own
-  `schema/*.json`, not facts to the story model. `npm run schema:check` must stay green.
+- **CON-5 — No new story-schema *fields*, but one *type* change (revised 2026-07-29).** No fact is
+  added to the story model. Two changes to `schema/*.json` are in scope and both must follow
+  `docs/schema-change-runbook.md`: (a) an optional `ui: "wide"` presentation hint, and (b) **the
+  image fields `portrait` (character) and `image` (location, object) change type from `text` to the
+  media type**, so their value becomes a wikilink instead of a path. That is a real schema change
+  with a seed-note ripple — path values must be rewritten as wikilinks — and the schema type
+  vocabulary gains `media`, which the generator maps to metadata-menu's `Media`.
+  `npm run schema:check` must stay green.
 - **CON-6 — Bases typings stay behind one adapter.** `BasesConfigFile` and friends may only be
   imported by `src/bases/basesConfig.ts` (existing CON-3 firewall from spec 005).
 - **CON-7 — Structure-agnostic selection.** Notes are selected **by tag**; folders may only
@@ -487,10 +493,13 @@ ENTITY: FieldSection (NEW)
 ENTITY: FieldDef (NEW)
   FIELDS:
     name: string
-    type: "Input"|"Select"|"Multi"|"MultiFile"|"Number"|"File"|"Boolean"|"Date"|"Unknown"
+    type: 13 flat metadata-menu types | "Unknown"
+          # Input Boolean Number Select Cycle Multi Date Datetime Time File MultiFile Media MultiMedia
+          # excluded → "Unknown": Lookup Formula Canvas CanvasGroup CanvasGroupLink (computed)
+          #                       JSON YAML Object ObjectList (not flat properties)
     values?: string[]              # from options.valuesList, for Select
     width: "half" | "full"         # derived from type, overridden by ui hint
-    ui?: "wide" | "image"
+    ui?: "wide"   # the only remaining hint; images come from the Media type
   BEHAVIORS: (none)
 
 ENTITY: GeneratedArtifact (NEW — ADR-0003)
@@ -531,12 +540,12 @@ signed-off S102/S103 by eye.
 // Verified against the real generated FileClasses: the six types actually emitted are
 // Input (42×), Select (17×), Multi (10×), MultiFile (10×), Number (7×), File (5×).
 const HALF: ReadonlySet<FieldDef["type"]> = new Set([
-  "Input", "Select", "Number", "Boolean", "Date",
+  "Input", "Boolean", "Number", "Select", "Cycle", "Date", "Datetime", "Time",
 ]);
 
-export function widthOf(field: { type: FieldDef["type"]; ui?: "wide" | "image" }): "half" | "full" {
-  if (field.ui !== undefined) return "full";      // wide and image both take the row
-  return HALF.has(field.type) ? "half" : "full";  // Multi / MultiFile / File / Unknown → full
+export function widthOf(field: { type: FieldDef["type"]; ui?: "wide" }): "half" | "full" {
+  if (field.ui === "wide") return "full";         // the one remaining presentation hint
+  return HALF.has(field.type) ? "half" : "full";  // Multi/MultiFile/Media/MultiMedia/File/Unknown
 }
 ```
 
@@ -553,8 +562,8 @@ export function widthOf(field: { type: FieldDef["type"]; ui?: "wide" | "image" }
 | `awakened` (user) | `Boolean` | — | half | ✔ |
 | `skills` (user) | `Multi` | — | full | ✔ chips wrap |
 | `allies` | `MultiFile` | — | full | ✔ |
-| `tagline` | `Input` | `wide` | full | ✔ override |
-| `portrait` | `Input` | `image` | full | ✔ preview + picker |
+| `tagline` | `Input` | `wide` | full | ✔ the one remaining override |
+| `portrait` | `Media` | — | full | ✔ preview + picker, from the **type** |
 
 **Edge cases**: an unrecognised type resolves to `Unknown` → `full` (a text control on its own row —
 never a crash). A field with `ui` set but an unknown type still gets `full`.
@@ -840,11 +849,16 @@ Not applicable — single component.
   - User confirmed: **Yes** (2026-07-28)
 
 - [x] **ADR-32 — Column width is derived from field type**, with `ui: "wide" | "image"` overrides
-      stored in `schema/*.json`, never in the FileClass file.
+      stored in `schema/*.json`, never in the FileClass file. **Revised 2026-07-29: only `wide`
+      remains.** metadata-menu has a native **`Media`** type, so an image control follows from the
+      *type* like every other control — for our fields and the user's alike. `ui: "image"` is
+      withdrawn before it was ever built.
   - Rationale: reproduces the signed-off layout for our fields and the user's alike with no
     configuration; metadata-menu rewrites FileClass files through its own UI and could drop unknown
     keys.
-  - Trade-offs: a *user's* field cannot carry a hint; the value-inspection image fallback is a Could.
+  - Trade-offs: a *user's* field cannot carry a `wide` hint, so a long text field of theirs renders
+    half-width. That is cosmetic and acceptable; the case that mattered — images — is solved by the
+    `Media` type rather than by a hint, so no asymmetry remains where it would have been visible.
   - User confirmed: **Yes** (2026-07-28)
 
 - [x] **ADR-33 — The editor pane is one component with three dock modes**, dock persisted in
@@ -968,8 +982,11 @@ Not applicable — single component.
   character uses `portrait`, location and object use `image`, each triggering a tile instead of a
   fact row; `src/panel/components.ts` remaps `locationType` → "type" for display;
   `src/panel/renderers/character.ts` special-cases `portrait` (l.108) and `tagline` (l.119).
-  **This answers the PRD's open question:** the image field has *two different names by kind*, so a
-  `ui: image` declaration replaces a per-kind convention, not a single exception.
+  **This answered the PRD's open question**, and the resolution improved once metadata-menu's type
+  list was actually read: the image field has *two different names by kind*, and the fix is not a
+  `ui: image` declaration but **changing both fields to the `Media` type**. The control then follows
+  from the type, the stored value becomes a wikilink that survives a rename, and the special case
+  disappears rather than being redeclared.
 - **`inspectorFields.ts` duplicates the FileClasses** and is deleted rather than extended.
 - **Two view-tab mechanisms** exist (`SidebarView` tab strip, `WorkspaceView` layout switch); this
   spec adds a third host but should converge them, not fork again.

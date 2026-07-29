@@ -231,7 +231,9 @@ behaviour both share — showing the thing where you are — and is the term use
   - [ ] Given the user picks a different Card, When the grid re-renders, Then the same entries are shown in the new presentation and **no frontmatter is written**
   - [ ] Given the user picked a Card for a collection, When they leave and return to that collection, Then their choice is **remembered per collection** — Characters may be Hero while Lore is Table
   - [ ] Given an imported Card, When the user selects it, Then it appears in the selector under a heading distinguishing it from built-ins
-  - [ ] Given a Card reads a field an entry does not have, When it renders, Then that part of the card is omitted — never an error, never the literal text `undefined`
+  - [ ] Given a Card reads a property that **exists** on the note, When it renders, Then the field is shown normally — including when the value is blank; `null`, `""` and `[]` are **not** distinguished from one another
+  - [ ] Given a Card reads a property that is **absent** from the note, When it renders, Then the field is shown **marked as not set** — a red tint **plus** a short visible label, so the marking never depends on colour alone — and never the literal text `undefined`
+  - [ ] Given a marked field, When the pointer rests on it, Then a tooltip explains that the property does not exist in that note; and Then the marking stays legible without a pointer (mobile, keyboard, colour-blind)
   - [ ] Given Bases is unavailable, When the Codex renders, Then a native card grid is shown instead, and Then the Codex stays fully usable
   - [ ] Given Bases is **disabled but present** (it is a core plugin), When the Codex renders, Then a **dismissible** hint states that enabling it adds card options; and Then dismissing it is permanent
   - [ ] Given a **community** plugin is absent (Dataview, metadata-menu), When the Codex renders, Then nothing prompts the user to install it — see F8
@@ -248,6 +250,7 @@ behaviour both share — showing the thing where you are — and is the term use
   - [ ] Given the editor is open, When the user activates **fullscreen**, Then the pane occupies the tab body including the grid's space, and Then a **Back** affordance returns to the previous dock
   - [ ] Given the dock position is set to *right* in settings, When the editor opens, Then the grid is shown as a single column beside it; and Then the position **never changes automatically** on resize
   - [ ] Given any dock (bottom, right, fullscreen), When the editor renders, Then it shows the **complete** field set — the docks differ only in room
+  - [ ] Given a field declared by a FileClass but absent from the note, When the **editor** renders it, Then it is shown as an ordinary empty control and is **not** marked as missing — unlike a Card, typing here creates the property, so the absence is not a dead end
   - [ ] Given a write fails, When the user commits a field, Then the previous value is restored in the editor and the failure is surfaced to the user
   - [ ] Given a note is changed outside the plugin, When the editor is showing it, Then the displayed values update to match the file
   - [ ] Given a relation field, When the user adds or removes a linked entity, Then the frontmatter list is written as `[[wikilinks]]` a human could have typed
@@ -261,7 +264,8 @@ behaviour both share — showing the thing where you are — and is the term use
   - [ ] Given a FileClass extends another, When the editor renders, Then **one section per FileClass in the chain** is shown, each labelled with that FileClass
   - [ ] Given a field declares selectable values, When the editor renders it, Then the control offers exactly those values
   - [ ] Given a user adds a FileClass extending a shipped one, When they select an affected entry, Then their fields appear **in their own labelled section**, typed and laid out like any other — with no plugin change
-  - [ ] Given field types `Input`, `Select`, `Multi`, `MultiFile`, `Number`, `File`, `Boolean`, `Date`, When the editor renders them, Then each maps to a control appropriate to that type
+  - [ ] Given any of metadata-menu's **13 flat field types** — `Input`, `Boolean`, `Number`, `Select`, `Cycle`, `Multi`, `Date`, `Datetime`, `Time`, `File`, `MultiFile`, `Media`, `MultiMedia` — When the editor renders one, Then it maps to a control appropriate to that type
+  - [ ] Given a `Media` or `MultiMedia` field, When it renders, Then it shows an image preview with a file picker, and Then the stored value is a **wikilink**, so Obsidian keeps it correct when the file is renamed
   - [ ] Given a field type the plugin does not support, When the editor renders it, Then it falls back to a plain text control rather than failing
   - [ ] Given no FileClass applies to a note, When the editor opens, Then the frontmatter keys present on the note are shown, typed by inspecting their values
   - [ ] Given the note carries a key no FileClass declares, When the editor renders, Then it appears in a distinct **Other properties** section
@@ -289,9 +293,11 @@ behaviour both share — showing the thing where you are — and is the term use
 
 - **Change tag / Choose folders from the empty state.** The empty state's actions open settings at
   the relevant setting rather than merely naming it.
-- **Set up my vault wizard.** A first-run flow that writes the FileClasses, templates and schema
-  reference into the vault (issue #27). Without it the Codex works but falls back to untyped fields
-  for a fresh install.
+- **Empty-state guidance instead of a wizard.** Seeding the vault is **out of scope** — it lives
+  entirely in #27. The S98 empty state therefore offers **Change tag** (which works) and a link to
+  documentation explaining what FileClasses add and how to create them. The **Set up my vault…**
+  action returns with #27. Until then, a vault without FileClasses is a supported configuration
+  served by the editor's tier-2 fallback, not a broken one.
 - **Card preview in settings.** Seeing what a Card looks like before selecting it.
 
 #### Feature F8: Capability disclosure — what Story Forge can use, and what you lose without it
@@ -319,8 +325,11 @@ add-on adds and what is missing without it.*
 
 - **Per-collection "this file is yours now"** — switching off instance verification for one
   generated collection, after which the plugin stops regenerating it (ADR-0003 §7).
-- **Value-inspection image fallback** — a user field whose value looks like an image path renders a
-  preview even though it carries no declared hint.
+- ~~Value-inspection image fallback~~ — **not needed.** metadata-menu has a native **`Media`** type
+  (a wikilink to a media file), so a user who wants an image declares `type: Media` and the control
+  follows from the type like every other field. No hint, no guessing, no asymmetry between our fields
+  and theirs. *Consequence:* our own `portrait` and `image` move from `text` to the media type too,
+  which is a **schema change** — see F6 and the constraint note.
 - **Keyboard navigation of the card grid** — arrow keys between cards, Enter to open the editor.
 
 ### Won't Have (This Phase)
@@ -336,8 +345,13 @@ add-on adds and what is missing without it.*
 - **Calendar support** (#25) and **Longform absorption** (#3).
 - **Editing FileClass definitions in-plugin.** We *read* FileClasses; authoring or editing them is
   metadata-menu's job or a text editor's.
-- **Field types `Lookup`, `Formula`, `Canvas`.** metadata-menu *computes* these; without it there is
-  no engine behind them, and rendering one would present a value we can neither produce nor maintain.
+- **Nine of metadata-menu's 22 field types**, excluded for **two different reasons**:
+  - *Computed by metadata-menu* — `Lookup`, `Formula`, `Canvas`, `Canvas Group`, `Canvas Group Link`.
+    Without the plugin there is no engine behind them, so rendering one would present a value we can
+    neither produce nor maintain. Excluding them follows from the add-ons rule.
+  - *Not a flat property* — `JSON`, `YAML`, `Object`, `Object List`. These are nested structures, not
+    single Properties; editing them needs a nested editor, which is a different feature.
+  Either way an excluded or unrecognised type falls back to a plain text control — never a failure.
 - **Telemetry of any kind.**
 
 ## Detailed Feature Specifications
@@ -468,13 +482,32 @@ observable behaviour, verified the way specs 006 and 007 were:
 
 ## Open Questions
 
-- [ ] Does the **Set up my vault** wizard (#27) land inside this spec or immediately after it? The
-      Codex works without it, but a fresh install falls back to untyped fields, which is a poor first
-      impression.
-- [ ] Which **existing hardcoded field behaviours** besides `portrait` exist in the panel renderers,
-      and what is each one's declared equivalent? To be inventoried during SDD.
-- [ ] Should a **Card** be able to declare which fields it requires, so the Library can warn when it
-      is applied to a collection that lacks them?
+- [x] **Resolved: the vault artifacts stay entirely in #27.** 008 ships no seeding at all. The
+      argument for pulling it in was "a fresh install falls back to untyped fields — a poor first
+      impression"; **that argument has no subject, because the plugin has never been released.** The
+      cost of deferring is zero, and writing files into someone's vault is the most opinionated act
+      this plugin could perform, so it earns its own spec with its own mockups. *Consequence for
+      S98: the empty state's primary action becomes documentation, not a wizard — see the Should
+      list.*
+- [x] **Resolved during SDD** — inventoried in `solution.md` §Technical Debt. Larger than expected:
+      character uses `portrait`, **location and object use `image`**, each triggering a tile instead
+      of a fact row; plus `locationType` → "type" as a display remap (`components.ts:467`) and a
+      `tagline` special case (`character.ts:119`). The image field has **two different names by
+      kind** — so the fix is not a declaration but a **type change**: both fields become
+      metadata-menu's native `Media` type, the control follows from the type, and the per-kind
+      convention disappears instead of being restated.
+- [x] **Resolved: no declaration. The field itself reports.** A Card does not declare what it reads;
+      instead a property that is **absent** from a note renders marked (red tint + a short visible
+      label + tooltip), while a property that **exists** renders normally even when blank. This needs
+      no heuristic and no accuracy burden on Card authors, and it buys **property hygiene** as a side
+      effect: "never filled in" and "deliberately blank" stop looking identical. The card/collection
+      mismatch then diagnoses itself — an Isekai Card on Locations marks every field, and a whole
+      column of markings is self-explanatory. *Deliberately not distinguished:* "missing on this
+      note" versus "this Card does not fit this collection" — that is extra code for something the
+      eye already reports. *The editor is exempt* (see F5): there, typing creates the property, so
+      marking it would flag a fresh note as broken. **Filtering a collection by kind was raised and
+      parked as #28** — adjacent, but it changes what is shown without changing the definition, which
+      needs its own state and its own mockups.
 - [x] **Resolved:** by **per-entry toggles in the Library row** (*Anvil* / *Workbench*), not by which
       list it was imported into. Two toggles beside each entry keep one list authoritative; a
       settings tab per surface would show the same entries twice and then need its own ordering
