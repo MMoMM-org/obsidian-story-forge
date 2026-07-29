@@ -1,0 +1,111 @@
+---
+title: "Phase 8: Integration, degradation and gates"
+status: pending
+version: "1.0"
+phase: 8
+---
+
+# Phase 8: Integration, degradation and gates
+
+## Phase Context
+
+**GATE**: Read all referenced files before starting this phase.
+
+**Specification References**:
+- `[ref: PRD/Success Metrics]` — the four verifiable criteria that replace KPIs
+- `[ref: SDD/Quality Requirements]`, `[ref: SDD/Acceptance Criteria]` (all EARS)
+- `[ref: PRD/Risks]` — partial delivery, format coupling, lost hardcoded behaviour, migration
+
+**Key Decisions**:
+- Success is **not** telemetry. It is: every AC passing, no regression in the moved management tabs,
+  **one demonstrated extension**, and independence from every optional plugin.
+
+**Dependencies**: **Phases 6 and 7** (and therefore all of 1–5).
+
+**Ships**: the release-ready surface, with the guarantees written down rather than assumed.
+
+---
+
+## Tasks
+
+Proves the spec end to end, including the parts that are easy to claim and hard to demonstrate.
+
+- [ ] **T8.1 The demonstrated extension** `[activity: integration]`
+
+  1. Prime: `[ref: PRD/Success Metrics]` — *"a FileClass and a `.base` written by hand, without
+     changing plugin code, produce a working new Codex collection with a typed, sectioned editor"*.
+     This is the single metric that decides whether the extensibility contract is real.
+  2. Test: an integration test that, using **only** vault fixtures (a new `fc-organization.md` and an
+     `Organizations.base`), asserts: the collection appears as a pill; its entries render with the
+     Hero Card; selecting one opens the editor with a section labelled from the new FileClass; its
+     `Select` field offers the declared values; a commit writes a plain Property. **No production
+     source file may be modified for this test to pass** — assert that in review.
+  3. Implement: fixtures under `test/` plus the integration test.
+  4. Validate: the test passes on a clean checkout of the phase; lint; types.
+  5. Success:
+     - [ ] The isekai case works without a release `[ref: PRD/Success Metrics]`
+
+- [ ] **T8.2 The degradation matrix** `[activity: integration]`
+
+  1. Prime: `[ref: SDD/CON-3]`, `[ref: CON-9]`; `[ref: PRD/F8 AC]`.
+  2. Test: a matrix over {Bases on / off / absent} × {Dataview present / absent} ×
+     {metadata-menu present / absent} × {desktop / mobile}. In **every** cell: the Codex renders, the
+     editor opens and commits, and **no prompt appears for a community plugin**. Bases-disabled
+     shows at most one dismissible hint; mobile falls back to the native card renderer
+     `[ref: SDD/CON-9]`.
+  3. Implement: parametrised test suite over the availability flags.
+  4. Validate: every cell green; lint; types.
+  5. Success:
+     - [ ] Independence is proven by test, not asserted `[ref: PRD/Success Metrics]`
+
+- [ ] **T8.3 Migration from a real legacy install** `[activity: integration]`
+
+  1. Prime: `[ref: SDD/ADR-29]`; the fixture captured in T3.2.
+  2. Test: a `data.json` captured from the **current** release migrates silently — collections keep
+     working, no consent modal appears, no user file is overwritten; a legacy install whose vault
+     `.base` was hand-edited adopts that content as the baseline **without a prompt**
+     `[ref: SDD/ADR-29]`; running the migration twice is a no-op.
+  3. Implement: the end-to-end migration test.
+  4. Validate: green; lint; types.
+  5. Success:
+     - [ ] An existing user upgrades without losing anything `[ref: SDD/ADR-29]`
+
+- [ ] **T8.4 Non-regression of the moved surfaces** `[activity: validate]`
+
+  1. Prime: `[ref: PRD/Success Metrics]` — no regression in the management tabs;
+     `[ref: SDD/Implementation Boundaries]`.
+  2. Test: the full M5/M6 suite passes unchanged; a persisted workspace layout containing the old
+     leaf still restores `[ref: SDD/CON-4]`; Kanban drag still writes `status` + `order` atomically;
+     zoom, swimlanes and the Plotgrid coverage matrix behave as before.
+  3. Implement: no production change expected — if one is needed, that is a regression to fix.
+  4. Validate: full suite; lint; types; build.
+  5. Success:
+     - [ ] Moving the views cost nothing `[ref: PRD/Success Metrics]`
+
+- [ ] **T8.5 Gates, live walk and finalize** `[activity: validate]`
+
+  1. Prime: `docs/live-testing.md` — the manual walk format used for previous milestones.
+  2. Test: every EARS criterion in `[ref: SDD/Acceptance Criteria]` maps to a passing test; every
+     PRD AC maps to a task (traceability check).
+  3. Implement: record the live-vault walk in `docs/live-testing.md`; move
+     `docs/mockups/anvil-workbench-codex.html` into this spec directory as `mockups.html` and leave a
+     pointer behind `[ref: spec README]`; close the covered issues (#6, #10, #11, #12, #13, #21, #26).
+  4. Validate: `npm test`, `npm run lint`, `npm run typecheck`, `npm run typecheck:test`,
+     `npm run typecheck:mock`, `npm run schema:check`, `npm run build`, `npm run test:live` — all
+     green.
+  5. Success:
+     - [ ] Every AC has a passing test `[ref: PRD/Success Metrics]`
+     - [ ] Truth preservation: every value written by the editor is visible and editable in the core
+           Properties UI `[ref: PRD/Success Metrics]`
+     - [ ] Spec phase set to Implemented with shipping notes `[ref: xdd-meta Finalize]`
+
+---
+
+## Deviation Log
+
+*Record any deviation from PRD or SDD discovered during implementation, with rationale and approval,
+per the plan's Deviation Protocol. Empty at plan time.*
+
+| Date | Phase/Task | Deviation | Rationale | Approved |
+|------|------------|-----------|-----------|----------|
+| — | — | — | — | — |

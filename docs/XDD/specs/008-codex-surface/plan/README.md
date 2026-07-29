@@ -1,0 +1,144 @@
+---
+title: "The Codex surface — Implementation Plan"
+status: draft
+version: "1.0"
+---
+
+# Implementation Plan
+
+## Validation Checklist
+
+### CRITICAL GATES (Must Pass)
+
+- [x] All `[NEEDS CLARIFICATION: ...]` markers have been addressed
+- [x] All specification file paths are correct and exist
+- [x] Each phase follows TDD: Prime → Test → Implement → Validate
+- [x] Every task has verifiable success criteria
+- [x] A developer could follow this plan independently
+
+### QUALITY CHECKS (Should Pass)
+
+- [x] Context priming section is complete
+- [x] All implementation phases are defined with linked phase files
+- [x] Dependencies between phases are clear (no circular dependencies)
+- [x] Parallel work is properly tagged with `[parallel: true]`
+- [x] Activity hints provided for specialist selection `[activity: type]`
+- [x] Every phase references relevant SDD sections
+- [x] Every test references PRD acceptance criteria
+- [x] Integration & E2E tests defined in final phase
+- [x] Project commands match actual project setup
+
+---
+
+## Context Priming
+
+*GATE: Read all files in this section before starting any implementation.*
+
+**Specification**:
+- `docs/XDD/specs/008-codex-surface/requirements.md` — PRD (F1–F8, 70 Gherkin ACs)
+- `docs/XDD/specs/008-codex-surface/solution.md` — SDD (CON-1…CON-10, ADR-27…ADR-36, EARS ACs)
+- `docs/mockups/anvil-workbench-codex.html` — **signed off** S91–S103. The visual specification.
+  An implementation that diverges from a figure raises it **before** coding; the file is not
+  re-synced afterwards.
+- `docs/XDD/adr/0001-bases-integration-strategy.md`, `0002-fileclass-driven-editor.md`,
+  `0003-generated-bases-two-checksums.md`
+- `docs/gap-analysis.md` §1.1–1.4
+
+**Foundations to extend (all present on `main`, verified 2026-07-28)**:
+- `src/workspace/WorkspaceView.ts` — the polymorphic main-area host. Layout union at l.54,
+  `STATUS_VOCAB` l.60, delegated click handler ~l.435, `CollapseStore`, `_debouncedRender`.
+  **Moves to `src/anvil/AnvilView.ts` (ADR-27) — the view type id does NOT change.**
+- `src/views/SidebarView.ts` — the follow-the-note host (1612 lines). Tab strip ~l.879, built-in
+  Context + Navigator tabs, drill/back nav stack, engine decision tree l.1246.
+- `src/inspector/frontmatterWriter.ts` — the **sole write seam** (`commit`, `commitMany`,
+  `validateField`, `FieldSpec`, `CommitResult`). CON-1: no second write path is created.
+- `src/store/types.ts` — `ViewRecord`, fail-closed `applyDefaults`.
+- `src/catalog/CatalogService.ts` — VERIFY → MATERIALISE → PERSIST. **Carries the double-copy
+  defect** fixed in P3.
+- `src/consent/ConsentGate.ts` — `evaluate` decision order; `_evaluateBasesRecord` (l.292).
+- `src/bases/BasesAdapter.ts` — `registerCodexView` / `isBasesAvailable` (cached in a WeakMap;
+  must be called once at load, before the registry is populated).
+- `src/panel/components.ts` — `portraitTile`, `imageTile`, `factRow`, `section` — reused by Cards.
+- `src/panel/kindFields.ts` — per-kind config **and** the special-field inventory in its header.
+- `src/scoping/workspaceScope.ts` — `resolveWorkspaceScope`, `DEFAULT_EXCLUDED_FOLDERS`.
+- `test/StoryForge/00 Meta/FileClasses/fc-character-fantasy.md` — the real FileClass shape.
+
+**Key Design Decisions**:
+- **ADR-27** — the Anvil is the existing `WorkspaceView`; **view type ids stay frozen**, files move
+  to `src/anvil/`.
+- **ADR-28** — one `NavigationController` implements the target-kind matrix for both surfaces.
+- **ADR-29** — store records gain a `kind` discriminant; legacy records **migrate silently**.
+- **ADR-30** — one `CardRenderer` contract, **both** backends for **all three** built-in Cards.
+- **ADR-31** — a pure `FieldModel` sits between the FileClass reader and the editor.
+- **ADR-32** — column width is derived from field type; `ui` hints live in **our** `schema/*.json`.
+- **ADR-35** — two checksums plus the resolved parameters; the store keeps **no** YAML copy.
+
+**Implementation Context**:
+```bash
+npm test              # vitest — unit tests
+npm run test:live     # live-vault checks against test/StoryForge/
+npm run lint          # eslint (obsidianmd) + stylelint
+npm run typecheck     # plus typecheck:test, typecheck:mock
+npm run build         # tsc check + esbuild production
+npm run schema:gen    # regenerate vault artifacts
+npm run schema:check  # drift gate — MUST stay green (CON-5)
+npm run catalog:build # dist/catalog-index.json
+```
+
+**Cross-cutting gates — verify on every task**:
+1. **CON-1** — every write goes through `frontmatterWriter`; nothing else touches frontmatter.
+2. **CON-3** — the task's feature still works with Bases, Dataview and metadata-menu absent.
+3. **CON-4** — no view type id string changed.
+4. **CON-8** — no `any`; `unknown` plus narrowing at every external boundary.
+5. **Cleanup** — every listener/interval registered via `register*` so unload is clean.
+6. **Nothing is deleted before its replacement passes its ACs** (PRD risk: partial delivery).
+
+---
+
+## Implementation Phases
+
+Each phase is defined in a separate file. Tasks follow red-green-refactor: **Prime**, **Test**,
+**Implement**, **Validate**.
+
+**Shippability**: P2 and P4–P7 each land a user-visible increment that stands on its own. P1 and P3
+are foundations with no UI, and are the only phases that ship nothing — they are kept small and are
+fully covered by unit tests.
+
+```mermaid
+graph LR
+    P1[P1 pure models] --> P3[P3 store + settings]
+    P1 --> P4[P4 Codex grid + Cards]
+    P2[P2 Anvil shell + navigation] --> P4
+    P3 --> P4
+    P3 --> P7[P7 Library + import]
+    P4 --> P5[P5 Editor pane]
+    P4 --> P7
+    P5 --> P6[P6 derive away hardcoded lists]
+    P6 --> P8[P8 integration + gates]
+    P7 --> P8
+```
+
+- [ ] [Phase 1: Pure models](phase-1.md)
+- [ ] [Phase 2: Anvil shell and navigation](phase-2.md)
+- [ ] [Phase 3: Store, settings and the artifact model](phase-3.md)
+- [ ] [Phase 4: The Codex grid and Cards](phase-4.md)
+- [ ] [Phase 5: The editor pane](phase-5.md)
+- [ ] [Phase 6: Deriving away the hardcoded field lists](phase-6.md)
+- [ ] [Phase 7: The Library, import and capability disclosure](phase-7.md)
+- [ ] [Phase 8: Integration, degradation and gates](phase-8.md)
+
+---
+
+## Plan Verification
+
+| Criterion | Status |
+|-----------|--------|
+| A developer can follow this plan without additional clarification | ✅ |
+| Every task produces a verifiable deliverable | ✅ |
+| All PRD acceptance criteria map to specific tasks | ✅ |
+| All SDD components have implementation tasks | ✅ |
+| Dependencies are explicit with no circular references | ✅ |
+| Parallel opportunities are marked with `[parallel: true]` | ✅ |
+| Each task has specification references `[ref: ...]` | ✅ |
+| Project commands in Context Priming are accurate | ✅ |
+| All phase files exist and are linked from this manifest | ✅ |
