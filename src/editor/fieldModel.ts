@@ -46,6 +46,13 @@ export interface FieldDef {
 export type FieldSectionOrigin = "builtin" | "other";
 
 export interface FieldSection {
+	/**
+	 * The raw FileClass name (e.g. `"fc-character"`), not a display-ready
+	 * title — there is no separate "title" field anywhere in the real
+	 * generated FileClass frontmatter to draw one from. Prettifying this
+	 * (e.g. "fc-character" -> "Character") is deliberately left to a later,
+	 * render-facing layer (`editorPane.ts`), not this pure model.
+	 */
 	label: string;
 	source: string;
 	origin: FieldSectionOrigin;
@@ -147,6 +154,11 @@ function inferTypeFromValue(value: unknown): FieldType {
  * unrecognised type never fails, it falls back to text) rather than typed by
  * value the way tier 2 is — a key present on the note but declared by no
  * FileClass is, by definition, of a type this model cannot know.
+ *
+ * If a FileClass in the chain were literally named "Other properties", its
+ * section would share this one's label with no data merge between them —
+ * a cosmetic label collision, not a correctness issue: fields still resolve
+ * through `seen`/`declared`, so nothing is double-counted or dropped.
  */
 function buildOtherPropertiesSection(
 	frontmatter: Record<string, unknown> | undefined,

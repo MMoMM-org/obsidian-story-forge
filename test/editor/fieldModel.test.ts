@@ -155,6 +155,23 @@ describe("buildFieldModel — tier 2: no FileClass applies", () => {
 		expect(model.sections).toHaveLength(1);
 		expect(model.sections[0]?.fields).toEqual([]);
 	});
+
+	it("types values it cannot map to a control as Unknown/full — null, a Date, and a nested object", () => {
+		// Realistic tier-2 inputs from Obsidian's own frontmatter parser: `null`
+		// is a common empty-property value, unquoted YAML date scalars come back
+		// as native `Date` objects, and a hand-edited nested block is an object.
+		const model = buildFieldModel(
+			[],
+			{ empty: null, born: new Date("2024-01-01"), meta: { nested: true } },
+			{},
+		);
+
+		expect(model.sections[0]?.fields).toEqual([
+			{ name: "empty", type: "Unknown", width: "full" },
+			{ name: "born", type: "Unknown", width: "full" },
+			{ name: "meta", type: "Unknown", width: "full" },
+		]);
+	});
 });
 
 // ---------------------------------------------------------------------------
