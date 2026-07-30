@@ -80,6 +80,13 @@ export function resolveCollection(
 	settings: CollectionResolverSettings,
 	index: readonly IndexedNote[],
 ): CollectionResolution {
+	// Plain `collections[collectionId]` bracket access with an unvalidated key
+	// inherits Object.prototype members ("constructor", "toString", ...): for
+	// those keys the lookup is truthy even though nothing was ever stored, so
+	// the own-property check below is required, not just a null guard.
+	if (!Object.prototype.hasOwnProperty.call(collections, collectionId)) {
+		return { status: "resolved", notes: [] };
+	}
 	const record = collections[collectionId];
 	if (!record) {
 		return { status: "resolved", notes: [] };

@@ -150,4 +150,15 @@ describe("resolveCollection — unknown collection id", () => {
 
 		expect(result).toEqual({ status: "resolved", notes: [] });
 	});
+
+	it.each(["constructor", "toString", "hasOwnProperty", "valueOf", "__proto__"])(
+		"resolves the inherited Object.prototype key %j to an empty note list, not a crash",
+		(prototypeKey) => {
+			const notes = [makeNote()];
+
+			const result = resolveCollection(prototypeKey, makeCollections(), makeSettings(), notes);
+
+			expect(result).toEqual({ status: "resolved", notes: [] });
+		},
+	);
 });
