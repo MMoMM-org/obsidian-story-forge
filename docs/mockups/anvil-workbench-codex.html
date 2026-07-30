@@ -456,6 +456,17 @@
   .set-row .act.rm{color:var(--st-draft)}
   .set-add{font-size:10.5px;color:var(--accent);cursor:pointer;padding-top:7px;display:inline-block}
 
+  /* --- property missing marker (v5) --- */
+  .miss{background:rgba(214,92,92,.15);border:1px solid rgba(214,92,92,.42);
+    border-radius:4px;padding:1px 6px;display:flex;gap:6px;align-items:center;
+    font-size:10px;color:#e79a9a;cursor:help}
+  .miss b{color:#f2bcbc;font-weight:600}
+  .miss i{font-style:normal;margin-left:auto;opacity:.9;letter-spacing:.02em}
+  .hero .hm{display:flex;flex-direction:column;gap:3px;margin-top:2px}
+  .revtag{font-size:9px;color:var(--st-draft);border:1px solid var(--st-draft);
+    border-radius:10px;padding:0 6px;margin-left:6px;vertical-align:middle;
+    text-transform:uppercase;letter-spacing:.05em}
+
   /* --- callouts inside figures --- */
   .q{border:1px solid var(--border-2);border-left:3px solid var(--st-draft);
     background:rgba(224,163,74,.06);border-radius:5px;padding:6px 10px;margin-top:7px;
@@ -494,7 +505,7 @@
 </head>
 <body>
 
-<h1>Story Forge — Anvil · Workbench · Codex (surface taxonomy) <span style="color:var(--faint);font-weight:400;font-size:14px">· v4</span></h1>
+<h1>Story Forge — Anvil · Workbench · Codex (surface taxonomy) <span style="color:var(--faint);font-weight:400;font-size:14px">· v5</span></h1>
 
 <p class="sub"><b>The two interfaces, drawn before any code.</b> The surface model was settled on
 2026-07-27 (<code>DESIGN.md §2</code>, <code>gap-analysis.md §1.3</code>): <b>Anvil</b> is the
@@ -503,7 +514,19 @@ main-window interface, <b>Workbench</b> is the sidebar interface, and <b>Codex</
 before it becomes code — per the repo rule, <b>a mockup is a gate, not a record.</b></p>
 
 <div class="banner" style="border-left-color:var(--st-written)">
-<b>✔ SIGNED OFF — 2026-07-27, at v4.</b> All figures and the assumptions stated in them are
+<b>✔ SIGNED OFF — 2026-07-27 at v4 · REVISED to v5 2026-07-30, sign-off pending.</b>
+<br><b>Why a signed-off file is being edited:</b> the sign-off rule forbids re-syncing a mockup to
+match code that already shipped. No code has shipped. These three changes come from the
+open-questions round and were <i>raised before coding</i> — which is exactly the path the rule
+prescribes. Figures that moved carry a <span class="revtag">v5</span> tag.
+<br><b>What changed:</b> <b>(1) S98</b> — the vault wizard moved entirely to #27, so the primary
+action is now <b>Change tag</b> with a documentation link beside it. <b>(2) S91 + new S104</b> — a
+property that is <b>absent</b> from a note now renders marked instead of being silently omitted;
+S104 shows the payoff, a Card applied to the wrong collection diagnosing itself. <b>(3) S102</b> —
+<code>portrait</code> is typed <code>Media</code>, not <code>Input</code> + a hint, so its value is a
+wikilink and the control follows from the type. <code>ui: image</code> was withdrawn before it was
+built.
+<br><b>Original v4 sign-off text:</b> All figures and the assumptions stated in them are
 approved. Per the repo rule, this file is now the <b>specification</b> for what gets built: an
 implementation that diverges from a figure here raises it <i>before</i> coding, and this file is
 not edited afterwards to match code that already shipped. Two items remain deliberately open and
@@ -547,20 +570,21 @@ Objects: <b>The Warden's Seal</b>. Plotlines:
 <b>Status:</b> <span class="sd">draft</span> · <span class="so">outline</span> · <span class="sw">done</span>.
 </p>
 
-<h2>State inventory (S91–S103)</h2>
+<h2>State inventory (S91–S104)</h2>
 <table class="inv">
 <tr><th>S</th><th>State</th><th>Surface</th><th>Write?</th><th>Shows</th></tr>
-<tr><td><b>S91</b></td><td>Anvil — Codex, nothing selected</td><td>Anvil</td><td>—</td><td>one view, tab strip <code>Codex · Timeline · Plotgrid · Plotlines · Board</code>; collection pills; <b>Card selector</b> in the header slot</td></tr>
+<tr><td><b>S104</b></td><td>Anvil — a Card on the wrong collection</td><td>Anvil</td><td>—</td><td><b>v5:</b> the Isekai Card applied to Locations — every field marked, so the mismatch diagnoses itself without any declaration or heuristic</td></tr>
+<tr><td><b>S91</b></td><td>Anvil — Codex, nothing selected</td><td>Anvil</td><td>—</td><td>one view, tab strip <code>Codex · Timeline · Plotgrid · Plotlines · Board</code>; collection pills; <b>Card selector</b>; <b>v5:</b> a missing property renders marked</td></tr>
 <tr><td><b>S92</b></td><td>Anvil — card selected, editor pane (bottom)</td><td>Anvil</td><td>✎</td><td>editor in the lower half; <b>close · fullscreen · position</b> tools; relation chips (#18)</td></tr>
 <tr><td><b>S93</b></td><td>Anvil — Codex, user-added collections</td><td>Anvil</td><td>—</td><td>shipped four + user <i>Creatures</i>/<i>Organizations</i> (dashed) + <code>+ Collection</code> picking from S101</td></tr>
 <tr><td><b>S94</b></td><td>Anvil — Timeline tab</td><td>Anvil</td><td>—</td><td>same shell, existing M5/M6 rendering untouched</td></tr>
 <tr><td><b>S95</b></td><td>Workbench — Codex tab (follows the note)</td><td>Workbench</td><td>—</td><td>named sidebar, command <code>Open Workbench</code>; Codex is <i>one</i> tab</td></tr>
 <tr><td><b>S96</b></td><td>Workbench — imported user view tab</td><td>Workbench</td><td>—</td><td><i>Skills</i> over frontmatter we never shipped</td></tr>
 <tr><td><b>S97</b></td><td>Anvil — Codex with a user's own Card</td><td>Anvil</td><td>—</td><td><b>same collection</b>, different Card: <i>Isekai hero</i> renders <code>level</code>/<code>skills</code>/<code>affinity</code>; dropdown open</td></tr>
-<tr><td><b>S98</b></td><td>Anvil — Codex empty / not set up</td><td>Anvil</td><td>—</td><td>degrade path; <b>Set up my vault</b> wizard (#27) + <b>Change tag</b> → settings</td></tr>
+<tr><td><b>S98</b></td><td>Anvil — Codex empty / not set up</td><td>Anvil</td><td>—</td><td><b>v5:</b> degrade path; primary action <b>Change tag</b> → settings, plus a documentation link. Seeding moved wholly to #27</td></tr>
 <tr><td><b>S99</b></td><td>Anvil — editor beside the grid</td><td>Anvil</td><td>✎</td><td>position toggle: one card column left, editor right (wide screens)</td></tr>
 <tr><td><b>S100</b></td><td>Anvil — editor fullscreen</td><td>Anvil</td><td>✎</td><td>editor takes the card row's real estate too; <b>← Back</b> returns to S92/S99</td></tr>
-<tr><td><b>S102</b></td><td>Editor — sections from the FileClass chain</td><td>Anvil</td><td>✎</td><td>no hardcoded fields: sections per <code>fc-*.md</code>, order from <code>fieldsOrder</code>, enums from <code>options.valuesList</code>, <b>column width from the type</b>; portrait control</td></tr>
+<tr><td><b>S102</b></td><td>Editor — sections from the FileClass chain</td><td>Anvil</td><td>✎</td><td>no hardcoded fields: sections per <code>fc-*.md</code>, order from <code>fieldsOrder</code>, enums from <code>options.valuesList</code>, <b>column width from the type</b>; <b>v5:</b> portrait typed <code>Media</code> (wikilink), not a hint</td></tr>
 <tr><td><b>S103</b></td><td>Editor — a user's own FileClass</td><td>Anvil</td><td>✎</td><td><code>fc-character-custom1.md</code> becomes its own section <b>with the same two-column layout</b>; undeclared keys land in <i>Other properties</i></td></tr>
 <tr><td><b>S101</b></td><td>Settings — Collections and Cards</td><td>Settings</td><td>—</td><td>built-in · from repo · imported; enable, <b>remove</b>, import — the source of S93 and S97</td></tr>
 </table>
@@ -594,13 +618,23 @@ slot holds the <b>Card selector</b>, not a source label.</figcaption>
       <div class="hp"><i>signal-keeper</i></div><div class="hx">4 scenes</div></div></div>
     <div class="hero"><div class="por">👤</div><div class="hb">
       <div class="hn">Elke Stoneway</div><div class="hf">supporting · alive</div>
-      <div class="hp"><i>sister</i></div><div class="hx">3 scenes</div></div></div>
+      <div class="hm"><span class="miss" title="This property does not exist in this note">
+        <b>occupation</b> <i>not set</i></span></div>
+      <div class="hx">3 scenes</div></div></div>
   </div>
   <div class="ed">
     <div class="ed-head"><span style="color:var(--faint)">Select a card to edit its frontmatter</span></div>
   </div>
 </div>
-<p class="note"><b>Collection</b> (pills) = the query. <b>Card</b> (dropdown) = the presentation,
+<p class="note"><b>Property hygiene, for free <span class="revtag">v5</span>.</b> Elke's note has no
+<code>occupation</code> key at all, so the field renders <b>marked</b> rather than silently omitted —
+a red tint <i>and</i> a visible label, because colour alone is invisible to colour-blind readers and
+a tooltip does not exist on mobile. A property that <i>exists</i> but is blank renders normally:
+"never filled in" and "deliberately blank" stop looking identical. <code>null</code>, <code>""</code>
+and <code>[]</code> are deliberately <b>not</b> distinguished — that is the field's business.
+<br><b>The editor is exempt</b> (S102/S103): there, typing creates the property, so marking it would
+flag a fresh note as broken.
+<br><b>Collection</b> (pills) = the query. <b>Card</b> (dropdown) = the presentation,
 remembered per collection — Characters as Hero, Lore as Table. Both are managed in
 settings (S101), so no provenance label is needed in the header.</p>
 </figure>
@@ -794,10 +828,10 @@ a layout file.</figcaption>
       <div class="ed-por">
         <div class="pv">👤</div>
         <div class="pc">
-          <div class="pp">30 Canon/31 Characters/_img/mara.png</div>
+          <div class="pp">![[mara.png]]</div>
           <div class="pb"><span class="pri">Choose image…</span><span>Clear</span></div>
           <div style="font-size:9.5px;color:var(--faint)">portrait · <code>Input</code> +
-            <code>ui: image</code></div>
+            <code>Media</code> — a wikilink, so Obsidian keeps it correct on rename</div>
         </div>
       </div>
       <label>name</label><div class="ed-f">Mara Stoneway</div>
@@ -836,7 +870,7 @@ a layout file.</figcaption>
 <code>Date</code> · <code>Input</code>; <b>full width</b> for <code>Multi</code> ·
 <code>MultiFile</code> (chips wrap). Two exceptions carry an explicit hint in
 <b>our</b> <code>schema/*.json</code>: <code>tagline</code> (<code>ui: wide</code>) and
-<code>portrait</code> (<code>ui: image</code>).
+<code>portrait</code>, which is typed <code>Media</code> rather than hinted.
 <br><b>Why the hint lives in our schema and not in the fc-file:</b> metadata-menu writes those
 files through its own UI, so an unknown key we added could be dropped. <code>schema/*.json</code>
 is ours and already generates them.
@@ -850,7 +884,10 @@ the add-ons-are-never-required rule.</p>
 <code>type: text</code>/<code>Input</code> in the schema, yet the panel already special-cases it
 by <i>field name</i> — <code>kindFields.ts</code>: "<code>portrait</code> triggers portraitTile,
 not a factRow". That hardcoding exists today and cannot be derived from the type. Declaring it as
-<code>ui: image</code> is what replaces it.</div>
+<span class="revtag">v5</span> the replacement is <b>not</b> a hint but the <code>Media</code>
+<b>type</b>: metadata-menu has one natively, so the control follows from the type for our fields and
+the user's alike — and the stored value becomes a wikilink Obsidian keeps correct on rename, where a
+path breaks silently.</div>
 </figure>
 
 <figure>
@@ -1003,6 +1040,59 @@ never a renderer, and gets a first-class Codex over their own model.</p>
 </figure>
 
 <figure>
+<figcaption><b>S104 · Anvil — a Card applied to the wrong collection <span class="revtag">v5</span>.</b>
+The mismatch diagnoses itself. No declaration, no heuristic, no warning to maintain.</figcaption>
+<div class="view anvil">
+  <div class="vhead">
+    <span class="brand">⚒ Anvil</span>
+    <div class="mtabs">
+      <span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span>
+    </div>
+    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
+  </div>
+  <div class="cx-cats">
+    <span>Characters</span><span class="sel">Locations</span><span>Objects</span><span>Lore</span>
+    <span class="sp"></span>
+    <span class="cardsel">Card: <b>Isekai hero</b> ▾</span>
+  </div>
+  <div class="cx-grid">
+    <div class="hero"><div class="por">🏛</div><div class="hb">
+      <div class="hn">Moonharbor</div>
+      <div class="hm">
+        <span class="miss" title="This property does not exist in this note"><b>level</b> <i>not set</i></span>
+        <span class="miss" title="This property does not exist in this note"><b>affinity</b> <i>not set</i></span>
+        <span class="miss" title="This property does not exist in this note"><b>skills</b> <i>not set</i></span>
+      </div></div></div>
+    <div class="hero"><div class="por">🏛</div><div class="hb">
+      <div class="hn">Moonharbor Lighthouse</div>
+      <div class="hm">
+        <span class="miss"><b>level</b> <i>not set</i></span>
+        <span class="miss"><b>affinity</b> <i>not set</i></span>
+        <span class="miss"><b>skills</b> <i>not set</i></span>
+      </div></div></div>
+    <div class="hero"><div class="por">🏛</div><div class="hb">
+      <div class="hn">The Salty Gull</div>
+      <div class="hm">
+        <span class="miss"><b>level</b> <i>not set</i></span>
+        <span class="miss"><b>affinity</b> <i>not set</i></span>
+        <span class="miss"><b>skills</b> <i>not set</i></span>
+      </div></div></div>
+  </div>
+  <div class="ed">
+    <div class="ed-head"><span style="color:var(--faint)">Select a card to edit its frontmatter</span></div>
+  </div>
+</div>
+<p class="note"><b>This is why a Card does not declare what it reads.</b> The alternative designs were
+a <code>reads:</code> list on every Card (accurate only if every author fills it in correctly, and
+"the collection's fields" is not even a fixed set) or a heuristic that detects an empty-looking grid
+and guesses why. Neither is needed: <b>a whole column of markings is self-explanatory</b>, and the
+same mechanism that produces it is the one doing property hygiene in S91.
+<br><b>Deliberately not distinguished:</b> "this note is missing the property" versus "this Card does
+not fit this collection". They are the same marking. Telling them apart costs code to state
+something the eye already reports.</p>
+</figure>
+
+<figure>
 <figcaption><b>S94 · Anvil — Timeline tab.</b> The existing M5/M6 rendering is untouched; only its
 home and its name change. Same for Plotgrid, Plotlines and Board.</figcaption>
 <div class="view anvil">
@@ -1048,16 +1138,17 @@ has no FileClasses, no templates and no seeded notes (#27).</figcaption>
     <div style="margin-top:6px;font-size:11.5px;max-width:48ch;margin-inline:auto">
       This collection looks for notes tagged <code>canon/character</code>. Nothing matched.</div>
     <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
-      <span style="font-size:11px;padding:4px 12px;border-radius:6px;background:var(--accent);color:#fff">Set up my vault…</span>
-      <span style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid var(--border-2);color:var(--muted)">Change tag</span>
+      <span style="font-size:11px;padding:4px 12px;border-radius:6px;background:var(--accent);color:#fff">Change tag</span>
+      <span style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid var(--border-2);color:var(--muted)">What are FileClasses?</span>
     </div>
   </div>
 </div>
 <p class="note"><b>Selection is by tag</b>, not by folder — <code>workspaceScope.ts</code> is
 explicitly structure-agnostic (CON-7: included by kind, folders only <i>exclude</i> meta
 folders). So the empty state names the tag, and <b>Change tag</b> opens settings at that
-collection. <b>Set up my vault…</b> is the first-run wizard (#27): FileClasses, templates and the
-schema reference, also reachable from settings.</p>
+collection. <b>What are FileClasses?</b> opens documentation — <b>seeding the vault is out of scope
+and lives entirely in #27</b>. A vault without FileClasses is a supported configuration served by the
+editor's tier-2 fallback, not a broken one; the <i>Set up my vault…</i> action returns with #27.</p>
 <div class="q ok"><b>Settled — ADR-0003.</b> The shipped <code>Codex.base</code> filters
 <code>file.inFolder("30 Canon")</code> today — an <i>include</i>, which forces the vault layout.
 It becomes <b>tag selection plus generated <code>not: [file.inFolder(…)]</code> exclusions</b>
@@ -1216,11 +1307,16 @@ settings, the Card remembered per collection — and "view" disappears from the 
 <b>(4)</b> the editor pane docks bottom or right, goes fullscreen, and closes;
 <b>(5)</b> the sidebar is called Workbench, command <code>Open Workbench</code>;
 <b>(6)</b> selection is by <b>tag</b>; folders only ever <b>exclude</b>, from settings;
+<b>(8)</b> a property <b>absent</b> from a note renders marked on a Card — colour plus label, never
+colour alone — while one that exists renders normally even when blank, and the editor is exempt
+because typing there creates it;
+<b>(9)</b> image fields are typed <code>Media</code> (a wikilink Obsidian keeps correct on rename),
+so the control comes from the type and <code>ui: image</code> never exists;
 <b>(7)</b> the editor's fields, order, types, enum values, sections <b>and column layout</b> come
 from the <b>FileClass chain</b> — never from a hardcoded list and never from a layout file — so a
 user's own <code>fc-*.md</code> is first-class in appearance as well as in data, with two
-declared exceptions (<code>ui: wide</code>, <code>ui: image</code>) living in our own
-<code>schema/*.json</code>.
+declared exception (<code>ui: wide</code>) living in our own <code>schema/*.json</code> —
+<code>ui: image</code> was withdrawn once metadata-menu's native <code>Media</code> type was read.
 The remaining amber callouts need your answer before the spec.</p>
 
 </body>
