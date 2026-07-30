@@ -118,7 +118,7 @@ graph LR
     P7 --> P8
 ```
 
-- [ ] [Phase 1: Pure models](phase-1.md)
+- [x] [Phase 1: Pure models](phase-1.md)
 - [ ] [Phase 2: Anvil shell and navigation](phase-2.md)
 - [ ] [Phase 3: Store, settings and the artifact model](phase-3.md)
 - [ ] [Phase 4: The Codex grid and Cards](phase-4.md)

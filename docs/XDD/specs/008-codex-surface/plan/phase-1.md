@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Pure models"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 1
 ---
