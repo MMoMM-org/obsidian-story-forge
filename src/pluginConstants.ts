@@ -13,8 +13,9 @@ export const SIDEBAR_VIEW_TYPE = "story-forge-panel";
  * Stable — never change after first release (CON-4): renaming the id orphans
  * every `.base` file (curated or generated) that references it.
  *
- * Single source of truth — imported by BasesAdapter.ts (registration) and
- * baseGenerator.ts (rendered `.base` templates) so both stay in lockstep.
+ * Single source of truth — every module that registers, renders, or emits
+ * this id must import it from here rather than declaring its own copy, so
+ * they cannot drift out of lockstep with each other.
  */
 export const CODEX_VIEW_ID = "story-forge-codex";
 

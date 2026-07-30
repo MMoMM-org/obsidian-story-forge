@@ -26,6 +26,7 @@ import type { CodexRow } from "codex/codexGrid";
 import { kindFields } from "panel/kindFields";
 import { isEntityKind } from "scoping/NoteContext";
 import type { EntityKind } from "scoping/NoteContext";
+import { CODEX_VIEW_ID } from "pluginConstants";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -52,7 +53,7 @@ export interface CodexBasesViewDeps {
  */
 export class CodexBasesView extends BasesView {
 	/** View type discriminant (required by BasesView abstract contract). */
-	readonly type = "story-forge-codex";
+	readonly type = CODEX_VIEW_ID;
 
 	/** The element this view renders into (supplied by the Bases runtime). */
 	private readonly containerEl: HTMLElement;
