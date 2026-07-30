@@ -207,19 +207,25 @@ describe("resolveFileClassChain", () => {
 		expect(chain[0]?.fields.map((f) => f.name)).toEqual(["good_one", "good_two"]);
 	});
 
-	it("renders a declared field omitted from fieldsOrder, appended last in declaration order", () => {
+	it("renders declared fields omitted from fieldsOrder, appended last in declaration order", () => {
+		// Two fields (a-3, a-2) are both omitted from fieldsOrder, and a-3 is
+		// declared BEFORE a-2 in `fields`. Asserting the full sequence pins
+		// declaration order for the appended set — with only one omitted
+		// field there would be nothing to distinguish "declaration order"
+		// from any other ordering of the appended siblings.
 		const lookup = makeLookup({
 			"fc-partial-order": {
 				fieldsOrder: ["a-1"],
 				fields: [
 					{ id: "a-1", name: "ordered", type: "Input" },
-					{ id: "a-2", name: "unordered", type: "Input" },
+					{ id: "a-3", name: "unordered_first", type: "Input" },
+					{ id: "a-2", name: "unordered_second", type: "Input" },
 				],
 			},
 		});
 
 		const chain = resolveFileClassChain("fc-partial-order", lookup);
 
-		expect(chain[0]?.fields.map((f) => f.id)).toEqual(["a-1", "a-2"]);
+		expect(chain[0]?.fields.map((f) => f.id)).toEqual(["a-1", "a-3", "a-2"]);
 	});
 });

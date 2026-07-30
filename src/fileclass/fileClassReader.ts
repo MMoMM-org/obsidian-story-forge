@@ -17,25 +17,32 @@
 
 import type { FieldType, FileClassField, FileClassLookup, ParsedFileClass } from "fileclass/fileClassTypes";
 
-// The literal array is typed against Exclude<FieldType, "Unknown"> so a typo or
-// a missing/extra entry here fails to compile; the set itself is ReadonlySet<string>
-// because membership is tested against arbitrary raw strings from frontmatter,
-// which are not known to be FieldType until KNOWN_FIELD_TYPES.has(...) confirms it.
-const KNOWN_FIELD_TYPES: ReadonlySet<string> = new Set<Exclude<FieldType, "Unknown">>([
-	"Input",
-	"Boolean",
-	"Number",
-	"Select",
-	"Cycle",
-	"Multi",
-	"Date",
-	"Datetime",
-	"Time",
-	"File",
-	"MultiFile",
-	"Media",
-	"MultiMedia",
-]);
+// Keyed as a Record<Exclude<FieldType, "Unknown">, true> rather than a plain
+// array: TypeScript checks an object literal assigned to a Record type for
+// BOTH excess and missing keys, so omitting or mistyping a member here (e.g.
+// forgetting a newly added FieldType) fails `tsc --noEmit`, not just a typo
+// inside an already-complete list. (A `Set<Exclude<FieldType,"Unknown">>([...])`
+// literal does not have this property — TS only checks each present element,
+// not completeness against the union.) KNOWN_FIELD_TYPES itself is
+// ReadonlySet<string> because membership is tested against arbitrary raw
+// strings from frontmatter, which are not known to be FieldType until
+// KNOWN_FIELD_TYPES.has(...) confirms it.
+const FIELD_TYPE_MEMBERSHIP: Record<Exclude<FieldType, "Unknown">, true> = {
+	Input: true,
+	Boolean: true,
+	Number: true,
+	Select: true,
+	Cycle: true,
+	Multi: true,
+	Date: true,
+	Datetime: true,
+	Time: true,
+	File: true,
+	MultiFile: true,
+	Media: true,
+	MultiMedia: true,
+};
+const KNOWN_FIELD_TYPES: ReadonlySet<string> = new Set(Object.keys(FIELD_TYPE_MEMBERSHIP));
 
 /**
  * Resolve the FileClass `extends` chain starting at `startName` and parse
