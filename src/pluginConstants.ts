@@ -8,6 +8,16 @@
 /** The view type identifier for the sidebar panel. Stable — never change after first release. */
 export const SIDEBAR_VIEW_TYPE = "story-forge-panel";
 
+/**
+ * The Bases view id for the one polymorphic Codex view type (ADR-2).
+ * Stable — never change after first release (CON-4): renaming the id orphans
+ * every `.base` file (curated or generated) that references it.
+ *
+ * Single source of truth — imported by BasesAdapter.ts (registration) and
+ * baseGenerator.ts (rendered `.base` templates) so both stay in lockstep.
+ */
+export const CODEX_VIEW_ID = "story-forge-codex";
+
 /** Sentinel data-view-id for the fixed Navigator tab in the sidebar (M5). */
 export const NAVIGATOR_TAB_ID = "__navigator__";
 

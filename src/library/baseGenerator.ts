@@ -29,6 +29,7 @@
  */
 
 import { stringify as stringifyYaml } from "yaml";
+import { CODEX_VIEW_ID } from "pluginConstants";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -126,9 +127,6 @@ function sameParams(a: CollectionParams, b: CollectionParams): boolean {
 // renderBase — whole-file template render (ADR-34)
 // ---------------------------------------------------------------------------
 
-/** The Bases view type our registered Cards are instantiated under (BasesAdapter.ts). */
-const CODEX_BASES_VIEW_TYPE = "story-forge-codex";
-
 /**
  * Render a complete `.base` YAML document from `CollectionParams`.
  *
@@ -147,7 +145,7 @@ export function renderBase(params: CollectionParams): string {
 		filters: buildFilters(params),
 		views: [
 			{
-				type: CODEX_BASES_VIEW_TYPE,
+				type: CODEX_VIEW_ID,
 				name: "Codex",
 			},
 		],
@@ -157,6 +155,12 @@ export function renderBase(params: CollectionParams): string {
 }
 
 /**
+ * The two shapes `buildFilters` can produce: a bare tag expression, or that
+ * expression `and`-ed with a `not:` block over the folder exclusions.
+ */
+type FilterExpr = string | { and: [string, { not: string[] }] };
+
+/**
  * Build the `filters` member: a bare tag expression, or — when there are
  * folders to exclude — that expression `and`-ed with a `not:` block over the
  * per-folder exclusions.
@@ -164,7 +168,7 @@ export function renderBase(params: CollectionParams): string {
  * @ref ADR-0003 Consequences — "replaced by tag selection plus generated
  *   `not: [file.inFolder(…)]` exclusions"
  */
-function buildFilters(params: CollectionParams): unknown {
+function buildFilters(params: CollectionParams): FilterExpr {
 	const tagExpr = hasTagExpr(params.tag);
 
 	if (params.excludedFolders.length === 0) {

@@ -20,9 +20,7 @@ import type { Plugin } from "obsidian";
 import type { BasesViewRegistration } from "obsidian";
 import { CodexBasesView } from "bases/CodexBasesView";
 import { revealAndShowFile } from "views/SidebarView";
-
-/** View ID for the one polymorphic Codex view type (ADR-2). */
-const CODEX_VIEW_ID = "story-forge-codex";
+import { CODEX_VIEW_ID } from "pluginConstants";
 
 /**
  * Shape of the registerBasesView method as it appears on Plugin

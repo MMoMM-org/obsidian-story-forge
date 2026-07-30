@@ -3,9 +3,13 @@
  *
  * Covers:
  *  - renderBase: whole-file YAML render from CollectionParams (tag +
- *    excludedFolders), never a patch (ADR-34). Output is provably a valid
- *    BasesConfigFile via a round-trip through the existing
- *    validateBasesConfig (src/bases/basesConfig.ts).
+ *    excludedFolders), never a patch (ADR-34). Output is a structurally
+ *    valid BasesConfigFile per the existing validateBasesConfig
+ *    (src/bases/basesConfig.ts), which checks views/filters/formulas
+ *    presence and shape but does not inspect filters' internals — so
+ *    filter-expression correctness (tag substitution, not: exclusions,
+ *    space-quoting) is asserted directly against the parsed YAML, not
+ *    inferred from validateBasesConfig passing.
  *  - classify: the five-row traced table from
  *    [ref: SDD/Implementation Examples — classifying a generated artifact]
  *    and ADR-0003 §Decision point 5.
@@ -94,22 +98,35 @@ describe("renderBase", () => {
 		expect(parsed.filters).toBe('file.hasTag("story/character")');
 	});
 
-	it("produces valid .base YAML that round-trips through validateBasesConfig", () => {
-		const yamlText = renderBase(getMockParams());
-		const parsed: unknown = parseYaml(yamlText);
+	it("produces a structurally valid BasesConfigFile (validateBasesConfig) with the tag-only filter shape intact", () => {
+		const yamlText = renderBase(getMockParams({ excludedFolders: [] }));
+		const parsed = parseYaml(yamlText) as { filters?: unknown };
 		const result = validateBasesConfig(parsed);
 
+		// validateBasesConfig only checks presence/array-ness of views/filters/
+		// formulas — it does not inspect filters' internal shape. Filter
+		// correctness is asserted directly here so the test name doesn't
+		// overclaim what the round-trip alone proves.
 		expect(result.ok).toBe(true);
+		expect(parsed.filters).toBe('file.hasTag("story/character")');
 	});
 
-	it("round-trips through validateBasesConfig with multiple excluded folders too", () => {
+	it("produces a structurally valid BasesConfigFile (validateBasesConfig) with the and/not filter shape intact for multiple excluded folders", () => {
 		const yamlText = renderBase(
 			getMockParams({ excludedFolders: ["00 Meta", "10 Templates", "Story Bible"] }),
 		);
-		const parsed: unknown = parseYaml(yamlText);
+		const parsed = parseYaml(yamlText) as {
+			filters: { and: [string, { not: string[] }] };
+		};
 		const result = validateBasesConfig(parsed);
 
 		expect(result.ok).toBe(true);
+		expect(parsed.filters.and[0]).toBe('file.hasTag("story/character")');
+		expect(parsed.filters.and[1].not).toEqual([
+			'file.inFolder("00 Meta")',
+			'file.inFolder("10 Templates")',
+			'file.inFolder("Story Bible")',
+		]);
 	});
 
 	it("includes at least one Bases view so the artifact is independently openable", () => {
