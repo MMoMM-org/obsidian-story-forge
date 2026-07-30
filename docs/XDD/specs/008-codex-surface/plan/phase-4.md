@@ -29,6 +29,19 @@ phase: 4
 **Ships**: the headline increment — a working Codex. Cards, collections, selection, empty states.
 Editing arrives in Phase 5; until then selecting a card is a no-op with a visible selected state.
 
+**Also owns the note index and the `TFile` adaptation** (added 2026-07-30 at the Phase 1 close-out).
+The SDD originally said the resolver returns `TFile[]`; T1.1 shipped it **pure** — it takes an
+injected `IndexedNote[] {path, tags}` and returns a `CollectionResolution`, so it needs no vault and
+is testable without one. That was right for the model layer and the SDD has been corrected to match.
+It leaves two jobs here, because Phase 4 is the first phase that actually has an `App`:
+
+- **build the note index** from `metadataCache` (path + normalized tags) and feed it to the resolver,
+  keeping it current as notes change;
+- **adapt `path` → `TFile`** for card rendering, which needs the file and its frontmatter.
+
+Neither belongs in the pure layer; both are load-bearing for T4.1/T4.3, so plan them explicitly
+rather than discovering them mid-task.
+
 ---
 
 ## Tasks
@@ -96,7 +109,10 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
      **registration is skipped and the native backend renders** `[ref: PRD/F4 AC]`; the view type
      survives `onDataUpdated` with a changed entry set; teardown unregisters cleanly (no leak).
   3. Implement: register `story-forge-hero` / `-table` / `-compact` alongside the existing
-     `story-forge-codex`.
+     `story-forge-codex`. **Import `CODEX_VIEW_ID` from `src/pluginConstants.ts` — do not declare a
+     fourth copy of the literal.** It is now the single declaration site, already imported by
+     `BasesAdapter.ts`, `baseGenerator.ts` and `CodexBasesView.ts`; a copy here would be free to
+     drift and would orphan every `.base` referencing the id (CON-4).
   4. Validate: unit tests with the Bases mock — **verify the mock matches `obsidian.d.ts`**, since a
      hand-rolled mock has previously hidden a real crash; lint; types.
   5. Success:

@@ -64,13 +64,39 @@ Closes the gap that started this whole spec: the distribution machinery served f
 
 - [ ] **T7.3 Generation wired to settings** `[activity: integration]`
 
-  1. Prime: `[ref: ADR-0003 §Decision]`; T1.4's `classify` and renderer.
+  > **This task now owns the templating half of `baseGenerator`** (reassigned from T1.4,
+  > 2026-07-30). T1.4 shipped `renderBase(params)` — no template input — so:
+  > **(a)** giving `renderBase` its template input is T7.3's;
+  > **(b)** producing a `sourceChecksum` is T7.3's — **nothing in `src/` computes one today**;
+  > **(c)** consequently `classify()`'s **`reconsent` branch is inert until (b) lands**: it is
+  > covered by unit tests over synthetic checksums, but no runtime path can reach it, so "upstream
+  > changed" cannot currently be detected. Do not treat the existing tests as evidence that the
+  > branch works end-to-end.
+  >
+  > **Second, separate defect — the renderer is not yet a replacement for the shipped artifact.**
+  > Today `renderBase` emits only `filters` plus a single `{type: CODEX_VIEW_ID, name: "Codex"}`
+  > view. The real shipped `infra/Bases/Codex.base` carries a `properties:` block **and five views**,
+  > each with a `category:` discriminant (character, location, object, lore, scene); the curated
+  > `catalog/overview-characters.base` carries **four `displayName` mappings**. Step 3 below tasks
+  > this with **replacing** the shipped `Codex.base` — doing that with today's renderer would
+  > **silently delete** the five categorised views and the property display names, turning a working
+  > five-category Codex into a single unnamed view. The renderer must reproduce them (or the
+  > template must carry them) **before** anything overwrites the shipped file.
+
+  1. Prime: `[ref: ADR-0003 §Decision]`; T1.4's `classify` and renderer; **read
+     `infra/Bases/Codex.base` and `catalog/overview-characters.base` first** and enumerate what the
+     replacement must preserve.
   2. Test: changing a tag or an excluded folder **regenerates the artifact and updates its instance
      checksum silently** `[ref: PRD/F3 AC]`; hand-editing the artifact then changing nothing yields
      **ask** `[ref: SDD/AC — Edge Cases]`; switching verification off means we **neither verify nor
      regenerate** `[ref: SDD/AC — Edge Cases]`; the generated `.base` contains a tag filter and a
-     `not:` exclusion and **no `file.inFolder` include** `[ref: SDD/Known Technical Issues]`.
-  3. Implement: settings-change → regenerate; replace the shipped `Codex.base` include filter.
+     `not:` exclusion and **no `file.inFolder` include** `[ref: SDD/Known Technical Issues]`; a
+     regenerated `Codex.base` **still carries its `properties:` block and all five categorised
+     views** — assert against the shipped file, so a regression that drops them fails the test
+     rather than the vault; `reconsent` is reachable from a real changed template, not only from a
+     synthetic checksum.
+  3. Implement: template input for `renderBase` + `sourceChecksum`; settings-change → regenerate;
+     replace the shipped `Codex.base` include filter **without losing its views or properties**.
   4. Validate: unit tests; a live check that the regenerated file opens in Bases; lint; types.
   5. Success:
      - [ ] The vault layout is no longer compulsory `[ref: PRD/Problem Statement 6]`

@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Pure models"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 1
 ---
@@ -35,7 +35,7 @@ imports outside the typed shapes.
 Establishes the four pure layers every later phase builds on. Every module here is testable without
 a vault: given inputs, produce values.
 
-- [ ] **T1.1 `collectionResolver` — record + settings → notes** `[activity: domain-modeling]` `[parallel: true]`
+- [x] **T1.1 `collectionResolver` — record + settings → notes** `[activity: domain-modeling]` `[parallel: true]`
 
   1. Prime: Read the tag-include / folder-exclude rule `[ref: SDD/CON-7]` and the existing
      `src/scoping/workspaceScope.ts` (`DEFAULT_EXCLUDED_FOLDERS`) so the two agree.
@@ -47,10 +47,10 @@ a vault: given inputs, produce values.
      tests need no vault.
   4. Validate: unit tests pass; lint clean; types check; no Obsidian import beyond `TFile` typing.
   5. Success:
-     - [ ] Selection is by tag; folders only exclude `[ref: SDD/AC — PRD F3]`
-     - [ ] An empty tag reports misconfiguration `[ref: PRD/F3 AC]`
+     - [x] Selection is by tag; folders only exclude `[ref: SDD/AC — PRD F3]`
+     - [x] An empty tag reports misconfiguration `[ref: PRD/F3 AC]`
 
-- [ ] **T1.2 `fileClassReader` — resolve and parse the chain** `[activity: domain-modeling]` `[parallel: true]`
+- [x] **T1.2 `fileClassReader` — resolve and parse the chain** `[activity: domain-modeling]` `[parallel: true]`
 
   1. Prime: Read the real shape in `test/StoryForge/00 Meta/FileClasses/fc-character-fantasy.md`
      (`extends`, `fieldsOrder`, `fields[].type`, `options.valuesList`) `[ref: SDD/Code Context]`.
@@ -66,11 +66,11 @@ a vault: given inputs, produce values.
      `[ref: ADR-31]`.
   4. Validate: unit tests over fixtures copied from the real generated files; lint; types.
   5. Success:
-     - [ ] Chain, order, types and enum values are read from data `[ref: SDD/AC — PRD F6]`
-     - [ ] Malformed input degrades, never throws `[ref: SDD/Error Handling]`
-     - [ ] No write path exists in this module `[ref: SDD/AC — PRD F6]`
+     - [x] Chain, order, types and enum values are read from data `[ref: SDD/AC — PRD F6]`
+     - [x] Malformed input degrades, never throws `[ref: SDD/Error Handling]`
+     - [x] No write path exists in this module `[ref: SDD/AC — PRD F6]`
 
-- [ ] **T1.3 `fieldModel` + `uiHints` — chain → ordered typed sections** `[activity: domain-modeling]`
+- [x] **T1.3 `fieldModel` + `uiHints` — chain → ordered typed sections** `[activity: domain-modeling]`
 
   1. Prime: Read the algorithm and its traced walkthrough `[ref: SDD/Complex Logic]` and the width
      rule with its field-by-field table `[ref: SDD/Implementation Examples]`.
@@ -78,15 +78,27 @@ a vault: given inputs, produce values.
      earliest section** `[ref: PRD/F6 edge case]`; tier 2 (no chain → the note's own keys, typed by
      value); tier 3 (undeclared key → "Other properties"); the width rule reproduces S102/S103
      exactly — assert `name/role/status/occupation` half, `level/affinity/awakened` half,
-     `skills/guild` full, `tagline`/`portrait` full via hint; a `Select` whose current value is not
-     in its declared list **preserves the current value** `[ref: PRD/F6 edge case]`.
+     `skills/guild` full, `tagline` full via the `wide` **hint** and `portrait` full via its `Media`
+     **type** (not a hint — `ui: "image"` was withdrawn, `[ref: ADR-32]` revised 2026-07-29).
+
+     > **Struck 2026-07-30:** this list also claimed *"a `Select` whose current value is not in its
+     > declared list preserves the current value"*. That AC **cannot be satisfied at the model
+     > layer** — the shipped `FieldDef` carries no current-value slot, only `name`/`type`/`values`/
+     > `width`/`ui`. It is owned by **Phase 5 T5.2**, the editor pane, which has the note's value
+     > `[ref: plan/phase-5.md T5.2]`.
   3. Implement: `src/editor/fieldModel.ts` + `src/editor/uiHints.ts` (depends on T1.2).
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] The three tiers behave as specified `[ref: SDD/AC — PRD F6]`
-     - [ ] Layout is derived, never per-kind branching `[ref: ADR-32]`
+     - [x] The three tiers behave as specified `[ref: SDD/AC — PRD F6]`
+     - [x] Layout is derived, never per-kind branching `[ref: ADR-32]`
 
-- [ ] **T1.4 `baseGenerator` — template render + `classify()`** `[activity: domain-modeling]` `[parallel: true]`
+- [x] **T1.4 `baseGenerator` — params render + `classify()`** `[activity: domain-modeling]` `[parallel: true]`
+
+  > **Scope corrected 2026-07-30 (retitled from "template render").** What shipped is
+  > `renderBase(params)` — no template input — plus `classify()`. **Template resolution and
+  > `sourceChecksum` computation were reassigned to T7.3**, so nothing in `src/` produces a
+  > `sourceChecksum` yet and `classify()`'s `reconsent` branch, though unit-tested over synthetic
+  > checksums, is **unreachable at runtime** until T7.3 lands `[ref: plan/phase-7.md T7.3]`.
 
   1. Prime: Read the classifier and its traced table `[ref: SDD/Implementation Examples]` and
      `[ref: ADR-0003 §Decision]`.
@@ -99,11 +111,11 @@ a vault: given inputs, produce values.
      `validateBasesConfig` (`src/bases/basesConfig.ts`) so generated output is provably a valid
      `BasesConfigFile`; lint; types.
   5. Success:
-     - [ ] Every classifier row of `[ref: SDD/Implementation Examples]` is covered by a test
-     - [ ] A settings change classifies as `regenerate` (silent), a hand edit as `ask`
+     - [x] Every classifier row of `[ref: SDD/Implementation Examples]` is covered by a test
+     - [x] A settings change classifies as `regenerate` (silent), a hand edit as `ask`
            `[ref: SDD/AC — Edge Cases]`
 
-- [ ] **T1.5 Phase Validation** `[activity: validate]`
+- [x] **T1.5 Phase Validation** `[activity: validate]`
 
   - Run all Phase 1 tests. Verify every module is free of Obsidian runtime imports (typing only) so
     they stay unit-testable. `npm test`, `npm run lint`, `npm run typecheck` green.

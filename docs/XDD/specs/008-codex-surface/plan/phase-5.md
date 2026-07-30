@@ -56,6 +56,20 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      text rather than failing** `[ref: PRD/F6 AC]`; a `Select` whose current value is absent from
      the declared list still shows and preserves it `[ref: PRD/F6 edge case]`; relation chips add
      and remove `[[wikilinks]]` **a human could have typed** `[ref: PRD/F5 AC]`.
+
+     > **This task now solely owns the out-of-list `Select` case** (moved here 2026-07-30 from
+     > T1.3, whose test list claimed it): the shipped `FieldDef` has no current-value slot, so the
+     > model layer cannot satisfy it. This pane does — it has the note's value.
+     >
+     > **Reconcile two contradictory statements before implementing.** `requirements.md:265` says
+     > *"the control offers **exactly** those values"*; `solution.md` AC (Edge Cases) says an
+     > out-of-list current value is **preserved and displayed**. Taken literally the first forbids
+     > what the second requires. Phase 5 must state the reconciliation explicitly — the likely
+     > reading is that the *selectable* set is exactly the declared list while the *current* value
+     > is still shown (e.g. as a marked, non-reselectable entry), so no click ever silently rewrites
+     > a value the user put there by hand. Record the resolution; do not leave it to the control's
+     > implementation to decide by accident.
+
   3. Implement: `src/editor/fieldControls.ts`.
   4. Validate: unit tests per control; lint; types.
   5. Success:
@@ -63,7 +77,23 @@ The editor the withdrawn "note panel" surface was actually reaching for.
 
 - [ ] **T5.3 Sections and layout from the model** `[activity: frontend-ui]`
 
-  1. Prime: Mockups **S102/S103**; `[ref: SDD/Complex Logic]` traced walkthrough.
+  > **BLOCKED on OQ-1 `[ref: SDD/Open Questions]`** — where a section's display **label** comes from
+  > is undecided. The mockup shows "Character"/"Isekai"; the model currently yields `fc-character` /
+  > `fc-character-custom1`. Option 1 is a title property in the fc file (works today, but
+  > metadata-menu may drop an unrecognised key on its own save); Option 2 derives from the file name
+  > (immune to that, but a rename must carry every referring `extends:` with it). **Do not pick one
+  > here — get the decision first.**
+  >
+  > **Also owns the `origin: "user"` debt.** Phase 1 shipped `FieldSection.origin` as
+  > `"builtin" | "other"`, because `ParsedFileClass` carries no provenance. The SDD declares three
+  > variants and CON-10 requires them — the mockup defines exactly three section styles
+  > (`.ed-sec` / `.ed-sec.usr` / `.ed-sec.other`, `anvil-workbench-codex.html:485-486`), so without
+  > `"user"` a user's own section cannot be styled as theirs, which is the whole point of S103.
+  > Likely mechanism: pass the set of plugin-generated FileClass names (the six from `schema/*.json`)
+  > into `buildFieldModel`, so "not one of ours" ⇒ `"user"`.
+
+  1. Prime: Mockups **S102/S103**; `[ref: SDD/Complex Logic]` traced walkthrough; **OQ-1** and the
+     `origin` debt above.
   2. Test: one section per FileClass in chain order, base first `[ref: PRD/F6 AC]`; the width rule
      places `name/role/status/occupation` two-up and `skills/guild` full-width, matching S102/S103
      field-for-field; a user FileClass renders **in its own labelled section**, not appended
@@ -94,13 +124,14 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   1. Prime: Mockup **S102** (preview, path, *Choose image…* / *Clear*). Note the finding in
      `[ref: SDD/Technical Debt]`: today the image field is special-cased **by name**, and its name
      **differs by kind** (`portrait` vs `image`).
-  2. Test: a field carrying the `image` hint renders preview + path + picker; a missing or unresolvable
-     path shows the monogram fallback rather than a broken image; clearing writes an empty value
-     through the normal commit path.
-  3. Implement: an `image` control in `fieldControls`, driven by the hint — **not** by the field name.
+  2. Test: a field of the native **`Media`** type renders preview + path + picker; a missing or
+     unresolvable target shows the monogram fallback rather than a broken image; clearing writes an
+     empty value through the normal commit path.
+  3. Implement: a `Media` control in `fieldControls`, driven by the field's **type** — **not** by the
+     field name, and **not** by a `ui` hint (`ui: "image"` was withdrawn, ADR-32 revised 2026-07-29).
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] The control is selected by declaration, not by field name `[ref: ADR-32]`
+     - [ ] The control is selected by the field's declared **type**, not by field name `[ref: ADR-32]`
 
 - [ ] **T5.6 Phase Validation** `[activity: validate]`
 

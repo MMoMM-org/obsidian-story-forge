@@ -397,13 +397,18 @@ graph LR
 │   │   ├── editorPane.ts               # NEW: dock modes, header tools, section rendering
 │   │   ├── fieldModel.ts               # NEW: pure — FileClass chain → ordered typed sections
 │   │   ├── fieldControls.ts            # NEW: one control per field type incl. relation chips
-│   │   └── uiHints.ts                  # NEW: type → width rule + `wide`/`image` overrides
+│   │   └── uiHints.ts                  # NEW: type → width rule + the `wide` override
 │   ├── fileclass/                      # NEW — read-only FileClass access
 │   │   ├── fileClassReader.ts          # NEW: resolve chain, parse fields, defensive
 │   │   └── fileClassTypes.ts           # NEW: the narrow shape we depend on (firewall, cf. CON-6)
 │   ├── library/                        # NEW — Collections and Cards management
 │   │   ├── collectionStore.ts          # NEW: record CRUD over ViewStore
-│   │   ├── baseGenerator.ts            # NEW: template + params → .base (ADR-0003)
+│   │   ├── baseGenerator.ts            # NEW: params → .base render + classify() (ADR-0003).
+│   │   │                               #   Corrected 2026-07-30: NOT "template + params". The
+│   │   │                               #   shipped `renderBase(params)` takes no template input, so
+│   │   │                               #   nothing in src/ produces a `sourceChecksum` and
+│   │   │                               #   classify()'s `reconsent` branch is currently unreachable.
+│   │   │                               #   Template resolution + sourceChecksum land in T7.3.
 │   │   └── capabilityReport.ts         # NEW: what each optional plugin adds (F8)
 │   ├── navigation/                     # NEW
 │   │   └── navigationController.ts     # NEW: target-kind matrix, one rule for both surfaces
@@ -413,6 +418,12 @@ graph LR
 │   ├── import/ViewDefinition.ts        # MODIFY: engine union admits `bases`
 │   ├── inspector/inspectorFields.ts    # DELETE — derived away (ADR-0002)
 │   ├── panel/kindFields.ts             # MODIFY: keep as native fallback config only
+│   ├── pluginConstants.ts              # MODIFY: CODEX_VIEW_ID — the single declaration site for
+│   │                                   #   "story-forge-codex" (CON-4: the id is frozen). Already
+│   │                                   #   imported by BasesAdapter.ts, baseGenerator.ts and
+│   │                                   #   CodexBasesView.ts. **T4.5 must import it, not declare a
+│   │                                   #   fourth copy** — three copies would drift out of lockstep
+│   │                                   #   and orphan every `.base` that references the id.
 │   ├── settings/SettingsTab.ts         # MODIFY: Library section, scope section, dock, capabilities
 │   ├── views/SidebarView.ts            # MODIFY: display name → Workbench; hosts the Codex tab
 │   └── workspace/WorkspaceView.ts      # MODIFY/MOVE: becomes src/anvil/AnvilView.ts
@@ -453,7 +464,7 @@ Settings: PluginSettings (MODIFIED)
   ADD: dismissedHints: string[]                     # e.g. "bases-disabled"
 
 schema/*.json (MODIFIED — presentation only, CON-5)
-  ADD per field (optional): "ui": "wide" | "image"
+  ADD per field (optional): "ui": "wide"      # the only hint; images come from the Media type
 ```
 
 #### Internal API Changes
@@ -469,7 +480,30 @@ ENTITY: CollectionRecord (NEW — a ViewRecord with kind:"collection")
     label: string                  # pill text
     generated?: GeneratedArtifact  # present only for curated/generated collections
   BEHAVIORS:
-    resolve(app, settings): TFile[]    # via CollectionResolver
+    resolve(collections, settings, index): CollectionResolution   # via collectionResolver
+      # Corrected 2026-07-30 (Phase 1 close-out): NOT (app, settings) → TFile[]. The resolver is
+      # pure over an injected IndexedNote[] and takes no App, so it needs no vault and is testable
+      # without one. Phase 4 owns building that index from metadataCache and adapting path → TFile
+      # for card rendering, which is where a TFile is actually required.
+
+ENTITY: IndexedNote (NEW — the resolver's injection seam)
+  FIELDS:
+    path: string                   # vault-relative
+    tags: readonly string[]        # normalized, no leading '#'
+  BEHAVIORS: (none — a value object)
+
+ENTITY: CollectionResolution (NEW — public contract, src/codex/collectionResolver.ts)
+  A discriminated union on `status`:
+    { status: "resolved";      notes: IndexedNote[] }
+    { status: "misconfigured"; reason: string }
+  RULES:
+    - An empty or whitespace-only tag ⇒ "misconfigured", carrying a human `reason` naming the
+      collection. It NEVER falls through to listing the whole vault (PRD/F3 AC).
+    - An UNKNOWN collection id ⇒ "resolved" with an EMPTY note list, not an error and not a
+      misconfiguration: nothing was configured wrongly, there is simply nothing to show. Callers
+      must not treat empty-vs-misconfigured as the same state.
+    - Phase 4 T4.6 consumes `reason` verbatim to render the misconfigured empty state, which is why
+      the reason string is part of the contract rather than a log message.
 
 ENTITY: CardRecord (NEW — a ViewRecord with kind:"card")
   FIELDS:
@@ -485,9 +519,23 @@ ENTITY: FieldModel (NEW — pure, produced by fileClassReader + fieldModel)
 
 ENTITY: FieldSection (NEW)
   FIELDS:
-    label: string                  # the FileClass's display name
-    source: string                 # fc file path, or "other" for undeclared keys
+    label: string                  # the section's human display name — SOURCE UNDECIDED, see OQ-1.
+                                   # The mockup shows "Character"/"Isekai"; generated fc frontmatter
+                                   # carries no title key and "Isekai" is derivable from no transform
+                                   # of "fc-character-custom1". Phase 1 ships the fc file name.
+    source: string                 # fc file NAME (e.g. "fc-character.md"), or "other" for undeclared
+                                   # keys. Name, not path: this layer is pure and never sees
+                                   # settings.fileClassesFolder, and the mockup shows the bare name.
     origin: "builtin" | "user" | "other"
+                                   # DEBT (Phase 1 close-out): the shipped model has two variants,
+                                   # "builtin" | "other" — ParsedFileClass carries no provenance, so
+                                   # a user's fc is currently indistinguishable from ours. The third
+                                   # variant is REQUIRED, not optional: CON-10's mockup defines
+                                   # exactly three section styles (.ed-sec / .ed-sec.usr /
+                                   # .ed-sec.other, anvil-workbench-codex.html:485-486).
+                                   # Due: Phase 5 T5.3. Likely mechanism: pass the set of
+                                   # plugin-generated FileClass names (the six from schema/*.json)
+                                   # into buildFieldModel, so "not ours" ⇒ "user".
     fields: FieldDef[]
 
 ENTITY: FieldDef (NEW)
@@ -631,8 +679,8 @@ sequenceDiagram
 
     Writer->>Anvil: Open Anvil
     Anvil->>Codex: render(activeCollection)
-    Codex->>Res: resolve(record, settings)
-    Res-->>Codex: TFile[]
+    Codex->>Res: resolve(record, settings, noteIndex)
+    Res-->>Codex: CollectionResolution (IndexedNote[] — Phase 4 adapts path → TFile)
     Writer->>Codex: click card body
     Codex->>Nav: classify(target)
     Nav-->>Codex: inspect
@@ -678,7 +726,12 @@ OUTPUT: FieldModel { sections }
    seen := {}
    FOR class IN chain:
        fields := []
-       FOR name IN class.fieldsOrder ?? declaredOrder(class):
+       # DEVIATION, recorded 2026-07-30 (repo rule: deviating is allowed, deviating silently is not).
+       # Specified as a FALLBACK (`class.fieldsOrder ?? declaredOrder(class)`); the shipped reader
+       # does a UNION — `fieldsOrder` first, then any field the class declares that `fieldsOrder`
+       # omits, appended in declaration order. A partial or stale `fieldsOrder` therefore hides no
+       # field, where the fallback would have dropped every unlisted one. Tested; kept.
+       FOR name IN union(class.fieldsOrder, declaredOrder(class)):
            IF name IN seen: CONTINUE           # first declaration wins
            seen += name
            def := class.fields[name]
@@ -686,6 +739,8 @@ OUTPUT: FieldModel { sections }
                name, type: mapType(def.type), values: def.options?.valuesList,
                ui: schemaUiHints[name], width: widthOf(...)
            }
+       # `class.title` presumes a title key the fc frontmatter does not have — see OQ-1 (open).
+       # Phase 1 ships `class.name` (the fc file name); the human label is undecided.
        sections += FieldSection{ label: class.title, origin: originOf(class), fields }
 
 3. TIER 2 — no chain at all:
@@ -705,11 +760,12 @@ OUTPUT: FieldModel { sections }
 | Step | State |
 |---|---|
 | 1 | `fc-character-custom1` applies (tag `canon/character`), `extends: fc-character` → chain `[fc-character, fc-character-custom1]` |
-| 2a | Section "Character": `name`(Input,half) `role`(Select,half) `status`(Select,half) `occupation`(Input,half) … `tagline`(Input,**wide**→full) `portrait`(Input,**image**→full) `allies`(MultiFile,full) |
+| 2a | Section "Character": `name`(Input,half) `role`(Select,half) `status`(Select,half) `occupation`(Input,half) … `tagline`(Input,**wide**→full) `portrait`(**Media**→full) `allies`(MultiFile,full) |
 | 2b | Section "Isekai": `level`(Number,half) `affinity`(Select,half) `awakened`(Boolean,half) `skills`(Multi,full) `guild`(MultiFile,full) |
 | 4 | Note also carries `scratch` → Section "Other properties": `scratch`(text,full) |
 
-Matches S103 exactly, including which fields sit two-up.
+Matches S103 exactly, including which fields sit two-up. **Except the section *labels*** — "Character"
+and "Isekai" are the mockup's human names, and where they come from is **OQ-1**, still open.
 
 ## Deployment View
 
@@ -848,7 +904,7 @@ Not applicable — single component.
   - Trade-offs: one more layer; worth it because the format is the accepted external risk.
   - User confirmed: **Yes** (2026-07-28)
 
-- [x] **ADR-32 — Column width is derived from field type**, with `ui: "wide" | "image"` overrides
+- [x] **ADR-32 — Column width is derived from field type**, with a `ui: "wide"` override
       stored in `schema/*.json`, never in the FileClass file. **Revised 2026-07-29: only `wide`
       remains.** metadata-menu has a native **`Media`** type, so an image control follows from the
       *type* like every other control — for our fields and the user's alike. `ui: "image"` is
@@ -962,6 +1018,37 @@ Not applicable — single component.
 - [ ] WHILE verification is switched off for a collection, THE SYSTEM SHALL neither verify nor regenerate its file
 - [ ] IF two FileClasses in a chain declare the same field, THEN THE SYSTEM SHALL render it once, in the earliest section
 - [ ] IF a `Select` field's current value is not among its declared values, THEN THE SYSTEM SHALL preserve and display the current value
+
+## Open Questions
+
+### OQ-1 — Where does a section's display **label** come from? (open, due before T5.3)
+
+**The gap.** The signed-off mockup labels the editor's sections **"Character"** and **"Isekai"**
+(`docs/mockups/anvil-workbench-codex.html:808, 827, 894, 919`) while showing the fc file name as the
+secondary line (`fc-character.md`). `FieldSection.label` currently resolves to `fc-character` /
+`fc-character-custom1`, because that is the only string the reader has. Real generated FileClass
+frontmatter carries **no title key**, and **"Isekai" is derivable from "fc-character-custom1" by no
+transform at all** — the user chose a name for the *concept* that is not the name of the *file*. So
+the mockup shows a human label for which there is no data source. CON-10 makes the mockup binding,
+so this must be answered, not quietly dropped.
+
+**Option 1 — a title property in the fc file.** The user tested this and **it works today**:
+metadata-menu tolerates the extra key and our reader could read it. Risk: it would have to be a
+property **unique to us**, and metadata-menu rewrites FileClass files through its own UI — it may
+drop keys it does not recognise. That is precisely the format-coupling risk **ADR-31 exists to
+contain**, and here it would sit in the one place the containment cannot help: the data itself,
+silently deleted by another plugin's save.
+
+**Option 2 — derive the label from the file name**, stripping the user's own `fc-` convention
+(`fc-character` → "Character", `fc-character-custom1` → "Character custom1"). Immune to metadata-menu
+rewriting, because a file name is not frontmatter and no other plugin's save can touch it. Cost:
+**renaming a file becomes the way to rename a label**, and `extends:` references are plain strings
+that do **not** follow a rename automatically — so any rename must be accompanied by updating every
+referring `extends:` value, or the chain silently breaks. It also cannot produce "Isekai" from
+"fc-character-custom1"; under this option the mockup's label is the file name, and the mockup's own
+example would have to be read as `fc-character-isekai.md`.
+
+**Due:** before **Phase 5 T5.3**, which renders sections and therefore has to print something.
 
 ## Risks and Technical Debt
 

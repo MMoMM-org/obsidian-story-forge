@@ -57,19 +57,34 @@ could only ever know four kinds of thing.
      - [ ] `ui: image` never exists — the control comes from the type `[ref: SDD/ADR-32]`
      - [ ] No story **fact** was added `[ref: SDD/CON-5]`
 
-- [ ] **T6.1b The `wide` hint** `[activity: data-architecture]` `[parallel: true]`
+- [ ] **T6.1b The `wide` hint — declaration *and* its loader** `[activity: data-architecture]` `[parallel: true]`
+
+  > **This task owns the `UiHints` producer** (assigned 2026-07-30 at the Phase 1 close-out).
+  > `src/editor/fieldModel.ts` takes `uiHints: UiHints = {}` — `Readonly<Record<string, "wide">>` —
+  > and **defaults it to empty**. Declaring `"ui": "wide"` in `schema/*.json` is therefore only half
+  > the job: **no task in any phase currently loads those declarations into a `UiHints`**, so until
+  > this one does, the default holds, `widthOf` never sees a hint, and **`tagline` never reaches
+  > full width** — the single visible symptom of the whole hint mechanism, silently absent. The
+  > loader is part of this task, not an implied side effect of it.
 
   1. Prime: `scripts/schema-gen.mjs` (write-only, **no delete path**) and `scripts/schema-check.mjs`;
+     `src/editor/fieldModel.ts` (`UiHints`, `buildFieldModel`'s `uiHints = {}` default);
      `[ref: SDD/ADR-32]` — **`wide` is the only hint that survives**; images come from the `Media`
      type (T6.1), so `ui: "image"` is never built.
   2. Test: a field may carry `"ui": "wide"`; `schema:gen` emits **byte-identical** FileClass output
      for fields without a hint — the hint is ours and must never reach the FileClass files;
-     `schema:check` stays green; an unknown `ui` value is rejected at generation time.
-  3. Implement: optional `ui` in the schema files (`tagline` only); thread it into the plugin's hint
-     table.
+     `schema:check` stays green; an unknown `ui` value is rejected at generation time; **the loader
+     turns the `schema/*.json` declarations into a `UiHints` and `tagline` renders full width
+     end-to-end** — assert against `buildFieldModel`'s output, not against the schema file, since a
+     declaration nothing reads is what this test exists to catch.
+  3. Implement: optional `ui` in the schema files (`tagline` only); **plus the loader**: read the
+     hints out of `schema/*.json` (or the artifact generated from them) and pass the resulting
+     `UiHints` into `buildFieldModel` wherever the editor builds a model.
   4. Validate: `npm run schema:gen && npm run schema:check` green; unit tests; lint; types.
   5. Success:
      - [ ] The hint never leaves our schema for a FileClass file `[ref: SDD/ADR-32]`
+     - [ ] The hint is **loaded**, not merely declared — `tagline` is full width in the running
+           editor `[ref: SDD/AC — PRD F6]`
 
 - [ ] **T6.2 Replace the name coupling in the panel** `[activity: refactoring]`
 

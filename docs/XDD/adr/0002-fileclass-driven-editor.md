@@ -50,6 +50,11 @@ vault data, not information.**
    in appearance and not merely in data.
 4. **Exceptions carry an explicit `ui:` hint in `schema/*.json`** — *our* file, never the fc-file.
    Today: `tagline` → `ui: wide`, `portrait` → `ui: image`.
+   **Revised 2026-07-29 (ADR-32):** `ui: image` is **withdrawn — it was never built**. metadata-menu
+   has a native **`Media`** type, so the image control follows from the *type* like every other
+   control, for our fields and a user's alike. `wide` is the only hint that remains; `portrait`
+   (character) and `image` (location, object) change type instead, and their stored value becomes a
+   wikilink rather than a path.
 5. **Field types in scope:** the six generated, plus `Boolean` and `Date`. **Out of scope:**
    `Lookup`, `Formula`, `Canvas`.
 6. **Three tiers, all data-driven:** (a) a FileClass declares the field → typed, ordered, sectioned,
@@ -66,6 +71,11 @@ vault data, not information.**
   the schema, yet `src/panel/kindFields.ts` special-cases it **by field name** ("portrait triggers
   portraitTile, not a factRow"). That coupling cannot be derived from the type and means a user's
   field must literally be called `portrait` to get an image. `ui: image` replaces it.
+  **Revised 2026-07-29 (ADR-32):** the replacement is **not** `ui: image` — that hint was withdrawn
+  before it was ever built — but metadata-menu's native **`Media`** type. The control then follows
+  from the type rather than from a declaration only *we* can make, so a user's image field works
+  without being named `portrait`, and the stored wikilink survives a file rename where a path breaks
+  silently.
 - **metadata-menu remains optional.** A FileClass is frontmatter in a markdown note, readable via
   `metadataCache`. Installing metadata-menu adds *editing* those definitions, not reading them.
   This preserves the add-ons-are-never-required rule (`DESIGN.md §4`).
@@ -83,6 +93,10 @@ vault data, not information.**
   FileClasses today, so the editor would fall back to tier (b) until the setup wizard runs.
 - **Open:** a *user* field wanting an image cannot carry the `ui:` hint, since hints live in our
   schema. Proposed fallback is value inspection (looks like an image path or embed → preview).
+  **Revised 2026-07-29 (ADR-32) — closed.** The asymmetry disappears with the hint: a user declares
+  the field as `Media` in their own FileClass and gets the same control we do. No value inspection
+  is needed. What remains open is only the cosmetic case of `wide`, which a user's field still
+  cannot request.
 
 ## Alternatives considered
 
