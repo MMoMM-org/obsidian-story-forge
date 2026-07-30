@@ -10,6 +10,8 @@
  *  - `fieldsOrder` resolves through ids, not names
  *  - a class with empty `tagNames`/`filesPaths` is still reachable via `extends`
  *  - defensive degradation: missing/non-object frontmatter never throws
+ *  - one unusable field entry is skipped without affecting its valid siblings
+ *  - a declared field omitted from fieldsOrder still renders, appended last
  */
 
 import { describe, it, expect } from "vitest";
@@ -182,5 +184,42 @@ describe("resolveFileClassChain", () => {
 		const combatSkills = chain[0]?.fields.find((f) => f.id === "g-combat_skills");
 
 		expect(combatSkills?.values).toBeUndefined();
+	});
+
+	it("skips one unusable field entry but keeps its valid siblings", () => {
+		const lookup = makeLookup({
+			"fc-mixed": {
+				fieldsOrder: ["m-1", "m-2", "m-3"],
+				fields: [
+					{ id: "m-1", name: "good_one", type: "Input" },
+					// unusable: blank id — cannot be addressed by fieldsOrder at all
+					{ id: "  ", name: "no_id", type: "Input" },
+					// unusable: not an object
+					"not-a-field-object",
+					{ id: "m-3", name: "good_two", type: "Number" },
+				],
+			},
+		});
+
+		const chain = resolveFileClassChain("fc-mixed", lookup);
+
+		expect(chain[0]?.fields.map((f) => f.id)).toEqual(["m-1", "m-3"]);
+		expect(chain[0]?.fields.map((f) => f.name)).toEqual(["good_one", "good_two"]);
+	});
+
+	it("renders a declared field omitted from fieldsOrder, appended last in declaration order", () => {
+		const lookup = makeLookup({
+			"fc-partial-order": {
+				fieldsOrder: ["a-1"],
+				fields: [
+					{ id: "a-1", name: "ordered", type: "Input" },
+					{ id: "a-2", name: "unordered", type: "Input" },
+				],
+			},
+		});
+
+		const chain = resolveFileClassChain("fc-partial-order", lookup);
+
+		expect(chain[0]?.fields.map((f) => f.id)).toEqual(["a-1", "a-2"]);
 	});
 });

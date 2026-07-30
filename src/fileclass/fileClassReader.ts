@@ -17,6 +17,10 @@
 
 import type { FieldType, FileClassField, FileClassLookup, ParsedFileClass } from "fileclass/fileClassTypes";
 
+// The literal array is typed against Exclude<FieldType, "Unknown"> so a typo or
+// a missing/extra entry here fails to compile; the set itself is ReadonlySet<string>
+// because membership is tested against arbitrary raw strings from frontmatter,
+// which are not known to be FieldType until KNOWN_FIELD_TYPES.has(...) confirms it.
 const KNOWN_FIELD_TYPES: ReadonlySet<string> = new Set<Exclude<FieldType, "Unknown">>([
 	"Input",
 	"Boolean",
