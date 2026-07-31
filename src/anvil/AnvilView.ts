@@ -38,7 +38,6 @@
 
 import { Component, ItemView, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
 import { DEBOUNCE_MS, WORKSPACE_VIEW_TYPE } from "pluginConstants";
-import { revealAndShowFile } from "views/SidebarView";
 import { resolveWorkspaceScope, resolvePlotlineScope } from "scoping/workspaceScope";
 import { mapSceneRow } from "workspace/sceneMapper";
 import {
@@ -60,6 +59,7 @@ import { InteractionHandler } from "workspace/interactionHandler";
 import { commit, commitMany, type CommitResult, type CommitError } from "../inspector/frontmatterWriter";
 import { CollapseStore } from "workspace/collapseStore";
 import { ANVIL_TAB_LABEL, buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
+import { createNavigationController, type TargetKind, type TargetMarkers } from "navigation/navigationController";
 
 export type AnvilLayout = "codex" | "timeline" | "plotlines" | "kanban" | "plotgrid";
 
@@ -101,13 +101,25 @@ export class AnvilView extends ItemView {
 	private _zoomChild: Component | null = null;
 	private readonly getLinkClickAction: () => "drill" | "open";
 	private readonly _drill: (file: TFile) => void;
+	/**
+	 * T2.5 / ADR-28: the file most recently inspected in the Anvil. The Anvil's own
+	 * editor pane arrives in Phase 4/5 — until it exists, "inspect" has no visible
+	 * panel to show, so this is the honest minimum: a no-op-with-selection. It
+	 * records the target without opening, revealing or re-targeting any leaf
+	 * (the regression this task fixes — see the `_drill` default below).
+	 */
+	private _inspectedFile: TFile | null = null;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
 		super(leaf);
 		this.getLinkClickAction = opts?.getLinkClickAction ?? ((): "drill" => "drill");
-		this._drill =
-			opts?.drill ?? ((file: TFile): void => { void revealAndShowFile(this.app, file); });
+		// ADR-28: this is the Anvil's "inspect" implementation. It used to default to
+		// revealAndShowFile(app, file), which opened/revealed the Workbench leaf — the
+		// reported regression (a click in the Anvil must target no other leaf). The
+		// default now only records the inspected file (no-op-with-selection); tests
+		// inject `drill` to observe inspection without needing an editor pane.
+		this._drill = opts?.drill ?? ((file: TFile): void => { this._inspectedFile = file; });
 		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
 	}
 
@@ -406,56 +418,130 @@ export class AnvilView extends ItemView {
 		if (this._liveEl) this._liveEl.textContent = msg;
 	}
 
-	private _onClick(target: EventTarget | null, modifier: boolean): void {
-		if (!(target instanceof HTMLElement)) return;
+	/**
+	 * ADR-28 / T2.5: classify the marker kind a single DOM node carries, if any.
+	 * Exactly the four attributes `_onClick` used to check via independent
+	 * `closest()` calls — data-sf-link ("name"); data-ws-layout, data-ws-tlmode
+	 * and data-sf-section-toggle (all "structuralControl", the Anvil's tab
+	 * strip / timeline sub-mode toggle / collapsible section headers). None of
+	 * these ever co-occur on the same node in the current markup.
+	 */
+	private _markerKindOf(el: HTMLElement): TargetKind | null {
+		if (el.hasAttribute("data-sf-link")) return "name";
+		if (el.hasAttribute("data-ws-layout")) return "structuralControl";
+		if (el.hasAttribute("data-ws-tlmode")) return "structuralControl";
+		if (el.hasAttribute("data-sf-section-toggle")) return "structuralControl";
+		return null;
+	}
 
-		// Layout mode toggle.
-		const modeEl = target.closest("[data-ws-layout]");
-		if (modeEl instanceof HTMLElement) {
-			const l = modeEl.getAttribute("data-ws-layout");
-			if (isAnvilTab(l)) this.setLayout(l);
-			return;
-		}
-
-		// Timeline sub-mode (Rail | Swimlane).
-		const tlModeEl = target.closest("[data-ws-tlmode]");
-		if (tlModeEl instanceof HTMLElement) {
-			const m = tlModeEl.getAttribute("data-ws-tlmode");
-			if (m === "rail" || m === "swimlane") {
-				this._timelineMode = m;
-				this._syncToggle();
-				this._render();
+	/**
+	 * ADR-28 / T2.5: walk up the DOM ancestor chain from `start` (inclusive) to
+	 * `this.contentEl` (inclusive), pushing each recognised marker kind
+	 * **nearest first**. This is what makes a nested `data-sf-link` (e.g. the
+	 * timeline act label, which sits *inside* its section header's
+	 * `data-sf-section-toggle`) win over the surrounding structural control —
+	 * proximity, not a fixed kind ranking (navigationController.ts docstring).
+	 *
+	 * Returns the ordered markers for `classifyTarget`, plus `nearest`: the
+	 * element that produced `markers[0]` — the one piece of surface-specific
+	 * identity (which link, which control) the controller intentionally never
+	 * sees, needed here to actually enact whatever it decides.
+	 */
+	private _collectTargetMarkers(start: HTMLElement): { markers: TargetMarkers; nearest: HTMLElement | null } {
+		const markers: TargetKind[] = [];
+		let nearest: HTMLElement | null = null;
+		let el: HTMLElement | null = start;
+		while (el) {
+			const kind = this._markerKindOf(el);
+			if (kind) {
+				markers.push(kind);
+				if (nearest === null) nearest = el;
 			}
+			if (el === this.contentEl) break;
+			el = el.parentElement;
+		}
+		return { markers, nearest };
+	}
+
+	/** Resolve `nearest`'s `data-sf-link` (if any) to a `TFile`, mirroring the old lookup. */
+	private _resolveLinkFile(nearest: HTMLElement | null): TFile | null {
+		const path = nearest?.getAttribute("data-sf-link");
+		if (!path) return null;
+		const file =
+			this.app.vault.getAbstractFileByPath(path) ??
+			this.app.metadataCache.getFirstLinkpathDest(path, "");
+		return file instanceof TFile ? file : null;
+	}
+
+	/**
+	 * Enact an "operateControl" outcome: `nearest` carries exactly one of the
+	 * three structural markers `_markerKindOf` recognises — determine which and
+	 * run the same handling `_onClick` used to run inline.
+	 */
+	private _operateControl(nearest: HTMLElement | null): void {
+		if (!nearest) return;
+
+		const layout = nearest.getAttribute("data-ws-layout");
+		if (layout !== null) {
+			if (isAnvilTab(layout)) this.setLayout(layout);
 			return;
 		}
 
-		// Link (drill/open) FIRST — a nearest data-sf-link wins over a surrounding section
-		// header, so an act label / dot / card field drills while the chevron collapses.
-		const linkEl = target.closest("[data-sf-link]");
-		if (linkEl instanceof HTMLElement) {
-			const path = linkEl.getAttribute("data-sf-link");
-			if (path !== null && path !== "") {
-				const file =
-					this.app.vault.getAbstractFileByPath(path) ??
-					this.app.metadataCache.getFirstLinkpathDest(path, "");
-				if (file instanceof TFile) {
-					const action = this.getLinkClickAction();
-					const drill = action === "drill" ? !modifier : modifier;
-					if (drill) this._drill(file);
-					else void this.app.workspace.openLinkText(file.path, "", false);
-				}
-			}
+		const tlMode = nearest.getAttribute("data-ws-tlmode");
+		if (tlMode === "rail" || tlMode === "swimlane") {
+			this._timelineMode = tlMode;
+			this._syncToggle();
+			this._render();
 			return;
 		}
 
-		// Section header (chevron / rest) — collapse, persist + re-render.
-		const secHead = target.closest("[data-sf-section-toggle]");
-		if (secHead instanceof HTMLElement) {
-			const key = secHead.getAttribute("data-sf-group-key");
+		if (nearest.hasAttribute("data-sf-section-toggle")) {
+			const key = nearest.getAttribute("data-sf-group-key");
 			if (key) {
 				this._collapse.toggle("main", this._scopeKey, key);
 				this._render();
 			}
+		}
+	}
+
+	/**
+	 * ADR-28: classify-then-act via the shared `NavigationController`. Both
+	 * bespoke per-attribute click paths are gone — every click is classified
+	 * from its nearest-first marker chain, and the resolved action decides what
+	 * happens. "inspect" targets the Anvil's own body (`_drill`, T2.5's fix for
+	 * the reported regression — never `revealAndShowFile`); "openNote" and
+	 * "operateControl" are enacted here because they need the specific file /
+	 * control identity the controller never sees.
+	 */
+	private _onClick(target: EventTarget | null, modifier: boolean): void {
+		if (!(target instanceof HTMLElement)) return;
+
+		const { markers, nearest } = this._collectTargetMarkers(target);
+
+		const controller = createNavigationController({
+			getLinkClickAction: this.getLinkClickAction,
+			inspect: (): void => {
+				const file = this._resolveLinkFile(nearest);
+				if (file) this._drill(file);
+			},
+		});
+		const outcome = controller.handle(markers, modifier);
+
+		switch (outcome.action) {
+			case "openNote": {
+				const file = this._resolveLinkFile(nearest);
+				if (file) void this.app.workspace.openLinkText(file.path, "", false);
+				break;
+			}
+			case "operateControl":
+				this._operateControl(nearest);
+				break;
+			case "inspect":
+				// Already invoked via deps.inspect inside controller.handle().
+				break;
+			case "focusField":
+			case "none":
+				break;
 		}
 	}
 }

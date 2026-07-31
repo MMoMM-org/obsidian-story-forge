@@ -288,9 +288,14 @@ describe("SidebarView: ARIA roles & accessibility", () => {
 		expect(() => tablist.dispatchEvent(event)).not.toThrow();
 	});
 
-	it("pin button has aria-label", () => {
+	// T2.6/code-quality fix: the pin button's aria-label pins the SAME surface
+	// as contentEl's aria-label above — it must name it consistently
+	// ("Workbench"), not the stale "panel" wording. Tightened from a truthy
+	// check to the literal string so a future rename can't silently drift
+	// again (truthy alone is exactly what let this miss through review).
+	it("pin button aria-label reads 'Pin Workbench to current note'", () => {
 		const btn = view.contentEl.querySelector(".sf-pin-btn") as HTMLButtonElement | null;
-		expect(btn?.getAttribute("aria-label")).toBeTruthy();
+		expect(btn?.getAttribute("aria-label")).toBe("Pin Workbench to current note");
 	});
 
 	it("clicking a section header toggles its body collapsed (delegated body handler)", () => {

@@ -46,6 +46,7 @@ import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFields } from "../inspector/inspectorFields";
+import { createNavigationController, type TargetKind, type TargetMarkers } from "../navigation/navigationController";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -570,7 +571,7 @@ export class SidebarView extends ItemView {
 		const pinBtn = activeDocument.createElement("button");
 		pinBtn.className = "sf-pin-btn";
 		pinBtn.setAttribute("aria-pressed", "false");
-		pinBtn.setAttribute("aria-label", "Pin panel to current note");
+		pinBtn.setAttribute("aria-label", "Pin Workbench to current note");
 		pinBtn.textContent = "📌";
 		this._pinBtn = pinBtn;
 		this.registerDomEvent(pinBtn, "click", () => { this.togglePin(); });
@@ -688,74 +689,153 @@ export class SidebarView extends ItemView {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Route a body click/keydown to the correct action. All body-click routing
-	 * lives here so the handler is registered exactly once (no per-render leak).
-	 *
-	 * @param target   The event target (a descendant of the body).
-	 * @param modifier True when Cmd/Ctrl was held (inverts the setting).
+	 * ADR-28 / T2.5: classify the marker kind a single DOM node carries, if any.
+	 * Exactly the four attributes `_onBodyActivate` used to check via
+	 * independent `closest()` calls — data-sf-section-toggle, data-sf-plotline
+	 * (Navigator filter rows) and data-sf-nav (Back/Open-note chrome) are all
+	 * "structuralControl"; data-sf-link is "name". None of these ever co-occur
+	 * on the same node in the current markup.
 	 */
-	private _onBodyActivate(target: EventTarget | null, modifier: boolean): void {
-		if (!(target instanceof HTMLElement)) return;
+	private _markerKindOf(el: HTMLElement): TargetKind | null {
+		if (el.hasAttribute("data-sf-section-toggle")) return "structuralControl";
+		if (el.hasAttribute("data-sf-plotline")) return "structuralControl";
+		if (el.hasAttribute("data-sf-nav")) return "structuralControl";
+		if (el.hasAttribute("data-sf-link")) return "name";
+		return null;
+	}
 
-		// Collapsible section headers — toggle the body in place (no re-render).
-		const secHead = target.closest("[data-sf-section-toggle]");
-		if (secHead instanceof HTMLElement) {
-			this._toggleSection(secHead);
+	/**
+	 * ADR-28 / T2.5: walk up the DOM ancestor chain from `start` (inclusive) to
+	 * `root` (inclusive), pushing each recognised marker kind **nearest
+	 * first** — this is what lets a name nested inside a structural control
+	 * win by proximity rather than by a fixed check order
+	 * (navigationController.ts docstring). Returns the ordered markers for
+	 * `classifyTarget`, plus `nearest`: the element that produced `markers[0]`,
+	 * needed to actually enact whatever the controller decides.
+	 */
+	private _collectTargetMarkers(
+		start: HTMLElement,
+		root: HTMLElement,
+	): { markers: TargetMarkers; nearest: HTMLElement | null } {
+		const markers: TargetKind[] = [];
+		let nearest: HTMLElement | null = null;
+		let el: HTMLElement | null = start;
+		while (el) {
+			const kind = this._markerKindOf(el);
+			if (kind) {
+				markers.push(kind);
+				if (nearest === null) nearest = el;
+			}
+			if (el === root) break;
+			el = el.parentElement;
+		}
+		return { markers, nearest };
+	}
+
+	/**
+	 * Resolve `nearest`'s `data-sf-link` (if any) to a `TFile`, mirroring the
+	 * old lookup. Relation/backlink links stamp a full vault path; fact-value
+	 * wikilinks (fix #5) stamp only the link TARGET text (a basename), so fall
+	 * back to getFirstLinkpathDest which resolves basenames the way Obsidian does.
+	 */
+	private _resolveLinkFile(nearest: HTMLElement | null): TFile | null {
+		const path = nearest?.getAttribute("data-sf-link");
+		if (!path) return null;
+		const sourcePath = this.subject.file?.path ?? "";
+		const file =
+			this.app.vault.getAbstractFileByPath(path) ??
+			this.app.metadataCache.getFirstLinkpathDest(path, sourcePath);
+		return file instanceof TFile ? file : null;
+	}
+
+	/**
+	 * Enact an "operateControl" outcome: `nearest` carries exactly one of the
+	 * three structural markers `_markerKindOf` recognises — determine which and
+	 * run the same handling `_onBodyActivate` used to run inline.
+	 */
+	private _operateControl(nearest: HTMLElement | null): void {
+		if (!nearest) return;
+
+		if (nearest.hasAttribute("data-sf-section-toggle")) {
+			this._toggleSection(nearest);
 			// M5: persist Navigator collapse so it survives the follow re-render.
 			if (this.selectedViewId === NAVIGATOR_TAB_ID) {
-				const groupKey = secHead.getAttribute("data-sf-group-key");
+				const groupKey = nearest.getAttribute("data-sf-group-key");
 				if (groupKey) this._collapse.toggle("navigator", this._navScopeKey, groupKey);
 			}
 			return;
 		}
 
 		// M5: Navigator plotline filter rows — narrow (or clear via the "All" row).
-		if (this.selectedViewId === NAVIGATOR_TAB_ID) {
-			const plRow = target.closest("[data-sf-plotline]");
-			if (plRow instanceof HTMLElement) {
-				const val = plRow.getAttribute("data-sf-plotline") ?? "";
-				this._navFilter = val === "" ? null : val;
-				this._rerenderBody();
-				return;
-			}
-		}
-
-		// Nav controls first (Back / Open-note chrome).
-		const nav = target.closest("[data-sf-nav]");
-		if (nav) {
-			const kind = nav.getAttribute("data-sf-nav");
-			if (kind === "back") this._navBack();
-			else if (kind === "open") this._openCurrentSubject();
+		if (this.selectedViewId === NAVIGATOR_TAB_ID && nearest.hasAttribute("data-sf-plotline")) {
+			const val = nearest.getAttribute("data-sf-plotline") ?? "";
+			this._navFilter = val === "" ? null : val;
+			this._rerenderBody();
 			return;
 		}
 
-		// Link rows — resolve the stamped path/link-target to a TFile within the
-		// body scope. Relation/backlink links stamp a full vault path; fact-value
-		// wikilinks (fix #5) stamp only the link TARGET text (a basename), so fall
-		// back to getFirstLinkpathDest which resolves basenames the way Obsidian does.
-		const linkEl = target.closest("[data-sf-link]");
-		if (!linkEl) return;
-		const path = linkEl.getAttribute("data-sf-link");
-		if (!path) return;
-		const sourcePath = this.subject.file?.path ?? "";
-		const file =
-			this.app.vault.getAbstractFileByPath(path) ??
-			this.app.metadataCache.getFirstLinkpathDest(path, sourcePath);
-		if (!(file instanceof TFile)) return;
+		const navKind = nearest.getAttribute("data-sf-nav");
+		if (navKind === "back") this._navBack();
+		else if (navKind === "open") this._openCurrentSubject();
+	}
 
-		// XOR the setting with the modifier: "drill" default drills on plain click
-		// and opens on modifier; "open" swaps both.
-		const action = this.getLinkClickAction();
-		const drill = action === "drill" ? !modifier : modifier;
-		// M5: drilling from the Navigator switches to the Context tab first, so the
-		// note renders in the Context detail rather than back into the Navigator.
-		if (drill && this.selectedViewId === NAVIGATOR_TAB_ID) {
+	/**
+	 * ADR-28: classify-then-act via the shared `NavigationController`. All
+	 * body-click routing still lives here (registered exactly once — no
+	 * per-render leak) but the per-attribute `closest()` chain is gone: every
+	 * click is classified from its nearest-first marker chain, and the
+	 * resolved action decides what happens. "inspect" is the Workbench's own
+	 * meaning — drill in place and suspend follow (`_drillInto`, unchanged);
+	 * "openNote" and "operateControl" are enacted here because they need the
+	 * specific file / control identity the controller never sees.
+	 *
+	 * @param target   The event target (a descendant of the body).
+	 * @param modifier True when Cmd/Ctrl was held (inverts the setting).
+	 */
+	private _onBodyActivate(target: EventTarget | null, modifier: boolean): void {
+		if (!(target instanceof HTMLElement) || !this._bodyEl) return;
+
+		const { markers, nearest } = this._collectTargetMarkers(target, this._bodyEl);
+
+		const controller = createNavigationController({
+			getLinkClickAction: this.getLinkClickAction,
+			inspect: (): void => { this._inspectInWorkbench(nearest); },
+		});
+		const outcome = controller.handle(markers, modifier);
+
+		switch (outcome.action) {
+			case "openNote": {
+				const file = this._resolveLinkFile(nearest);
+				if (file) this._openLink(file);
+				break;
+			}
+			case "operateControl":
+				this._operateControl(nearest);
+				break;
+			case "inspect":
+				// Already invoked via deps.inspect inside controller.handle().
+				break;
+			case "focusField":
+			case "none":
+				break;
+		}
+	}
+
+	/**
+	 * The Workbench's "inspect": drill in place (re-subject + suspend follow
+	 * until Back/open-note resumes it — `_drillInto`, unchanged behaviour).
+	 * Drilling from the Navigator switches to the Context tab first so the
+	 * note renders in the Context detail rather than back into the Navigator.
+	 */
+	private _inspectInWorkbench(nearest: HTMLElement | null): void {
+		const file = this._resolveLinkFile(nearest);
+		if (!file) return;
+		if (this.selectedViewId === NAVIGATOR_TAB_ID) {
 			this.selectedViewId = null;
 			this.currentRecord = null;
 			this._syncTabSelection();
 		}
-		if (drill) this._drillInto(file);
-		else this._openLink(file);
+		this._drillInto(file);
 	}
 
 	/**

@@ -99,6 +99,30 @@ describe("StoryForgePlugin — 'open-anvil' command (T2.3)", () => {
 		expect(app.workspace.revealLeaf).toHaveBeenCalledWith(existingLeaf);
 		expect(setLayoutSpy).toHaveBeenCalledWith("codex");
 	});
+
+	it("reveals an existing leaf whose view is not yet a live AnvilView without switching tabs or throwing", async () => {
+		const { plugin, app } = await makePlugin();
+		await plugin.onload();
+
+		// Simulate a leaf mid-restore during workspace deserialization: it is of the
+		// right view type (WORKSPACE_VIEW_TYPE) but `.view` is still the mock's default
+		// placeholder object, not a live AnvilView instance yet.
+		const existingLeaf = new WorkspaceLeaf();
+		existingLeaf.app = app;
+		app.workspace.getLeavesOfType.mockReturnValue([existingLeaf]);
+		const setLayoutSpy = vi.spyOn(AnvilView.prototype, "setLayout");
+
+		// Await _openWorkspace directly so a thrown/rejected call surfaces here rather
+		// than as an unhandled rejection behind the command's `void` wrapping.
+		await expect(plugin._openWorkspace("codex")).resolves.toBeUndefined();
+
+		// The leaf is still surfaced (reveal-but-don't-retarget)...
+		expect(app.workspace.revealLeaf).toHaveBeenCalledWith(existingLeaf);
+		// ...but no tab switch is attempted against a view that isn't live yet, and no
+		// second leaf is created either.
+		expect(setLayoutSpy).not.toHaveBeenCalled();
+		expect(app.workspace.getLeaf).not.toHaveBeenCalled();
+	});
 });
 
 describe("StoryForgePlugin — legacy open-* commands stay registered as redirects (T2.3)", () => {

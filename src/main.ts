@@ -96,9 +96,10 @@ export default class StoryForgePlugin extends Plugin {
 			}),
 		);
 
-		// Ribbon icon — open the Workbench on click. "Story Forge" is a proper
-		// noun; "Workbench" is the surface name (T2.6).
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
+		// Ribbon icon — open the Workbench on click. "Workbench" is a registered
+		// brand (eslint.config.mts); "Story Forge" is the plugin's own name and
+		// isn't (T2.6) — the disable below is still needed for that half.
+		// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Story Forge" is a proper noun
 		this.addRibbonIcon(ICON, "Story Forge: open Workbench", () => {
 			void activateView(this.app);
 		});
@@ -108,7 +109,6 @@ export default class StoryForgePlugin extends Plugin {
 		// name changes (T2.6).
 		this.addCommand({
 			id: "open-panel",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Workbench" is a proper noun + action
 			name: "Open Workbench",
 			callback: () => {
 				void activateView(this.app);
@@ -125,7 +125,6 @@ export default class StoryForgePlugin extends Plugin {
 		// the main area; if Bases is off, activate the CodexView degrade leaf (S46).
 		this.addCommand({
 			id: "open-codex",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Codex" is a proper noun + action
 			name: "Open Codex",
 			callback: () => {
 				void this._openCodex();
@@ -137,7 +136,6 @@ export default class StoryForgePlugin extends Plugin {
 		// second one — see _openWorkspace.
 		this.addCommand({
 			id: "open-anvil",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Anvil" is a proper noun + action
 			name: "Open Anvil",
 			callback: () => {
 				void this._openWorkspace("codex");
@@ -323,6 +321,10 @@ export default class StoryForgePlugin extends Plugin {
 		const existing = this.app.workspace.getLeavesOfType(WORKSPACE_VIEW_TYPE)[0];
 		if (existing) {
 			await this.app.workspace.revealLeaf(existing);
+			// A leaf of WORKSPACE_VIEW_TYPE can exist with `.view` not yet a live
+			// AnvilView (e.g. mid-restore during workspace deserialization). Reveal it
+			// but deliberately do not retarget the tab in that case — silent, not an
+			// error, and pinned by the "not yet a live AnvilView" test below.
 			if (existing.view instanceof AnvilView) existing.view.setLayout(layout);
 			return;
 		}

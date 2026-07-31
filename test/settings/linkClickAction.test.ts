@@ -235,22 +235,25 @@ describe("SettingsTab — linkClickAction dropdown row", () => {
 	});
 
 	// T2.6: the sidebar surface is renamed to "Workbench" — its own settings
-	// copy must follow (display strings only). Mid-sentence, obsidianmd's
-	// sentence-case rule wants "workbench" lowercased (arbitrated by lint).
-	it("description and 'drill' option name the surface 'workbench', not 'panel'", async () => {
+	// copy must follow (display strings only). "Workbench" is registered as
+	// an obsidianmd/ui/sentence-case brand (eslint.config.mts, alongside
+	// Anvil/Codex — ADR-27's surface vocabulary), so the rule enforces its
+	// Title Case consistently even mid-sentence, matching the ribbon/command/
+	// panel-header spellings elsewhere in this diff.
+	it("description and 'drill' option name the surface 'Workbench', not 'panel'", async () => {
 		const plugin = makePlugin({ linkClickAction: "drill" });
 		const tab = makeTab(app, plugin, makeStore(), makeConsentGate(), makeImporter());
 		const container = await renderTab(tab);
 
 		const settingEl = findSettingEl(container, "Link click action");
 		expect(settingEl).not.toBeNull();
-		expect(settingEl!.textContent).toContain("workbench");
+		expect(settingEl!.textContent).toContain("Workbench");
 		expect(settingEl!.textContent).not.toContain("in the panel");
 
 		const selectEl = settingEl!.querySelector("select") as HTMLSelectElement | null;
 		expect(selectEl).not.toBeNull();
 		const drillOption = Array.from(selectEl!.options).find((o) => o.value === "drill");
-		expect(drillOption?.textContent).toContain("workbench");
+		expect(drillOption?.textContent).toContain("Workbench");
 		expect(drillOption?.textContent).not.toContain("stay in panel");
 	});
 
