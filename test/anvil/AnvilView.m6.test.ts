@@ -1,5 +1,5 @@
 /**
- * WorkspaceView.m6.test.ts — M6 / T6.1.
+ * AnvilView.m6.test.ts — M6 / T6.1.
  *
  * The workspace host gains two interactive layouts (kanban, plotgrid)
  * plus a Timeline Rail|Swimlane toggle + By-key selector + zoom (read-only rail),
@@ -27,7 +27,7 @@ import {
 	createMockTFile,
 	type CachedMetadata,
 } from "../__mocks__/obsidian";
-import { WorkspaceView } from "workspace/WorkspaceView";
+import { AnvilView } from "anvil/AnvilView";
 
 interface SceneOpts {
 	act: number;
@@ -102,12 +102,12 @@ function makeFixture() {
 	return { app, book, s1 };
 }
 
-function makeView(app: App): WorkspaceView {
+function makeView(app: App): AnvilView {
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: App }).app = app;
-	return new WorkspaceView(leaf, { getLinkClickAction: () => "drill", drill: vi.fn() });
+	return new AnvilView(leaf, { getLinkClickAction: () => "drill", drill: vi.fn() });
 }
-function body(view: WorkspaceView): HTMLElement {
+function body(view: AnvilView): HTMLElement {
 	return view.contentEl.querySelector(".sf-ws-body") as HTMLElement;
 }
 function click(el: Element | null): void {
@@ -115,9 +115,9 @@ function click(el: Element | null): void {
 	el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 }
 
-describe("WorkspaceView M6 — layout routing", () => {
+describe("AnvilView M6 — layout routing", () => {
 	let fx: ReturnType<typeof makeFixture>;
-	let view: WorkspaceView;
+	let view: AnvilView;
 
 	beforeEach(async () => {
 		Notice._reset();
@@ -152,9 +152,9 @@ describe("WorkspaceView M6 — layout routing", () => {
 	});
 });
 
-describe("WorkspaceView M6 — Timeline toolbar", () => {
+describe("AnvilView M6 — Timeline toolbar", () => {
 	let fx: ReturnType<typeof makeFixture>;
-	let view: WorkspaceView;
+	let view: AnvilView;
 
 	function selectKey(k: string): void {
 		const sel = view.contentEl.querySelector(".sf-ws-tlkey-select") as HTMLSelectElement;
@@ -250,7 +250,7 @@ describe("WorkspaceView M6 — Timeline toolbar", () => {
 	});
 });
 
-describe("WorkspaceView M6 — handler lifecycle + aria-live", () => {
+describe("AnvilView M6 — handler lifecycle + aria-live", () => {
 	it("creates an aria-live=polite region", async () => {
 		const fx = makeFixture();
 		const view = makeView(fx.app);
@@ -289,7 +289,7 @@ describe("WorkspaceView M6 — handler lifecycle + aria-live", () => {
 	});
 });
 
-describe("WorkspaceView M6 — zoom listener lifecycle (W2)", () => {
+describe("AnvilView M6 — zoom listener lifecycle (W2)", () => {
 	it("zoom listeners are bounded per render: prior child is unloaded on re-render", async () => {
 		const fx = makeFixture();
 		const view = makeView(fx.app);
@@ -342,7 +342,7 @@ describe("WorkspaceView M6 — zoom listener lifecycle (W2)", () => {
 	});
 });
 
-describe("WorkspaceView M6 — write-error surface (ADR-24)", () => {
+describe("AnvilView M6 — write-error surface (ADR-24)", () => {
 	it("marks the card with an error class and fires a Notice on write failure", async () => {
 		Notice._reset();
 		const fx = makeFixture();

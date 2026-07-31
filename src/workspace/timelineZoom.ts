@@ -2,7 +2,7 @@
  * timelineZoom — ephemeral CSS zoom controller for the Timeline body (M6, mockup M1).
  *
  * Split API (M6 rework): the CONTROLS bar and the SCALED body are separable so the
- * WorkspaceView can place the −/label/+ buttons in the toolbar row while the timeline
+ * AnvilView can place the −/label/+ buttons in the toolbar row while the timeline
  * body (rail or swimlane) lives in the main body under the scaled wrapper.
  *
  * `createTimelineZoom(component, { controlsHost, scaledHost })`:
@@ -15,7 +15,7 @@
  * Writes nothing. Does not import interactionHandler (ADR-21, CON-1).
  *
  * Listeners are registered via `component.registerDomEvent` (CON-4). Cleanup is owned
- * by the Component lifecycle — WorkspaceView (a Component) passes `this`; on unload all
+ * by the Component lifecycle — AnvilView (a Component) passes `this`; on unload all
  * listeners detach automatically.
  *
  * @ref docs/XDD/specs/007-interactive-views/plan/phase-4.md — T4.3

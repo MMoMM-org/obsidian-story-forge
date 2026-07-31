@@ -114,7 +114,7 @@ interface DragState {
 // ---------------------------------------------------------------------------
 
 /**
- * One InteractionHandler per WorkspaceView.
+ * One InteractionHandler per AnvilView.
  *
  * Registers delegated pointer + keyboard listeners on `host` (one set total).
  * Each call to `bind(card, file, strategy)` registers the card as draggable and
@@ -224,7 +224,7 @@ export class InteractionHandler {
 
 	/**
 	 * Remove all listeners, cancel pending flushes, and clear card registrations.
-	 * Call from WorkspaceView.onClose() (CON-4).
+	 * Call from AnvilView.onClose() (CON-4).
 	 */
 	destroy(): void {
 		// Cancel all pending debounced flushes.

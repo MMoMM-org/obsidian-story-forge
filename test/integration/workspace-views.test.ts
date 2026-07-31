@@ -3,7 +3,7 @@
  *
  * Drives BOTH declarative surfaces end-to-end over one rich in-code scene fixture
  * (mirrors the extended seed): the sidebar Navigator (SidebarView tab) and the
- * main-area WorkspaceView (Timeline rail + Plotlines list). Verifies scope →
+ * main-area AnvilView (Timeline rail + Plotlines list). Verifies scope →
  * mapSceneRow → models → render → drill, beat-derived act labels, the plotline
  * filter, Unassigned + unresolved buckets, collapse, and the read-only guarantee.
  *
@@ -21,7 +21,7 @@ import {
 import { SidebarView } from "views/SidebarView";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { NAVIGATOR_TAB_ID, SIDEBAR_VIEW_TYPE } from "pluginConstants";
-import { WorkspaceView } from "workspace/WorkspaceView";
+import { AnvilView } from "anvil/AnvilView";
 
 const CTX_TAB_ID = "__context__";
 
@@ -118,7 +118,7 @@ function texts(host: HTMLElement, sel: string): string[] {
 	return [...host.querySelectorAll(sel)].map((e) => e.textContent ?? "");
 }
 
-describe("M5 integration — Navigator + WorkspaceView over the extended seed", () => {
+describe("M5 integration — Navigator + AnvilView over the extended seed", () => {
 	let fx: ReturnType<typeof makeFixture>;
 
 	beforeEach(() => {
@@ -161,11 +161,11 @@ describe("M5 integration — Navigator + WorkspaceView over the extended seed", 
 		expect(vi.mocked(fx.app.vault.modify)).not.toHaveBeenCalled();
 	});
 
-	it("WorkspaceView: Timeline rail (beat act pills) → Plotlines list (Unassigned + unresolved) with collapse", async () => {
+	it("AnvilView: Timeline rail (beat act pills) → Plotlines list (Unassigned + unresolved) with collapse", async () => {
 		const drill = vi.fn();
 		const leaf = new WorkspaceLeaf();
 		(leaf as unknown as { app: App }).app = fx.app;
-		const view = new WorkspaceView(leaf, { getLinkClickAction: () => "drill", drill });
+		const view = new AnvilView(leaf, { getLinkClickAction: () => "drill", drill });
 		await view.onOpen();
 
 		const body = view.contentEl.querySelector(".sf-ws-body") as HTMLElement;

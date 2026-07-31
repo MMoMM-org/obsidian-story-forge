@@ -19,6 +19,18 @@ export const SIDEBAR_VIEW_TYPE = "story-forge-panel";
  */
 export const CODEX_VIEW_ID = "story-forge-codex";
 
+/**
+ * The view type identifier for the Anvil (the main-window surface; ADR-27).
+ * Stable — never change after first release (CON-4): renaming the id orphans every saved
+ * workspace layout that contains the leaf. The surface's *display* name may change freely
+ * (`getDisplayText`) — only this identifier is frozen.
+ *
+ * Formerly declared in `src/workspace/WorkspaceView.ts`, consolidated here (spec 008, T2.1)
+ * for the same reason `CODEX_VIEW_ID` was: a single source of truth so importers cannot
+ * drift out of lockstep with each other.
+ */
+export const WORKSPACE_VIEW_TYPE = "story-forge-workspace";
+
 /** Sentinel data-view-id for the fixed Navigator tab in the sidebar (M5). */
 export const NAVIGATOR_TAB_ID = "__navigator__";
 

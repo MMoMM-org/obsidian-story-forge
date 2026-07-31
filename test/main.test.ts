@@ -12,9 +12,8 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { App, WorkspaceLeaf, TFile, createMockDataviewApi, wireDataviewApi } from "obsidian";
-import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
+import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import { CODEX_VIEW_TYPE } from "codex/CodexView";
-import { WORKSPACE_VIEW_TYPE } from "workspace/WorkspaceView";
 import type { StoryForgeData } from "store/types";
 import { EngineRegistry } from "engines/QueryEngine";
 
@@ -782,7 +781,7 @@ describe("StoryForgePlugin T3.3 — CodexView registration + Open Codex command"
 	});
 });
 
-describe("StoryForgePlugin M5 — WorkspaceView registration + open commands", () => {
+describe("StoryForgePlugin M5 — AnvilView registration + open commands", () => {
 	it("registerView is called with WORKSPACE_VIEW_TYPE", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();

@@ -1,5 +1,5 @@
 /**
- * WorkspaceView — the main-area workspace host (M5 read views + M6 interactive views).
+ * AnvilView — the main-area workspace host (M5 read views + M6 interactive views).
  *
  * One polymorphic `ItemView` (ADR-16) with a header toolbar. It follows the active
  * note (active-leaf-change), resolves scope via the shared core, maps rows, and routes
@@ -18,15 +18,24 @@
  *   - announces into an `aria-live=polite` region on the keyboard path (F8).
  *
  * A debounced `metadataCache.changed` subscription reconciles this view and refreshes any
- * other open WorkspaceView on the same scope (hybrid re-render, ADR-22; last-write-wins,
+ * other open AnvilView on the same scope (hybrid re-render, ADR-22; last-write-wins,
  * ADR-25).
+ *
+ * Moved from `src/workspace/WorkspaceView.ts` to `src/anvil/AnvilView.ts`, with the class
+ * itself renamed `WorkspaceView` → `AnvilView` and `WorkspaceLayout` → `AnvilLayout` in the
+ * same diff (spec 008, ADR-27 — "one large rename diff, taken while the file is open
+ * anyway"). This is now the host for the Anvil, the main-window surface. The view type id
+ * is unaffected by any of this: `WORKSPACE_VIEW_TYPE` keeps its frozen string value (CON-4)
+ * and now lives in `pluginConstants.ts` alongside the other view type ids — the constant's
+ * *name* still tracks the id, not the class, matching `SIDEBAR_VIEW_TYPE`.
  *
  * @ref docs/XDD/specs/006-declarative-views/solution.md — ADR-2, ADR-3, ADR-13
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-16, ADR-20, ADR-21, ADR-22, ADR-24, ADR-25
+ * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-27
  */
 
 import { Component, ItemView, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
-import { DEBOUNCE_MS } from "pluginConstants";
+import { DEBOUNCE_MS, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import { revealAndShowFile } from "views/SidebarView";
 import { resolveWorkspaceScope, resolvePlotlineScope } from "scoping/workspaceScope";
 import { mapSceneRow } from "workspace/sceneMapper";
@@ -49,9 +58,7 @@ import { InteractionHandler } from "workspace/interactionHandler";
 import { commit, commitMany, type CommitResult, type CommitError } from "../inspector/frontmatterWriter";
 import { CollapseStore } from "workspace/collapseStore";
 
-export const WORKSPACE_VIEW_TYPE = "story-forge-workspace";
-
-export type WorkspaceLayout = "timeline" | "plotlines" | "kanban" | "plotgrid";
+export type AnvilLayout = "timeline" | "plotlines" | "kanban" | "plotgrid";
 
 /** The Timeline sub-mode toggle (ADR-16 / mockup S62 vs S76). */
 type TimelineMode = "rail" | "swimlane";
@@ -62,14 +69,14 @@ const STATUS_VOCAB = ["idea", "outline", "draft", "revised", "done", "final"];
 /** The `order` field spec used by the Kanban renumber path. */
 const ORDER_FIELD = { name: "order", type: "number" as const };
 
-export interface WorkspaceViewOpts {
+export interface AnvilViewOpts {
 	/** Reads the live link-click setting (getter — main.ts reassigns settings). */
 	getLinkClickAction?: () => "drill" | "open";
 	/** Drill seam — injected for testability; defaults to the sidebar Context drill. */
 	drill?: (file: TFile) => void;
 }
 
-function isLayout(v: unknown): v is WorkspaceLayout {
+function isLayout(v: unknown): v is AnvilLayout {
 	return (
 		v === "timeline" ||
 		v === "plotlines" ||
@@ -83,15 +90,15 @@ function isSwimlaneKey(v: unknown): v is SwimlaneKey {
 }
 
 /** Human labels for the four layout modes (sentence-case UI). */
-const LAYOUT_LABEL: Record<WorkspaceLayout, string> = {
+const LAYOUT_LABEL: Record<AnvilLayout, string> = {
 	timeline: "Timeline",
 	plotlines: "Plotlines",
 	kanban: "Kanban",
 	plotgrid: "Plotgrid",
 };
 
-export class WorkspaceView extends ItemView {
-	private _layout: WorkspaceLayout = "timeline";
+export class AnvilView extends ItemView {
+	private _layout: AnvilLayout = "timeline";
 	private _timelineMode: TimelineMode = "rail";
 	/** Swimlane grouping key, persisted per-scope (ADR-20). */
 	private readonly _swimKeyByScope = new Map<string, SwimlaneKey>();
@@ -110,7 +117,7 @@ export class WorkspaceView extends ItemView {
 	private readonly _drill: (file: TFile) => void;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
-	constructor(leaf: WorkspaceLeaf, opts?: WorkspaceViewOpts) {
+	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
 		super(leaf);
 		this.getLinkClickAction = opts?.getLinkClickAction ?? ((): "drill" => "drill");
 		this._drill =
@@ -123,7 +130,7 @@ export class WorkspaceView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return `Story Forge ${LAYOUT_LABEL[this._layout]}`;
+		return `Anvil — ${LAYOUT_LABEL[this._layout]}`;
 	}
 
 	getIcon(): string {
@@ -241,7 +248,7 @@ export class WorkspaceView extends ItemView {
 	}
 
 	/** Switch the layout and re-render. */
-	setLayout(layout: WorkspaceLayout): void {
+	setLayout(layout: AnvilLayout): void {
 		this._layout = layout;
 		this._syncToggle();
 		this._render();

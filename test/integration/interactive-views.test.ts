@@ -6,7 +6,7 @@
  * per-path store + metadataCache._trigger("changed")):
  *
  *   (a) Kanban move writes status + order; the view re-renders and a SECOND
- *       WorkspaceView on the same scope reflects it after "changed" (AC-F7.3).
+ *       AnvilView on the same scope reflects it after "changed" (AC-F7.3).
  *   (b) Plotgrid is read-only: clicking a cell does NOT write (M6 rework).
  *   (d) A simulated external frontmatter change re-renders (last-write-wins,
  *       ADR-25).
@@ -48,7 +48,7 @@ Object.defineProperty(document, "elementFromPoint", {
 });
 
 // Import AFTER the shims so the handler's activeWindow/activeDocument resolve.
-import { WorkspaceView } from "workspace/WorkspaceView";
+import { AnvilView } from "anvil/AnvilView";
 
 interface SceneOpts {
 	act: number;
@@ -121,18 +121,18 @@ function makeFixture() {
 	return { app, book, scenes, caches };
 }
 
-function makeView(app: App): WorkspaceView {
+function makeView(app: App): AnvilView {
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: App }).app = app;
-	return new WorkspaceView(leaf, { getLinkClickAction: () => "drill", drill: vi.fn() });
+	return new AnvilView(leaf, { getLinkClickAction: () => "drill", drill: vi.fn() });
 }
-function body(view: WorkspaceView): HTMLElement {
+function body(view: AnvilView): HTMLElement {
 	return view.contentEl.querySelector(".sf-ws-body") as HTMLElement;
 }
 function keyDown(el: Element, key: string, altKey = false): void {
 	el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key, altKey }));
 }
-function kbCard(view: WorkspaceView, path: string): HTMLElement {
+function kbCard(view: AnvilView, path: string): HTMLElement {
 	const card = [...body(view).querySelectorAll<HTMLElement>(".sf-kb-card")].find(
 		(c) => c.getAttribute("data-sf-card-path") === path,
 	);

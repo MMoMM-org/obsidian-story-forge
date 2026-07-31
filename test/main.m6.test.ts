@@ -2,7 +2,7 @@
  * main.m6.test.ts — M6 / T6.2.
  *
  * The two new palette commands (Open Kanban / Open Plotgrid) open the main-area
- * WorkspaceView at the corresponding layout, mirroring the M5 open-timeline /
+ * AnvilView at the corresponding layout, mirroring the M5 open-timeline /
  * open-plotlines pattern. No duplicate view types are registered.
  *
  * Open Locations removed from M6 (→ Codex, tracked in GH #6).
@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import { App, WorkspaceLeaf } from "obsidian";
-import { WORKSPACE_VIEW_TYPE } from "workspace/WorkspaceView";
+import { WORKSPACE_VIEW_TYPE } from "pluginConstants";
 
 async function makePlugin(): Promise<{
 	plugin: InstanceType<typeof import("main").default>;

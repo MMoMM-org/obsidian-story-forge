@@ -1,5 +1,5 @@
 /**
- * WorkspaceView.test.ts — M5 Phase 5 (RED).
+ * AnvilView.test.ts — M5 Phase 5 (RED).
  *
  * The main-area Timeline/Plotlines ItemView: renders the rail/list, toggles layout,
  * drills scene clicks, persists Plotlines collapse, and shows the no-scope hint.
@@ -15,7 +15,8 @@ import {
 	createMockTFile,
 	type CachedMetadata,
 } from "../__mocks__/obsidian";
-import { WorkspaceView, WORKSPACE_VIEW_TYPE } from "workspace/WorkspaceView";
+import { AnvilView } from "anvil/AnvilView";
+import { WORKSPACE_VIEW_TYPE } from "pluginConstants";
 
 // ---- mini scene-vault ------------------------------------------------------
 const book = createMockTFile({ basename: "Wardens of Moonharbor", path: "20 Planning/Wardens of Moonharbor.md" });
@@ -40,10 +41,10 @@ function sceneCache(act: number, order: number, status: string, plotline: string
 	});
 }
 
-function content(view: WorkspaceView): HTMLElement {
+function content(view: AnvilView): HTMLElement {
 	return view.contentEl;
 }
-function bodyOf(view: WorkspaceView): HTMLElement {
+function bodyOf(view: AnvilView): HTMLElement {
 	return view.contentEl.querySelector(".sf-ws-body") as HTMLElement;
 }
 function click(el: Element | null, opts: { ctrl?: boolean } = {}): void {
@@ -51,9 +52,9 @@ function click(el: Element | null, opts: { ctrl?: boolean } = {}): void {
 	el.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: opts.ctrl ?? false }));
 }
 
-describe("WorkspaceView", () => {
+describe("AnvilView", () => {
 	let app: App;
-	let view: WorkspaceView;
+	let view: AnvilView;
 	let activeFile: TFile | null;
 	let drill: ReturnType<typeof vi.fn>;
 	let clickAction: "drill" | "open";
@@ -94,7 +95,7 @@ describe("WorkspaceView", () => {
 
 		const leaf = new WorkspaceLeaf();
 		(leaf as unknown as { app: App }).app = app;
-		view = new WorkspaceView(leaf, { getLinkClickAction: () => clickAction, drill });
+		view = new AnvilView(leaf, { getLinkClickAction: () => clickAction, drill });
 		await view.onOpen();
 	});
 
@@ -149,10 +150,34 @@ describe("WorkspaceView", () => {
 		activeFile = character;
 		const leaf = new WorkspaceLeaf();
 		(leaf as unknown as { app: App }).app = app;
-		const v = new WorkspaceView(leaf, { getLinkClickAction: () => clickAction, drill });
+		const v = new AnvilView(leaf, { getLinkClickAction: () => clickAction, drill });
 		await v.onOpen();
 		expect(bodyOf(v).querySelector(".sf-ws-hint")).not.toBeNull();
 		// still whole-vault scenes
 		expect(bodyOf(v).querySelectorAll(".sf-tl-card")).toHaveLength(3);
+	});
+
+	// --- T2.1 move guards (CON-4: the id is frozen; only the file location changed) ---
+
+	it("CON-4 guard: the view type id is still the literal string from before the move", () => {
+		// Not just equal to the imported constant (that would be circular if the
+		// constant's value itself drifted) — pinned to the exact string that was
+		// declared in the pre-move src/workspace/WorkspaceView.ts.
+		expect(WORKSPACE_VIEW_TYPE).toBe("story-forge-workspace");
+		expect(view.getViewType()).toBe("story-forge-workspace");
+	});
+
+	it("a leaf persisted under the old (pre-move) view type still restores", async () => {
+		// Obsidian restores a saved workspace by looking up the registered view
+		// factory using the literal type string it persisted to disk — it has no
+		// knowledge of where AnvilView's source file lives. Constructing the
+		// view exactly as main.ts's registerView factory does, keyed off the
+		// frozen literal, proves a pre-move saved layout still opens correctly.
+		const restoredLeaf = new WorkspaceLeaf();
+		(restoredLeaf as unknown as { app: App }).app = app;
+		const restored = new AnvilView(restoredLeaf, { getLinkClickAction: () => clickAction, drill });
+		expect(restored.getViewType()).toBe("story-forge-workspace");
+		await restored.onOpen();
+		expect(restored.contentEl.querySelector(".sf-ws-toggle")).not.toBeNull();
 	});
 });

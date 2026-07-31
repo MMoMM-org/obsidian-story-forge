@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, normalizeLinkClickAction, type PluginSettings } from 
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort, StoryForgeData } from "store/types";
 import { SidebarView, activateView } from "views/SidebarView";
-import { SIDEBAR_VIEW_TYPE, ICON } from "pluginConstants";
+import { SIDEBAR_VIEW_TYPE, ICON, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { WorkspaceLeaf } from "obsidian";
 import { EngineRegistry } from "engines/QueryEngine";
 import { buildEngineRegistry, getDvSettings } from "engines/EngineRegistry";
@@ -14,7 +14,7 @@ import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
 import { registerCodexView, isBasesAvailable } from "bases/BasesAdapter";
 import { CodexView, CODEX_VIEW_TYPE } from "codex/CodexView";
-import { WorkspaceView, WORKSPACE_VIEW_TYPE, type WorkspaceLayout } from "workspace/WorkspaceView";
+import { AnvilView, type AnvilLayout } from "anvil/AnvilView";
 import { CatalogService } from "catalog/CatalogService";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import type { CatalogIndex } from "catalog/catalogTypes";
@@ -88,10 +88,10 @@ export default class StoryForgePlugin extends Plugin {
 			(leaf: WorkspaceLeaf) => new CodexView(leaf),
 		);
 
-		// Register the main-area WorkspaceView (M5): Timeline rail + Plotlines list.
+		// Register the main-area AnvilView (M5): Timeline rail + Plotlines list.
 		this.registerView(
 			WORKSPACE_VIEW_TYPE,
-			(leaf: WorkspaceLeaf) => new WorkspaceView(leaf, {
+			(leaf: WorkspaceLeaf) => new AnvilView(leaf, {
 				getLinkClickAction: () => this.settings.linkClickAction,
 			}),
 		);
@@ -289,16 +289,16 @@ export default class StoryForgePlugin extends Plugin {
 	}
 
 	/**
-	 * Open the main-area WorkspaceView at the given layout (M5).
+	 * Open the main-area AnvilView at the given layout (M5).
 	 *
 	 * Opens in a new tab (getLeaf(true)); the initial layout is passed via view
 	 * state and also applied directly to the live view (setLayout) so it renders
 	 * the requested layout without relying on state round-tripping.
 	 */
-	async _openWorkspace(layout: WorkspaceLayout): Promise<void> {
+	async _openWorkspace(layout: AnvilLayout): Promise<void> {
 		const leaf = this.app.workspace.getLeaf(true);
 		await leaf.setViewState({ type: WORKSPACE_VIEW_TYPE, active: true, state: { layout } });
-		if (leaf.view instanceof WorkspaceView) leaf.view.setLayout(layout);
+		if (leaf.view instanceof AnvilView) leaf.view.setLayout(layout);
 		await this.app.workspace.revealLeaf(leaf);
 	}
 
