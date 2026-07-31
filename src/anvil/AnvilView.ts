@@ -3,11 +3,13 @@
  *
  * One polymorphic `ItemView` (ADR-16) with a header toolbar. It follows the active
  * note (active-leaf-change), resolves scope via the shared core, maps rows, and routes
- * to one of four layouts:
+ * to one of five layouts (tab strip built by `anvilTabs.ts`, S91/S94):
  *
+ *   codex     — collection grid + editor pane (T2.2: placeholder empty state; the real
+ *               grid is Phase 4)
  *   timeline  — rail OR swimlane (read; M6 adds swimlane + zoom)
  *   plotlines — Plotlines list (read, M5)
- *   kanban    — status columns, drag→status+order write-back (M6)
+ *   kanban    — status columns, drag→status+order write-back (M6); displays as "Board" (S91)
  *   plotgrid  — read-only Scene × Plotline coverage matrix (M6; editable/configurable → GH #8)
  *
  * The view OWNS one `InteractionHandler` (constructed in onOpen, destroyed in onClose —
@@ -57,8 +59,9 @@ import { createTimelineZoom } from "workspace/timelineZoom";
 import { InteractionHandler } from "workspace/interactionHandler";
 import { commit, commitMany, type CommitResult, type CommitError } from "../inspector/frontmatterWriter";
 import { CollapseStore } from "workspace/collapseStore";
+import { ANVIL_TAB_LABEL, buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
 
-export type AnvilLayout = "timeline" | "plotlines" | "kanban" | "plotgrid";
+export type AnvilLayout = "codex" | "timeline" | "plotlines" | "kanban" | "plotgrid";
 
 /** The Timeline sub-mode toggle (ADR-16 / mockup S62 vs S76). */
 type TimelineMode = "rail" | "swimlane";
@@ -76,26 +79,9 @@ export interface AnvilViewOpts {
 	drill?: (file: TFile) => void;
 }
 
-function isLayout(v: unknown): v is AnvilLayout {
-	return (
-		v === "timeline" ||
-		v === "plotlines" ||
-		v === "kanban" ||
-		v === "plotgrid"
-	);
-}
-
 function isSwimlaneKey(v: unknown): v is SwimlaneKey {
 	return v === "pov" || v === "location" || v === "plotline";
 }
-
-/** Human labels for the four layout modes (sentence-case UI). */
-const LAYOUT_LABEL: Record<AnvilLayout, string> = {
-	timeline: "Timeline",
-	plotlines: "Plotlines",
-	kanban: "Kanban",
-	plotgrid: "Plotgrid",
-};
 
 export class AnvilView extends ItemView {
 	private _layout: AnvilLayout = "timeline";
@@ -130,11 +116,12 @@ export class AnvilView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return `Anvil — ${LAYOUT_LABEL[this._layout]}`;
+		return `Anvil — ${ANVIL_TAB_LABEL[this._layout]}`;
 	}
 
 	getIcon(): string {
 		switch (this._layout) {
+			case "codex": return "library";
 			case "plotlines": return "git-branch";
 			case "kanban": return "columns";
 			case "plotgrid": return "grid";
@@ -150,15 +137,10 @@ export class AnvilView extends ItemView {
 		const head = ce.createDiv({ cls: "sf-ws-head" });
 		head.createSpan({ cls: "sf-ws-brand", text: "Story Forge" });
 
-		// Mode toggle — one pill per layout. The two M5 pills keep their exact
-		// data-ws-layout hooks so existing tests + delegated routing are preserved.
-		const toggle = head.createDiv({ cls: "sf-ws-toggle" });
-		(["timeline", "plotlines", "kanban", "plotgrid"] as const).forEach((l) => {
-			toggle
-				.createEl("span", { cls: "sf-ws-mode", text: LAYOUT_LABEL[l] })
-				.setAttribute("data-ws-layout", l);
-		});
-		this._toggleEl = toggle;
+		// Mode toggle — one pill per tab, built from the anvilTabs.ts registry (S91 order).
+		// Existing data-ws-layout hooks (timeline/plotlines/kanban/plotgrid) are unchanged,
+		// so delegated routing + existing M5/M6 tests keep working untouched.
+		this._toggleEl = buildAnvilTabStrip(head);
 
 		// Timeline sub-controls (one row, mockup M1): Rail|Swimlane toggle +
 		// group-by dropdown + inline zoom controls. Only shown for the Timeline
@@ -313,6 +295,15 @@ export class AnvilView extends ItemView {
 		const resolve: LinkResolver = (t) => this.app.metadataCache.getFirstLinkpathDest(t, sourcePath);
 
 		switch (this._layout) {
+			case "codex":
+				// Placeholder empty state (T2.2). The real Codex collection grid + editor
+				// pane is Phase 4 (F3/F5) — this tab exists so the strip is complete and
+				// the layout union/persistence path are exercised now.
+				zoom.scaledEl.createDiv({
+					cls: "sf-cx-placeholder",
+					text: "Codex is coming soon.",
+				});
+				break;
 			case "timeline":
 				this._renderTimeline(zoom.scaledEl, rows);
 				break;
@@ -422,7 +413,7 @@ export class AnvilView extends ItemView {
 		const modeEl = target.closest("[data-ws-layout]");
 		if (modeEl instanceof HTMLElement) {
 			const l = modeEl.getAttribute("data-ws-layout");
-			if (isLayout(l)) this.setLayout(l);
+			if (isAnvilTab(l)) this.setLayout(l);
 			return;
 		}
 
