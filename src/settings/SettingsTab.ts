@@ -115,10 +115,10 @@ export class SettingsTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Link click action")
-			.setDesc("What happens when you click a link in the Workbench. Modifier-click (ctrl/cmd) inverts this choice.")
+			.setDesc("What happens when you click a link to another entity. Modifier-click (ctrl/cmd) inverts this choice.")
 			.addDropdown((d) =>
 				d
-					.addOption("drill", "Drill into linked note (stay in Workbench)")
+					.addOption("drill", "Drill into linked note (show it in place)")
 					.addOption("open", "Open in editor")
 					.setValue(this.plugin.settings.linkClickAction)
 					.onChange(async (value: string) => {
