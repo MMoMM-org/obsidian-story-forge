@@ -6,8 +6,8 @@
  * call `revealAndShowFile`, which opened/revealed the Workbench leaf. Per
  * PRD/F2's AC, "inspect" in the Anvil must show the entry within the Anvil
  * and must not open, reveal or re-target any other leaf — until the Anvil's
- * own editor pane exists (Phase 4/5), the honest minimum is a
- * no-op-with-selection (see AnvilView.ts's `_drill` default).
+ * own editor pane exists (Phase 4/5), there is nowhere to show an inspection,
+ * so the default `_drill` deliberately does nothing (AnvilView.ts).
  *
  * Also covers the one genuine DOM-nesting case in the whole codebase
  * (navigationController.ts's docstring, AnvilView._onClick's own comment):
@@ -126,12 +126,6 @@ describe("AnvilView: inspect targets the Anvil's own body, never another leaf", 
 	it("inspect does not open the note in the workspace either (it only inspects)", () => {
 		click(bodyOf(view).querySelector(`[data-sf-link="${s1.path}"]`));
 		expect(app.workspace.openLinkText).not.toHaveBeenCalled();
-	});
-
-	it("the default inspect implementation records the target (no-op-with-selection), proving the click was routed", () => {
-		click(bodyOf(view).querySelector(`[data-sf-link="${s1.path}"]`));
-		const pv = view as unknown as { _inspectedFile: TFile | null };
-		expect(pv._inspectedFile?.path).toBe(s1.path);
 	});
 
 	it("still routes through the injectable inspect hook (drill) when one is supplied", async () => {

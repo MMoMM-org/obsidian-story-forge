@@ -46,7 +46,8 @@ import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFields } from "../inspector/inspectorFields";
-import { createNavigationController, type TargetKind, type TargetMarkers } from "../navigation/navigationController";
+import { createNavigationController, type TargetKind } from "../navigation/navigationController";
+import { walkTargetMarkers } from "../navigation/domTargetWalk";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -705,34 +706,6 @@ export class SidebarView extends ItemView {
 	}
 
 	/**
-	 * ADR-28 / T2.5: walk up the DOM ancestor chain from `start` (inclusive) to
-	 * `root` (inclusive), pushing each recognised marker kind **nearest
-	 * first** — this is what lets a name nested inside a structural control
-	 * win by proximity rather than by a fixed check order
-	 * (navigationController.ts docstring). Returns the ordered markers for
-	 * `classifyTarget`, plus `nearest`: the element that produced `markers[0]`,
-	 * needed to actually enact whatever the controller decides.
-	 */
-	private _collectTargetMarkers(
-		start: HTMLElement,
-		root: HTMLElement,
-	): { markers: TargetMarkers; nearest: HTMLElement | null } {
-		const markers: TargetKind[] = [];
-		let nearest: HTMLElement | null = null;
-		let el: HTMLElement | null = start;
-		while (el) {
-			const kind = this._markerKindOf(el);
-			if (kind) {
-				markers.push(kind);
-				if (nearest === null) nearest = el;
-			}
-			if (el === root) break;
-			el = el.parentElement;
-		}
-		return { markers, nearest };
-	}
-
-	/**
 	 * Resolve `nearest`'s `data-sf-link` (if any) to a `TFile`, mirroring the
 	 * old lookup. Relation/backlink links stamp a full vault path; fact-value
 	 * wikilinks (fix #5) stamp only the link TARGET text (a basename), so fall
@@ -795,7 +768,7 @@ export class SidebarView extends ItemView {
 	private _onBodyActivate(target: EventTarget | null, modifier: boolean): void {
 		if (!(target instanceof HTMLElement) || !this._bodyEl) return;
 
-		const { markers, nearest } = this._collectTargetMarkers(target, this._bodyEl);
+		const { markers, nearest } = walkTargetMarkers(target, this._bodyEl, (el) => this._markerKindOf(el));
 
 		const controller = createNavigationController({
 			getLinkClickAction: this.getLinkClickAction,

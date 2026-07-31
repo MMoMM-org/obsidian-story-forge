@@ -59,7 +59,8 @@ import { InteractionHandler } from "workspace/interactionHandler";
 import { commit, commitMany, type CommitResult, type CommitError } from "../inspector/frontmatterWriter";
 import { CollapseStore } from "workspace/collapseStore";
 import { ANVIL_TAB_LABEL, buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
-import { createNavigationController, type TargetKind, type TargetMarkers } from "navigation/navigationController";
+import { createNavigationController, type TargetKind } from "navigation/navigationController";
+import { walkTargetMarkers } from "navigation/domTargetWalk";
 
 export type AnvilLayout = "codex" | "timeline" | "plotlines" | "kanban" | "plotgrid";
 
@@ -101,14 +102,6 @@ export class AnvilView extends ItemView {
 	private _zoomChild: Component | null = null;
 	private readonly getLinkClickAction: () => "drill" | "open";
 	private readonly _drill: (file: TFile) => void;
-	/**
-	 * T2.5 / ADR-28: the file most recently inspected in the Anvil. The Anvil's own
-	 * editor pane arrives in Phase 4/5 — until it exists, "inspect" has no visible
-	 * panel to show, so this is the honest minimum: a no-op-with-selection. It
-	 * records the target without opening, revealing or re-targeting any leaf
-	 * (the regression this task fixes — see the `_drill` default below).
-	 */
-	private _inspectedFile: TFile | null = null;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
@@ -117,9 +110,10 @@ export class AnvilView extends ItemView {
 		// ADR-28: this is the Anvil's "inspect" implementation. It used to default to
 		// revealAndShowFile(app, file), which opened/revealed the Workbench leaf — the
 		// reported regression (a click in the Anvil must target no other leaf). The
-		// default now only records the inspected file (no-op-with-selection); tests
-		// inject `drill` to observe inspection without needing an editor pane.
-		this._drill = opts?.drill ?? ((file: TFile): void => { this._inspectedFile = file; });
+		// Anvil has nowhere to show an inspection until its own editor pane lands in
+		// Phase 4/5, so the default deliberately does nothing; tests inject `drill`
+		// to observe inspection through the seam that exists for exactly this purpose.
+		this._drill = opts?.drill ?? ((): void => {});
 		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
 	}
 
@@ -434,35 +428,6 @@ export class AnvilView extends ItemView {
 		return null;
 	}
 
-	/**
-	 * ADR-28 / T2.5: walk up the DOM ancestor chain from `start` (inclusive) to
-	 * `this.contentEl` (inclusive), pushing each recognised marker kind
-	 * **nearest first**. This is what makes a nested `data-sf-link` (e.g. the
-	 * timeline act label, which sits *inside* its section header's
-	 * `data-sf-section-toggle`) win over the surrounding structural control —
-	 * proximity, not a fixed kind ranking (navigationController.ts docstring).
-	 *
-	 * Returns the ordered markers for `classifyTarget`, plus `nearest`: the
-	 * element that produced `markers[0]` — the one piece of surface-specific
-	 * identity (which link, which control) the controller intentionally never
-	 * sees, needed here to actually enact whatever it decides.
-	 */
-	private _collectTargetMarkers(start: HTMLElement): { markers: TargetMarkers; nearest: HTMLElement | null } {
-		const markers: TargetKind[] = [];
-		let nearest: HTMLElement | null = null;
-		let el: HTMLElement | null = start;
-		while (el) {
-			const kind = this._markerKindOf(el);
-			if (kind) {
-				markers.push(kind);
-				if (nearest === null) nearest = el;
-			}
-			if (el === this.contentEl) break;
-			el = el.parentElement;
-		}
-		return { markers, nearest };
-	}
-
 	/** Resolve `nearest`'s `data-sf-link` (if any) to a `TFile`, mirroring the old lookup. */
 	private _resolveLinkFile(nearest: HTMLElement | null): TFile | null {
 		const path = nearest?.getAttribute("data-sf-link");
@@ -516,7 +481,7 @@ export class AnvilView extends ItemView {
 	private _onClick(target: EventTarget | null, modifier: boolean): void {
 		if (!(target instanceof HTMLElement)) return;
 
-		const { markers, nearest } = this._collectTargetMarkers(target);
+		const { markers, nearest } = walkTargetMarkers(target, this.contentEl, (el) => this._markerKindOf(el));
 
 		const controller = createNavigationController({
 			getLinkClickAction: this.getLinkClickAction,

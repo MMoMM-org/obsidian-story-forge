@@ -34,7 +34,7 @@ state.
 Turns four commands into one surface and gives clicking a single rule. Nothing about Timeline,
 Plotgrid, Plotlines or Board changes except where it lives.
 
-- [ ] **T2.1 Move the host, keep the id** `[activity: refactoring]`
+- [x] **T2.1 Move the host, keep the id** `[activity: refactoring]`
 
   1. Prime: Read `src/pluginConstants.ts` — `SIDEBAR_VIEW_TYPE` carries *"Stable — never change
      after first release"* `[ref: SDD/CON-4]`. Read `[ref: SDD/ADR-27]` for why the files move
@@ -47,10 +47,10 @@ Plotgrid, Plotlines or Board changes except where it lives.
      its value and is re-exported from its new home.
   4. Validate: full suite green — this task must be behaviour-neutral; lint; types.
   5. Success:
-     - [ ] No view type id string changed `[ref: SDD/AC — PRD F1]`
-     - [ ] Zero test behaviour changes; only import paths move
+     - [x] No view type id string changed `[ref: SDD/AC — PRD F1]`
+     - [x] Zero test behaviour changes; only import paths move
 
-- [ ] **T2.2 Tab strip and the `codex` layout member** `[activity: frontend-ui]`
+- [x] **T2.2 Tab strip and the `codex` layout member** `[activity: frontend-ui]`
 
   1. Prime: Read the layout union (`src/anvil/AnvilView.ts` l.54 pre-move) and mockup **S91**
      (tab strip) and **S94** (Timeline-only controls appear on the Timeline tab and are hidden
@@ -62,9 +62,9 @@ Plotgrid, Plotlines or Board changes except where it lives.
   3. Implement: `src/anvil/anvilTabs.ts` + extend the layout union with `codex`.
   4. Validate: unit tests over the rendered DOM; lint; types.
   5. Success:
-     - [ ] One view, five tabs, management tabs behave exactly as in M5/M6 `[ref: SDD/AC — PRD F1]`
+     - [x] One view, five tabs, management tabs behave exactly as in M5/M6 `[ref: SDD/AC — PRD F1]`
 
-- [ ] **T2.3 One command in, legacy commands redirected** `[activity: backend-api]`
+- [x] **T2.3 One command in, legacy commands redirected** `[activity: backend-api]`
 
   1. Prime: Read the command registration in `src/main.ts` (l.131–165) — four `open-*` commands.
   2. Test: `Open Anvil` opens the view with Codex selected; each legacy id
@@ -75,9 +75,9 @@ Plotgrid, Plotlines or Board changes except where it lives.
      survive `[ref: SDD/Risks — hotkeys]`.
   4. Validate: unit tests with the command mock; lint; types.
   5. Success:
-     - [ ] Existing hotkeys keep working `[ref: SDD/AC — PRD F1]`
+     - [x] Existing hotkeys keep working `[ref: SDD/AC — PRD F1]`
 
-- [ ] **T2.4 `NavigationController` — the target-kind matrix** `[activity: domain-modeling]`
+- [x] **T2.4 `NavigationController` — the target-kind matrix** `[activity: domain-modeling]`
 
   1. Prime: Read the matrix `[ref: PRD/F2]` and both current implementations —
      `src/anvil/AnvilView.ts` (~l.435, `data-sf-link` → `_drill` via `revealAndShowFile`) and
@@ -92,7 +92,7 @@ Plotgrid, Plotlines or Board changes except where it lives.
      callback each host supplies `[ref: ADR-28]`.
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] Behaviour depends on target kind, not on the hosting surface `[ref: SDD/AC — PRD F2]`
+     - [x] Behaviour depends on target kind, not on the hosting surface `[ref: SDD/AC — PRD F2]`
 
 - [ ] **T2.5 Wire both surfaces to the controller** `[activity: frontend-ui]`
 
@@ -107,7 +107,7 @@ Plotgrid, Plotlines or Board changes except where it lives.
   5. Success:
      - [ ] A click in the Anvil no longer hijacks the Workbench `[ref: PRD/F2]`
 
-- [ ] **T2.6 Rename the sidebar to Workbench** `[activity: frontend-ui]`
+- [x] **T2.6 Rename the sidebar to Workbench** `[activity: frontend-ui]`
 
   1. Prime: Mockup **S95**; `[ref: SDD/CON-4]` — display only.
   2. Test: the command is `Open Workbench`; the ribbon tooltip, view display name and settings
@@ -115,7 +115,7 @@ Plotgrid, Plotlines or Board changes except where it lives.
   3. Implement: display strings only, sentence-case per the obsidianmd rule.
   4. Validate: unit tests assert the id is untouched; lint (incl. the sentence-case rule); types.
   5. Success:
-     - [ ] Naming is consistent in commands, ribbon, view and settings `[ref: SDD/AC — PRD F1]`
+     - [x] Naming is consistent in commands, ribbon, view and settings `[ref: SDD/AC — PRD F1]`
 
 - [ ] **T2.7 Phase Validation** `[activity: validate]`
 
