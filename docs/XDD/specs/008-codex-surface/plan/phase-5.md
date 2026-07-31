@@ -13,6 +13,9 @@ phase: 5
 
 **Specification References**:
 - `[ref: PRD/F5]` — the editor pane, 9 ACs · `[ref: PRD/F6]` — fields from the chain (rendering half)
+- `[ref: PRD/F2]` — navigation. **This phase discharges two F2 debts left open by Phase 2**: the
+  Anvil's `inspect` has nowhere to land until this pane exists (T5.1), and the `editableField`
+  marker has no producer until field controls exist (T5.2).
 - `[ref: SDD/ADR-33]` — three docks, never automatic · `[ref: ADR-0001]` — editing is custom DOM
 - Mockups **S92** (bottom + tools), **S99** (docked right), **S100** (fullscreen), **S102/S103**
   (sections and layout)
@@ -36,16 +39,35 @@ The editor the withdrawn "note panel" surface was actually reaching for.
 
 - [ ] **T5.1 Pane shell, docks and tools** `[activity: frontend-ui]`
 
-  1. Prime: Mockups **S92**, **S99**, **S100**; `[ref: ADR-33]`.
+  > **Also owns the Anvil's inert `inspect` (decided 2026-07-31).** `AnvilView` defaults `_drill`
+  > to a no-op and `src/main.ts` constructs it with `getLinkClickAction` only — no `drill` is
+  > injected — so a plain click on an entity name in Timeline, Plotgrid, Plotlines or Board
+  > currently **does nothing**. That is a deliberate user decision, not an oversight: the
+  > pre-Phase-2 behaviour called `revealAndShowFile`, which hijacked the Workbench, and there is
+  > nowhere in the Anvil to show an inspection until *this* pane exists. **This task is where it
+  > stops being inert** — wire the `drill` seam through to the pane and inject it at the
+  > construction site in `main.ts`.
+
+  1. Prime: Mockups **S92**, **S99**, **S100**; `[ref: ADR-33]`; the 2026-07-31 decision-log row on
+     inert inspect in the spec `README.md`, and `AnvilView`'s `_drill` seam (l.104/116) plus its
+     construction in `src/main.ts` (~l.94).
   2. Test: selecting an entry opens the pane `[ref: PRD/F5 AC]`; **close** returns to the full grid;
      **fullscreen** takes the grid's space and **Back** returns to the previous dock
      `[ref: PRD/F5 AC]`; dock *right* shows a single card column beside the pane; **a window resize
      never changes the dock** `[ref: PRD/F5 AC]`; the tab strip stays visible in fullscreen so the
      Anvil is never a trap `[ref: SDD/Quality Requirements]`.
-  3. Implement: `src/editor/editorPane.ts`.
+  3. Implement: `src/editor/editorPane.ts`; wire `AnvilView`'s `drill` seam to it and pass a `drill`
+     at the `new AnvilView(...)` call in `src/main.ts` — the seam already exists and is simply
+     unfed.
   4. Validate: unit tests; stylelint for `sf-ed-*`; types.
   5. Success:
      - [ ] Three docks, no automatic switching `[ref: SDD/AC — PRD F5]`
+     - [ ] `AnvilView`'s `drill` seam is wired to the editor pane and injected at construction —
+           a name click in Timeline / Plotgrid / Plotlines / Board is no longer a no-op
+           `[ref: SDD/ADR-28]`
+     - [ ] **PRD F2's "inspect in the Anvil is shown within the Anvil (the editor pane) and no
+           other leaf is opened, revealed or re-targeted" AC is discharged here**, having been
+           deferred from T2.5 by decision `[ref: PRD/F2 AC]`
 
 - [ ] **T5.2 Field controls per type** `[activity: frontend-ui]`
 
@@ -55,7 +77,16 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      renders an appropriate control `[ref: PRD/F6 AC]`; an **unsupported type falls back to plain
      text rather than failing** `[ref: PRD/F6 AC]`; a `Select` whose current value is absent from
      the declared list still shows and preserves it `[ref: PRD/F6 edge case]`; relation chips add
-     and remove `[[wikilinks]]` **a human could have typed** `[ref: PRD/F5 AC]`.
+     and remove `[[wikilinks]]` **a human could have typed** `[ref: PRD/F5 AC]`; **a rendered field
+     control carries the marker that classifies as `editableField`**, so a click on it resolves to
+     `focusField` through the shared controller rather than to inspect or open-note
+     `[ref: PRD/F2 AC]`.
+
+     > **This task is the `editableField` marker's first producer** (recorded 2026-07-31). Phase 2
+     > resolves and unit-tests the kind in `navigationController.ts`, but neither host's
+     > `_markerKindOf` returns it, so the F2 "editable field" matrix row is currently green in unit
+     > tests while being unreachable from any real click. Emitting the marker here is what makes
+     > that AC actually exercised — do not treat it as cosmetic.
 
      > **This task now solely owns the out-of-list `Select` case** (moved here 2026-07-30 from
      > T1.3, whose test list claimed it): the shipped `FieldDef` has no current-value slot, so the
@@ -70,7 +101,8 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      > a value the user put there by hand. Record the resolution; do not leave it to the control's
      > implementation to decide by accident.
 
-  3. Implement: `src/editor/fieldControls.ts`.
+  3. Implement: `src/editor/fieldControls.ts`; stamp the field-control marker and extend the host's
+     `markerKindOf` so it classifies as `editableField`.
   4. Validate: unit tests per control; lint; types.
   5. Success:
      - [ ] Relations are editable — the gap that motivated this spec `[ref: PRD/F5 AC]`
@@ -106,8 +138,13 @@ The editor the withdrawn "note panel" surface was actually reaching for.
 
 - [ ] **T5.4 Commit path, rollback and external sync** `[activity: backend-api]`
 
-  1. Prime: Read `src/inspector/frontmatterWriter.ts` (`commit`, `validateField`, `CommitResult`)
-     and `src/inspector/InspectorController.ts` — extend it rather than starting over.
+  1. Prime: Read `src/inspector/frontmatterWriter.ts` — the **exported** seam you wire to is
+     `commit` / `commitMany` plus the `FieldSpec` and `CommitResult` types. **`validateField`
+     (l.61) and `isOutOfVocab` (l.123) are module-private** (corrected 2026-07-31): read them to
+     understand what `commit` rejects and what it merely warns about, but **do not try to import
+     them** — you get validation by going through `commit`/`commitMany`, which is exactly what
+     CON-1 requires. Then read `src/inspector/InspectorController.ts` — extend it rather than
+     starting over.
   2. Test: committing a field writes **exactly one plain Property** `[ref: PRD/F5 AC]`; a failed
      commit **restores the previous value and surfaces the reason** `[ref: PRD/F5 AC]`; an external
      edit updates the displayed values `[ref: PRD/F5 AC]`; a note deleted while open closes the pane

@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Anvil shell and navigation"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 2
 ---
@@ -94,7 +94,7 @@ Plotgrid, Plotlines or Board changes except where it lives.
   5. Success:
      - [x] Behaviour depends on target kind, not on the hosting surface `[ref: SDD/AC — PRD F2]`
 
-- [ ] **T2.5 Wire both surfaces to the controller** `[activity: frontend-ui]`
+- [x] **T2.5 Wire both surfaces to the controller** `[activity: frontend-ui]`
 
   1. Prime: Read `[ref: ADR-28]` on *inspect* semantics per surface.
   2. Test: **inspect in the Anvil shows the entry inside the Anvil and opens/reveals/re-targets no
@@ -105,7 +105,17 @@ Plotgrid, Plotlines or Board changes except where it lives.
      its own body (the Codex tab in P4), not `revealAndShowFile`.
   4. Validate: unit tests per surface; lint; types.
   5. Success:
-     - [ ] A click in the Anvil no longer hijacks the Workbench `[ref: PRD/F2]`
+     - [x] A click in the Anvil no longer hijacks the Workbench `[ref: PRD/F2]`
+
+  > **The AC's positive half is deferred to T5.1 by decision (2026-07-31) — it was not missed.**
+  > This task removed the hijack (`revealAndShowFile`), which is the negative half: *no other leaf
+  > is opened, revealed or re-targeted*. The positive half — *it is shown **within the Anvil***
+  > `[ref: PRD/F2 AC]` — cannot be satisfied here, because the Anvil has nowhere to show an
+  > inspection until the editor pane exists. `AnvilView`'s `_drill` therefore defaults to a no-op
+  > and `src/main.ts` injects none, so a name click on Timeline / Plotgrid / Plotlines / Board is
+  > currently **inert**. The user chose inert over reinstating the hijack or redefining inspect as
+  > open-note. **T5.1 wires the seam and discharges the AC**; see the decision-log row in the spec
+  > `README.md`.
 
 - [x] **T2.6 Rename the sidebar to Workbench** `[activity: frontend-ui]`
 
@@ -117,7 +127,7 @@ Plotgrid, Plotlines or Board changes except where it lives.
   5. Success:
      - [x] Naming is consistent in commands, ribbon, view and settings `[ref: SDD/AC — PRD F1]`
 
-- [ ] **T2.7 Phase Validation** `[activity: validate]`
+- [x] **T2.7 Phase Validation** `[activity: validate]`
 
   - Run the full suite: the M5/M6 view tests must pass **unchanged** — this phase moves and renames,
     it does not alter behaviour. Manual check on `test/StoryForge/`: open the Anvil, switch every

@@ -104,10 +104,14 @@ version: "1.0"
 #### Code Context
 
 ```yaml
-- file: src/workspace/WorkspaceView.ts
+- file: src/anvil/AnvilView.ts
   relevance: CRITICAL
-  why: "Becomes the Anvil. Holds the layout union (l.54), STATUS_VOCAB (l.60), the delegated
-        click handler (l.~435), collapse store, debounced render, zoom slot."
+  why: "IS the Anvil — moved from src/workspace/WorkspaceView.ts by T2.1 (anchors re-verified
+        against the file 2026-07-31). Holds the AnvilLayout union (l.65), STATUS_VOCAB (l.71),
+        the delegated click handler `_onClick` (l.481, now routed through NavigationController
+        via walkTargetMarkers), collapse store, debounced render, zoom slot. Note `_drill`
+        (l.104/116) defaults to a no-op and main.ts injects no `drill` — see the 2026-07-31
+        decision-log row on inert inspect; T5.1 wires it to the editor pane."
 
 - file: src/views/SidebarView.ts
   relevance: CRITICAL
@@ -134,7 +138,10 @@ version: "1.0"
 
 - file: src/inspector/frontmatterWriter.ts
   relevance: CRITICAL
-  why: "The sole write seam: commit / commitMany / validateField / FieldSpec / CommitResult."
+  why: "The sole write seam. EXPORTED: commit / commitMany / FieldSpec / FieldType / CommitEntry /
+        CommitOk / CommitError / CommitResult. INTERNAL, not exported (corrected 2026-07-31):
+        validateField (l.61) and isOutOfVocab (l.123) — validation that commit/commitMany apply,
+        readable but not importable. CON-1 holds because writes go THROUGH commit/commitMany."
 
 - file: src/inspector/inspectorFields.ts
   relevance: HIGH
@@ -411,22 +418,57 @@ graph LR
 │   │   │                               #   Template resolution + sourceChecksum land in T7.3.
 │   │   └── capabilityReport.ts         # NEW: what each optional plugin adds (F8)
 │   ├── navigation/                     # NEW
-│   │   └── navigationController.ts     # NEW: target-kind matrix, one rule for both surfaces
+│   │   ├── navigationController.ts     # NEW: target-kind matrix, one rule for both surfaces.
+│   │   │                               #   Pure: no DOM, no Obsidian import, so the matrix is
+│   │   │                               #   unit-testable without a vault.
+│   │   └── domTargetWalk.ts            # NEW (T2.5): the one DOM-touching step — the nearest-first
+│   │                                   #   ancestor walk that BUILDS the TargetMarkers array from a
+│   │                                   #   real click. Deliberately **beside** the controller, not
+│   │                                   #   inside it: it touches `HTMLElement`, and keeping it out
+│   │                                   #   is what lets the controller stay DOM-free and vault-free
+│   │                                   #   at test time. Both hosts call it; only the marker
+│   │                                   #   vocabulary (`markerKindOf`) stays per-surface.
 │   ├── store/types.ts                  # MODIFY: `kind` discriminant + CollectionRecord/CardRecord
 │   ├── catalog/CatalogService.ts       # MODIFY: drop the store YAML copy; two-checksum flow
 │   ├── consent/ConsentGate.ts          # MODIFY: generated collections bypass drift (ADR-0003)
 │   ├── import/ViewDefinition.ts        # MODIFY: engine union admits `bases`
 │   ├── inspector/inspectorFields.ts    # DELETE — derived away (ADR-0002)
 │   ├── panel/kindFields.ts             # MODIFY: keep as native fallback config only
-│   ├── pluginConstants.ts              # MODIFY: CODEX_VIEW_ID — the single declaration site for
-│   │                                   #   "story-forge-codex" (CON-4: the id is frozen). Already
-│   │                                   #   imported by BasesAdapter.ts, baseGenerator.ts and
-│   │                                   #   CodexBasesView.ts. **T4.5 must import it, not declare a
-│   │                                   #   fourth copy** — three copies would drift out of lockstep
-│   │                                   #   and orphan every `.base` that references the id.
+│   ├── pluginConstants.ts              # MODIFY: the single declaration site for **two** frozen
+│   │                                   #   ids (CON-4) —
+│   │                                   #   · CODEX_VIEW_ID = "story-forge-codex", already imported
+│   │                                   #     by BasesAdapter.ts, baseGenerator.ts, CodexBasesView.ts
+│   │                                   #   · WORKSPACE_VIEW_TYPE = "story-forge-workspace", moved
+│   │                                   #     here from WorkspaceView.ts by T2.1 (2026-07-31)
+│   │                                   #   **Import them; never declare another copy** — copies
+│   │                                   #   drift out of lockstep, orphaning every `.base` that
+│   │                                   #   references the id (CODEX_VIEW_ID) or every saved
+│   │                                   #   workspace layout containing the leaf (WORKSPACE_VIEW_TYPE).
+│   │                                   #   Applies to **T4.5** in particular, which registers three
+│   │                                   #   further Bases view types.
+│   │                                   #   **Outstanding (2026-07-31): a fourth id lives outside
+│   │                                   #   this file** — `src/codex/CodexView.ts:33` declares
+│   │                                   #   `CODEX_VIEW_TYPE = "story-forge-codex-host"`, which is
+│   │                                   #   neither here nor in CON-4's inventory. It predates this
+│   │                                   #   phase (not Phase 2 drift), but it is exactly the copy
+│   │                                   #   proliferation this entry warns about, and its literal is
+│   │                                   #   one hyphenated suffix away from CODEX_VIEW_ID.
+│   │                                   #   **Consolidate it here before T4.5**, so that task
+│   │                                   #   registers against one inventory rather than adding to two.
 │   ├── settings/SettingsTab.ts         # MODIFY: Library section, scope section, dock, capabilities
 │   ├── views/SidebarView.ts            # MODIFY: display name → Workbench; hosts the Codex tab
-│   └── workspace/WorkspaceView.ts      # MODIFY/MOVE: becomes src/anvil/AnvilView.ts
+│   ├── anvil/AnvilView.ts              # NEW LOCATION (T2.1): the former
+│   │                                   #   src/workspace/WorkspaceView.ts, moved and renamed.
+│   │                                   #   Hosts the tab strip (anvilTabs.ts) and the delegated
+│   │                                   #   click handler now routed through NavigationController.
+│   └── workspace/                      # **RETAINED — only the host moved.** Corrected 2026-07-31:
+│                                       #   an earlier "WorkspaceView.ts # MODIFY/MOVE" entry made
+│                                       #   this read as if the directory dissolved. It did not.
+│                                       #   Eleven helper modules stay put and are unchanged by this
+│                                       #   spec: workspaceModel, interactionHandler,
+│                                       #   renderTimeline/Kanban/Plotgrid/Plotlines/Navigator/Shared,
+│                                       #   collapseStore, sceneMapper, timelineZoom. Phase 4 imports
+│                                       #   from here; it does not need to recreate any of it.
 ├── schema/
 │   └── *.json                          # MODIFY: optional `ui` hint per field (CON-5: no new facts)
 ├── catalog/
@@ -504,6 +546,48 @@ ENTITY: CollectionResolution (NEW — public contract, src/codex/collectionResol
       must not treat empty-vs-misconfigured as the same state.
     - Phase 4 T4.6 consumes `reason` verbatim to render the misconfigured empty state, which is why
       the reason string is part of the contract rather than a log message.
+
+ENTITY: TargetKind (NEW — public contract, src/navigation/navigationController.ts)
+  A union of exactly the four PRD F2 matrix rows:
+    "name" | "cardBody" | "structuralControl" | "editableField"
+  RULES:
+    - A click matching none of them classifies as "unknown", whose only reachable action is "none"
+      (no action, no write — PRD/F2 AC). The resolver switches exhaustively so this is structural,
+      not merely tested.
+
+ENTITY: TargetMarkers (NEW — public contract, same module)
+  readonly TargetKind[]  — every marker kind found along the click's DOM ancestor chain,
+                           **ordered nearest-event-target-first**.
+  RULES:
+    - classifyTarget(markers) = markers[0] ?? "unknown". Precedence is PROXIMITY, not a kind
+      ranking (ADR-28, decided 2026-07-31) — a name nested inside a structural control must win.
+    - Order is the PRODUCER's contract. A host that reports markers out of order breaks the matrix
+      silently, which is why the walk is one shared module rather than one per surface.
+    - A plain array of kinds, never a DOM node: this is what keeps the controller DOM-free.
+
+ENTITY: NavigationController (NEW — src/navigation/navigationController.ts)
+  BEHAVIORS:
+    handle(markers: TargetMarkers, modifier: boolean): NavigationOutcome
+      # classify → resolve → invoke deps.inspect() iff the action is "inspect"; return the outcome
+      # so the host can enact the actions that need identity it never sees.
+  DEPS (supplied by each host):
+    getLinkClickAction(): "drill" | "open"   # read per click, so a settings change needs no reload
+    inspect(): void                          # the one action whose MEANING is per-surface
+  OUTCOME:
+    NavigationAction = "inspect" | "openNote" | "operateControl" | "focusField" | "none"
+
+ENTITY: WalkedTarget (NEW — public contract, src/navigation/domTargetWalk.ts)
+  FIELDS:
+    markers: TargetMarkers         # nearest-first, fed straight to handle()
+    nearest: HTMLElement | null    # the element that produced markers[0]; null when markers is empty
+  BEHAVIORS: (none — a value object)
+  RULES:
+    - Produced by walkTargetMarkers(start, root, markerKindOf), which walks start→root inclusive and
+      terminates safely if root is never reached (detached node): never throws, never loops.
+    - `nearest` is the one piece of surface-specific identity — which link, which control — that the
+      controller intentionally never sees, and is what lets the host enact "openNote"/"operateControl".
+    - `markerKindOf` is the only per-surface part: the Anvil and the Workbench recognise different
+      attributes, but both walk the same way.
 
 ENTITY: CardRecord (NEW — a ViewRecord with kind:"card")
   FIELDS:
@@ -661,7 +745,10 @@ or silently overwrites hand edits.
 1. Writer runs **Open Anvil**; the Codex tab is selected.
 2. `CollectionResolver` resolves the enabled collection → note list.
 3. `CardRegistry` renders each note with the Card chosen for that collection.
-4. Writer clicks a card body → `NavigationController` classifies the target as *card body* → **inspect**.
+4. Writer clicks a card body. The host walks up from the event target with `walkTargetMarkers`,
+   producing a **nearest-first** `TargetMarkers` array; `NavigationController.handle(markers,
+   modifier)` classifies it as *card body* → **inspect**. The controller is handed the marker
+   array, **never the DOM node** — that is what keeps it pure (ADR-28).
 5. `editorPane` opens in the configured dock; `fieldModel` builds sections from the FileClass chain.
 6. Writer edits `status` → `frontmatterWriter.commit` writes one plain Property.
 7. `metadataCache.changed` fires → the grid re-renders; the editor keeps focus.
@@ -672,6 +759,7 @@ sequenceDiagram
     participant Anvil as AnvilView
     participant Codex as codexTab
     participant Res as CollectionResolver
+    participant Walk as domTargetWalk
     participant Nav as NavigationController
     participant Ed as editorPane
     participant FM as fieldModel
@@ -682,8 +770,10 @@ sequenceDiagram
     Codex->>Res: resolve(record, settings, noteIndex)
     Res-->>Codex: CollectionResolution (IndexedNote[] — Phase 4 adapts path → TFile)
     Writer->>Codex: click card body
-    Codex->>Nav: classify(target)
-    Nav-->>Codex: inspect
+    Codex->>Walk: walkTargetMarkers(event.target, root, markerKindOf)
+    Walk-->>Codex: WalkedTarget { markers (nearest-first), nearest }
+    Codex->>Nav: handle(markers, modifier)
+    Nav-->>Codex: NavigationOutcome { action: "inspect" }
     Codex->>Ed: open(file)
     Ed->>FM: build(file)
     FM-->>Ed: FieldModel(sections)
@@ -856,11 +946,19 @@ Not applicable — single component.
 
 ## Architecture Decisions
 
-- [x] **ADR-27 — The Anvil is the existing `WorkspaceView`, renamed in display only.** The layout
-      union grows a `codex` member; `WORKSPACE_VIEW_TYPE` and `SIDEBAR_VIEW_TYPE` **keep their string
-      values**.
+- [x] **ADR-27 — The Anvil is the existing `WorkspaceView`: the ids are frozen, the symbols are
+      renamed.** The layout union grows a `codex` member; `WORKSPACE_VIEW_TYPE` and
+      `SIDEBAR_VIEW_TYPE` **keep their string values**.
+  - **"Display only" governs view-type id strings and persisted values — not TypeScript symbol
+    names.** The class, its type aliases and its options interface were renamed with the file
+    (`WorkspaceView`→`AnvilView`, `WorkspaceLayout`→`AnvilLayout`, `WorkspaceViewOpts`→
+    `AnvilViewOpts`), and `WORKSPACE_VIEW_TYPE` moved to `pluginConstants.ts` — its *value*
+    untouched. *(Headline corrected 2026-07-31: it read "renamed in display only", which the
+    "Decided" bullet below already contradicted, and `src/anvil/anvilTabs.ts:11` was quoting the
+    headline as the operative rule. Symbol renames were always in scope; only ids are frozen.)*
   - Rationale: `pluginConstants.ts` states the ids are stable API ("never change after first
-    release"). Changing them orphans saved workspace layouts. Renaming is a *display* concern.
+    release"). Changing them orphans saved workspace layouts. Renaming *the id* is what is
+    forbidden; renaming the code that carries it is not.
   - **Decided: the files move.** `src/workspace/WorkspaceView.ts` → `src/anvil/AnvilView.ts`, ids
     unchanged. Vocabulary that exists only in the UI decays in the code — which is exactly how
     "Codex" came to mean two things. One large rename diff, taken while the file is open anyway.
@@ -873,6 +971,25 @@ Not applicable — single component.
   - Trade-offs: a shared controller must not know about surfaces, so "inspect" is a callback each
     host supplies; the setting's stored values (`drill`/`open`) stay for compatibility while the UI
     says *inspect*.
+  - **Decided 2026-07-31: precedence is proximity, not a kind ranking.** `TargetMarkers` is a
+    `readonly TargetKind[]` reported **nearest-event-target-first**, and `classifyTarget` is
+    literally `markers[0] ?? "unknown"`. There is no priority table anywhere.
+    - *Why it cannot be a ranking:* a name is deliberately nested **inside** a structural control in
+      shipped markup. `src/workspace/renderTimeline.ts:131-141` stamps `data-sf-link` on a timeline
+      act's `.sf-sec-label`, which sits inside the `.sf-sec-head` that
+      `src/panel/components.ts:79-92` gives `data-sf-section-toggle`. The **nearer** marker must
+      win, so the act label drills to its beat note while the chevron beside it collapses the
+      section. Any fixed kind ranking picks the same winner for both clicks and therefore inverts
+      one of them; the first implementation of this task did exactly that and was caught in review.
+    - *Consequence for the PRD:* the one explicit precedence AC — "the name's behaviour wins over
+      the card's" — **falls out of proximity** and is not special-cased. The PRD names only that
+      case and the SDD previously named none, which is why this decision existed solely as a source
+      docstring until now.
+    - *Consequence for structure:* the DOM walk that produces the array is a **separate module**
+      (`src/navigation/domTargetWalk.ts`), so `navigationController.ts` keeps no DOM or Obsidian
+      import and the matrix stays testable without a vault. Ordering is the walk's contract, not
+      the controller's — a host that reports markers out of order silently breaks the matrix, which
+      is the reason there is one shared walk rather than one per surface.
   - User confirmed: **Yes** (2026-07-28)
 
 - [x] **ADR-29 — Store records gain a `kind` discriminant** (`"view" | "collection" | "card"`), with

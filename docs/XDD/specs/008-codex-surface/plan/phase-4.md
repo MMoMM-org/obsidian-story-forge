@@ -13,6 +13,10 @@ phase: 4
 
 **Specification References**:
 - `[ref: PRD/F3]` — collections, 10 ACs · `[ref: PRD/F4]` — Cards, 9 ACs
+- `[ref: PRD/F2]` — navigation. **This phase is the `cardBody` marker's first producer** (recorded
+  2026-07-31): Phase 2 resolves and unit-tests the kind, but no surface emits it, so two F2 matrix
+  rows and the name-over-card-body precedence AC are unreachable from a real click until the grid
+  exists. T4.1 owns emitting it.
 - `[ref: SDD/ADR-30]` — one contract, two backends, all three Cards
 - `[ref: SDD/ADR-36]` — core may be suggested, community never
 - Mockups **S91** (grid, Card selector), **S93** (user collections), **S97** (a user's Card),
@@ -55,8 +59,22 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
   2. Test: pills render for enabled collections in order; the first enabled one is selected on open
      `[ref: PRD/F3 AC]`; a disabled collection has **no pill** `[ref: PRD/F7 AC]`; switching
      collection re-renders the grid; selection state survives a follow re-render.
+
+     Also — the F2 markers this surface is the first to produce `[ref: PRD/F2 AC]`:
+     **a card / row body carries the marker that classifies as `cardBody`**, so a plain click on it
+     resolves to inspect and a modifier click to open-note; **a name inside that body carries the
+     `name` marker**; and **clicking the name wins over the surrounding card body** — which must
+     hold by *proximity* (the name is nearer the event target), not by any added special case
+     `[ref: SDD/ADR-28]`.
+
+     > Until this task, `cardBody` is resolved and unit-tested in `navigationController.ts` while
+     > **no host emits it** — the two matrix rows and the precedence AC pass in isolation and are
+     > unreachable in the running plugin. Emit the marker via the host's `markerKindOf`, and assert
+     > the precedence through the real walk (`walkTargetMarkers`), not by hand-building a marker
+     > array — a hand-built array cannot catch the nesting order being wrong in the markup.
+
   3. Implement: `src/codex/codexTab.ts` (body) — hosted by both the Anvil and, in compact form, the
-     Workbench.
+     Workbench; extend the host's `markerKindOf` vocabulary with the card-body marker.
   4. Validate: unit tests over rendered DOM; lint; types.
   5. Success:
      - [ ] Pills reflect exactly the enabled collections `[ref: SDD/AC — PRD F3]`

@@ -106,6 +106,25 @@ consent gate from policing the user's own settings.
   4. Validate: unit tests; lint; types.
   5. Success:
      - [ ] Tag and excluded folders are user-editable with shipped defaults `[ref: PRD/F3 AC]`
+     - [ ] The **Link click action** setting's UI copy says *inspect*, and says it
+           surface-neutrally `[ref: SDD/ADR-28]`
+
+  > **Also owns two settings-copy defects, assigned here 2026-07-31** because this is the task that
+  > already touches the settings fields — neither had an owner in phases 3–8.
+  >
+  > 1. **The dropdown still says "drill".** ADR-28 decided the *stored* values stay `"drill"` /
+  >    `"open"` for compatibility **while the UI says *inspect***. The storage half shipped; the UI
+  >    half did not — `src/settings/SettingsTab.ts:121` still reads *"Drill into linked note (stay
+  >    in Workbench)"*. Rename the **option labels only**; the persisted values and
+  >    `normalizeLinkClickAction` are untouched, and a test should assert that explicitly, since
+  >    renaming a stored value would silently reset every user's setting to the fail-closed default
+  >    `[ref: SDD/ADR-28]`.
+  > 2. **The description names one surface for a global setting.** The wording introduced in T2.6 —
+  >    *"when you click a link in **the Workbench**"* — is wrong: there is one setting, read per
+  >    click by the **shared** `NavigationController` for **both** the Anvil and the Workbench
+  >    (`getLinkClickAction`). A user reading it would reasonably expect the Anvil to be unaffected.
+  >    It needs surface-neutral wording. *(The string itself is being corrected separately; recorded
+  >    here so the requirement is not lost, and so this task verifies rather than re-fixes it.)*
 
 - [ ] **T3.6 Phase Validation** `[activity: validate]`
 
