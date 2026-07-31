@@ -96,16 +96,20 @@ export default class StoryForgePlugin extends Plugin {
 			}),
 		);
 
-		// Ribbon icon — open panel on click. "Story Forge" is a proper noun.
+		// Ribbon icon — open the Workbench on click. "Story Forge" is a proper
+		// noun; "Workbench" is the surface name (T2.6).
 		// eslint-disable-next-line obsidianmd/ui/sentence-case
-		this.addRibbonIcon(ICON, "Story Forge: open panel", () => {
+		this.addRibbonIcon(ICON, "Story Forge: open Workbench", () => {
 			void activateView(this.app);
 		});
 
-		// Command palette entry.
+		// Command palette entry. id stays "open-panel" (CON-4 analog — renaming
+		// a command id would orphan a user's saved hotkey); only the display
+		// name changes (T2.6).
 		this.addCommand({
 			id: "open-panel",
-			name: "Open panel",
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Workbench" is a proper noun + action
+			name: "Open Workbench",
 			callback: () => {
 				void activateView(this.app);
 			},

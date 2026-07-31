@@ -234,6 +234,26 @@ describe("SettingsTab — linkClickAction dropdown row", () => {
 		expect(plugin.saveSettings).toHaveBeenCalled();
 	});
 
+	// T2.6: the sidebar surface is renamed to "Workbench" — its own settings
+	// copy must follow (display strings only). Mid-sentence, obsidianmd's
+	// sentence-case rule wants "workbench" lowercased (arbitrated by lint).
+	it("description and 'drill' option name the surface 'workbench', not 'panel'", async () => {
+		const plugin = makePlugin({ linkClickAction: "drill" });
+		const tab = makeTab(app, plugin, makeStore(), makeConsentGate(), makeImporter());
+		const container = await renderTab(tab);
+
+		const settingEl = findSettingEl(container, "Link click action");
+		expect(settingEl).not.toBeNull();
+		expect(settingEl!.textContent).toContain("workbench");
+		expect(settingEl!.textContent).not.toContain("in the panel");
+
+		const selectEl = settingEl!.querySelector("select") as HTMLSelectElement | null;
+		expect(selectEl).not.toBeNull();
+		const drillOption = Array.from(selectEl!.options).find((o) => o.value === "drill");
+		expect(drillOption?.textContent).toContain("workbench");
+		expect(drillOption?.textContent).not.toContain("stay in panel");
+	});
+
 	it("dropdown has options 'drill' and 'open'", async () => {
 		const plugin = makePlugin({ linkClickAction: "drill" });
 		const tab = makeTab(app, plugin, makeStore(), makeConsentGate(), makeImporter());

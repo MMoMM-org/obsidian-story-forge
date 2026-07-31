@@ -63,21 +63,23 @@ describe("StoryForgePlugin.onload — wiring", () => {
 		);
 	});
 
-	it("addRibbonIcon is called with the ICON and 'Story Forge: open panel'", async () => {
+	// T2.6: the sidebar surface is renamed to "Workbench" (display only —
+	// SIDEBAR_VIEW_TYPE below stays "story-forge-panel", CON-4).
+	it("addRibbonIcon is called with the ICON and 'Story Forge: open Workbench'", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
 		expect(plugin.addRibbonIcon).toHaveBeenCalledWith(
 			expect.any(String), // ICON
-			"Story Forge: open panel",
+			"Story Forge: open Workbench",
 			expect.any(Function),
 		);
 	});
 
-	it("addCommand registers 'open-panel' command", async () => {
+	it("addCommand registers 'open-panel' command named 'Open Workbench'", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
 		expect(plugin.addCommand).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "open-panel" }),
+			expect.objectContaining({ id: "open-panel", name: "Open Workbench" }),
 		);
 	});
 

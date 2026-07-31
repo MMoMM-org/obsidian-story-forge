@@ -42,6 +42,9 @@ function makeLeaf(app: App): WorkspaceLeaf {
 // ---------------------------------------------------------------------------
 
 describe("Constants", () => {
+	// Guard (T2.6/CON-4): the sidebar's DISPLAY name changes to "Workbench",
+	// but its view-type identifier is stable and must never move — pinned to
+	// the literal so a drift here cannot silently pass.
 	it("SIDEBAR_VIEW_TYPE is 'story-forge-panel'", () => {
 		expect(SIDEBAR_VIEW_TYPE).toBe("story-forge-panel");
 	});
@@ -75,6 +78,11 @@ describe("SidebarView: ItemView contract", () => {
 		const text = view.getDisplayText();
 		expect(typeof text).toBe("string");
 		expect(text.length).toBeGreaterThan(0);
+	});
+
+	// T2.6: the sidebar is renamed to "Workbench" (display only, SDD/CON-4).
+	it("getDisplayText() returns 'Workbench'", () => {
+		expect(view.getDisplayText()).toBe("Workbench");
 	});
 
 	it("getIcon() returns ICON", () => {

@@ -101,11 +101,12 @@ export class BindModal extends Modal {
 
 		const bodyEl = el.createEl("div", { cls: "sf-bind-body" });
 
-		// Tab label row — every imported view is a sidebar tab, so the label is
-		// always present and enabled (no checkbox gates it).
+		// Tab label row — every imported view is a Workbench tab, so the label
+		// is always present and enabled (no checkbox gates it). T2.6: the
+		// sidebar surface is named "Workbench" (display only).
 		const tabRow = bodyEl.createEl("div", { cls: "sf-bind-row" });
 
-		tabRow.createEl("span", { text: "Sidebar tab label", cls: "sf-bind-label" });
+		tabRow.createEl("span", { text: "Workbench tab label", cls: "sf-bind-label" });
 
 		const tabInputEl = activeDocument.createElement("input");
 		tabInputEl.type = "text";

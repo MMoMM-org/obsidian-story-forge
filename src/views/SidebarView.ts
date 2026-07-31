@@ -105,10 +105,10 @@ function aug(el: HTMLElement): AugEl {
 // ---------------------------------------------------------------------------
 
 /**
- * Open the Story Forge sidebar panel, or reveal the existing leaf.
+ * Open the Workbench (the sidebar panel), or reveal the existing leaf.
  *
  * Never creates a duplicate leaf — if one already exists, it is revealed.
- * Wire this to the ribbon button and the "Story Forge: open panel" command.
+ * Wire this to the ribbon button and the "Story Forge: open Workbench" command.
  */
 export async function activateView(app: App): Promise<void> {
 	const { workspace } = app;
@@ -257,8 +257,7 @@ export class SidebarView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
-		return "Story Forge";
+		return "Workbench";
 	}
 
 	getIcon(): IconName {
@@ -273,8 +272,7 @@ export class SidebarView extends ItemView {
 		// Set up the DOM structure
 		aug(this.contentEl).empty();
 		this.contentEl.setAttribute("role", "region");
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
-		this.contentEl.setAttribute("aria-label", "Story Forge panel");
+		this.contentEl.setAttribute("aria-label", "Workbench panel");
 
 		// Build the panel shell
 		this._buildShell();
@@ -562,10 +560,10 @@ export class SidebarView extends ItemView {
 		const ce = aug(this.contentEl);
 		ce.empty();
 
-		// Panel-level header (vhead: "Story Forge" + icons)
+		// Panel-level header (vhead: "Workbench" + icons; T2.6, mockup S95)
 		const vhead = ce.createDiv({ cls: "sf-vhead" });
-		// "Story Forge" is a proper noun — not a sentence-case violation
-		vhead.createSpan({ cls: "sf-vhead-name", text: "Story Forge" });
+		// "Workbench" is a proper noun — not a sentence-case violation
+		vhead.createSpan({ cls: "sf-vhead-name", text: "Workbench" });
 		const icons = vhead.createDiv({ cls: "sf-icons" });
 
 		// Pin button (aria-pressed)

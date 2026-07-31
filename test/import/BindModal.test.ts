@@ -82,6 +82,20 @@ describe("BindModal", () => {
 		app = new App();
 	});
 
+	// T2.6: the sidebar surface is renamed to "Workbench" — this field labels
+	// the tab it creates inside that surface.
+	it("labels the tab-label field 'Workbench tab label'", () => {
+		const modal = new BindModal(app, { name: "My View" });
+		void modal.present();
+
+		const label = Array.from(
+			modal.contentEl.querySelectorAll<HTMLElement>(".sf-bind-label"),
+		).find((el) => el.textContent === "Workbench tab label");
+		expect(label).toBeTruthy();
+
+		modal.close();
+	});
+
 	it("seeds tab label from seed.name", () => {
 		const modal = new BindModal(app, { name: "Characters in Scene" });
 		void modal.present();

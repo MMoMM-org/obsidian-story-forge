@@ -238,6 +238,18 @@ describe("SidebarView: ARIA roles & accessibility", () => {
 		expect(label!.length).toBeGreaterThan(0);
 	});
 
+	// T2.6: the sidebar surface is renamed to "Workbench" (display only).
+	it("contentEl aria-label reads 'Workbench panel'", () => {
+		expect(view.contentEl.getAttribute("aria-label")).toBe("Workbench panel");
+	});
+
+	// T2.6/mockup S95: the panel's own header brand reads "Workbench", not
+	// the plugin name — the surface being renamed, not the plugin.
+	it("panel header brand (sf-vhead-name) reads 'Workbench'", () => {
+		const brand = view.contentEl.querySelector(".sf-vhead-name");
+		expect(brand?.textContent).toBe("Workbench");
+	});
+
 	it("tab strip has role=tablist", () => {
 		const tablist = view.contentEl.querySelector(".sf-tabs");
 		expect(tablist?.getAttribute("role")).toBe("tablist");
