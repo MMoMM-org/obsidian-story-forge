@@ -3,30 +3,46 @@
  *
  * PRD F2: a click's behaviour is determined by *what kind of target* it is,
  * never by which tab or panel hosts it. Today `AnvilView` and `SidebarView`
- * each hand-roll this rule and disagree (see the divergence note below) —
- * this module is the single source of truth both are wired to in T2.5.
+ * each hand-roll this rule with a different *check order*, which is the
+ * divergence this module resolves — see below for what is actually
+ * inconsistent between them versus what both already agree on.
  *
- * ADR-28: classify-then-act. Surfaces contribute *target markers* — did the
- * click land on a name, a card body, a structural control, an editable
- * field — never behaviour. This module classifies and decides; a host
- * supplies an `inspect` callback for the one action whose *meaning* varies
- * per surface (the Anvil shows it in the editor pane; the Workbench shows it
- * and suspends follow-the-active-note). Every other action (open note,
- * operate a control, focus a field) is returned as a plain decision because
- * enacting it needs surface-specific identity (which file, which control,
- * which input) that this module intentionally never sees — it stays pure,
- * with no Obsidian runtime import.
+ * ADR-28: classify-then-act. Surfaces contribute *target markers* — never
+ * behaviour. This module classifies and decides; a host supplies an
+ * `inspect` callback for the one action whose *meaning* varies per surface
+ * (the Anvil shows it in the editor pane; the Workbench shows it and
+ * suspends follow-the-active-note). Every other action (open note, operate a
+ * control, focus a field) is returned as a plain decision because enacting
+ * it needs surface-specific identity (which file, which control, which
+ * input) that this module intentionally never sees — it stays pure, with no
+ * Obsidian runtime import.
  *
- * Divergence this module resolves (read during T2.4, not touched here):
- *   - `AnvilView._onClick` checks `data-sf-link` (name) *before*
- *     `data-sf-section-toggle` (structural) for most of the handler, but its
- *     own layout/timeline-mode structural controls are checked *before* the
- *     link. So even within one surface the priority is inconsistent.
- *   - `SidebarView._onClick` checks `data-sf-section-toggle` and its nav
- *     controls (Back/open) *before* `data-sf-link` — the opposite order.
- *   A structural control must never lose to a name it happens to contain
- *   (see `classifyTarget`), which is the rule both existing handlers were
- *   groping toward without stating it.
+ * **Precedence is proximity, not a fixed kind ranking.** A name can be
+ * nested *inside* a structural control on purpose — e.g.
+ * `src/workspace/renderTimeline.ts` gives a timeline act's `.sf-sec-label`
+ * (child) a `data-sf-link` while `src/panel/components.ts`'s `section()`
+ * gives the `.sf-sec-head` (parent) `data-sf-section-toggle`. Clicking the
+ * act label must drill to its beat note; clicking the chevron next to it
+ * must collapse the section. `AnvilView._onClick` (l.432-433) states this
+ * outright: *"a nearest `data-sf-link` wins over a surrounding section
+ * header, so an act label / dot / card field drills while the chevron
+ * collapses."* That is not a bug — a host that reports markers **nearest
+ * event target first** (e.g. by walking up from the click with `closest()`
+ * calls in that order) reproduces it for free, and derives the PRD's one
+ * explicit precedence AC (name over card body) the same way, instead of it
+ * being a hardcoded special case.
+ *
+ * What genuinely differs between the two surfaces — and is *not* proximity
+ * — is check *order* for markers that never nest: `SidebarView._onClick`
+ * checks its section headers and nav controls (Back/open) before it checks
+ * `data-sf-link` at all, while `AnvilView._onClick` checks its layout/
+ * timeline-submode tab controls before the link. Neither of those
+ * structural controls ever contains a name (confirmed against
+ * `src/anvil/anvilTabs.ts` — the tab buttons carry no nested link), so this
+ * was never a proximity conflict, just two surfaces disagreeing on an
+ * arbitrary global order. `TargetMarkers` being nearest-first-ordered per
+ * click, rather than a fixed priority table, removes the arbitrariness:
+ * whichever kind is actually closest to the event wins, every time.
  *
  * Naming note: the persisted setting's stored values remain `"drill"` |
  * `"open"` (storage is outside this task) — "inspect" is the shared term the
@@ -40,21 +56,18 @@
 export type TargetKind = "name" | "cardBody" | "structuralControl" | "editableField";
 
 /**
- * What a surface observed about the clicked element, expressed as plain
- * booleans rather than a DOM node — keeps this module free of any DOM or
- * Obsidian dependency. A host derives these from its own markup (e.g.
- * `closest("[data-sf-link]")`) before calling `classifyTarget`/`handle`.
+ * The target kinds a surface found along the DOM ancestor chain of a click,
+ * from the event target upward, **nearest first**. A host builds this by
+ * walking up from the event target (as `closest()` calls already do) and
+ * recording each marker kind it recognises as it climbs — the same order the
+ * two existing handlers implicitly rely on for the nested name-in-a-
+ * structural-control case. An empty array means none of the four marker
+ * kinds matched anything in the ancestor chain.
+ *
+ * Kept as a plain array of kinds — not a DOM node — so this module stays
+ * free of any DOM or Obsidian dependency.
  */
-export interface TargetMarkers {
-	/** The click landed on (or inside) an entity name / wikilink. */
-	readonly isName?: boolean;
-	/** The click landed on a card or row body that is not the name itself. */
-	readonly isCardBody?: boolean;
-	/** The click landed on a chevron, collapse header, tab, pill or dropdown. */
-	readonly isStructuralControl?: boolean;
-	/** The click landed on an editable control in the editor pane. */
-	readonly isEditableField?: boolean;
-}
+export type TargetMarkers = readonly TargetKind[];
 
 /** The persisted setting's stored values (unchanged by this task). */
 export type LinkClickAction = "drill" | "open";
@@ -70,20 +83,16 @@ export interface NavigationOutcome {
 const NONE_OUTCOME: NavigationOutcome = { action: "none" };
 
 /**
- * Classify a click by target kind, most-specific first.
- *
- * A structural control wins over everything — operating it must never be
- * mistaken for navigation, even if a host's markup nests a name-ish label
- * inside it (mirrors "a bare click must not mutate": here, must not
- * navigate). Otherwise the name wins over its surrounding card body
- * [PRD/F2 AC]. No marker set at all classifies as `"unknown"`.
+ * Classify a click by target kind: whichever kind is nearest the event
+ * target wins — `markers[0]`. This is how a name nested inside a structural
+ * control (the timeline act label inside its collapsible section header)
+ * resolves to `"name"` while the control's own chrome (the chevron) resolves
+ * to `"structuralControl"`, and it is how the name wins over its
+ * surrounding card body [PRD/F2 AC] without a hardcoded kind ranking. No
+ * markers at all classifies as `"unknown"`.
  */
 export function classifyTarget(markers: TargetMarkers): TargetKind | "unknown" {
-	if (markers.isStructuralControl) return "structuralControl";
-	if (markers.isEditableField) return "editableField";
-	if (markers.isName) return "name";
-	if (markers.isCardBody) return "cardBody";
-	return "unknown";
+	return markers[0] ?? "unknown";
 }
 
 /** Resolves a name/link click: honours the configured action; modifier inverts it. */

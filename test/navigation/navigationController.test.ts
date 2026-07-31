@@ -4,9 +4,14 @@
  * Behaviour must depend only on *what kind of target* was clicked, never on
  * which surface (Anvil vs Workbench) or which tab hosts it. These tests
  * exercise the pure classifier and the pure outcome resolver directly —
- * no Obsidian runtime, no DOM traversal. Surfaces (T2.5) are responsible for
- * turning their own markup into `TargetMarkers`; that mapping is out of
- * scope here.
+ * no Obsidian runtime, no DOM traversal. `TargetMarkers` is the nearest-
+ * first-ordered list of kinds a host found walking up from the event
+ * target; surfaces (T2.5) are responsible for producing that order from
+ * their own markup via `closest()`, which is out of scope here — but
+ * several tests below assert against the *real* markup shape
+ * (`src/workspace/renderTimeline.ts`, `src/panel/components.ts`) to pin
+ * down what "nearest first" must mean for the one case that nests a name
+ * inside a structural control.
  *
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F2
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28
@@ -17,58 +22,61 @@ import {
 	createNavigationController,
 	resolveNavigationOutcome,
 	type LinkClickAction,
-	type TargetMarkers,
 } from "navigation/navigationController";
-
-/** All markers false — the "nothing matched" baseline, overridden per test. */
-const getMockMarkers = (overrides?: Partial<TargetMarkers>): TargetMarkers => ({
-	isName: false,
-	isCardBody: false,
-	isStructuralControl: false,
-	isEditableField: false,
-	...overrides,
-});
 
 describe("classifyTarget", () => {
 	it("classifies a name/link target", () => {
-		expect(classifyTarget(getMockMarkers({ isName: true }))).toBe("name");
+		expect(classifyTarget(["name"])).toBe("name");
 	});
 
 	it("classifies a card/row body target", () => {
-		expect(classifyTarget(getMockMarkers({ isCardBody: true }))).toBe("cardBody");
+		expect(classifyTarget(["cardBody"])).toBe("cardBody");
 	});
 
 	it("classifies a structural control target", () => {
-		expect(classifyTarget(getMockMarkers({ isStructuralControl: true }))).toBe(
-			"structuralControl",
-		);
+		expect(classifyTarget(["structuralControl"])).toBe("structuralControl");
 	});
 
 	it("classifies an editable field target", () => {
-		expect(classifyTarget(getMockMarkers({ isEditableField: true }))).toBe("editableField");
+		expect(classifyTarget(["editableField"])).toBe("editableField");
 	});
 
 	it("classifies no markers as unknown", () => {
-		expect(classifyTarget(getMockMarkers())).toBe("unknown");
+		expect(classifyTarget([])).toBe("unknown");
 	});
 
-	it("prefers the name over its surrounding card body [PRD/F2 AC]", () => {
-		const markers = getMockMarkers({ isName: true, isCardBody: true });
-		expect(classifyTarget(markers)).toBe("name");
+	it("prefers the name over its surrounding card body when the name is nearer [PRD/F2 AC]", () => {
+		// Nearest-first: the name was found before the card body while walking
+		// up from the event target, so it is closer and wins.
+		expect(classifyTarget(["name", "cardBody"])).toBe("name");
 	});
 
-	it("prefers a structural control over a name and card body it happens to contain", () => {
-		// A chevron/tab/pill is a self-contained control; even if a host's markup
-		// nests a name-ish label inside it, operating the control must win —
-		// a bare click must never turn into navigation. This is the general form
-		// of "clicks must not mutate" for click *routing*, not just writes.
-		const markers = getMockMarkers({
-			isStructuralControl: true,
-			isName: true,
-			isCardBody: true,
-		});
-		expect(classifyTarget(markers)).toBe("structuralControl");
-	});
+	it(
+		"resolves a name nested inside a structural control to the name, when the name is nearer " +
+			"— reproduces the timeline act label's real markup",
+		() => {
+			// src/workspace/renderTimeline.ts:131-141 gives the act label
+			// (`.sf-sec-label`, the nearer element) `data-sf-link`, while
+			// src/panel/components.ts's `section()` gives its parent
+			// `.sf-sec-head` `data-sf-section-toggle`. Clicking the label finds
+			// the name first while walking up the ancestor chain, then the
+			// structural control — exactly this ordering — and must drill to the
+			// beat note, per AnvilView._onClick's own stated intent
+			// ("a nearest data-sf-link wins over a surrounding section header").
+			expect(classifyTarget(["name", "structuralControl"])).toBe("name");
+		},
+	);
+
+	it(
+		"resolves the structural control's own chrome to the control, when no name is nested inside it " +
+			"— reproduces clicking the section header's chevron",
+		() => {
+			// Clicking the chevron itself (not the act label) never finds
+			// data-sf-link while walking up — only data-sf-section-toggle — so
+			// the ancestor chain contains no "name" marker at all here.
+			expect(classifyTarget(["structuralControl"])).toBe("structuralControl");
+		},
+	);
 });
 
 describe("resolveNavigationOutcome — the matrix", () => {
@@ -212,7 +220,7 @@ describe("createNavigationController", () => {
 			inspect,
 		});
 
-		const outcome = controller.handle(getMockMarkers({ isName: true }), false);
+		const outcome = controller.handle(["name"], false);
 
 		expect(outcome.action).toBe("inspect");
 		expect(inspect).toHaveBeenCalledTimes(1);
@@ -225,7 +233,7 @@ describe("createNavigationController", () => {
 			inspect,
 		});
 
-		const outcome = controller.handle(getMockMarkers({ isName: true }), true);
+		const outcome = controller.handle(["name"], true);
 
 		expect(outcome.action).toBe("openNote");
 		expect(inspect).not.toHaveBeenCalled();
@@ -238,8 +246,25 @@ describe("createNavigationController", () => {
 			inspect,
 		});
 
-		controller.handle(getMockMarkers({ isStructuralControl: true }), false);
+		controller.handle(["structuralControl"], false);
 
+		expect(inspect).not.toHaveBeenCalled();
+	});
+
+	it("does not invoke inspect when the target is a name nested inside a structural control but the control is nearer", () => {
+		// The mirror image of the timeline act-label case: if a host ever walks
+		// up and finds the control before any name (e.g. clicking chrome that
+		// sits between the two), the control must still win and inspect must
+		// not fire.
+		const inspect = vi.fn();
+		const controller = createNavigationController({
+			getLinkClickAction: () => "drill",
+			inspect,
+		});
+
+		const outcome = controller.handle(["structuralControl", "name"], false);
+
+		expect(outcome.action).toBe("operateControl");
 		expect(inspect).not.toHaveBeenCalled();
 	});
 
@@ -250,7 +275,7 @@ describe("createNavigationController", () => {
 			inspect,
 		});
 
-		controller.handle(getMockMarkers({ isEditableField: true }), false);
+		controller.handle(["editableField"], false);
 
 		expect(inspect).not.toHaveBeenCalled();
 	});
@@ -262,7 +287,7 @@ describe("createNavigationController", () => {
 			inspect,
 		});
 
-		const outcome = controller.handle(getMockMarkers(), false);
+		const outcome = controller.handle([], false);
 
 		expect(outcome.action).toBe("none");
 		expect(inspect).not.toHaveBeenCalled();
@@ -276,14 +301,14 @@ describe("createNavigationController", () => {
 			inspect,
 		});
 
-		const before = controller.handle(getMockMarkers({ isName: true }), false);
+		const before = controller.handle(["name"], false);
 		expect(before.action).toBe("inspect");
 
 		// Simulate the user changing the setting in-place — no new controller,
 		// no reload. The very next click on the same controller instance must
 		// already reflect the new value.
 		configured = "open";
-		const after = controller.handle(getMockMarkers({ isName: true }), false);
+		const after = controller.handle(["name"], false);
 		expect(after.action).toBe("openNote");
 	});
 });
