@@ -132,7 +132,21 @@ export default class StoryForgePlugin extends Plugin {
 			},
 		});
 
+		// T2.3 (spec 008, PRD F1): the single entry point into the Anvil, opened with
+		// the Codex tab selected. Reveals the existing leaf rather than creating a
+		// second one — see _openWorkspace.
+		this.addCommand({
+			id: "open-anvil",
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Anvil" is a proper noun + action
+			name: "Open Anvil",
+			callback: () => {
+				void this._openWorkspace("codex");
+			},
+		});
+
 		// M5: main-area Timeline / Plotlines views.
+		// T2.3: these ids are kept registered as REDIRECTS into the Anvil so a user's
+		// existing hotkey binding survives (SDD Risks — hotkeys). Do not remove them.
 		this.addCommand({
 			id: "open-timeline",
 			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Timeline" is a proper noun + action
@@ -293,13 +307,25 @@ export default class StoryForgePlugin extends Plugin {
 	}
 
 	/**
-	 * Open the main-area AnvilView at the given layout (M5).
+	 * Open the main-area AnvilView at the given layout, selecting that layout's tab.
 	 *
-	 * Opens in a new tab (getLeaf(true)); the initial layout is passed via view
-	 * state and also applied directly to the live view (setLayout) so it renders
-	 * the requested layout without relying on state round-tripping.
+	 * T2.3 (spec 008): there is only ever one Anvil leaf. If one is already open, it
+	 * is revealed and switched to the requested tab rather than opening a second leaf
+	 * — this is what makes `open-anvil` and the four legacy `open-*` ids (M5/M6) true
+	 * redirects into the same view instead of each spawning its own tab.
+	 *
+	 * When creating a new leaf (getLeaf(true), a new tab — avoids clobbering the
+	 * user's active note), the initial layout is passed via view state AND applied
+	 * directly to the live view (setLayout), so it renders the requested layout
+	 * without relying on state round-tripping.
 	 */
 	async _openWorkspace(layout: AnvilLayout): Promise<void> {
+		const existing = this.app.workspace.getLeavesOfType(WORKSPACE_VIEW_TYPE)[0];
+		if (existing) {
+			await this.app.workspace.revealLeaf(existing);
+			if (existing.view instanceof AnvilView) existing.view.setLayout(layout);
+			return;
+		}
 		const leaf = this.app.workspace.getLeaf(true);
 		await leaf.setViewState({ type: WORKSPACE_VIEW_TYPE, active: true, state: { layout } });
 		if (leaf.view instanceof AnvilView) leaf.view.setLayout(layout);
