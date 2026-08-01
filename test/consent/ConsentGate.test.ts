@@ -47,6 +47,8 @@ function makeRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
 		source: "views/my-view.md",
 		engine: "dataviewjs",
 		command: false,
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 		...overrides,
 	};
 }
@@ -355,6 +357,8 @@ function makeBasesRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
 		source: BASES_YAML,
 		engine: "bases",
 		command: false,
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 		...overrides,
 	};
 }

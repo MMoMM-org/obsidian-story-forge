@@ -563,6 +563,8 @@ describe("ViewImporter.importToStore()", () => {
 			source: "views/sample.md",
 			engine: "dataviewjs",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const store = makeStore({ "existing-id": existingRecord });
 		const setRecordSpy = vi.spyOn(store, "setRecord");
@@ -635,6 +637,8 @@ describe("ViewImporter.importToStore()", () => {
 			source: "views/sample.md",
 			engine: "dataviewjs",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const store = makeStore({ "existing-id": existingRecord });
 		const setRecordSpy = vi.spyOn(store, "setRecord");
@@ -731,6 +735,8 @@ describe("ViewImporter.importToStore() — T4.3 provenance override", () => {
 			source: "catalog/overview-characters.base",
 			engine: "dataview-dql",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const store = makeStore({ "existing-id": existingRecord });
 		const setRecordSpy = vi.spyOn(store, "setRecord");
@@ -829,6 +835,8 @@ describe("ViewImporter.scanVault()", () => {
 			source: "views/imported.md",
 			engine: "dataviewjs",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const store = makeStore({ "some-id": existingRecord });
 		importer = new ViewImporter(app, store);

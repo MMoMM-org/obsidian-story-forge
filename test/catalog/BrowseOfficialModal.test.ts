@@ -61,6 +61,8 @@ function makeCuratedRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
 		command: false,
 		commandName: "Characters overview",
 		catalogId: "overview-characters",
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 		...overrides,
 	};
 }
@@ -562,6 +564,8 @@ describe("BrowseOfficialModal — S49 update-available affordance (AC-F7.1, AC-F
 			engine: "dataviewjs",
 			command: false,
 			commandName: "Characters overview",
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const store = makeStore({ "imported-1": importedRecord });
 		const service = makeCatalogService({ entries: [entry] });

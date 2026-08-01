@@ -53,6 +53,8 @@ function rec(overrides: Partial<ViewRecord> = {}): ViewRecord {
     source: "",
     engine: "bases",
     command: false,
+    kind: "view",
+    surfaces: { anvil: false, workbench: false },
     ...overrides,
   };
 }

@@ -46,6 +46,8 @@ function makeViewRecord() {
 		source: "test-view",
 		engine: "bases" as const,
 		command: false,
+		kind: "view" as const,
+		surfaces: { anvil: false, workbench: false },
 	};
 }
 
@@ -545,6 +547,8 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 			engine: "dataview-dql",
 			command: true,
 			commandName: "My View",
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		plugin.loadData.mockResolvedValue({ views: { "v1": v1Record } });
 

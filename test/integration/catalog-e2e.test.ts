@@ -503,6 +503,8 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 			command: false,
 			commandName: "Characters overview",
 			catalogId: "overview-characters",
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 
 		const h = await mountHarness([entry], { "existing-id": staleRecord });
@@ -541,6 +543,8 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 			command: false,
 			commandName: "Characters overview",
 			catalogId: "overview-characters",
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 
 		const h = await mountHarness([entry], { "existing-id": staleRecord });
@@ -581,6 +585,8 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 			command: false,
 			commandName: "Characters overview",
 			catalogId: "overview-characters",
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 
 		const h = await mountHarness([entry], { "existing-id": staleRecord });
@@ -626,6 +632,8 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 			command: false,
 			commandName: "Characters overview",
 			catalogId: "overview-characters",
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 
 		const h = await mountHarness([entry], { "existing-id": staleRecord });
@@ -714,6 +722,8 @@ describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confi
 			source: newSource, // same source but okayed.checksum differs
 			engine: "bases",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 
 		const vault = makeVault(false);
@@ -825,6 +835,8 @@ describe("E2E T6.3.6 — offline: fetch/requestUrl must not be called on any cat
 			command: false,
 			commandName: "Characters overview",
 			catalogId: "overview-characters",
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 
 		const h = await mountHarness([entry], { "existing-id": staleRecord });

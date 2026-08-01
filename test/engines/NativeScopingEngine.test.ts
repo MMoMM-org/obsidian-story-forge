@@ -68,6 +68,8 @@ function makeView(): ViewRecord {
 		source: "views/my-view.md",
 		engine: "dataview-dql",
 		command: false,
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 	};
 }
 

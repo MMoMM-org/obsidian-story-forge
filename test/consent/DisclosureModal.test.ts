@@ -85,6 +85,8 @@ function makeRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
 		command: false,
 		commandName: "Characters in Scene",
 		description: "Lists pov + characters of the active scene note",
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 		...overrides,
 	};
 }

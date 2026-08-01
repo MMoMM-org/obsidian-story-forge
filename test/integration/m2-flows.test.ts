@@ -410,6 +410,8 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 			source: "views/chars.md",
 			engine: "dataview-dql",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 
 		const decision = await gate.evaluate(record);
@@ -457,6 +459,8 @@ describe("Flow 3 — Native fallback when Dataview absent (SDD Flow E)", () => {
 			source: "views/chars.md",
 			engine: "dataview-dql",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 
 		const ctx: NoteContext = {
@@ -542,6 +546,8 @@ describe("Flow 4 — Re-consent on checksum drift (AC-F2.4)", () => {
 			engine: "dataviewjs",
 			command: false,
 			commandName: "Scene Debug",
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const viewId = "view-drift-checksum";
 		await store.setRecord(viewId, record);
@@ -632,6 +638,8 @@ describe("Flow 5 — Re-consent on version drift", () => {
 			source: "views/chars.md",
 			engine: "dataview-dql",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const viewId = "view-version-drift";
 		await store.setRecord(viewId, record);
@@ -711,6 +719,8 @@ describe("Flow 6 — Kill-switch preserves okayed", () => {
 			source: "views/chars.md",
 			engine: "dataview-dql",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const viewId = "view-killswitch";
 		await store.setRecord(viewId, consentedRecord);
@@ -833,6 +843,8 @@ describe("Flow 8 — Source missing after import", () => {
 			source: "views/chars.md",
 			engine: "dataview-dql",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const viewId = "view-source-missing";
 		await store.setRecord(viewId, record);

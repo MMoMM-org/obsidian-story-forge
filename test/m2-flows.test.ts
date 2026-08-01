@@ -82,6 +82,8 @@ function makeViewRecord(engine: ViewRecord["engine"]): ViewRecord {
 			: "TABLE name FROM #canon/scene",
 		engine,
 		command: false,
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 	};
 }
 

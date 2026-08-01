@@ -56,6 +56,8 @@ function makeView(source = "filters: {}\nproperties:\n  name: {}"): ViewRecord {
 		source,
 		engine: "bases",
 		command: false,
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 	};
 }
 

@@ -147,6 +147,8 @@ export class ViewImporter {
 			engine: def.engine,
 			command: def.command,
 			commandName: def.name,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		if (def.description !== undefined) {
 			rec.description = def.description;

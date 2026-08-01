@@ -39,6 +39,8 @@ function record(overrides?: Partial<ViewRecord>): ViewRecord {
 		source: "_forge/views/example.md",
 		engine: "dataview-dql",
 		command: false,
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 		...overrides,
 	};
 }

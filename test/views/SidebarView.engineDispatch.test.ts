@@ -80,6 +80,8 @@ function makeViewRecord(
 		engine: "dataview-dql",
 		command: false,
 		commandName: "Test View",
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 		...overrides,
 	};
 }

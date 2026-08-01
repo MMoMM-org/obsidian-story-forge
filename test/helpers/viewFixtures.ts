@@ -24,5 +24,7 @@ export function makeDummyViewRecord(): ViewRecord {
 		source: "TABLE name FROM #canon/character",
 		engine: "dataview-dql" as const,
 		command: false,
+		kind: "view" as const,
+		surfaces: { anvil: false, workbench: false },
 	};
 }

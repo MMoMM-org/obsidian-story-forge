@@ -95,6 +95,8 @@ function makeViewRecord(overrides?: Partial<ViewRecord>): ViewRecord {
 		engine: "dataview-dql",
 		command: false,
 		commandName: "Test View",
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 		...overrides,
 	};
 }

@@ -50,6 +50,8 @@ function makeView(source = "views/my-view.md"): ViewRecord {
 		source,
 		engine: "dataviewjs",
 		command: false,
+		kind: "view",
+		surfaces: { anvil: false, workbench: false },
 	};
 }
 

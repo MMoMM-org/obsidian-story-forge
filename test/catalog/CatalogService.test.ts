@@ -416,6 +416,8 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			source: BASE_YAML,
 			engine: "bases",
 			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
 		};
 		const { store } = makeStore({ "existing-id": existingRecord });
 		const index = await makeCatalogIndex([entry]);
