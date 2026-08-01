@@ -20,6 +20,7 @@ import type { ViewRecord } from "../../src/store/types";
 import type { ConsentGate } from "../../src/consent/ConsentGate";
 import type { ViewImporter } from "../../src/import/ViewImporter";
 import type { RegisterCommandCallback } from "../../src/import/types";
+import { makeNoopMigrationDeps } from "../helpers/viewFixtures";
 
 type RemoveCommandCallback = (viewId: string) => void;
 
@@ -31,13 +32,6 @@ function makeApp(): App {
 	return new App();
 }
 
-/** No T3.2 migration under test here — a reader that never finds a file is fine. */
-const NOOP_MIGRATION_DEPS = {
-	readFile: async () => null,
-	curatedBasesFolder: "00 Meta/Bases",
-	currentParams: { tag: "", excludedFolders: [] },
-};
-
 function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 	const data = { views: { ...initial } };
 	const port = {
@@ -47,7 +41,8 @@ function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 			data.views = { ...(typed.views ?? {}) };
 		}),
 	};
-	return new ViewStore(port, NOOP_MIGRATION_DEPS);
+	// No T3.2 migration under test here — a reader that never finds a file is fine.
+	return new ViewStore(port, makeNoopMigrationDeps());
 }
 
 function makeConsentGate(): ConsentGate {

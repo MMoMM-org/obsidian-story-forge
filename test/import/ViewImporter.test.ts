@@ -15,19 +15,13 @@ import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
 import { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
+import { makeNoopMigrationDeps } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /** Build a fake port that backs a ViewStore with the given initial views map. */
-/** No T3.2 migration under test here — a reader that never finds a file is fine. */
-const NOOP_MIGRATION_DEPS = {
-	readFile: async () => null,
-	curatedBasesFolder: "00 Meta/Bases",
-	currentParams: { tag: "", excludedFolders: [] },
-};
-
 function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 	const data = { views: { ...initial } };
 	const port = {
@@ -37,7 +31,8 @@ function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 			data.views = { ...(typed.views ?? {}) };
 		}),
 	};
-	return new ViewStore(port, NOOP_MIGRATION_DEPS);
+	// No T3.2 migration under test here — a reader that never finds a file is fine.
+	return new ViewStore(port, makeNoopMigrationDeps());
 }
 
 /** Build a TFile with given path/basename. */

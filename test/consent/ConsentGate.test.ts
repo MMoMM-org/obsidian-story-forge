@@ -624,6 +624,23 @@ describe("ConsentGate.evaluate() — T3.2 migrated collection guard", () => {
 		expect(result).toEqual({ status: "consented" });
 	});
 
+	it("returns {status:'not-consented'} for a never-consented record that already carries a generated block [ordering fix]", async () => {
+		// The not-consented check (okayed === null) must run BEFORE the
+		// generated-block short-circuit (step 5a), or a never-consented record
+		// that happens to carry a `generated` block would be silently reported
+		// as consented. Every other fixture in this file sets a non-null
+		// `okayed`, so nothing previously pinned this ordering.
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.evaluate({ ...makeMigratedCollectionRecord(), okayed: null });
+
+		expect(result).toEqual({ status: "not-consented" });
+	});
+
 	it("[REGRESSION] an un-migrated bases record (kind:'view', source = raw YAML) still evaluates exactly as before", async () => {
 		const registry = makeRegistryWithBases();
 		const dvSettings = makeDvSettings(true);

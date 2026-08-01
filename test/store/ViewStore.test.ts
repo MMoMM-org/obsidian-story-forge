@@ -12,7 +12,7 @@
  *   - getViews on a store with malformed records applies fail-closed defaults
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PluginDataPort, StoryForgeData, ViewRecord } from "../../src/store/types";
 import { ViewStore } from "../../src/store/ViewStore";
 import type { MigrateLegacyBasesDeps } from "../../src/store/migrateLegacyBases";
@@ -172,6 +172,47 @@ describe("ViewStore.getViews — T3.2 legacy bases migration", () => {
 
     await store.getViews();
     expect(port.saveCount).toBe(1); // idempotent — no second write
+  });
+
+  // -------------------------------------------------------------------------
+  // Code-review fix 1: a migrating read must not throw when the persist fails
+  // -------------------------------------------------------------------------
+
+  it("degrades gracefully when the migration persist write fails: resolves with the migrated records instead of throwing", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const legacy = rec({ engine: "bases", kind: "view", source: "filters: file.hasTag(\"x\")\n" });
+    const port: PluginDataPort = {
+      load: async () => ({ views: { v1: legacy } }),
+      save: async () => {
+        throw new Error("disk full");
+      },
+    };
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
+
+    const views = await store.getViews();
+
+    // Migrated in-memory view is still returned even though the write failed.
+    expect(views["v1"]?.kind).toBe("collection");
+    expect(views["v1"]?.generated).toBeDefined();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  // -------------------------------------------------------------------------
+  // Code-review fix 2: overlapping migrating reads persist at most once
+  // -------------------------------------------------------------------------
+
+  it("persists exactly once under overlapping getViews() calls, and both callers receive the migrated records", async () => {
+    const legacy = rec({ engine: "bases", kind: "view", source: "filters: file.hasTag(\"x\")\n" });
+    const port = fakePort({ views: { v1: legacy } });
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
+
+    const [viewsA, viewsB] = await Promise.all([store.getViews(), store.getViews()]);
+
+    expect(port.saveCount).toBe(1);
+    expect(viewsA["v1"]?.kind).toBe("collection");
+    expect(viewsB["v1"]?.kind).toBe("collection");
   });
 });
 

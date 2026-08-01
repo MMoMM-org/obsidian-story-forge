@@ -438,6 +438,66 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			expect(result.reason).toMatch(/up.to.date/i);
 		}
 	});
+
+	// -----------------------------------------------------------------------
+	// [KNOWN LIMITATION] catalogId-less duplicate check is not migration-safe
+	//
+	// See the docstring on CatalogService._installBasesEntry for the full
+	// rationale. migrateLegacyBases (T3.2/ADR-29) rewrites a catalogId-less
+	// record's `source` to "" — it can only resolve a real path when
+	// catalogId is present. Once such a record has been migrated, the
+	// `rec.source === entry.source` fallback can never match raw YAML again,
+	// so a genuinely up-to-date, catalogId-less install is no longer
+	// recognised as a duplicate by a direct install() call. This is not
+	// exploitable via BrowseOfficialModal today (it pre-filters on
+	// commandName before calling install()) — this test documents the
+	// limitation, it does not endorse it.
+	// -----------------------------------------------------------------------
+
+	it("[KNOWN LIMITATION] a migrated catalogId-less record is no longer recognised as a duplicate — install() creates a second record", async () => {
+		const app = makeApp();
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+
+		// Simulate a pre-T4.5 legacy record after migrateLegacyBases (T3.2) has
+		// already run on it: catalogId-less records migrate with `source`
+		// rewritten to "" (resolveFilePath cannot resolve a path without a
+		// catalogId), yet the record is otherwise a faithful, up-to-date
+		// install of `entry`.
+		const migratedLegacyRecord: ViewRecord = {
+			provenance: "curated",
+			enabled: true,
+			okayed: { version: 1, checksum: await computeChecksum(BASE_YAML) },
+			source: "",
+			engine: "bases",
+			command: false,
+			commandName: "Characters",
+			kind: "collection",
+			surfaces: { anvil: false, workbench: false },
+			generated: {
+				sourceChecksum: await computeChecksum(BASE_YAML),
+				params: { tag: "", excludedFolders: [] },
+				instanceChecksum: "",
+				filePath: "",
+				verify: true,
+			},
+		};
+		const { store, capturedRecords } = makeStore({ "existing-id": migratedLegacyRecord });
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+		});
+
+		const result = await svc.install(entry.id);
+
+		// The duplicate-detection fallback misses it: install proceeds and a
+		// second ViewRecord for the same entry is persisted.
+		expect(result.ok).toBe(true);
+		expect(capturedRecords.size).toBe(1);
+	});
 });
 
 // ---------------------------------------------------------------------------

@@ -52,6 +52,7 @@ import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { ViewRecord } from "store/types";
 import type { NoteContext } from "scoping/NoteContext";
+import { makeNoopMigrationDeps } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Platform mock (consistent with unit test pattern)
@@ -123,11 +124,7 @@ function makeStore(): ViewStore {
 		}),
 	};
 	// No T3.2 migration under test here — a reader that never finds a file is fine.
-	return new ViewStore(port, {
-		readFile: async () => null,
-		curatedBasesFolder: "00 Meta/Bases",
-		currentParams: { tag: "", excludedFolders: [] },
-	});
+	return new ViewStore(port, makeNoopMigrationDeps());
 }
 
 /** Build a minimal NoteContext for render calls. */

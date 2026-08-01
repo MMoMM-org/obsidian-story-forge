@@ -37,6 +37,7 @@ import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 import { applyDefaults, type ViewRecord } from "store/types";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
 import type { ViewImporter } from "import/ViewImporter";
+import { makeNoopMigrationDeps } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Offline guard — throw if network is ever touched during the whole suite.
@@ -134,13 +135,8 @@ function makeStoreHarness(initial: Record<string, ViewRecord> = {}): StoreHarnes
 	// T3.2 migration deps: no vault to read from in this in-memory harness — a
 	// reader that never finds a file is fine (the E2E suite exercises install/
 	// update through CatalogService, not migrateLegacyBases itself).
-	const migrationDeps = {
-		readFile: async () => null,
-		curatedBasesFolder: "00 Meta/Bases",
-		currentParams: { tag: "", excludedFolders: [] },
-	};
 	return {
-		store: new ViewStore(port, migrationDeps),
+		store: new ViewStore(port, makeNoopMigrationDeps()),
 		raw: () => data.views,
 	};
 }
@@ -563,11 +559,12 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 			checksum: newChecksum,
 		};
 
-		// The store has the SAME source (already installed) which would cause
-		// up-to-date detection. For update to work, the store must have a DIFFERENT
-		// source OR we need to test the direct install path. Since the duplicate check
-		// compares source strings, an update can only write if the source changed.
-		// We simulate a real update scenario: old source differs from new source.
+		// The duplicate check (T4.5, since b6d387c) matches on catalogId ===
+		// entry.id paired with okayed.checksum === entry.checksum — NOT on
+		// source equality (see CatalogService._installBasesEntry). A stale
+		// record with the same catalogId but an outdated okayed.checksum must
+		// fall through to a fresh install rather than being reported as an
+		// already-installed duplicate, which is what makes "Update" work.
 		const oldSource = "# old version\n";
 		const staleRecord: ViewRecord = {
 			provenance: "curated",
