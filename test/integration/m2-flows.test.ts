@@ -122,7 +122,12 @@ function makeStore(): ViewStore {
 			Object.assign(data, typed);
 		}),
 	};
-	return new ViewStore(port);
+	// No T3.2 migration under test here — a reader that never finds a file is fine.
+	return new ViewStore(port, {
+		readFile: async () => null,
+		curatedBasesFolder: "00 Meta/Bases",
+		currentParams: { tag: "", excludedFolders: [] },
+	});
 }
 
 /** Build a minimal NoteContext for render calls. */

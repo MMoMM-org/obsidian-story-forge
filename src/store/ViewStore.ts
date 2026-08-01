@@ -4,16 +4,21 @@
  * ADR-1: flat Record<id, ViewRecord> in data.json, shared blob with settings.
  * ADR-6: persist ONLY on user-initiated mutations (setRecord/deleteRecord).
  *         Read-modify-write preserving sibling `settings`. Never persist on read.
+ *         EXCEPTION: getViews() also persists once for the ADR-29 legacy-bases
+ *         migration — see the comment on getViews() and migrateLegacyBases.ts.
  */
 
 import { applyDefaults, type PluginDataPort, type StoryForgeData, type ViewRecord } from "store/types";
+import { migrateLegacyBases, type MigrateLegacyBasesDeps } from "store/migrateLegacyBases";
 
 export class ViewStore {
   private readonly port: PluginDataPort;
+  private readonly migrationDeps: MigrateLegacyBasesDeps;
   private readonly _subscribers = new Set<() => void>();
 
-  constructor(port: PluginDataPort) {
+  constructor(port: PluginDataPort, migrationDeps: MigrateLegacyBasesDeps) {
     this.port = port;
+    this.migrationDeps = migrationDeps;
   }
 
   /**
@@ -39,15 +44,29 @@ export class ViewStore {
   /**
    * Returns all stored views, each passed through applyDefaults (fail-closed).
    * Does NOT persist — ADR-6 read path.
+   *
+   * EXCEPTION (T3.2/ADR-29): legacy `bases` records are silently migrated to
+   * `kind:"collection"` here, and — unlike every other read — that migration
+   * DOES persist, exactly once. `generated.instanceChecksum` must be pinned
+   * to the vault file as it exists at migration time; recomputing it on every
+   * read (to stay "read-only") would make a pre-upgrade hand edit invisible
+   * forever, defeating T3.3's drift detection. Do NOT "fix" this back to a
+   * pure read — see src/store/migrateLegacyBases.ts for the full rationale.
    */
   async getViews(): Promise<Record<string, ViewRecord>> {
     const data = await this.readData();
     const raw = data.views ?? {};
-    const result: Record<string, ViewRecord> = {};
+    const defaulted: Record<string, ViewRecord> = {};
     for (const [id, entry] of Object.entries(raw)) {
-      result[id] = applyDefaults(entry);
+      defaulted[id] = applyDefaults(entry);
     }
-    return result;
+
+    const { views: migrated, changed } = await migrateLegacyBases(defaulted, this.migrationDeps);
+    if (changed) {
+      await this.port.save({ ...data, views: migrated });
+    }
+
+    return migrated;
   }
 
   /**

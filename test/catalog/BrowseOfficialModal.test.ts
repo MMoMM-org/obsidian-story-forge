@@ -39,6 +39,17 @@ function makeEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
 	};
 }
 
+/**
+ * No T3.2 migration under test in this file — update-available detection reads
+ * catalogId/commandName/okayed, none of which migrateLegacyBases touches. A
+ * reader that never finds a file is fine.
+ */
+const NOOP_MIGRATION_DEPS = {
+	readFile: async () => null,
+	curatedBasesFolder: "00 Meta/Bases",
+	currentParams: { tag: "", excludedFolders: [] },
+};
+
 function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 	const data = { views: { ...initial } };
 	const port = {
@@ -48,7 +59,7 @@ function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 			data.views = { ...(typed.views ?? {}) };
 		}),
 	};
-	return new ViewStore(port);
+	return new ViewStore(port, NOOP_MIGRATION_DEPS);
 }
 
 function makeCuratedRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {

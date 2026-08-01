@@ -15,10 +15,24 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { PluginDataPort, StoryForgeData, ViewRecord } from "../../src/store/types";
 import { ViewStore } from "../../src/store/ViewStore";
+import type { MigrateLegacyBasesDeps } from "../../src/store/migrateLegacyBases";
 
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * No-op migration deps: these CRUD/subscriber tests are not about T3.2
+ * legacy-bases migration, so `rec()` below deliberately defaults to a
+ * non-"bases" engine to keep migration from firing underneath them. This
+ * double exists only to satisfy the constructor — see migrateLegacyBases.test.ts
+ * for the migration behaviour itself.
+ */
+const NOOP_MIGRATION_DEPS: MigrateLegacyBasesDeps = {
+  readFile: async () => null,
+  curatedBasesFolder: "00 Meta/Bases",
+  currentParams: { tag: "", excludedFolders: [] },
+};
 
 /**
  * In-memory PluginDataPort with a save-call counter.
@@ -44,14 +58,22 @@ function fakePort(initial: unknown = {}): PluginDataPort & { saveCount: number; 
   };
 }
 
-/** Build a minimal valid ViewRecord with optional overrides. */
+/**
+ * Build a minimal valid ViewRecord with optional overrides.
+ *
+ * Default engine is "dataview-dql", not "bases" — a "bases" engine record
+ * with kind:"view" is exactly the legacy shape T3.2's migration acts on
+ * (src/store/migrateLegacyBases.ts), and these generic CRUD/subscriber tests
+ * are not about that. Tests that DO want a bases-engine record override it
+ * explicitly.
+ */
 function rec(overrides: Partial<ViewRecord> = {}): ViewRecord {
   return {
     provenance: "curated",
     enabled: false,
     okayed: null,
     source: "",
-    engine: "bases",
+    engine: "dataview-dql",
     command: false,
     kind: "view",
     surfaces: { anvil: false, workbench: false },
@@ -65,12 +87,12 @@ function rec(overrides: Partial<ViewRecord> = {}): ViewRecord {
 
 describe("ViewStore.getViews", () => {
   it("returns an empty record when no views are stored", async () => {
-    const store = new ViewStore(fakePort({}));
+    const store = new ViewStore(fakePort({}), NOOP_MIGRATION_DEPS);
     expect(await store.getViews()).toEqual({});
   });
 
   it("returns an empty record when data has no 'views' key", async () => {
-    const store = new ViewStore(fakePort({ settings: { exampleSetting: "x" } }));
+    const store = new ViewStore(fakePort({ settings: { exampleSetting: "x" } }), NOOP_MIGRATION_DEPS);
     expect(await store.getViews()).toEqual({});
   });
 
@@ -82,7 +104,7 @@ describe("ViewStore.getViews", () => {
         v3: { provenance: "imported" },
       },
     });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     const views = await store.getViews();
 
     expect(views["v1"]?.enabled).toBe(true);
@@ -97,7 +119,7 @@ describe("ViewStore.getViews", () => {
 
   it("does NOT call save during a read", async () => {
     const port = fakePort({ views: { v1: rec() } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.getViews();
     expect(port.saveCount).toBe(0);
   });
@@ -110,7 +132,7 @@ describe("ViewStore.getViews", () => {
 describe("ViewStore.setRecord", () => {
   it("stores a record and makes it retrievable via getViews", async () => {
     const port = fakePort();
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.setRecord("v1", rec({ enabled: true, source: "views/test.md" }));
     const views = await store.getViews();
     expect(views["v1"]?.enabled).toBe(true);
@@ -119,7 +141,7 @@ describe("ViewStore.setRecord", () => {
 
   it("round-trips a record and preserves sibling settings", async () => {
     const port = fakePort({ settings: { exampleSetting: "theme-x" } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.setRecord("v1", rec({ enabled: true }));
 
     // sibling 'settings' must survive the write
@@ -132,14 +154,14 @@ describe("ViewStore.setRecord", () => {
 
   it("fires save exactly once per setRecord call", async () => {
     const port = fakePort();
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.setRecord("v1", rec());
     expect(port.saveCount).toBe(1);
   });
 
   it("fires save once per call even when called multiple times", async () => {
     const port = fakePort();
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.setRecord("v1", rec());
     await store.setRecord("v2", rec({ engine: "dataview-dql" }));
     expect(port.saveCount).toBe(2);
@@ -147,7 +169,7 @@ describe("ViewStore.setRecord", () => {
 
   it("overwrites an existing record", async () => {
     const port = fakePort({ views: { v1: rec({ enabled: false }) } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.setRecord("v1", rec({ enabled: true }));
     const views = await store.getViews();
     expect(views["v1"]?.enabled).toBe(true);
@@ -155,7 +177,7 @@ describe("ViewStore.setRecord", () => {
 
   it("preserves other records when writing a new one", async () => {
     const port = fakePort({ views: { existing: rec({ source: "keep-me" }) } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.setRecord("new", rec({ source: "new-entry" }));
     const views = await store.getViews();
     expect(views["existing"]?.source).toBe("keep-me");
@@ -170,7 +192,7 @@ describe("ViewStore.setRecord", () => {
 describe("ViewStore.deleteRecord", () => {
   it("removes an existing record", async () => {
     const port = fakePort({ views: { v1: rec(), v2: rec() } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.deleteRecord("v1");
     const views = await store.getViews();
     expect("v1" in views).toBe(false);
@@ -179,7 +201,7 @@ describe("ViewStore.deleteRecord", () => {
 
   it("is a safe no-op when the id does not exist", async () => {
     const port = fakePort({ views: { v1: rec() } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await expect(store.deleteRecord("nonexistent")).resolves.toBeUndefined();
     const views = await store.getViews();
     expect("v1" in views).toBe(true); // untouched
@@ -187,14 +209,14 @@ describe("ViewStore.deleteRecord", () => {
 
   it("fires save exactly once per deleteRecord call (even on no-op)", async () => {
     const port = fakePort({});
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.deleteRecord("nonexistent");
     expect(port.saveCount).toBe(1);
   });
 
   it("preserves sibling settings on delete", async () => {
     const port = fakePort({ settings: { exampleSetting: "keep" }, views: { v1: rec() } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.deleteRecord("v1");
     const written = port.data as StoryForgeData;
     expect(written.settings).toEqual({ exampleSetting: "keep" });
@@ -208,7 +230,7 @@ describe("ViewStore.deleteRecord", () => {
 describe("ViewStore.subscribe — fires after setRecord", () => {
   it("calls the subscriber after setRecord", async () => {
     const port = fakePort({});
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     const calls: number[] = [];
     store.subscribe(() => { calls.push(1); });
     await store.setRecord("v1", rec());
@@ -217,7 +239,7 @@ describe("ViewStore.subscribe — fires after setRecord", () => {
 
   it("calls the subscriber after deleteRecord", async () => {
     const port = fakePort({ views: { v1: rec() } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     const calls: number[] = [];
     store.subscribe(() => { calls.push(1); });
     await store.deleteRecord("v1");
@@ -226,7 +248,7 @@ describe("ViewStore.subscribe — fires after setRecord", () => {
 
   it("subscriber sees committed state (saveCount===1) at call time", async () => {
     const port = fakePort({});
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     let saveCountAtNotify = -1;
     store.subscribe(() => { saveCountAtNotify = port.saveCount; });
     await store.setRecord("v1", rec());
@@ -235,7 +257,7 @@ describe("ViewStore.subscribe — fires after setRecord", () => {
 
   it("subscriber reads committed views (getViews returns new record) at call time", async () => {
     const port = fakePort({});
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     let viewsPromise: Promise<Record<string, unknown>> | null = null;
     store.subscribe(() => {
       viewsPromise = store.getViews();
@@ -250,7 +272,7 @@ describe("ViewStore.subscribe — fires after setRecord", () => {
 
   it("unsubscribe stops future notifications", async () => {
     const port = fakePort({});
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     const calls: number[] = [];
     const unsub = store.subscribe(() => { calls.push(1); });
     await store.setRecord("v1", rec());
@@ -261,7 +283,7 @@ describe("ViewStore.subscribe — fires after setRecord", () => {
 
   it("a throwing subscriber does NOT prevent persist (saveCount still 1)", async () => {
     const port = fakePort({});
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     store.subscribe(() => { throw new Error("bad subscriber"); });
     // should not throw
     await expect(store.setRecord("v1", rec())).resolves.toBeUndefined();
@@ -270,7 +292,7 @@ describe("ViewStore.subscribe — fires after setRecord", () => {
 
   it("a throwing subscriber does NOT prevent sibling subscribers from firing", async () => {
     const port = fakePort({});
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     store.subscribe(() => { throw new Error("bad subscriber"); });
     const sibling: number[] = [];
     store.subscribe(() => { sibling.push(1); });
@@ -280,7 +302,7 @@ describe("ViewStore.subscribe — fires after setRecord", () => {
 
   it("does NOT fire subscribers during getViews (read path)", async () => {
     const port = fakePort({ views: { v1: rec() } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     const calls: number[] = [];
     store.subscribe(() => { calls.push(1); });
     await store.getViews();
@@ -289,7 +311,7 @@ describe("ViewStore.subscribe — fires after setRecord", () => {
 
   it("fires subscribers once per setRecord call even when called multiple times", async () => {
     const port = fakePort({});
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     let count = 0;
     store.subscribe(() => { count++; });
     await store.setRecord("v1", rec());
@@ -305,13 +327,13 @@ describe("ViewStore.subscribe — fires after setRecord", () => {
 describe("ViewStore persistence discipline", () => {
   it("does not save during construction", async () => {
     const port = fakePort({});
-    new ViewStore(port);
+    new ViewStore(port, NOOP_MIGRATION_DEPS);
     expect(port.saveCount).toBe(0);
   });
 
   it("does not save during multiple getViews calls", async () => {
     const port = fakePort({ views: { v1: rec() } });
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
     await store.getViews();
     await store.getViews();
     await store.getViews();
@@ -320,7 +342,7 @@ describe("ViewStore persistence discipline", () => {
 
   it("total save count matches number of mutations", async () => {
     const port = fakePort({});
-    const store = new ViewStore(port);
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
 
     await store.getViews();         // read — no save
     await store.setRecord("a", rec()); // save 1
