@@ -112,9 +112,8 @@ export function isEngine(value: unknown): value is ViewRecord["engine"] {
 export function parseOkayed(
   raw: unknown,
 ): { version: number; checksum: string } | null {
-  if (raw === null || raw === undefined) return null;
-  if (typeof raw !== "object" || Array.isArray(raw)) return null;
-  const obj = raw as Record<string, unknown>;
+  if (!isPlainObject(raw)) return null;
+  const obj = raw;
   if (typeof obj["version"] !== "number") return null;
   if (typeof obj["checksum"] !== "string") return null;
   return { version: obj["version"], checksum: obj["checksum"] };
@@ -130,15 +129,23 @@ export function isKind(value: unknown): value is ViewRecord["kind"] {
 }
 
 /**
+ * isPlainObject — true for non-null, non-array objects. Shared shape guard
+ * for the parse* helpers below (each still validates its own fields).
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
  * parseSurfaces — accepts only {anvil: boolean, workbench: boolean}, field
  * by field. Any missing or malformed member falls back to false; the object
  * itself always materialises (never null/undefined).
  */
 export function parseSurfaces(raw: unknown): ViewRecord["surfaces"] {
-  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+  if (!isPlainObject(raw)) {
     return { anvil: false, workbench: false };
   }
-  const obj = raw as Record<string, unknown>;
+  const obj = raw;
   return {
     anvil: obj["anvil"] === true,
     workbench: obj["workbench"] === true,
@@ -151,10 +158,10 @@ export function parseSurfaces(raw: unknown): ViewRecord["surfaces"] {
  * degrades to "not generated" (undefined) rather than throwing.
  */
 export function parseGenerated(raw: unknown): ViewRecord["generated"] | undefined {
-  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+  if (!isPlainObject(raw)) {
     return undefined;
   }
-  const obj = raw as Record<string, unknown>;
+  const obj = raw;
 
   if (typeof obj["sourceChecksum"] !== "string") return undefined;
   if (typeof obj["instanceChecksum"] !== "string") return undefined;
@@ -162,10 +169,10 @@ export function parseGenerated(raw: unknown): ViewRecord["generated"] | undefine
   if (typeof obj["verify"] !== "boolean") return undefined;
 
   const params = obj["params"];
-  if (params === null || typeof params !== "object" || Array.isArray(params)) {
+  if (!isPlainObject(params)) {
     return undefined;
   }
-  const paramsObj = params as Record<string, unknown>;
+  const paramsObj = params;
   if (typeof paramsObj["tag"] !== "string") return undefined;
   const excludedFolders = paramsObj["excludedFolders"];
   if (

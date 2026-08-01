@@ -487,6 +487,35 @@ describe("parseGenerated", () => {
     expect(parseGenerated(rest)).toBeUndefined();
   });
 
+  it("returns undefined when sourceChecksum is a number (not a string)", () => {
+    expect(
+      parseGenerated({ ...validGenerated, sourceChecksum: 12345 }),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined when sourceChecksum is missing", () => {
+    const { sourceChecksum: _sourceChecksum, ...rest } = validGenerated;
+    expect(parseGenerated(rest)).toBeUndefined();
+  });
+
+  it("returns undefined when filePath is a number (not a string)", () => {
+    expect(parseGenerated({ ...validGenerated, filePath: 12345 })).toBeUndefined();
+  });
+
+  it("returns undefined when filePath is missing", () => {
+    const { filePath: _filePath, ...rest } = validGenerated;
+    expect(parseGenerated(rest)).toBeUndefined();
+  });
+
+  it("returns undefined when params.tag is a number (not a string)", () => {
+    expect(
+      parseGenerated({
+        ...validGenerated,
+        params: { ...validGenerated.params, tag: 42 },
+      }),
+    ).toBeUndefined();
+  });
+
   it("returns undefined when params.excludedFolders is not a string array", () => {
     expect(
       parseGenerated({
