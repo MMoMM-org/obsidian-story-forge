@@ -119,9 +119,24 @@ export class CatalogService {
 	 * Atomic guarantee: if store.setRecord throws after the .base file was written,
 	 * the orphaned file is removed (best-effort rollback) so no partial state remains.
 	 *
-	 * Duplicate detection compares record.source against entry.source. Bases records
-	 * store the raw .base YAML in ViewRecord.source (not a vault path — ADR-5), so
-	 * YAML equality means the same content is already installed.
+	 * Duplicate detection matches on rec.catalogId === entry.id — the stable slug,
+	 * mirroring BrowseOfficialModal's own installed-record lookup (which pairs the
+	 * same catalogId match with an okayed.checksum comparison to tell "up to date"
+	 * apart from "update available" — F7). This must NOT compare
+	 * rec.source === entry.source: ViewStore.getViews() (called just below)
+	 * silently migrates any legacy bases record it sees (T3.2, ADR-29), rewriting
+	 * `source` from raw YAML to a vault path — including a record this very call
+	 * just installed on a prior invocation. A source-equality check would therefore
+	 * stop matching one read after install. The paired checksum comparison is what
+	 * keeps BrowseOfficialModal's "Update" affordance working: it also calls
+	 * install() on the same entry.id, and a stale record (okayed.checksum !==
+	 * entry.checksum) must fall through to a fresh install rather than being
+	 * reported as an already-installed duplicate. Records persisted before
+	 * catalogId existed (pre-T4.5) have none; for those we fall back to the
+	 * legacy source === source comparison, which stays valid because a
+	 * catalogId-less record also migrates with an empty path rather than a
+	 * resolved one (migrateLegacyBases only resolves a path when catalogId can
+	 * be looked up).
 	 */
 	private async _installBasesEntry(entry: CatalogEntry): Promise<InstallResult> {
 		// 1. VERIFY checksum before any side effect.
@@ -133,11 +148,20 @@ export class CatalogService {
 			};
 		}
 
-		// 2. Duplicate check: same raw YAML already in the store → up-to-date.
+		// 2. Duplicate check: same catalog entry, at the same checksum, already
+		// installed → up-to-date. Match by catalogId when the record has one
+		// (also requiring the stored checksum to match entry.checksum, so a
+		// stale record falls through to a fresh install instead of being
+		// reported as a duplicate); fall back to source equality only for
+		// pre-T4.5 records that predate catalogId.
 		try {
 			const existing = await this.deps.store.getViews();
 			for (const rec of Object.values(existing)) {
-				if (rec.source === entry.source) {
+				const isDuplicate =
+					rec.catalogId !== undefined
+						? rec.catalogId === entry.id && rec.okayed?.checksum === entry.checksum
+						: rec.source === entry.source;
+				if (isDuplicate) {
 					return { ok: false, reason: "up-to-date: already installed" };
 				}
 			}

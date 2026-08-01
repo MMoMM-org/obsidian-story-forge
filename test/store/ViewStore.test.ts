@@ -126,6 +126,56 @@ describe("ViewStore.getViews", () => {
 });
 
 // ---------------------------------------------------------------------------
+// getViews — T3.2 legacy-bases migration (the ADR-6 "persist on read" exception)
+//
+// rec()'s default engine moved to "dataview-dql" so the CRUD/subscriber suites
+// above don't trip migration incidentally. That leaves ViewStore's own
+// getViews()-persists-when-migrated behaviour (ViewStore.ts:64-67) uncovered
+// at this level — migrateLegacyBases.test.ts only exercises the pure
+// migrateLegacyBases() function, never a real ViewStore + PluginDataPort. This
+// block restores that coverage: a bases-engine, kind:"view" record run through
+// a real ViewStore.getViews() call.
+// ---------------------------------------------------------------------------
+
+describe("ViewStore.getViews — T3.2 legacy bases migration", () => {
+  it("migrates a legacy bases record to kind:'collection' and persists once, unlike an ordinary read", async () => {
+    const legacy = rec({ engine: "bases", kind: "view", source: "filters: file.hasTag(\"x\")\n" });
+    const port = fakePort({ views: { v1: legacy } });
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
+
+    const views = await store.getViews();
+
+    expect(views["v1"]?.kind).toBe("collection");
+    expect(views["v1"]?.generated).toBeDefined();
+    // The one documented exception to ADR-6: migration writes once on this read.
+    expect(port.saveCount).toBe(1);
+  });
+
+  it("preserves sibling settings when the migration write fires", async () => {
+    const legacy = rec({ engine: "bases", kind: "view" });
+    const port = fakePort({ settings: { exampleSetting: "keep" }, views: { v1: legacy } });
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
+
+    await store.getViews();
+
+    const written = port.data as StoryForgeData;
+    expect(written.settings).toEqual({ exampleSetting: "keep" });
+  });
+
+  it("does not persist again on a second read once already migrated", async () => {
+    const legacy = rec({ engine: "bases", kind: "view" });
+    const port = fakePort({ views: { v1: legacy } });
+    const store = new ViewStore(port, NOOP_MIGRATION_DEPS);
+
+    await store.getViews();
+    expect(port.saveCount).toBe(1);
+
+    await store.getViews();
+    expect(port.saveCount).toBe(1); // idempotent — no second write
+  });
+});
+
+// ---------------------------------------------------------------------------
 // setRecord
 // ---------------------------------------------------------------------------
 

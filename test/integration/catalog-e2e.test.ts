@@ -417,32 +417,7 @@ describe("E2E T6.3.3 — already-installed: second install does not write a seco
 		});
 	});
 
-	// KNOWN REGRESSION, pending T3.3 (docs/XDD/specs/008-codex-surface/plan/phase-3.md):
-	// the three tests below are skipped, not deleted.
-	//
-	// CatalogService._installBasesEntry's duplicate check
-	// (src/catalog/CatalogService.ts:140, `rec.source === entry.source`) assumes
-	// ViewRecord.source always holds the raw .base YAML for a bases record — the
-	// SAME assumption ConsentGate._evaluateBasesRecord makes (flagged in T3.2's
-	// own brief as a known defect deferred to T3.4). migrateLegacyBases (T3.2,
-	// ADR-29) deliberately rewrites `source` from YAML to a vault PATH the moment
-	// ANY ViewStore.getViews() call sees a `kind:"view"`/no-`generated` bases
-	// record — which includes a record CatalogService itself installed moments
-	// ago, since CatalogService.ts (T3.3, out of scope here) still persists the
-	// pre-ADR-29 shape. The result: the second `install()` call's own internal
-	// `store.getViews()` duplicate check silently migrates the just-installed
-	// record before comparing `source`, so the comparison always fails and a
-	// "duplicate" install proceeds as if it were new.
-	//
-	// This is not a bug in migrateLegacyBases — the migration itself is exactly
-	// what ADR-29 specifies (T3.2 tests cover it directly in
-	// test/store/migrateLegacyBases.test.ts). It surfaces a second consumer of
-	// the "source is raw YAML" invariant beyond ConsentGate. T3.3 must switch
-	// CatalogService's duplicate check to match by `catalogId` — the same
-	// stable-slug comparison BrowseOfficialModal already uses for its own
-	// "already installed" detection — which is robust to `source` becoming a
-	// path. Re-enable these tests once that lands.
-	it.skip("after the first install, clicking Install again surfaces up-to-date", async () => {
+	it("after the first install, clicking Install again surfaces up-to-date", async () => {
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
 		const h = await mountHarness([entry]);
 		h.modal.open();
@@ -467,7 +442,7 @@ describe("E2E T6.3.3 — already-installed: second install does not write a seco
 		}
 	});
 
-	it.skip("second install does not write a second .base file (vault write count stays at 1)", async () => {
+	it("second install does not write a second .base file (vault write count stays at 1)", async () => {
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
 		const h = await mountHarness([entry]);
 
@@ -484,7 +459,7 @@ describe("E2E T6.3.3 — already-installed: second install does not write a seco
 		expect(vi.mocked(h.app.vault.adapter.write)).toHaveBeenCalledTimes(1);
 	});
 
-	it.skip("second install does not fire the subscriber a second time", async () => {
+	it("second install does not fire the subscriber a second time", async () => {
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
 		const h = await mountHarness([entry]);
 
@@ -494,6 +469,33 @@ describe("E2E T6.3.3 — already-installed: second install does not write a seco
 		await h.service.install(entry.id);
 		// Subscriber must not have been called again.
 		expect(h.subscriber).toHaveBeenCalledTimes(firstCount);
+	});
+
+	it("survives the T3.2 migration rewriting `source` to a vault path: a getViews() read between installs does not defeat duplicate detection", async () => {
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const h = await mountHarness([entry]);
+
+		const r1 = await h.service.install(entry.id);
+		expect(r1.ok).toBe(true);
+
+		// Trigger the T3.2 migration: getViews() rewrites the just-installed
+		// record's `source` from raw YAML to a vault path (ADR-29). If the
+		// duplicate check still compared rec.source === entry.source, this read
+		// alone would silently break duplicate detection for the next install.
+		const migrated = await h.store.getViews();
+		const migratedRecord = Object.values(migrated).find(
+			(r) => r.catalogId === "overview-characters",
+		);
+		expect(migratedRecord).not.toBeUndefined();
+		expect(migratedRecord!.source).not.toBe(BASE_YAML);
+
+		// The second install must still detect the duplicate by catalogId.
+		const r2 = await h.service.install(entry.id);
+		expect(r2.ok).toBe(false);
+		if (!r2.ok) {
+			expect(r2.reason).toMatch(/up.to.date/i);
+		}
+		expect(vi.mocked(h.app.vault.adapter.write)).toHaveBeenCalledTimes(1);
 	});
 });
 
