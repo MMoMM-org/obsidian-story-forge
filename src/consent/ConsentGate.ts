@@ -112,6 +112,20 @@ export class ConsentGate {
 			return { status: "not-consented" };
 		}
 
+		// 5a. Generated collection (T3.2/ADR-29): a migrated or catalog-rendered
+		//     collection carries verified generation metadata in `record.generated`
+		//     instead of raw .base YAML in `record.source` — `source` is now a
+		//     vault PATH (src/store/migrateLegacyBases.ts). Checksumming that path
+		//     as if it were YAML can never equal okayed.checksum and would always
+		//     report drift for every migrated record. This guard stops that
+		//     misclassification. It is deliberately narrow: the richer
+		//     classify()-driven states (regenerate/ask/reconsent, driven by
+		//     `generated`'s own checksums) are T3.4's — every generated collection
+		//     simply evaluates consented at this gate for now.
+		if (record.generated !== undefined) {
+			return { status: "consented" };
+		}
+
 		// 6a. Bases source-model seam (ADR-5 / ADR-6): a bases record stores its
 		//     raw .base YAML directly in record.source — there is no vault file to
 		//     read and no fenced block to parse. Declarative (.base) → no modal;

@@ -34,7 +34,7 @@ import { DisclosureModal } from "consent/DisclosureModal";
 import { installCurated } from "import/ImportFlow";
 import { computeChecksum } from "consent/checksum";
 import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
-import type { ViewRecord } from "store/types";
+import { applyDefaults, type ViewRecord } from "store/types";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
 import type { ViewImporter } from "import/ViewImporter";
 
@@ -1045,5 +1045,57 @@ describe("E2E T6.3.7 — consent-decline contract: decline → nothing written (
 
 		// Modal was opened and present() was called — then declined.
 		expect(presentSpy).toHaveBeenCalledTimes(1);
+	});
+});
+
+// ===========================================================================
+// T3.2 regression — a pre-T3.2 persisted record migrates silently and
+// evaluates consented, not drift (ADR-29 "an existing install upgrades
+// without visible change"; spec-compliance finding on T3.2).
+// ===========================================================================
+
+describe("E2E T3.2 regression — migrated legacy-bases record evaluates consented, not drift", () => {
+	afterEach(() => {
+		document.body.innerHTML = "";
+		vi.clearAllMocks();
+		fetchSpy.mockRejectedValue(
+			new Error("[catalog-e2e] fetch called — must be offline"),
+		);
+		requestUrlSpy.mockImplementation(() => {
+			throw new Error("[catalog-e2e] requestUrl called — must be offline");
+		});
+	});
+
+	it("a pre-T3.2 data.json record migrates via ViewStore.getViews() and ConsentGate.evaluate() reports consented", async () => {
+		// The exact pre-T3.2 persisted shape: kind:"view", source = raw YAML,
+		// no `generated` block — what CatalogService wrote before T3.2 shipped.
+		const legacyChecksum = await computeChecksum(BASE_YAML);
+		const legacyRecord = applyDefaults({
+			provenance: "curated",
+			enabled: true,
+			okayed: { version: 0, checksum: legacyChecksum },
+			source: BASE_YAML,
+			engine: "bases",
+			command: false,
+			kind: "view",
+			surfaces: { anvil: false, workbench: false },
+			catalogId: "overview-characters",
+			description: "All canon characters.",
+		});
+
+		const h = await mountHarness([], { "legacy-1": legacyRecord });
+
+		// getViews() is the ADR-29 migration entry point (ViewStore.getViews()).
+		const migrated = await h.store.getViews();
+		const migratedRecord = migrated["legacy-1"];
+		expect(migratedRecord).toBeDefined();
+		expect(migratedRecord?.kind).toBe("collection");
+		expect(migratedRecord?.source).not.toBe(BASE_YAML);
+
+		// Settings-tab-style evaluate() call against the migrated record — must
+		// NOT report drift for a record nothing actually changed about.
+		const result = await h.gate.evaluate(migratedRecord!);
+
+		expect(result).toEqual({ status: "consented" });
 	});
 });

@@ -574,6 +574,77 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 });
 
 // ---------------------------------------------------------------------------
+// T3.2 regression — migrated/generated collections must not be checksummed
+// as raw YAML (spec-compliance finding on T3.2's migrateLegacyBases).
+//
+// migrateLegacyBases (src/store/migrateLegacyBases.ts) rewrites a legacy
+// bases record's `source` from raw .base YAML to a vault PATH, and leaves
+// `okayed.checksum` — the checksum of the ORIGINAL YAML — untouched. Without
+// a guard, _evaluateBasesRecord recomputes a checksum over the path string,
+// which can never equal okayed.checksum, and the record always reports
+// drift instead of consented. That breaks ADR-29's "an existing install
+// upgrades without visible change".
+// ---------------------------------------------------------------------------
+
+function makeMigratedCollectionRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
+	return {
+		provenance: "curated",
+		enabled: true,
+		// Deliberately stale: the checksum of the ORIGINAL YAML, never
+		// re-derived against the new path-shaped `source` — exactly what
+		// migrateLegacyBases leaves behind. The guard must ignore this.
+		okayed: { version: 0, checksum: "sha256:" + "9".repeat(64) },
+		source: "00 Meta/Bases/overview-characters.base",
+		engine: "bases",
+		command: false,
+		kind: "collection",
+		surfaces: { anvil: false, workbench: false },
+		catalogId: "overview-characters",
+		generated: {
+			sourceChecksum: "sha256:" + "9".repeat(64),
+			params: { tag: "canon/character", excludedFolders: ["00 Meta"] },
+			instanceChecksum: "sha256:" + "1".repeat(64),
+			filePath: "00 Meta/Bases/overview-characters.base",
+			verify: true,
+		},
+		...overrides,
+	};
+}
+
+describe("ConsentGate.evaluate() — T3.2 migrated collection guard", () => {
+	it("returns {status:'consented'} for a migrated collection record, not drift [T3.2 regression]", async () => {
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const result = await gate.evaluate(makeMigratedCollectionRecord());
+
+		expect(result).toEqual({ status: "consented" });
+	});
+
+	it("[REGRESSION] an un-migrated bases record (kind:'view', source = raw YAML) still evaluates exactly as before", async () => {
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+		const app = makeAppSync(null, "");
+		const gate = new ConsentGate(app, registry, dvSettings, store);
+
+		const checksum = await computeChecksum(BASES_YAML);
+		const consented = await gate.evaluate(
+			makeBasesRecord({ okayed: { version: 0, checksum } }),
+		);
+		expect(consented).toEqual({ status: "consented" });
+
+		const drifted = await gate.evaluate(
+			makeBasesRecord({ okayed: { version: 0, checksum: "sha256:" + "a".repeat(64) } }),
+		);
+		expect(drifted).toEqual({ status: "drift", reason: "checksum" });
+	});
+});
+
+// ---------------------------------------------------------------------------
 // requestConsentForDef — no-write, def-based consent path (T-S2.1)
 // ---------------------------------------------------------------------------
 
