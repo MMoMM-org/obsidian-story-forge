@@ -42,6 +42,32 @@ export interface ViewRecord {
    * which is the sidebar tab label.
    */
   commandLabel?: string;
+  /**
+   * Discriminant (ADR-29): collections and cards need different fields; a
+   * single flat ViewRecord would collect optional members that are
+   * meaningless for two of the three kinds. Legacy records (no `kind`) and
+   * any unrecognised value default to "view" (fail-closed).
+   */
+  kind: "view" | "collection" | "card";
+  /** Per-entry surface binding (F7). Always materialises; defaults to both false. */
+  surfaces: { anvil: boolean; workbench: boolean };
+  /**
+   * Curated-collection provenance (ADR-0003) — present only for kind:"collection"
+   * entries rendered from a catalog template. Absent for anything hand-authored
+   * or imported. Any malformed shape degrades to "not generated" (field absent).
+   */
+  generated?: {
+    /** The template's checksum — "did upstream change". */
+    sourceChecksum: string;
+    /** What it was rendered with. */
+    params: { tag: string; excludedFolders: string[] };
+    /** The written file's checksum — "was it edited". */
+    instanceChecksum: string;
+    /** The artifact's path in the vault. */
+    filePath: string;
+    /** false = "this file is yours now" (ADR-0003 §7). */
+    verify: boolean;
+  };
 }
 
 /**
@@ -94,6 +120,70 @@ export function parseOkayed(
   return { version: obj["version"], checksum: obj["checksum"] };
 }
 
+const KINDS = new Set(["view", "collection", "card"] as const);
+
+/**
+ * Type guard — returns true only for the three known kind strings.
+ */
+export function isKind(value: unknown): value is ViewRecord["kind"] {
+  return typeof value === "string" && KINDS.has(value as ViewRecord["kind"]);
+}
+
+/**
+ * parseSurfaces — accepts only {anvil: boolean, workbench: boolean}, field
+ * by field. Any missing or malformed member falls back to false; the object
+ * itself always materialises (never null/undefined).
+ */
+export function parseSurfaces(raw: unknown): ViewRecord["surfaces"] {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return { anvil: false, workbench: false };
+  }
+  const obj = raw as Record<string, unknown>;
+  return {
+    anvil: obj["anvil"] === true,
+    workbench: obj["workbench"] === true,
+  };
+}
+
+/**
+ * parseGenerated — accepts only a fully well-formed generated block (ADR-0003).
+ * Any malformed shape (wrong field types, missing fields, non-object, array)
+ * degrades to "not generated" (undefined) rather than throwing.
+ */
+export function parseGenerated(raw: unknown): ViewRecord["generated"] | undefined {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const obj = raw as Record<string, unknown>;
+
+  if (typeof obj["sourceChecksum"] !== "string") return undefined;
+  if (typeof obj["instanceChecksum"] !== "string") return undefined;
+  if (typeof obj["filePath"] !== "string") return undefined;
+  if (typeof obj["verify"] !== "boolean") return undefined;
+
+  const params = obj["params"];
+  if (params === null || typeof params !== "object" || Array.isArray(params)) {
+    return undefined;
+  }
+  const paramsObj = params as Record<string, unknown>;
+  if (typeof paramsObj["tag"] !== "string") return undefined;
+  const excludedFolders = paramsObj["excludedFolders"];
+  if (
+    !Array.isArray(excludedFolders) ||
+    !excludedFolders.every((entry) => typeof entry === "string")
+  ) {
+    return undefined;
+  }
+
+  return {
+    sourceChecksum: obj["sourceChecksum"],
+    instanceChecksum: obj["instanceChecksum"],
+    filePath: obj["filePath"],
+    verify: obj["verify"],
+    params: { tag: paramsObj["tag"], excludedFolders },
+  };
+}
+
 /**
  * applyDefaults — fail-closed: any missing or malformed field gets a safe
  * default (disabled, not-consented, curated, bases engine).
@@ -108,6 +198,8 @@ export function applyDefaults(
     source: typeof raw?.source === "string" ? raw.source : "",
     engine: isEngine(raw?.engine) ? raw.engine : "bases",
     command: raw?.command === true,
+    kind: isKind(raw?.kind) ? raw.kind : "view",
+    surfaces: parseSurfaces(raw?.surfaces),
   };
 
   // Optional fields — only include when present so callers can do `'description' in result`
@@ -122,6 +214,10 @@ export function applyDefaults(
   }
   if (raw?.catalogId !== undefined) {
     base.catalogId = raw.catalogId;
+  }
+  const generated = parseGenerated(raw?.generated);
+  if (generated !== undefined) {
+    base.generated = generated;
   }
 
   return base;
