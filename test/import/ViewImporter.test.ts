@@ -15,7 +15,6 @@ import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
 import { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
-import { makeNoopMigrationDeps } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -31,8 +30,7 @@ function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 			data.views = { ...(typed.views ?? {}) };
 		}),
 	};
-	// No T3.2 migration under test here — a reader that never finds a file is fine.
-	return new ViewStore(port, makeNoopMigrationDeps());
+	return new ViewStore(port);
 }
 
 /** Build a TFile with given path/basename. */

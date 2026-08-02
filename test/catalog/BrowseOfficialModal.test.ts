@@ -22,7 +22,6 @@ import type { CatalogService, InstallResult } from "catalog/CatalogService";
 import type { CatalogEntry } from "catalog/catalogTypes";
 import type { ViewRecord } from "store/types";
 import { ViewStore } from "store/ViewStore";
-import { makeNoopMigrationDeps } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -49,10 +48,7 @@ function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 			data.views = { ...(typed.views ?? {}) };
 		}),
 	};
-	// No T3.2 migration under test in this file — update-available detection
-	// reads catalogId/commandName/okayed, none of which migrateLegacyBases
-	// touches. A reader that never finds a file is fine.
-	return new ViewStore(port, makeNoopMigrationDeps());
+	return new ViewStore(port);
 }
 
 function makeCuratedRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {

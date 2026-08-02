@@ -34,10 +34,9 @@ import { DisclosureModal } from "consent/DisclosureModal";
 import { installCurated } from "import/ImportFlow";
 import { computeChecksum } from "consent/checksum";
 import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
-import { applyDefaults, type ViewRecord } from "store/types";
+import type { ViewRecord } from "store/types";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
 import type { ViewImporter } from "import/ViewImporter";
-import { makeNoopMigrationDeps } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Offline guard — throw if network is ever touched during the whole suite.
@@ -132,11 +131,8 @@ function makeStoreHarness(initial: Record<string, ViewRecord> = {}): StoreHarnes
 			data.views = { ...(typed.views ?? {}) };
 		}),
 	};
-	// T3.2 migration deps: no vault to read from in this in-memory harness — a
-	// reader that never finds a file is fine (the E2E suite exercises install/
-	// update through CatalogService, not migrateLegacyBases itself).
 	return {
-		store: new ViewStore(port, makeNoopMigrationDeps()),
+		store: new ViewStore(port),
 		raw: () => data.views,
 	};
 }
@@ -465,33 +461,6 @@ describe("E2E T6.3.3 — already-installed: second install does not write a seco
 		await h.service.install(entry.id);
 		// Subscriber must not have been called again.
 		expect(h.subscriber).toHaveBeenCalledTimes(firstCount);
-	});
-
-	it("survives the T3.2 migration rewriting `source` to a vault path: a getViews() read between installs does not defeat duplicate detection", async () => {
-		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
-		const h = await mountHarness([entry]);
-
-		const r1 = await h.service.install(entry.id);
-		expect(r1.ok).toBe(true);
-
-		// Trigger the T3.2 migration: getViews() rewrites the just-installed
-		// record's `source` from raw YAML to a vault path (ADR-29). If the
-		// duplicate check still compared rec.source === entry.source, this read
-		// alone would silently break duplicate detection for the next install.
-		const migrated = await h.store.getViews();
-		const migratedRecord = Object.values(migrated).find(
-			(r) => r.catalogId === "overview-characters",
-		);
-		expect(migratedRecord).not.toBeUndefined();
-		expect(migratedRecord!.source).not.toBe(BASE_YAML);
-
-		// The second install must still detect the duplicate by catalogId.
-		const r2 = await h.service.install(entry.id);
-		expect(r2.ok).toBe(false);
-		if (!r2.ok) {
-			expect(r2.reason).toMatch(/up.to.date/i);
-		}
-		expect(vi.mocked(h.app.vault.adapter.write)).toHaveBeenCalledTimes(1);
 	});
 });
 
@@ -1042,57 +1011,5 @@ describe("E2E T6.3.7 — consent-decline contract: decline → nothing written (
 
 		// Modal was opened and present() was called — then declined.
 		expect(presentSpy).toHaveBeenCalledTimes(1);
-	});
-});
-
-// ===========================================================================
-// T3.2 regression — a pre-T3.2 persisted record migrates silently and
-// evaluates consented, not drift (ADR-29 "an existing install upgrades
-// without visible change"; spec-compliance finding on T3.2).
-// ===========================================================================
-
-describe("E2E T3.2 regression — migrated legacy-bases record evaluates consented, not drift", () => {
-	afterEach(() => {
-		document.body.innerHTML = "";
-		vi.clearAllMocks();
-		fetchSpy.mockRejectedValue(
-			new Error("[catalog-e2e] fetch called — must be offline"),
-		);
-		requestUrlSpy.mockImplementation(() => {
-			throw new Error("[catalog-e2e] requestUrl called — must be offline");
-		});
-	});
-
-	it("a pre-T3.2 data.json record migrates via ViewStore.getViews() and ConsentGate.evaluate() reports consented", async () => {
-		// The exact pre-T3.2 persisted shape: kind:"view", source = raw YAML,
-		// no `generated` block — what CatalogService wrote before T3.2 shipped.
-		const legacyChecksum = await computeChecksum(BASE_YAML);
-		const legacyRecord = applyDefaults({
-			provenance: "curated",
-			enabled: true,
-			okayed: { version: 0, checksum: legacyChecksum },
-			source: BASE_YAML,
-			engine: "bases",
-			command: false,
-			kind: "view",
-			surfaces: { anvil: false, workbench: false },
-			catalogId: "overview-characters",
-			description: "All canon characters.",
-		});
-
-		const h = await mountHarness([], { "legacy-1": legacyRecord });
-
-		// getViews() is the ADR-29 migration entry point (ViewStore.getViews()).
-		const migrated = await h.store.getViews();
-		const migratedRecord = migrated["legacy-1"];
-		expect(migratedRecord).toBeDefined();
-		expect(migratedRecord?.kind).toBe("collection");
-		expect(migratedRecord?.source).not.toBe(BASE_YAML);
-
-		// Settings-tab-style evaluate() call against the migrated record — must
-		// NOT report drift for a record nothing actually changed about.
-		const result = await h.gate.evaluate(migratedRecord!);
-
-		expect(result).toEqual({ status: "consented" });
 	});
 });

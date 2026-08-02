@@ -2,10 +2,7 @@ import { Plugin, Events, Notice, normalizePath, TFile } from "obsidian";
 import { SettingsTab } from "settings/SettingsTab";
 import { DEFAULT_SETTINGS, normalizeLinkClickAction, type PluginSettings } from "types/index";
 import { ViewStore } from "store/ViewStore";
-import type { MigrateLegacyBasesDeps, VaultTextReader } from "store/migrateLegacyBases";
 import type { PluginDataPort, StoryForgeData } from "store/types";
-import { DEFAULT_EXCLUDED_FOLDERS } from "scoping/workspaceScope";
-import type { CollectionParams } from "library/baseGenerator";
 import { SidebarView, activateView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE, ICON, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { WorkspaceLeaf } from "obsidian";
@@ -48,29 +45,9 @@ export default class StoryForgePlugin extends Plugin {
 			save: (d: unknown) => this.saveData(d),
 		};
 
-		await this.loadSettings();
+		this.store = new ViewStore(port);
 
-		// T3.2/ADR-29: getViews() silently migrates legacy `bases` records on
-		// load — see src/store/migrateLegacyBases.ts. The reader wraps the vault
-		// adapter (null = file absent, fail-closed on read errors); folder and
-		// params mirror what a fresh CatalogService install/render would use
-		// today, which is what keeps a migrated record's classify() outcome
-		// "clean" (ADR-29 — no visible change on upgrade).
-		const readVaultFile: VaultTextReader = async (path) => {
-			const exists = await this.app.vault.adapter.exists(path);
-			if (!exists) return null;
-			try {
-				return await this.app.vault.adapter.read(path);
-			} catch {
-				return null;
-			}
-		};
-		const migrationDeps: MigrateLegacyBasesDeps = {
-			readFile: readVaultFile,
-			curatedBasesFolder: this._getCuratedBasesFolder(),
-			currentParams: this._getCurrentCollectionParams(),
-		};
-		this.store = new ViewStore(port, migrationDeps);
+		await this.loadSettings();
 
 		// Construct the shared engine infrastructure injected into SidebarView
 		// and SettingsTab. Registry starts empty; populated in onLayoutReady and
@@ -284,23 +261,6 @@ export default class StoryForgePlugin extends Plugin {
 	_getCuratedBasesFolder(): string {
 		const v = this.settings.curatedBasesFolder;
 		return typeof v === "string" && v.length > 0 ? v : "00 Meta/Bases";
-	}
-
-	/**
-	 * The `CollectionParams` a freshly-rendered collection artifact would use
-	 * today. No `tag`/`excludedFolders` settings exist yet (T3.5 adds them) —
-	 * `excludedFolders` reuses `DEFAULT_EXCLUDED_FOLDERS`, already documented
-	 * there as "the placeholder for the future excludedFolders settings
-	 * picker" (src/scoping/workspaceScope.ts). `tag` has no equivalent
-	 * placeholder yet — an empty string is honest about that rather than
-	 * inventing a value nothing in the vault actually corresponds to.
-	 *
-	 * Consumed only by the T3.2 legacy-bases migration (migrateLegacyBases),
-	 * where it becomes `generated.params` on first load — the record's own
-	 * baseline from then on, not re-read from here afterwards.
-	 */
-	_getCurrentCollectionParams(): CollectionParams {
-		return { tag: "", excludedFolders: DEFAULT_EXCLUDED_FOLDERS };
 	}
 
 	// ---------------------------------------------------------------------------

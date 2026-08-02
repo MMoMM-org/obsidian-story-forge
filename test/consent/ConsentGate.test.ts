@@ -574,25 +574,25 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 });
 
 // ---------------------------------------------------------------------------
-// T3.2 regression — migrated/generated collections must not be checksummed
-// as raw YAML (spec-compliance finding on T3.2's migrateLegacyBases).
+// Generated-collection guard — a collection record with a `generated` block
+// must not be checksummed as raw YAML.
 //
-// migrateLegacyBases (src/store/migrateLegacyBases.ts) rewrites a legacy
-// bases record's `source` from raw .base YAML to a vault PATH, and leaves
-// `okayed.checksum` — the checksum of the ORIGINAL YAML — untouched. Without
-// a guard, _evaluateBasesRecord recomputes a checksum over the path string,
-// which can never equal okayed.checksum, and the record always reports
+// A catalog-rendered collection's `source` is a vault PATH to the
+// materialised .base file, not raw YAML, while `okayed.checksum` is the
+// checksum of the source .base content. Without a guard,
+// _evaluateBasesRecord would recompute a checksum over the path string,
+// which can never equal okayed.checksum, and the record would always report
 // drift instead of consented. That breaks ADR-29's "an existing install
 // upgrades without visible change".
 // ---------------------------------------------------------------------------
 
-function makeMigratedCollectionRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
+function makeGeneratedCollectionRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
 	return {
 		provenance: "curated",
 		enabled: true,
-		// Deliberately stale: the checksum of the ORIGINAL YAML, never
-		// re-derived against the new path-shaped `source` — exactly what
-		// migrateLegacyBases leaves behind. The guard must ignore this.
+		// Deliberately stale: a checksum that does not match the path-shaped
+		// `source` string. The guard must ignore this rather than recompute
+		// and compare against `source`.
 		okayed: { version: 0, checksum: "sha256:" + "9".repeat(64) },
 		source: "00 Meta/Bases/overview-characters.base",
 		engine: "bases",
@@ -611,15 +611,15 @@ function makeMigratedCollectionRecord(overrides: Partial<ViewRecord> = {}): View
 	};
 }
 
-describe("ConsentGate.evaluate() — T3.2 migrated collection guard", () => {
-	it("returns {status:'consented'} for a migrated collection record, not drift [T3.2 regression]", async () => {
+describe("ConsentGate.evaluate() — generated collection guard", () => {
+	it("returns {status:'consented'} for a generated collection record, not drift", async () => {
 		const registry = makeRegistryWithBases();
 		const dvSettings = makeDvSettings(true);
 		const store = makeStore();
 		const app = makeAppSync(null, "");
 		const gate = new ConsentGate(app, registry, dvSettings, store);
 
-		const result = await gate.evaluate(makeMigratedCollectionRecord());
+		const result = await gate.evaluate(makeGeneratedCollectionRecord());
 
 		expect(result).toEqual({ status: "consented" });
 	});
@@ -636,12 +636,12 @@ describe("ConsentGate.evaluate() — T3.2 migrated collection guard", () => {
 		const app = makeAppSync(null, "");
 		const gate = new ConsentGate(app, registry, dvSettings, store);
 
-		const result = await gate.evaluate({ ...makeMigratedCollectionRecord(), okayed: null });
+		const result = await gate.evaluate({ ...makeGeneratedCollectionRecord(), okayed: null });
 
 		expect(result).toEqual({ status: "not-consented" });
 	});
 
-	it("[REGRESSION] an un-migrated bases record (kind:'view', source = raw YAML) still evaluates exactly as before", async () => {
+	it("[REGRESSION] a plain bases record (kind:'view', source = raw YAML, no generated block) still evaluates exactly as before", async () => {
 		const registry = makeRegistryWithBases();
 		const dvSettings = makeDvSettings(true);
 		const store = makeStore();

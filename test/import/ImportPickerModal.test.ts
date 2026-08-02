@@ -23,7 +23,6 @@ import type { ViewDefinition } from "import/ViewDefinition";
 import { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
 import type { ConsentGate } from "consent/ConsentGate";
-import { makeNoopMigrationDeps } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -38,8 +37,7 @@ function makeStore(initial: Record<string, ViewRecord> = {}): ViewStore {
 			data.views = { ...(typed.views ?? {}) };
 		}),
 	};
-	// No T3.2 migration under test here — a reader that never finds a file is fine.
-	return new ViewStore(port, makeNoopMigrationDeps());
+	return new ViewStore(port);
 }
 
 function makeFile(path: string, basename?: string): TFile {

@@ -122,36 +122,13 @@ export class CatalogService {
 	 * Duplicate detection matches on rec.catalogId === entry.id — the stable slug,
 	 * mirroring BrowseOfficialModal's own installed-record lookup (which pairs the
 	 * same catalogId match with an okayed.checksum comparison to tell "up to date"
-	 * apart from "update available" — F7). This must NOT compare
-	 * rec.source === entry.source: ViewStore.getViews() (called just below)
-	 * silently migrates any legacy bases record it sees (T3.2, ADR-29), rewriting
-	 * `source` from raw YAML to a vault path — including a record this very call
-	 * just installed on a prior invocation. A source-equality check would therefore
-	 * stop matching one read after install. The paired checksum comparison is what
+	 * apart from "update available" — F7). The paired checksum comparison is what
 	 * keeps BrowseOfficialModal's "Update" affordance working: it also calls
 	 * install() on the same entry.id, and a stale record (okayed.checksum !==
 	 * entry.checksum) must fall through to a fresh install rather than being
 	 * reported as an already-installed duplicate. Records persisted before
 	 * catalogId existed (pre-T4.5) have none; for those we fall back to the
 	 * legacy source === source comparison.
-	 *
-	 * KNOWN LIMITATION: that fallback is NOT migration-safe. migrateLegacyBases
-	 * (T3.2/ADR-29) can only resolve a real path when catalogId is present
-	 * (src/store/migrateLegacyBases.ts resolveFilePath) — a catalogId-less
-	 * record migrates with `source` rewritten to `""`, not left as raw YAML.
-	 * Once ViewStore.getViews() (called just below) has migrated such a
-	 * record, `rec.source` ("") can never equal `entry.source` (raw YAML)
-	 * again, so this fallback permanently stops recognising a genuinely
-	 * up-to-date, catalogId-less install as a duplicate — a direct install()
-	 * call for it silently creates a second ViewRecord for the same entry
-	 * (see the regression test in CatalogService.test.ts). This is
-	 * unreachable from BrowseOfficialModal today only because that caller
-	 * pre-filters on rec.commandName === entry.name before ever calling
-	 * install() — a record it already recognises as up-to-date by name never
-	 * reaches this method. A future caller without that pre-filter would hit
-	 * it. The real fix is to match catalogId-less records by commandName
-	 * (the way BrowseOfficialModal itself does) instead of by source; left
-	 * undone here to keep this pass surgical.
 	 */
 	private async _installBasesEntry(entry: CatalogEntry): Promise<InstallResult> {
 		// 1. VERIFY checksum before any side effect.
