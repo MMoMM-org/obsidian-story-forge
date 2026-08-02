@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Store, settings and the artifact model"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 3
 ---
@@ -34,7 +34,7 @@ have somewhere to put state, and that an active defect is closed.
 Gives Collections and Cards a home in the store, closes the double-copy divergence, and stops the
 consent gate from policing the user's own settings.
 
-- [ ] **T3.1 Record shapes and the `kind` discriminant** `[activity: data-architecture]`
+- [x] **T3.1 Record shapes and the `kind` discriminant** `[activity: data-architecture]`
 
   1. Prime: Read `src/store/types.ts` — `ViewRecord` and the fail-closed `applyDefaults`
      `[ref: SDD/Application Data Models]`.
@@ -48,7 +48,18 @@ consent gate from policing the user's own settings.
   5. Success:
      - [ ] Legacy shapes parse without loss `[ref: SDD/ADR-29]`
 
-- [ ] **T3.2 Silent migration of legacy `bases` records** `[activity: data-architecture]`
+- [x] **T3.2 Silent migration of legacy `bases` records** — **DESCOPED 2026-08-02 (user)**
+  `[activity: data-architecture]`
+
+  > **This task ships no migration.** It was built, reviewed and then reverted (`1759be7`) once the
+  > premise failed: **no legacy `bases` record exists in any vault** — the test vault's `data.json`
+  > holds two Dataview imports and nothing else, and there is no other install. T3.3 persists the
+  > ADR-35 shape at install time, so there is nothing to migrate *from*. Two follow-on fixes were
+  > kept: `catalogId`-based duplicate matching in `CatalogService` (`b6d387c`) and the
+  > `generated`-block short-circuit in `ConsentGate.evaluate` (`ef76f14`), which T3.4 builds on.
+  > ADR-6's "never persist on read" is intact — the exception this task introduced is gone with it.
+  > See the spec README decision log, 2026-08-02. The original task text is kept below unchanged, as
+  > the record of what was specified.
 
   1. Prime: Read `[ref: SDD/ADR-29]` including the accepted nuance, and
      `src/consent/ConsentGate.ts` l.292 (`_evaluateBasesRecord` checksums `record.source`, which
@@ -64,7 +75,27 @@ consent gate from policing the user's own settings.
      - [ ] An existing install upgrades without visible change `[ref: SDD/ADR-29]`
      - [ ] Migration is idempotent
 
-- [ ] **T3.3 Close the double-copy defect** `[activity: backend-api]`
+- [x] **T3.3 Close the double-copy defect** `[activity: backend-api]`
+
+  > **Two gaps opened by this task, assigned 2026-08-02.** Both are documented in code and neither is
+  > reachable today (the catalog ships zero entries and F7's binding UI does not exist), but both are
+  > real and must not be rediscovered by accident.
+  >
+  > 1. **`BasesFenceEngine` still reads `record.source` as raw YAML.** That holds only for
+  >    `kind:"view"` records now. Engine dispatch (`SidebarView`, `EngineRegistry`) branches on
+  >    `engine` alone, never on `kind`, so nothing stops a `kind:"collection"` record reaching the
+  >    YAML renderer with a vault *path*. The engine was deliberately left alone — reading vault
+  >    files pulls async IO into a render path Phase 4/F7 owns. **Must be closed before a collection
+  >    record is bound to a surface (PRD F7)** — i.e. in **Phase 7**. Commented in
+  >    `src/engines/BasesFenceEngine.ts` and `src/catalog/CatalogService.ts`.
+  > 2. **`generated.params` does not describe verbatim-copied curated entries**, which are written by
+  >    `_materialise` and never rendered from params (T7.3 owns templating). Because `classify()`
+  >    checks `sameParams` **before** the instance-checksum comparison, a params change **outranks a
+  >    hand edit**: `regenerate` wins over `ask` and the user's edits are overwritten. Pinned by
+  >    `"[HAZARD] a params change outranks a hand edit — regenerate wins over ask"` in
+  >    `test/catalog/CatalogService.test.ts`. **T3.5 must reconcile already-installed records'
+  >    `generated.params` when it introduces real settings values — not merely swap the injection
+  >    site in `main.ts`.**
 
   1. Prime: Read `src/catalog/CatalogService.ts` (VERIFY → MATERIALISE → PERSIST, `_materialise`
      l.205) and `[ref: SDD/Known Technical Issues]`. Today the YAML is written to the vault **and**
