@@ -68,7 +68,11 @@ async function loadBuildModule(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const REPO_ROOT = resolve(__dirname, "../..");
-const CATALOG_DIR = join(REPO_ROOT, "catalog");
+// catalog/ no longer ships .base files (moved to the test vault as an
+// alternate Bases view, see docs/XDD/specs/008-codex-surface); Suite A below
+// exercises buildCatalog() against real-world .base sources by pointing at
+// the test vault's Bases folder instead.
+const TEST_VAULT_BASES_DIR = join(REPO_ROOT, "test/StoryForge/00 Meta/Bases");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -82,10 +86,15 @@ function makeTempDir(suffix: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Suite A — real catalog sources: checksum fidelity
+// Suite A — real-world .base sources: checksum fidelity
+//
+// catalog/ no longer ships .base files (see docs/XDD/specs/008-codex-surface,
+// Phase 3); this suite instead reads the real .base files retained in the
+// test vault (test/StoryForge/00 Meta/Bases/) to exercise buildCatalog()
+// against real-world, non-synthetic sources.
 // ---------------------------------------------------------------------------
 
-describe("buildCatalog — real catalog sources: checksums are byte-exact", () => {
+describe("buildCatalog — real-world .base sources: checksums are byte-exact", () => {
 	it("loads the build module (module must exist for GREEN)", async () => {
 		await loadBuildModule();
 		expect(buildCatalog, "buildCatalog export must be a function").toBeTypeOf("function");
@@ -95,7 +104,7 @@ describe("buildCatalog — real catalog sources: checksums are byte-exact", () =
 		await loadBuildModule();
 		const outDir = makeTempDir("shape");
 		try {
-			const index = await buildCatalog({ catalogDir: CATALOG_DIR, outDir });
+			const index = await buildCatalog({ catalogDir: TEST_VAULT_BASES_DIR, outDir });
 			expect(index).toHaveProperty("version");
 			expect(typeof index.version).toBe("string");
 			expect(index).toHaveProperty("entries");
@@ -106,12 +115,12 @@ describe("buildCatalog — real catalog sources: checksums are byte-exact", () =
 		}
 	});
 
-	it("emits one entry per catalog/*.base file (count derived from disk)", async () => {
+	it("emits one entry per *.base file in the source dir (count derived from disk)", async () => {
 		await loadBuildModule();
 		const outDir = makeTempDir("count");
 		try {
-			const expectedCount = readdirSync(CATALOG_DIR).filter((f) => f.endsWith(".base")).length;
-			const index = await buildCatalog({ catalogDir: CATALOG_DIR, outDir });
+			const expectedCount = readdirSync(TEST_VAULT_BASES_DIR).filter((f) => f.endsWith(".base")).length;
+			const index = await buildCatalog({ catalogDir: TEST_VAULT_BASES_DIR, outDir });
 			expect(index.entries).toHaveLength(expectedCount);
 		} finally {
 			rmSync(outDir, { recursive: true, force: true });
@@ -122,7 +131,7 @@ describe("buildCatalog — real catalog sources: checksums are byte-exact", () =
 		await loadBuildModule();
 		const outDir = makeTempDir("checksum");
 		try {
-			const index = await buildCatalog({ catalogDir: CATALOG_DIR, outDir });
+			const index = await buildCatalog({ catalogDir: TEST_VAULT_BASES_DIR, outDir });
 			for (const entry of index.entries) {
 				// entry.source is the raw .base file content (YAML string, byte-exact).
 				const expected = await computeChecksum(entry.source);
@@ -140,7 +149,7 @@ describe("buildCatalog — real catalog sources: checksums are byte-exact", () =
 		await loadBuildModule();
 		const outDir = makeTempDir("validate");
 		try {
-			const index = await buildCatalog({ catalogDir: CATALOG_DIR, outDir });
+			const index = await buildCatalog({ catalogDir: TEST_VAULT_BASES_DIR, outDir });
 			for (const entry of index.entries) {
 				const parsed = parseYaml(entry.source);
 				const result = validateBasesConfig(parsed);
@@ -156,7 +165,7 @@ describe("buildCatalog — real catalog sources: checksums are byte-exact", () =
 		await loadBuildModule();
 		const outDir = makeTempDir("fields");
 		try {
-			const index = await buildCatalog({ catalogDir: CATALOG_DIR, outDir });
+			const index = await buildCatalog({ catalogDir: TEST_VAULT_BASES_DIR, outDir });
 			for (const entry of index.entries) {
 				expect(entry).toHaveProperty("id");
 				expect(typeof entry.id).toBe("string");
@@ -184,7 +193,7 @@ describe("buildCatalog — real catalog sources: checksums are byte-exact", () =
 		await loadBuildModule();
 		const outDir = makeTempDir("output");
 		try {
-			await buildCatalog({ catalogDir: CATALOG_DIR, outDir });
+			await buildCatalog({ catalogDir: TEST_VAULT_BASES_DIR, outDir });
 			const indexPath = join(outDir, "catalog-index.json");
 			expect(existsSync(indexPath), `Expected ${indexPath} to exist`).toBe(true);
 		} finally {
@@ -196,7 +205,7 @@ describe("buildCatalog — real catalog sources: checksums are byte-exact", () =
 		await loadBuildModule();
 		const outDir = makeTempDir("consistency");
 		try {
-			const index = await buildCatalog({ catalogDir: CATALOG_DIR, outDir });
+			const index = await buildCatalog({ catalogDir: TEST_VAULT_BASES_DIR, outDir });
 			const { readFileSync } = await import("node:fs");
 			const indexPath = join(outDir, "catalog-index.json");
 			const written = JSON.parse(readFileSync(indexPath, "utf8")) as CatalogIndex;

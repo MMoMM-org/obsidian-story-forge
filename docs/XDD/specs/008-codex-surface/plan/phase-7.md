@@ -77,14 +77,14 @@ Closes the gap that started this whole spec: the distribution machinery served f
   > Today `renderBase` emits only `filters` plus a single `{type: CODEX_VIEW_ID, name: "Codex"}`
   > view. The real shipped `infra/Bases/Codex.base` carries a `properties:` block **and five views**,
   > each with a `category:` discriminant (character, location, object, lore, scene); the curated
-  > `catalog/overview-characters.base` carries **four `displayName` mappings**. Step 3 below tasks
+  > `test/StoryForge/00 Meta/Bases/overview-characters.base` carries **four `displayName` mappings**. Step 3 below tasks
   > this with **replacing** the shipped `Codex.base` — doing that with today's renderer would
   > **silently delete** the five categorised views and the property display names, turning a working
   > five-category Codex into a single unnamed view. The renderer must reproduce them (or the
   > template must carry them) **before** anything overwrites the shipped file.
 
   1. Prime: `[ref: ADR-0003 §Decision]`; T1.4's `classify` and renderer; **read
-     `infra/Bases/Codex.base` and `catalog/overview-characters.base` first** and enumerate what the
+     `infra/Bases/Codex.base` and `test/StoryForge/00 Meta/Bases/overview-characters.base` first** and enumerate what the
      replacement must preserve.
   2. Test: changing a tag or an excluded folder **regenerates the artifact and updates its instance
      checksum silently** `[ref: PRD/F3 AC]`; hand-editing the artifact then changing nothing yields

@@ -737,11 +737,13 @@ describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confi
 		expect(decision.status).toBe("drift");
 	});
 
-	it("committed catalog sources: every entry.engine is 'bases' (real-world manifestation of the bases-only guard)", async () => {
-		// Run the SAME build pipeline the catalog:build command drives, over the
-		// committed catalog/*.base sources, entirely in-memory (no dist/ dependency).
-		// This assertion survives a fresh checkout — dist/ is gitignored and absent
-		// until a build runs, but catalog/*.base are committed inputs.
+	it("committed real-world .base sources: every entry.engine is 'bases' (real-world manifestation of the bases-only guard)", async () => {
+		// Run the SAME build pipeline the catalog:build command drives, over
+		// committed .base sources, entirely in-memory (no dist/ dependency).
+		// catalog/ no longer ships .base files (moved to the test vault as an
+		// alternate Bases view, see docs/XDD/specs/008-codex-surface, Phase 3);
+		// this points at the test vault's Bases folder, which still holds
+		// committed, real-world .base sources.
 		//
 		// Why this matters: CatalogService has an exhaustive `never` guard — any
 		// future engine variant must be handled at compile time before it reaches
@@ -758,7 +760,7 @@ describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confi
 			outDir: string;
 		}) => Promise<CatalogIndex>;
 
-		const catalogDir = resolve(__dirname, "../../catalog");
+		const catalogDir = resolve(__dirname, "../../test/StoryForge/00 Meta/Bases");
 		const outDir = join(tmpdir(), `sf-e2e-bases-guard-${Date.now()}`);
 		mkdirSync(outDir, { recursive: true });
 		try {

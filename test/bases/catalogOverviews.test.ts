@@ -1,26 +1,31 @@
 /**
- * catalogOverviews.test.ts — T4.1 catalog overview .base files.
+ * catalogOverviews.test.ts — M4 overview .base files, retained as test-vault fixtures.
  *
- * Verifies that the five global overview views exist under catalog/ and that:
- *   (a) each validates via validateBasesConfig()
- *   (b) fields / sort / group match the view-roadmap V4–V8 spec
+ * These five plain Bases table views predate the Codex-surface design (spec
+ * 008): they are not Cards, not the Codex, and nothing in spec 008 consumes
+ * them. Spec 008's F4 gives the Codex a Table card that covers the same
+ * ground, so these are no longer shipped in the plugin catalog — they were
+ * moved out of catalog/ into the test vault (test/StoryForge/00 Meta/Bases/),
+ * where they remain available as an alternate Bases view for manual testing.
+ *
+ * This suite keeps validating them in place: they still exist as real .base
+ * files and are still worth checking against validateBasesConfig() and
+ * against their original field/sort/group shape.
  *
  * Reads from disk; no Obsidian runtime required.
  *
- * V4 — catalog/overview-characters.base
+ * V4 — overview-characters.base
  *       filter: canon/character; fields: name, role, status, tagline
- * V5 — catalog/overview-locations.base
+ * V5 — overview-locations.base
  *       filter: canon/location; grouped by locationType; fields: world, region
- * V6 — catalog/overview-objects.base
+ * V6 — overview-objects.base
  *       filter: canon/object; fields: name, kind, owner
- * V7 — catalog/overview-lore.base
+ * V7 — overview-lore.base
  *       filter: canon/lore; fields: name, scope, related
- * V8 — catalog/overview-scenes.base
+ * V8 — overview-scenes.base
  *       filter: manuscript/scene; fields: order, status, pov, location; sorted by order ASC
  *
  * @ref docs/view-roadmap.md §V4–V8
- * @ref PRD/AC-F3.1, AC-F3.2, AC-F3.3
- * @ref SDD/ADR-5, ADR-9
  */
 
 import { describe, it, expect } from "vitest";
@@ -33,7 +38,7 @@ import { validateBasesConfig } from "bases/basesConfig";
 // Paths
 // ---------------------------------------------------------------------------
 
-const CATALOG_DIR = resolve(__dirname, "../../catalog");
+const CATALOG_DIR = resolve(__dirname, "../StoryForge/00 Meta/Bases");
 
 function catalogPath(filename: string): string {
 	return join(CATALOG_DIR, filename);
@@ -127,7 +132,7 @@ describe("catalog overview .base files — existence", () => {
 	];
 
 	for (const file of FILES) {
-		it(`${file} exists in catalog/`, () => {
+		it(`${file} exists in the test vault's Bases folder`, () => {
 			expect(
 				existsSync(catalogPath(file)),
 				`Expected ${file} at ${catalogPath(file)}`,
