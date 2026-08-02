@@ -1,39 +1,58 @@
 /**
  * CatalogService — T4.4 curated-catalog install, verify, materialise, persist.
+ * Record shape reworked at T3.3 to close the double-copy defect (ADR-35).
  *
  * The CatalogIndex is provided via constructor injection (never read from dist/
  * at runtime) so this service is fully testable without build artifacts.
  *
  * Install order (SDD Runtime View — curated-install algorithm):
- *   1. VERIFY   — computeChecksum(entry.source) vs entry.checksum; fail-closed
- *                 on mismatch (nothing written, reason surfaced).
+ *   1. VERIFY      — computeChecksum(entry.source) vs entry.checksum; fail-closed
+ *                    on mismatch (nothing written, reason surfaced).
  *   2. MATERIALISE — write raw .base YAML into curatedBasesFolder,
- *                 normalizePath'd; create folder on demand.
- *   3. PERSIST  — store.setRecord with engine:"bases", source:<raw YAML>,
- *                 provenance:"curated", okayed:{checksum}.
+ *                    normalizePath'd; create folder on demand. The vault file is
+ *                    the single copy of the YAML.
+ *   3. PERSIST     — store.setRecord with engine:"bases", kind:"collection",
+ *                    source:<vault path — NOT the YAML>, provenance:"curated",
+ *                    okayed:{checksum}, and a `generated` block (ADR-35) carrying
+ *                    the two-checksum bookkeeping `classify()`
+ *                    (src/library/baseGenerator.ts) needs to tell "clean" apart
+ *                    from "a foreign hand edited the file".
  *   If PERSIST fails after MATERIALISE, the orphaned .base file is removed so
  *   no partial state is left. install() NEVER throws — always returns InstallResult.
+ *
+ * Why the record no longer stores the YAML (ADR-35, closes the double-copy defect):
+ *   Storing `record.source` as a second copy of the YAML meant drift detection
+ *   (ConsentGate._evaluateBasesRecord) checksummed the STORE's copy while
+ *   `_openCodex` opened the VAULT file — editing the rendered file was invisible.
+ *   The vault file is now the single artifact; `record.source` is its path, and
+ *   `record.generated.instanceChecksum` is the checksum of the bytes actually
+ *   written, so classify() can detect a hand-edit against what is really on disk.
  *
  * Why bases entries bypass importToStore (ADR-5):
  *   ViewDefinition.engine is typed "dataview-dql"|"dataviewjs" — "bases" is not
  *   in the union. Routing through toRecord() would either (a) require lying about
  *   the engine or (b) require touching src/import/* in a way that risks T4.3
- *   regressions. Writing directly is the minimal, correct path: ConsentGate and
- *   BasesFenceEngine both require engine:"bases" AND source:<raw YAML> on the
- *   record (src/consent/ConsentGate.ts:117 + src/engines/BasesFenceEngine.ts:27).
+ *   regressions. Writing directly is the minimal, correct path.
  *
  * The catalog only emits engine:"bases" today. An exhaustive guard ensures a
  * future non-bases CatalogEntry variant fails to compile until handled.
  *
+ * Out of scope here (see plan/phase-3.md T3.3 / T7.3): `renderBase`'s output
+ * shape and wiring `sourceChecksum` to a real template producer — the catalog
+ * entry's own checksum is stored honestly instead, and `classify()`'s
+ * `reconsent` branch stays inert until T7.3.
+ *
  * @ref PRD/AC-F4.5 (fail-closed on mismatch)
  * @ref PRD/AC-F4.6 (surfaced via existing view surfaces)
  * @ref PRD/AC-F4.7 (offline — zero network on any path, CON-9)
- * @ref SDD/ADR-5 (bases record source = raw .base YAML; curatedBasesFolder)
+ * @ref SDD/ADR-35 (single artifact copy; record.source is a vault path)
+ * @ref SDD/Known Technical Issues (the double-copy defect this closes)
  */
 
 import { normalizePath } from "obsidian";
 import type { App } from "obsidian";
 import { computeChecksum } from "consent/checksum";
+import type { CollectionParams } from "library/baseGenerator";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
 import type { ConsentGate } from "consent/ConsentGate";
@@ -57,6 +76,14 @@ export interface CatalogServiceDeps {
 	store: ViewStore;
 	/** Vault folder where curated .base files are materialised. Default "00 Meta/Bases". */
 	curatedBasesFolder: string;
+	/**
+	 * The params a freshly-installed collection is recorded as rendered with
+	 * (ADR-0003 `generated.params`). NOT read from settings here — `excludedFolders`
+	 * does not exist on `PluginSettings` yet (T3.5 adds it); the construction site
+	 * injects a placeholder until then. CatalogService does not call `renderBase`
+	 * with these — it only stores them for `classify()` to compare against later.
+	 */
+	collectionParams: CollectionParams;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,20 +198,43 @@ export class CatalogService {
 			return { ok: false, reason: `materialise failed: ${msg}` };
 		}
 
-		// 4. PERSIST: write ViewRecord. On failure, remove the orphaned .base file.
+		// 4. PERSIST: write ViewRecord (ADR-35 shape). On failure, remove the
+		// orphaned .base file.
+		//
+		// instanceChecksum is the checksum of the bytes actually written to
+		// writtenPath — NOT a re-read or re-serialisation. _materialise writes
+		// entry.source verbatim, and `computed` (from VERIFY, above) is already
+		// computeChecksum(entry.source) — the same bytes — so it doubles as the
+		// checksum of what landed on disk.
+		const instanceChecksum = computed;
 		const record: ViewRecord = {
 			provenance: "curated",
 			enabled: true,
 			okayed: { version: 1, checksum: computed },
-			source: entry.source,
+			// ADR-35: source is the vault PATH, not the YAML — the vault file is
+			// the single copy (closes the double-copy defect).
+			source: writtenPath,
 			engine: "bases",
 			command: false,
 			commandName: entry.name,
-			kind: "view",
+			kind: "collection",
 			surfaces: { anvil: false, workbench: false },
 			// catalogId is the stable entry slug — never changes for an existing entry,
 			// survives catalog renames. Used by BrowseOfficialModal for update detection.
 			catalogId: entry.id,
+			generated: {
+				// The catalog entry's own checksum — honest until T7.3 wires a real
+				// template producer; the `reconsent` classify() branch stays inert
+				// until then (see class docstring).
+				sourceChecksum: entry.checksum,
+				params: {
+					tag: this.deps.collectionParams.tag,
+					excludedFolders: [...this.deps.collectionParams.excludedFolders],
+				},
+				instanceChecksum,
+				filePath: writtenPath,
+				verify: true,
+			},
 			...(entry.description !== undefined ? { description: entry.description } : {}),
 		};
 

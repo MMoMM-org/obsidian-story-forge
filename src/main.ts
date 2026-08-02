@@ -17,6 +17,7 @@ import { CodexView, CODEX_VIEW_TYPE } from "codex/CodexView";
 import { AnvilView, type AnvilLayout } from "anvil/AnvilView";
 import { CatalogService } from "catalog/CatalogService";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
+import type { CollectionParams } from "library/baseGenerator";
 import type { CatalogIndex } from "catalog/catalogTypes";
 import catalogIndexRaw from "../dist/catalog-index.json";
 
@@ -183,11 +184,17 @@ export default class StoryForgePlugin extends Plugin {
 		// T4.5: "Browse official views" command — opens the curated catalog modal.
 		// CatalogService receives the bundled catalog-index.json (static import, no
 		// fetch). The index is built by catalog:build before esbuild bundles main.ts.
+		// PLACEHOLDER (T3.3): CollectionParams.excludedFolders does not exist on
+		// PluginSettings yet — T3.5 adds it. Until then, every install is recorded
+		// as rendered with an empty exclusion list; T7.3 (real template wiring)
+		// replaces this with the settings-backed value.
+		const collectionParams: CollectionParams = { tag: "", excludedFolders: [] };
 		const catalogService = new CatalogService(catalogIndex, {
 			app: this.app,
 			gate,
 			store: this.store,
 			curatedBasesFolder: this._getCuratedBasesFolder(),
+			collectionParams,
 		});
 
 		this.addCommand({

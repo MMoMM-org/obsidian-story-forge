@@ -1,8 +1,15 @@
 /**
- * CatalogService.test.ts — T4.4
+ * CatalogService.test.ts — T4.4, reworked for T3.3 (ADR-35 record shape).
  *
  * Tests the fail-closed checksum verify, materialise (.base → vault), persist
- * (store.setRecord with engine:"bases" + raw YAML source), and sidebar re-render.
+ * (store.setRecord with engine:"bases", kind:"collection", source:<vault path>,
+ * generated:<GeneratedArtifact>), and sidebar re-render.
+ *
+ * T3.3 closes the double-copy defect (SDD/Known Technical Issues): the YAML no
+ * longer lives twice (vault file + record.source). The persisted record's
+ * `source` is the vault path; the raw YAML body appears nowhere on the record.
+ * `generated` carries the ADR-35 two-checksum bookkeeping that `classify()`
+ * (src/library/baseGenerator.ts) reads to detect a hand-edited file.
  *
  * Design:
  *   - CatalogService receives the CatalogIndex via constructor injection — no
@@ -15,13 +22,16 @@
  * @ref PRD/AC-F4.6 (install surfaced via existing view surfaces)
  * @ref PRD/AC-F4.7 (offline install works)
  * @ref SDD/Runtime View — curated-install algorithm
- * @ref SDD/ADR-5 (bases source = raw .base YAML; curatedBasesFolder setting)
+ * @ref SDD/ADR-35 (single artifact copy; record.source is a vault path)
+ * @ref SDD/Known Technical Issues (the double-copy defect this task closes)
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "obsidian";
 import { computeChecksum } from "consent/checksum";
 import { CatalogService } from "catalog/CatalogService";
+import { classify } from "library/baseGenerator";
+import type { CollectionParams } from "library/baseGenerator";
 import type { CatalogIndex, CatalogEntry } from "catalog/catalogTypes";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
@@ -32,6 +42,19 @@ import type { ConsentGate } from "consent/ConsentGate";
 // ---------------------------------------------------------------------------
 
 const BASE_YAML = "filters: file.hasTag(\"test\")\nviews:\n  - type: table\n    name: Test View\n";
+
+/** Default injected render params — T3.3 does not exercise renderBase/reconsent. */
+const DEFAULT_COLLECTION_PARAMS: CollectionParams = { tag: "test", excludedFolders: [] };
+
+/** All leaf string values in an object graph — used to prove no field carries the raw YAML. */
+function collectStrings(value: unknown): string[] {
+	if (typeof value === "string") return [value];
+	if (Array.isArray(value)) return value.flatMap(collectStrings);
+	if (value !== null && typeof value === "object") {
+		return Object.values(value).flatMap(collectStrings);
+	}
+	return [];
+}
 
 async function makeEntry(overrides: Partial<CatalogEntry> = {}): Promise<CatalogEntry> {
 	const source = overrides.source ?? BASE_YAML;
@@ -109,7 +132,13 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 		const entry = await makeEntry({ checksum: "sha256:deadbeef00000000000000000000000000000000000000000000000000000000" });
 		const index = await makeCatalogIndex([entry]);
 
-		const svc = new CatalogService(index, { app, gate, store, curatedBasesFolder: "00 Meta/Bases" });
+		const svc = new CatalogService(index, {
+			app,
+			gate,
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
+		});
 
 		const result = await svc.install(entry.id);
 
@@ -135,6 +164,7 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
@@ -144,10 +174,10 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Suite 2 — Bases entry persists with correct engine and source (the core bug fix)
+// Suite 2 — Bases entry persists with correct engine and the ADR-35 record shape
 // ---------------------------------------------------------------------------
 
-describe("CatalogService — bases entry: ViewRecord has engine='bases' and source=raw YAML (AC-F4.5/ADR-5)", () => {
+describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5)", () => {
 	it("store.setRecord is called with engine:'bases' for a bases catalog entry", async () => {
 		const app = makeApp();
 		const { store, capturedRecords } = makeStore();
@@ -160,6 +190,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
@@ -170,7 +201,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 		expect(writtenRecord!.engine).toBe("bases");
 	});
 
-	it("store.setRecord is called with source equal to the raw .base YAML (not the entry id slug)", async () => {
+	it("store.setRecord is called with source equal to the vault path — NOT the raw YAML (closes the double-copy defect)", async () => {
 		const app = makeApp();
 		const { store, capturedRecords } = makeStore();
 
@@ -182,14 +213,91 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
+		});
+
+		await svc.install(entry.id);
+
+		const [writtenPath] = vi.mocked(app.vault.adapter.write).mock.calls[0]!;
+		const [writtenRecord] = capturedRecords.values();
+		expect(writtenRecord!.source).toBe(writtenPath);
+		expect(writtenRecord!.source).not.toBe(BASE_YAML);
+	});
+
+	it("no field on the persisted record contains the YAML body (ADR-35 — single artifact copy)", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
 
 		const [writtenRecord] = capturedRecords.values();
-		// source must be the raw YAML — NOT the slug "overview-characters"
-		expect(writtenRecord!.source).toBe(BASE_YAML);
-		expect(writtenRecord!.source).not.toBe("overview-characters");
+		const strings = collectStrings(writtenRecord);
+		expect(strings).not.toContain(BASE_YAML);
+	});
+
+	it("persisted record is kind:'collection' (ADR-35 — a generated collection, not a hand-authored view)", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
+		});
+
+		await svc.install(entry.id);
+
+		const [writtenRecord] = capturedRecords.values();
+		expect(writtenRecord!.kind).toBe("collection");
+	});
+
+	it("persisted record carries a generated block: filePath, instanceChecksum, sourceChecksum, params, verify:true", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+		const collectionParams: CollectionParams = { tag: "characters", excludedFolders: ["00 Meta"] };
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams,
+		});
+
+		await svc.install(entry.id);
+
+		const [writtenPath] = vi.mocked(app.vault.adapter.write).mock.calls[0]!;
+		const expectedInstanceChecksum = await computeChecksum(BASE_YAML);
+		const [writtenRecord] = capturedRecords.values();
+
+		expect(writtenRecord!.generated).toBeDefined();
+		expect(writtenRecord!.generated?.filePath).toBe(writtenPath);
+		expect(writtenRecord!.generated?.instanceChecksum).toBe(expectedInstanceChecksum);
+		expect(writtenRecord!.generated?.sourceChecksum).toBe(entry.checksum);
+		expect(writtenRecord!.generated?.params).toEqual({
+			tag: "characters",
+			excludedFolders: ["00 Meta"],
+		});
+		expect(writtenRecord!.generated?.verify).toBe(true);
 	});
 
 	it("persisted record has provenance:'curated' and enabled:true", async () => {
@@ -204,6 +312,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -225,6 +334,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -249,6 +359,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -273,6 +384,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' and sour
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -303,6 +415,7 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		// Must NOT throw.
@@ -329,6 +442,7 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -355,6 +469,7 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		// Double failure: persist + rollback both fail — must still not throw.
@@ -377,6 +492,7 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
@@ -394,6 +510,7 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install("does-not-exist");
@@ -427,11 +544,56 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
 
 		// Should not write anything new.
+		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.reason).toMatch(/up.to.date/i);
+		}
+	});
+
+	it("returns ok:false up-to-date for an entry already installed in the new ADR-35 shape (T3.3)", async () => {
+		const app = makeApp();
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+
+		// Pre-populate the store with a record in the post-T3.3 shape: source is a
+		// vault path, kind is "collection", and generated carries the bookkeeping.
+		const existingRecord: ViewRecord = {
+			provenance: "curated",
+			enabled: true,
+			okayed: { version: 1, checksum: entry.checksum },
+			source: "00 Meta/Bases/overview-characters.base",
+			engine: "bases",
+			command: false,
+			kind: "collection",
+			surfaces: { anvil: false, workbench: false },
+			catalogId: "overview-characters",
+			generated: {
+				sourceChecksum: entry.checksum,
+				params: { tag: DEFAULT_COLLECTION_PARAMS.tag, excludedFolders: [...DEFAULT_COLLECTION_PARAMS.excludedFolders] },
+				instanceChecksum: entry.checksum,
+				filePath: "00 Meta/Bases/overview-characters.base",
+				verify: true,
+			},
+		};
+		const { store } = makeStore({ "existing-id": existingRecord });
+		const index = await makeCatalogIndex([entry]);
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
+		});
+
+		const result = await svc.install(entry.id);
+
 		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
@@ -455,6 +617,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -479,6 +642,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -499,6 +663,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -518,6 +683,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -543,6 +709,7 @@ describe("CatalogService — persistence and sidebar re-render (AC-F4.6)", () =>
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -568,6 +735,7 @@ describe("CatalogService — persistence and sidebar re-render (AC-F4.6)", () =>
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -596,6 +764,7 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await expect(svc.install(entry.id)).resolves.toMatchObject({ ok: true });
@@ -612,6 +781,7 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await expect(svc.install(entry.id)).resolves.toMatchObject({ ok: false });
@@ -620,7 +790,93 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 });
 
 // ---------------------------------------------------------------------------
-// Suite 8 — getEntries: surfaces the catalog list
+// Suite 8 — Installed record classifies correctly via baseGenerator.classify (T3.3)
+//
+// This is the defect's headline fix: previously drift was computed over the
+// store's own YAML copy, so a hand-edit to the vault file was invisible
+// (ConsentGate would silently report "consented" forever). Now classify()
+// reads the record's `generated` block — sourceChecksum/params/instanceChecksum
+// — against the CURRENT catalog entry and the CURRENT file-on-disk checksum.
+// ---------------------------------------------------------------------------
+
+describe("CatalogService — installed record classifies correctly (T3.3, SDD/Known Technical Issues)", () => {
+	it("an unedited installed file classifies 'clean'", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+		const collectionParams: CollectionParams = { tag: "characters", excludedFolders: [] };
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams,
+		});
+
+		await svc.install(entry.id);
+		const [rec] = capturedRecords.values();
+
+		// Nothing touched the file since install — its checksum is still BASE_YAML's.
+		const fileChecksum = await computeChecksum(BASE_YAML);
+		const state = classify(rec!.generated!, entry.checksum, collectionParams, fileChecksum);
+
+		expect(state).toBe("clean");
+	});
+
+	it("editing the vault file after install classifies 'ask' — previously (the defect) this was invisible", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+		const collectionParams: CollectionParams = { tag: "characters", excludedFolders: [] };
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams,
+		});
+
+		await svc.install(entry.id);
+		const [rec] = capturedRecords.values();
+
+		// Simulate a foreign hand editing the materialised .base file in the vault.
+		const editedContent = BASE_YAML + "\n# hand-edited by the user\n";
+		const fileChecksum = await computeChecksum(editedContent);
+		const state = classify(rec!.generated!, entry.checksum, collectionParams, fileChecksum);
+
+		expect(state).toBe("ask");
+	});
+
+	it("a missing file (fileChecksum: null) classifies 'regenerate'", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+		const collectionParams: CollectionParams = { tag: "characters", excludedFolders: [] };
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams,
+		});
+
+		await svc.install(entry.id);
+		const [rec] = capturedRecords.values();
+
+		const state = classify(rec!.generated!, entry.checksum, collectionParams, null);
+
+		expect(state).toBe("regenerate");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Suite 9 — getEntries: surfaces the catalog list
 // ---------------------------------------------------------------------------
 
 describe("CatalogService.getEntries()", () => {
@@ -637,6 +893,7 @@ describe("CatalogService.getEntries()", () => {
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = svc.getEntries();
@@ -655,6 +912,7 @@ describe("CatalogService.getEntries()", () => {
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		expect(svc.getEntries()).toHaveLength(0);

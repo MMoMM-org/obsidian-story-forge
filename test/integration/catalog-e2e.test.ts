@@ -33,6 +33,7 @@ import { ConsentGate } from "consent/ConsentGate";
 import { DisclosureModal } from "consent/DisclosureModal";
 import { installCurated } from "import/ImportFlow";
 import { computeChecksum } from "consent/checksum";
+import type { CollectionParams } from "library/baseGenerator";
 import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 import type { ViewRecord } from "store/types";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
@@ -62,6 +63,9 @@ const requestUrlSpy = vi.fn(() => {
 
 const BASE_YAML =
 	'filters: file.hasTag("test")\nviews:\n  - type: table\n    name: Test View\n';
+
+/** Default injected render params — this suite does not exercise renderBase/reconsent. */
+const DEFAULT_COLLECTION_PARAMS: CollectionParams = { tag: "test", excludedFolders: [] };
 
 async function makeEntry(overrides: Partial<CatalogEntry> = {}): Promise<CatalogEntry> {
 	const source = overrides.source ?? BASE_YAML;
@@ -212,6 +216,7 @@ async function mountHarness(
 		gate,
 		store,
 		curatedBasesFolder: "00 Meta/Bases",
+		collectionParams: DEFAULT_COLLECTION_PARAMS,
 	});
 
 	const modal = new BrowseOfficialModal(vault.app, service, store);
@@ -268,7 +273,11 @@ describe("E2E T6.3.1 — install: .base written, engine:'bases' record persisted
 			expect(records.length).toBe(1);
 			const rec = records[0]!;
 			expect(rec.engine).toBe("bases");
-			expect(rec.source).toBe(BASE_YAML);
+			// ADR-35: source is the vault path, not the YAML — the double-copy defect.
+			expect(rec.source).not.toBe(BASE_YAML);
+			expect(rec.source).toContain("overview-characters.base");
+			expect(rec.kind).toBe("collection");
+			expect(rec.generated?.filePath).toBe(rec.source);
 			expect(rec.provenance).toBe("curated");
 			expect(rec.enabled).toBe(true);
 			expect(rec.catalogId).toBe("overview-characters");
@@ -605,7 +614,9 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 			);
 			expect(updatedRec).not.toBeUndefined();
 			expect(updatedRec!.engine).toBe("bases");
-			expect(updatedRec!.source).toBe(newSource);
+			// ADR-35: source is the vault path, not the YAML.
+			expect(updatedRec!.source).not.toBe(newSource);
+			expect(updatedRec!.source).toContain("overview-characters.base");
 			expect(updatedRec!.provenance).toBe("curated");
 		});
 	});
