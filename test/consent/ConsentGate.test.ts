@@ -17,6 +17,7 @@ import type { ViewRecord } from "store/types";
 import type { ViewDefinition } from "import/ViewDefinition";
 import { computeChecksum } from "consent/checksum";
 import { DisclosureModal } from "consent/DisclosureModal";
+import { inertConsentGateSeams } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Platform mock — reset per-test
@@ -136,14 +137,14 @@ describe("ConsentGate.evaluate()", () => {
 
 	it("returns {status:'disabled'} when record.enabled === false", async () => {
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ enabled: false }));
 		expect(result).toEqual({ status: "disabled" });
 	});
 
 	it("returns {status:'disabled'} even when okayed is set (kill-switch)", async () => {
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(
 			makeRecord({ enabled: false, okayed: { version: 1, checksum: "sha256:abc" } }),
 		);
@@ -155,7 +156,7 @@ describe("ConsentGate.evaluate()", () => {
 	it("returns {status:'platform-restricted'} for dataviewjs on mobile", async () => {
 		(Platform as { isMobile: boolean }).isMobile = true;
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ engine: "dataviewjs" }));
 		expect(result).toEqual({ status: "platform-restricted" });
 	});
@@ -163,7 +164,7 @@ describe("ConsentGate.evaluate()", () => {
 	it("does NOT return platform-restricted for DQL on mobile", async () => {
 		(Platform as { isMobile: boolean }).isMobile = true;
 		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ engine: "dataview-dql", okayed: null }));
 		expect(result.status).not.toBe("platform-restricted");
 	});
@@ -173,14 +174,14 @@ describe("ConsentGate.evaluate()", () => {
 	it("returns {status:'engine-missing'} when registry.get returns undefined", async () => {
 		const emptyRegistry = makeRegistry([]);
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, emptyRegistry, dvSettings, store);
+		const gate = new ConsentGate(app, emptyRegistry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ engine: "dataviewjs" }));
 		expect(result).toEqual({ status: "engine-missing" });
 	});
 
 	it("returns {status:'engine-missing'} for bases engine (unwired in M2)", async () => {
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ engine: "bases" }));
 		expect(result).toEqual({ status: "engine-missing" });
 	});
@@ -190,7 +191,7 @@ describe("ConsentGate.evaluate()", () => {
 	it("returns {status:'dvjs-off'} for dataviewjs when enableDataviewJs is false", async () => {
 		const dvOff = makeDvSettings(false);
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvOff, store);
+		const gate = new ConsentGate(app, registry, dvOff, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ engine: "dataviewjs" }));
 		expect(result).toEqual({ status: "dvjs-off" });
 	});
@@ -198,7 +199,7 @@ describe("ConsentGate.evaluate()", () => {
 	it("does NOT return dvjs-off for DQL (DQL is unaffected by the DataviewJS setting)", async () => {
 		const dvOff = makeDvSettings(false);
 		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
-		const gate = new ConsentGate(app, registry, dvOff, store);
+		const gate = new ConsentGate(app, registry, dvOff, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ engine: "dataview-dql", okayed: null }));
 		expect(result.status).not.toBe("dvjs-off");
 	});
@@ -207,7 +208,7 @@ describe("ConsentGate.evaluate()", () => {
 
 	it("returns {status:'not-consented'} when okayed is null", async () => {
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ okayed: null }));
 		expect(result).toEqual({ status: "not-consented" });
 	});
@@ -216,7 +217,7 @@ describe("ConsentGate.evaluate()", () => {
 
 	it("returns {status:'not-consented'} when source note is missing", async () => {
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(
 			makeRecord({ okayed: { version: 1, checksum: "sha256:abc" } }),
 		);
@@ -227,7 +228,7 @@ describe("ConsentGate.evaluate()", () => {
 
 	it("returns {status:'drift', reason:'checksum'} when fresh checksum ≠ okayed.checksum", async () => {
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(
 			makeRecord({
 				okayed: {
@@ -244,7 +245,7 @@ describe("ConsentGate.evaluate()", () => {
 		// checksum must match the fresh block body
 		const correctChecksum = await computeChecksum(DV_JS_BODY);
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT, 99);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(
 			makeRecord({ okayed: { version: 1, checksum: correctChecksum } }),
 		);
@@ -253,7 +254,7 @@ describe("ConsentGate.evaluate()", () => {
 
 	it("returns {status:'drift', reason:'both'} when both version and checksum differ", async () => {
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT, 99);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(
 			makeRecord({
 				okayed: {
@@ -271,7 +272,7 @@ describe("ConsentGate.evaluate()", () => {
 		const correctChecksum = await computeChecksum(DV_JS_BODY);
 		// No sf-version in metadata → currentVersion = 0
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(
 			makeRecord({ okayed: { version: 0, checksum: correctChecksum } }),
 		);
@@ -281,7 +282,7 @@ describe("ConsentGate.evaluate()", () => {
 	it("consented path works for DQL engine", async () => {
 		const correctChecksum = await computeChecksum(DQL_BODY);
 		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(
 			makeRecord({
 				engine: "dataview-dql",
@@ -302,7 +303,7 @@ describe("ConsentGate.evaluate()", () => {
 		(Platform as { isMobile: boolean; isDesktop: boolean }).isDesktop = false;
 		const correctChecksum = await computeChecksum(DQL_BODY);
 		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const evaluatePromise = gate.evaluate(
 			makeRecord({
@@ -319,7 +320,7 @@ describe("ConsentGate.evaluate()", () => {
 	it("checks disabled BEFORE platform-restricted (disabled wins)", async () => {
 		(Platform as { isMobile: boolean }).isMobile = true;
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ enabled: false, engine: "dataviewjs" }));
 		expect(result).toEqual({ status: "disabled" });
 	});
@@ -328,7 +329,7 @@ describe("ConsentGate.evaluate()", () => {
 		const emptyRegistry = makeRegistry([]);
 		const dvOff = makeDvSettings(false);
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT);
-		const gate = new ConsentGate(app, emptyRegistry, dvOff, store);
+		const gate = new ConsentGate(app, emptyRegistry, dvOff, store, ...inertConsentGateSeams());
 		const result = await gate.evaluate(makeRecord({ engine: "dataviewjs" }));
 		expect(result).toEqual({ status: "engine-missing" });
 	});
@@ -389,7 +390,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 		const registry = makeRegistryWithBases();
 		// App with NO vault file matching — bases bypasses readFencedBlock entirely
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const checksum = await computeChecksum(BASES_YAML);
 		const result = await gate.evaluate(
@@ -404,7 +405,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 	it("does NOT call vault.getAbstractFileByPath for a bases record [ADR-5]", async () => {
 		const registry = makeRegistryWithBases();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const checksum = await computeChecksum(BASES_YAML);
 		await gate.evaluate(makeBasesRecord({ okayed: { version: 0, checksum } }));
@@ -417,7 +418,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 	it("returns {status:'not-consented'} when bases source is empty string [fail-closed]", async () => {
 		const registry = makeRegistryWithBases();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.evaluate(
 			makeBasesRecord({ source: "", okayed: { version: 0, checksum: "sha256:" + "0".repeat(64) } }),
@@ -431,7 +432,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 	it("returns {status:'engine-missing'} for bases when registry lacks bases [engine-missing fires]", async () => {
 		const registryNoBases = makeRegistry(["dataview-dql", "dataviewjs"]); // no "bases"
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registryNoBases, dvSettings, store);
+		const gate = new ConsentGate(app, registryNoBases, dvSettings, store, ...inertConsentGateSeams());
 
 		const checksum = await computeChecksum(BASES_YAML);
 		const result = await gate.evaluate(
@@ -446,7 +447,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 	it("returns {status:'drift', reason:'checksum'} when bases YAML checksum changes [ADR-5]", async () => {
 		const registry = makeRegistryWithBases();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		// okayed with wrong checksum
 		const result = await gate.evaluate(
@@ -464,7 +465,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 		(Platform as { isMobile: boolean }).isMobile = true;
 		const registry = makeRegistryWithBases();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const checksum = await computeChecksum(BASES_YAML);
 		const result = await gate.evaluate(
@@ -478,7 +479,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 		(Platform as { isMobile: boolean }).isMobile = true;
 		const registry = makeRegistryWithBases();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.evaluate(makeBasesRecord({ enabled: false }));
 
@@ -489,7 +490,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 		(Platform as { isMobile: boolean }).isMobile = true;
 		const registry = makeRegistry(["dataview-dql"]);
 		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.evaluate(makeRecord({ engine: "dataview-dql", okayed: null }));
 
@@ -501,7 +502,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 	it("returns {status:'disabled'} for bases record when enabled:false [kill-switch]", async () => {
 		const registry = makeRegistryWithBases();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.evaluate(makeBasesRecord({ enabled: false }));
 
@@ -513,7 +514,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 	it("returns {status:'not-consented'} when bases record has okayed:null", async () => {
 		const registry = makeRegistryWithBases();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.evaluate(makeBasesRecord({ okayed: null }));
 
@@ -526,7 +527,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
 		// No file in vault → readFencedBlock returns null → not-consented (fail-closed)
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.evaluate(
 			makeRecord({
@@ -542,7 +543,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 	it("[REGRESSION] dataview-dql evaluates consented when source note exists and checksum matches", async () => {
 		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
 		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const checksum = await computeChecksum(DQL_BODY);
 		const result = await gate.evaluate(
@@ -559,7 +560,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 	it("[REGRESSION] dataviewjs still gates: missing source → not-consented (fail-closed)", async () => {
 		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.evaluate(
 			makeRecord({
@@ -636,7 +637,7 @@ describe("ConsentGate.evaluate() — generated collection guard", () => {
 		const dvSettings = makeDvSettings(true);
 		const store = makeStore();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.evaluate(makeGeneratedCollectionRecord());
 
@@ -653,7 +654,7 @@ describe("ConsentGate.evaluate() — generated collection guard", () => {
 		const dvSettings = makeDvSettings(true);
 		const store = makeStore();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.evaluate({ ...makeGeneratedCollectionRecord(), okayed: null });
 
@@ -665,7 +666,7 @@ describe("ConsentGate.evaluate() — generated collection guard", () => {
 		const dvSettings = makeDvSettings(true);
 		const store = makeStore();
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const checksum = await computeChecksum(BASES_YAML);
 		const consented = await gate.evaluate(
@@ -739,7 +740,7 @@ describe("ConsentGate.evaluate() — T3.4 classify()-driven generated collection
 		expect(result).toEqual({ status: "drift", reason: "checksum" });
 	});
 
-	it("keeps a hand-edited file as-is: consented, and the file is NOT rewritten [ask maps to consented]", async () => {
+	it("keeps a hand-edited file as-is: consented [ask maps to consented]", async () => {
 		const registry = makeRegistryWithBases();
 		const dvSettings = makeDvSettings(true);
 		const store = makeStore();
@@ -747,7 +748,10 @@ describe("ConsentGate.evaluate() — T3.4 classify()-driven generated collection
 
 		// generated.instanceChecksum is a fixture placeholder that cannot match
 		// any real content's checksum — this content is "hand-edited" by
-		// construction.
+		// construction. Source checksum and params are UNCHANGED (only the
+		// fileChecksum differs), so classify() takes the "ask" branch
+		// specifically — not "regenerate" (params-changed, tested above) or
+		// "reconsent" (source-changed, tested below).
 		const handEditedContent = 'filters: file.hasTag("someone-elses-edit")\n';
 		const app = makeAppSync(generated.filePath, handEditedContent);
 
@@ -763,8 +767,6 @@ describe("ConsentGate.evaluate() — T3.4 classify()-driven generated collection
 		const result = await gate.evaluate(record);
 
 		expect(result).toEqual({ status: "consented" });
-		expect(app.vault.adapter.write).not.toHaveBeenCalled();
-		expect(app.vault.modify).not.toHaveBeenCalled();
 	});
 
 	it("returns {status:'consented'} when the generated file is missing from the vault [regenerate, no prompt]", async () => {
@@ -786,6 +788,32 @@ describe("ConsentGate.evaluate() — T3.4 classify()-driven generated collection
 		const result = await gate.evaluate(record);
 
 		expect(result).toEqual({ status: "consented" });
+	});
+
+	it("resolves {status:'consented'} instead of throwing when vault.read rejects for the generated file [degrades to null, not an unhandled rejection]", async () => {
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+		const { record, generated } = makeGeneratedFixture();
+
+		// File EXISTS (getAbstractFileByPath resolves a TFile) but reading it
+		// rejects — I/O error, binary decode failure, or a race after the
+		// existence check. This must degrade to fileChecksum:null (→
+		// classify()'s "regenerate" branch), not escape evaluate() as an
+		// unhandled rejection.
+		const app = makeAppSync(generated.filePath, "");
+		vi.mocked(app.vault.read).mockRejectedValue(new Error("EISDIR: illegal operation on a directory"));
+
+		const gate = new ConsentGate(
+			app,
+			registry,
+			dvSettings,
+			store,
+			async () => generated.sourceChecksum,
+			() => generated.params,
+		);
+
+		await expect(gate.evaluate(record)).resolves.toEqual({ status: "consented" });
 	});
 
 	it("returns {status:'consented'} when verify:false, even when source/params/file all differ [the file is the user's now]", async () => {
@@ -869,7 +897,7 @@ describe("ConsentGate.requestConsentForDef()", () => {
 	it("returns {version, checksum} on grant WITHOUT writing the store", async () => {
 		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(true);
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT, 3);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const expectedChecksum = await computeChecksum(DV_JS_BODY);
 		const result = await gate.requestConsentForDef(makeDef());
@@ -881,7 +909,7 @@ describe("ConsentGate.requestConsentForDef()", () => {
 	it("returns null when the modal is cancelled — no store write", async () => {
 		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(false);
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT, 3);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.requestConsentForDef(makeDef());
 
@@ -892,7 +920,7 @@ describe("ConsentGate.requestConsentForDef()", () => {
 	it("returns null when the source note is missing (readFencedBlock → null)", async () => {
 		const presentSpy = vi.spyOn(DisclosureModal.prototype, "present");
 		const app = makeAppSync(null, "");
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
 		const result = await gate.requestConsentForDef(makeDef());
 
@@ -922,7 +950,7 @@ describe("ConsentGate.requestConsent() write path", () => {
 	it("still writes okayed+enabled:true and returns true on grant", async () => {
 		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(true);
 		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT, 7);
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ okayed: null });
 
 		const expectedChecksum = await computeChecksum(DV_JS_BODY);

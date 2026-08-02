@@ -38,6 +38,7 @@ import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 import type { ViewRecord } from "store/types";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
 import type { ViewImporter } from "import/ViewImporter";
+import { inertConsentGateSeams } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Offline guard — throw if network is ever touched during the whole suite.
@@ -198,11 +199,21 @@ async function mountHarness(
 	const vault = makeVault(false);
 	const { store, raw: storeRaw } = makeStoreHarness(initialRecords);
 
+	// getCurrentSourceChecksum stays "unknown" (null) — no real template
+	// producer is wired at this layer (T7.3), and the `??` fallback in
+	// ConsentGate compares the record's own stored sourceChecksum to itself,
+	// which is "same" regardless. getCurrentParams DOES need to match what
+	// CatalogService actually recorded in `generated.params` below
+	// (DEFAULT_COLLECTION_PARAMS) — otherwise classify() takes the
+	// `regenerate` branch instead of `clean`, and this harness would silently
+	// stop exercising the "nothing changed" case it exists to test.
 	const gate = new ConsentGate(
 		vault.app,
 		makeBasesRegistry(),
 		makeDvSettings(),
 		store,
+		async () => null,
+		() => DEFAULT_COLLECTION_PARAMS,
 	);
 
 	const index: CatalogIndex = {
@@ -740,7 +751,7 @@ describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confi
 
 		const vault = makeVault(false);
 		const { store } = makeStoreHarness({ "stale-id": staleRecord });
-		const gate = new ConsentGate(vault.app, makeBasesRegistry(), makeDvSettings(), store);
+		const gate = new ConsentGate(vault.app, makeBasesRegistry(), makeDvSettings(), store, ...inertConsentGateSeams());
 
 		const decision = await gate.evaluate(staleRecord);
 
@@ -957,7 +968,7 @@ function makeDeclinedGateHarness(): DeclinedGateHarness {
 	const presentSpy = vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(false);
 	const app = makeAppWithVaultContent(DECLINED_DEF.sourcePath, DVJS_FENCED_CONTENT);
 	const { store, raw: storeRaw } = makeStoreHarness();
-	const gate = new ConsentGate(app, makeBasesRegistry(), makeDvSettings(), store);
+	const gate = new ConsentGate(app, makeBasesRegistry(), makeDvSettings(), store, ...inertConsentGateSeams());
 	const importToStore = vi.fn(async () => "new-id");
 	const importer: ViewImporter = { importToStore } as unknown as ViewImporter;
 	return { app, store, storeRaw, gate, importToStore, importer, presentSpy };

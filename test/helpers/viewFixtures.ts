@@ -6,6 +6,7 @@
  * harness path.
  */
 import type { ViewRecord } from "store/types";
+import type { GetCurrentSourceChecksum, GetCurrentParams } from "consent/ConsentGate";
 
 /**
  * A non-null ViewRecord that routes SidebarView._renderResolved into the
@@ -27,4 +28,16 @@ export function makeDummyViewRecord(): ViewRecord {
 		kind: "view" as const,
 		surfaces: { anvil: false, workbench: false },
 	};
+}
+
+/**
+ * Inert `ConsentGate` seams (T3.4's `getCurrentSourceChecksum` /
+ * `getCurrentParams`, now required constructor args) for tests that never
+ * construct a `record.generated` fixture — the generated-collection branch
+ * is never reached, so these two values cannot affect the outcome. Spread as
+ * the trailing two constructor args:
+ * `new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams())`.
+ */
+export function inertConsentGateSeams(): [GetCurrentSourceChecksum, GetCurrentParams] {
+	return [async () => null, () => ({ tag: "", excludedFolders: [] })];
 }

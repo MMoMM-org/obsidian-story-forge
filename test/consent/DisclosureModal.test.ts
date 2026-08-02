@@ -20,6 +20,7 @@ import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
 import { computeChecksum } from "consent/checksum";
+import { inertConsentGateSeams } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Platform mock
@@ -139,7 +140,7 @@ describe("ConsentGate.requestConsent — DataviewJS (S20)", () => {
 
 	it("Cancel returns false and does not call store.setRecord", async () => {
 		const { store, setRecord } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataviewjs" });
 
 		const promise = gate.requestConsent("id-1", record);
@@ -154,7 +155,7 @@ describe("ConsentGate.requestConsent — DataviewJS (S20)", () => {
 
 	it("modal content includes view name", async () => {
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataviewjs", commandName: "Characters in Scene" });
 
 		const promise = gate.requestConsent("id-1", record);
@@ -168,7 +169,7 @@ describe("ConsentGate.requestConsent — DataviewJS (S20)", () => {
 
 	it("modal content includes source path", async () => {
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataviewjs", source: "views/my-view.md" });
 
 		const promise = gate.requestConsent("id-1", record);
@@ -182,7 +183,7 @@ describe("ConsentGate.requestConsent — DataviewJS (S20)", () => {
 
 	it("modal content includes the DataviewJS source code", async () => {
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataviewjs" });
 
 		const promise = gate.requestConsent("id-1", record);
@@ -196,7 +197,7 @@ describe("ConsentGate.requestConsent — DataviewJS (S20)", () => {
 
 	it("modal content includes sha256: checksum", async () => {
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataviewjs" });
 
 		const promise = gate.requestConsent("id-1", record);
@@ -210,7 +211,7 @@ describe("ConsentGate.requestConsent — DataviewJS (S20)", () => {
 
 	it("Cancel is the FIRST button in DOM order (safe default per ADR-5 / S20)", async () => {
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataviewjs" });
 
 		const promise = gate.requestConsent("id-1", record);
@@ -226,7 +227,7 @@ describe("ConsentGate.requestConsent — DataviewJS (S20)", () => {
 
 	it("Enable returns true and calls store.setRecord with okayed+enabled in ONE call", async () => {
 		const { store, setRecord } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataviewjs" });
 
 		const promise = gate.requestConsent("id-1", record);
@@ -247,7 +248,7 @@ describe("ConsentGate.requestConsent — DataviewJS (S20)", () => {
 
 	it("Enable writes the CORRECT checksum matching fresh block body", async () => {
 		const { store, setRecord } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataviewjs" });
 
 		const promise = gate.requestConsent("id-1", record);
@@ -283,7 +284,7 @@ describe("ConsentGate.requestConsent — DQL (S21)", () => {
 
 	it("DQL modal shows 'declarative' or 'read-only' note", async () => {
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataview-dql" });
 
 		const promise = gate.requestConsent("id-dql", record);
@@ -300,7 +301,7 @@ describe("ConsentGate.requestConsent — DQL (S21)", () => {
 		// IS displayed (with a declarative/read-only note and no DataviewJS
 		// security warning). This is intentional and correct per mockups.html S21.
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataview-dql" });
 
 		const promise = gate.requestConsent("id-dql", record);
@@ -319,7 +320,7 @@ describe("ConsentGate.requestConsent — DQL (S21)", () => {
 
 	it("DQL modal does NOT show the JavaScript vault-access warning", async () => {
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataview-dql" });
 
 		const promise = gate.requestConsent("id-dql", record);
@@ -334,7 +335,7 @@ describe("ConsentGate.requestConsent — DQL (S21)", () => {
 
 	it("DQL Enable returns true and writes setRecord", async () => {
 		const { store, setRecord } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataview-dql" });
 
 		const promise = gate.requestConsent("id-dql", record);
@@ -352,7 +353,7 @@ describe("ConsentGate.requestConsent — DQL (S21)", () => {
 
 	it("DQL Cancel returns false and does not write", async () => {
 		const { store, setRecord } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataview-dql" });
 
 		const promise = gate.requestConsent("id-dql", record);
@@ -387,7 +388,7 @@ describe("ConsentGate.requestReConsent — DataviewJS (S23)", () => {
 
 	it("re-consent modal shows source code (same full disclosure as S20)", async () => {
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({
 			engine: "dataviewjs",
 			okayed: { version: 1, checksum: "sha256:" + "0".repeat(64) },
@@ -404,7 +405,7 @@ describe("ConsentGate.requestReConsent — DataviewJS (S23)", () => {
 
 	it("re-consent Enable returns true and writes setRecord", async () => {
 		const { store, setRecord } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({
 			engine: "dataviewjs",
 			okayed: { version: 1, checksum: "sha256:" + "0".repeat(64) },
@@ -421,7 +422,7 @@ describe("ConsentGate.requestReConsent — DataviewJS (S23)", () => {
 
 	it("re-consent Cancel returns false and does not write", async () => {
 		const { store, setRecord } = makeStore();
-		const gate = new ConsentGate(app, registry, dvSettings, store);
+		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 		const record = makeRecord({
 			engine: "dataviewjs",
 			okayed: { version: 1, checksum: "sha256:" + "0".repeat(64) },
@@ -452,7 +453,7 @@ describe("XSS safety", () => {
 			"# View\n\n```dataviewjs\n" + maliciousBody + "```\n";
 		const app = makeAppWithFile("views/xss.md", maliciousContent);
 		const { store } = makeStore();
-		const gate = new ConsentGate(app, makeRegistry(), makeDvSettings(), store);
+		const gate = new ConsentGate(app, makeRegistry(), makeDvSettings(), store, ...inertConsentGateSeams());
 		const record = makeRecord({ engine: "dataviewjs", source: "views/xss.md" });
 
 		const promise = gate.requestConsent("id-xss", record);

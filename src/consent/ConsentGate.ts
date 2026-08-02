@@ -90,19 +90,15 @@ export class ConsentGate {
 		private readonly registry: EngineRegistryLike,
 		private readonly dvSettings: DvSettingsReader,
 		private readonly store: ViewStore,
-		// Optional (T3.4): every pre-existing call site (constructed before
-		// generated collections existed) still compiles and behaves exactly as
-		// before — these two seams are only consulted from the record.generated
-		// branch below. Defaults are fail-closed-adjacent for that branch: an
-		// unknown upstream checksum reads as "cannot tell" (see
-		// GetCurrentSourceChecksum), and empty params match nothing so a
-		// misconfigured caller shows up as "regenerate", never as silent drift.
-		private readonly getCurrentSourceChecksum: GetCurrentSourceChecksum = async () =>
-			null,
-		private readonly getCurrentParams: GetCurrentParams = () => ({
-			tag: "",
-			excludedFolders: [],
-		}),
+		// Required (T3.4): only consulted from the record.generated branch
+		// below, but a forgotten seam here compiles silently and evaluate()
+		// then behaves as if upstream is unknowable and params are empty —
+		// exactly the drift ADR-0003 exists to prevent once T7.3 wires
+		// regeneration to the same classify() outcome. Every caller must
+		// supply real behavior; main.ts's placeholders are explicit `async ()
+		// => null` / `() => collectionParams`, not silent defaults.
+		private readonly getCurrentSourceChecksum: GetCurrentSourceChecksum,
+		private readonly getCurrentParams: GetCurrentParams,
 	) {}
 
 	/**
@@ -392,6 +388,9 @@ export class ConsentGate {
 		record: ViewRecord,
 		generated: NonNullable<ViewRecord["generated"]>,
 	): Promise<ConsentDecision> {
+		// Null upstream ?? falls back to the record's OWN stored checksum, i.e.
+		// compares it to itself — deliberately reads as "unchanged" ("cannot
+		// tell, do not nag"), not a copy-paste self-comparison bug.
 		const currentSourceChecksum =
 			(await this.getCurrentSourceChecksum(record)) ?? generated.sourceChecksum;
 		const fileChecksum = await this._readGeneratedFileChecksum(generated.filePath);
@@ -415,12 +414,22 @@ export class ConsentGate {
 	 * null when it is missing/unreadable. `classify()` treats null the same
 	 * as "a change we caused" (regenerate), never as a foreign edit (ADR-35 —
 	 * one file read per evaluate is accepted cost, not a regression).
+	 *
+	 * `Vault.read()` can reject (I/O error, binary decode failure, a race
+	 * after the existence check above) — caught here so one unreadable file
+	 * degrades to null instead of throwing out of `evaluate()` and aborting
+	 * every other row a caller (e.g. SettingsTab's `Promise.all`) is rendering.
 	 */
 	private async _readGeneratedFileChecksum(filePath: string): Promise<string | null> {
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 		if (!(file instanceof TFile)) return null;
-		const content = await this.app.vault.read(file);
-		return computeChecksum(content);
+		try {
+			const content = await this.app.vault.read(file);
+			return await computeChecksum(content);
+		} catch (err) {
+			console.error("[StoryForge] failed to read generated file for consent evaluation", filePath, err);
+			return null;
+		}
 	}
 
 	/**

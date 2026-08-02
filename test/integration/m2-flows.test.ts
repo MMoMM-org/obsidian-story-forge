@@ -52,6 +52,7 @@ import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { ViewRecord } from "store/types";
 import type { NoteContext } from "scoping/NoteContext";
+import { inertConsentGateSeams } from "../helpers/viewFixtures";
 
 // ---------------------------------------------------------------------------
 // Platform mock (consistent with unit test pattern)
@@ -155,7 +156,7 @@ function makeGate(
 	store: ViewStore,
 	dvJsEnabled = true,
 ): ConsentGate {
-	return new ConsentGate(app, registry, makeDvSettings(dvJsEnabled), store);
+	return new ConsentGate(app, registry, makeDvSettings(dvJsEnabled), store, ...inertConsentGateSeams());
 }
 
 /**
