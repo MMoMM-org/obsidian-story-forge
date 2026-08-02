@@ -62,7 +62,38 @@ export default class StoryForgePlugin extends Plugin {
 			isDvJsEnabled: (): boolean => getDvSettings(this.app).enableDataviewJs,
 		};
 
-		const gate = new ConsentGate(this.app, registry, dvSettings, this.store);
+		// PLACEHOLDER (T3.4, hoisted up from its former T3.3 construction site
+		// below CatalogService): neither `tag` nor `excludedFolders` exists on
+		// PluginSettings yet — T3.5 adds both. Until then every generated
+		// collection is recorded/compared against an empty tag and an empty
+		// exclusion list; T7.3 (real template wiring) replaces this with the
+		// settings-backed values. Shared by ConsentGate's getCurrentParams seam
+		// (below) and CatalogService's collectionParams dep (see the HAZARD
+		// note at its construction site).
+		//
+		// HAZARD (see CatalogService.ts class docstring): when T3.5 swaps this
+		// placeholder for real settings-backed values, it must also reconcile
+		// `generated.params` on already-installed records — otherwise
+		// classify() flips every one of them to "regenerate" and silently
+		// overwrites any file the user hand-edited.
+		const collectionParams: CollectionParams = { tag: "", excludedFolders: [] };
+
+		// PLACEHOLDER (T3.4): no real template producer is wired yet (T7.3) — a
+		// generated collection's upstream checksum cannot be looked up, so
+		// this always reports "unknown" (null). ConsentGate treats that as
+		// "cannot tell, do not nag" rather than manufacturing drift; the
+		// classify() `reconsent` branch stays inert until T7.3 wires a real
+		// lookup.
+		const getCurrentSourceChecksum = async (): Promise<string | null> => null;
+
+		const gate = new ConsentGate(
+			this.app,
+			registry,
+			dvSettings,
+			this.store,
+			getCurrentSourceChecksum,
+			() => collectionParams,
+		);
 		const importer = new ViewImporter(this.app, this.store);
 
 		// registerCommand + removeCommand callbacks passed to SettingsTab/BindModal.
@@ -184,22 +215,8 @@ export default class StoryForgePlugin extends Plugin {
 		// T4.5: "Browse official views" command — opens the curated catalog modal.
 		// CatalogService receives the bundled catalog-index.json (static import, no
 		// fetch). The index is built by catalog:build before esbuild bundles main.ts.
-		// PLACEHOLDER (T3.3): neither `tag` nor `excludedFolders` exists on
-		// PluginSettings yet — T3.5 adds both. Until then, every install is
-		// recorded (in `generated.params`, see CatalogService's constructor deps)
-		// as rendered with an empty tag and an empty exclusion list; T7.3 (real
-		// template wiring) replaces this with the settings-backed values.
-		//
-		// HAZARD (see CatalogService.ts class docstring): `generated.params` on a
-		// curated record does not describe what was actually written — curated
-		// entries are copied verbatim, never rendered from params. When T3.5
-		// swaps this placeholder for real settings-backed values, it must also
-		// reconcile `generated.params` on already-installed records — otherwise
-		// the params comparison in classify() (checked before the edit check)
-		// flips every one of them to "regenerate" and silently overwrites any
-		// file the user hand-edited. Swapping only the injection site here is not
-		// enough.
-		const collectionParams: CollectionParams = { tag: "", excludedFolders: [] };
+		// `collectionParams` is the T3.4-hoisted placeholder declared above (shared
+		// with ConsentGate's getCurrentParams seam) — see the HAZARD note there.
 		const catalogService = new CatalogService(catalogIndex, {
 			app: this.app,
 			gate,

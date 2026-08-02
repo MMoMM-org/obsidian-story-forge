@@ -15,6 +15,8 @@ import type { App } from "obsidian";
 import { readFencedBlock } from "import/fencedBlock";
 import { computeChecksum } from "consent/checksum";
 import { DisclosureModal } from "consent/DisclosureModal";
+import { classify } from "library/baseGenerator";
+import type { CollectionParams } from "library/baseGenerator";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewDefinition } from "import/ViewDefinition";
@@ -53,6 +55,25 @@ export interface DvSettingsReader {
 	isDvJsEnabled(): boolean;
 }
 
+/**
+ * Reads the CURRENT upstream/template checksum for a generated collection
+ * record (T3.4 / ADR-0003). A seam: `ConsentGate` must not import the
+ * catalog, so the caller (main.ts) supplies whatever knows how to look this
+ * up. Returns null when the upstream cannot be determined — e.g. the entry
+ * is no longer in the catalog — which `_evaluateGeneratedCollection` treats
+ * as "cannot tell, do not nag" rather than as drift.
+ */
+export type GetCurrentSourceChecksum = (
+	record: ViewRecord,
+) => Promise<string | null>;
+
+/**
+ * Reads the CURRENT settings-backed params (tag, excluded folders) a
+ * generated collection would be rendered with (T3.4 / ADR-0003). Injected so
+ * `ConsentGate` does not read `PluginSettings` directly.
+ */
+export type GetCurrentParams = () => CollectionParams;
+
 // ---------------------------------------------------------------------------
 // ConsentGate class
 // ---------------------------------------------------------------------------
@@ -69,6 +90,19 @@ export class ConsentGate {
 		private readonly registry: EngineRegistryLike,
 		private readonly dvSettings: DvSettingsReader,
 		private readonly store: ViewStore,
+		// Optional (T3.4): every pre-existing call site (constructed before
+		// generated collections existed) still compiles and behaves exactly as
+		// before — these two seams are only consulted from the record.generated
+		// branch below. Defaults are fail-closed-adjacent for that branch: an
+		// unknown upstream checksum reads as "cannot tell" (see
+		// GetCurrentSourceChecksum), and empty params match nothing so a
+		// misconfigured caller shows up as "regenerate", never as silent drift.
+		private readonly getCurrentSourceChecksum: GetCurrentSourceChecksum = async () =>
+			null,
+		private readonly getCurrentParams: GetCurrentParams = () => ({
+			tag: "",
+			excludedFolders: [],
+		}),
 	) {}
 
 	/**
@@ -112,17 +146,17 @@ export class ConsentGate {
 			return { status: "not-consented" };
 		}
 
-		// 5a. Generated collection (ADR-29/ADR-35): a catalog-rendered collection
-		//     carries verified generation metadata in `record.generated` instead of
-		//     raw .base YAML in `record.source` — `source` is a vault PATH to the
-		//     materialised .base file. Checksumming that path as if it were YAML
-		//     can never equal okayed.checksum and would always report drift. This
-		//     guard stops that misclassification. It is deliberately narrow: the
-		//     richer classify()-driven states (regenerate/ask/reconsent, driven by
-		//     `generated`'s own checksums) are a later task's — every generated
-		//     collection simply evaluates consented at this gate for now.
+		// 5a. Generated collection (ADR-29/ADR-35/ADR-0003, T3.4): a catalog-
+		//     rendered collection carries verified generation metadata in
+		//     `record.generated` instead of raw .base YAML in `record.source` —
+		//     `source` is a vault PATH to the materialised .base file. Checksumming
+		//     that path as if it were YAML can never equal okayed.checksum and
+		//     would always report drift. classify() (src/library/baseGenerator.ts)
+		//     does the real three-way comparison (source checksum / params /
+		//     instance checksum); this gate only decides whether the result may
+		//     RENDER.
 		if (record.generated !== undefined) {
-			return { status: "consented" };
+			return this._evaluateGeneratedCollection(record, record.generated);
 		}
 
 		// 6a. Bases source-model seam (ADR-5 / ADR-6): a bases record stores its
@@ -316,6 +350,77 @@ export class ConsentGate {
 			return { status: "drift", reason: "checksum" };
 		}
 		return { status: "consented" };
+	}
+
+	/**
+	 * Evaluate consent for a generated collection record (ADR-0003, T3.4).
+	 *
+	 * `classify()` runs the real three-way comparison (source checksum / params
+	 * / instance checksum on disk) and returns one of `clean | regenerate | ask
+	 * | reconsent`. `ConsentDecision` has no `ask`/`regenerate` member by
+	 * design — the gate decides whether a view may RENDER, not whether a file
+	 * may be overwritten:
+	 *
+	 *   - `clean`      → consented (nothing changed).
+	 *   - `regenerate` → consented, WITHOUT a prompt. This is the SDD Edge
+	 *                    Case ("params changed ⇒ regenerate without
+	 *                    prompting") — the gate never manufactures a modal for
+	 *                    the plugin's own settings changes. Regenerating the
+	 *                    file is a caller's job, not this gate's.
+	 *   - `ask`        → consented. ADR-0003's "ask the user; offer
+	 *                    regenerate" is a regeneration-path concern, not a
+	 *                    render-gate concern: mapping `ask` to consented
+	 *                    renders the user's hand-edited file as-is and never
+	 *                    overwrites it — the safe direction. The signed-off
+	 *                    mockup (docs/mockups/anvil-workbench-codex.html:
+	 *                    1152-1161) describes the ask/regenerate distinction
+	 *                    in prose but draws NO UI state for that prompt;
+	 *                    inventing a modal here would breach the repo's
+	 *                    mockups-are-a-gate rule. That modal belongs to a
+	 *                    later phase (Phase 7) — do not "fix" this mapping
+	 *                    without a signed-off mockup for it.
+	 *   - `reconsent`  → drift (checksum). The upstream template changed —
+	 *                    routes through the existing re-consent flow.
+	 *
+	 * `getCurrentSourceChecksum` returning null means the upstream is unknown
+	 * (e.g. the entry is no longer in the catalog) — treated as "cannot tell,
+	 * do not nag" by falling back to the record's own stored sourceChecksum,
+	 * which classify() then reads as unchanged and lets the remaining
+	 * (params/instance) inputs decide.
+	 */
+	private async _evaluateGeneratedCollection(
+		record: ViewRecord,
+		generated: NonNullable<ViewRecord["generated"]>,
+	): Promise<ConsentDecision> {
+		const currentSourceChecksum =
+			(await this.getCurrentSourceChecksum(record)) ?? generated.sourceChecksum;
+		const fileChecksum = await this._readGeneratedFileChecksum(generated.filePath);
+
+		const state = classify(
+			generated,
+			currentSourceChecksum,
+			this.getCurrentParams(),
+			fileChecksum,
+		);
+
+		if (state === "reconsent") {
+			return { status: "drift", reason: "checksum" };
+		}
+		// clean | regenerate | ask all render as-is (see docstring above).
+		return { status: "consented" };
+	}
+
+	/**
+	 * Read the byte-exact checksum of the file currently at `filePath`, or
+	 * null when it is missing/unreadable. `classify()` treats null the same
+	 * as "a change we caused" (regenerate), never as a foreign edit (ADR-35 —
+	 * one file read per evaluate is accepted cost, not a regression).
+	 */
+	private async _readGeneratedFileChecksum(filePath: string): Promise<string | null> {
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) return null;
+		const content = await this.app.vault.read(file);
+		return computeChecksum(content);
 	}
 
 	/**

@@ -611,6 +611,25 @@ function makeGeneratedCollectionRecord(overrides: Partial<ViewRecord> = {}): Vie
 	};
 }
 
+/**
+ * Build a generated-collection fixture with the base record's `generated`
+ * block overridden. Avoids non-null assertions on `ViewRecord["generated"]`
+ * (which the factory always sets) by failing loudly instead if that ever
+ * stops being true.
+ */
+function makeGeneratedFixture(
+	generatedOverrides: Partial<NonNullable<ViewRecord["generated"]>> = {},
+	recordOverrides: Partial<ViewRecord> = {},
+): { record: ViewRecord; generated: NonNullable<ViewRecord["generated"]> } {
+	const base = makeGeneratedCollectionRecord(recordOverrides);
+	const baseGenerated = base.generated;
+	if (baseGenerated === undefined) {
+		throw new Error("makeGeneratedCollectionRecord always sets `generated`");
+	}
+	const generated = { ...baseGenerated, ...generatedOverrides };
+	return { record: { ...base, generated }, generated };
+}
+
 describe("ConsentGate.evaluate() — generated collection guard", () => {
 	it("returns {status:'consented'} for a generated collection record, not drift", async () => {
 		const registry = makeRegistryWithBases();
@@ -658,6 +677,161 @@ describe("ConsentGate.evaluate() — generated collection guard", () => {
 			makeBasesRecord({ okayed: { version: 0, checksum: "sha256:" + "a".repeat(64) } }),
 		);
 		expect(drifted).toEqual({ status: "drift", reason: "checksum" });
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T3.4 — classify()-driven decisions for generated collections (ADR-0003)
+//
+// Replaces the T3.3 placeholder ("every generated collection is consented")
+// with the real branch: classify() compares source checksum / params /
+// on-disk file checksum, and only its "reconsent" outcome may block a render.
+// ---------------------------------------------------------------------------
+
+describe("ConsentGate.evaluate() — T3.4 classify()-driven generated collections", () => {
+	it("regenerates silently when only params changed: consented, no drift, no modal constructed [SDD Edge Case]", async () => {
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+
+		const fileContent = 'filters: file.hasTag("canon/character")\n';
+		const instanceChecksum = await computeChecksum(fileContent);
+		const { record, generated } = makeGeneratedFixture({ instanceChecksum });
+
+		const app = makeAppSync(generated.filePath, fileContent);
+		const presentSpy = vi.spyOn(DisclosureModal.prototype, "present");
+
+		const gate = new ConsentGate(
+			app,
+			registry,
+			dvSettings,
+			store,
+			async () => generated.sourceChecksum, // upstream unchanged
+			() => ({ tag: "canon/location", excludedFolders: ["00 Meta"] }), // params changed
+		);
+
+		const result = await gate.evaluate(record);
+
+		expect(result).toEqual({ status: "consented" });
+		expect(presentSpy).not.toHaveBeenCalled();
+	});
+
+	it("returns {status:'drift', reason:'checksum'} when getCurrentSourceChecksum differs from generated.sourceChecksum [upstream template changed]", async () => {
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+		const { record, generated } = makeGeneratedFixture();
+
+		// File state is irrelevant: classify() checks the source checksum first.
+		const app = makeAppSync(null, "");
+
+		const gate = new ConsentGate(
+			app,
+			registry,
+			dvSettings,
+			store,
+			async () => "sha256:" + "a".repeat(64), // differs from generated.sourceChecksum
+			() => generated.params,
+		);
+
+		const result = await gate.evaluate(record);
+
+		expect(result).toEqual({ status: "drift", reason: "checksum" });
+	});
+
+	it("keeps a hand-edited file as-is: consented, and the file is NOT rewritten [ask maps to consented]", async () => {
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+		const { record, generated } = makeGeneratedFixture();
+
+		// generated.instanceChecksum is a fixture placeholder that cannot match
+		// any real content's checksum — this content is "hand-edited" by
+		// construction.
+		const handEditedContent = 'filters: file.hasTag("someone-elses-edit")\n';
+		const app = makeAppSync(generated.filePath, handEditedContent);
+
+		const gate = new ConsentGate(
+			app,
+			registry,
+			dvSettings,
+			store,
+			async () => generated.sourceChecksum,
+			() => generated.params,
+		);
+
+		const result = await gate.evaluate(record);
+
+		expect(result).toEqual({ status: "consented" });
+		expect(app.vault.adapter.write).not.toHaveBeenCalled();
+		expect(app.vault.modify).not.toHaveBeenCalled();
+	});
+
+	it("returns {status:'consented'} when the generated file is missing from the vault [regenerate, no prompt]", async () => {
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+		const { record, generated } = makeGeneratedFixture();
+		const app = makeAppSync(null, "");
+
+		const gate = new ConsentGate(
+			app,
+			registry,
+			dvSettings,
+			store,
+			async () => generated.sourceChecksum,
+			() => generated.params,
+		);
+
+		const result = await gate.evaluate(record);
+
+		expect(result).toEqual({ status: "consented" });
+	});
+
+	it("returns {status:'consented'} when verify:false, even when source/params/file all differ [the file is the user's now]", async () => {
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+		const { record, generated } = makeGeneratedFixture({ verify: false });
+		const app = makeAppSync(generated.filePath, "totally different content, hand-edited\n");
+
+		const gate = new ConsentGate(
+			app,
+			registry,
+			dvSettings,
+			store,
+			async () => "sha256:" + "b".repeat(64), // differs from generated.sourceChecksum
+			() => ({ tag: "a-different-tag", excludedFolders: [] }), // differs from generated.params
+		);
+
+		const result = await gate.evaluate(record);
+
+		expect(result).toEqual({ status: "consented" });
+	});
+
+	it("does NOT report drift when getCurrentSourceChecksum cannot determine the upstream (returns null) [cannot tell, do not nag]", async () => {
+		const registry = makeRegistryWithBases();
+		const dvSettings = makeDvSettings(true);
+		const store = makeStore();
+
+		const fileContent = 'filters: file.hasTag("canon/character")\n';
+		const instanceChecksum = await computeChecksum(fileContent);
+		const { record, generated } = makeGeneratedFixture({ instanceChecksum });
+		const app = makeAppSync(generated.filePath, fileContent);
+
+		const gate = new ConsentGate(
+			app,
+			registry,
+			dvSettings,
+			store,
+			async () => null, // unknown upstream — e.g. no longer in the catalog
+			() => generated.params,
+		);
+
+		const result = await gate.evaluate(record);
+
+		expect(result.status).not.toBe("drift");
+		expect(result).toEqual({ status: "consented" });
 	});
 });
 
