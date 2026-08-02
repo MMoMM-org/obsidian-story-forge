@@ -285,8 +285,12 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 
 		await svc.install(entry.id);
 
-		const [writtenPath] = vi.mocked(app.vault.adapter.write).mock.calls[0]!;
-		const expectedInstanceChecksum = await computeChecksum(BASE_YAML);
+		// Derive the expectation from the bytes the mock actually received — not
+		// from BASE_YAML — so this test enforces "instanceChecksum matches what
+		// was written" locally instead of relying on _materialise writing
+		// entry.source verbatim (that invariant is checked elsewhere).
+		const [writtenPath, writtenContent] = vi.mocked(app.vault.adapter.write).mock.calls[0]!;
+		const expectedInstanceChecksum = await computeChecksum(writtenContent);
 		const [writtenRecord] = capturedRecords.values();
 
 		expect(writtenRecord!.generated).toBeDefined();
@@ -871,6 +875,48 @@ describe("CatalogService — installed record classifies correctly (T3.3, SDD/Kn
 
 		const state = classify(rec!.generated!, entry.checksum, collectionParams, null);
 
+		expect(state).toBe("regenerate");
+	});
+
+	it("[HAZARD] a params change outranks a hand edit — regenerate wins over ask", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
+		const index = await makeCatalogIndex([entry]);
+		const installParams: CollectionParams = { tag: "characters", excludedFolders: [] };
+
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: installParams,
+		});
+
+		await svc.install(entry.id);
+		const [rec] = capturedRecords.values();
+
+		// A foreign hand edited the vault file after install...
+		const editedContent = BASE_YAML + "\n# hand-edited by the user\n";
+		const fileChecksum = await computeChecksum(editedContent);
+
+		// ...and, independently, the caller now passes DIFFERENT collectionParams
+		// than the record was installed with (this is exactly what happens once
+		// T3.5 replaces main.ts's fixed placeholder with real settings-backed
+		// values that can change from what an already-installed record recorded).
+		const currentParams: CollectionParams = { tag: "characters", excludedFolders: ["00 Meta"] };
+
+		const state = classify(rec!.generated!, entry.checksum, currentParams, fileChecksum);
+
+		// classify() (src/library/baseGenerator.ts) checks params BEFORE the
+		// instance checksum, so a params change wins over a hand edit: the file
+		// is classified for silent regeneration instead of "ask", and would be
+		// overwritten. This is the trap T3.5 must not spring — when it wires real
+		// settings-backed params, it must reconcile already-installed records'
+		// `generated.params` (or otherwise avoid a spurious params diff), not
+		// merely swap the injection site. This assertion pins today's behaviour
+		// as a known hazard, not endorsed behaviour — see CatalogService.ts's
+		// class docstring.
 		expect(state).toBe("regenerate");
 	});
 });

@@ -184,10 +184,21 @@ export default class StoryForgePlugin extends Plugin {
 		// T4.5: "Browse official views" command — opens the curated catalog modal.
 		// CatalogService receives the bundled catalog-index.json (static import, no
 		// fetch). The index is built by catalog:build before esbuild bundles main.ts.
-		// PLACEHOLDER (T3.3): CollectionParams.excludedFolders does not exist on
-		// PluginSettings yet — T3.5 adds it. Until then, every install is recorded
-		// as rendered with an empty exclusion list; T7.3 (real template wiring)
-		// replaces this with the settings-backed value.
+		// PLACEHOLDER (T3.3): neither `tag` nor `excludedFolders` exists on
+		// PluginSettings yet — T3.5 adds both. Until then, every install is
+		// recorded (in `generated.params`, see CatalogService's constructor deps)
+		// as rendered with an empty tag and an empty exclusion list; T7.3 (real
+		// template wiring) replaces this with the settings-backed values.
+		//
+		// HAZARD (see CatalogService.ts class docstring): `generated.params` on a
+		// curated record does not describe what was actually written — curated
+		// entries are copied verbatim, never rendered from params. When T3.5
+		// swaps this placeholder for real settings-backed values, it must also
+		// reconcile `generated.params` on already-installed records — otherwise
+		// the params comparison in classify() (checked before the edit check)
+		// flips every one of them to "regenerate" and silently overwrites any
+		// file the user hand-edited. Swapping only the injection site here is not
+		// enough.
 		const collectionParams: CollectionParams = { tag: "", excludedFolders: [] };
 		const catalogService = new CatalogService(catalogIndex, {
 			app: this.app,

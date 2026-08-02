@@ -8,6 +8,20 @@
  * @ref PRD/AC-F1.3 — leak-free teardown
  * @ref PRD/AC-F1.5 — missing-field tolerated (fence handles blank/omitted cell)
  * @ref SDD/CON-3  — no Bases typings here; import renderBaseFence, not Bases types
+ *
+ * KNOWN GAP (ADR-35, opened by T3.3 — not this file's to close): render()
+ * assumes `view.source` is raw .base YAML. That is only true for kind:"view"
+ * records. A kind:"collection" record's `source` is a vault PATH
+ * (src/catalog/CatalogService.ts), not YAML — feeding it to renderBaseFence
+ * would hand a path to the YAML parser. Engine dispatch (SidebarView →
+ * EngineRegistry.get(view.engine)) branches on `engine` only, never on `kind`,
+ * so nothing today stops a kind:"collection" record from reaching here.
+ * Unreachable in practice right now — the catalog ships zero entries and F7's
+ * surface-binding UI does not exist yet — but the contract is broken and no
+ * plan task owns the fix. Do NOT close this gap by making render() read vault
+ * files; that is async file IO in a render path and belongs to a future task.
+ * Must be closed before any kind:"collection" record is bound to a surface
+ * (PRD F7).
  */
 
 import { Component } from "obsidian";
@@ -24,7 +38,10 @@ export class BasesFenceEngine implements QueryEngine {
 	constructor(private readonly app: App) {}
 
 	async render(view: ViewRecord, ctx: NoteContext, el: HTMLElement): Promise<void> {
-		const yaml = view.source; // bases record source = raw .base YAML (ADR-5)
+		// Assumes raw .base YAML — true only for kind:"view" records. A
+		// kind:"collection" record's source is a vault path, not YAML; see the
+		// KNOWN GAP note in the file header (ADR-35).
+		const yaml = view.source;
 		this.component = new Component();
 		this.component.load(); // load BEFORE the async render (ADR-7)
 

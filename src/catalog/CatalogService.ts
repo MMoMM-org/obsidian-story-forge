@@ -28,6 +28,17 @@
  *   `record.generated.instanceChecksum` is the checksum of the bytes actually
  *   written, so classify() can detect a hand-edit against what is really on disk.
  *
+ * Known gap this leaves open (ADR-35 — not this task's to close): ConsentGate
+ * already reads `record.generated` for a collection record and no longer
+ * assumes `source` is YAML (src/consent/ConsentGate.ts:124). BasesFenceEngine
+ * (src/engines/BasesFenceEngine.ts) has NOT been updated to match — it still
+ * treats `record.source` as raw .base YAML, which is only true for
+ * kind:"view". Engine dispatch (SidebarView → EngineRegistry.get(view.engine))
+ * branches on `engine` only, never on `kind`, so nothing prevents a
+ * kind:"collection" record reaching that renderer. Unreachable today (zero
+ * catalog entries ship; F7's surface-binding UI does not exist), but must be
+ * closed before a collection record is bound to a surface (PRD F7).
+ *
  * Why bases entries bypass importToStore (ADR-5):
  *   ViewDefinition.engine is typed "dataview-dql"|"dataviewjs" — "bases" is not
  *   in the union. Routing through toRecord() would either (a) require lying about
@@ -41,6 +52,21 @@
  * shape and wiring `sourceChecksum` to a real template producer — the catalog
  * entry's own checksum is stored honestly instead, and `classify()`'s
  * `reconsent` branch stays inert until T7.3.
+ *
+ * HAZARD this leaves open (see the constructor's `collectionParams` deps and
+ * main.ts's placeholder): curated entries are written VERBATIM by
+ * `_materialise` — `renderBase` is never invoked to produce them — so
+ * `generated.params` on a curated record does NOT describe the bytes on disk.
+ * It is bookkeeping for a future render, not a description of the past write.
+ * `classify()` (src/library/baseGenerator.ts) checks params BEFORE the
+ * instance checksum, so once the injected params change (T3.5 wires real
+ * settings-backed values in place of today's placeholder), every
+ * already-installed record classifies "regenerate" instead of "ask" — a
+ * hand-edited file gets silently overwritten. T3.5 must reconcile
+ * already-installed records' `generated.params` when it introduces real
+ * values, not merely swap the injection site. See the
+ * "[HAZARD]" test in test/catalog/CatalogService.test.ts, which pins today's
+ * (undesirable) behaviour so a future change to it is deliberate, not silent.
  *
  * @ref PRD/AC-F4.5 (fail-closed on mismatch)
  * @ref PRD/AC-F4.6 (surfaced via existing view surfaces)
