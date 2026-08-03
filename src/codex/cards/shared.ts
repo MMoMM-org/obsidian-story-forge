@@ -130,7 +130,9 @@ export function factChip(fieldId: string, text: string): HTMLElement {
 /**
  * Render one field as a Card would show it: a labelled fact when the
  * property is present (even blank), `missBadge` when it is absent. Shared by
- * Hero's facts row, Table's columns and Compact's one-line facts.
+ * Table's columns and Compact's one-line facts. (Hero no longer calls this
+ * since its S91 rebuild — its facts line renders plain, unlabelled text
+ * inline plus `missBadge` directly, matching the mockup's unlabelled `.hf`.)
  */
 export function fieldChip(entry: CardEntry, fieldId: string): HTMLElement {
 	const field = entry.field(fieldId);

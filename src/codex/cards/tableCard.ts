@@ -6,9 +6,13 @@
  * Drawn as a `<div>` "row" rather than a `<table>` because `CardRenderer.render`
  * draws ONE entry at a time into ONE host-owned element (ADR-30) — there is no
  * shared header row across sibling cards for a single Card invocation to build.
- * The grid itself does not yet switch to a single column when Table is
- * selected (mirroring `.sf-cx--compact`'s Workbench form) — that is a
- * Card-selector concern (T4.4/T4.5), not this Card's.
+ * That is the genuine remaining constraint, and it is contract-shaped: nothing
+ * short of reopening `CardRenderer.render`'s per-entry signature closes it.
+ *
+ * The grid density itself is already handled: `codexTab.ts`'s `renderBody`
+ * stamps the grid with `sf-cx-grid--${card.id}`, and `styles.css`'s
+ * `.sf-cx-grid--table` switches it to a single, full-width column — Table
+ * does not share Hero's multi-column card grid.
  *
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F4
  * @ref src/codex/cards/shared.ts — entryKind, fieldChip (the shared PRD/F4 vocabulary)
