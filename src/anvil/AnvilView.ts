@@ -70,6 +70,7 @@ import {
 	type CodexCollection,
 } from "codex/codexTab";
 import { createNoteIndex, type CodexNoteIndex } from "codex/noteIndex";
+import { createAssetResolver } from "panel/assetResolver";
 
 export type AnvilLayout = "codex" | "timeline" | "plotlines" | "kanban" | "plotgrid";
 
@@ -375,6 +376,12 @@ export class AnvilView extends ItemView {
 			index: this._noteIndex?.notes() ?? [],
 			excludedFolders: this.getExcludedFolders(),
 			fileFor: (path): TFile | null => this._noteIndex?.fileFor(path) ?? null,
+			frontmatterFor: (path): Record<string, unknown> | null => {
+				const file = this._noteIndex?.fileFor(path) ?? null;
+				if (!file) return null;
+				return this.app.metadataCache.getFileCache(file)?.frontmatter ?? null;
+			},
+			resolveAsset: (sourcePath, raw): string => createAssetResolver(this.app, sourcePath)(raw),
 		});
 	}
 

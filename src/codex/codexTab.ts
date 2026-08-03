@@ -34,6 +34,16 @@
 
 import type { TFile } from "obsidian";
 import { resolveCollection, type IndexedNote } from "./collectionResolver";
+import {
+	createCardRegistry,
+	nativeCardEntry,
+	type CardEntry,
+	type CardRenderDeps,
+	type CardRenderer,
+} from "./cardRegistry";
+import { heroCard } from "./cards/heroCard";
+import { tableCard } from "./cards/tableCard";
+import { compactCard } from "./cards/compactCard";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (see test/__mocks__/obsidian.ts).
@@ -59,6 +69,22 @@ export const CODEX_CARD_BODY_ATTR = "data-sf-card-body";
 
 /** The existing cross-surface "name" marker, reused unchanged. */
 const LINK_ATTR = "data-sf-link";
+
+// ---------------------------------------------------------------------------
+// Cards (T4.3) — the registry every entry renders through
+// ---------------------------------------------------------------------------
+
+/**
+ * The registry every Codex host renders through (ADR-30, T4.2). Hero is the
+ * default — `resolve(undefined)` (no per-collection choice yet, T4.4's job)
+ * and `resolve("some-removed-id")` both degrade to it, so the grid is never
+ * empty just because nothing has been selected. Module-level rather than
+ * per-render: registration happens once, the same way `registerBasesView`
+ * must (`cardRegistry.ts`'s module doc).
+ */
+export const CODEX_CARD_REGISTRY = createCardRegistry(heroCard);
+CODEX_CARD_REGISTRY.register(tableCard);
+CODEX_CARD_REGISTRY.register(compactCard);
 
 // ---------------------------------------------------------------------------
 // Collections
@@ -140,8 +166,35 @@ export interface CodexTabOptions {
 	readonly index: readonly IndexedNote[];
 	/** Folders excluded from every collection (CON-7: exclusion only). */
 	readonly excludedFolders: readonly string[];
-	/** Adapts a resolved path to its file — cards read the file, not the path. */
+	/**
+	 * Adapts a resolved path to its file. Historical: before T4.2 shipped the
+	 * path+frontmatter `CardEntry` model (ADR-30), this was how a card would
+	 * have read a note. Cards now read `frontmatterFor` instead; kept on the
+	 * option contract for the hosts and tests already wired to it.
+	 */
 	readonly fileFor: (path: string) => TFile | null;
+	/**
+	 * Frontmatter for a resolved note path — Cards read entries built from this
+	 * (T4.3, `nativeCardEntry`). Optional: a host that has not wired this yet
+	 * still renders — every field simply reads as absent (`.miss`) rather than
+	 * throwing.
+	 */
+	readonly frontmatterFor?: (path: string) => Record<string, unknown> | null;
+	/**
+	 * Resolve a raw frontmatter asset path (`portrait`/`image`) for the note at
+	 * `sourcePath` to something an `<img src>` can use (T4.3,
+	 * `panel/assetResolver.ts`'s `createAssetResolver`). Optional: defaults to
+	 * the identity function, so a host without vault-relative image resolution
+	 * still renders (plain URLs pass through; a vault path just would not
+	 * resolve to a resource URL).
+	 */
+	readonly resolveAsset?: (sourcePath: string, raw: string) => string;
+	/**
+	 * The Card id to render this collection with. Optional: `undefined`
+	 * resolves to the registry default (Hero, T4.2) — persisting a choice per
+	 * collection is T4.4's job.
+	 */
+	readonly cardId?: string;
 	/** Workbench form: same markup, tighter density (S95). */
 	readonly compact?: boolean;
 }
@@ -219,31 +272,44 @@ function renderBody(grid: HTMLElement, active: CodexCollection, opts: CodexTabOp
 		return;
 	}
 
+	const card = CODEX_CARD_REGISTRY.resolve(opts.cardId);
 	for (const note of resolution.notes) {
-		grid.appendChild(renderEntry(note, opts.fileFor(note.path)));
+		grid.appendChild(renderEntry(note, card, opts));
 	}
 }
 
 /**
- * One entry. The Card that draws it is T4.2/T4.3; what this task fixes is the
- * marker nesting the F2 matrix depends on — body outside, name inside.
+ * One entry. Marker nesting — body outside, name inside — is what the F2
+ * precedence AC rests on (module docstring); `buildNameEl` is the one place
+ * that nests it, handed to every Card as `deps.nameEl` so a Card (ours or an
+ * imported one) cannot get the nesting wrong (T4.2's `CardRenderDeps.nameEl`
+ * doc comment).
  */
-function renderEntry(note: IndexedNote, file: TFile | null): HTMLElement {
-	const card = el("div", "sf-cx-card");
-	card.setAttribute(CODEX_CARD_BODY_ATTR, note.path);
-	card.setAttribute("role", "button");
-	card.setAttribute("tabindex", "0");
+function renderEntry(note: IndexedNote, card: CardRenderer, opts: CodexTabOptions): HTMLElement {
+	const cardEl = el("div", "sf-cx-card");
+	cardEl.setAttribute(CODEX_CARD_BODY_ATTR, note.path);
+	cardEl.setAttribute("role", "button");
+	cardEl.setAttribute("tabindex", "0");
 
-	const main = el("div", "sf-cx-card-main");
-	card.appendChild(main);
+	const frontmatter = opts.frontmatterFor?.(note.path) ?? null;
+	const entry = nativeCardEntry(note.path, frontmatter);
+	const deps: CardRenderDeps = {
+		compact: Boolean(opts.compact),
+		nameEl: buildNameEl,
+		resolveAsset: (raw: string): string => opts.resolveAsset?.(note.path, raw) ?? raw,
+	};
 
+	card.render(entry, cardEl, deps);
+	cardEl.setAttribute("aria-label", entry.name);
+	return cardEl;
+}
+
+/** The entry's name element, carrying the `name` marker (`data-sf-link`). */
+function buildNameEl(entry: CardEntry): HTMLElement {
 	const name = el("span", "sf-cx-name");
-	name.setAttribute(LINK_ATTR, note.path);
-	name.textContent = file?.basename ?? basenameOf(note.path);
-	main.appendChild(name);
-
-	card.setAttribute("aria-label", name.textContent);
-	return card;
+	name.setAttribute(LINK_ATTR, entry.path);
+	name.textContent = entry.name;
+	return name;
 }
 
 // ---------------------------------------------------------------------------
@@ -264,9 +330,4 @@ function message(cls: string, text: string): HTMLElement {
 
 function empty(container: HTMLElement): void {
 	while (container.firstChild) container.removeChild(container.firstChild);
-}
-
-/** Display name for a path whose file could not be resolved (deleted mid-render). */
-function basenameOf(path: string): string {
-	return (path.split("/").pop() ?? path).replace(/\.md$/, "");
 }

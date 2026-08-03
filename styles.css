@@ -2801,3 +2801,107 @@ body {
 .sf-cx-misconfigured {
 	color: var(--text-error);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Codex Cards (spec 008, T4.3) — Hero, Table, Compact. Each draws into the
+ * `.sf-cx-card` shell `codexTab.ts` stamps with the card-body marker; these
+ * rules style what a Card appends inside it. Ported from mockup S91/S97/S104
+ * (`.hero`/`.hn`/`.hf`/`.hp`/`.miss`), with Obsidian theme variables in place
+ * of the mockup's fixed palette so every colour survives both themes.
+ * ═════════════════════════════════════════════════════════════════════════ */
+
+/* --- Hero --- */
+.sf-cx-hero {
+	align-items: flex-start;
+}
+
+.sf-cx-hero-body {
+	flex: 1;
+}
+
+.sf-cx-hero-facts,
+.sf-cx-hero-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 2px;
+}
+
+/* --- Facts (Hero, Table, Compact share this "label value" chip) --- */
+.sf-cx-fact {
+	display: flex;
+	gap: 4px;
+	color: var(--text-muted);
+	font-size: 10.5px;
+}
+
+.sf-cx-fact b {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+/* --- Relation pills (Hero) --- */
+.sf-cx-pill {
+	border-radius: 10px;
+	background: var(--background-modifier-hover);
+	padding: 1px 6px;
+	color: var(--text-muted);
+	font-style: normal;
+	font-size: 9.5px;
+}
+
+/*
+ * Absent-property marking (PRD/F4, mockup `.miss`, S91/S97/S104): a red tint
+ * PLUS a visible label PLUS a tooltip, so the marking never depends on colour
+ * alone and stays legible without a pointer (mobile, keyboard, colour-blind).
+ * The mockup uses a fixed red (`rgba(214,92,92,*)`); this uses Obsidian's own
+ * error variables instead (`--background-modifier-error`, its border
+ * companion, `--text-error`) — already this file's convention for error state
+ * (`.sf-cx-misconfigured` above) — so the tint reads correctly in both the
+ * light and dark theme rather than only the mockup's dark one.
+ */
+.sf-cx-miss {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	border: 1px solid var(--background-modifier-error-border, var(--background-modifier-border));
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-error);
+	padding: 1px 6px;
+	color: var(--text-error);
+	font-size: 10px;
+	cursor: help;
+}
+
+.sf-cx-miss b {
+	font-weight: var(--font-semibold);
+}
+
+.sf-cx-miss i {
+	font-style: normal;
+	opacity: 0.9;
+}
+
+/* --- Table --- */
+.sf-cx-table-row {
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.sf-cx-table-cell {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--text-normal);
+	font-size: 11px;
+}
+
+.sf-cx-table-name {
+	font-weight: var(--font-semibold);
+}
+
+/* --- Compact --- */
+.sf-cx-compactrow {
+	align-items: center;
+	gap: 8px;
+}

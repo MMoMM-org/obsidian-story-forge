@@ -346,6 +346,36 @@ describe("Codex tab: F2 target markers through the real walk [PRD/F2, SDD/ADR-28
 });
 
 // ---------------------------------------------------------------------------
+// T4.3 — Cards wired end to end (Hero is the registry default, T4.2)
+// ---------------------------------------------------------------------------
+
+describe("Codex tab: built-in Cards render through the real AnvilView [PRD/F4]", () => {
+	let app: App;
+
+	beforeEach(() => {
+		app = new App();
+		seedVault(app);
+	});
+
+	it("draws every entry with Hero, the registry default, reading real frontmatter", async () => {
+		const view = await openCodex(app);
+		const card = cardFor(view, mara);
+
+		expect(card.classList.contains("sf-cx-hero")).toBe(true);
+		const roleFact = Array.from(card.querySelectorAll(".sf-cx-fact")).find(
+			(f) => f.querySelector("b")?.textContent === "role",
+		);
+		expect(roleFact?.querySelector(".sf-cx-fact-v")?.textContent).toBe("protagonist");
+	});
+
+	function cardFor(view: AnvilView, file: TFile): HTMLElement {
+		const card = bodyOf(view).querySelector<HTMLElement>(`[data-sf-card-body="${file.path}"]`);
+		if (!card) throw new Error(`no card rendered for ${file.path}`);
+		return card;
+	}
+});
+
+// ---------------------------------------------------------------------------
 // The body's own contract — the second host's form, before it has a second host
 // ---------------------------------------------------------------------------
 
