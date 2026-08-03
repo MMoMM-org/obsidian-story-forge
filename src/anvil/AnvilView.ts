@@ -61,6 +61,15 @@ import { CollapseStore } from "workspace/collapseStore";
 import { ANVIL_TAB_LABEL, buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
 import { createNavigationController, type TargetKind } from "navigation/navigationController";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
+import {
+	BUILT_IN_COLLECTIONS,
+	CODEX_CARD_BODY_ATTR,
+	CODEX_COLLECTION_ATTR,
+	CodexSelectionStore,
+	renderCodexTab,
+	type CodexCollection,
+} from "codex/codexTab";
+import { createNoteIndex, type CodexNoteIndex } from "codex/noteIndex";
 
 export type AnvilLayout = "codex" | "timeline" | "plotlines" | "kanban" | "plotgrid";
 
@@ -85,6 +94,12 @@ export interface AnvilViewOpts {
 	 * DEFAULT_EXCLUDED_FOLDERS so existing construction sites are unaffected.
 	 */
 	getExcludedFolders?: () => readonly string[];
+	/**
+	 * Reads the live Codex collection list (T4.1). Getter for the same reason as the
+	 * settings above — Phase 7's Library replaces the shipped defaults with store-backed
+	 * records and must not require a reopen. Defaults to `BUILT_IN_COLLECTIONS`.
+	 */
+	getCollections?: () => readonly CodexCollection[];
 }
 
 function isSwimlaneKey(v: unknown): v is SwimlaneKey {
@@ -97,6 +112,10 @@ export class AnvilView extends ItemView {
 	/** Swimlane grouping key, persisted per-scope (ADR-20). */
 	private readonly _swimKeyByScope = new Map<string, SwimlaneKey>();
 	private readonly _collapse = new CollapseStore();
+	/** Which Codex collection this Anvil is showing — survives follow re-renders (T4.1). */
+	private readonly _codexSelection = new CodexSelectionStore();
+	/** Vault-backed note index feeding the pure collection resolver. Built in onOpen. */
+	private _noteIndex: CodexNoteIndex | null = null;
 	private _scopeKey = "none";
 	private _bodyEl: HTMLElement | null = null;
 	private _toggleEl: HTMLElement | null = null;
@@ -110,6 +129,7 @@ export class AnvilView extends ItemView {
 	private readonly getLinkClickAction: () => "drill" | "open";
 	private readonly _drill: (file: TFile) => void;
 	private readonly getExcludedFolders: () => readonly string[];
+	private readonly getCollections: () => readonly CodexCollection[];
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
@@ -123,6 +143,7 @@ export class AnvilView extends ItemView {
 		// to observe inspection through the seam that exists for exactly this purpose.
 		this._drill = opts?.drill ?? ((): void => {});
 		this.getExcludedFolders = opts?.getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
+		this.getCollections = opts?.getCollections ?? ((): readonly CodexCollection[] => BUILT_IN_COLLECTIONS);
 		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
 	}
 
@@ -208,6 +229,10 @@ export class AnvilView extends ItemView {
 			announce: (msg): void => { this._announce(msg); },
 		});
 
+		// Note index for the Codex tab. Its metadataCache subscriptions go through
+		// this view's registerEvent, so unload releases them (CON-4).
+		this._noteIndex = createNoteIndex(this.app, (ref) => { this.registerEvent(ref); });
+
 		// One delegated click router on the persistent contentEl (survives body.empty()).
 		this.registerDomEvent(ce, "click", (e: MouseEvent) => {
 			this._onClick(e.target, e.metaKey || e.ctrlKey);
@@ -241,6 +266,8 @@ export class AnvilView extends ItemView {
 		this._handler?.destroy();
 		this._handler = null;
 		this._collapse.clear();
+		this._codexSelection.clear();
+		this._noteIndex = null;
 		this.contentEl.empty();
 	}
 
@@ -311,13 +338,7 @@ export class AnvilView extends ItemView {
 
 		switch (this._layout) {
 			case "codex":
-				// Placeholder empty state (T2.2). The real Codex collection grid + editor
-				// pane is Phase 4 (F3/F5) — this tab exists so the strip is complete and
-				// the layout union/persistence path are exercised now.
-				zoom.scaledEl.createDiv({
-					cls: "sf-cx-placeholder",
-					text: "Codex is coming soon.",
-				});
+				this._renderCodex(zoom.scaledEl);
 				break;
 			case "timeline":
 				this._renderTimeline(zoom.scaledEl, rows);
@@ -340,6 +361,21 @@ export class AnvilView extends ItemView {
 					"list",
 				);
 		}
+	}
+
+	/**
+	 * Codex layout: collection pills over the entry grid (T4.1, S91). The body
+	 * is shared with the Workbench; everything host-specific stays here — the
+	 * note index, the selection store and the click enactment.
+	 */
+	private _renderCodex(body: HTMLElement): void {
+		renderCodexTab(body, {
+			collections: this.getCollections(),
+			selection: this._codexSelection,
+			index: this._noteIndex?.notes() ?? [],
+			excludedFolders: this.getExcludedFolders(),
+			fileFor: (path): TFile | null => this._noteIndex?.fileFor(path) ?? null,
+		});
 	}
 
 	/** Timeline layout: rail or swimlane grid (read-only). `body` is `zoom.scaledEl`. */
@@ -423,23 +459,38 @@ export class AnvilView extends ItemView {
 
 	/**
 	 * ADR-28 / T2.5: classify the marker kind a single DOM node carries, if any.
-	 * Exactly the four attributes `_onClick` used to check via independent
-	 * `closest()` calls — data-sf-link ("name"); data-ws-layout, data-ws-tlmode
-	 * and data-sf-section-toggle (all "structuralControl", the Anvil's tab
-	 * strip / timeline sub-mode toggle / collapsible section headers). None of
-	 * these ever co-occur on the same node in the current markup.
+	 * data-sf-link is "name"; data-ws-layout, data-ws-tlmode, the Codex
+	 * collection pill and data-sf-section-toggle are all "structuralControl"
+	 * (the Anvil's tab strip / timeline sub-mode toggle / collection switcher /
+	 * collapsible section headers). None of these ever co-occur on the same
+	 * node in the current markup.
+	 *
+	 * T4.1 adds the Codex card body — the FIRST producer of "cardBody" in the
+	 * plugin; until now the kind was resolved and unit-tested in
+	 * `navigationController.ts` while no surface emitted it. It is a separate
+	 * element from the name it contains (never the same node), so the
+	 * name-over-card-body precedence AC falls out of the nearest-first walk
+	 * with no ranking anywhere — see `codexTab.ts`.
 	 */
 	private _markerKindOf(el: HTMLElement): TargetKind | null {
 		if (el.hasAttribute("data-sf-link")) return "name";
+		if (el.hasAttribute(CODEX_CARD_BODY_ATTR)) return "cardBody";
 		if (el.hasAttribute("data-ws-layout")) return "structuralControl";
 		if (el.hasAttribute("data-ws-tlmode")) return "structuralControl";
+		if (el.hasAttribute(CODEX_COLLECTION_ATTR)) return "structuralControl";
 		if (el.hasAttribute("data-sf-section-toggle")) return "structuralControl";
 		return null;
 	}
 
-	/** Resolve `nearest`'s `data-sf-link` (if any) to a `TFile`, mirroring the old lookup. */
+	/**
+	 * Resolve `nearest`'s target path to a `TFile`. A name carries it in
+	 * `data-sf-link`, a Codex card body in `data-sf-card-body` — one attribute
+	 * per element, so which one is present says nothing about precedence (the
+	 * walk already settled that); both name the same kind of thing.
+	 */
 	private _resolveLinkFile(nearest: HTMLElement | null): TFile | null {
-		const path = nearest?.getAttribute("data-sf-link");
+		const path =
+			nearest?.getAttribute("data-sf-link") ?? nearest?.getAttribute(CODEX_CARD_BODY_ATTR);
 		if (!path) return null;
 		const file =
 			this.app.vault.getAbstractFileByPath(path) ??
@@ -458,6 +509,13 @@ export class AnvilView extends ItemView {
 		const layout = nearest.getAttribute("data-ws-layout");
 		if (layout !== null) {
 			if (isAnvilTab(layout)) this.setLayout(layout);
+			return;
+		}
+
+		const collectionId = nearest.getAttribute(CODEX_COLLECTION_ATTR);
+		if (collectionId !== null) {
+			this._codexSelection.select(collectionId);
+			this._render();
 			return;
 		}
 

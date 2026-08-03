@@ -92,6 +92,15 @@ interface MockEventRef {
 	_emitter?: { off: (ref: MockEventRef) => void };
 }
 
+/**
+ * `EventRef` — the real module exports this (obsidian.d.ts:2800) as an opaque
+ * marker interface that `on()` returns and `registerEvent()` consumes. Any src
+ * module that names the type in a signature (e.g. a `registerEvent` seam) fails
+ * to compile against the mock without it, so it is exported here as an alias of
+ * the concrete shape the mock's emitters actually hand out.
+ */
+export type EventRef = MockEventRef;
+
 export class Component {
 	/**
 	 * Cleanup functions accumulated via the register* helpers. Running them
@@ -1376,14 +1385,40 @@ export function normalizePath(path: string): string {
 }
 
 /**
- * Realistic getAllTags implementation: reads cache.tags and returns the tag
- * strings (e.g. "#canon/character"). Returns null when cache has no tags.
+ * Realistic getAllTags implementation. obsidian.d.ts:3329 documents this as
+ * *"Combines all tags from frontmatter and note content into a single array"* —
+ * so it reads BOTH `cache.tags` (inline `#tags` in the body) and the
+ * frontmatter `tags` key, and returns every tag with a leading `#`.
+ *
+ * The frontmatter half matters: the whole seed vault tags its notes in
+ * frontmatter (`tags: [canon/character]`) and carries no inline tags at all,
+ * so a mock that read only `cache.tags` reported every seed note as untagged —
+ * a divergence from the real API that would let tag-driven code pass its tests
+ * while resolving nothing in a real vault.
+ *
+ * Frontmatter `tags` accepts what Obsidian accepts: a list, or a single
+ * comma/space-separated string. Non-string members are skipped rather than
+ * stringified. Returns null when the note has no tags from either source.
  * Tests can override via vi.mocked(getAllTags).mockReturnValue(...).
  */
 export const getAllTags = vi.fn(
 	(cache: CachedMetadata): string[] | null => {
-		if (!cache.tags || cache.tags.length === 0) return null;
-		return cache.tags.map((t) => t.tag);
+		const tags: string[] = (cache.tags ?? []).map((t) => t.tag);
+
+		const fmTags: unknown = cache.frontmatter?.["tags"];
+		const raw: unknown[] = Array.isArray(fmTags)
+			? fmTags
+			: typeof fmTags === "string"
+				? fmTags.split(/[,\s]+/)
+				: [];
+		for (const entry of raw) {
+			if (typeof entry !== "string") continue;
+			const trimmed = entry.trim();
+			if (trimmed === "") continue;
+			tags.push(trimmed.startsWith("#") ? trimmed : `#${trimmed}`);
+		}
+
+		return tags.length === 0 ? null : tags;
 	},
 );
 

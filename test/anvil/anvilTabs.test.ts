@@ -2,9 +2,14 @@
  * anvilTabs.test.ts — T2.2 (Phase 2: Anvil shell and navigation).
  *
  * Covers the tab strip's registry (order + labels, `anvilTabs.ts`) and, since a tab strip
- * only means something once it is rendered, the swap / hide / placeholder / persistence
- * behaviour through `AnvilView` — the same host the M5/M6 suites already exercise. No
- * existing M5/M6 assertion is touched here; this file is additive.
+ * only means something once it is rendered, the swap / hide / persistence behaviour through
+ * `AnvilView` — the same host the M5/M6 suites already exercise. No existing M5/M6 assertion
+ * is touched here; this file is additive.
+ *
+ * T4.1 note: the Codex assertions here used to key off the `.sf-cx-placeholder` stub. That
+ * stub is gone — the Codex tab now renders its real body — so they key off `.sf-cx` instead.
+ * What this file asserts is unchanged: the strip survives a tab swap and the Codex tab shows
+ * Codex content. The body's own behaviour lives in `test/codex/codexTab.test.ts`.
  *
  * @ref docs/mockups/anvil-workbench-codex.html — S91 (tab strip), S94 (Timeline-only controls)
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F1
@@ -83,22 +88,26 @@ describe("AnvilView — tab strip (T2.2)", () => {
 
 		view.setLayout("codex");
 		expect(view.contentEl.querySelector(".sf-ws-toggle")).not.toBeNull();
-		expect(body(view).querySelector(".sf-cx-placeholder")).not.toBeNull();
+		expect(body(view).querySelector(".sf-cx")).not.toBeNull();
 
 		click(view.contentEl.querySelector(`[data-ws-layout="timeline"]`));
 		expect(view.contentEl.querySelector(".sf-ws-toggle")).not.toBeNull();
-		expect(body(view).querySelector(".sf-cx-placeholder")).toBeNull();
+		expect(body(view).querySelector(".sf-cx")).toBeNull();
 	});
 
-	it("the codex tab renders a placeholder empty state and no management-tab content", async () => {
+	it("the codex tab renders the Codex body and no management-tab content", async () => {
+		// T4.1 replaced T2.2's "Codex is coming soon" placeholder with the real
+		// body (pills + grid). This fixture's vault holds one book note and no
+		// canon entities, so the grid shows the collection's empty state — which
+		// is still the Codex body, not a management tab.
 		const { app } = makeFixture();
 		const view = makeView(app);
 		await view.onOpen();
 
 		view.setLayout("codex");
-		const placeholder = body(view).querySelector(".sf-cx-placeholder");
-		expect(placeholder).not.toBeNull();
-		expect(placeholder?.textContent).not.toBe("");
+		const codex = body(view).querySelector(".sf-cx");
+		expect(codex).not.toBeNull();
+		expect(codex?.querySelector("[data-sf-collection]")).not.toBeNull();
 		expect(body(view).querySelector(".sf-tl-rail, .sf-kb-board, .sf-pg-table, .sf-section")).toBeNull();
 	});
 
@@ -131,6 +140,6 @@ describe("AnvilView — tab strip (T2.2)", () => {
 		pv._render();
 
 		expect(view.contentEl.querySelector(`.sf-ws-mode--sel[data-ws-layout="codex"]`)).not.toBeNull();
-		expect(body(view).querySelector(".sf-cx-placeholder")).not.toBeNull();
+		expect(body(view).querySelector(".sf-cx")).not.toBeNull();
 	});
 });

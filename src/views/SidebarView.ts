@@ -48,6 +48,7 @@ import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFields } from "../inspector/inspectorFields";
 import { createNavigationController, type TargetKind } from "../navigation/navigationController";
 import { walkTargetMarkers } from "../navigation/domTargetWalk";
+import { CODEX_CARD_BODY_ATTR } from "../codex/codexTab";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -701,28 +702,47 @@ export class SidebarView extends ItemView {
 
 	/**
 	 * ADR-28 / T2.5: classify the marker kind a single DOM node carries, if any.
-	 * Exactly the four attributes `_onBodyActivate` used to check via
-	 * independent `closest()` calls — data-sf-section-toggle, data-sf-plotline
-	 * (Navigator filter rows) and data-sf-nav (Back/Open-note chrome) are all
-	 * "structuralControl"; data-sf-link is "name". None of these ever co-occur
-	 * on the same node in the current markup.
+	 * data-sf-section-toggle, data-sf-plotline (Navigator filter rows) and
+	 * data-sf-nav (Back/Open-note chrome) are all "structuralControl";
+	 * data-sf-link is "name". None of these ever co-occur on the same node in
+	 * the current markup.
+	 *
+	 * T4.1 adds the Codex card body, because the Workbench is the *second* host
+	 * of that body (`codexTab.ts`, compact form) and the marker vocabulary
+	 * belongs to whichever surface renders the markup. It needs nothing else
+	 * here: `_onBodyActivate` already enacts inspect/open-note generically, so
+	 * a card body works the moment the body renders. The collection pill is
+	 * deliberately NOT listed — enacting it needs a selection store this view
+	 * does not have yet, and claiming a kind we cannot act on would only turn
+	 * "nothing happens" into a different flavour of nothing. It lands with the
+	 * Workbench's own Codex tab (Phase 7's surface binding).
+	 *
+	 * The card body and the name inside it are separate elements, so
+	 * name-over-card-body precedence comes from the nearest-first walk, not
+	 * from this list's order (ADR-28).
 	 */
 	private _markerKindOf(el: HTMLElement): TargetKind | null {
 		if (el.hasAttribute("data-sf-section-toggle")) return "structuralControl";
 		if (el.hasAttribute("data-sf-plotline")) return "structuralControl";
 		if (el.hasAttribute("data-sf-nav")) return "structuralControl";
 		if (el.hasAttribute("data-sf-link")) return "name";
+		if (el.hasAttribute(CODEX_CARD_BODY_ATTR)) return "cardBody";
 		return null;
 	}
 
 	/**
-	 * Resolve `nearest`'s `data-sf-link` (if any) to a `TFile`, mirroring the
-	 * old lookup. Relation/backlink links stamp a full vault path; fact-value
-	 * wikilinks (fix #5) stamp only the link TARGET text (a basename), so fall
-	 * back to getFirstLinkpathDest which resolves basenames the way Obsidian does.
+	 * Resolve `nearest`'s target path to a `TFile`. A name carries it in
+	 * `data-sf-link`, a Codex card body in `data-sf-card-body` — one attribute
+	 * per element, so which one is present says nothing about precedence (the
+	 * walk already settled that); both name the same kind of thing.
+	 *
+	 * Relation/backlink links stamp a full vault path; fact-value wikilinks
+	 * (fix #5) stamp only the link TARGET text (a basename), so fall back to
+	 * getFirstLinkpathDest which resolves basenames the way Obsidian does.
 	 */
 	private _resolveLinkFile(nearest: HTMLElement | null): TFile | null {
-		const path = nearest?.getAttribute("data-sf-link");
+		const path =
+			nearest?.getAttribute("data-sf-link") ?? nearest?.getAttribute(CODEX_CARD_BODY_ATTR);
 		if (!path) return null;
 		const sourcePath = this.subject.file?.path ?? "";
 		const file =

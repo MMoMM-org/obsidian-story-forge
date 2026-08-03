@@ -2696,3 +2696,108 @@ body {
 	min-width: 34px;
 	text-align: center;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Codex tab (spec 008, T4.1) — collection pills over the entry grid.
+ * Ported from mockup S91 (.cx-cats / .cx-grid / .hero), with Obsidian theme
+ * variables in place of the mockup's fixed palette. `sf-cx--compact` is the
+ * Workbench form (S95): same markup, one column, tighter spacing.
+ * The Cards that draw an entry are T4.2/T4.3; `.sf-cx-card` here is the
+ * marker-carrying shell they render into.
+ * ═════════════════════════════════════════════════════════════════════════ */
+.sf-cx-cats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.sf-cx-pill {
+	font-size: 11px;
+	padding: 3px 9px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 20px;
+	color: var(--text-muted);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.sf-cx-pill:hover {
+	background: var(--background-modifier-hover);
+}
+
+.sf-cx-pill--sel {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.sf-cx-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 10px;
+	padding: 12px;
+}
+
+.sf-cx--compact .sf-cx-grid {
+	grid-template-columns: 1fr;
+	gap: 4px;
+	padding: 6px 8px;
+}
+
+.sf-cx-card {
+	display: flex;
+	gap: 9px;
+	padding: 9px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	cursor: pointer;
+}
+
+.sf-cx--compact .sf-cx-card {
+	padding: 4px 6px;
+	border-radius: var(--radius-s);
+}
+
+.sf-cx-card:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Flex items default to min-width:auto, so a long name refuses to shrink and
+ * overflows the card. min-width:0 lets it shrink; ellipsis clips the rest. */
+.sf-cx-card-main {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+
+.sf-cx-name {
+	overflow: hidden;
+	color: var(--text-accent);
+	font-size: 12.5px;
+	font-weight: var(--font-semibold);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.sf-cx-card:hover .sf-cx-name {
+	text-decoration: underline;
+}
+
+.sf-cx-empty,
+.sf-cx-misconfigured {
+	grid-column: 1 / -1;
+	padding: 24px 12px;
+	color: var(--text-muted);
+	font-size: 12.5px;
+	text-align: center;
+}
+
+.sf-cx-misconfigured {
+	color: var(--text-error);
+}
