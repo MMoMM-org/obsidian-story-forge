@@ -273,6 +273,12 @@ function renderBody(grid: HTMLElement, active: CodexCollection, opts: CodexTabOp
 	}
 
 	const card = CODEX_CARD_REGISTRY.resolve(opts.cardId);
+	// Card-id-aware density (PRD/F4 — "shown at the density it deserves"): Hero
+	// keeps the multi-column card grid; Table and Compact are row-shaped (a
+	// flat line of cells/facts, `tableCard.ts`/`compactCard.ts`) and only read
+	// correctly full width, one per row — see `sf-cx-grid--table`/`--compact`
+	// in styles.css.
+	grid.classList.add(`sf-cx-grid--${card.id}`);
 	for (const note of resolution.notes) {
 		grid.appendChild(renderEntry(note, card, opts));
 	}

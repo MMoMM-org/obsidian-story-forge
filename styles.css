@@ -2748,6 +2748,21 @@ body {
 	padding: 6px 8px;
 }
 
+/*
+ * Card-id-aware density (T4.3 fix — PRD/F4's "shown at the density it
+ * deserves"). Hero draws a portrait-style tile and keeps the multi-column
+ * card grid above; Table and Compact both draw a flat ROW (name + cells/facts
+ * in a single line, `tableCard.ts`/`compactCard.ts`) and only read correctly
+ * full width, one entry per row — the same single-column shape
+ * `.sf-cx--compact` already uses for the Workbench's density, applied here to
+ * a *Card choice* instead of a *host* choice. The two compose: a Table card
+ * in the Workbench is still one column (compact's `1fr` already matches).
+ */
+.sf-cx-grid--table,
+.sf-cx-grid--compact {
+	grid-template-columns: 1fr;
+}
+
 .sf-cx-card {
 	display: flex;
 	gap: 9px;

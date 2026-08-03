@@ -11,27 +11,17 @@
 
 import { TFile, getAllTags, type App } from "obsidian";
 import {
-	isEntityKind,
+	classifyEntityKind,
 	type EntityKind,
 	type NoteContext,
 	type ResolvedEntity,
 } from "./NoteContext";
 import { buildBacklinks } from "./reverseIndex";
 
-// ---------------------------------------------------------------------------
-// Tag → EntityKind mapping (ADR-4)
-// ---------------------------------------------------------------------------
-
-/** Maps known tag prefixes/exact tags to EntityKind. Order matters: first match wins. */
-const TAG_MAP: ReadonlyArray<[string, EntityKind]> = [
-	["#canon/character", "character"],
-	["#canon/location", "location"],
-	["#canon/object", "object"],
-	["#canon/lore", "lore"],
-	["#manuscript/scene", "scene"],
-	["#planning/plotline", "plotline"],
-	["#planning/book", "book"],
-];
+/** Strip Obsidian's leading `#` so a raw metadataCache tag matches `classifyEntityKind`'s unprefixed vocabulary. */
+function stripLeadingHash(tag: string): string {
+	return tag.startsWith("#") ? tag.slice(1) : tag;
+}
 
 // ---------------------------------------------------------------------------
 // ScopingService
@@ -47,10 +37,11 @@ export class ScopingService {
 	/**
 	 * Classify a file's EntityKind.
 	 *
-	 * Strategy (ADR-4):
-	 * 1. Read tags from metadataCache; match against TAG_MAP (first match wins).
-	 * 2. Fall back to frontmatter `type` field if it's a valid EntityKind.
-	 * 3. Return "unknown" if neither yields a result.
+	 * Strategy (ADR-4): tag-first (metadataCache's tags carry Obsidian's `#`,
+	 * stripped before matching), then frontmatter `type` fallback. The mapping
+	 * itself — and this two-step strategy — lives once in
+	 * `classifyEntityKind` (`NoteContext.ts`), shared with Card classification
+	 * (`codex/cards/shared.ts`) so the two can't independently drift.
 	 *
 	 * Never throws; returns "unknown" when cache is null (pre-index).
 	 */
@@ -58,17 +49,8 @@ export class ScopingService {
 		const cache = this.app.metadataCache.getFileCache(file);
 		if (!cache) return "unknown";
 
-		// 1. Tag-first
-		const tags = getAllTags(cache) ?? [];
-		for (const [tag, kind] of TAG_MAP) {
-			if (tags.includes(tag)) return kind;
-		}
-
-		// 2. Frontmatter type fallback
-		const t: unknown = cache.frontmatter?.["type"];
-		if (isEntityKind(t)) return t;
-
-		return "unknown";
+		const tags = (getAllTags(cache) ?? []).map(stripLeadingHash);
+		return classifyEntityKind(tags, cache.frontmatter?.["type"]);
 	}
 
 	// -------------------------------------------------------------------------

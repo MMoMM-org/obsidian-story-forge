@@ -41,6 +41,51 @@ export function isEntityKind(value: unknown): value is EntityKind {
 }
 
 // ---------------------------------------------------------------------------
+// classifyEntityKind — the ONE tag→kind mapping (ADR-4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Tag → EntityKind. Order matters: first match wins. Unprefixed — the
+ * vocabulary `noteIndex.ts`/`collectionResolver.ts`/`CardEntry.field("tags")`
+ * already index and compare against (no leading `#`). `ScopingService`, whose
+ * raw `metadataCache` tags carry the `#`, strips it before calling
+ * `classifyEntityKind` rather than this map growing a second, prefixed copy.
+ *
+ * This is the single source of truth for the mapping (previously duplicated
+ * in `ScopingService.ts` and, independently and incompletely, in
+ * `codex/cards/shared.ts` — the two had already drifted: the Card copy had no
+ * `type`-fallback, so a note classifiable only via frontmatter `type` got
+ * "unknown" from one and its real kind from the other).
+ */
+const TAG_KIND_MAP: ReadonlyArray<readonly [string, EntityKind]> = [
+	["canon/character", "character"],
+	["canon/location", "location"],
+	["canon/object", "object"],
+	["canon/lore", "lore"],
+	["manuscript/scene", "scene"],
+	["planning/plotline", "plotline"],
+	["planning/book", "book"],
+];
+
+/**
+ * Classify an `EntityKind` from a note's own (unprefixed) tags, falling back
+ * to a frontmatter `type` field when no tag matches (ADR-4). Pure — no `App`,
+ * no Obsidian classes — so both `ScopingService.classify` (tags from
+ * `metadataCache`, `#`-stripped) and a Card's own classification
+ * (`codex/cards/shared.ts`, tags already unprefixed via `CardEntry`) key off
+ * this one function rather than restating the mapping.
+ *
+ * Never throws; returns `"unknown"` when neither tags nor `type` resolve.
+ */
+export function classifyEntityKind(tags: readonly string[], type?: unknown): EntityKind {
+	for (const [tag, kind] of TAG_KIND_MAP) {
+		if (tags.includes(tag)) return kind;
+	}
+	if (isEntityKind(type)) return type;
+	return "unknown";
+}
+
+// ---------------------------------------------------------------------------
 // ResolvedEntity
 // ---------------------------------------------------------------------------
 

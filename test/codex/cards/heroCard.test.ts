@@ -91,6 +91,21 @@ describe("heroCard [PRD/F4]", () => {
 		expect(el.querySelector(`[data-sf-link="${PATH}"]`)?.textContent).toBe("Mara Stoneway");
 	});
 
+	it("classifies via frontmatter `type` when no tag matches (parity with ScopingService.classify, ADR-4)", () => {
+		// No "canon/*" tag at all — only classifiable through the `type` fallback,
+		// exactly as `ScopingService.classify` already does for the panel. Before
+		// the fix this note read as "unknown" here (Card classification had no
+		// type-fallback) while ScopingService correctly resolved "location" —
+		// the two classifiers disagreeing on the same note.
+		const el = render(getEntry({ type: "location", locationType: "harbour" }, LOCATION_PATH));
+
+		expect(el.querySelector(".sf-imgtile--loc")).not.toBeNull();
+		const typeFact = Array.from(el.querySelectorAll(".sf-cx-fact")).find(
+			(f) => f.querySelector("b")?.textContent === "type",
+		);
+		expect(typeFact?.querySelector(".sf-cx-fact-v")?.textContent).toBe("harbour");
+	});
+
 	it("shows key facts for a classified kind, labelled and valued", () => {
 		const el = render(
 			getEntry({

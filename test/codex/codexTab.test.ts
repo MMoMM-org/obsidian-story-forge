@@ -380,7 +380,7 @@ describe("Codex tab: built-in Cards render through the real AnvilView [PRD/F4]",
 // ---------------------------------------------------------------------------
 
 describe("renderCodexTab: the shared body", () => {
-	function render(compact: boolean): HTMLElement {
+	function render(compact: boolean, cardId?: string): HTMLElement {
 		const container = document.createElement("div");
 		renderCodexTab(container, {
 			collections: BUILT_IN_COLLECTIONS,
@@ -389,9 +389,29 @@ describe("renderCodexTab: the shared body", () => {
 			excludedFolders: ["00 Meta"],
 			fileFor: (): TFile | null => null,
 			compact,
+			...(cardId !== undefined ? { cardId } : {}),
 		});
 		return container;
 	}
+
+	it("marks the grid with the selected Card's id (T4.3 fix — density per Card, PRD/F4)", () => {
+		const heroGrid = render(false).querySelector(".sf-cx-grid");
+		const tableGrid = render(false, "table").querySelector(".sf-cx-grid");
+		const compactCardGrid = render(false, "compact").querySelector(".sf-cx-grid");
+
+		// Hero is the registry default (T4.2) — no explicit cardId still yields
+		// the hero grid class, not a bare unmarked one.
+		expect(heroGrid?.classList.contains("sf-cx-grid--hero")).toBe(true);
+		expect(tableGrid?.classList.contains("sf-cx-grid--table")).toBe(true);
+		expect(compactCardGrid?.classList.contains("sf-cx-grid--compact")).toBe(true);
+
+		// Each grid carries exactly one card-id class — never a stale one from
+		// a prior render, and never more than one at a time.
+		for (const grid of [heroGrid, tableGrid, compactCardGrid]) {
+			const cardIdClasses = Array.from(grid?.classList ?? []).filter((c) => c.startsWith("sf-cx-grid--"));
+			expect(cardIdClasses).toHaveLength(1);
+		}
+	});
 
 	it("renders the Workbench's compact form from the same markup", () => {
 		const compact = render(true);

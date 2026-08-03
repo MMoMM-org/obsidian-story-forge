@@ -8,9 +8,14 @@
  * grid: "a whole column of markings is self-explanatory"). So a built-in Card
  * that wants the same per-kind fact/relation lists the panel renderers use
  * (`panel/kindFields.ts`) has to classify the entry's kind from the one thing
- * it *can* read — its own `tags` property — rather than being told. That is
- * `entryKind` below: a direct, explicit tag match (the note already carries
- * the tag its collection selected it by), not a heuristic guess.
+ * it *can* read — its own `tags` (and `type`) properties — rather than being
+ * told. That is `entryKind` below: a thin adapter onto
+ * `scoping/NoteContext.ts`'s `classifyEntityKind`, the ONE tag→kind mapping
+ * (ADR-4) — not a second copy of it. A second copy is exactly what this file
+ * shipped with originally, and it had already drifted from
+ * `ScopingService.classify`: this file's copy had no `type`-field fallback,
+ * so a note classifiable only via frontmatter `type` classified as
+ * `"unknown"` here while `ScopingService` correctly resolved its real kind.
  *
  * `missBadge` is the other shared piece: the PRD/F4 "absent property" marking
  * (mockup `.miss`, S91/S97/S104) — a red tint plus a visible label plus a
@@ -25,46 +30,33 @@
  * @ref docs/mockups/anvil-workbench-codex.html — S91, S97, S104
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F4
  * @ref src/panel/kindFields.ts — the per-kind fact/relation lists reused here
- * @ref src/scoping/ScopingService.ts — TAG_MAP (ADR-4), restated below without
- *      a leading `#`: a Card only ever sees `CardEntry.field("tags")`, which
- *      is already normalized the way `noteIndex.ts` indexes it.
+ * @ref src/scoping/NoteContext.ts — classifyEntityKind, the single source of
+ *      truth for the tag→kind mapping (ADR-4), shared with ScopingService
  */
 
 import type { CardEntry } from "codex/cardRegistry";
 import { humanizeFieldLabel } from "panel/components";
-import type { EntityKind } from "scoping/NoteContext";
+import { classifyEntityKind, type EntityKind } from "scoping/NoteContext";
 
 declare const activeDocument: Document;
 
 // ---------------------------------------------------------------------------
-// entryKind — classify from the entry's own tags
+// entryKind — classify from the entry's own tags (+ type fallback)
 // ---------------------------------------------------------------------------
 
-/** Tag → EntityKind. Order matters: first match wins (mirrors ScopingService.TAG_MAP). */
-const TAG_KIND: ReadonlyArray<readonly [string, EntityKind]> = [
-	["canon/character", "character"],
-	["canon/location", "location"],
-	["canon/object", "object"],
-	["canon/lore", "lore"],
-	["manuscript/scene", "scene"],
-	["planning/plotline", "plotline"],
-	["planning/book", "book"],
-];
-
 /**
- * Classify an entry's `EntityKind` from its own `tags` property.
+ * Classify an entry's `EntityKind` from its own `tags` property, falling back
+ * to a `type` property the same way `ScopingService.classify` does (ADR-4) —
+ * both key off `classifyEntityKind`, so the two cannot independently drift.
  *
- * A tag none of the built-in collections use (a user's own collection, e.g.
- * `canon/creature`) classifies as `"unknown"` — for which `kindFields`
- * returns empty fact/relation lists, so a Card degrades to image + name
- * rather than marking a wall of fields that were never going to apply.
+ * A tag (and `type`) none of the built-in collections use (a user's own
+ * collection, e.g. `canon/creature`) classifies as `"unknown"` — for which
+ * `kindFields` returns empty fact/relation lists, so a Card degrades to
+ * image + name rather than marking a wall of fields that were never going
+ * to apply.
  */
 export function entryKind(entry: CardEntry): EntityKind {
-	const tags = entry.field("tags").items;
-	for (const [tag, kind] of TAG_KIND) {
-		if (tags.includes(tag)) return kind;
-	}
-	return "unknown";
+	return classifyEntityKind(entry.field("tags").items, entry.field("type").text);
 }
 
 // ---------------------------------------------------------------------------
