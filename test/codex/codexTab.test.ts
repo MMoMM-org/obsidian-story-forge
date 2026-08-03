@@ -362,10 +362,10 @@ describe("Codex tab: built-in Cards render through the real AnvilView [PRD/F4]",
 		const card = cardFor(view, mara);
 
 		expect(card.classList.contains("sf-cx-hero")).toBe(true);
-		const roleFact = Array.from(card.querySelectorAll(".sf-cx-fact")).find(
-			(f) => f.querySelector("b")?.textContent === "role",
-		);
-		expect(roleFact?.querySelector(".sf-cx-fact-v")?.textContent).toBe("protagonist");
+		// role is character's first fact — S91's facts line (.sf-cx-hero-facts)
+		// shows it first, unlabelled.
+		const factsLine = card.querySelector(".sf-cx-hero-facts");
+		expect(factsLine?.querySelector(".sf-cx-hero-fact-v")?.textContent).toBe("protagonist");
 	});
 
 	function cardFor(view: AnvilView, file: TFile): HTMLElement {

@@ -2834,7 +2834,27 @@ body {
 	flex: 1;
 }
 
-.sf-cx-hero-facts,
+/*
+ * S91's `.hf`: ONE middot-joined line, plain (unlabelled) text — mirrors the
+ * mockup's plain `.hf` div. No flex/wrap needed: `.sf-cx-hero-fact-v` spans
+ * and `.sf-cx-miss` (already `inline-flex`) flow inline like ordinary text.
+ */
+.sf-cx-hero-facts {
+	margin-top: 2px;
+	color: var(--text-muted);
+	font-size: 10.5px;
+}
+
+.sf-cx-hero-dot {
+	margin: 0 3px;
+	color: var(--text-faint);
+}
+
+.sf-cx-hero-fact-v {
+	color: var(--text-muted);
+}
+
+/* S91's `.hp`: one flex-wrap pill row — the same slot for a fact-as-list (occupation) or a genuine relation. */
 .sf-cx-hero-pills {
 	display: flex;
 	flex-wrap: wrap;
@@ -2842,7 +2862,7 @@ body {
 	margin-top: 2px;
 }
 
-/* --- Facts (Hero, Table, Compact share this "label value" chip) --- */
+/* --- Facts (Table, Compact share this "label value" chip) --- */
 .sf-cx-fact {
 	display: flex;
 	gap: 4px;

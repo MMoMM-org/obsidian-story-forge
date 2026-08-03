@@ -138,12 +138,19 @@ export function fieldChip(entry: CardEntry, fieldId: string): HTMLElement {
 }
 
 /**
- * Render a relation as pills — one per linked entity — or a single
- * `missBadge` when the relation field itself is absent. An empty-but-present
- * relation (`[]`, or a blank string) renders as no pills at all: nothing to
- * list is the normal rendering of "blank" for a list field.
+ * Render a field's `.items` as pills — one per entry — or a single
+ * `missBadge` when the field itself is absent. Deliberately generic over
+ * *any* field id, not only a relation: S91's `.hp` pill row is **one slot**
+ * that holds either a genuine relation (`allies`, one pill per linked entity)
+ * or a scalar fact folded in beside them (`occupation`, one pill, since
+ * `CardField.items` already reduces a scalar to a single-element list) — the
+ * mockup draws no visual distinction between the two, so this function
+ * doesn't either (see `heroCard.ts`'s pill row, which mixes both).
+ *
+ * An empty-but-present field (`[]`, or a blank string) renders as no pills at
+ * all: nothing to list is the normal rendering of "blank" for a list field.
  */
-export function relationPills(entry: CardEntry, fieldId: string): HTMLElement[] {
+export function entryPills(entry: CardEntry, fieldId: string): HTMLElement[] {
 	const field = entry.field(fieldId);
 	if (!field.present) return [missBadge(fieldId)];
 
