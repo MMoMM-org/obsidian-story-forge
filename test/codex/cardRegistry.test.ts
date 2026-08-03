@@ -22,7 +22,8 @@
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F4
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { App, createMockTFile } from "../__mocks__/obsidian";
 import {
 	basesCardEntry,
 	createCardRegistry,
@@ -32,6 +33,7 @@ import {
 	type CardRenderDeps,
 	type CardRenderer,
 } from "codex/cardRegistry";
+import { createAssetResolver } from "panel/assetResolver";
 
 // ---------------------------------------------------------------------------
 // Fixtures — one note, expressed the way each backend delivers it
@@ -83,6 +85,9 @@ function getDeps(overrides?: Partial<CardRenderDeps>): CardRenderDeps {
 			node.textContent = entry.name;
 			return node;
 		},
+		// Identity, as the panel renderer suites already stub it. The asset
+		// tests below replace it with the *real* resolver over a mock vault.
+		resolveAsset: (raw: string): string => raw,
 		...overrides,
 	};
 }
@@ -124,6 +129,32 @@ const occupationCard: CardRenderer = {
 		fact.setAttribute("data-present", String(field.present));
 		fact.setAttribute("data-items", String(field.items.length));
 		el.appendChild(fact);
+		el.appendChild(deps.nameEl(entry));
+	},
+};
+
+/**
+ * Hero's image-or-monogram shape, reduced to the seam it depends on: a Card
+ * receives a raw frontmatter path (`schema/character.json`'s `portrait` is a
+ * plain string) and must never reach into `App`/`Vault` to make it renderable.
+ */
+const portraitCard: CardRenderer = {
+	id: "portrait",
+	label: "Portrait",
+	render(entry, el, deps): void {
+		const src = deps.resolveAsset(entry.field("portrait").text);
+		if (src) {
+			const img = document.createElement("img");
+			// setAttribute, not `.src` — jsdom rewrites the property against the
+			// document base URL, which would hide what the seam actually returned.
+			img.setAttribute("src", src);
+			el.appendChild(img);
+		} else {
+			const monogram = document.createElement("span");
+			monogram.className = "mono";
+			monogram.textContent = entry.name.slice(0, 1);
+			el.appendChild(monogram);
+		}
 		el.appendChild(deps.nameEl(entry));
 	},
 };
@@ -193,6 +224,79 @@ describe("card entry adapters", () => {
 			expect(attributeValues(el)).not.toContain("undefined");
 			expect(el.querySelector(".fact")?.getAttribute("data-present")).toBe("false");
 			expect(el.querySelector(".fact")?.getAttribute("data-items")).toBe("0");
+		}
+	});
+});
+
+describe("card asset resolution", () => {
+	/**
+	 * Renders through the **real** resolver the panel host uses, over a mock
+	 * vault. Stubbing it here would prove only that the seam is callable; the
+	 * point of sharing one implementation is that the two surfaces cannot
+	 * diverge on image handling, and only the real function shows that.
+	 */
+	function renderWithVault(entry: CardEntry, app: App): HTMLElement {
+		const el = document.createElement("div");
+		portraitCard.render(entry, el, getDeps({ resolveAsset: createAssetResolver(app, entry.path) }));
+		return el;
+	}
+
+	function imageSrc(el: HTMLElement): string | null {
+		return el.querySelector("img")?.getAttribute("src") ?? null;
+	}
+
+	it("passes a protocol URL through untouched", () => {
+		const app = new App();
+		const url = "https://example.com/mara.png";
+		const el = renderWithVault(getNativeEntry({ portrait: url }), app);
+
+		expect(imageSrc(el)).toBe(url);
+		// A URL is not a vault lookup — this guards the early return, which the
+		// returned value alone cannot (an absent file also comes back unchanged).
+		expect(vi.mocked(app.vault.getAbstractFileByPath)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.metadataCache.getFirstLinkpathDest)).not.toHaveBeenCalled();
+	});
+
+	it("resolves a vault-relative path to its resource URL", () => {
+		const app = new App();
+		const asset = createMockTFile({ path: "95 Assets/mara.png", basename: "mara" });
+		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(
+			asset as unknown as ReturnType<typeof app.vault.getAbstractFileByPath>,
+		);
+
+		const el = renderWithVault(getNativeEntry({ portrait: "95 Assets/mara.png" }), app);
+
+		expect(imageSrc(el)).toBe("app://vault/95 Assets/mara.png");
+	});
+
+	it("resolves a bare file name through the vault's own link resolution", () => {
+		const app = new App();
+		const asset = createMockTFile({ path: "95 Assets/mara.png", basename: "mara" });
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValue(
+			asset as unknown as ReturnType<typeof app.metadataCache.getFirstLinkpathDest>,
+		);
+
+		const el = renderWithVault(getNativeEntry({ portrait: "mara.png" }), app);
+
+		expect(imageSrc(el)).toBe("app://vault/95 Assets/mara.png");
+		// Resolution is relative to the entry's own note, as a wikilink would be.
+		expect(vi.mocked(app.metadataCache.getFirstLinkpathDest)).toHaveBeenCalledWith("mara.png", PATH);
+	});
+
+	it("returns an unresolvable path unchanged rather than blanking the image", () => {
+		const el = renderWithVault(getNativeEntry({ portrait: "95 Assets/gone.png" }), new App());
+
+		expect(imageSrc(el)).toBe("95 Assets/gone.png");
+	});
+
+	it("falls back to the monogram when the note carries no image", () => {
+		for (const portrait of [undefined, "", "   "]) {
+			const frontmatter = portrait === undefined ? {} : { portrait };
+			const el = renderWithVault(nativeCardEntry(PATH, frontmatter), new App());
+
+			expect(el.querySelector("img")).toBeNull();
+			expect(el.querySelector(".mono")?.textContent).toBe("M");
+			expect(el.textContent).not.toContain("undefined");
 		}
 	});
 });

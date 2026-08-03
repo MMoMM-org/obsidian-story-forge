@@ -13,10 +13,10 @@
  */
 
 import type { App } from "obsidian";
-import { TFile } from "obsidian";
 import type { NoteContext } from "scoping/NoteContext";
 import type { ViewRecord } from "store/types";
 import type { QueryEngine } from "engines/QueryEngine";
+import { createAssetResolver } from "panel/assetResolver";
 import { renderPanel } from "panel/renderPanel";
 import type { PanelDeps } from "panel/renderPanel";
 
@@ -82,24 +82,10 @@ export class NativeScopingEngine implements QueryEngine {
 				this.collapsed[sectionId] = !this.collapsed[sectionId];
 				this._reRender(el, ctx);
 			},
-			resolveAsset: (src: string): string => {
-				if (!src.trim()) return "";
-				if (/^(https?:|data:|app:|blob:)/.test(src)) return src;
-
-				// Try direct vault path first
-				const byPath = this.app.vault.getAbstractFileByPath(src);
-				if (byPath instanceof TFile) {
-					return this.app.vault.getResourcePath(byPath);
-				}
-
-				// Fall back to wikilink resolution
-				const byLink = this.app.metadataCache.getFirstLinkpathDest(src, ctx.activeFile.path);
-				if (byLink) {
-					return this.app.vault.getResourcePath(byLink);
-				}
-
-				return src;
-			},
+			// Shared with the Codex Cards (src/panel/assetResolver.ts): both draw the
+			// same frontmatter image field, so both must answer "vault path or URL?"
+			// the same way.
+			resolveAsset: createAssetResolver(this.app, ctx.activeFile.path),
 		};
 		return deps;
 	}

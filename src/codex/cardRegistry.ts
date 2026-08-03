@@ -100,6 +100,20 @@ export interface CardRenderDeps {
 	readonly compact: boolean;
 	/** Build the entry's name element, already carrying the host's `name` marker. */
 	nameEl(entry: CardEntry): HTMLElement;
+	/**
+	 * Turn a raw frontmatter image path into something an `<img src>` can use.
+	 *
+	 * `portrait` and `image` arrive as plain path strings, while `portraitTile` /
+	 * `imageTile` take an already-resolved URL — and resolving needs the vault. A
+	 * Card reaching for `App` to close that gap would break the same seam
+	 * discipline `nameEl` exists to enforce, so the host injects the resolver.
+	 *
+	 * Total, and identical to `PanelDeps.resolveAsset` because it *is* that
+	 * function (`panel/assetResolver.ts`): empty input yields `""` so the Card can
+	 * draw its monogram fallback, protocol URLs pass through, vault paths resolve,
+	 * and an unresolvable path comes back unchanged.
+	 */
+	resolveAsset(raw: string): string;
 }
 
 /**
@@ -227,6 +241,10 @@ export interface BasesEntryLike {
  * belongs to the Bases seam (T4.5), which holds an `App` and can decide
  * presence from `metadataCache` while still taking the display form from
  * `Value`. Recorded rather than silently absorbed.
+ *
+ * The comma-split documented on `CardField.items` has the same single cause:
+ * `toString()` is the only window this API gives onto a value, so both its
+ * structure and its absence have to be inferred from the display form.
  *
  * Never hold the returned entry across an `onDataUpdated`: the Bases runtime
  * recreates every `BasesEntry`, so a retained adapter is a stale reference
