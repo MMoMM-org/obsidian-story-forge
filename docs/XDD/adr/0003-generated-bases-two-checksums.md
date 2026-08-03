@@ -86,6 +86,13 @@ instance-checksum mismatch.*
 - **Migration:** existing installs hold a `bases` ViewRecord with `source` = YAML and a single
   `okayed.checksum`. They must be converted to the new record shape, or dropped and re-installed from
   the catalog.
+  > **Revised 2026-08-02 — no migration ships.** This consequence was discharged by *not* needing it.
+  > Spec 008's T3.2 built the conversion, reviewed it twice, then reverted it (`1759be7`) once it was
+  > confirmed that **no such record exists in any vault**: the only install is the test vault, whose
+  > `data.json` holds two Dataview imports and no `bases` record at all. `CatalogService` now persists
+  > the new shape at install time (T3.3), so there is nothing to convert *from*. If a pre-ADR-0003
+  > install is ever discovered, "dropped and re-installed from the catalog" is the remaining option.
+  > See spec 008's decision log, 2026-08-02.
 - **The instance check costs a file read per evaluate.** Acceptable at Codex scale; compare `mtime`
   first if it ever is not.
 

@@ -45,6 +45,23 @@ Closes the gap that started this whole spec: the distribution machinery served f
   4. Validate: unit tests; lint (sentence-case UI text); types.
   5. Success:
      - [ ] Provenance governs what may be removed `[ref: SDD/AC — PRD F7]`
+     - [ ] A `kind:"collection"` record bound to a surface **renders**, rather than feeding a vault
+           path to the YAML renderer — see the gate below
+
+  > **GATE — inherited from Phase 3 (T3.3, assigned here 2026-08-02).** This is the task that first
+  > makes a `kind:"collection"` record reachable by a surface, and it must not ship until the
+  > dispatch gap is closed. **`src/engines/BasesFenceEngine.ts:27` reads `record.source` as raw
+  > `.base` YAML** — true only for `kind:"view"` records. Since T3.3, a collection record's `source`
+  > is a vault **path**, and engine dispatch (`src/views/SidebarView.ts` ~l.1369,
+  > `EngineRegistry.get(view.engine)`) branches on **`engine` alone, never on `kind`** — so nothing
+  > stops a path being handed to the YAML parser. It is unreachable today only because no surface
+  > binds a collection; **the per-entry toggles in step 2 are exactly what makes it reachable.**
+  > Fix by branching dispatch on `kind` (or reading the vault file for records carrying `generated`),
+  > and add a test that a bound collection renders. The hazard is commented at
+  > `BasesFenceEngine.ts:12-24` and `CatalogService.ts:31-40`.
+  > *Recorded here because the Phase 3 close-out found this gap claimed an owner it had never been
+  > given — the same "green suite standing in for a working path" failure the 2026-07-31 decision-log
+  > entry warns about.*
 
 - [ ] **T7.2 Engine coverage — import a `.base`, ship a curated Dataview view** `[activity: backend-api]`
 

@@ -143,7 +143,7 @@ graph LR
 
 - [x] [Phase 1: Pure models](phase-1.md)
 - [x] [Phase 2: Anvil shell and navigation](phase-2.md)
-- [ ] [Phase 3: Store, settings and the artifact model](phase-3.md)
+- [x] [Phase 3: Store, settings and the artifact model](phase-3.md)
 - [ ] [Phase 4: The Codex grid and Cards](phase-4.md)
 - [ ] [Phase 5: The editor pane](phase-5.md)
 - [ ] [Phase 6: Deriving away the hardcoded field lists](phase-6.md)

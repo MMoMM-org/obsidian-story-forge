@@ -1001,7 +1001,17 @@ Not applicable — single component.
     Nuance accepted deliberately: if that file was edited before the upgrade, its current content
     becomes the baseline — which is correct here, because that file is the one actually rendered.
     `applyDefaults` stays fail-closed.
-  - User confirmed: **Yes** (2026-07-28)
+  - **Revised 2026-08-02 — the migration half is withdrawn; the `kind` discriminant is not.**
+    T3.2 built the silent migration, it survived two review rounds, and it was then **reverted**
+    (`1759be7`) once the premise was checked: **no legacy `bases` record exists in any vault.** The
+    only install is the test vault, whose `data.json` holds two Dataview imports and no `bases`
+    record. The migration was load-bearing only by accident — `CatalogService` still wrote the old
+    shape, so it fired on records it had itself just written, which is what broke the duplicate-install
+    check. **T3.3 makes the install persist the ADR-35 shape directly, so there is nothing to migrate
+    from.** What stands from this ADR: the `kind` discriminant, `applyDefaults` defaulting legacy
+    records to `"view"`, and fail-closed parsing — all shipped in T3.1. What does not: any conversion
+    of `source` from YAML to a path on load. See the decision log, 2026-08-02.
+  - User confirmed: **Yes** (2026-07-28); descope confirmed **Yes** (2026-08-02)
 
 - [x] **ADR-30 — One `CardRenderer` contract, two backends.** A Card is registered both as a Bases
       view type and as a native renderer; the Codex picks the backend by availability.

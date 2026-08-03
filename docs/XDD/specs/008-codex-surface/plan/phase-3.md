@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Store, settings and the artifact model"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 3
 ---
@@ -111,7 +111,23 @@ consent gate from policing the user's own settings.
      - [ ] Editing the rendered file is detected `[ref: SDD/Known Technical Issues]`
      - [ ] Exactly one copy of the YAML exists `[ref: SDD/ADR-35]`
 
-- [ ] **T3.4 Consent gate: generated artifacts are not consented imports** `[activity: backend-api]`
+- [x] **T3.4 Consent gate: generated artifacts are not consented imports** `[activity: backend-api]`
+
+  > **`classify` → `ConsentDecision` mapping, decided 2026-08-02.** `ConsentDecision` gained no new
+  > member: `clean` / `regenerate` / `ask` → `consented`; `reconsent` → `drift{reason:"checksum"}`.
+  > **`ask` maps to `consented`** because the gate decides *render* permission, not *overwrite*
+  > permission — ADR-0003's "ask the user; offer regenerate" is a regeneration-path concern, and the
+  > signed-off mockup (`anvil-workbench-codex.html:1152-1161`) describes that prompt in prose but
+  > draws **no UI state** for it, so building it here would breach CON-10. **The ask prompt belongs
+  > to Phase 7**, alongside the regeneration path it guards.
+  >
+  > Two seams were added to `ConsentGate` — `getCurrentSourceChecksum(record)` and
+  > `getCurrentParams()` — both **required**, deliberately: defaulting them let a call site compile
+  > without wiring and silently classify as `regenerate`, which already made a `catalog-e2e` test
+  > assert `clean` while exercising `regenerate`. Once T7.3 wires regeneration to that same state, a
+  > forgotten seam would overwrite a user's file. A `null` upstream checksum compares as unchanged
+  > ("cannot tell, do not nag") and can never produce drift. Both seams are **placeholders in
+  > `main.ts`** until T3.5 (params) and T7.3 (template checksum).
 
   1. Prime: Read `ConsentGate.evaluate` decision order (l.84–140) and `[ref: ADR-0003 §Context]` —
      the collision that makes the naive approach unusable.
@@ -125,7 +141,28 @@ consent gate from policing the user's own settings.
      - [ ] Settings changes never request consent `[ref: SDD/AC — PRD F3]`
      - [ ] Imported content keeps its existing protection `[ref: ADR-0003 §Consequences]`
 
-- [ ] **T3.5 Settings fields** `[activity: frontend-ui]`
+- [x] **T3.5 Settings fields** `[activity: frontend-ui]`
+
+  > **Two scope decisions, 2026-08-03 (user).**
+  >
+  > 1. **`excludedFolders` is wired through, not just stored.** `src/scoping/workspaceScope.ts`
+  >    hardcoded `DEFAULT_EXCLUDED_FOLDERS = ["00 Meta"]`, self-described as *"the placeholder for the
+  >    future `excludedFolders` settings picker"*. `resolveWorkspaceScope` and `resolvePlotlineScope`
+  >    now take the list as a parameter, threaded from settings through a `getExcludedFolders` seam on
+  >    `AnvilView` and `SidebarView` (mirroring `getLinkClickAction`, read per call so a change needs
+  >    no reload). The shipped default is unchanged, and tests pin implicit-call == explicit-default so
+  >    only a user who edits the setting sees a difference. This closes the long-deferred
+  >    folder-exclusion debt. The literal now lives in `src/types/index.ts` — `workspaceScope`
+  >    re-exports it — so the settings model keeps **zero framework dependency**.
+  > 2. **No tag field ships here.** F3's *"both its tag and its excluded folders are editable"* is
+  >    satisfied by **Phase 7**'s per-entry Library UI, per the 2026-08-02 decision that per-collection
+  >    tag editing belongs there. Recorded so T3.6's drift check does not read it as a dropped
+  >    criterion. `cardByCollection` and `dismissedHints` are likewise **not** in this task despite
+  >    appearing in the SDD's Data Storage Changes — they belong to Phase 4 and F8.
+  >
+  > `main.ts`'s `collectionParams` stays a placeholder: no collection record can exist yet
+  > (`catalog/` ships zero entries), and install-time and classify-time params must keep reading one
+  > shared value or a spurious `regenerate` results. Wiring it is Phase 7's.
 
   1. Prime: Read `src/types/index.ts` and `src/settings/SettingsTab.ts`;
      `[ref: SDD/Data Storage Changes]`.
@@ -157,8 +194,28 @@ consent gate from policing the user's own settings.
   >    It needs surface-neutral wording. *(The string itself is being corrected separately; recorded
   >    here so the requirement is not lost, and so this task verifies rather than re-fixes it.)*
 
-- [ ] **T3.6 Phase Validation** `[activity: validate]`
+- [x] **T3.6 Phase Validation** `[activity: validate]`
 
   - Run all Phase 3 tests plus the full suite — the consent and catalog paths are load-bearing for
     M4 features that must not regress. Verify with a hand-built legacy `data.json` fixture that an
     existing install migrates silently. `npm test`, `npm run lint`, `npm run typecheck` green.
+
+  > **Closed 2026-08-03.** All eight gates green: `npm test` (108 files, 1992 tests, **0 skipped**),
+  > `lint`, `typecheck`, `typecheck:test`, `typecheck:mock`, `schema:check` (PASS, 0 errors), `build`.
+  > No `CONSTITUTION.md` exists, so that check does not apply.
+  >
+  > **The legacy-fixture check found a real defect and is why this gate exists.** The *migration* half
+  > of the criterion is moot (T3.2 descoped), but the underlying question was live and unverified:
+  > Phase 3 changed both persisted shapes, so a pre-Phase-3 `data.json` had to be proven to load
+  > without loss. `test/integration/phase-3-upgrade.test.ts` — built from the live test vault's actual
+  > `data.json` — caught that `loadSettings()`'s `Object.assign({}, DEFAULT_SETTINGS, stored)` copies
+  > **every** persisted key, so `exampleSetting` rode back onto `plugin.settings` on upgrade and the
+  > next save wrote it to disk. **G17 was reopening for exactly the upgrading users T3.5's removal was
+  > meant to fix.** Fixed in `0d0ec52` by a `normalizeSettings(raw)` allow-list in `src/types/index.ts`
+  > that returns a typed literal, so adding a sixth field without normalizing it is a **compile error**.
+  >
+  > **Drift check: clean apart from the recorded descopes**, plus two documentation-drift findings,
+  > both fixed here rather than deferred: ADR-29 (`solution.md`) and ADR-0003's Migration consequence
+  > still described the withdrawn migration as decided — both now carry a *Revised 2026-08-02* note;
+  > and T3.3's `BasesFenceEngine` dispatch gap claimed Phase 7 as its owner while **no Phase 7 task
+  > actually held it** — now a GATE on **T7.1**, the task that first binds a collection to a surface.
