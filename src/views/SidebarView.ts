@@ -26,7 +26,7 @@ import {
 } from "obsidian";
 import { SIDEBAR_VIEW_TYPE, NAVIGATOR_TAB_ID, ICON, DEBOUNCE_MS } from "pluginConstants";
 import { ScopingService } from "scoping/ScopingService";
-import { resolveWorkspaceScope } from "scoping/workspaceScope";
+import { resolveWorkspaceScope, DEFAULT_EXCLUDED_FOLDERS } from "scoping/workspaceScope";
 import type { NoteContext, EntityKind } from "scoping/NoteContext";
 import { CollapseStore } from "workspace/collapseStore";
 import { mapSceneRow } from "workspace/sceneMapper";
@@ -190,6 +190,11 @@ export class SidebarView extends ItemView {
 	// reference would go stale. Defaults to "drill" when no getter is injected.
 	private readonly getLinkClickAction: () => PluginSettings["linkClickAction"];
 
+	// T3.5: reads the live excludedFolders setting, threaded into resolveWorkspaceScope.
+	// Getter (not a captured value) for the same reason as getLinkClickAction — main.ts
+	// reassigns this.settings on load. Defaults to DEFAULT_EXCLUDED_FOLDERS when absent.
+	private readonly getExcludedFolders: () => readonly string[];
+
 	// M2: tracks the engine currently rendered into the panel body (ADR-7 teardown)
 	private currentEngine: QueryEngine | null = null;
 	// M2: the ViewRecord currently rendered (selected view tab)
@@ -225,6 +230,9 @@ export class SidebarView extends ItemView {
 	 * @param getLinkClickAction - T4.2: reads the live linkClickAction setting
 	 *   (getter, not value — main.ts reassigns this.settings on load). Defaults
 	 *   to "drill" when absent (keeps existing constructor calls valid).
+	 * @param getExcludedFolders - T3.5: reads the live excludedFolders setting.
+	 *   Defaults to DEFAULT_EXCLUDED_FOLDERS when absent (keeps existing constructor
+	 *   calls valid and default scoping behaviour unchanged).
 	 */
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -233,6 +241,7 @@ export class SidebarView extends ItemView {
 		nativeEngine?: NativeScopingEngine,
 		store?: ViewStore,
 		getLinkClickAction?: () => PluginSettings["linkClickAction"],
+		getExcludedFolders?: () => readonly string[],
 	) {
 		super(leaf);
 		this.scoping = new ScopingService(this.app);
@@ -241,6 +250,7 @@ export class SidebarView extends ItemView {
 		this.nativeEngine = nativeEngine ?? null;
 		this.store = store ?? null;
 		this.getLinkClickAction = getLinkClickAction ?? ((): "drill" => "drill");
+		this.getExcludedFolders = getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
 		this._debouncedFollow = debounce(
 			(l: WorkspaceLeaf | null) => { this._doFollow(l); },
 			DEBOUNCE_MS,
@@ -1218,7 +1228,7 @@ export class SidebarView extends ItemView {
 	 */
 	private _renderNavigatorTab(body: HTMLElement): void {
 		const activeFile = this.app.workspace.getActiveFile();
-		const { scope, scenes } = resolveWorkspaceScope(this.app, activeFile);
+		const { scope, scenes } = resolveWorkspaceScope(this.app, activeFile, this.getExcludedFolders());
 		this._navScopeKey = scope.kind === "none" ? "none" : `${scope.kind}:${scope.ref.path}`;
 
 		const sourcePath = activeFile?.path ?? "";

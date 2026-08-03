@@ -10,10 +10,14 @@
  * plotline-type notes in scope (excluding meta folders), resolved as Link objects.
  *
  * Structure-agnostic (CON-7): scenes are INCLUDED by kind (tag/type), and notes under
- * DEFAULT_EXCLUDED_FOLDERS are EXCLUDED so template/meta notes never surface. This
- * constant is the placeholder for the future `excludedFolders` settings picker.
+ * the caller-supplied `excludedFolders` are EXCLUDED so template/meta notes never
+ * surface. Both public functions take `excludedFolders` as a parameter (defaulting to
+ * `DEFAULT_EXCLUDED_FOLDERS`) rather than reading `PluginSettings.excludedFolders`
+ * directly — this module stays a pure scope helper, testable without a plugin
+ * instance; callers (AnvilView, SidebarView) thread the live setting through.
  *
  * @ref docs/XDD/specs/006-declarative-views/solution.md — ADR-1, ADR-4
+ * @ref docs/XDD/specs/008-codex-surface/plan/phase-3.md — T3.5
  * @ref PRD/F3
  */
 
@@ -31,11 +35,15 @@ export interface ResolvedScope {
 	scenes: TFile[];
 }
 
-/** Folders whose notes are kept out of the views (templates/meta). Future settings picker. */
+/**
+ * Shipped default for `PluginSettings.excludedFolders` (T3.5) — folders whose notes are
+ * kept out of every collection/scope view (templates/meta). `types/index.ts` imports
+ * this as the settings default, so the two stay identical by construction.
+ */
 export const DEFAULT_EXCLUDED_FOLDERS: readonly string[] = ["00 Meta"];
 
-function isExcluded(path: string): boolean {
-	return DEFAULT_EXCLUDED_FOLDERS.some((dir) => path === dir || path.startsWith(`${dir}/`));
+function isExcluded(path: string, excludedFolders: readonly string[]): boolean {
+	return excludedFolders.some((dir) => path === dir || path.startsWith(`${dir}/`));
 }
 
 function uniqueByPath(files: TFile[]): TFile[] {
@@ -56,20 +64,36 @@ function uniqueByPath(files: TFile[]): TFile[] {
  *
  * This is the persistent column set: the Plotgrid will never collapse even if no scene
  * references a given plotline, because columns come from this scope-wide list.
+ *
+ * @param excludedFolders - folders to exclude (T3.5: PluginSettings.excludedFolders);
+ *   defaults to DEFAULT_EXCLUDED_FOLDERS so existing callers are unaffected.
  */
-export function resolvePlotlineScope(app: App): Link[] {
+export function resolvePlotlineScope(
+	app: App,
+	excludedFolders: readonly string[] = DEFAULT_EXCLUDED_FOLDERS,
+): Link[] {
 	const scoping = new ScopingService(app);
 	return app.vault
 		.getMarkdownFiles()
-		.filter((f) => !isExcluded(f.path) && scoping.classify(f) === "plotline")
+		.filter((f) => !isExcluded(f.path, excludedFolders) && scoping.classify(f) === "plotline")
 		.map((f) => ({ name: f.basename, path: f.path }))
 		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Resolve the active note to a workspace scope + its in-scope scene notes. Never throws. */
-export function resolveWorkspaceScope(app: App, activeFile: TFile | null): ResolvedScope {
+/**
+ * Resolve the active note to a workspace scope + its in-scope scene notes. Never throws.
+ *
+ * @param excludedFolders - folders to exclude (T3.5: PluginSettings.excludedFolders);
+ *   defaults to DEFAULT_EXCLUDED_FOLDERS so existing callers are unaffected.
+ */
+export function resolveWorkspaceScope(
+	app: App,
+	activeFile: TFile | null,
+	excludedFolders: readonly string[] = DEFAULT_EXCLUDED_FOLDERS,
+): ResolvedScope {
 	const scoping = new ScopingService(app);
-	const keep = (scenes: TFile[]): TFile[] => uniqueByPath(scenes).filter((f) => !isExcluded(f.path));
+	const keep = (scenes: TFile[]): TFile[] =>
+		uniqueByPath(scenes).filter((f) => !isExcluded(f.path, excludedFolders));
 
 	const wholeVault = (): TFile[] =>
 		keep(app.vault.getMarkdownFiles().filter((f) => scoping.classify(f) === "scene"));

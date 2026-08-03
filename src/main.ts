@@ -1,6 +1,13 @@
 import { Plugin, Events, Notice, normalizePath, TFile } from "obsidian";
 import { SettingsTab } from "settings/SettingsTab";
-import { DEFAULT_SETTINGS, normalizeLinkClickAction, type PluginSettings } from "types/index";
+import {
+	DEFAULT_SETTINGS,
+	normalizeLinkClickAction,
+	normalizeEditorDock,
+	normalizeExcludedFolders,
+	normalizeFileClassesFolder,
+	type PluginSettings,
+} from "types/index";
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort, StoryForgeData } from "store/types";
 import { SidebarView, activateView } from "views/SidebarView";
@@ -63,15 +70,22 @@ export default class StoryForgePlugin extends Plugin {
 		};
 
 		// PLACEHOLDER (T3.4, hoisted up from its former T3.3 construction site
-		// below CatalogService): neither `tag` nor `excludedFolders` exists on
-		// PluginSettings yet — T3.5 adds both. Until then every generated
-		// collection is recorded/compared against an empty tag and an empty
-		// exclusion list; T7.3 (real template wiring) replaces this with the
-		// settings-backed values. Shared by ConsentGate's getCurrentParams seam
+		// below CatalogService): `excludedFolders` now exists on PluginSettings
+		// (T3.5), but this placeholder is DELIBERATELY left as-is rather than
+		// swapped for a settings-backed value. Reasons: (1) no collection record
+		// can exist yet — catalog/ ships zero entries, so there is nothing to
+		// reconcile against; (2) `collectionParams` must stay ONE shared value
+		// between this construction site and CatalogService's (below) — reading
+		// install-time and classify-time params from different sources would
+		// desync and produce a spurious `regenerate` the moment they diverge.
+		// T7.3 (real template wiring) is where a real collection first exists,
+		// so it is the right place to wire this for real. Until then every
+		// generated collection is recorded/compared against an empty tag and an
+		// empty exclusion list. Shared by ConsentGate's getCurrentParams seam
 		// (below) and CatalogService's collectionParams dep (see the HAZARD
 		// note at its construction site).
 		//
-		// HAZARD (see CatalogService.ts class docstring): when T3.5 swaps this
+		// HAZARD (see CatalogService.ts class docstring): when T7.3 swaps this
 		// placeholder for real settings-backed values, it must also reconcile
 		// `generated.params` on already-installed records — otherwise
 		// classify() flips every one of them to "regenerate" and silently
@@ -109,6 +123,7 @@ export default class StoryForgePlugin extends Plugin {
 				nativeEngine,
 				this.store,
 				() => this.settings.linkClickAction,
+				() => this.settings.excludedFolders,
 			),
 		);
 
@@ -125,6 +140,7 @@ export default class StoryForgePlugin extends Plugin {
 			WORKSPACE_VIEW_TYPE,
 			(leaf: WorkspaceLeaf) => new AnvilView(leaf, {
 				getLinkClickAction: () => this.settings.linkClickAction,
+				getExcludedFolders: () => this.settings.excludedFolders,
 			}),
 		);
 
@@ -455,8 +471,12 @@ export default class StoryForgePlugin extends Plugin {
 		const stored = raw?.settings ?? null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
 		// Normalize: Object.assign propagates any persisted value as-is, so a
-		// malformed linkClickAction (neither "drill" nor "open") must fall back.
+		// malformed value (wrong type, unknown enum member) must fall back —
+		// fail-closed, same pattern for every settings field (T3.5).
 		this.settings.linkClickAction = normalizeLinkClickAction(this.settings.linkClickAction);
+		this.settings.editorDock = normalizeEditorDock(this.settings.editorDock);
+		this.settings.excludedFolders = normalizeExcludedFolders(this.settings.excludedFolders);
+		this.settings.fileClassesFolder = normalizeFileClassesFolder(this.settings.fileClassesFolder);
 	}
 
 	async saveSettings(): Promise<void> {

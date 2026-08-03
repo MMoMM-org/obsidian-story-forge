@@ -18,7 +18,7 @@ import {
 	type CachedMetadata,
 	type TFile,
 } from "../__mocks__/obsidian";
-import { resolveWorkspaceScope, resolvePlotlineScope } from "scoping/workspaceScope";
+import { resolveWorkspaceScope, resolvePlotlineScope, DEFAULT_EXCLUDED_FOLDERS } from "scoping/workspaceScope";
 
 // Mini-vault fixtures
 const book = createMockTFile({ basename: "Wardens of Moonharbor", path: "20 Planning/Wardens of Moonharbor.md" });
@@ -127,6 +127,33 @@ describe("resolveWorkspaceScope", () => {
 		expect(out.scope).toEqual({ kind: "none" });
 		expect(out.scenes).toEqual([]);
 	});
+
+	// -------------------------------------------------------------------------
+	// T3.5 — excludedFolders threaded as a parameter (PluginSettings.excludedFolders)
+	// -------------------------------------------------------------------------
+
+	it("with no excludedFolders argument, behaves IDENTICALLY to passing the shipped default explicitly", () => {
+		const implicit = resolveWorkspaceScope(app, book);
+		const explicit = resolveWorkspaceScope(app, book, DEFAULT_EXCLUDED_FOLDERS);
+		expect(titlesOf(implicit.scenes)).toEqual(titlesOf(explicit.scenes));
+		expect(titlesOf(implicit.scenes)).toEqual(["Scene 1", "Scene 2"]); // template (00 Meta) still excluded
+		expect(implicit.scope).toEqual(explicit.scope);
+	});
+
+	it("a custom excludedFolders list excludes DIFFERENT notes than the default", () => {
+		// Exclude the manuscript folder instead of 00 Meta: the two real scenes
+		// disappear, and the template (00 Meta) — excluded by the DEFAULT — is
+		// no longer excluded by this custom list, so it now surfaces instead.
+		const { scenes } = resolveWorkspaceScope(app, book, ["10 Manuscript"]);
+		expect(titlesOf(scenes)).toEqual(["scene"]); // only the template note (basename "scene")
+	});
+
+	it("an empty excludedFolders list excludes nothing", () => {
+		const { scenes } = resolveWorkspaceScope(app, book, []);
+		// All three scene-classified notes linking the book surface, including
+		// the template that the shipped default normally hides.
+		expect(titlesOf(scenes)).toEqual(["Scene 1", "Scene 2", "scene"]);
+	});
 });
 
 describe("resolvePlotlineScope", () => {
@@ -155,6 +182,48 @@ describe("resolvePlotlineScope", () => {
 		expect(result.some((l) => l.name === "Plotline Template")).toBe(false);
 		// Scene not included (wrong kind)
 		expect(result.some((l) => l.name === "Scene 1")).toBe(false);
+	});
+
+	// -------------------------------------------------------------------------
+	// T3.5 — excludedFolders threaded as a parameter (PluginSettings.excludedFolders)
+	// -------------------------------------------------------------------------
+
+	function makePlotlineFixture(): { app: App; pl1: TFile; pl2: TFile; meta: TFile } {
+		const app = new App();
+		const pl1 = createMockTFile({ basename: "Zephyr Arc", path: "20 Planning/Zephyr Arc.md" });
+		const pl2 = createMockTFile({ basename: "Alpha Arc", path: "20 Planning/Alpha Arc.md" });
+		const meta = createMockTFile({ basename: "Plotline Template", path: "00 Meta/Plotline Template.md" });
+
+		vi.mocked(app.metadataCache.getFileCache).mockImplementation((f) => {
+			if (f === pl1 || f === pl2 || f === meta) {
+				return createMockCachedMetadata({ tags: [{ tag: "#planning/plotline" }] });
+			}
+			return null;
+		});
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([pl1, pl2, meta]);
+		return { app, pl1, pl2, meta };
+	}
+
+	it("with no excludedFolders argument, behaves IDENTICALLY to passing the shipped default explicitly", () => {
+		const { app } = makePlotlineFixture();
+		const implicit = resolvePlotlineScope(app);
+		const explicit = resolvePlotlineScope(app, DEFAULT_EXCLUDED_FOLDERS);
+		expect(implicit).toEqual(explicit);
+		expect(implicit.map((l) => l.name)).toEqual(["Alpha Arc", "Zephyr Arc"]); // 00 Meta template excluded
+	});
+
+	it("a custom excludedFolders list excludes DIFFERENT notes than the default", () => {
+		const { app } = makePlotlineFixture();
+		// Exclude "20 Planning" instead of "00 Meta": both real plotlines
+		// disappear, and the template — excluded by the DEFAULT — now surfaces.
+		const result = resolvePlotlineScope(app, ["20 Planning"]);
+		expect(result.map((l) => l.name)).toEqual(["Plotline Template"]);
+	});
+
+	it("an empty excludedFolders list excludes nothing", () => {
+		const { app } = makePlotlineFixture();
+		const result = resolvePlotlineScope(app, []);
+		expect(result.map((l) => l.name)).toEqual(["Alpha Arc", "Plotline Template", "Zephyr Arc"]);
 	});
 
 	it("returns empty array on empty vault", () => {

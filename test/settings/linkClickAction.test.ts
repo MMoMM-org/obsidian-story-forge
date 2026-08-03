@@ -63,18 +63,16 @@ const noop: RegisterCommandCallback = () => {};
 
 function makePlugin(overrides: Partial<{
 	linkClickAction: string;
-	exampleSetting: string;
 }> = {}): {
 	app: App;
 	manifest: { id: string; name: string; version: string; minAppVersion: string };
-	settings: { exampleSetting: string; linkClickAction: "drill" | "open" };
+	settings: { linkClickAction: "drill" | "open" };
 	saveSettings: ReturnType<typeof vi.fn>;
 } {
 	return {
 		app: makeApp(),
 		manifest: { id: "story-forge", name: "Story Forge", version: "0.0.0", minAppVersion: "1.5.7" },
 		settings: {
-			exampleSetting: overrides.exampleSetting ?? "",
 			linkClickAction: normalizeLinkClickAction(overrides.linkClickAction ?? "drill"),
 		},
 		saveSettings: vi.fn(async () => {}),
@@ -255,7 +253,7 @@ describe("SettingsTab — linkClickAction dropdown row", () => {
 		const selectEl = settingEl!.querySelector("select") as HTMLSelectElement | null;
 		expect(selectEl).not.toBeNull();
 		const drillOption = Array.from(selectEl!.options).find((o) => o.value === "drill");
-		expect(drillOption?.textContent).toBe("Drill into linked note (show it in place)");
+		expect(drillOption?.textContent).toBe("Inspect the linked note (show it in place)");
 	});
 
 	it("dropdown has options 'drill' and 'open'", async () => {
@@ -270,6 +268,35 @@ describe("SettingsTab — linkClickAction dropdown row", () => {
 		const optionValues = Array.from(selectEl!.options).map((o) => o.value);
 		expect(optionValues).toContain("drill");
 		expect(optionValues).toContain("open");
+	});
+
+	// T3.5: ADR-28 renames the UI copy to "inspect" but keeps the PERSISTED values
+	// "drill"/"open" for compatibility — renaming a stored value would silently
+	// reset every user's setting to the fail-closed default. Values and labels are
+	// asserted SEPARATELY so a future label edit cannot silently change what is
+	// persisted.
+	it("stored-value regression: option VALUES stay 'drill'/'open' while LABELS say inspect", async () => {
+		const plugin = makePlugin({ linkClickAction: "drill" });
+		const tab = makeTab(app, plugin, makeStore(), makeConsentGate(), makeImporter());
+		const container = await renderTab(tab);
+
+		const settingEl = findSettingEl(container, "Link click action");
+		const selectEl = settingEl!.querySelector("select") as HTMLSelectElement;
+		const options = Array.from(selectEl.options);
+
+		// Values: unchanged — this is what gets persisted via saveSettings.
+		expect(options.map((o) => o.value)).toEqual(["drill", "open"]);
+
+		// Labels: the visible copy says "inspect", not "drill".
+		const drillLabel = options.find((o) => o.value === "drill")?.textContent;
+		expect(drillLabel).toContain("Inspect");
+		expect(drillLabel).not.toContain("Drill");
+		expect(drillLabel).not.toContain("drill");
+
+		// The normalizer itself is untouched by the label rename.
+		expect(normalizeLinkClickAction("drill")).toBe("drill");
+		expect(normalizeLinkClickAction("open")).toBe("open");
+		expect(normalizeLinkClickAction("inspect")).toBe("drill"); // "inspect" is UI copy only, never a stored value
 	});
 });
 
@@ -297,7 +324,13 @@ describe("linkClickAction value round-trip", () => {
 		}
 
 		// Save "open"
-		await saveSettings({ exampleSetting: "", linkClickAction: "open", curatedBasesFolder: "00 Meta/Bases" });
+		await saveSettings({
+			linkClickAction: "open",
+			curatedBasesFolder: "00 Meta/Bases",
+			fileClassesFolder: "00 Meta/FileClasses",
+			excludedFolders: ["00 Meta"],
+			editorDock: "bottom",
+		});
 		// Load it back
 		const result = await loadSettings();
 		expect(result.linkClickAction).toBe("open");
@@ -321,7 +354,13 @@ describe("linkClickAction value round-trip", () => {
 			return merged;
 		}
 
-		await saveSettings({ exampleSetting: "", linkClickAction: "drill", curatedBasesFolder: "00 Meta/Bases" });
+		await saveSettings({
+			linkClickAction: "drill",
+			curatedBasesFolder: "00 Meta/Bases",
+			fileClassesFolder: "00 Meta/FileClasses",
+			excludedFolders: ["00 Meta"],
+			editorDock: "bottom",
+		});
 		const result = await loadSettings();
 		expect(result.linkClickAction).toBe("drill");
 	});

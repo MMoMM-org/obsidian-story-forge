@@ -1,6 +1,6 @@
 import type MyPlugin from "main";
 import { type App, Menu, PluginSettingTab, Setting, ToggleComponent } from "obsidian";
-import { normalizeLinkClickAction } from "types/index";
+import { normalizeLinkClickAction, normalizeExcludedFolders, normalizeFileClassesFolder } from "types/index";
 
 import { HeaderSection } from "./HeaderSection";
 import type { ViewStore } from "store/ViewStore";
@@ -101,24 +101,11 @@ export class SettingsTab extends PluginSettingTab {
 		this.header.render(headerEl);
 
 		new Setting(containerEl)
-			.setName("Example setting")
-			.setDesc("A placeholder setting to demonstrate the pattern.")
-			.addText((text) =>
-				text
-					.setPlaceholder("Enter a value")
-					.setValue(this.plugin.settings.exampleSetting)
-					.onChange(async (value) => {
-						this.plugin.settings.exampleSetting = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
 			.setName("Link click action")
 			.setDesc("What happens when you click a link to another entity. Modifier-click (ctrl/cmd) inverts this choice.")
 			.addDropdown((d) =>
 				d
-					.addOption("drill", "Drill into linked note (show it in place)")
+					.addOption("drill", "Inspect the linked note (show it in place)")
 					.addOption("open", "Open in editor")
 					.setValue(this.plugin.settings.linkClickAction)
 					.onChange(async (value: string) => {
@@ -143,7 +130,59 @@ export class SettingsTab extends PluginSettingTab {
 					}),
 			);
 
+		this._renderScopeSection(containerEl);
+
 		await this._renderViewsSection(gen);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Scope section — which vault folders/FileClasses feed the Codex/Anvil/Workbench
+	// (T3.5, PRD F3 AC: tag + excluded folders are user-editable with shipped defaults;
+	// per-collection tag editing is Phase 7's Library UI — this section carries only
+	// the global excludedFolders + fileClassesFolder settings).
+	// ---------------------------------------------------------------------------
+
+	private _renderScopeSection(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName("Scope")
+			.setHeading();
+
+		new Setting(containerEl)
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClasses' is metadata-menu's proper noun for its fc-*.md files
+			.setName("FileClasses folder")
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClass'/'FileClasses' are metadata-menu's proper noun
+			.setDesc("Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses")
+			.addText((text) =>
+				text
+					// eslint-disable-next-line obsidianmd/ui/sentence-case -- '00 Meta/FileClasses' is a vault path placeholder
+					.setPlaceholder("00 Meta/FileClasses")
+					.setValue(normalizeFileClassesFolder(this.plugin.settings.fileClassesFolder))
+					.onChange(async (value) => {
+						// Fall back to the default when the field is cleared or malformed.
+						this.plugin.settings.fileClassesFolder = normalizeFileClassesFolder(value.trim());
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Excluded folders")
+			.setDesc("Comma-separated vault folders left out of every collection and scope view. Default: 00 Meta")
+			.addText((text) =>
+				text
+					.setPlaceholder("00 Meta")
+					.setValue(normalizeExcludedFolders(this.plugin.settings.excludedFolders).join(", "))
+					.onChange(async (value) => {
+						// An emptied field is a deliberate "exclude nothing" — NOT a
+						// fall back to the default (CON-7: exclusion only, and clearing
+						// the list is a legitimate user choice, not malformed input).
+						const parsed = value
+							.split(",")
+							.map((s) => s.trim())
+							.filter((s) => s.length > 0);
+						this.plugin.settings.excludedFolders = normalizeExcludedFolders(parsed);
+						await this.plugin.saveSettings();
+					}),
+			);
 	}
 
 	// ---------------------------------------------------------------------------

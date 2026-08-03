@@ -100,22 +100,30 @@ describe("StoryForgePlugin.onload — wiring", () => {
 describe("StoryForgePlugin — settings persistence across reload", () => {
 	it("settings loaded from data.json are reflected in plugin.settings", async () => {
 		const { plugin } = await makePlugin();
-		// Simulate stored data with custom setting
+		// Simulate stored data with a custom setting
 		const stored: StoryForgeData = {
-			settings: { exampleSetting: "custom-value", linkClickAction: "drill", curatedBasesFolder: "00 Meta/Bases" },
+			settings: {
+				linkClickAction: "drill",
+				curatedBasesFolder: "00 Meta/Bases",
+				fileClassesFolder: "custom-value",
+				excludedFolders: ["00 Meta"],
+				editorDock: "bottom",
+			},
 		};
 		plugin.loadData.mockResolvedValue(stored);
 
 		await plugin.onload();
 
-		expect(plugin.settings.exampleSetting).toBe("custom-value");
+		expect(plugin.settings.fileClassesFolder).toBe("custom-value");
 	});
 
 	it("missing settings key uses DEFAULT_SETTINGS fallback", async () => {
 		const { plugin } = await makePlugin();
 		plugin.loadData.mockResolvedValue({}); // no settings key
 		await plugin.onload();
-		expect(plugin.settings.exampleSetting).toBe("default");
+		expect(plugin.settings.fileClassesFolder).toBe("00 Meta/FileClasses");
+		expect(plugin.settings.excludedFolders).toEqual(["00 Meta"]);
+		expect(plugin.settings.editorDock).toBe("bottom");
 	});
 });
 
@@ -129,28 +137,40 @@ describe("StoryForgePlugin — clobber guards", () => {
 
 		// Simulate existing data with a view record
 		const existingData: StoryForgeData = {
-			settings: { exampleSetting: "old", linkClickAction: "drill", curatedBasesFolder: "00 Meta/Bases" },
+			settings: {
+				linkClickAction: "drill",
+				curatedBasesFolder: "00 Meta/Bases",
+				fileClassesFolder: "old",
+				excludedFolders: ["00 Meta"],
+				editorDock: "bottom",
+			},
 			views: { "view-1": makeViewRecord() },
 		};
 		plugin.loadData.mockResolvedValue(existingData);
 		await plugin.onload();
 
 		// Now change a setting and save
-		plugin.settings.exampleSetting = "new-value";
+		plugin.settings.fileClassesFolder = "new-value";
 		await plugin.saveSettings();
 
 		// saveData should have been called with data that still includes views
 		const savedArg = plugin.saveData.mock.calls.at(-1)?.[0] as StoryForgeData;
 		expect(savedArg.views).toBeDefined();
 		expect(savedArg.views?.["view-1"]).toBeDefined();
-		expect(savedArg.settings?.exampleSetting).toBe("new-value");
+		expect(savedArg.settings?.fileClassesFolder).toBe("new-value");
 	});
 
 	it("ViewStore.setRecord does NOT drop settings", async () => {
 		const { plugin } = await makePlugin();
 
 		const existingData: StoryForgeData = {
-			settings: { exampleSetting: "keep-me", linkClickAction: "drill", curatedBasesFolder: "00 Meta/Bases" },
+			settings: {
+				linkClickAction: "drill",
+				curatedBasesFolder: "00 Meta/Bases",
+				fileClassesFolder: "keep-me",
+				excludedFolders: ["00 Meta"],
+				editorDock: "bottom",
+			},
 		};
 		plugin.loadData.mockResolvedValue(existingData);
 		await plugin.onload();
@@ -162,7 +182,7 @@ describe("StoryForgePlugin — clobber guards", () => {
 
 		// The last saveData call should preserve settings
 		const savedArg = plugin.saveData.mock.calls.at(-1)?.[0] as StoryForgeData;
-		expect(savedArg.settings?.exampleSetting).toBe("keep-me");
+		expect(savedArg.settings?.fileClassesFolder).toBe("keep-me");
 		expect(savedArg.views?.["view-abc"]).toBeDefined();
 	});
 });

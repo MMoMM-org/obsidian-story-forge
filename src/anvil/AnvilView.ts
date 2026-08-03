@@ -38,7 +38,7 @@
 
 import { Component, ItemView, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
 import { DEBOUNCE_MS, WORKSPACE_VIEW_TYPE } from "pluginConstants";
-import { resolveWorkspaceScope, resolvePlotlineScope } from "scoping/workspaceScope";
+import { resolveWorkspaceScope, resolvePlotlineScope, DEFAULT_EXCLUDED_FOLDERS } from "scoping/workspaceScope";
 import { mapSceneRow } from "workspace/sceneMapper";
 import {
 	timelineModel,
@@ -78,6 +78,13 @@ export interface AnvilViewOpts {
 	getLinkClickAction?: () => "drill" | "open";
 	/** Drill seam — injected for testability; defaults to the sidebar Context drill. */
 	drill?: (file: TFile) => void;
+	/**
+	 * Reads the live excludedFolders setting (T3.5), threaded into resolveWorkspaceScope
+	 * and resolvePlotlineScope. Getter (not a captured value) for the same reason as
+	 * getLinkClickAction — main.ts reassigns settings on load. Defaults to
+	 * DEFAULT_EXCLUDED_FOLDERS so existing construction sites are unaffected.
+	 */
+	getExcludedFolders?: () => readonly string[];
 }
 
 function isSwimlaneKey(v: unknown): v is SwimlaneKey {
@@ -102,6 +109,7 @@ export class AnvilView extends ItemView {
 	private _zoomChild: Component | null = null;
 	private readonly getLinkClickAction: () => "drill" | "open";
 	private readonly _drill: (file: TFile) => void;
+	private readonly getExcludedFolders: () => readonly string[];
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
@@ -114,6 +122,7 @@ export class AnvilView extends ItemView {
 		// Phase 4/5, so the default deliberately does nothing; tests inject `drill`
 		// to observe inspection through the seam that exists for exactly this purpose.
 		this._drill = opts?.drill ?? ((): void => {});
+		this.getExcludedFolders = opts?.getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
 		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
 	}
 
@@ -285,7 +294,7 @@ export class AnvilView extends ItemView {
 
 		const f = this.app.workspace.getActiveFile();
 
-		const { scope, scenes } = resolveWorkspaceScope(this.app, f);
+		const { scope, scenes } = resolveWorkspaceScope(this.app, f, this.getExcludedFolders());
 		this._scopeKey = scope.kind === "none" ? "none" : `${scope.kind}:${scope.ref.path}`;
 		this._syncToggle();
 
@@ -319,7 +328,7 @@ export class AnvilView extends ItemView {
 			case "plotgrid": {
 				// Plotgrid is read-only: columns = all scope plotlines (persistent);
 				// rows = all scenes. No write deps — no app/component/onAfter needed.
-				const allPlotlines = resolvePlotlineScope(this.app);
+				const allPlotlines = resolvePlotlineScope(this.app, this.getExcludedFolders());
 				renderPlotgrid(zoom.scaledEl, plotgridModelFromScope(rows, allPlotlines, resolve));
 				break;
 			}

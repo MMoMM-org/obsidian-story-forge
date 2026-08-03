@@ -112,7 +112,7 @@ function makeTab(
 	const plugin = {
 		app,
 		manifest: { id: "story-forge", name: "Story Forge", version: "0.0.0", minAppVersion: "1.5.7" },
-		settings: { exampleSetting: "" },
+		settings: {},
 		saveSettings: vi.fn(async () => {}),
 	};
 	return new SettingsTab(app, plugin as never, store, gate, importer, registerCommand, removeCommand);
