@@ -24,6 +24,7 @@
 import { TFile, type App } from "obsidian";
 import { ScopingService } from "./ScopingService";
 import type { Link } from "../workspace/workspaceModel";
+import { DEFAULT_EXCLUDED_FOLDERS } from "../types/index";
 
 export type WorkspaceScope =
 	| { kind: "book"; ref: TFile }
@@ -36,11 +37,11 @@ export interface ResolvedScope {
 }
 
 /**
- * Shipped default for `PluginSettings.excludedFolders` (T3.5) — folders whose notes are
- * kept out of every collection/scope view (templates/meta). `types/index.ts` imports
- * this as the settings default, so the two stay identical by construction.
+ * Re-exported from `types/index.ts` (the source of truth for `PluginSettings.excludedFolders`)
+ * so existing callers importing `DEFAULT_EXCLUDED_FOLDERS` from this module keep working.
+ * Kept identical by construction: exactly one literal, defined in `types/index.ts`.
  */
-export const DEFAULT_EXCLUDED_FOLDERS: readonly string[] = ["00 Meta"];
+export { DEFAULT_EXCLUDED_FOLDERS };
 
 function isExcluded(path: string, excludedFolders: readonly string[]): boolean {
 	return excludedFolders.some((dir) => path === dir || path.startsWith(`${dir}/`));

@@ -204,6 +204,23 @@ describe("normalizeExcludedFolders", () => {
 	it("falls back to the default for undefined", () => {
 		expect(normalizeExcludedFolders(undefined)).toEqual(["00 Meta"]);
 	});
+
+	it("returns a fresh array, never the same reference as DEFAULT_SETTINGS.excludedFolders", () => {
+		const valid = ["Foo", "Bar"];
+		expect(normalizeExcludedFolders(valid)).not.toBe(valid);
+		expect(normalizeExcludedFolders(valid)).not.toBe(DEFAULT_SETTINGS.excludedFolders);
+		expect(normalizeExcludedFolders(undefined)).not.toBe(DEFAULT_SETTINGS.excludedFolders);
+	});
+
+	it("mutating the returned array does not corrupt DEFAULT_SETTINGS.excludedFolders", () => {
+		const result = normalizeExcludedFolders(undefined);
+		result.push("Corrupted");
+		expect(DEFAULT_SETTINGS.excludedFolders).toEqual(["00 Meta"]);
+
+		const resultFromValid = normalizeExcludedFolders(["00 Meta"]);
+		resultFromValid.push("Also corrupted");
+		expect(DEFAULT_SETTINGS.excludedFolders).toEqual(["00 Meta"]);
+	});
 });
 
 // ---------------------------------------------------------------------------

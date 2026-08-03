@@ -1,5 +1,3 @@
-import { DEFAULT_EXCLUDED_FOLDERS } from "../scoping/workspaceScope";
-
 export interface PluginSettings {
 	/** ADR-5: link-click action; modifier-click inverts. Default: "drill". */
 	linkClickAction: "drill" | "open";
@@ -36,6 +34,15 @@ export interface PluginSettings {
 const DEFAULT_FILE_CLASSES_FOLDER = "00 Meta/FileClasses";
 const DEFAULT_EDITOR_DOCK: PluginSettings["editorDock"] = "bottom";
 
+/**
+ * Shipped default for `excludedFolders` (T3.5) — folders whose notes are kept out of
+ * every collection/scope resolution (templates/meta). This file is the source of truth
+ * (it defines `PluginSettings`); `src/scoping/workspaceScope.ts` re-exports this same
+ * constant for its own callers, so the two stay identical by construction — exactly one
+ * literal, imported by the other side.
+ */
+export const DEFAULT_EXCLUDED_FOLDERS: readonly string[] = ["00 Meta"];
+
 export const DEFAULT_SETTINGS: PluginSettings = {
 	linkClickAction: "drill",
 	curatedBasesFolder: "00 Meta/Bases",
@@ -70,12 +77,15 @@ export function isExcludedFolders(v: unknown): v is string[] {
 }
 
 /**
- * Normalizer: returns `v` if it is a valid excludedFolders array, otherwise the shipped
- * default. A malformed value (not an array, or an array containing a non-string) falls
- * back; a legitimate empty array ("exclude nothing") is NOT malformed and passes through.
+ * Normalizer: returns a copy of `v` if it is a valid excludedFolders array, otherwise a
+ * copy of the shipped default. A malformed value (not an array, or an array containing a
+ * non-string) falls back; a legitimate empty array ("exclude nothing") is NOT malformed
+ * and passes through (copied). Always returns a fresh array — never the same reference as
+ * `DEFAULT_SETTINGS.excludedFolders` — so a future in-place mutation (e.g. an "Add folder"
+ * button doing `.push()`) cannot corrupt the module-level default singleton.
  */
 export function normalizeExcludedFolders(v: unknown): string[] {
-	return isExcludedFolders(v) ? v : [...DEFAULT_EXCLUDED_FOLDERS];
+	return isExcludedFolders(v) ? [...v] : [...DEFAULT_EXCLUDED_FOLDERS];
 }
 
 /** Type guard: returns true if `v` is a valid `fileClassesFolder` value (a non-empty string). */
