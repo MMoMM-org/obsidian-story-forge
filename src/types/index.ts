@@ -97,3 +97,45 @@ export function isFileClassesFolder(v: unknown): v is string {
 export function normalizeFileClassesFolder(v: unknown): string {
 	return isFileClassesFolder(v) ? v : DEFAULT_FILE_CLASSES_FOLDER;
 }
+
+/** Type guard: returns true if `v` is a valid `curatedBasesFolder` value (a non-empty string). */
+export function isCuratedBasesFolder(v: unknown): v is string {
+	return typeof v === "string" && v.length > 0;
+}
+
+/**
+ * Normalizer: returns `v` if it is a non-empty string, otherwise the shipped default.
+ * Mirrors the fallback `StoryForgePlugin._getCuratedBasesFolder()` already applied at
+ * read time (main.ts) — normalizing here too means `settings.curatedBasesFolder` is a
+ * valid string immediately after load, not just when read through that helper.
+ */
+export function normalizeCuratedBasesFolder(v: unknown): string {
+	return isCuratedBasesFolder(v) ? v : DEFAULT_SETTINGS.curatedBasesFolder;
+}
+
+/**
+ * Build a `PluginSettings` from a persisted (untyped) `settings` blob, keeping only the
+ * fields `PluginSettings` declares — every other own-enumerable key on `raw` (e.g. a
+ * removed field like the pre-Phase-3 `exampleSetting`, G17) is dropped rather than
+ * carried through.
+ *
+ * Each field is read from `raw` and passed through its own normalizer, falling back to
+ * `DEFAULT_SETTINGS` for anything absent or malformed — same fail-closed pattern as the
+ * individual normalizers above, just applied field-by-field instead of via a blind merge.
+ *
+ * This function returns an object literal typed as `PluginSettings`, not a spread of
+ * `raw` — so adding a field to `PluginSettings` without adding a line here is a
+ * compile error (a missing property on the return value), not a silent runtime gap.
+ * If you add a field to `PluginSettings`, you must add its normalization here.
+ */
+export function normalizeSettings(raw: unknown): PluginSettings {
+	const stored: Record<string, unknown> =
+		raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+	return {
+		linkClickAction: normalizeLinkClickAction(stored.linkClickAction),
+		curatedBasesFolder: normalizeCuratedBasesFolder(stored.curatedBasesFolder),
+		fileClassesFolder: normalizeFileClassesFolder(stored.fileClassesFolder),
+		excludedFolders: normalizeExcludedFolders(stored.excludedFolders),
+		editorDock: normalizeEditorDock(stored.editorDock),
+	};
+}

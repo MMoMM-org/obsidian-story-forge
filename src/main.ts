@@ -1,13 +1,6 @@
 import { Plugin, Events, Notice, normalizePath, TFile } from "obsidian";
 import { SettingsTab } from "settings/SettingsTab";
-import {
-	DEFAULT_SETTINGS,
-	normalizeLinkClickAction,
-	normalizeEditorDock,
-	normalizeExcludedFolders,
-	normalizeFileClassesFolder,
-	type PluginSettings,
-} from "types/index";
+import { DEFAULT_SETTINGS, normalizeSettings, type PluginSettings } from "types/index";
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort, StoryForgeData } from "store/types";
 import { SidebarView, activateView } from "views/SidebarView";
@@ -468,15 +461,10 @@ export default class StoryForgePlugin extends Plugin {
 
 	async loadSettings(): Promise<void> {
 		const raw = await this.loadData() as StoryForgeData | null | undefined;
-		const stored = raw?.settings ?? null;
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
-		// Normalize: Object.assign propagates any persisted value as-is, so a
-		// malformed value (wrong type, unknown enum member) must fall back —
-		// fail-closed, same pattern for every settings field (T3.5).
-		this.settings.linkClickAction = normalizeLinkClickAction(this.settings.linkClickAction);
-		this.settings.editorDock = normalizeEditorDock(this.settings.editorDock);
-		this.settings.excludedFolders = normalizeExcludedFolders(this.settings.excludedFolders);
-		this.settings.fileClassesFolder = normalizeFileClassesFolder(this.settings.fileClassesFolder);
+		// normalizeSettings builds this.settings field-by-field from only the keys
+		// PluginSettings declares — a stray persisted key (e.g. a removed field like
+		// the pre-Phase-3 exampleSetting, G17) cannot ride along (see types/index.ts).
+		this.settings = normalizeSettings(raw?.settings ?? null);
 	}
 
 	async saveSettings(): Promise<void> {
