@@ -23,7 +23,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, WorkspaceLeaf, type TFile } from "obsidian";
+import { App, TFolder, WorkspaceLeaf, type EventRef, type TFile } from "obsidian";
 import { createMockCachedMetadata, createMockTFile, type CachedMetadata } from "../__mocks__/obsidian";
 import { AnvilView } from "anvil/AnvilView";
 import {
@@ -32,6 +32,7 @@ import {
 	renderCodexTab,
 	type CodexCollection,
 } from "codex/codexTab";
+import { createNoteIndex } from "codex/noteIndex";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
 import type { TargetKind } from "navigation/navigationController";
 
@@ -435,6 +436,56 @@ describe("CodexSelectionStore", () => {
 
 		store.clear();
 		expect(store.resolve(BUILT_IN_COLLECTIONS)?.id).toBe("character");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// The vault adaptation — the cases the rendered grid cannot reach
+// ---------------------------------------------------------------------------
+
+describe("createNoteIndex: adapting the vault to the pure resolver", () => {
+	/** An index over a vault whose markdown files are exactly `files`. */
+	function indexOver(files: readonly TFile[], caches: Map<TFile, CachedMetadata>) {
+		const app = new App();
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([...files]);
+		vi.mocked(app.metadataCache.getFileCache).mockImplementation((f) => caches.get(f) ?? null);
+		return { app, index: createNoteIndex(app, (_ref: EventRef): void => {}) };
+	}
+
+	it("indexes a note whose metadata is not cached yet as untagged, rather than throwing", () => {
+		// Obsidian returns null from getFileCache until a file has been indexed.
+		// A note in that window must simply belong to no collection.
+		const { index } = indexOver([mara, tobias], new Map([[mara, canon("character")]]));
+
+		expect(index.notes()).toEqual([
+			{ path: mara.path, tags: ["canon/character"] },
+			{ path: tobias.path, tags: [] },
+		]);
+	});
+
+	it("resolves a file the index snapshot does not contain yet", () => {
+		// A note created between two reads of the same render pass is absent from
+		// the snapshot but already resolvable from the vault — cards must still
+		// get their file rather than degrading to a path-derived name.
+		const { app, index } = indexOver([mara], new Map([[mara, canon("character")]]));
+		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p) => (p === tobias.path ? tobias : null));
+
+		expect(index.notes().map((n) => n.path)).toEqual([mara.path]);
+		expect(index.fileFor(tobias.path)).toBe(tobias);
+	});
+
+	it("returns null when the path resolves to something that is not a file", () => {
+		const { app, index } = indexOver([mara], new Map([[mara, canon("character")]]));
+		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(new TFolder());
+
+		expect(index.fileFor("30 Canon/31 Characters")).toBeNull();
+	});
+
+	it("returns null for a path nothing can resolve", () => {
+		const { app, index } = indexOver([mara], new Map([[mara, canon("character")]]));
+		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(null);
+
+		expect(index.fileFor("30 Canon/Gone.md")).toBeNull();
 	});
 });
 
