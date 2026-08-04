@@ -8,8 +8,14 @@
  * a plain table via `codexGrid.ts` and never touches `CardRenderer` at all.
  * This class is the OTHER half of ADR-30: it draws through the exact same
  * `heroCard`/`tableCard`/`compactCard` the native Codex tab uses
- * (`codexTab.ts`'s `renderEntry`), so a Card's markup cannot diverge between
- * "inside the Anvil" and "inside a user's own `.base`".
+ * (`codexTab.ts`'s `renderEntry`), so a Card's CONTENT cannot diverge between
+ * "inside the Anvil" and "inside a user's own `.base`" — both backends call
+ * the identical `CardRenderer.render()`. The WRAPPER around that content (the
+ * `sf-cx-card` element, its marker/role/tabindex attributes, `aria-label`, and
+ * the `nameEl` a Card is handed) is drawn identically too, but only because
+ * both backends build it through the shared `buildCardWrapper`
+ * (`codex/cardWrapper.ts`) rather than each hand-rolling its own — see that
+ * module's doc comment for why the two used to be able to drift apart.
  *
  * **Registry, not a captured renderer.** The factory that constructs this
  * class is handed to `registerBasesView` once at plugin load
@@ -38,28 +44,13 @@
 
 import type { App, BasesEntry, QueryController } from "obsidian";
 import { BasesView } from "obsidian";
-import {
-	basesCardEntry,
-	type CardEntry,
-	type CardRegistry,
-	type CardRenderDeps,
-	type CardRenderer,
-} from "codex/cardRegistry";
+import { basesCardEntry, type CardEntry, type CardRegistry, type CardRenderer } from "codex/cardRegistry";
+import { buildCardWrapper, CARD_BODY_ATTR } from "codex/cardWrapper";
 import { createAssetResolver } from "panel/assetResolver";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (see test/__mocks__/obsidian.ts).
 declare const activeDocument: Document;
-
-// ---------------------------------------------------------------------------
-// Marker attributes — reused from codexTab.ts's vocabulary (same meaning,
-// declared locally to avoid a src/bases/ → src/codex/codexTab.ts import for
-// two string literals; codexTab.ts remains the single source for the Anvil's
-// own NavigationController wiring, which this standalone view does not use).
-// ---------------------------------------------------------------------------
-
-const CARD_BODY_ATTR = "data-sf-card-body";
-const NAME_ATTR = "data-sf-link";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -170,29 +161,9 @@ export class CardBasesView extends BasesView {
 			this.deps.app.metadataCache.getFileCache(entry.file)?.frontmatter ?? null;
 		const cardEntry: CardEntry = basesCardEntry(entry, frontmatter);
 
-		const cardEl = activeDocument.createElement("div");
-		cardEl.className = "sf-cx-card";
-		cardEl.setAttribute(CARD_BODY_ATTR, cardEntry.path);
-		cardEl.setAttribute("role", "button");
-		cardEl.setAttribute("tabindex", "0");
-
-		const deps: CardRenderDeps = {
+		return buildCardWrapper(cardEntry, card, {
 			compact: false,
-			nameEl: buildNameEl,
 			resolveAsset: createAssetResolver(this.deps.app, cardEntry.path),
-		};
-
-		card.render(cardEntry, cardEl, deps);
-		cardEl.setAttribute("aria-label", cardEntry.name);
-		return cardEl;
+		});
 	}
-}
-
-/** The entry's name element, carrying the `name` marker (mirrors codexTab.ts's buildNameEl). */
-function buildNameEl(entry: CardEntry): HTMLElement {
-	const name = activeDocument.createElement("span");
-	name.className = "sf-cx-name";
-	name.setAttribute(NAME_ATTR, entry.path);
-	name.textContent = entry.name;
-	return name;
 }

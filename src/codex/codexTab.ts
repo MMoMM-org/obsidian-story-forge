@@ -19,14 +19,18 @@
  * name yields `["name", "cardBody"]` and a click anywhere else in the body
  * yields `["cardBody"]`. Flatten the two onto one element, or hoist the name
  * outside the body, and the AC breaks with nothing else to catch it. There is
- * deliberately no special case anywhere for this (ADR-28).
+ * deliberately no special case anywhere for this (ADR-28). The wrapper that
+ * stamps both markers is `cardWrapper.ts`'s `buildCardWrapper` — the same
+ * builder `CardBasesView` (`src/bases/`) draws with, so this nesting cannot
+ * diverge between the two backends.
  *
  * This module owns the body, the pill row and the selection store
- * (`CodexSelectionStore`); `renderEntry` dispatches each note to the active
- * Card (registry-resolved, Hero by default) via `card.render`, and a
- * resolution with no notes delegates entirely to `codexEmptyState.ts`'s S98
- * empty state (heading, the tag it looked for, `Change tag` + `What are
- * FileClasses?`) rather than rendering anything of its own for that case.
+ * (`CodexSelectionStore`); `renderEntry` adapts each note to a `CardEntry`
+ * (`nativeCardEntry`) and hands it to `buildCardWrapper` alongside the active
+ * Card (registry-resolved, Hero by default), and a resolution with no notes
+ * delegates entirely to `codexEmptyState.ts`'s S98 empty state (heading, the
+ * tag it looked for, `Change tag` + `What are FileClasses?`) rather than
+ * rendering anything of its own for that case.
  *
  * @ref docs/mockups/anvil-workbench-codex.html — S91
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Features F2, F3, F7
@@ -34,12 +38,8 @@
  */
 
 import { resolveCollection, type IndexedNote } from "./collectionResolver";
-import {
-	nativeCardEntry,
-	type CardEntry,
-	type CardRenderDeps,
-	type CardRenderer,
-} from "./cardRegistry";
+import { nativeCardEntry, type CardRenderer } from "./cardRegistry";
+import { buildCardWrapper, CARD_BODY_ATTR } from "./cardWrapper";
 import { CODEX_CARD_REGISTRY } from "./builtinCards";
 import { renderCardSelector } from "./cardSelector";
 import { renderCodexEmptyState } from "./codexEmptyState";
@@ -64,12 +64,12 @@ export const CODEX_COLLECTION_ATTR = "data-sf-collection";
  * Marks a card / row body. Hosts classify it as `"cardBody"`; its value is the
  * entry's vault path, so the host can resolve the file without the controller
  * ever seeing one. Never placed on the same element as `data-sf-link` — the two
- * must nest, not co-occur (see the module docstring).
+ * must nest, not co-occur (see the module docstring). Re-exported under this
+ * name for existing importers (`AnvilView.ts`, `SidebarView.ts`,
+ * `navigation/markerVocabulary.ts`); `cardWrapper.ts` is the single place that
+ * actually stamps it, shared with `CardBasesView` (`src/bases/`).
  */
-export const CODEX_CARD_BODY_ATTR = "data-sf-card-body";
-
-/** The existing cross-surface "name" marker, reused unchanged. */
-const LINK_ATTR = "data-sf-link";
+export const CODEX_CARD_BODY_ATTR = CARD_BODY_ATTR;
 
 // ---------------------------------------------------------------------------
 // Collections
@@ -315,37 +315,21 @@ function renderBody(
 }
 
 /**
- * One entry. Marker nesting — body outside, name inside — is what the F2
- * precedence AC rests on (module docstring); `buildNameEl` is the one place
- * that nests it, handed to every Card as `deps.nameEl` so a Card (ours or an
- * imported one) cannot get the nesting wrong (T4.2's `CardRenderDeps.nameEl`
- * doc comment).
+ * One entry, adapted to a `CardEntry` (native backend, `nativeCardEntry`) and
+ * drawn through `buildCardWrapper` (`cardWrapper.ts`) — the SAME wrapper
+ * builder `CardBasesView` (`src/bases/`) draws with, so the two backends'
+ * wrapper markup cannot diverge (module docstring). `buildCardWrapper` is
+ * what nests the name marker inside the card-body marker correctly, for every
+ * Card, ours or imported (T4.2's `CardRenderDeps.nameEl` doc comment).
  */
 function renderEntry(note: IndexedNote, card: CardRenderer, opts: CodexTabOptions): HTMLElement {
-	const cardEl = el("div", "sf-cx-card");
-	cardEl.setAttribute(CODEX_CARD_BODY_ATTR, note.path);
-	cardEl.setAttribute("role", "button");
-	cardEl.setAttribute("tabindex", "0");
-
 	const frontmatter = opts.frontmatterFor?.(note.path) ?? null;
 	const entry = nativeCardEntry(note.path, frontmatter);
-	const deps: CardRenderDeps = {
+
+	return buildCardWrapper(entry, card, {
 		compact: Boolean(opts.compact),
-		nameEl: buildNameEl,
 		resolveAsset: (raw: string): string => opts.resolveAsset?.(note.path, raw) ?? raw,
-	};
-
-	card.render(entry, cardEl, deps);
-	cardEl.setAttribute("aria-label", entry.name);
-	return cardEl;
-}
-
-/** The entry's name element, carrying the `name` marker (`data-sf-link`). */
-function buildNameEl(entry: CardEntry): HTMLElement {
-	const name = el("span", "sf-cx-name");
-	name.setAttribute(LINK_ATTR, entry.path);
-	name.textContent = entry.name;
-	return name;
+	});
 }
 
 // ---------------------------------------------------------------------------
