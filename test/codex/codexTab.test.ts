@@ -94,18 +94,29 @@ interface OpenOpts {
 }
 
 async function openCodex(app: App, opts: OpenOpts = {}): Promise<AnvilView> {
-	const view = new AnvilView(makeLeaf(app), {
-		getLinkClickAction: (): "drill" | "open" => opts.linkClickAction ?? "drill",
-		...(opts.drill ? { drill: opts.drill } : {}),
+	// codex/bases are only included when at least one member is supplied — this
+	// preserves the pre-grouping behaviour where an untouched field (e.g.
+	// getBasesCapability never wired) fell back to its default, now exercised as
+	// the whole group being absent (see "defaults to no hint when the host
+	// hasn't wired getBasesCapability at all").
+	const codex = {
 		...(opts.collections ? { getCollections: (): readonly CodexCollection[] => opts.collections! } : {}),
 		...(opts.cardByCollection
 			? { getCardByCollection: (): Record<string, string> => opts.cardByCollection! }
 			: {}),
 		...(opts.onCardSelect ? { onCardSelect: opts.onCardSelect } : {}),
-		...(opts.basesCapability ? { getBasesCapability: (): BasesCapability => opts.basesCapability! } : {}),
+		...(opts.onChangeTag ? { onChangeTag: opts.onChangeTag } : {}),
+	};
+	const bases = {
+		...(opts.basesCapability ? { getCapability: (): BasesCapability => opts.basesCapability! } : {}),
 		...(opts.dismissedHints ? { getDismissedHints: (): readonly string[] => opts.dismissedHints! } : {}),
 		...(opts.onDismissHint ? { onDismissHint: opts.onDismissHint } : {}),
-		...(opts.onChangeTag ? { onChangeTag: opts.onChangeTag } : {}),
+	};
+	const view = new AnvilView(makeLeaf(app), {
+		settings: { getLinkClickAction: (): "drill" | "open" => opts.linkClickAction ?? "drill" },
+		...(opts.drill ? { drill: opts.drill } : {}),
+		...(Object.keys(codex).length > 0 ? { codex } : {}),
+		...(Object.keys(bases).length > 0 ? { bases } : {}),
 	});
 	await view.onOpen();
 	view.setLayout("codex");
@@ -626,9 +637,11 @@ describe("Codex tab: ADR-36 Bases hint [PRD/F4 AC]", () => {
 		// could make the hint vanish. That is the behaviour under test.
 		const dismissed: string[] = [];
 		const view = new AnvilView(makeLeaf(app), {
-			getBasesCapability: (): BasesCapability => "disabled",
-			getDismissedHints: (): readonly string[] => dismissed,
-			onDismissHint: (id: string): void => { dismissed.push(id); },
+			bases: {
+				getCapability: (): BasesCapability => "disabled",
+				getDismissedHints: (): readonly string[] => dismissed,
+				onDismissHint: (id: string): void => { dismissed.push(id); },
+			},
 		});
 		await view.onOpen();
 		view.setLayout("codex");

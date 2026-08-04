@@ -165,7 +165,7 @@ describe("M5 integration — Navigator + AnvilView over the extended seed", () =
 		const drill = vi.fn();
 		const leaf = new WorkspaceLeaf();
 		(leaf as unknown as { app: App }).app = fx.app;
-		const view = new AnvilView(leaf, { getLinkClickAction: () => "drill", drill });
+		const view = new AnvilView(leaf, { settings: { getLinkClickAction: () => "drill" }, drill });
 		await view.onOpen();
 
 		const body = view.contentEl.querySelector(".sf-ws-body") as HTMLElement;

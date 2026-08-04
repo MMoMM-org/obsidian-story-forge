@@ -39,7 +39,7 @@ function makeFixture(): { app: App; book: TFile } {
 function makeView(app: App): AnvilView {
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: App }).app = app;
-	return new AnvilView(leaf, { getLinkClickAction: () => "drill", drill: vi.fn() });
+	return new AnvilView(leaf, { settings: { getLinkClickAction: () => "drill" }, drill: vi.fn() });
 }
 
 function body(view: AnvilView): HTMLElement {

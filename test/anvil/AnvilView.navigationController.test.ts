@@ -110,7 +110,7 @@ describe("AnvilView: inspect targets the Anvil's own body, never another leaf", 
 		seedVault(app);
 		// No `drill` injected — exercises the real production default, which is
 		// exactly what regressed (it used to call revealAndShowFile).
-		view = new AnvilView(makeLeaf(app), { getLinkClickAction: () => "drill" });
+		view = new AnvilView(makeLeaf(app), { settings: { getLinkClickAction: () => "drill" } });
 		await view.onOpen();
 	});
 
@@ -130,7 +130,7 @@ describe("AnvilView: inspect targets the Anvil's own body, never another leaf", 
 
 	it("still routes through the injectable inspect hook (drill) when one is supplied", async () => {
 		const drill = vi.fn();
-		const injected = new AnvilView(makeLeaf(app), { getLinkClickAction: () => "drill", drill });
+		const injected = new AnvilView(makeLeaf(app), { settings: { getLinkClickAction: () => "drill" }, drill });
 		await injected.onOpen();
 
 		click(bodyOf(injected).querySelector(`[data-sf-link="${s1.path}"]`));
@@ -154,7 +154,7 @@ describe("AnvilView: open-note changes no panel's selected tab", () => {
 		app = new App();
 		seedVault(app);
 		drill = vi.fn();
-		view = new AnvilView(makeLeaf(app), { getLinkClickAction: () => "drill", drill });
+		view = new AnvilView(makeLeaf(app), { settings: { getLinkClickAction: () => "drill" }, drill });
 		await view.onOpen();
 	});
 
@@ -184,7 +184,7 @@ describe("AnvilView: timeline act label drills, its section chevron collapses", 
 		app = new App();
 		seedVault(app);
 		drill = vi.fn();
-		view = new AnvilView(makeLeaf(app), { getLinkClickAction: () => "drill", drill });
+		view = new AnvilView(makeLeaf(app), { settings: { getLinkClickAction: () => "drill" }, drill });
 		await view.onOpen();
 	});
 
@@ -244,7 +244,7 @@ describe("AnvilView: a click with no known target kind takes no action", () => {
 		app = new App();
 		seedVault(app);
 		drill = vi.fn();
-		view = new AnvilView(makeLeaf(app), { getLinkClickAction: () => "drill", drill });
+		view = new AnvilView(makeLeaf(app), { settings: { getLinkClickAction: () => "drill" }, drill });
 		await view.onOpen();
 	});
 

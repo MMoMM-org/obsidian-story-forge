@@ -132,42 +132,48 @@ export default class StoryForgePlugin extends Plugin {
 		this.registerView(
 			WORKSPACE_VIEW_TYPE,
 			(leaf: WorkspaceLeaf) => new AnvilView(leaf, {
-				getLinkClickAction: () => this.settings.linkClickAction,
-				getExcludedFolders: () => this.settings.excludedFolders,
-				getCardByCollection: () => this.settings.cardByCollection,
-				onCardSelect: (collectionId, cardId) => {
-					// Operational state (CON-2) — never written to a note's frontmatter.
-					this.settings = {
-						...this.settings,
-						cardByCollection: { ...this.settings.cardByCollection, [collectionId]: cardId },
-					};
-					void this.saveSettings();
+				settings: {
+					getLinkClickAction: () => this.settings.linkClickAction,
+					getExcludedFolders: () => this.settings.excludedFolders,
 				},
-				// T4.6, ADR-36. Reads the cached registration outcome
-				// (registerCodexView, called below) + apiVersion — safe to call before
-				// that line runs textually because this is a getter, invoked only when
-				// the Codex actually renders, by which point onload has completed.
-				getBasesCapability: () => getBasesCapability(this),
-				getDismissedHints: () => this.settings.dismissedHints,
-				onDismissHint: (hintId) => {
-					// Idempotent: a hint already dismissed is not appended again.
-					// Operational state (CON-2) — never written to a note's frontmatter.
-					if (this.settings.dismissedHints.includes(hintId)) return;
-					this.settings = {
-						...this.settings,
-						dismissedHints: [...this.settings.dismissedHints, hintId],
-					};
-					void this.saveSettings();
+				codex: {
+					getCardByCollection: () => this.settings.cardByCollection,
+					onCardSelect: (collectionId, cardId) => {
+						// Operational state (CON-2) — never written to a note's frontmatter.
+						this.settings = {
+							...this.settings,
+							cardByCollection: { ...this.settings.cardByCollection, [collectionId]: cardId },
+						};
+						void this.saveSettings();
+					},
+					// T4.6, S98 "Change tag": per-collection settings UI doesn't exist yet
+					// (Phase 7's Library owns it — SettingsTab.ts's Scope section comment).
+					// Until then, the closest real anchor is the plugin's own Settings tab.
+					onChangeTag: () => {
+						const setting = (
+							this.app as unknown as { setting?: { open?: () => void; openTabById?: (id: string) => void } }
+						).setting;
+						setting?.open?.();
+						setting?.openTabById?.(this.manifest.id);
+					},
 				},
-				// T4.6, S98 "Change tag": per-collection settings UI doesn't exist yet
-				// (Phase 7's Library owns it — SettingsTab.ts's Scope section comment).
-				// Until then, the closest real anchor is the plugin's own Settings tab.
-				onChangeTag: () => {
-					const setting = (
-						this.app as unknown as { setting?: { open?: () => void; openTabById?: (id: string) => void } }
-					).setting;
-					setting?.open?.();
-					setting?.openTabById?.(this.manifest.id);
+				bases: {
+					// T4.6, ADR-36. Reads the cached registration outcome
+					// (registerCodexView, called below) + apiVersion — safe to call before
+					// that line runs textually because this is a getter, invoked only when
+					// the Codex actually renders, by which point onload has completed.
+					getCapability: () => getBasesCapability(this),
+					getDismissedHints: () => this.settings.dismissedHints,
+					onDismissHint: (hintId) => {
+						// Idempotent: a hint already dismissed is not appended again.
+						// Operational state (CON-2) — never written to a note's frontmatter.
+						if (this.settings.dismissedHints.includes(hintId)) return;
+						this.settings = {
+							...this.settings,
+							dismissedHints: [...this.settings.dismissedHints, hintId],
+						};
+						void this.saveSettings();
+					},
 				},
 			}),
 		);

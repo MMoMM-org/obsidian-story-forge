@@ -92,61 +92,87 @@ const STATUS_VOCAB = ["idea", "outline", "draft", "revised", "done", "final"];
 /** The `order` field spec used by the Kanban renumber path. */
 const ORDER_FIELD = { name: "order", type: "number" as const };
 
+/**
+ * AnvilViewOpts — grouped by concern (spec 008 Phase 4 closeout).
+ *
+ * Ten flat getter/callback fields accumulated across four tasks (T3.5, T4.1,
+ * T4.4, T4.6); each addition individually followed the same convention (an
+ * injected getter or callback with a documented default), but left alone the
+ * list would keep growing flat — Phase 5's editor pane (pane state, dock,
+ * selection) is the next contributor, and undifferentiated from the rest it
+ * would read as "just more Codex fields". Grouping by concern gives Phase 5 a
+ * new `editor?: { ... }` group instead of four more top-level fields.
+ *
+ * Every getter is a getter (not a captured value) for the same reason across
+ * every group: main.ts reassigns `this.settings` on load/save, so a captured
+ * value would go stale. `drill` stays top-level — it is the one seam that
+ * cuts across every layout (Codex card body, Timeline/Kanban/Plotlines scene
+ * click), not a concern of any single group.
+ *
+ * A group being entirely absent must behave exactly as all of its member
+ * fields being absent does today — every default below is unchanged from
+ * before this reshape, only its home moved.
+ */
 export interface AnvilViewOpts {
-	/** Reads the live link-click setting (getter — main.ts reassigns settings). */
-	getLinkClickAction?: () => "drill" | "open";
 	/** Drill seam — injected for testability; defaults to the sidebar Context drill. */
 	drill?: (file: TFile) => void;
-	/**
-	 * Reads the live excludedFolders setting (T3.5), threaded into resolveWorkspaceScope
-	 * and resolvePlotlineScope. Getter (not a captured value) for the same reason as
-	 * getLinkClickAction — main.ts reassigns settings on load. Defaults to
-	 * DEFAULT_EXCLUDED_FOLDERS so existing construction sites are unaffected.
-	 */
-	getExcludedFolders?: () => readonly string[];
-	/**
-	 * Reads the live Codex collection list (T4.1). Getter for the same reason as the
-	 * settings above — Phase 7's Library replaces the shipped defaults with store-backed
-	 * records and must not require a reopen. Defaults to `BUILT_IN_COLLECTIONS`.
-	 */
-	getCollections?: () => readonly CodexCollection[];
-	/**
-	 * Reads the live per-collection Card choice (T4.4), keyed by collection id. Getter
-	 * for the same reason as the settings above. Defaults to `{}` — every collection
-	 * renders the registry default (Hero) until the user picks one.
-	 */
-	getCardByCollection?: () => Readonly<Record<string, string>>;
-	/**
-	 * Persist a Card choice for a collection (T4.4) — write-through to settings only,
-	 * never to a note's frontmatter (CON-2). Defaults to a no-op so existing
-	 * construction sites are unaffected.
-	 */
-	onCardSelect?: (collectionId: string, cardId: string) => void;
-	/**
-	 * Reads the live Bases capability (T4.6, ADR-36: enabled/disabled/absent —
-	 * `bases/basesCapability.ts`). Getter for the same reason as the settings
-	 * above. Defaults to `"enabled"` — the safe default that never shows a hint.
-	 */
-	getBasesCapability?: () => BasesCapability;
-	/**
-	 * Reads the live set of dismissed hint ids (T4.6, `PluginSettings.dismissedHints`).
-	 * Getter for the same reason as the settings above. Defaults to none dismissed.
-	 */
-	getDismissedHints?: () => readonly string[];
-	/**
-	 * Persist a hint dismissal (T4.6) — write-through to settings only, never to a
-	 * note's frontmatter (CON-2). Defaults to a no-op so existing construction
-	 * sites are unaffected.
-	 */
-	onDismissHint?: (hintId: string) => void;
-	/**
-	 * Open Settings so the user can change a collection's tag (T4.6, S98's
-	 * "Change tag"). Defaults to a no-op so existing construction sites are
-	 * unaffected. Per-collection settings UI does not exist yet (deferred to
-	 * Phase 7's Library) — main.ts's real implementation opens Settings at the
-	 * plugin's own tab, the closest anchor that exists today.
-	 */
-	onChangeTag?: (collectionId: string) => void;
+
+	/** Live plugin settings the Anvil reads on every render (T3.5). */
+	settings?: {
+		/** Reads the live link-click setting (getter — main.ts reassigns settings). */
+		getLinkClickAction?: () => "drill" | "open";
+		/**
+		 * Reads the live excludedFolders setting, threaded into resolveWorkspaceScope
+		 * and resolvePlotlineScope. Defaults to DEFAULT_EXCLUDED_FOLDERS so existing
+		 * construction sites are unaffected.
+		 */
+		getExcludedFolders?: () => readonly string[];
+	};
+
+	/** Codex tab concerns: collection list, Card choice, tag settings (T4.1/T4.4/T4.6). */
+	codex?: {
+		/**
+		 * Reads the live Codex collection list (T4.1) — Phase 7's Library replaces the
+		 * shipped defaults with store-backed records and must not require a reopen.
+		 * Defaults to `BUILT_IN_COLLECTIONS`.
+		 */
+		getCollections?: () => readonly CodexCollection[];
+		/**
+		 * Reads the live per-collection Card choice (T4.4), keyed by collection id.
+		 * Defaults to `{}` — every collection renders the registry default (Hero)
+		 * until the user picks one.
+		 */
+		getCardByCollection?: () => Readonly<Record<string, string>>;
+		/**
+		 * Persist a Card choice for a collection (T4.4) — write-through to settings
+		 * only, never to a note's frontmatter (CON-2). Defaults to a no-op.
+		 */
+		onCardSelect?: (collectionId: string, cardId: string) => void;
+		/**
+		 * Open Settings so the user can change a collection's tag (T4.6, S98's
+		 * "Change tag"). Defaults to a no-op. Per-collection settings UI does not
+		 * exist yet (deferred to Phase 7's Library) — main.ts's real implementation
+		 * opens Settings at the plugin's own tab, the closest anchor that exists today.
+		 */
+		onChangeTag?: (collectionId: string) => void;
+	};
+
+	/** Bases capability + hint dismissal (T4.6, ADR-36). */
+	bases?: {
+		/**
+		 * Reads the live Bases capability (enabled/disabled/absent —
+		 * `bases/basesCapability.ts`). Defaults to `"enabled"` — the safe default
+		 * that never shows a hint.
+		 */
+		getCapability?: () => BasesCapability;
+		/** Reads the live set of dismissed hint ids (`PluginSettings.dismissedHints`). Defaults to none dismissed. */
+		getDismissedHints?: () => readonly string[];
+		/**
+		 * Persist a hint dismissal — write-through to settings only, never to a
+		 * note's frontmatter (CON-2). Defaults to a no-op.
+		 */
+		onDismissHint?: (hintId: string) => void;
+	};
 }
 
 function isSwimlaneKey(v: unknown): v is SwimlaneKey {
@@ -187,7 +213,7 @@ export class AnvilView extends ItemView {
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
 		super(leaf);
-		this.getLinkClickAction = opts?.getLinkClickAction ?? ((): "drill" => "drill");
+		this.getLinkClickAction = opts?.settings?.getLinkClickAction ?? ((): "drill" => "drill");
 		// ADR-28: this is the Anvil's "inspect" implementation. It used to default to
 		// revealAndShowFile(app, file), which opened/revealed the Workbench leaf — the
 		// reported regression (a click in the Anvil must target no other leaf). The
@@ -195,14 +221,14 @@ export class AnvilView extends ItemView {
 		// Phase 4/5, so the default deliberately does nothing; tests inject `drill`
 		// to observe inspection through the seam that exists for exactly this purpose.
 		this._drill = opts?.drill ?? ((): void => {});
-		this.getExcludedFolders = opts?.getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
-		this.getCollections = opts?.getCollections ?? ((): readonly CodexCollection[] => BUILT_IN_COLLECTIONS);
-		this.getCardByCollection = opts?.getCardByCollection ?? ((): Readonly<Record<string, string>> => ({}));
-		this.onCardSelect = opts?.onCardSelect ?? ((): void => {});
-		this.getBasesCapability = opts?.getBasesCapability ?? ((): BasesCapability => "enabled");
-		this.getDismissedHints = opts?.getDismissedHints ?? ((): readonly string[] => []);
-		this.onDismissHint = opts?.onDismissHint ?? ((): void => {});
-		this.onChangeTag = opts?.onChangeTag ?? ((): void => {});
+		this.getExcludedFolders = opts?.settings?.getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
+		this.getCollections = opts?.codex?.getCollections ?? ((): readonly CodexCollection[] => BUILT_IN_COLLECTIONS);
+		this.getCardByCollection = opts?.codex?.getCardByCollection ?? ((): Readonly<Record<string, string>> => ({}));
+		this.onCardSelect = opts?.codex?.onCardSelect ?? ((): void => {});
+		this.getBasesCapability = opts?.bases?.getCapability ?? ((): BasesCapability => "enabled");
+		this.getDismissedHints = opts?.bases?.getDismissedHints ?? ((): readonly string[] => []);
+		this.onDismissHint = opts?.bases?.onDismissHint ?? ((): void => {});
+		this.onChangeTag = opts?.codex?.onChangeTag ?? ((): void => {});
 		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
 	}
 

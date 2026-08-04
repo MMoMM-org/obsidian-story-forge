@@ -89,7 +89,7 @@ function makeFixture(): App {
 function makeView(app: App, getExcludedFolders?: () => readonly string[]): AnvilView {
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: App }).app = app;
-	return new AnvilView(leaf, { getLinkClickAction: () => "drill", drill: vi.fn(), getExcludedFolders });
+	return new AnvilView(leaf, { drill: vi.fn(), settings: { getLinkClickAction: () => "drill", getExcludedFolders } });
 }
 
 function body(view: AnvilView): HTMLElement {

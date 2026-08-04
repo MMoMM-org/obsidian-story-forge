@@ -95,7 +95,7 @@ describe("AnvilView", () => {
 
 		const leaf = new WorkspaceLeaf();
 		(leaf as unknown as { app: App }).app = app;
-		view = new AnvilView(leaf, { getLinkClickAction: () => clickAction, drill });
+		view = new AnvilView(leaf, { settings: { getLinkClickAction: () => clickAction }, drill });
 		await view.onOpen();
 	});
 
@@ -150,7 +150,7 @@ describe("AnvilView", () => {
 		activeFile = character;
 		const leaf = new WorkspaceLeaf();
 		(leaf as unknown as { app: App }).app = app;
-		const v = new AnvilView(leaf, { getLinkClickAction: () => clickAction, drill });
+		const v = new AnvilView(leaf, { settings: { getLinkClickAction: () => clickAction }, drill });
 		await v.onOpen();
 		expect(bodyOf(v).querySelector(".sf-ws-hint")).not.toBeNull();
 		// still whole-vault scenes
@@ -175,7 +175,7 @@ describe("AnvilView", () => {
 		// frozen literal, proves a pre-move saved layout still opens correctly.
 		const restoredLeaf = new WorkspaceLeaf();
 		(restoredLeaf as unknown as { app: App }).app = app;
-		const restored = new AnvilView(restoredLeaf, { getLinkClickAction: () => clickAction, drill });
+		const restored = new AnvilView(restoredLeaf, { settings: { getLinkClickAction: () => clickAction }, drill });
 		expect(restored.getViewType()).toBe("story-forge-workspace");
 		await restored.onOpen();
 		expect(restored.contentEl.querySelector(".sf-ws-toggle")).not.toBeNull();
