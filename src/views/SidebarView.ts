@@ -46,8 +46,9 @@ import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFields } from "../inspector/inspectorFields";
-import { createNavigationController, type TargetKind } from "../navigation/navigationController";
-import { walkTargetMarkers } from "../navigation/domTargetWalk";
+import { createNavigationController } from "../navigation/navigationController";
+import { walkTargetMarkers, type MarkerKindOf } from "../navigation/domTargetWalk";
+import { createMarkerKindOf, SIDEBAR_MARKERS } from "../navigation/markerVocabulary";
 import { CODEX_CARD_BODY_ATTR } from "../codex/codexTab";
 
 // ---------------------------------------------------------------------------
@@ -720,15 +721,14 @@ export class SidebarView extends ItemView {
 	 * The card body and the name inside it are separate elements, so
 	 * name-over-card-body precedence comes from the nearest-first walk, not
 	 * from this list's order (ADR-28).
+	 *
+	 * The vocabulary and this exact check order now live in
+	 * `navigation/markerVocabulary.ts` (`SIDEBAR_MARKERS`) — factored out
+	 * once `AnvilView` needed the identical attribute→kind mapping under a
+	 * different whitelist (the collection pill omission above is what that
+	 * whitelist preserves). Order kept verbatim; see that module's docstring.
 	 */
-	private _markerKindOf(el: HTMLElement): TargetKind | null {
-		if (el.hasAttribute("data-sf-section-toggle")) return "structuralControl";
-		if (el.hasAttribute("data-sf-plotline")) return "structuralControl";
-		if (el.hasAttribute("data-sf-nav")) return "structuralControl";
-		if (el.hasAttribute("data-sf-link")) return "name";
-		if (el.hasAttribute(CODEX_CARD_BODY_ATTR)) return "cardBody";
-		return null;
-	}
+	private readonly _markerKindOf: MarkerKindOf = createMarkerKindOf(SIDEBAR_MARKERS);
 
 	/**
 	 * Resolve `nearest`'s target path to a `TFile`. A name carries it in

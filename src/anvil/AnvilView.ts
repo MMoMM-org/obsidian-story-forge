@@ -58,8 +58,9 @@ import { InteractionHandler } from "workspace/interactionHandler";
 import { commit, commitMany, type CommitResult, type CommitError } from "../inspector/frontmatterWriter";
 import { CollapseStore } from "workspace/collapseStore";
 import { ANVIL_TAB_LABEL, buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
-import { createNavigationController, type TargetKind } from "navigation/navigationController";
-import { walkTargetMarkers } from "navigation/domTargetWalk";
+import { createNavigationController } from "navigation/navigationController";
+import { walkTargetMarkers, type MarkerKindOf } from "navigation/domTargetWalk";
+import { ANVIL_MARKERS, createMarkerKindOf } from "navigation/markerVocabulary";
 import {
 	BUILT_IN_COLLECTIONS,
 	CODEX_CARD_BODY_ATTR,
@@ -559,19 +560,14 @@ export class AnvilView extends ItemView {
 	 * navigates and neither nests a name, so — like the Card selector option —
 	 * they need only a presence check here; `_operateControl` reads the
 	 * marker's value to know WHICH collection/hint it targets.
+	 *
+	 * The vocabulary and this exact check order now live in
+	 * `navigation/markerVocabulary.ts` (`ANVIL_MARKERS`) — factored out once
+	 * `SidebarView` needed the identical attribute→kind mapping under a
+	 * different whitelist. Order is preserved verbatim; see that module's
+	 * docstring for why reordering would be a behaviour change.
 	 */
-	private _markerKindOf(el: HTMLElement): TargetKind | null {
-		if (el.hasAttribute("data-sf-link")) return "name";
-		if (el.hasAttribute(CODEX_CARD_BODY_ATTR)) return "cardBody";
-		if (el.hasAttribute("data-ws-layout")) return "structuralControl";
-		if (el.hasAttribute("data-ws-tlmode")) return "structuralControl";
-		if (el.hasAttribute(CODEX_COLLECTION_ATTR)) return "structuralControl";
-		if (el.hasAttribute(CODEX_CARD_SELECT_ATTR)) return "structuralControl";
-		if (el.hasAttribute("data-sf-section-toggle")) return "structuralControl";
-		if (el.hasAttribute(CODEX_CHANGE_TAG_ATTR)) return "structuralControl";
-		if (el.hasAttribute(CODEX_HINT_DISMISS_ATTR)) return "structuralControl";
-		return null;
-	}
+	private readonly _markerKindOf: MarkerKindOf = createMarkerKindOf(ANVIL_MARKERS);
 
 	/**
 	 * Resolve `nearest`'s target path to a `TFile`. A name carries it in
