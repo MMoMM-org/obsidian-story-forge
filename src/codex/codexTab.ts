@@ -32,18 +32,14 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28, Building Block View
  */
 
-import type { TFile } from "obsidian";
 import { resolveCollection, type IndexedNote } from "./collectionResolver";
 import {
-	createCardRegistry,
 	nativeCardEntry,
 	type CardEntry,
 	type CardRenderDeps,
 	type CardRenderer,
 } from "./cardRegistry";
-import { heroCard } from "./cards/heroCard";
-import { tableCard } from "./cards/tableCard";
-import { compactCard } from "./cards/compactCard";
+import { BUILT_IN_CARD_IDS, CODEX_CARD_REGISTRY } from "./builtinCards";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (see test/__mocks__/obsidian.ts).
@@ -70,21 +66,15 @@ export const CODEX_CARD_BODY_ATTR = "data-sf-card-body";
 /** The existing cross-surface "name" marker, reused unchanged. */
 const LINK_ATTR = "data-sf-link";
 
-// ---------------------------------------------------------------------------
-// Cards (T4.3) — the registry every entry renders through
-// ---------------------------------------------------------------------------
-
 /**
- * The registry every Codex host renders through (ADR-30, T4.2). Hero is the
- * default — `resolve(undefined)` (no per-collection choice yet, T4.4's job)
- * and `resolve("some-removed-id")` both degrade to it, so the grid is never
- * empty just because nothing has been selected. Module-level rather than
- * per-render: registration happens once, the same way `registerBasesView`
- * must (`cardRegistry.ts`'s module doc).
+ * Marks a Card option in the selector dropdown (T4.4, S91/S97). Hosts classify
+ * it as `"structuralControl"`; its value is the Card id to persist for the
+ * active collection. Re-exports the registry constructed in `builtinCards.ts`
+ * so existing importers of `codex/codexTab` keep working (T4.4's cleanup
+ * moved construction, not the public name).
  */
-export const CODEX_CARD_REGISTRY = createCardRegistry(heroCard);
-CODEX_CARD_REGISTRY.register(tableCard);
-CODEX_CARD_REGISTRY.register(compactCard);
+export const CODEX_CARD_SELECT_ATTR = "data-sf-card";
+export { CODEX_CARD_REGISTRY };
 
 // ---------------------------------------------------------------------------
 // Collections
@@ -167,13 +157,6 @@ export interface CodexTabOptions {
 	/** Folders excluded from every collection (CON-7: exclusion only). */
 	readonly excludedFolders: readonly string[];
 	/**
-	 * Adapts a resolved path to its file. Historical: before T4.2 shipped the
-	 * path+frontmatter `CardEntry` model (ADR-30), this was how a card would
-	 * have read a note. Cards now read `frontmatterFor` instead; kept on the
-	 * option contract for the hosts and tests already wired to it.
-	 */
-	readonly fileFor: (path: string) => TFile | null;
-	/**
 	 * Frontmatter for a resolved note path — Cards read entries built from this
 	 * (T4.3, `nativeCardEntry`). Optional: a host that has not wired this yet
 	 * still renders — every field simply reads as absent (`.miss`) rather than
@@ -190,9 +173,11 @@ export interface CodexTabOptions {
 	 */
 	readonly resolveAsset?: (sourcePath: string, raw: string) => string;
 	/**
-	 * The Card id to render this collection with. Optional: `undefined`
-	 * resolves to the registry default (Hero, T4.2) — persisting a choice per
-	 * collection is T4.4's job.
+	 * The Card id this collection is currently rendered with. Optional:
+	 * `undefined` resolves to the registry default (Hero, T4.2). The host reads
+	 * this from settings (`cardByCollection`, T4.4) keyed by the active
+	 * collection's id — `renderCodexTab` itself is stateless with respect to
+	 * the choice, same as it already is for `selection`.
 	 */
 	readonly cardId?: string;
 	/** Workbench form: same markup, tighter density (S95). */
@@ -213,7 +198,8 @@ export function renderCodexTab(container: HTMLElement, opts: CodexTabOptions): C
 	container.appendChild(root);
 
 	const active = opts.selection.resolve(opts.collections);
-	root.appendChild(renderPills(opts.collections, active));
+	const cats = renderPills(opts.collections, active);
+	root.appendChild(cats);
 
 	const grid = el("div", "sf-cx-grid");
 	root.appendChild(grid);
@@ -223,7 +209,14 @@ export function renderCodexTab(container: HTMLElement, opts: CodexTabOptions): C
 		return null;
 	}
 
-	renderBody(grid, active, opts);
+	// The selector is meaningful only once a collection is active — it always
+	// resolves through the registry (Hero default, ADR-30), independent of
+	// whether the active collection currently has any notes to show with it.
+	const card = CODEX_CARD_REGISTRY.resolve(opts.cardId);
+	cats.appendChild(el("span", "sf-cx-cats-sp"));
+	cats.appendChild(renderCardSelector(card));
+
+	renderBody(grid, active, card, opts);
 	return active;
 }
 
@@ -247,8 +240,98 @@ function renderPills(
 	return row;
 }
 
+// ---------------------------------------------------------------------------
+// Card selector (T4.4, S91/S97) — trigger + dropdown, Built-in / Yours split
+// ---------------------------------------------------------------------------
+
+/**
+ * The Card selector: a trigger showing the active Card's label, and a
+ * dropdown grouped "Built-in" / "Yours" (S91 closed, S97 open). The split is
+ * derived by joining the registry's `list()` against `BUILT_IN_CARD_IDS`
+ * rather than a `provenance` field — T4.2 deliberately kept that off the
+ * frozen `CardRenderer` contract.
+ *
+ * Picking an option carries no behaviour of its own: it only stamps
+ * `CODEX_CARD_SELECT_ATTR`, the same "contribute a marker, let the host
+ * decide" discipline the collection pills already follow (module docstring,
+ * ADR-28) — the host resolves the active collection and persists the choice.
+ */
+function renderCardSelector(active: CardRenderer): HTMLElement {
+	const wrap = el("div", "sf-cx-cardsel");
+
+	const trigger = activeDocument.createElement("button");
+	trigger.type = "button";
+	trigger.className = "sf-cx-cardsel-trigger";
+	trigger.setAttribute("aria-haspopup", "listbox");
+	trigger.setAttribute("aria-expanded", "false");
+	trigger.append("Card: ");
+	const label = activeDocument.createElement("b");
+	label.textContent = active.label;
+	trigger.appendChild(label);
+	trigger.append(" ▾");
+	wrap.appendChild(trigger);
+
+	const dd = el("div", "sf-cx-cardsel-dd");
+	dd.setAttribute("role", "listbox");
+	dd.hidden = true;
+	wrap.appendChild(dd);
+
+	const all = CODEX_CARD_REGISTRY.list();
+	const builtIns = all.filter((c) => BUILT_IN_CARD_IDS.has(c.id));
+	const imported = all.filter((c) => !BUILT_IN_CARD_IDS.has(c.id));
+
+	appendCardGroup(dd, "Built-in", builtIns, active.id, false);
+	if (imported.length > 0) {
+		dd.appendChild(activeDocument.createElement("hr"));
+		appendCardGroup(dd, "Yours", imported, active.id, true);
+	}
+
+	// Local UI-only state (open/closed): it carries no navigation meaning
+	// (ADR-28), so it never joins the host's marker vocabulary. This whole
+	// subtree is torn down on every render (`empty(container)` at the top of
+	// `renderCodexTab`), so a plain listener is GC'd with it — the same
+	// documented CON-4 exception `CodexView.ts`'s "Enable Bases" button uses.
+	trigger.addEventListener("click", () => {
+		const opening = dd.hidden;
+		dd.hidden = !opening;
+		trigger.setAttribute("aria-expanded", String(opening));
+	});
+
+	return wrap;
+}
+
+/** Append one heading + its Card options to the selector dropdown. */
+function appendCardGroup(
+	dd: HTMLElement,
+	heading: string,
+	cards: readonly CardRenderer[],
+	activeId: string,
+	imported: boolean,
+): void {
+	const h = el("div", "sf-cx-cardsel-heading");
+	h.textContent = heading;
+	dd.appendChild(h);
+	for (const card of cards) {
+		const item = el("span", "sf-cx-cardsel-item");
+		if (imported) item.classList.add("sf-cx-cardsel-item--usr");
+		const isSelected = card.id === activeId;
+		if (isSelected) item.classList.add("sf-cx-cardsel-item--sel");
+		item.setAttribute("role", "option");
+		item.setAttribute("aria-selected", String(isSelected));
+		item.setAttribute("tabindex", "0");
+		item.setAttribute(CODEX_CARD_SELECT_ATTR, card.id);
+		item.textContent = card.label;
+		dd.appendChild(item);
+	}
+}
+
 /** Resolve the active collection and render its entries, or why there are none. */
-function renderBody(grid: HTMLElement, active: CodexCollection, opts: CodexTabOptions): void {
+function renderBody(
+	grid: HTMLElement,
+	active: CodexCollection,
+	card: CardRenderer,
+	opts: CodexTabOptions,
+): void {
 	const resolution = resolveCollection(
 		active.id,
 		{ [active.id]: { tag: active.tag } },
@@ -272,7 +355,6 @@ function renderBody(grid: HTMLElement, active: CodexCollection, opts: CodexTabOp
 		return;
 	}
 
-	const card = CODEX_CARD_REGISTRY.resolve(opts.cardId);
 	// Card-id-aware density (PRD/F4 — "shown at the density it deserves"): Hero
 	// keeps the multi-column card grid; Table and Compact are row-shaped (a
 	// flat line of cells/facts, `tableCard.ts`/`compactCard.ts`) and only read

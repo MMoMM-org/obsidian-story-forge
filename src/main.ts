@@ -134,6 +134,15 @@ export default class StoryForgePlugin extends Plugin {
 			(leaf: WorkspaceLeaf) => new AnvilView(leaf, {
 				getLinkClickAction: () => this.settings.linkClickAction,
 				getExcludedFolders: () => this.settings.excludedFolders,
+				getCardByCollection: () => this.settings.cardByCollection,
+				onCardSelect: (collectionId, cardId) => {
+					// Operational state (CON-2) — never written to a note's frontmatter.
+					this.settings = {
+						...this.settings,
+						cardByCollection: { ...this.settings.cardByCollection, [collectionId]: cardId },
+					};
+					void this.saveSettings();
+				},
 			}),
 		);
 

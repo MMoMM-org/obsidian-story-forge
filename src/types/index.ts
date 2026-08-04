@@ -29,6 +29,16 @@ export interface PluginSettings {
 	 * @ref SDD/Data Storage Changes — Settings.editorDock
 	 */
 	editorDock: "bottom" | "right";
+	/**
+	 * The Card a collection is rendered with (T4.4), keyed by collection id. Operational
+	 * state (CON-2) — which Card draws a collection's entries, never story data, and never
+	 * written to a note. Default `{}`: every collection renders the registry default
+	 * (Hero) until the user picks one. A collection id absent from this record, or one
+	 * whose Card id no longer resolves (a removed Card), degrades to the registry default
+	 * rather than throwing (`CardRegistry.resolve`, `cardRegistry.ts`).
+	 * @ref SDD/Data Storage Changes — Settings.cardByCollection
+	 */
+	cardByCollection: Record<string, string>;
 }
 
 const DEFAULT_FILE_CLASSES_FOLDER = "00 Meta/FileClasses";
@@ -49,6 +59,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	fileClassesFolder: DEFAULT_FILE_CLASSES_FOLDER,
 	excludedFolders: [...DEFAULT_EXCLUDED_FOLDERS],
 	editorDock: DEFAULT_EDITOR_DOCK,
+	cardByCollection: {},
 };
 
 /** Type guard: returns true if `v` is a valid `linkClickAction` value. */
@@ -113,6 +124,23 @@ export function normalizeCuratedBasesFolder(v: unknown): string {
 	return isCuratedBasesFolder(v) ? v : DEFAULT_SETTINGS.curatedBasesFolder;
 }
 
+/** Type guard: true if `v` is a plain record of string → string (T4.4: cardByCollection). */
+export function isCardByCollection(v: unknown): v is Record<string, string> {
+	if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
+	return Object.values(v as Record<string, unknown>).every((x) => typeof x === "string");
+}
+
+/**
+ * Normalizer: returns a copy of `v` if it is a valid `cardByCollection` record, otherwise
+ * `{}`. An empty record is not malformed — it is the shipped default ("nothing chosen
+ * yet"). Always returns a fresh object, never the same reference across calls, matching
+ * `normalizeExcludedFolders`'s discipline — a future in-place write (`onCardSelect`)
+ * mutating the returned object must never corrupt `DEFAULT_SETTINGS.cardByCollection`.
+ */
+export function normalizeCardByCollection(v: unknown): Record<string, string> {
+	return isCardByCollection(v) ? { ...v } : {};
+}
+
 /**
  * Build a `PluginSettings` from a persisted (untyped) `settings` blob, keeping only the
  * fields `PluginSettings` declares — every other own-enumerable key on `raw` (e.g. a
@@ -137,5 +165,6 @@ export function normalizeSettings(raw: unknown): PluginSettings {
 		fileClassesFolder: normalizeFileClassesFolder(stored.fileClassesFolder),
 		excludedFolders: normalizeExcludedFolders(stored.excludedFolders),
 		editorDock: normalizeEditorDock(stored.editorDock),
+		cardByCollection: normalizeCardByCollection(stored.cardByCollection),
 	};
 }

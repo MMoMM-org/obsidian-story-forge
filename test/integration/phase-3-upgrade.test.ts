@@ -77,7 +77,7 @@ const FIXTURE_LEGACY_SETTINGS = {
 };
 
 /**
- * Fixture C: every one of the five current `PluginSettings` fields present with a
+ * Fixture C: every one of the six current `PluginSettings` fields present with a
  * non-default stored value, plus the deleted `exampleSetting`. Pins that
  * `loadSettings()` round-trips ALL declared fields (not just the two Fixture B
  * happens to set) — a normalizer that silently drops or defaults a field it doesn't
@@ -91,6 +91,7 @@ const FIXTURE_ALL_FIELDS_STORED = {
 		fileClassesFolder: "Custom/FileClasses",
 		excludedFolders: ["Custom Excluded"],
 		editorDock: "right",
+		cardByCollection: { character: "table" },
 	},
 	views: LEGACY_VIEWS_RAW,
 };
@@ -216,10 +217,11 @@ describe("Phase 3 upgrade — settings load through main.ts's loadSettings()", (
 		expect(plugin.settings.excludedFolders).toEqual(["00 Meta"]);
 		expect(plugin.settings.editorDock).toBe("bottom");
 		expect(plugin.settings.fileClassesFolder).toBe("00 Meta/FileClasses");
+		expect(plugin.settings.cardByCollection).toEqual({});
 		expect("exampleSetting" in plugin.settings).toBe(false);
 	});
 
-	it("round-trips all five declared fields when every one is stored, and carries no stray key", async () => {
+	it("round-trips all six declared fields when every one is stored, and carries no stray key", async () => {
 		const plugin = await makePlugin();
 		plugin.loadData.mockResolvedValue(FIXTURE_ALL_FIELDS_STORED);
 
@@ -231,6 +233,7 @@ describe("Phase 3 upgrade — settings load through main.ts's loadSettings()", (
 			fileClassesFolder: "Custom/FileClasses",
 			excludedFolders: ["Custom Excluded"],
 			editorDock: "right",
+			cardByCollection: { character: "table" },
 		});
 		expect(Object.keys(plugin.settings).sort()).toEqual(
 			Object.keys(DEFAULT_SETTINGS).sort(),
@@ -258,6 +261,7 @@ describe("Phase 3 upgrade — settings save through main.ts's saveSettings()", (
 			fileClassesFolder: "00 Meta/FileClasses",
 			excludedFolders: ["00 Meta"],
 			editorDock: "bottom",
+			cardByCollection: {},
 		});
 		expect("exampleSetting" in (persisted.settings as object)).toBe(false);
 	});

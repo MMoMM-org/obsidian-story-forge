@@ -108,6 +108,7 @@ describe("StoryForgePlugin — settings persistence across reload", () => {
 				fileClassesFolder: "custom-value",
 				excludedFolders: ["00 Meta"],
 				editorDock: "bottom",
+				cardByCollection: {},
 			},
 		};
 		plugin.loadData.mockResolvedValue(stored);
@@ -143,6 +144,7 @@ describe("StoryForgePlugin — clobber guards", () => {
 				fileClassesFolder: "old",
 				excludedFolders: ["00 Meta"],
 				editorDock: "bottom",
+				cardByCollection: {},
 			},
 			views: { "view-1": makeViewRecord() },
 		};
@@ -170,6 +172,7 @@ describe("StoryForgePlugin — clobber guards", () => {
 				fileClassesFolder: "keep-me",
 				excludedFolders: ["00 Meta"],
 				editorDock: "bottom",
+				cardByCollection: {},
 			},
 		};
 		plugin.loadData.mockResolvedValue(existingData);

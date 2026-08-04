@@ -64,6 +64,7 @@ import { walkTargetMarkers } from "navigation/domTargetWalk";
 import {
 	BUILT_IN_COLLECTIONS,
 	CODEX_CARD_BODY_ATTR,
+	CODEX_CARD_SELECT_ATTR,
 	CODEX_COLLECTION_ATTR,
 	CodexSelectionStore,
 	renderCodexTab,
@@ -101,6 +102,18 @@ export interface AnvilViewOpts {
 	 * records and must not require a reopen. Defaults to `BUILT_IN_COLLECTIONS`.
 	 */
 	getCollections?: () => readonly CodexCollection[];
+	/**
+	 * Reads the live per-collection Card choice (T4.4), keyed by collection id. Getter
+	 * for the same reason as the settings above. Defaults to `{}` — every collection
+	 * renders the registry default (Hero) until the user picks one.
+	 */
+	getCardByCollection?: () => Readonly<Record<string, string>>;
+	/**
+	 * Persist a Card choice for a collection (T4.4) — write-through to settings only,
+	 * never to a note's frontmatter (CON-2). Defaults to a no-op so existing
+	 * construction sites are unaffected.
+	 */
+	onCardSelect?: (collectionId: string, cardId: string) => void;
 }
 
 function isSwimlaneKey(v: unknown): v is SwimlaneKey {
@@ -131,6 +144,8 @@ export class AnvilView extends ItemView {
 	private readonly _drill: (file: TFile) => void;
 	private readonly getExcludedFolders: () => readonly string[];
 	private readonly getCollections: () => readonly CodexCollection[];
+	private readonly getCardByCollection: () => Readonly<Record<string, string>>;
+	private readonly onCardSelect: (collectionId: string, cardId: string) => void;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
@@ -145,6 +160,8 @@ export class AnvilView extends ItemView {
 		this._drill = opts?.drill ?? ((): void => {});
 		this.getExcludedFolders = opts?.getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
 		this.getCollections = opts?.getCollections ?? ((): readonly CodexCollection[] => BUILT_IN_COLLECTIONS);
+		this.getCardByCollection = opts?.getCardByCollection ?? ((): Readonly<Record<string, string>> => ({}));
+		this.onCardSelect = opts?.onCardSelect ?? ((): void => {});
 		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
 	}
 
@@ -370,18 +387,20 @@ export class AnvilView extends ItemView {
 	 * note index, the selection store and the click enactment.
 	 */
 	private _renderCodex(body: HTMLElement): void {
+		const collections = this.getCollections();
+		const active = this._codexSelection.resolve(collections);
 		renderCodexTab(body, {
-			collections: this.getCollections(),
+			collections,
 			selection: this._codexSelection,
 			index: this._noteIndex?.notes() ?? [],
 			excludedFolders: this.getExcludedFolders(),
-			fileFor: (path): TFile | null => this._noteIndex?.fileFor(path) ?? null,
 			frontmatterFor: (path): Record<string, unknown> | null => {
 				const file = this._noteIndex?.fileFor(path) ?? null;
 				if (!file) return null;
 				return this.app.metadataCache.getFileCache(file)?.frontmatter ?? null;
 			},
 			resolveAsset: (sourcePath, raw): string => createAssetResolver(this.app, sourcePath)(raw),
+			cardId: active ? this.getCardByCollection()[active.id] : undefined,
 		});
 	}
 
@@ -467,8 +486,9 @@ export class AnvilView extends ItemView {
 	/**
 	 * ADR-28 / T2.5: classify the marker kind a single DOM node carries, if any.
 	 * data-sf-link is "name"; data-ws-layout, data-ws-tlmode, the Codex
-	 * collection pill and data-sf-section-toggle are all "structuralControl"
-	 * (the Anvil's tab strip / timeline sub-mode toggle / collection switcher /
+	 * collection pill, the Codex Card selector option (T4.4) and
+	 * data-sf-section-toggle are all "structuralControl" (the Anvil's tab strip /
+	 * timeline sub-mode toggle / collection switcher / Card switcher /
 	 * collapsible section headers). None of these ever co-occur on the same
 	 * node in the current markup.
 	 *
@@ -485,6 +505,7 @@ export class AnvilView extends ItemView {
 		if (el.hasAttribute("data-ws-layout")) return "structuralControl";
 		if (el.hasAttribute("data-ws-tlmode")) return "structuralControl";
 		if (el.hasAttribute(CODEX_COLLECTION_ATTR)) return "structuralControl";
+		if (el.hasAttribute(CODEX_CARD_SELECT_ATTR)) return "structuralControl";
 		if (el.hasAttribute("data-sf-section-toggle")) return "structuralControl";
 		return null;
 	}
@@ -507,7 +528,7 @@ export class AnvilView extends ItemView {
 
 	/**
 	 * Enact an "operateControl" outcome: `nearest` carries exactly one of the
-	 * three structural markers `_markerKindOf` recognises — determine which and
+	 * structural markers `_markerKindOf` recognises — determine which and
 	 * run the same handling `_onClick` used to run inline.
 	 */
 	private _operateControl(nearest: HTMLElement | null): void {
@@ -523,6 +544,20 @@ export class AnvilView extends ItemView {
 		if (collectionId !== null) {
 			this._codexSelection.select(collectionId);
 			this._render();
+			return;
+		}
+
+		// T4.4: a Card option in the selector dropdown. Persist against the
+		// COLLECTION THAT IS ACTIVE RIGHT NOW — not a fixed key — so the choice
+		// is remembered per collection (PRD/F4 AC), then re-render so the grid
+		// picks it up immediately. Never touches frontmatter (CON-2/CON-1).
+		const cardId = nearest.getAttribute(CODEX_CARD_SELECT_ATTR);
+		if (cardId !== null) {
+			const active = this._codexSelection.resolve(this.getCollections());
+			if (active) {
+				this.onCardSelect(active.id, cardId);
+				this._render();
+			}
 			return;
 		}
 

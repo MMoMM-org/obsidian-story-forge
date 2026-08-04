@@ -330,6 +330,7 @@ describe("linkClickAction value round-trip", () => {
 			fileClassesFolder: "00 Meta/FileClasses",
 			excludedFolders: ["00 Meta"],
 			editorDock: "bottom",
+			cardByCollection: {},
 		});
 		// Load it back
 		const result = await loadSettings();
@@ -360,6 +361,7 @@ describe("linkClickAction value round-trip", () => {
 			fileClassesFolder: "00 Meta/FileClasses",
 			excludedFolders: ["00 Meta"],
 			editorDock: "bottom",
+			cardByCollection: {},
 		});
 		const result = await loadSettings();
 		expect(result.linkClickAction).toBe("drill");

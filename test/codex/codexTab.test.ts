@@ -33,6 +33,8 @@ import {
 	type CodexCollection,
 } from "codex/codexTab";
 import { createNoteIndex } from "codex/noteIndex";
+import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
+import type { CardRenderer } from "codex/cardRegistry";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
 import type { TargetKind } from "navigation/navigationController";
 
@@ -80,6 +82,8 @@ interface OpenOpts {
 	collections?: readonly CodexCollection[];
 	linkClickAction?: "drill" | "open";
 	drill?: (file: TFile) => void;
+	cardByCollection?: Record<string, string>;
+	onCardSelect?: (collectionId: string, cardId: string) => void;
 }
 
 async function openCodex(app: App, opts: OpenOpts = {}): Promise<AnvilView> {
@@ -87,6 +91,10 @@ async function openCodex(app: App, opts: OpenOpts = {}): Promise<AnvilView> {
 		getLinkClickAction: (): "drill" | "open" => opts.linkClickAction ?? "drill",
 		...(opts.drill ? { drill: opts.drill } : {}),
 		...(opts.collections ? { getCollections: (): readonly CodexCollection[] => opts.collections! } : {}),
+		...(opts.cardByCollection
+			? { getCardByCollection: (): Record<string, string> => opts.cardByCollection! }
+			: {}),
+		...(opts.onCardSelect ? { onCardSelect: opts.onCardSelect } : {}),
 	});
 	await view.onOpen();
 	view.setLayout("codex");
@@ -111,6 +119,23 @@ function cardPaths(view: AnvilView): string[] {
 	return Array.from(bodyOf(view).querySelectorAll<HTMLElement>("[data-sf-card-body]")).map(
 		(el) => el.getAttribute("data-sf-card-body") ?? "",
 	);
+}
+
+/** The class of `.sf-cx-grid--*` currently on the grid — which Card drew it. */
+function gridCardId(view: AnvilView): string | null {
+	const grid = bodyOf(view).querySelector(".sf-cx-grid");
+	const cls = Array.from(grid?.classList ?? []).find((c) => c.startsWith("sf-cx-grid--"));
+	return cls?.replace("sf-cx-grid--", "") ?? null;
+}
+
+/** The Card selector's trigger button (S91/S97's "Card: X ▾"). */
+function cardSelTrigger(view: AnvilView): HTMLElement | null {
+	return bodyOf(view).querySelector<HTMLElement>(".sf-cx-cardsel-trigger");
+}
+
+/** A Card option inside the (possibly closed) selector dropdown. */
+function cardOption(view: AnvilView, cardId: string): HTMLElement | null {
+	return bodyOf(view).querySelector<HTMLElement>(`[data-sf-card="${cardId}"]`);
 }
 
 function click(el: Element | null, opts: { ctrl?: boolean } = {}): void {
@@ -387,7 +412,6 @@ describe("renderCodexTab: the shared body", () => {
 			selection: new CodexSelectionStore(),
 			index: [{ path: "30 Canon/31 Characters/Mara Stoneway.md", tags: ["canon/character"] }],
 			excludedFolders: ["00 Meta"],
-			fileFor: (): TFile | null => null,
 			compact,
 			...(cardId !== undefined ? { cardId } : {}),
 		});
@@ -436,7 +460,6 @@ describe("renderCodexTab: the shared body", () => {
 			selection: new CodexSelectionStore(),
 			index: [],
 			excludedFolders: [],
-			fileFor: (): TFile | null => null,
 		});
 
 		expect(container.contains(stale)).toBe(false);
@@ -450,7 +473,6 @@ describe("renderCodexTab: the shared body", () => {
 			selection: new CodexSelectionStore(),
 			index: [],
 			excludedFolders: [],
-			fileFor: (): TFile | null => null,
 		});
 
 		expect(container.querySelectorAll("[data-sf-collection]").length).toBe(0);
@@ -584,5 +606,147 @@ describe("Codex tab: the note index keeps itself current and unsubscribes cleanl
 		await view.onClose();
 
 		expect(app.metadataCache._eventRegistrations.size).toBe(0);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T4.4 — the Card selector: picking, per-collection memory, no frontmatter
+// ---------------------------------------------------------------------------
+
+describe("Codex tab: Card selector [PRD/F4]", () => {
+	let app: App;
+
+	beforeEach(() => {
+		app = new App();
+		seedVault(app);
+	});
+
+	/**
+	 * A stateful `cardByCollection`/`onCardSelect` pair, mirroring how main.ts
+	 * wires the real one against `plugin.settings` (write-through, read back on
+	 * the very next render). Without this, `AnvilView` has nowhere to keep a
+	 * pick between renders — it is deliberately a stateless pass-through — so
+	 * any test asserting a pick is STILL VISIBLE after the re-render it triggers
+	 * needs a backing store, not just a spy.
+	 */
+	function statefulCardSelection(): {
+		cardByCollection: Record<string, string>;
+		onCardSelect: (collectionId: string, cardId: string) => void;
+	} {
+		const cardByCollection: Record<string, string> = {};
+		return {
+			cardByCollection,
+			onCardSelect: (collectionId, cardId): void => {
+				cardByCollection[collectionId] = cardId;
+			},
+		};
+	}
+
+	it("Hero is shown as the active Card by default (the registry default, T4.2)", async () => {
+		const view = await openCodex(app);
+
+		expect(cardSelTrigger(view)?.textContent).toContain("Hero");
+		expect(gridCardId(view)).toBe("hero");
+	});
+
+	it("picking a Card re-renders the same entries and writes no frontmatter [PRD/F4 AC]", async () => {
+		const view = await openCodex(app, statefulCardSelection());
+		expect(cardPaths(view)).toEqual([mara.path, tobias.path]);
+
+		click(cardOption(view, "table"));
+
+		// Same entries — the query (collection) didn't change, only the drawing.
+		expect(cardPaths(view)).toEqual([mara.path, tobias.path]);
+		expect(gridCardId(view)).toBe("table");
+		expect(cardSelTrigger(view)?.textContent).toContain("Table");
+		expect(app.fileManager.processFrontMatter).not.toHaveBeenCalled();
+	});
+
+	it("the trigger toggles the dropdown open and closed", async () => {
+		const view = await openCodex(app);
+		const trigger = cardSelTrigger(view)!;
+		const dd = bodyOf(view).querySelector<HTMLElement>(".sf-cx-cardsel-dd")!;
+
+		expect(dd.hidden).toBe(true);
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+		click(trigger);
+		expect(dd.hidden).toBe(false);
+		expect(trigger.getAttribute("aria-expanded")).toBe("true");
+
+		click(trigger);
+		expect(dd.hidden).toBe(true);
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+	});
+
+	it("remembers the Card choice per collection — Characters Hero while Objects is Table [PRD/F4 AC]", async () => {
+		const { cardByCollection, onCardSelect } = statefulCardSelection();
+		const view = await openCodex(app, { cardByCollection, onCardSelect });
+
+		// Characters starts on Hero (default — nothing chosen for it yet).
+		expect(gridCardId(view)).toBe("hero");
+
+		// Switch to Objects and pick Table there.
+		click(bodyOf(view).querySelector('[data-sf-collection="object"]'));
+		click(cardOption(view, "table"));
+		expect(gridCardId(view)).toBe("table");
+		expect(cardByCollection).toEqual({ object: "table" });
+
+		// Switching BACK to Characters must still show Hero — proving the memory
+		// is keyed by collection, not a single shared slot (mutation-kill: a
+		// global key would leak "table" back onto Characters here).
+		click(bodyOf(view).querySelector('[data-sf-collection="character"]'));
+		expect(gridCardId(view)).toBe("hero");
+
+		expect(app.fileManager.processFrontMatter).not.toHaveBeenCalled();
+	});
+
+	it("a fresh AnvilView reflects a persisted per-collection Card choice immediately (reload) [SDD/AC]", async () => {
+		const view = await openCodex(app, { cardByCollection: { character: "table" } });
+
+		expect(gridCardId(view)).toBe("table");
+		expect(cardSelTrigger(view)?.textContent).toContain("Table");
+	});
+
+	it("persists via the injected callback with the collection id and the picked Card id (mutation guard)", async () => {
+		const onCardSelect = vi.fn();
+		const view = await openCodex(app, { onCardSelect });
+
+		click(cardOption(view, "compact"));
+
+		expect(onCardSelect).toHaveBeenCalledTimes(1);
+		expect(onCardSelect).toHaveBeenCalledWith("character", "compact");
+	});
+
+	// Registers directly into the MODULE-LEVEL CODEX_CARD_REGISTRY singleton
+	// (T4.2's frozen contract has no unregister — "first registration wins" is
+	// deliberate, ADR-30). That registration outlives this test for the rest of
+	// this file's process, so this test is placed LAST to avoid leaking a
+	// "Yours" heading into any test above it.
+	it("groups an imported Card under a heading distinct from the built-ins [PRD/F4 AC]", async () => {
+		const imported: CardRenderer = {
+			id: "test-imported-card",
+			label: "Test imported card",
+			render: (): void => {},
+		};
+		const registered = CODEX_CARD_REGISTRY.register(imported);
+		// Guards against an id collision silently no-op'ing the rest of this test.
+		expect(registered).toBe(true);
+
+		const view = await openCodex(app);
+		const dd = bodyOf(view).querySelector<HTMLElement>(".sf-cx-cardsel-dd")!;
+
+		const headings = Array.from(dd.querySelectorAll(".sf-cx-cardsel-heading")).map((h) => h.textContent);
+		expect(headings).toEqual(["Built-in", "Yours"]);
+
+		const importedOption = cardOption(view, "test-imported-card");
+		expect(importedOption).not.toBeNull();
+		expect(importedOption?.classList.contains("sf-cx-cardsel-item--usr")).toBe(true);
+
+		// Positioned after the "Yours" heading — not lumped in with the built-ins.
+		const yoursHeading = Array.from(dd.children).find((c) => c.textContent === "Yours")!;
+		const position = yoursHeading.compareDocumentPosition(importedOption!);
+		// eslint-disable-next-line no-bitwise -- DOM Node.compareDocumentPosition is a bitmask API
+		expect(Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
 	});
 });

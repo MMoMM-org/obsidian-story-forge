@@ -2735,6 +2735,91 @@ body {
 	color: var(--text-on-accent);
 }
 
+/* Pushes the Card selector to the row's right edge (S91/S97's `.sp`). */
+.sf-cx-cats-sp {
+	flex: 1;
+}
+
+/*
+ * Card selector (T4.4, S91 closed / S97 open) — trigger + dropdown, grouped
+ * Built-in / Yours. Ported from the mockup's `.cardsel` / `.dd` with Obsidian
+ * theme variables in place of the fixed palette.
+ */
+.sf-cx-cardsel {
+	position: relative;
+}
+
+.sf-cx-cardsel-trigger {
+	font-size: 11px;
+	color: var(--text-muted);
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 3px 9px;
+	white-space: nowrap;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.sf-cx-cardsel-trigger:hover {
+	background: var(--background-modifier-hover);
+}
+
+.sf-cx-cardsel-trigger b {
+	color: var(--text-normal);
+	font-weight: 600;
+}
+
+.sf-cx-cardsel-dd {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 4px);
+	z-index: 5;
+	min-width: 168px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+	padding: 4px;
+	text-align: left;
+}
+
+.sf-cx-cardsel-heading {
+	font-size: 9.5px;
+	color: var(--text-faint);
+	padding: 2px 8px;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.sf-cx-cardsel-dd hr {
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+	margin: 4px 2px;
+}
+
+.sf-cx-cardsel-item {
+	display: block;
+	font-size: 11px;
+	padding: 4px 8px;
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.sf-cx-cardsel-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.sf-cx-cardsel-item--sel {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.sf-cx-cardsel-item--usr {
+	color: var(--text-accent);
+}
+
 .sf-cx-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
