@@ -363,6 +363,7 @@ notes); it still leaves the promise open.
 | **G13** | Inspector edits **scalars/enums only** — no relation editing | — |
 | **G14** | metadata-menu / meta-bind: **provision + documentation**, not integration | — |
 | **G25** | The plugin **ships no vault artifacts** — a fresh install gets nothing | — |
+| **G26** | Codex Cards have **no seam for computed stats** — S91's scene-count line is unbuilt | **#29** |
 
 **G13 — Relations cannot be edited.**
 *Promise:* `storyline-analysis.md §1` — *"writing **is** in scope where it makes
@@ -411,6 +412,29 @@ cannot reproduce it. Every add-on story above (metadata-menu value lists, meta-b
 inputs, Templater scene creation) is unreachable in practice, and it silently
 assumes a vault laid out like ours — the same root as G4. Found while resolving the
 G14 comment; it was not in the original register.
+
+**G26 — Codex Cards cannot show a computed stat.**
+*Promise:* signed-off mockup **S91** ends every Hero card with a scene count —
+`12 scenes`, `4 scenes`, `3 scenes` (the `.hx` element,
+`docs/mockups/anvil-workbench-codex.html:613-623`).
+*Reality:* unbuilt, and spec 008's Phase 4 closed without it. `CardEntry` — the entry
+shape frozen by T4.2 — exposes only `path`, `name` and `field(id)`, so **every value a
+Card can read is a property of the note**. A scene count is not: it is an aggregate
+over **backlinks**, and the Codex runs no backlink query. Adding it means extending a
+contract that T4.3, T4.4 and T4.5 already build on, **plus** a backlink source with
+its own caching and invalidation — the count changes when some *other* note edits a
+link, not when this one does.
+*Impact:* small in isolation — one line missing from a card — but it is the **only
+signed-off S91 element that does not ship**, and the seam it needs is the same one any
+future computed value would use (reference counts, unresolved-link warnings, "appears
+in N chapters"). Two constraints will shape it: both backends must agree, or Hero
+renders differently inside a user's `.base` than in the Anvil; and the obvious backlink
+API (`getBacklinksForFile`) is **not** in the public `obsidian.d.ts` surface, which
+spec 008 already established as a line not to cross — ADR-36 was implemented against
+the public `apiVersion` precisely to avoid reaching into undocumented `app` internals.
+*Recorded* at the Phase 4 close-out (2026-08-04) so the gap outlives the closed spec:
+the T4.3 implementer declined to reopen the contract unilaterally, and the user ruled
+it a deferral rather than a mid-phase contract change.
 
 ### E — Integrations and schema
 
@@ -634,6 +658,7 @@ from this document `gap-analysis`.
 | G20 user-extensible entities | **#13** |
 | G4 scope/folder settings | **#14** |
 | G25 ship the vault artifacts | **#27** |
+| G26 computed-stats seam for Cards (S91's scene count) | **#29** |
 | G3 management tabs **configurable** (revised) | **#15** ← absorbs #4 (Kanban by act) |
 | G24 the Anvil / Workbench / Codex vocabulary | **#26** |
 
