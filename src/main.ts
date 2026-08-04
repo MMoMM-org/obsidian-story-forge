@@ -195,7 +195,12 @@ export default class StoryForgePlugin extends Plugin {
 		// registerCodexView registers the "story-forge-codex" Bases view type and
 		// caches the boolean (WeakMap<Plugin, boolean>). Do NOT call per-render or
 		// inside populateRegistry (which runs twice — layout-ready + late-join).
-		const basesAvailable = registerCodexView(this);
+		//
+		// getLinkClickAction is a LIVE getter, not a snapshot — mirrors the same
+		// closure passed to SidebarView/AnvilView below, so a Card rendered inside
+		// a user's own `.base` honours a Settings change immediately, exactly like
+		// those two hosts (ADR-28 parity — see BasesAdapter.ts's doc comment).
+		const basesAvailable = registerCodexView(this, () => this.settings.linkClickAction);
 
 		// "Open Codex" command (T3.3): if Bases is on, open the seed Codex.base in
 		// the main area; if Bases is off, activate the CodexView degrade leaf (S46).

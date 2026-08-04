@@ -30,6 +30,7 @@ import {
 } from "pluginConstants";
 import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
 import { basesCapability, type BasesCapability } from "bases/basesCapability";
+import type { LinkClickAction } from "navigation/navigationController";
 
 /**
  * Shape of the registerBasesView method as it appears on Plugin
@@ -111,10 +112,25 @@ function onEntryOpen(plugin: Plugin, path: string): void {
  *
  * Returns false when Bases is unavailable (method absent or returns false).
  *
+ * `getLinkClickAction` is threaded straight through to every Card factory's
+ * `CardBasesView` deps, unchanged — it is passed on as a GETTER, never called
+ * here. `CardBasesView` calls it fresh on every click (ADR-28: "read the live
+ * configured action; called per click so a settings change needs no reload"),
+ * so a user who edits Settings while a `.base` is still open sees the change
+ * take effect immediately, exactly like `AnvilView`/`SidebarView`. Defaults to
+ * always-"drill" so every pre-existing call site (this repo's own tests
+ * included) keeps compiling and behaving exactly as before.
+ *
  * @param plugin - the Story Forge plugin instance
+ * @param getLinkClickAction - live getter for the configured name-click
+ *   action (`main.ts` passes `() => this.settings.linkClickAction`); defaults
+ *   to always `"drill"`, `AnvilView`/`SidebarView`'s own unconfigured default
  * @returns true when registration succeeded (Bases enabled); false otherwise
  */
-export function registerCodexView(plugin: Plugin): boolean {
+export function registerCodexView(
+	plugin: Plugin,
+	getLinkClickAction: () => LinkClickAction = (): LinkClickAction => "drill",
+): boolean {
 	if (availabilityCache.has(plugin)) {
 		return availabilityCache.get(plugin)!;
 	}
@@ -148,7 +164,7 @@ export function registerCodexView(plugin: Plugin): boolean {
 	availabilityCache.set(plugin, available);
 
 	if (available) {
-		registerCardViews(plugin, call);
+		registerCardViews(plugin, call, getLinkClickAction);
 	}
 
 	return available;
@@ -169,8 +185,21 @@ export function registerCodexView(plugin: Plugin): boolean {
  * observable even though there is no user-facing surface for it yet (T4.5
  * has none; a later task can promote this to a Notice if that turns out to
  * matter in practice).
+ *
+ * `getLinkClickAction` is forwarded to every factory verbatim (the same
+ * function reference) — never invoked here, never captured into a local
+ * value. Doing either would freeze whatever the setting happened to be AT
+ * REGISTRATION time (plugin `onload`), which runs once per Obsidian session —
+ * a user changing Settings afterward, with a `.base` already open, would see
+ * no effect until a restart. Passing the getter itself keeps every click on
+ * every registered Card reading the setting live (`registerCodexView`'s doc
+ * comment).
  */
-function registerCardViews(plugin: Plugin, call: RegisterBasesViewFn): void {
+function registerCardViews(
+	plugin: Plugin,
+	call: RegisterBasesViewFn,
+	getLinkClickAction: () => LinkClickAction,
+): void {
 	for (const spec of CARD_VIEW_SPECS) {
 		const registration: BasesViewRegistration = {
 			name: spec.name,
@@ -180,6 +209,7 @@ function registerCardViews(plugin: Plugin, call: RegisterBasesViewFn): void {
 				registry: CODEX_CARD_REGISTRY,
 				cardId: spec.cardId,
 				onEntryClick: (path: string): void => onEntryOpen(plugin, path),
+				getLinkClickAction,
 			}),
 		};
 

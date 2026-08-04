@@ -31,11 +31,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { App, Plugin, TFile, _setApiVersion, _resetApiVersion } from "../__mocks__/obsidian";
+import { App, Plugin, TFile, BasesEntry, BasesQueryResult, _setApiVersion, _resetApiVersion } from "../__mocks__/obsidian";
 import { isBasesAvailable, registerCodexView, getBasesCapability } from "bases/BasesAdapter";
 import { CodexBasesView } from "bases/CodexBasesView";
 import { CardBasesView } from "bases/CardBasesView";
 import * as SidebarViewModule from "views/SidebarView";
+import type { LinkClickAction } from "navigation/navigationController";
 
 // ---------------------------------------------------------------------------
 // Mock helpers
@@ -494,6 +495,128 @@ describe("registerCodexView T4.5 — hero/table/compact Card view registration",
 		registerCodexView(plugin);
 
 		expect(spy).toHaveBeenCalledTimes(4);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// getLinkClickAction threaded through to each Card factory, read LIVE at
+// click time — not captured once at registration (the coordinator's follow-up
+// closing the same class of bug: a Card rendered in a standalone `.base` must
+// honour the user's real configured setting exactly like AnvilView/SidebarView
+// do, and must keep honouring it after the user changes Settings while the
+// `.base` is still open — a captured value would go stale).
+// ---------------------------------------------------------------------------
+
+describe("registerCodexView — getLinkClickAction threaded through to Card factories (live, not captured)", () => {
+	let app: App;
+	let plugin: Plugin;
+
+	beforeEach(() => {
+		app = new App();
+		plugin = new Plugin(app);
+	});
+
+	/** Builds a minimal real BasesEntry-shaped fixture — only `file.path` matters here (no frontmatter). */
+	function makeEntry(path: string): BasesEntry {
+		const entry = new BasesEntry();
+		const file = new TFile();
+		file.path = path;
+		entry.file = file;
+		entry.getValue.mockImplementation(() => null);
+		return entry;
+	}
+
+	it("a plain click on a rendered name honours the LIVE getLinkClickAction — 'drill' stays inert, then 'open' opens the SAME registered view after the setting changes", () => {
+		const factories: Record<string, (c: unknown, el: HTMLElement) => unknown> = {};
+		const spy = vi.fn(
+			(viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				factories[viewId] = registration.factory;
+				return true;
+			},
+		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(plugin as any).registerBasesView = spy;
+
+		const revealSpy = vi.spyOn(SidebarViewModule, "revealAndShowFile").mockResolvedValue(undefined);
+
+		// A live getter — mutated below to simulate the user changing Settings
+		// while this exact registered Card view is still open, WITHOUT
+		// re-registering or reconstructing anything.
+		let currentAction: LinkClickAction = "drill";
+		registerCodexView(plugin, () => currentAction);
+
+		const controller = { load: vi.fn(), unload: vi.fn(), register: vi.fn() };
+		const container = document.createElement("div");
+		document.body.appendChild(container);
+		const view = requireFactory(factories, "story-forge-hero")(controller, container) as CardBasesView;
+
+		const mockFile = new TFile();
+		mockFile.path = "Characters/Mara.md";
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(app.vault.getFileByPath as any).mockReturnValue(mockFile);
+
+		const result = new BasesQueryResult();
+		result.data = [makeEntry("Characters/Mara.md")];
+		view.data = result;
+		view.onDataUpdated();
+
+		const nameEl = container.querySelector('[data-sf-link="Characters/Mara.md"]') as HTMLElement;
+		expect(nameEl).not.toBeNull();
+
+		// "drill" (default): a plain click on the name is inert — inspect, not open.
+		nameEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(revealSpy).not.toHaveBeenCalled();
+
+		// The user flips the setting in Settings while the SAME `.base` view is
+		// still open — no re-registration, no new CardBasesView instance.
+		currentAction = "open";
+
+		// "open": the identical plain click on the identical name element now opens.
+		nameEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(revealSpy).toHaveBeenCalledWith(app, mockFile);
+
+		document.body.removeChild(container);
+		revealSpy.mockRestore();
+	});
+
+	it("omitting getLinkClickAction defaults every Card factory to 'drill' (unchanged behaviour for existing callers)", () => {
+		const factories: Record<string, (c: unknown, el: HTMLElement) => unknown> = {};
+		const spy = vi.fn(
+			(viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				factories[viewId] = registration.factory;
+				return true;
+			},
+		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(plugin as any).registerBasesView = spy;
+
+		const revealSpy = vi.spyOn(SidebarViewModule, "revealAndShowFile").mockResolvedValue(undefined);
+
+		// No second argument — mirrors every pre-existing call site/test in this file.
+		registerCodexView(plugin);
+
+		const controller = { load: vi.fn(), unload: vi.fn(), register: vi.fn() };
+		const container = document.createElement("div");
+		document.body.appendChild(container);
+		const view = requireFactory(factories, "story-forge-hero")(controller, container) as CardBasesView;
+
+		const mockFile = new TFile();
+		mockFile.path = "Characters/Mara.md";
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(app.vault.getFileByPath as any).mockReturnValue(mockFile);
+
+		const result = new BasesQueryResult();
+		result.data = [makeEntry("Characters/Mara.md")];
+		view.data = result;
+		view.onDataUpdated();
+
+		const nameEl = container.querySelector('[data-sf-link="Characters/Mara.md"]') as HTMLElement;
+		nameEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(revealSpy).not.toHaveBeenCalled();
+
+		document.body.removeChild(container);
+		revealSpy.mockRestore();
 	});
 });
 

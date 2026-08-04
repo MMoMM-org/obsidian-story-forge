@@ -630,7 +630,7 @@ describe("StoryForgePlugin T4.4 — full dep wiring", () => {
 // ---------------------------------------------------------------------------
 
 describe("StoryForgePlugin T2.3 — Bases availability capture", () => {
-	it("onload calls registerCodexView(plugin) EXACTLY ONCE", async () => {
+	it("onload calls registerCodexView(plugin, getLinkClickAction) EXACTLY ONCE, with a LIVE getter (not a snapshot)", async () => {
 		const { registerCodexView } = await import("bases/BasesAdapter");
 		vi.mocked(registerCodexView).mockClear();
 
@@ -638,7 +638,20 @@ describe("StoryForgePlugin T2.3 — Bases availability capture", () => {
 		await plugin.onload();
 
 		expect(registerCodexView).toHaveBeenCalledTimes(1);
-		expect(registerCodexView).toHaveBeenCalledWith(plugin);
+		// The second argument is a getter closure, not the setting's value at
+		// onload time — asserted by calling it below after changing the setting,
+		// mirroring the same getLinkClickAction wiring SidebarView/AnvilView get.
+		expect(registerCodexView).toHaveBeenCalledWith(plugin, expect.any(Function));
+
+		const call = vi.mocked(registerCodexView).mock.calls[0];
+		if (!call) throw new Error("registerCodexView was never called");
+		const getLinkClickAction = call[1];
+		if (!getLinkClickAction) throw new Error("registerCodexView was called without a getLinkClickAction getter");
+
+		expect(getLinkClickAction()).toBe(plugin.settings.linkClickAction);
+
+		plugin.settings = { ...plugin.settings, linkClickAction: "open" };
+		expect(getLinkClickAction()).toBe("open");
 	});
 
 	it("registerCodexView is NOT called again when the late-join dataview:api-ready fires", async () => {
