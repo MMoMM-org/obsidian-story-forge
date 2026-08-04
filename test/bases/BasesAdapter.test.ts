@@ -364,6 +364,22 @@ describe("registerCodexView T3.3 — real factory (CodexBasesView + row-click wi
 // T4.5 — the three per-Card view types (hero/table/compact)
 // ---------------------------------------------------------------------------
 
+/**
+ * `factories[id]` is `T | undefined` under `noUncheckedIndexedAccess` (the
+ * repo's strict-null baseline) — narrow with a real check + throw rather than
+ * a non-null assertion or cast, so a genuinely missing registration fails with
+ * a message that names which view id never registered instead of a bare
+ * TypeScript-suppressed runtime crash.
+ */
+function requireFactory(
+	factories: Record<string, (c: unknown, el: HTMLElement) => unknown>,
+	id: string,
+): (c: unknown, el: HTMLElement) => unknown {
+	const factory = factories[id];
+	if (!factory) throw new Error(`registerBasesView was never called for "${id}"`);
+	return factory;
+}
+
 describe("registerCodexView T4.5 — hero/table/compact Card view registration", () => {
 	let app: App;
 	let plugin: Plugin;
@@ -433,7 +449,7 @@ describe("registerCodexView T4.5 — hero/table/compact Card view registration",
 		const controller = { load: vi.fn(), unload: vi.fn(), register: vi.fn() };
 		for (const id of ["story-forge-hero", "story-forge-table", "story-forge-compact"]) {
 			const container = document.createElement("div");
-			const view = factories[id](controller, container);
+			const view = requireFactory(factories, id)(controller, container);
 			expect(view).toBeInstanceOf(CardBasesView);
 			expect((view as CardBasesView).type).toBe(id);
 		}
@@ -456,7 +472,7 @@ describe("registerCodexView T4.5 — hero/table/compact Card view registration",
 
 		const controller = { load: vi.fn(), unload: vi.fn(), register: vi.fn() };
 		const container = document.createElement("div");
-		const view = factories["story-forge-hero"](controller, container) as CardBasesView;
+		const view = requireFactory(factories, "story-forge-hero")(controller, container) as CardBasesView;
 
 		const mockFile = new TFile();
 		mockFile.path = "30 Canon/31 Characters/Lirien.md";

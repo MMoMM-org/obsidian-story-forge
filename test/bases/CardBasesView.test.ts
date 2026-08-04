@@ -72,7 +72,7 @@ function makeEntry(path: string, opts: {
 	file.path = path;
 	entry.file = file;
 	const value = opts.value ?? null;
-	entry.getValue.mockImplementation((_propId: string): unknown =>
+	entry.getValue.mockImplementation((_propId: string) =>
 		value == null ? null : { toString: () => value },
 	);
 	return entry;

@@ -265,7 +265,13 @@ function makeBasesEntry(path: string, fields: Record<string, unknown>): BasesEnt
 	const file = new TFile();
 	file.path = path;
 	entry.file = file;
-	entry.getValue.mockImplementation((propId: string): unknown => fields[propId] ?? null);
+	// Real getValue() returns a Value wrapper (or null), never a raw scalar —
+	// wrap the fixture's plain field value the same way (see the mock's
+	// BasesEntry/MockBasesValue docstring for why this must not be `unknown`).
+	entry.getValue.mockImplementation((propId: string) => {
+		const value = fields[propId];
+		return value == null ? null : { toString: (): string => String(value) };
+	});
 	return entry;
 }
 

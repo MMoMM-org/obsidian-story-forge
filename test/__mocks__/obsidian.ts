@@ -1214,15 +1214,37 @@ export class BasesViewConfig {
 // ---------------------------------------------------------------------------
 
 /**
+ * Minimal stand-in for the real Bases `Value` wrapper (obsidian.d.ts:7246,
+ * `export abstract class Value { abstract toString(): string; ... }`).
+ *
+ * Real `getValue()` NEVER returns a raw scalar — it always returns a `Value`
+ * wrapper (or `null`). The mock previously typed `getValue` as returning
+ * `unknown`, which let `BasesEntry` satisfy `cardRegistry.ts`'s
+ * `BasesEntryLike` under the main tsconfig (where "obsidian" resolves to the
+ * REAL typings and `Value` structurally has `toString()`) while silently
+ * failing to satisfy it under tsconfig.test/tsconfig.mock (where "obsidian"
+ * resolves to THIS file, and `unknown` is not assignable to `{ toString():
+ * string } | null`) — a mock/reality divergence caught only by running
+ * `typecheck:test`/`typecheck:mock`, not `typecheck`. Typed narrowly to the
+ * one accessor every Story Forge caller reads (`toString()`) rather than
+ * reproducing the rest of the abstract class (`isTruthy()`, `renderTo()`),
+ * which nothing here calls.
+ */
+export interface MockBasesValue {
+	toString(): string;
+}
+
+/**
  * Stub for BasesEntry (obsidian.d.ts:685 @since 1.10.0).
  *
- * Shape mirrors obsidian.d.ts: `file: TFile` + `getValue(propertyId)`.
- * `getValue` is a vi.fn() spy so tests can stub return values per property.
+ * Shape mirrors obsidian.d.ts: `file: TFile` + `getValue(propertyId): Value | null`.
+ * `getValue` is a vi.fn() spy so tests can stub return values per property —
+ * stub with a `{ toString(): string }` object (or `null`), never a raw scalar,
+ * to match what the real API actually returns.
  */
 export class BasesEntry {
 	file: TFile = new TFile();
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	getValue = vi.fn((_propertyId: string): unknown => null);
+	getValue = vi.fn((_propertyId: string): MockBasesValue | null => null);
 }
 
 /**
