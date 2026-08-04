@@ -498,6 +498,129 @@ describe("registerCodexView T4.5 — hero/table/compact Card view registration",
 });
 
 // ---------------------------------------------------------------------------
+// T4.5 review finding — Card registrations must be isolated from the codex
+// outcome AND from one another. registerBasesView cannot be un-called: once
+// "story-forge-codex" has succeeded it is genuinely live with the Bases
+// runtime, so a LATER Card registration throwing (or being declined) must
+// never make registerCodexView/isBasesAvailable report false — that would
+// falsely disable the bases query engine plugin-wide (main.ts feeds this
+// same boolean into buildEngineRegistry) and fall back to the degrade
+// CodexView leaf over a Card-only failure.
+// ---------------------------------------------------------------------------
+
+/**
+ * Wire registerBasesView so each view id can behave independently: `true`/
+ * `false` return that id's registration outcome, `"throw"` makes that one
+ * call throw. Every call is recorded on `spy` exactly like `wireRegisterBasesView`.
+ */
+function wirePerViewIdBehavior(
+	plugin: Plugin,
+	behaviors: Record<string, boolean | "throw">,
+): ReturnType<typeof vi.fn> {
+	const spy = vi.fn((viewId: string) => {
+		const behavior = behaviors[viewId];
+		if (behavior === "throw") throw new Error(`registerBasesView threw for "${viewId}"`);
+		return behavior ?? true;
+	});
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	(plugin as any).registerBasesView = spy;
+	return spy;
+}
+
+describe("registerCodexView T4.5 — Card registration isolation (review finding)", () => {
+	let app: App;
+	let plugin: Plugin;
+
+	beforeEach(() => {
+		app = new App();
+		plugin = new Plugin(app);
+	});
+
+	it("REGRESSION: a later Card registration throwing does not invalidate the already-successful codex registration", () => {
+		wirePerViewIdBehavior(plugin, {
+			"story-forge-codex": true,
+			"story-forge-table": "throw",
+		});
+
+		const result = registerCodexView(plugin);
+
+		// The codex view genuinely registered with the Bases runtime — that
+		// cannot be undone, so the reported availability must stay true.
+		expect(result).toBe(true);
+		expect(isBasesAvailable(plugin)).toBe(true);
+	});
+
+	it("a Card registration throwing does not stop the remaining Card registrations from being attempted", () => {
+		const spy = wirePerViewIdBehavior(plugin, {
+			"story-forge-codex": true,
+			"story-forge-hero": "throw",
+		});
+
+		registerCodexView(plugin);
+
+		// Despite hero throwing, table and compact must still have been attempted.
+		const registeredIds = spy.mock.calls.map((call) => call[0]);
+		expect(registeredIds).toEqual(
+			expect.arrayContaining(["story-forge-codex", "story-forge-hero", "story-forge-table", "story-forge-compact"]),
+		);
+	});
+
+	it("a Card registration declined (false) does not invalidate availability either", () => {
+		wirePerViewIdBehavior(plugin, {
+			"story-forge-codex": true,
+			"story-forge-hero": false,
+		});
+
+		const result = registerCodexView(plugin);
+
+		expect(result).toBe(true);
+		expect(isBasesAvailable(plugin)).toBe(true);
+	});
+
+	it("logs (does not silently discard) a Card registration that throws", () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		wirePerViewIdBehavior(plugin, {
+			"story-forge-codex": true,
+			"story-forge-compact": "throw",
+		});
+
+		registerCodexView(plugin);
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("story-forge-compact"),
+			expect.any(Error),
+		);
+		errorSpy.mockRestore();
+	});
+
+	it("logs (does not silently discard) a Card registration that is declined", () => {
+		const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+		wirePerViewIdBehavior(plugin, {
+			"story-forge-codex": true,
+			"story-forge-table": false,
+		});
+
+		registerCodexView(plugin);
+
+		expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("story-forge-table"));
+		debugSpy.mockRestore();
+	});
+
+	it("MUTATION-GUARD downstream: getBasesCapability still reports 'enabled' after a Card registration throws", () => {
+		// This is the exact main.ts consequence the review flagged: a false
+		// negative here would cascade into buildEngineRegistry/_openCodex.
+		wirePerViewIdBehavior(plugin, {
+			"story-forge-codex": true,
+			"story-forge-hero": "throw",
+		});
+
+		registerCodexView(plugin);
+
+		expect(getBasesCapability(plugin)).toBe("enabled");
+	});
+});
+
+// ---------------------------------------------------------------------------
 // getBasesCapability — T4.6, ADR-36's three-way signal built on isBasesAvailable
 // (cached registration outcome) + apiVersion (BasesAdapter.ts is the sole
 // firewall importing both, per CON-3/CON-8 — never app.plugins/internalPlugins).
