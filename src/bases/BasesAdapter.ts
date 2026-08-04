@@ -19,8 +19,15 @@
 import type { Plugin } from "obsidian";
 import type { BasesViewRegistration } from "obsidian";
 import { CodexBasesView } from "bases/CodexBasesView";
+import { CardBasesView } from "bases/CardBasesView";
 import { revealAndShowFile } from "views/SidebarView";
-import { CODEX_VIEW_ID } from "pluginConstants";
+import {
+	CODEX_VIEW_ID,
+	CODEX_HERO_VIEW_ID,
+	CODEX_TABLE_VIEW_ID,
+	CODEX_COMPACT_VIEW_ID,
+} from "pluginConstants";
+import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
 
 /**
  * Shape of the registerBasesView method as it appears on Plugin
@@ -44,16 +51,50 @@ type RegisterBasesViewFn = (viewId: string, registration: BasesViewRegistration)
 const availabilityCache = new WeakMap<object, boolean>();
 
 /**
- * Register the one polymorphic "story-forge-codex" Bases view type.
+ * One row of the Card-view registration table (T4.5): a Bases view id, its
+ * display name in Obsidian's view-type picker, and the Card id it draws with.
+ * `CardBasesView` resolves that Card id against `CODEX_CARD_REGISTRY` at DRAW
+ * time, not here — see `CardBasesView`'s module doc for why capturing a
+ * `CardRenderer` in this table would be wrong.
+ */
+interface CardViewSpec {
+	readonly viewId: string;
+	readonly name: string;
+	readonly cardId: string;
+}
+
+const CARD_VIEW_SPECS: readonly CardViewSpec[] = [
+	{ viewId: CODEX_HERO_VIEW_ID, name: "Story Forge Hero", cardId: "hero" },
+	{ viewId: CODEX_TABLE_VIEW_ID, name: "Story Forge Table", cardId: "table" },
+	{ viewId: CODEX_COMPACT_VIEW_ID, name: "Story Forge Compact", cardId: "compact" },
+];
+
+/** Open the file at `path` in the Workbench sidebar. Shared by every factory below. */
+function onEntryOpen(plugin: Plugin, path: string): void {
+	const file = plugin.app.vault.getFileByPath(path);
+	if (file) {
+		void revealAndShowFile(plugin.app, file);
+	}
+}
+
+/**
+ * Register the polymorphic "story-forge-codex" grid view AND the three
+ * per-Card view types — "story-forge-hero" / "-table" / "-compact" (T4.5) —
+ * so a Card is selectable directly inside a user's own `.base` file, not only
+ * inside the Anvil's Codex tab.
  *
- * Call once from plugin onload(). Calls registerBasesView EXACTLY ONCE,
- * caches the boolean result (WeakMap keyed by plugin instance), and returns
- * it. Idempotent: subsequent calls return the cached value without calling
+ * Call once from plugin onload(). Calls registerBasesView for each view type
+ * EXACTLY ONCE, caches the "story-forge-codex" result as the overall
+ * availability boolean (WeakMap keyed by plugin instance), and returns it.
+ * Idempotent: subsequent calls return the cached value without calling
  * registerBasesView again.
  *
+ * The three Card view types are registered ONLY when the "story-forge-codex"
+ * registration itself succeeds — if the Bases runtime declines that one, it
+ * has declined Bases entirely, and registering the rest would be silently
+ * broken as well as untestable as a single "Bases is on/off" signal.
+ *
  * Returns false when Bases is unavailable (method absent or returns false).
- * The factory constructs a CodexBasesView wired with onRowClick →
- * revealAndShowFile(plugin.app, file) (T3.3 — row click re-subjects sidebar).
  *
  * @param plugin - the Story Forge plugin instance
  * @returns true when registration succeeded (Bases enabled); false otherwise
@@ -69,23 +110,36 @@ export function registerCodexView(plugin: Plugin): boolean {
 		availabilityCache.set(plugin, false);
 		return false;
 	}
+	const call = registerFn as RegisterBasesViewFn;
 
-	const registration: BasesViewRegistration = {
+	const codexRegistration: BasesViewRegistration = {
 		name: "Story Forge Codex",
 		icon: "library",
 		factory: (controller, containerEl) => new CodexBasesView(controller, containerEl, {
 			app: plugin.app,
-			onRowClick: (path: string): void => {
-				const file = plugin.app.vault.getFileByPath(path);
-				if (file) {
-					void revealAndShowFile(plugin.app, file);
-				}
-			},
+			onRowClick: (path: string): void => onEntryOpen(plugin, path),
 		}),
 	};
 
 	try {
-		const available = (registerFn as RegisterBasesViewFn).call(plugin, CODEX_VIEW_ID, registration);
+		const available = call.call(plugin, CODEX_VIEW_ID, codexRegistration);
+
+		if (available) {
+			for (const spec of CARD_VIEW_SPECS) {
+				const registration: BasesViewRegistration = {
+					name: spec.name,
+					icon: "gallery-vertical",
+					factory: (controller, containerEl) => new CardBasesView(spec.viewId, controller, containerEl, {
+						app: plugin.app,
+						registry: CODEX_CARD_REGISTRY,
+						cardId: spec.cardId,
+						onEntryClick: (path: string): void => onEntryOpen(plugin, path),
+					}),
+				};
+				call.call(plugin, spec.viewId, registration);
+			}
+		}
+
 		availabilityCache.set(plugin, available);
 		return available;
 	} catch {

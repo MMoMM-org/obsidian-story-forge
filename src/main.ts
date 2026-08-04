@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, normalizeSettings, type PluginSettings } from "types/
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort, StoryForgeData } from "store/types";
 import { SidebarView, activateView } from "views/SidebarView";
-import { SIDEBAR_VIEW_TYPE, ICON, WORKSPACE_VIEW_TYPE } from "pluginConstants";
+import { SIDEBAR_VIEW_TYPE, ICON, WORKSPACE_VIEW_TYPE, CODEX_VIEW_TYPE } from "pluginConstants";
 import type { WorkspaceLeaf } from "obsidian";
 import { EngineRegistry } from "engines/QueryEngine";
 import { buildEngineRegistry, getDvSettings } from "engines/EngineRegistry";
@@ -13,7 +13,7 @@ import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
 import { registerCodexView, isBasesAvailable } from "bases/BasesAdapter";
-import { CodexView, CODEX_VIEW_TYPE } from "codex/CodexView";
+import { CodexView } from "codex/CodexView";
 import { AnvilView, type AnvilLayout } from "anvil/AnvilView";
 import { CatalogService } from "catalog/CatalogService";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";

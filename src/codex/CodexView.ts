@@ -18,19 +18,7 @@
 
 import { ItemView, Platform } from "obsidian";
 import type { WorkspaceLeaf, IconName } from "obsidian";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/**
- * View type identifier for the thin CodexView host leaf.
- *
- * Distinct from CODEX_VIEW_ID ("story-forge-codex") which is the Bases
- * view type registered with registerBasesView. This identifier is used by
- * Obsidian's workspace leaf system for the degrade path.
- */
-export const CODEX_VIEW_TYPE = "story-forge-codex-host";
+import { CODEX_VIEW_TYPE } from "pluginConstants";
 
 // ---------------------------------------------------------------------------
 // Augmented element type (mirrors SidebarView pattern)

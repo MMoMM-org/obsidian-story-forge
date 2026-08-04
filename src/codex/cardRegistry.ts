@@ -234,36 +234,53 @@ export interface BasesEntryLike {
 /**
  * Adapt a Bases entry to a `CardEntry`.
  *
- * **Known asymmetry (F4).** `getValue` returns `null` both for a property that
- * is absent and for one that exists with no value, and `Value` exposes nothing
- * else to tell them apart — so on this backend a blank-but-present property
- * reads as absent, where the native backend reports it present. Closing that
- * belongs to the Bases seam (T4.5), which holds an `App` and can decide
- * presence from `metadataCache` while still taking the display form from
- * `Value`. Recorded rather than silently absorbed.
+ * **The blank-vs-absent gap, closed here (T4.5).** `getValue` returns `null`
+ * both for a property that is absent and for one that exists with no value,
+ * and `Value` exposes nothing else to tell them apart — so `getValue` alone
+ * cannot answer presence. `frontmatter` is the ground truth instead: pass
+ * `metadataCache.getFileCache(entry.file)?.frontmatter ?? null` (the caller
+ * holds the `App` this module deliberately does not, CON-6) and presence
+ * becomes `hasOwnProperty` on it — the exact same rule `nativeCardEntry` uses,
+ * so the two backends agree. `null` means the note has no frontmatter block at
+ * all, matching `nativeCardEntry`'s contract for the same input. Display text
+ * still comes from `Value.toString()`, never from the frontmatter's own value
+ * (`Value` may format it — dates, links — differently than the raw property).
  *
- * The comma-split documented on `CardField.items` has the same single cause:
- * `toString()` is the only window this API gives onto a value, so both its
- * structure and its absence have to be inferred from the display form.
+ * The comma-split documented on `CardField.items` has a different, narrower
+ * cause: `toString()` is the only window this API gives onto a value's
+ * *shape*, so a list still has to be inferred from the display form even once
+ * presence is settled by `frontmatter`.
  *
  * Never hold the returned entry across an `onDataUpdated`: the Bases runtime
  * recreates every `BasesEntry`, so a retained adapter is a stale reference
  * (ADR-2).
+ *
+ * @param entry       the Bases-shaped source (real `BasesEntry` or a fixture)
+ * @param frontmatter ground-truth presence for `entry.file`, or `null` when
+ *                    the note has no frontmatter block — every field is then
+ *                    absent, matching `nativeCardEntry(path, null)`
  */
-export function basesCardEntry(entry: BasesEntryLike): CardEntry {
+export function basesCardEntry(
+	entry: BasesEntryLike,
+	frontmatter: Record<string, unknown> | null,
+): CardEntry {
 	const path = entry.file.path;
 
 	return {
 		path,
 		name: basenameOf(path),
 		field(id: string): CardField {
+			if (frontmatter == null || !Object.prototype.hasOwnProperty.call(frontmatter, id)) {
+				return ABSENT_FIELD;
+			}
 			const value = entry.getValue(id);
-			if (value == null) return ABSENT_FIELD;
 			// `toString()` is the only documented accessor on `Value`. It is typed
 			// `string`, but this is a foreign runtime boundary — coercing through
 			// the same helper the native side uses keeps `undefined` out of the DOM
-			// (CON-8) and makes the two backends agree on display form.
-			const text = stringifyFieldValue(value.toString());
+			// (CON-8) and makes the two backends agree on display form. `value` can
+			// still be `null` here (a present-but-blank property) — that renders as
+			// `""`, exactly like a blank string on the native backend.
+			const text = value == null ? "" : stringifyFieldValue(value.toString());
 			return { present: true, text, items: splitDisplayList(text) };
 		},
 	};

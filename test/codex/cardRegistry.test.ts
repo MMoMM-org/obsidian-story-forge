@@ -52,24 +52,41 @@ function getNativeEntry(overrides?: Record<string, unknown>): CardEntry {
  * The Bases backend reads `Value` wrappers. `getValue` returns `null` for a
  * property it has no value for, and the only documented accessor is
  * `toString()` — which is why the list arrives comma-joined.
+ *
+ * A key omitted from `overrides` (or overridden to `null`) is absent from
+ * *both* `getValue` and the frontmatter this helper derives — the ordinary
+ * "this note doesn't have that property" case every existing test here
+ * exercises. The T4.5 tests below construct `frontmatter` by hand instead,
+ * because they need the one case this helper cannot express: a key that is
+ * in the frontmatter but whose `getValue` is still `null` (blank-but-present).
  */
-function getBasesSource(overrides?: Record<string, string | null>): BasesEntryLike {
+function getBasesSource(
+	overrides?: Record<string, string | null>,
+): { source: BasesEntryLike; frontmatter: Record<string, unknown> } {
 	const values: Record<string, string | null> = {
 		role: ROLE,
 		family: FAMILY.join(", "),
 		...overrides,
 	};
+	const frontmatter: Record<string, unknown> = {};
+	for (const [id, value] of Object.entries(values)) {
+		if (value !== null) frontmatter[id] = value;
+	}
 	return {
-		file: { path: PATH },
-		getValue: (id: string) => {
-			const value = values[id];
-			return value == null ? null : { toString: () => value };
+		source: {
+			file: { path: PATH },
+			getValue: (id: string) => {
+				const value = values[id];
+				return value == null ? null : { toString: () => value };
+			},
 		},
+		frontmatter,
 	};
 }
 
 function getBasesEntry(overrides?: Record<string, string | null>): CardEntry {
-	return basesCardEntry(getBasesSource(overrides));
+	const { source, frontmatter } = getBasesSource(overrides);
+	return basesCardEntry(source, frontmatter);
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +242,55 @@ describe("card entry adapters", () => {
 			expect(el.querySelector(".fact")?.getAttribute("data-present")).toBe("false");
 			expect(el.querySelector(".fact")?.getAttribute("data-items")).toBe("0");
 		}
+	});
+});
+
+describe("basesCardEntry — presence from frontmatter, not getValue (T4.5)", () => {
+	const KESTREL_PATH = "30 Canon/31 Characters/Kestrel Vane.md";
+
+	function source(getValue: (id: string) => { toString(): string } | null): BasesEntryLike {
+		return { file: { path: KESTREL_PATH }, getValue };
+	}
+
+	it("renders a blank-but-present property normally — not marked absent", () => {
+		// getValue returns null (Bases cannot tell blank from absent on its own),
+		// but the frontmatter key IS there — presence must follow the frontmatter.
+		const entry = basesCardEntry(source(() => null), { nickname: "" });
+
+		const field = entry.field("nickname");
+		expect(field.present).toBe(true);
+		expect(field.text).toBe("");
+	});
+
+	it("marks a property absent when the frontmatter key truly is not there", () => {
+		const entry = basesCardEntry(source(() => null), { role: ROLE });
+
+		expect(entry.field("nickname").present).toBe(false);
+		expect(entry.field("nickname").text).toBe("");
+	});
+
+	it("treats a note with no frontmatter block (null) as every field absent", () => {
+		// Even though getValue would happily return a value, frontmatter === null
+		// means the note has none — matches nativeCardEntry(path, null)'s contract.
+		const entry = basesCardEntry(source(() => ({ toString: () => ROLE })), null);
+
+		expect(entry.field("role").present).toBe(false);
+	});
+
+	it("still takes display text from Value.toString(), not the frontmatter's own value", () => {
+		const entry = basesCardEntry(
+			source((id) => (id === "role" ? { toString: () => ROLE } : null)),
+			{ role: "raw-unformatted-value" },
+		);
+
+		expect(entry.field("role").text).toBe(ROLE);
+	});
+
+	it("agrees with the native backend on a blank-but-present property", () => {
+		const native = nativeCardEntry(KESTREL_PATH, { nickname: "" });
+		const bases = basesCardEntry(source(() => null), { nickname: "" });
+
+		expect(bases.field("nickname")).toEqual(native.field("nickname"));
 	});
 });
 

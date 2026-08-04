@@ -20,12 +20,21 @@
  *   - isBasesAvailable calls registerBasesView ZERO times (no side effect).
  *   - registerCodexView when method absent → returns false, caches false.
  *   - WeakMap scoping: distinct plugin instances don't leak into each other.
+ *
+ * T4.5 adds:
+ *   - the three per-Card view types ("story-forge-hero"/"-table"/"-compact")
+ *     register alongside "story-forge-codex" when Bases is available;
+ *   - registration of all four is skipped when registerBasesView is absent
+ *     (native backend renders instead, PRD/F4 AC);
+ *   - the three Card registrations are skipped when the "story-forge-codex"
+ *     registration itself is declined (one on/off signal, not four).
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { App, Plugin, TFile } from "../__mocks__/obsidian";
 import { isBasesAvailable, registerCodexView } from "bases/BasesAdapter";
 import { CodexBasesView } from "bases/CodexBasesView";
+import { CardBasesView } from "bases/CardBasesView";
 import * as SidebarViewModule from "views/SidebarView";
 
 // ---------------------------------------------------------------------------
@@ -96,11 +105,11 @@ describe("isBasesAvailable", () => {
 	});
 
 	it("reflects the value cached at registerCodexView time — not re-evaluated later", () => {
-		const spy = vi.fn()
-			.mockReturnValueOnce(true)   // first call (from registerCodexView)
-			.mockReturnValueOnce(false); // subsequent calls (must NOT be reached)
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(plugin as any).registerBasesView = spy;
+		// The codex registration (first call) decides overall availability; the
+		// three Card registrations that follow are attempted too but their own
+		// return values don't change what's cached (isBasesAvailable's cache = the
+		// codex result).
+		const spy = wireRegisterBasesView(plugin, true);
 
 		registerCodexView(plugin);
 
@@ -108,8 +117,9 @@ describe("isBasesAvailable", () => {
 		expect(isBasesAvailable(plugin)).toBe(true);
 		expect(isBasesAvailable(plugin)).toBe(true);
 
-		// Only the one call from registerCodexView.
-		expect(spy).toHaveBeenCalledTimes(1);
+		// Exactly the four calls registerCodexView itself makes (codex + 3 Cards);
+		// isBasesAvailable adds none of its own.
+		expect(spy).toHaveBeenCalledTimes(4);
 	});
 
 	it("WeakMap scoping: one plugin's availability does not bleed into another", () => {
@@ -160,12 +170,12 @@ describe("registerCodexView", () => {
 		expect(result).toBe(false);
 	});
 
-	it("calls registerBasesView EXACTLY ONCE on the first call", () => {
+	it("calls registerBasesView once per view type (four: codex + hero/table/compact) on the first call", () => {
 		const spy = wireRegisterBasesView(plugin, true);
 
 		registerCodexView(plugin);
 
-		expect(spy).toHaveBeenCalledTimes(1);
+		expect(spy).toHaveBeenCalledTimes(4);
 	});
 
 	it("calls registerBasesView with story-forge-codex viewId and valid registration", () => {
@@ -186,9 +196,9 @@ describe("registerCodexView", () => {
 		registerCodexView(plugin);
 		registerCodexView(plugin);
 
-		// registerBasesView must be called exactly once regardless of how many
-		// times registerCodexView is invoked.
-		expect(spy).toHaveBeenCalledTimes(1);
+		// registerBasesView must be called once per view type (four) regardless of
+		// how many times registerCodexView is invoked.
+		expect(spy).toHaveBeenCalledTimes(4);
 	});
 
 	it("idempotent — returns the cached value on subsequent calls without re-registering", () => {
@@ -257,8 +267,8 @@ describe("registerCodexView T3.3 — real factory (CodexBasesView + row-click wi
 		let capturedFactory: ((controller: unknown, containerEl: HTMLElement) => unknown) | undefined;
 
 		const spy = vi.fn(
-			(_viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
-				capturedFactory = registration.factory;
+			(viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				if (viewId === "story-forge-codex") capturedFactory = registration.factory;
 				return true;
 			},
 		);
@@ -280,8 +290,8 @@ describe("registerCodexView T3.3 — real factory (CodexBasesView + row-click wi
 		let capturedFactory: ((controller: unknown, containerEl: HTMLElement) => unknown) | undefined;
 
 		const spy = vi.fn(
-			(_viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
-				capturedFactory = registration.factory;
+			(viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				if (viewId === "story-forge-codex") capturedFactory = registration.factory;
 				return true;
 			},
 		);
@@ -322,8 +332,8 @@ describe("registerCodexView T3.3 — real factory (CodexBasesView + row-click wi
 		let capturedFactory: ((controller: unknown, containerEl: HTMLElement) => unknown) | undefined;
 
 		const spy = vi.fn(
-			(_viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
-				capturedFactory = registration.factory;
+			(viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				if (viewId === "story-forge-codex") capturedFactory = registration.factory;
 				return true;
 			},
 		);
@@ -347,5 +357,126 @@ describe("registerCodexView T3.3 — real factory (CodexBasesView + row-click wi
 		expect(revealSpy).not.toHaveBeenCalled();
 
 		revealSpy.mockRestore();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T4.5 — the three per-Card view types (hero/table/compact)
+// ---------------------------------------------------------------------------
+
+describe("registerCodexView T4.5 — hero/table/compact Card view registration", () => {
+	let app: App;
+	let plugin: Plugin;
+
+	beforeEach(() => {
+		app = new App();
+		plugin = new Plugin(app);
+	});
+
+	it("registers all three Card view types when Bases is available", () => {
+		const spy = wireRegisterBasesView(plugin, true);
+
+		registerCodexView(plugin);
+
+		const registeredIds = spy.mock.calls.map((call) => call[0]);
+		expect(registeredIds).toEqual(
+			expect.arrayContaining(["story-forge-codex", "story-forge-hero", "story-forge-table", "story-forge-compact"]),
+		);
+	});
+
+	it("registers each Card view type with a name and a factory", () => {
+		const spy = wireRegisterBasesView(plugin, true);
+
+		registerCodexView(plugin);
+
+		for (const id of ["story-forge-hero", "story-forge-table", "story-forge-compact"]) {
+			expect(spy).toHaveBeenCalledWith(
+				id,
+				expect.objectContaining({ name: expect.any(String), factory: expect.any(Function) }),
+			);
+		}
+	});
+
+	it("skips ALL FOUR registrations when registerBasesView is absent (native backend renders)", () => {
+		// No method wired on plugin at all — registerFn is undefined.
+		const result = registerCodexView(plugin);
+
+		expect(result).toBe(false);
+		// Nothing to spy on here (no registerBasesView exists) — the absence of a
+		// throw plus the false return IS the assertion: no attempt was made.
+	});
+
+	it("skips the three Card registrations when the codex registration itself is declined", () => {
+		const spy = wireRegisterBasesView(plugin, false);
+
+		registerCodexView(plugin);
+
+		// Only the one "story-forge-codex" attempt — Bases declined it, so the
+		// three Card view types must not even be attempted.
+		expect(spy).toHaveBeenCalledTimes(1);
+		expect(spy).toHaveBeenCalledWith("story-forge-codex", expect.anything());
+	});
+
+	it("each Card factory constructs a CardBasesView with the matching view id", () => {
+		const factories: Record<string, (c: unknown, el: HTMLElement) => unknown> = {};
+		const spy = vi.fn(
+			(viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				factories[viewId] = registration.factory;
+				return true;
+			},
+		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(plugin as any).registerBasesView = spy;
+
+		registerCodexView(plugin);
+
+		const controller = { load: vi.fn(), unload: vi.fn(), register: vi.fn() };
+		for (const id of ["story-forge-hero", "story-forge-table", "story-forge-compact"]) {
+			const container = document.createElement("div");
+			const view = factories[id](controller, container);
+			expect(view).toBeInstanceOf(CardBasesView);
+			expect((view as CardBasesView).type).toBe(id);
+		}
+	});
+
+	it("a Card factory's onEntryClick resolves path to TFile and calls revealAndShowFile", () => {
+		const factories: Record<string, (c: unknown, el: HTMLElement) => unknown> = {};
+		const spy = vi.fn(
+			(viewId: string, registration: { factory: (c: unknown, el: HTMLElement) => unknown }) => {
+				factories[viewId] = registration.factory;
+				return true;
+			},
+		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(plugin as any).registerBasesView = spy;
+
+		const revealSpy = vi.spyOn(SidebarViewModule, "revealAndShowFile").mockResolvedValue(undefined);
+
+		registerCodexView(plugin);
+
+		const controller = { load: vi.fn(), unload: vi.fn(), register: vi.fn() };
+		const container = document.createElement("div");
+		const view = factories["story-forge-hero"](controller, container) as CardBasesView;
+
+		const mockFile = new TFile();
+		mockFile.path = "30 Canon/31 Characters/Lirien.md";
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(app.vault.getFileByPath as any).mockReturnValue(mockFile);
+
+		const deps = (view as unknown as { deps: { onEntryClick: (path: string) => void } }).deps;
+		deps.onEntryClick("30 Canon/31 Characters/Lirien.md");
+
+		expect(revealSpy).toHaveBeenCalledWith(app, mockFile);
+
+		revealSpy.mockRestore();
+	});
+
+	it("is idempotent across all four view types — no re-registration on a second call", () => {
+		const spy = wireRegisterBasesView(plugin, true);
+
+		registerCodexView(plugin);
+		registerCodexView(plugin);
+
+		expect(spy).toHaveBeenCalledTimes(4);
 	});
 });

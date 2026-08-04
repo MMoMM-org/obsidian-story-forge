@@ -19,7 +19,8 @@
 
 import { describe, it, expect } from "vitest";
 import { App, WorkspaceLeaf } from "../__mocks__/obsidian";
-import { CodexView, CODEX_VIEW_TYPE } from "codex/CodexView";
+import { CodexView } from "codex/CodexView";
+import { CODEX_VIEW_TYPE } from "pluginConstants";
 
 // ---------------------------------------------------------------------------
 // Helpers
