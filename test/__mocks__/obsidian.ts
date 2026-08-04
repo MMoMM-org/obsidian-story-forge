@@ -1362,6 +1362,35 @@ export function wireDataviewApi(app: App, api: MockDataviewApi): void {
 	anyApp.plugins.plugins["dataview"] = { api };
 }
 
+/**
+ * apiVersion — mirrors the real Obsidian global (obsidian.d.ts:400): "This is
+ * the API version of the app, which follows the release cycle of the desktop
+ * app." A plain value export so `src/` code doing
+ * `import { apiVersion } from "obsidian"` compiles and reads a real string at
+ * runtime (T4.6 — ADR-36 needs this to tell "Bases absent" apart from "Bases
+ * present but disabled"; ungapped now because it was the load-bearing mock gap
+ * that made the four availability combinations untestable).
+ *
+ * Exported as `let` (a live ES-module binding: any module that imports
+ * `{ apiVersion }` and reads it inside a function body — not a value captured
+ * at import time — observes a later mutation here) with companion setter/reset
+ * helpers so per-test stubbing is explicit and typesafe
+ * (`_setApiVersion("1.9.0")` / `_resetApiVersion()`), mirroring this file's own
+ * `Notice._reset()` convention rather than tests reassigning the imported
+ * binding directly (disallowed by ES module syntax for a bare `import`).
+ */
+export let apiVersion = "1.13.1";
+
+/** Test-only: stub apiVersion for a single test (e.g. simulate an older Obsidian without Bases). */
+export function _setApiVersion(v: string): void {
+	apiVersion = v;
+}
+
+/** Test-only: restore the default apiVersion after a test stubs it. */
+export function _resetApiVersion(): void {
+	apiVersion = "1.13.1";
+}
+
 // --- Platform ---
 
 /**

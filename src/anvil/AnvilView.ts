@@ -70,8 +70,11 @@ import {
 	type CodexCollection,
 } from "codex/codexTab";
 import { CODEX_CARD_SELECT_ATTR } from "codex/cardSelector";
+import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
+import { CODEX_HINT_DISMISS_ATTR } from "codex/basesHint";
 import { createNoteIndex, type CodexNoteIndex } from "codex/noteIndex";
 import { createAssetResolver } from "panel/assetResolver";
+import type { BasesCapability } from "bases/basesCapability";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (see test/__mocks__/obsidian.ts;
@@ -119,6 +122,31 @@ export interface AnvilViewOpts {
 	 * construction sites are unaffected.
 	 */
 	onCardSelect?: (collectionId: string, cardId: string) => void;
+	/**
+	 * Reads the live Bases capability (T4.6, ADR-36: enabled/disabled/absent —
+	 * `bases/basesCapability.ts`). Getter for the same reason as the settings
+	 * above. Defaults to `"enabled"` — the safe default that never shows a hint.
+	 */
+	getBasesCapability?: () => BasesCapability;
+	/**
+	 * Reads the live set of dismissed hint ids (T4.6, `PluginSettings.dismissedHints`).
+	 * Getter for the same reason as the settings above. Defaults to none dismissed.
+	 */
+	getDismissedHints?: () => readonly string[];
+	/**
+	 * Persist a hint dismissal (T4.6) — write-through to settings only, never to a
+	 * note's frontmatter (CON-2). Defaults to a no-op so existing construction
+	 * sites are unaffected.
+	 */
+	onDismissHint?: (hintId: string) => void;
+	/**
+	 * Open Settings so the user can change a collection's tag (T4.6, S98's
+	 * "Change tag"). Defaults to a no-op so existing construction sites are
+	 * unaffected. Per-collection settings UI does not exist yet (deferred to
+	 * Phase 7's Library) — main.ts's real implementation opens Settings at the
+	 * plugin's own tab, the closest anchor that exists today.
+	 */
+	onChangeTag?: (collectionId: string) => void;
 }
 
 function isSwimlaneKey(v: unknown): v is SwimlaneKey {
@@ -151,6 +179,10 @@ export class AnvilView extends ItemView {
 	private readonly getCollections: () => readonly CodexCollection[];
 	private readonly getCardByCollection: () => Readonly<Record<string, string>>;
 	private readonly onCardSelect: (collectionId: string, cardId: string) => void;
+	private readonly getBasesCapability: () => BasesCapability;
+	private readonly getDismissedHints: () => readonly string[];
+	private readonly onDismissHint: (hintId: string) => void;
+	private readonly onChangeTag: (collectionId: string) => void;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
@@ -167,6 +199,10 @@ export class AnvilView extends ItemView {
 		this.getCollections = opts?.getCollections ?? ((): readonly CodexCollection[] => BUILT_IN_COLLECTIONS);
 		this.getCardByCollection = opts?.getCardByCollection ?? ((): Readonly<Record<string, string>> => ({}));
 		this.onCardSelect = opts?.onCardSelect ?? ((): void => {});
+		this.getBasesCapability = opts?.getBasesCapability ?? ((): BasesCapability => "enabled");
+		this.getDismissedHints = opts?.getDismissedHints ?? ((): readonly string[] => []);
+		this.onDismissHint = opts?.onDismissHint ?? ((): void => {});
+		this.onChangeTag = opts?.onChangeTag ?? ((): void => {});
 		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
 	}
 
@@ -419,6 +455,8 @@ export class AnvilView extends ItemView {
 			},
 			resolveAsset: (sourcePath, raw): string => createAssetResolver(this.app, sourcePath)(raw),
 			cardId: active ? this.getCardByCollection()[active.id] : undefined,
+			basesCapability: this.getBasesCapability(),
+			dismissedHints: this.getDismissedHints(),
 		});
 	}
 
@@ -516,6 +554,12 @@ export class AnvilView extends ItemView {
 	 * element from the name it contains (never the same node), so the
 	 * name-over-card-body precedence AC falls out of the nearest-first walk
 	 * with no ranking anywhere — see `codexTab.ts`.
+	 *
+	 * T4.6 adds two more structural controls: the S98 empty state's "Change
+	 * tag" action and the ADR-36 Bases hint's dismiss button. Neither
+	 * navigates and neither nests a name, so — like the Card selector option —
+	 * they need only a presence check here; `_operateControl` reads the
+	 * marker's value to know WHICH collection/hint it targets.
 	 */
 	private _markerKindOf(el: HTMLElement): TargetKind | null {
 		if (el.hasAttribute("data-sf-link")) return "name";
@@ -525,6 +569,8 @@ export class AnvilView extends ItemView {
 		if (el.hasAttribute(CODEX_COLLECTION_ATTR)) return "structuralControl";
 		if (el.hasAttribute(CODEX_CARD_SELECT_ATTR)) return "structuralControl";
 		if (el.hasAttribute("data-sf-section-toggle")) return "structuralControl";
+		if (el.hasAttribute(CODEX_CHANGE_TAG_ATTR)) return "structuralControl";
+		if (el.hasAttribute(CODEX_HINT_DISMISS_ATTR)) return "structuralControl";
 		return null;
 	}
 
@@ -583,6 +629,24 @@ export class AnvilView extends ItemView {
 		if (tlMode === "rail" || tlMode === "swimlane") {
 			this._timelineMode = tlMode;
 			this._syncToggle();
+			this._render();
+			return;
+		}
+
+		// T4.6, S98 "Change tag": opens Settings. No re-render — nothing in the
+		// grid changed yet, unlike a card pick or a hint dismissal.
+		const changeTagCollectionId = nearest.getAttribute(CODEX_CHANGE_TAG_ATTR);
+		if (changeTagCollectionId !== null) {
+			this.onChangeTag(changeTagCollectionId);
+			return;
+		}
+
+		// T4.6, ADR-36: dismissing the Bases hint persists the id (host-injected
+		// onDismissHint), then re-renders so the hint disappears immediately —
+		// same "persist, then re-render" shape as onCardSelect below.
+		const dismissedHintId = nearest.getAttribute(CODEX_HINT_DISMISS_ATTR);
+		if (dismissedHintId !== null) {
+			this.onDismissHint(dismissedHintId);
 			this._render();
 			return;
 		}

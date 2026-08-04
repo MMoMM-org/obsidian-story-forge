@@ -18,6 +18,7 @@
 
 import type { Plugin } from "obsidian";
 import type { BasesViewRegistration } from "obsidian";
+import { apiVersion } from "obsidian";
 import { CodexBasesView } from "bases/CodexBasesView";
 import { CardBasesView } from "bases/CardBasesView";
 import { revealAndShowFile } from "views/SidebarView";
@@ -28,6 +29,7 @@ import {
 	CODEX_COMPACT_VIEW_ID,
 } from "pluginConstants";
 import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
+import { basesCapability, type BasesCapability } from "bases/basesCapability";
 
 /**
  * Shape of the registerBasesView method as it appears on Plugin
@@ -163,4 +165,21 @@ export function registerCodexView(plugin: Plugin): boolean {
  */
 export function isBasesAvailable(plugin: Plugin): boolean {
 	return availabilityCache.get(plugin) ?? false;
+}
+
+/**
+ * ADR-36: the three-way capability `isBasesAvailable` alone cannot express —
+ * "enabled" / "disabled" (present but off) / "absent" (too old to have it).
+ * Combines the cached registration outcome above with the running Obsidian's
+ * `apiVersion` (obsidian.d.ts:400) via the pure `basesCapability` (see
+ * `bases/basesCapability.ts` for why `apiVersion`, not `app.plugins`).
+ *
+ * Read `apiVersion` at CALL time (not captured into a module-level constant) —
+ * it is a live ES-module binding; capturing it once would freeze whatever
+ * value happened to be current at import time.
+ *
+ * @returns "enabled" | "disabled" | "absent" for the Codex's Bases hint (T4.6)
+ */
+export function getBasesCapability(plugin: Plugin): BasesCapability {
+	return basesCapability(apiVersion, isBasesAvailable(plugin));
 }

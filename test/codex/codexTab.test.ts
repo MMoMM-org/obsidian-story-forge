@@ -37,6 +37,9 @@ import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
 import type { CardRenderer } from "codex/cardRegistry";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
 import type { TargetKind } from "navigation/navigationController";
+import type { BasesCapability } from "bases/basesCapability";
+import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
+import { BASES_DISABLED_HINT_ID, CODEX_HINT_DISMISS_ATTR } from "codex/basesHint";
 
 // ---------------------------------------------------------------------------
 // Fixture: a mini canon vault, tagged the way the seed vault tags (frontmatter)
@@ -84,6 +87,10 @@ interface OpenOpts {
 	drill?: (file: TFile) => void;
 	cardByCollection?: Record<string, string>;
 	onCardSelect?: (collectionId: string, cardId: string) => void;
+	basesCapability?: BasesCapability;
+	dismissedHints?: readonly string[];
+	onDismissHint?: (hintId: string) => void;
+	onChangeTag?: (collectionId: string) => void;
 }
 
 async function openCodex(app: App, opts: OpenOpts = {}): Promise<AnvilView> {
@@ -95,6 +102,10 @@ async function openCodex(app: App, opts: OpenOpts = {}): Promise<AnvilView> {
 			? { getCardByCollection: (): Record<string, string> => opts.cardByCollection! }
 			: {}),
 		...(opts.onCardSelect ? { onCardSelect: opts.onCardSelect } : {}),
+		...(opts.basesCapability ? { getBasesCapability: (): BasesCapability => opts.basesCapability! } : {}),
+		...(opts.dismissedHints ? { getDismissedHints: (): readonly string[] => opts.dismissedHints! } : {}),
+		...(opts.onDismissHint ? { onDismissHint: opts.onDismissHint } : {}),
+		...(opts.onChangeTag ? { onChangeTag: opts.onChangeTag } : {}),
 	});
 	await view.onOpen();
 	view.setLayout("codex");
@@ -415,6 +426,182 @@ describe("Codex tab: built-in Cards render through the real AnvilView [PRD/F4]",
 		if (!card) throw new Error(`no card rendered for ${file.path}`);
 		return card;
 	}
+});
+
+// ---------------------------------------------------------------------------
+// T4.6 — S98 empty state: names the tag, Change tag + What are FileClasses?
+// ---------------------------------------------------------------------------
+
+describe("Codex tab: S98 empty state [PRD/F3 AC]", () => {
+	let app: App;
+
+	beforeEach(() => {
+		app = new App();
+		seedVault(app);
+	});
+
+	function emptyBox(view: AnvilView): HTMLElement {
+		const box = bodyOf(view).querySelector<HTMLElement>("[data-sf-cx-empty]");
+		if (!box) throw new Error("no empty-state box rendered");
+		return box;
+	}
+
+	it("names the heading after the collection and the tag it looked for", async () => {
+		const view = await openCodex(app);
+		click(bodyOf(view).querySelector('[data-sf-collection="lore"]'));
+
+		const box = emptyBox(view);
+		expect(box.querySelector(".sf-cx-empty-heading")?.textContent).toBe("No lore found");
+		expect(box.textContent).toContain("canon/lore");
+	});
+
+	it("offers a primary Change tag action, not Set up my vault… (S98 correction — that action returns with #27)", async () => {
+		const view = await openCodex(app);
+		click(bodyOf(view).querySelector('[data-sf-collection="lore"]'));
+
+		const box = emptyBox(view);
+		expect(box.textContent).not.toContain("Set up my vault");
+		const changeTag = box.querySelector<HTMLElement>(`[${CODEX_CHANGE_TAG_ATTR}]`);
+		expect(changeTag?.textContent).toBe("Change tag");
+		expect(changeTag?.getAttribute(CODEX_CHANGE_TAG_ATTR)).toBe("lore");
+	});
+
+	it("offers a secondary What are FileClasses? documentation link", async () => {
+		const view = await openCodex(app);
+		click(bodyOf(view).querySelector('[data-sf-collection="lore"]'));
+
+		const box = emptyBox(view);
+		const docsLink = Array.from(box.querySelectorAll("a")).find((a) => a.textContent === "What are FileClasses?");
+		expect(docsLink).toBeDefined();
+		expect(docsLink?.getAttribute("href")).toMatch(/^https:\/\//);
+	});
+
+	it("Change tag is a structural control routed through the real click walk, and opens Settings via the host", async () => {
+		const onChangeTag = vi.fn();
+		const view = await openCodex(app, { onChangeTag });
+		click(bodyOf(view).querySelector('[data-sf-collection="lore"]'));
+
+		const changeTag = emptyBox(view).querySelector<HTMLElement>(`[${CODEX_CHANGE_TAG_ATTR}]`);
+		expect(markersFor(view, changeTag!)[0]).toBe("structuralControl");
+
+		click(changeTag);
+		expect(onChangeTag).toHaveBeenCalledWith("lore");
+	});
+
+	it("a MISCONFIGURED (empty-tag) collection says so, with no Change tag / FileClasses actions to offer", async () => {
+		const collections: readonly CodexCollection[] = [
+			{ id: "broken", label: "Broken", tag: "  ", enabled: true },
+		];
+		const view = await openCodex(app, { collections });
+
+		const misconfigured = bodyOf(view).querySelector<HTMLElement>("[data-sf-cx-misconfigured]");
+		expect(misconfigured).not.toBeNull();
+		expect(misconfigured?.textContent).toContain("no tag configured");
+		// Not the S98 empty-state box — a misconfigured collection has nothing to
+		// offer "Change tag" a valid tag to change TO.
+		expect(bodyOf(view).querySelector("[data-sf-cx-empty]")).toBeNull();
+		expect(bodyOf(view).querySelector(`[${CODEX_CHANGE_TAG_ATTR}]`)).toBeNull();
+	});
+
+	it("XSS-safe: a tag containing markup renders as inert text, never parsed HTML", async () => {
+		const collections: readonly CodexCollection[] = [
+			{ id: "hostile", label: "Hostile", tag: '<img src=x onerror="window.__pwned = true">', enabled: true },
+		];
+		const view = await openCodex(app, { collections });
+
+		const box = emptyBox(view);
+		expect(box.querySelector("img")).toBeNull();
+		expect(box.textContent).toContain('<img src=x onerror="window.__pwned = true">');
+		expect((window as unknown as { __pwned?: boolean }).__pwned).toBeUndefined();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T4.6 — ADR-36 Bases hint: one dismissible hint, permanent dismissal, silence
+// for "absent" / "enabled" / any community-plugin state
+// ---------------------------------------------------------------------------
+
+describe("Codex tab: ADR-36 Bases hint [PRD/F4 AC]", () => {
+	let app: App;
+
+	beforeEach(() => {
+		app = new App();
+		seedVault(app);
+	});
+
+	function hint(view: AnvilView): HTMLElement | null {
+		return bodyOf(view).querySelector<HTMLElement>(".sf-cx-hint");
+	}
+
+	it("shows the hint when Bases is present but disabled", async () => {
+		const view = await openCodex(app, { basesCapability: "disabled" });
+		expect(hint(view)).not.toBeNull();
+	});
+
+	it("shows no hint when Bases is enabled", async () => {
+		const view = await openCodex(app, { basesCapability: "enabled" });
+		expect(hint(view)).toBeNull();
+	});
+
+	it("shows no hint when Bases is absent (an old Obsidian) — silence, not a broken-install message", async () => {
+		const view = await openCodex(app, { basesCapability: "absent" });
+		expect(hint(view)).toBeNull();
+	});
+
+	it("defaults to no hint when the host hasn't wired getBasesCapability at all", async () => {
+		const view = await openCodex(app);
+		expect(hint(view)).toBeNull();
+	});
+
+	it("shows no hint — ever — regardless of a community plugin's absence, even while Bases itself is disabled and eligible", async () => {
+		// Dataview/metadata-menu are never wired into this test at all. The only
+		// thing that gates the hint is basesCapability, which has no community-
+		// plugin input by construction (ADR-36: core may be suggested; community
+		// never). This proves the Codex doesn't spontaneously grow a community
+		// nag alongside the legitimate core one.
+		const view = await openCodex(app, { basesCapability: "enabled" });
+		expect(hint(view)).toBeNull();
+		expect(bodyOf(view).textContent).not.toMatch(/dataview|metadata-menu/i);
+	});
+
+	it("suppresses the hint once its id is already in dismissedHints — even before any click happens", async () => {
+		const view = await openCodex(app, {
+			basesCapability: "disabled",
+			dismissedHints: [BASES_DISABLED_HINT_ID],
+		});
+		expect(hint(view)).toBeNull();
+	});
+
+	it("dismissing is a structural control routed through the real click walk, and calls the host callback with the hint id", async () => {
+		const onDismissHint = vi.fn();
+		const view = await openCodex(app, { basesCapability: "disabled", onDismissHint });
+
+		const dismissBtn = hint(view)!.querySelector<HTMLElement>(`[${CODEX_HINT_DISMISS_ATTR}]`);
+		expect(markersFor(view, dismissBtn!)[0]).toBe("structuralControl");
+
+		click(dismissBtn);
+		expect(onDismissHint).toHaveBeenCalledWith(BASES_DISABLED_HINT_ID);
+	});
+
+	it("the hint disappears immediately after a dismiss click, without waiting for a follow re-render", async () => {
+		// getDismissedHints is a getter the host re-reads on every render — this
+		// test's stub doesn't mutate, so only the AnvilView's own re-render
+		// (triggered by the click handler, not by an external settings change)
+		// could make the hint vanish. That is the behaviour under test.
+		const dismissed: string[] = [];
+		const view = new AnvilView(makeLeaf(app), {
+			getBasesCapability: (): BasesCapability => "disabled",
+			getDismissedHints: (): readonly string[] => dismissed,
+			onDismissHint: (id: string): void => { dismissed.push(id); },
+		});
+		await view.onOpen();
+		view.setLayout("codex");
+
+		expect(hint(view)).not.toBeNull();
+		click(hint(view)!.querySelector<HTMLElement>(`[${CODEX_HINT_DISMISS_ATTR}]`));
+
+		expect(hint(view)).toBeNull();
+	});
 });
 
 // ---------------------------------------------------------------------------

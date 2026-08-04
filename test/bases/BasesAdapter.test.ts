@@ -30,9 +30,9 @@
  *     registration itself is declined (one on/off signal, not four).
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { App, Plugin, TFile } from "../__mocks__/obsidian";
-import { isBasesAvailable, registerCodexView } from "bases/BasesAdapter";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { App, Plugin, TFile, _setApiVersion, _resetApiVersion } from "../__mocks__/obsidian";
+import { isBasesAvailable, registerCodexView, getBasesCapability } from "bases/BasesAdapter";
 import { CodexBasesView } from "bases/CodexBasesView";
 import { CardBasesView } from "bases/CardBasesView";
 import * as SidebarViewModule from "views/SidebarView";
@@ -478,5 +478,72 @@ describe("registerCodexView T4.5 — hero/table/compact Card view registration",
 		registerCodexView(plugin);
 
 		expect(spy).toHaveBeenCalledTimes(4);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// getBasesCapability — T4.6, ADR-36's three-way signal built on isBasesAvailable
+// (cached registration outcome) + apiVersion (BasesAdapter.ts is the sole
+// firewall importing both, per CON-3/CON-8 — never app.plugins/internalPlugins).
+// ---------------------------------------------------------------------------
+
+describe("getBasesCapability", () => {
+	let app: App;
+	let plugin: Plugin;
+
+	beforeEach(() => {
+		app = new App();
+		plugin = new Plugin(app);
+	});
+
+	afterEach(() => {
+		_resetApiVersion();
+	});
+
+	it("reports 'enabled' when apiVersion is current and registration succeeded", () => {
+		_setApiVersion("1.13.1");
+		wireRegisterBasesView(plugin, true);
+		registerCodexView(plugin);
+
+		expect(getBasesCapability(plugin)).toBe("enabled");
+	});
+
+	it("reports 'disabled' when apiVersion is current but registration failed (Bases present, off)", () => {
+		_setApiVersion("1.13.1");
+		wireRegisterBasesView(plugin, false);
+		registerCodexView(plugin);
+
+		expect(getBasesCapability(plugin)).toBe("disabled");
+	});
+
+	it("reports 'absent' when apiVersion predates Bases, even if registerBasesView happens to be present and returns true", () => {
+		// Proves the version check gates BEFORE isBasesAvailable is trusted —
+		// otherwise "absent" could never be distinguished from "enabled" on an
+		// old Obsidian that (hypothetically) still had the method.
+		_setApiVersion("1.9.0");
+		wireRegisterBasesView(plugin, true);
+		registerCodexView(plugin);
+
+		expect(getBasesCapability(plugin)).toBe("absent");
+	});
+
+	it("reports 'absent' when apiVersion predates Bases and the method is genuinely missing", () => {
+		_setApiVersion("1.9.0");
+		// No registerBasesView wired — registerCodexView caches false, matching
+		// a real pre-1.10 Obsidian.
+		registerCodexView(plugin);
+
+		expect(getBasesCapability(plugin)).toBe("absent");
+	});
+
+	it("reads apiVersion live at call time — the mock's setter is observed without re-importing", () => {
+		wireRegisterBasesView(plugin, false);
+		registerCodexView(plugin);
+
+		_setApiVersion("1.9.0");
+		expect(getBasesCapability(plugin)).toBe("absent");
+
+		_setApiVersion("1.13.1");
+		expect(getBasesCapability(plugin)).toBe("disabled");
 	});
 });

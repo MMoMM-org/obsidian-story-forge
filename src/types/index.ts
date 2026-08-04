@@ -39,6 +39,16 @@ export interface PluginSettings {
 	 * @ref SDD/Data Storage Changes — Settings.cardByCollection
 	 */
 	cardByCollection: Record<string, string>;
+	/**
+	 * Ids of one-time hints the user has dismissed (T4.6, ADR-36), e.g.
+	 * `"bases-disabled"`. Operational state (CON-2) — never story data, never
+	 * written to a note. Dismissal is permanent: once an id is present here it
+	 * stays hidden across every future render and every reload. Default `[]`:
+	 * every eligible hint shows until explicitly dismissed.
+	 * @ref SDD/Data Storage Changes — Settings.dismissedHints
+	 * @ref SDD/ADR-36 — core may be suggested once; community never
+	 */
+	dismissedHints: string[];
 }
 
 const DEFAULT_FILE_CLASSES_FOLDER = "00 Meta/FileClasses";
@@ -60,6 +70,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	excludedFolders: [...DEFAULT_EXCLUDED_FOLDERS],
 	editorDock: DEFAULT_EDITOR_DOCK,
 	cardByCollection: {},
+	dismissedHints: [],
 };
 
 /** Type guard: returns true if `v` is a valid `linkClickAction` value. */
@@ -141,6 +152,23 @@ export function normalizeCardByCollection(v: unknown): Record<string, string> {
 	return isCardByCollection(v) ? { ...v } : {};
 }
 
+/** Type guard: returns true if `v` is a valid `dismissedHints` value (an array of strings). */
+export function isDismissedHints(v: unknown): v is string[] {
+	return Array.isArray(v) && v.every((x) => typeof x === "string");
+}
+
+/**
+ * Normalizer: returns a copy of `v` if it is a valid `dismissedHints` array, otherwise a
+ * fresh empty array. A malformed value (not an array, or an array containing a non-string)
+ * falls back to "nothing dismissed yet"; a legitimate empty array passes through unchanged
+ * (copied). Always returns a fresh array — same discipline as `normalizeExcludedFolders` —
+ * so a future in-place mutation (dismissing a hint) cannot corrupt
+ * `DEFAULT_SETTINGS.dismissedHints`.
+ */
+export function normalizeDismissedHints(v: unknown): string[] {
+	return isDismissedHints(v) ? [...v] : [];
+}
+
 /**
  * Build a `PluginSettings` from a persisted (untyped) `settings` blob, keeping only the
  * fields `PluginSettings` declares — every other own-enumerable key on `raw` (e.g. a
@@ -166,5 +194,6 @@ export function normalizeSettings(raw: unknown): PluginSettings {
 		excludedFolders: normalizeExcludedFolders(stored.excludedFolders),
 		editorDock: normalizeEditorDock(stored.editorDock),
 		cardByCollection: normalizeCardByCollection(stored.cardByCollection),
+		dismissedHints: normalizeDismissedHints(stored.dismissedHints),
 	};
 }

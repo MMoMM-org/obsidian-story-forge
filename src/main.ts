@@ -12,7 +12,7 @@ import { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
-import { registerCodexView, isBasesAvailable } from "bases/BasesAdapter";
+import { registerCodexView, isBasesAvailable, getBasesCapability } from "bases/BasesAdapter";
 import { CodexView } from "codex/CodexView";
 import { AnvilView, type AnvilLayout } from "anvil/AnvilView";
 import { CatalogService } from "catalog/CatalogService";
@@ -142,6 +142,32 @@ export default class StoryForgePlugin extends Plugin {
 						cardByCollection: { ...this.settings.cardByCollection, [collectionId]: cardId },
 					};
 					void this.saveSettings();
+				},
+				// T4.6, ADR-36. Reads the cached registration outcome
+				// (registerCodexView, called below) + apiVersion — safe to call before
+				// that line runs textually because this is a getter, invoked only when
+				// the Codex actually renders, by which point onload has completed.
+				getBasesCapability: () => getBasesCapability(this),
+				getDismissedHints: () => this.settings.dismissedHints,
+				onDismissHint: (hintId) => {
+					// Idempotent: a hint already dismissed is not appended again.
+					// Operational state (CON-2) — never written to a note's frontmatter.
+					if (this.settings.dismissedHints.includes(hintId)) return;
+					this.settings = {
+						...this.settings,
+						dismissedHints: [...this.settings.dismissedHints, hintId],
+					};
+					void this.saveSettings();
+				},
+				// T4.6, S98 "Change tag": per-collection settings UI doesn't exist yet
+				// (Phase 7's Library owns it — SettingsTab.ts's Scope section comment).
+				// Until then, the closest real anchor is the plugin's own Settings tab.
+				onChangeTag: () => {
+					const setting = (
+						this.app as unknown as { setting?: { open?: () => void; openTabById?: (id: string) => void } }
+					).setting;
+					setting?.open?.();
+					setting?.openTabById?.(this.manifest.id);
 				},
 			}),
 		);

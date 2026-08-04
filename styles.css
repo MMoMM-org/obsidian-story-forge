@@ -2902,6 +2902,78 @@ body {
 	color: var(--text-error);
 }
 
+/*
+ * S98 empty-state detail (spec 008, T4.6) — glyph, heading, tag line and
+ * actions layered inside the shared `.sf-cx-empty` box above. `.sf-cx-empty`
+ * itself is also reused verbatim by the "no collections enabled" placeholder
+ * (`codexTab.ts`), which renders none of these child elements — the base box
+ * styling (padding/centering) is what both share.
+ */
+.sf-cx-empty-ic {
+	margin-bottom: 6px;
+	color: var(--text-faint);
+	font-size: 20px;
+}
+
+.sf-cx-empty-heading {
+	color: var(--text-normal);
+}
+
+.sf-cx-empty-detail {
+	margin-top: 6px;
+	max-width: 48ch;
+	margin-inline: auto;
+	font-size: 11.5px;
+}
+
+.sf-cx-empty-detail code {
+	font-size: 11px;
+}
+
+.sf-cx-empty-actions {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.sf-cx-empty-action {
+	font-size: 11px;
+}
+
+/*
+ * ADR-36 Bases hint (spec 008, T4.6) — a single dismissible banner, shown
+ * only when Bases is present-but-disabled. Reuses `.sf-warnbanner`'s "amber
+ * caution, not error" language conceptually but stays informational (accent,
+ * not warn) — being off is a valid choice, not a problem.
+ */
+.sf-cx-hint {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: 11.5px;
+}
+
+.sf-cx-hint-dismiss {
+	flex-shrink: 0;
+	padding: 0 4px;
+	border: none;
+	background: transparent;
+	color: var(--text-faint);
+	font-size: 11px;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.sf-cx-hint-dismiss:hover {
+	color: var(--text-normal);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * Codex Cards (spec 008, T4.3) — Hero, Table, Compact. Each draws into the
  * `.sf-cx-card` shell `codexTab.ts` stamps with the card-body marker; these

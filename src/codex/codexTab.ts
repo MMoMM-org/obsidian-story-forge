@@ -41,6 +41,9 @@ import {
 } from "./cardRegistry";
 import { CODEX_CARD_REGISTRY } from "./builtinCards";
 import { renderCardSelector } from "./cardSelector";
+import { renderCodexEmptyState } from "./codexEmptyState";
+import { renderBasesHint, BASES_DISABLED_HINT_ID } from "./basesHint";
+import type { BasesCapability } from "bases/basesCapability";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (see test/__mocks__/obsidian.ts).
@@ -184,6 +187,18 @@ export interface CodexTabOptions {
 	readonly cardId?: string;
 	/** Workbench form: same markup, tighter density (S95). */
 	readonly compact?: boolean;
+	/**
+	 * ADR-36: Bases' three-way capability (`bases/basesCapability.ts`). Optional:
+	 * defaults to `"enabled"` — the safe default that never shows a hint a host
+	 * hasn't explicitly wired the real value for, same convention as `cardId`
+	 * defaulting to the registry default rather than guessing.
+	 */
+	readonly basesCapability?: BasesCapability;
+	/**
+	 * Hint ids the user has already dismissed (`PluginSettings.dismissedHints`,
+	 * T4.6). Optional: defaults to none dismissed.
+	 */
+	readonly dismissedHints?: readonly string[];
 }
 
 /**
@@ -203,6 +218,8 @@ export function renderCodexTab(container: HTMLElement, opts: CodexTabOptions): C
 	const cats = renderPills(opts.collections, active);
 	root.appendChild(cats);
 
+	maybeRenderBasesHint(root, opts);
+
 	const grid = el("div", "sf-cx-grid");
 	root.appendChild(grid);
 
@@ -220,6 +237,20 @@ export function renderCodexTab(container: HTMLElement, opts: CodexTabOptions): C
 
 	renderBody(grid, active, card, opts);
 	return active;
+}
+
+/**
+ * ADR-36: render the single dismissible hint iff Bases is present-but-disabled
+ * AND the user has not already dismissed it. Every other combination —
+ * "enabled" (nothing to say), "absent" (silence, not a broken install), or
+ * already dismissed — renders nothing here, by construction: there is no
+ * branch that reads a community plugin's presence at all (F8's "community
+ * never" holds structurally, not just by convention).
+ */
+function maybeRenderBasesHint(root: HTMLElement, opts: CodexTabOptions): void {
+	if ((opts.basesCapability ?? "enabled") !== "disabled") return;
+	if ((opts.dismissedHints ?? []).includes(BASES_DISABLED_HINT_ID)) return;
+	renderBasesHint(root);
 }
 
 /** The pill row (S91's `.cx-cats`): one pill per ENABLED collection, in order. */
@@ -264,11 +295,10 @@ function renderBody(
 	}
 
 	if (resolution.notes.length === 0) {
-		// T4.6 grows this into S98 (Set up my vault… / Change tag). Naming the
-		// tag is the part that must hold from the start (PRD/F3 AC).
-		const box = message("sf-cx-empty", `No notes carry the tag ${active.tag}.`);
-		box.setAttribute("data-sf-cx-empty", active.tag);
-		grid.appendChild(box);
+		// S98: heading, the tag it looked for, Change tag + What are FileClasses?
+		// (codexEmptyState.ts). Naming the tag is the part that held from T4.1
+		// (PRD/F3 AC); this is that placeholder grown into the signed-off mockup.
+		renderCodexEmptyState(grid, { collectionId: active.id, label: active.label, tag: active.tag });
 		return;
 	}
 
