@@ -39,7 +39,8 @@ import {
 	type CardRenderDeps,
 	type CardRenderer,
 } from "./cardRegistry";
-import { BUILT_IN_CARD_IDS, CODEX_CARD_REGISTRY } from "./builtinCards";
+import { CODEX_CARD_REGISTRY } from "./builtinCards";
+import { renderCardSelector } from "./cardSelector";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (see test/__mocks__/obsidian.ts).
@@ -65,16 +66,6 @@ export const CODEX_CARD_BODY_ATTR = "data-sf-card-body";
 
 /** The existing cross-surface "name" marker, reused unchanged. */
 const LINK_ATTR = "data-sf-link";
-
-/**
- * Marks a Card option in the selector dropdown (T4.4, S91/S97). Hosts classify
- * it as `"structuralControl"`; its value is the Card id to persist for the
- * active collection. Re-exports the registry constructed in `builtinCards.ts`
- * so existing importers of `codex/codexTab` keep working (T4.4's cleanup
- * moved construction, not the public name).
- */
-export const CODEX_CARD_SELECT_ATTR = "data-sf-card";
-export { CODEX_CARD_REGISTRY };
 
 // ---------------------------------------------------------------------------
 // Collections
@@ -132,7 +123,18 @@ export class CodexSelectionStore {
 		return enabled.find((c) => c.id === this.selected) ?? enabled[0] ?? null;
 	}
 
-	/** Record an explicit pick. Unknown ids are harmless — `resolve` falls back. */
+	/**
+	 * Record an explicit pick. Unknown ids are harmless — `resolve` falls back.
+	 *
+	 * **Invariant every caller must keep:** a `select()` call must be
+	 * synchronously followed by a re-render. `_operateControl`'s Card-select
+	 * branch (`AnvilView.ts`) relies on this — it reads `resolve(...)` right
+	 * after a pick to know which collection to persist the choice against, and
+	 * that read is only correct if nothing has gone stale in between. A second
+	 * call site that defers its render (e.g. behind a debounce) would still
+	 * compile and still pass `CodexSelectionStore`'s own tests, but would
+	 * silently break per-collection Card memory.
+	 */
 	select(collectionId: string): void {
 		this.selected = collectionId;
 	}
@@ -238,91 +240,6 @@ function renderPills(
 		row.appendChild(pill);
 	}
 	return row;
-}
-
-// ---------------------------------------------------------------------------
-// Card selector (T4.4, S91/S97) — trigger + dropdown, Built-in / Yours split
-// ---------------------------------------------------------------------------
-
-/**
- * The Card selector: a trigger showing the active Card's label, and a
- * dropdown grouped "Built-in" / "Yours" (S91 closed, S97 open). The split is
- * derived by joining the registry's `list()` against `BUILT_IN_CARD_IDS`
- * rather than a `provenance` field — T4.2 deliberately kept that off the
- * frozen `CardRenderer` contract.
- *
- * Picking an option carries no behaviour of its own: it only stamps
- * `CODEX_CARD_SELECT_ATTR`, the same "contribute a marker, let the host
- * decide" discipline the collection pills already follow (module docstring,
- * ADR-28) — the host resolves the active collection and persists the choice.
- */
-function renderCardSelector(active: CardRenderer): HTMLElement {
-	const wrap = el("div", "sf-cx-cardsel");
-
-	const trigger = activeDocument.createElement("button");
-	trigger.type = "button";
-	trigger.className = "sf-cx-cardsel-trigger";
-	trigger.setAttribute("aria-haspopup", "listbox");
-	trigger.setAttribute("aria-expanded", "false");
-	trigger.append("Card: ");
-	const label = activeDocument.createElement("b");
-	label.textContent = active.label;
-	trigger.appendChild(label);
-	trigger.append(" ▾");
-	wrap.appendChild(trigger);
-
-	const dd = el("div", "sf-cx-cardsel-dd");
-	dd.setAttribute("role", "listbox");
-	dd.hidden = true;
-	wrap.appendChild(dd);
-
-	const all = CODEX_CARD_REGISTRY.list();
-	const builtIns = all.filter((c) => BUILT_IN_CARD_IDS.has(c.id));
-	const imported = all.filter((c) => !BUILT_IN_CARD_IDS.has(c.id));
-
-	appendCardGroup(dd, "Built-in", builtIns, active.id, false);
-	if (imported.length > 0) {
-		dd.appendChild(activeDocument.createElement("hr"));
-		appendCardGroup(dd, "Yours", imported, active.id, true);
-	}
-
-	// Local UI-only state (open/closed): it carries no navigation meaning
-	// (ADR-28), so it never joins the host's marker vocabulary. This whole
-	// subtree is torn down on every render (`empty(container)` at the top of
-	// `renderCodexTab`), so a plain listener is GC'd with it — the same
-	// documented CON-4 exception `CodexView.ts`'s "Enable Bases" button uses.
-	trigger.addEventListener("click", () => {
-		const opening = dd.hidden;
-		dd.hidden = !opening;
-		trigger.setAttribute("aria-expanded", String(opening));
-	});
-
-	return wrap;
-}
-
-/** Append one heading + its Card options to the selector dropdown. */
-function appendCardGroup(
-	dd: HTMLElement,
-	heading: string,
-	cards: readonly CardRenderer[],
-	activeId: string,
-	imported: boolean,
-): void {
-	const h = el("div", "sf-cx-cardsel-heading");
-	h.textContent = heading;
-	dd.appendChild(h);
-	for (const card of cards) {
-		const item = el("span", "sf-cx-cardsel-item");
-		if (imported) item.classList.add("sf-cx-cardsel-item--usr");
-		const isSelected = card.id === activeId;
-		if (isSelected) item.classList.add("sf-cx-cardsel-item--sel");
-		item.setAttribute("role", "option");
-		item.setAttribute("aria-selected", String(isSelected));
-		item.setAttribute("tabindex", "0");
-		item.setAttribute(CODEX_CARD_SELECT_ATTR, card.id);
-		item.textContent = card.label;
-		dd.appendChild(item);
-	}
 }
 
 /** Resolve the active collection and render its entries, or why there are none. */

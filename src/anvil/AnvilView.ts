@@ -64,14 +64,19 @@ import { walkTargetMarkers } from "navigation/domTargetWalk";
 import {
 	BUILT_IN_COLLECTIONS,
 	CODEX_CARD_BODY_ATTR,
-	CODEX_CARD_SELECT_ATTR,
 	CODEX_COLLECTION_ATTR,
 	CodexSelectionStore,
 	renderCodexTab,
 	type CodexCollection,
 } from "codex/codexTab";
+import { CODEX_CARD_SELECT_ATTR } from "codex/cardSelector";
 import { createNoteIndex, type CodexNoteIndex } from "codex/noteIndex";
 import { createAssetResolver } from "panel/assetResolver";
+
+// Obsidian's popout-window-aware document — the mock polyfills this to
+// globalThis.document in jsdom test environments (see test/__mocks__/obsidian.ts;
+// same local declaration `codexTab.ts` and `panel/components.ts` use).
+declare const activeDocument: Document;
 
 export type AnvilLayout = "codex" | "timeline" | "plotlines" | "kanban" | "plotgrid";
 
@@ -262,6 +267,19 @@ export class AnvilView extends ItemView {
 			if (e.key !== "Enter" && e.key !== " ") return;
 			e.preventDefault();
 			this._onClick(e.target, e.metaKey || e.ctrlKey);
+		});
+		// Click-outside-to-dismiss for the Codex Card selector dropdown (T4.4
+		// follow-up). A click on a card body drills (inspect) WITHOUT a
+		// `_render()` — see `_onClick`'s "inspect" branch — so an open dropdown
+		// would otherwise stay open over whatever the click just did. Registered
+		// document-wide via the same `register*` seam as every other listener
+		// here (CON-4): a plain `document.addEventListener` would leak past
+		// unload. Runs after `ce`'s click router in the same bubble (document is
+		// an ancestor of `ce`), so a pick's own `_render()` has already closed
+		// the dropdown by the time this fires — the containment check below is
+		// what stops it from fighting the trigger's own open/close toggle.
+		this.registerDomEvent(activeDocument, "click", (e: MouseEvent) => {
+			this._dismissOpenCardDropdown(e.target);
 		});
 		// Follow the active note.
 		this.registerEvent(this.app.workspace.on("active-leaf-change", () => { this._debouncedRender(); }));
@@ -576,6 +594,24 @@ export class AnvilView extends ItemView {
 				this._render();
 			}
 		}
+	}
+
+	/**
+	 * Close the Codex Card selector's dropdown if it is open and `clickTarget`
+	 * landed outside it (T4.4 follow-up). A no-op when nothing is open, when
+	 * the Codex tab isn't the active layout, or when the click landed inside
+	 * `.sf-cx-cardsel` itself — the trigger's own toggle and a pick's own
+	 * `_render()` already handle those cases correctly on their own.
+	 */
+	private _dismissOpenCardDropdown(clickTarget: EventTarget | null): void {
+		const dd = this._bodyEl?.querySelector<HTMLElement>(".sf-cx-cardsel-dd:not([hidden])");
+		if (!dd) return;
+
+		const wrap = dd.closest(".sf-cx-cardsel");
+		if (wrap && clickTarget instanceof Node && wrap.contains(clickTarget)) return;
+
+		dd.hidden = true;
+		wrap?.querySelector<HTMLElement>(".sf-cx-cardsel-trigger")?.setAttribute("aria-expanded", "false");
 	}
 
 	/**

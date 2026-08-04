@@ -144,6 +144,23 @@ function click(el: Element | null, opts: { ctrl?: boolean } = {}): void {
 }
 
 /**
+ * Mount `view.contentEl` into the real `document.body`. The mock's `ItemView`
+ * (unlike its `Modal`) never does this itself, so a click dispatched inside it
+ * normally bubbles only as far as the detached `containerEl` root and never
+ * reaches `document` — real Obsidian DOES mount a leaf's content into the
+ * document, which is what the Card selector's document-level dismiss listener
+ * (T4.4 follow-up, `AnvilView._dismissOpenCardDropdown`) relies on. Returns an
+ * unmount function so the test can clean up rather than leaking elements onto
+ * `document.body` for the rest of the file's test run.
+ */
+function mountToDocument(view: AnvilView): () => void {
+	document.body.appendChild(view.contentEl);
+	return (): void => {
+		view.contentEl.parentNode?.removeChild(view.contentEl);
+	};
+}
+
+/**
  * The host's OWN marker vocabulary, driven over the real ancestor walk. Reaching
  * for the private member is deliberate: re-declaring the vocabulary in the test
  * would make the assertion self-fulfilling, and it is exactly the host-side
@@ -677,6 +694,73 @@ describe("Codex tab: Card selector [PRD/F4]", () => {
 		click(trigger);
 		expect(dd.hidden).toBe(true);
 		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+	});
+
+	it("closes the open dropdown on a click elsewhere that does not itself trigger a re-render", async () => {
+		// The reachable gap this guards: a card-body click drills (inspect)
+		// WITHOUT calling `_render()` (see `_onClick`'s "inspect" branch) — so
+		// without an explicit dismiss, an open dropdown would stay open over
+		// whatever the click just did. The dismiss listener is document-scoped
+		// (real Obsidian mounts a leaf's content into the document), so the test
+		// mounts `contentEl` the same way — see `mountToDocument`.
+		const view = await openCodex(app);
+		const unmount = mountToDocument(view);
+		try {
+			const trigger = cardSelTrigger(view)!;
+			const dd = bodyOf(view).querySelector<HTMLElement>(".sf-cx-cardsel-dd")!;
+
+			click(trigger);
+			expect(dd.hidden).toBe(false);
+
+			click(bodyOf(view).querySelector(`[data-sf-card-body="${mara.path}"]`));
+
+			expect(dd.hidden).toBe(true);
+			expect(trigger.getAttribute("aria-expanded")).toBe("false");
+		} finally {
+			unmount();
+		}
+	});
+
+	it("does not close the dropdown on a click on the trigger or an option inside it", async () => {
+		const view = await openCodex(app, statefulCardSelection());
+		const unmount = mountToDocument(view);
+		try {
+			const trigger = cardSelTrigger(view)!;
+
+			click(trigger);
+			let dd = bodyOf(view).querySelector<HTMLElement>(".sf-cx-cardsel-dd")!;
+			expect(dd.hidden).toBe(false);
+
+			// Clicking an option picks the Card, which re-renders (a fresh, closed
+			// dropdown) — the dismiss listener must not additionally interfere.
+			click(cardOption(view, "table"));
+			expect(gridCardId(view)).toBe("table");
+			dd = bodyOf(view).querySelector<HTMLElement>(".sf-cx-cardsel-dd")!;
+			expect(dd.hidden).toBe(true);
+		} finally {
+			unmount();
+		}
+	});
+
+	it("releases the document-level dismiss listener on close (no leak, CON-4)", async () => {
+		const view = await openCodex(app);
+		const trigger = cardSelTrigger(view)!;
+		const dd = bodyOf(view).querySelector<HTMLElement>(".sf-cx-cardsel-dd")!;
+
+		click(trigger);
+		expect(dd.hidden).toBe(false);
+
+		// registerDomEvent's queued removeEventListener runs from _unload — same
+		// release seam already proven for registerEvent subscriptions elsewhere
+		// in this file ("releases every metadataCache subscription on close").
+		(view as unknown as { _unload(): void })._unload();
+
+		// A click elsewhere would have dismissed the dropdown while the listener
+		// was live (the sibling "closes the open dropdown…" test above) — after
+		// unload it must be inert rather than a leaked handler still reacting.
+		document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+		expect(dd.hidden).toBe(false);
 	});
 
 	it("remembers the Card choice per collection — Characters Hero while Objects is Table [PRD/F4 AC]", async () => {
