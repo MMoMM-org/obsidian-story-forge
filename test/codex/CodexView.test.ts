@@ -79,6 +79,24 @@ describe("CodexView — S46 degrade render", () => {
 		expect(view.contentEl.children.length).toBeGreaterThan(0);
 	});
 
+	// Regression: this view's degrade previously said "Falling back to a
+	// read-only list from metadata" while rendering ONLY the hint + button —
+	// no list at all (unlike SidebarView's degrade, which really does render
+	// one below the hint). The copy must not promise something this view
+	// never draws; it should point the user at the Anvil's Codex tab instead,
+	// which renders the real grid without Bases.
+	it("does not promise a read-only list this view never renders", async () => {
+		const { view } = makeView();
+		await view.onOpen();
+		expect(view.contentEl.textContent).not.toMatch(/read-only list/i);
+	});
+
+	it("points the user at the Anvil's Codex tab as the working alternative", async () => {
+		const { view } = makeView();
+		await view.onOpen();
+		expect(view.contentEl.textContent).toMatch(/Anvil/);
+	});
+
 	it("onClose() empties the DOM without throwing", async () => {
 		const { view } = makeView();
 		await view.onOpen();

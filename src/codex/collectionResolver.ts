@@ -94,9 +94,12 @@ export function resolveCollection(
 
 	const tag = record.tag.trim();
 	if (tag === "") {
+		// User-facing copy, not developer-voiced: no internal collection id here
+		// (codexTab.ts renders this string verbatim into the Codex grid) — the
+		// selected pill above it already identifies which collection this is.
 		return {
 			status: "misconfigured",
-			reason: `Collection "${collectionId}" has no tag configured — refusing to list the whole vault.`,
+			reason: "This collection has no tag configured, so nothing can be shown — refusing to fall back to listing the whole vault.",
 		};
 	}
 

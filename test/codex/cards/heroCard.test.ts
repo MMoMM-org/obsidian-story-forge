@@ -161,6 +161,21 @@ describe("heroCard [PRD/F4] — S91 structure", () => {
 		expect(miss?.getAttribute("title")).toBe("This property does not exist in this note");
 	});
 
+	// Regression: the "not set" explanation used to live ONLY in `title`, on a
+	// non-focusable <span> — unreachable to touch, keyboard and most
+	// screen-reader users. `aria-label` must carry the same explanation, and
+	// must still name WHICH field is missing (not just the bare explanation),
+	// since aria-label replaces the accessible name computed from the visible
+	// "status" + "not set" text rather than adding to it.
+	it("carries the same explanation to assistive tech via aria-label, keeping the field name in it", () => {
+		const el = render(getEntry({ tags: ["canon/character"], role: "Protagonist" })); // status absent
+
+		const miss = factsLine(el)?.querySelector(".sf-cx-miss");
+		const ariaLabel = miss?.getAttribute("aria-label") ?? "";
+		expect(ariaLabel).toMatch(/this property does not exist in this note/i);
+		expect(ariaLabel).toContain("status");
+	});
+
 	it("renders a present-but-blank core fact normally in the facts line, without .miss", () => {
 		const el = render(getEntry({ tags: ["canon/character"], role: "Protagonist", status: "" }));
 
@@ -186,7 +201,7 @@ describe("heroCard [PRD/F4] — S91 structure", () => {
 			}),
 		);
 
-		const pills = Array.from(pillRow(el)?.querySelectorAll(".sf-cx-pill") ?? []).map((p) => p.textContent);
+		const pills = Array.from(pillRow(el)?.querySelectorAll(".sf-cx-relpill") ?? []).map((p) => p.textContent);
 		expect(pills).toContain("Harbour warden");
 	});
 
@@ -195,7 +210,7 @@ describe("heroCard [PRD/F4] — S91 structure", () => {
 			getEntry({ tags: ["canon/character"], allies: ["[[Tobias Ferro]]", "[[Elke Stoneway]]"] }),
 		);
 
-		const pills = Array.from(pillRow(el)?.querySelectorAll(".sf-cx-pill") ?? []).map((p) => p.textContent);
+		const pills = Array.from(pillRow(el)?.querySelectorAll(".sf-cx-relpill") ?? []).map((p) => p.textContent);
 		expect(pills).toEqual(["[[Tobias Ferro]]", "[[Elke Stoneway]]"]);
 	});
 
@@ -203,7 +218,7 @@ describe("heroCard [PRD/F4] — S91 structure", () => {
 		const el = render(getEntry({ tags: ["canon/character"], allies: [] }));
 
 		const pills = pillRow(el);
-		expect(pills?.querySelectorAll(".sf-cx-pill").length).toBe(0);
+		expect(pills?.querySelectorAll(".sf-cx-relpill").length).toBe(0);
 		const missLabels = Array.from(pills?.querySelectorAll(".sf-cx-miss b") ?? []).map((b) => b.textContent);
 		expect(missLabels).not.toContain("allies");
 	});
@@ -235,7 +250,7 @@ describe("heroCard [PRD/F4] — S91 structure", () => {
 
 		const missLabels = Array.from(pillRow(el)?.querySelectorAll(".sf-cx-miss b") ?? []).map((b) => b.textContent);
 		expect(missLabels).not.toContain("occupation");
-		const pillTexts = Array.from(pillRow(el)?.querySelectorAll(".sf-cx-pill") ?? []).map((p) => p.textContent);
+		const pillTexts = Array.from(pillRow(el)?.querySelectorAll(".sf-cx-relpill") ?? []).map((p) => p.textContent);
 		expect(pillTexts).not.toContain("");
 	});
 

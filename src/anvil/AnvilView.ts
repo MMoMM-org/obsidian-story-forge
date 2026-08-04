@@ -5,8 +5,7 @@
  * note (active-leaf-change), resolves scope via the shared core, maps rows, and routes
  * to one of five layouts (tab strip built by `anvilTabs.ts`, S91/S94):
  *
- *   codex     — collection grid + editor pane (T2.2: placeholder empty state; the real
- *               grid is Phase 4)
+ *   codex     — collection grid (Phase 4, `codexTab.ts`) + editor pane (arrives Phase 5)
  *   timeline  — rail OR swimlane (read; M6 adds swimlane + zoom)
  *   plotlines — Plotlines list (read, M5)
  *   kanban    — status columns, drag→status+order write-back (M6); displays as "Board" (S91)
@@ -643,7 +642,7 @@ export class AnvilView extends ItemView {
 
 		// T4.6, ADR-36: dismissing the Bases hint persists the id (host-injected
 		// onDismissHint), then re-renders so the hint disappears immediately —
-		// same "persist, then re-render" shape as onCardSelect below.
+		// same "persist, then re-render" shape as onCardSelect above.
 		const dismissedHintId = nearest.getAttribute(CODEX_HINT_DISMISS_ATTR);
 		if (dismissedHintId !== null) {
 			this.onDismissHint(dismissedHintId);

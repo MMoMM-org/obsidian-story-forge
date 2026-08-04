@@ -85,14 +85,28 @@ export function imageFieldId(kind: EntityKind): string | undefined {
  * depends on colour alone. Colours come from Obsidian's own error variables
  * (`--background-modifier-error`, `--text-error`; see `styles.css`) rather
  * than the mockup's fixed reds, so the tint survives both themes.
+ *
+ * The `title` attribute carries the same explanation ("This property does
+ * not exist in this note") to pointer users, but `title` is unreachable
+ * without a pointer — never exposed to touch or keyboard users, and only
+ * inconsistently to screen readers via a non-focusable `<span>`. `aria-label`
+ * carries it to assistive tech instead; it folds in the field label too
+ * (rather than replacing it) so the accessible name doesn't lose which field
+ * this is — an `aria-label` overrides the element's text content as far as
+ * the accessibility tree is concerned, so a bare "not set" here would have
+ * silently dropped the field name for AT users even though sighted users
+ * still see it right beside it.
  */
 export function missBadge(fieldId: string): HTMLElement {
+	const humanLabel = humanizeFieldLabel(fieldId);
+
 	const badge = activeDocument.createElement("span");
 	badge.className = "sf-cx-miss";
 	badge.setAttribute("title", "This property does not exist in this note");
+	badge.setAttribute("aria-label", `${humanLabel} — this property does not exist in this note`);
 
 	const label = activeDocument.createElement("b");
-	label.textContent = humanizeFieldLabel(fieldId);
+	label.textContent = humanLabel;
 	badge.appendChild(label);
 
 	const state = activeDocument.createElement("i");
@@ -111,7 +125,7 @@ export function missBadge(fieldId: string): HTMLElement {
  * present-but-blank property renders normally, PRD/F4; `null`, `""` and `[]`
  * are deliberately not distinguished from one another).
  */
-export function factChip(fieldId: string, text: string): HTMLElement {
+function factChip(fieldId: string, text: string): HTMLElement {
 	const chip = activeDocument.createElement("span");
 	chip.className = "sf-cx-fact";
 
@@ -158,7 +172,12 @@ export function entryPills(entry: CardEntry, fieldId: string): HTMLElement[] {
 
 	return field.items.map((item) => {
 		const pill = activeDocument.createElement("i");
-		pill.className = "sf-cx-pill";
+		// Distinct from the Codex collection pills' `.sf-cx-pill` (codexTab.ts):
+		// the two used to share a class name, which let the collection-pill CSS
+		// block (styles.css, later in the file) silently override the selected
+		// collection pill's accent fill. Scoped names keep the cascade from
+		// crossing between the two unrelated controls again.
+		pill.className = "sf-cx-relpill";
 		pill.textContent = item;
 		return pill;
 	});

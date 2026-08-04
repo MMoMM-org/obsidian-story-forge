@@ -95,8 +95,15 @@ export class CodexView extends ItemView {
 	/**
 	 * Render the S46 "Bases is off" degrade state.
 	 *
-	 * Mirrors the existing `_renderEngineMissing(body, "bases")` copy in
-	 * SidebarView (`:1228`) — same text, same structure.
+	 * Same structure as `_renderEngineMissing(body, "bases")` in SidebarView
+	 * (`:1519`), but NOT the same copy: SidebarView's degrade hint is followed
+	 * by `nativeEngine.render(...)`, which actually draws a metadata list below
+	 * it — so "falling back to a read-only list" is true there. This view has
+	 * no such follow-up render (CON-3's whole point is that this file stays
+	 * Bases-typing-free and thin), so the copy instead points at the Anvil's
+	 * Codex tab (Phase 4, `codexTab.ts`), which renders the real grid without
+	 * needing Bases at all — the honest alternative, not a promise this view
+	 * cannot keep.
 	 *
 	 * CON-3: no Bases typings imported; the text references "Bases" as a
 	 * user-facing noun, not as a type.
@@ -111,15 +118,15 @@ export class CodexView extends ItemView {
 				text: "⚙ Bases isn't available on this device",
 			});
 			empty.createDiv({
-				text: "The full grid needs the core Bases plugin, which is not available on mobile. Falling back to a read-only list from metadata.",
+				text: "This view opens the Bases-native grid, which needs the core Bases plugin — not available on mobile. Open Anvil (the main workspace view) and switch to its Codex tab instead; it shows the same collections without Bases.",
 			});
 		} else {
 			empty.createDiv({
 				cls: "sf-empty-lead",
-				text: "⚙ Bases is off — showing a simple list",
+				text: "⚙ Bases is off",
 			});
 			empty.createDiv({
-				text: "The full grid needs the core Bases plugin (Obsidian 1.12.7+). Sorting, filtering, and columns are unavailable. Falling back to a read-only list from metadata.",
+				text: "This view opens the Bases-native grid, which needs the core Bases plugin (Obsidian 1.12.7+). Open Anvil (the main workspace view) and switch to its Codex tab instead; it shows the same collections without Bases.",
 			});
 			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Enable Bases" is an action label for a proper noun
 			const btn = empty.createEl("button", { cls: "sf-btn", text: "Enable Bases" });

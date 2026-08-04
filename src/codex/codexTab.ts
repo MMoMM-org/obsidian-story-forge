@@ -21,11 +21,12 @@
  * outside the body, and the AC breaks with nothing else to catch it. There is
  * deliberately no special case anywhere for this (ADR-28).
  *
- * This task ships the body and its selection; the Cards that draw an entry are
- * T4.2/T4.3 and replace `renderEntry` below, and the full empty state (S98,
- * with *Set up my vault…* / *Change tag*) is T4.6 — the placeholder here already
- * satisfies the one thing that must never regress, naming the tag it looked for
- * rather than silently listing the vault.
+ * This module owns the body, the pill row and the selection store
+ * (`CodexSelectionStore`); `renderEntry` dispatches each note to the active
+ * Card (registry-resolved, Hero by default) via `card.render`, and a
+ * resolution with no notes delegates entirely to `codexEmptyState.ts`'s S98
+ * empty state (heading, the tag it looked for, `Change tag` + `What are
+ * FileClasses?`) rather than rendering anything of its own for that case.
  *
  * @ref docs/mockups/anvil-workbench-codex.html — S91
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Features F2, F3, F7

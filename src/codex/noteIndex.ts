@@ -33,7 +33,7 @@ import { TFile, getAllTags, type App, type EventRef } from "obsidian";
 import type { IndexedNote } from "./collectionResolver";
 
 /** The `Component.registerEvent` seam — every subscription must go through it (CON-4). */
-export type RegisterEventSeam = (ref: EventRef) => void;
+type RegisterEventSeam = (ref: EventRef) => void;
 
 /** The vault-backed index a Codex host reads. Both members are always current. */
 export interface CodexNoteIndex {

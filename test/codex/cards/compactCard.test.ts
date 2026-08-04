@@ -57,7 +57,7 @@ describe("compactCard [PRD/F4]", () => {
 	it("shows no relation pills at all", () => {
 		const el = render({ tags: ["canon/character"], allies: ["[[Tobias Ferro]]"] });
 
-		expect(el.querySelector(".sf-cx-pill")).toBeNull();
+		expect(el.querySelector(".sf-cx-relpill")).toBeNull();
 	});
 
 	it("marks an absent key fact, never the literal text 'undefined'", () => {

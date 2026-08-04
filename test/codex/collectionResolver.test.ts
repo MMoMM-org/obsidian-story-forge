@@ -125,6 +125,9 @@ describe("resolveCollection — empty tag", () => {
 		expect(result.status).toBe("misconfigured");
 		if (result.status === "misconfigured") {
 			expect(result.reason).toMatch(/tag/i);
+			// User-facing copy — this string is rendered verbatim into the Codex
+			// grid (codexTab.ts), so it must not leak the internal collection id.
+			expect(result.reason).not.toContain("character");
 		}
 	});
 

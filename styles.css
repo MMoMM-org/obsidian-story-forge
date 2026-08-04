@@ -3033,7 +3033,7 @@ body {
 }
 
 /* --- Relation pills (Hero) --- */
-.sf-cx-pill {
+.sf-cx-relpill {
 	border-radius: 10px;
 	background: var(--background-modifier-hover);
 	padding: 1px 6px;

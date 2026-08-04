@@ -106,6 +106,10 @@ export function renderCodexEmptyState(container: HTMLElement, opts: CodexEmptySt
 	// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClasses' is metadata-menu's proper noun (mirrors SettingsTab.ts's "FileClasses folder")
 	docsLink.textContent = "What are FileClasses?";
 	docsLink.href = FILECLASSES_DOC_URL;
+	// noopener: an external link rendered in a plugin pane must not let the
+	// destination page reach back via window.opener (tabnabbing) if it is ever
+	// opened in a new browsing context.
+	docsLink.rel = "noopener";
 	actions.appendChild(docsLink);
 
 	box.appendChild(actions);
