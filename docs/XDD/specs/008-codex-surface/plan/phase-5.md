@@ -13,6 +13,14 @@ phase: 5
 
 **Specification References**:
 - `[ref: PRD/F5]` — the editor pane, 9 ACs · `[ref: PRD/F6]` — fields from the chain (rendering half)
+- `[ref: PRD/F3]` — **added 2026-08-04 by the Phase 4 drift pass, which found this AC had no owner.**
+  F3's *"Given the user selects a different collection, When the grid re-renders, Then any open
+  editor pane closes or follows the new selection — never shows a note from the previous
+  collection"* (`requirements.md:219`) is an **F3** criterion, so Phase 4 nominally owned it — but
+  Phase 4 has no editor pane, and no phase file referenced F3. It is **vacuously true today**
+  because `AnvilView._render` empties the body wholesale, and it will **silently stop being true the
+  moment T5.1 puts pane state on the view**. That is the danger: an AC that passes by accident now
+  and fails silently later, with no test watching. T5.1 owns it — see its success criteria.
 - `[ref: PRD/F2]` — navigation. **This phase discharges two F2 debts left open by Phase 2**: the
   Anvil's `inspect` has nowhere to land until this pane exists (T5.1), and the `editableField`
   marker has no producer until field controls exist (T5.2).
@@ -68,6 +76,17 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      - [ ] **PRD F2's "inspect in the Anvil is shown within the Anvil (the editor pane) and no
            other leaf is opened, revealed or re-targeted" AC is discharged here**, having been
            deferred from T2.5 by decision `[ref: PRD/F2 AC]`
+     - [ ] **Switching collection closes or retargets an open editor pane — it never shows a note
+           from the previous collection**, with a test that fails if pane state survives a
+           collection switch `[ref: PRD/F3 AC]`. Added 2026-08-04: this F3 criterion had **no
+           owner**; it is vacuously true while `_render` empties the body wholesale, and this task
+           is the one that introduces pane state capable of breaking it.
+     - [ ] A plain click on a **Codex card body** inspects — added 2026-08-04, since Phase 4 made
+           the `cardBody` marker reachable for the first time. The 2026-07-31 inert-inspect decision
+           enumerates only Timeline / Plotgrid / Plotlines / Board and predates the grid, so the
+           Codex would otherwise fall through the gap: today the modifier-click → open-note path
+           genuinely works while the plain-click → inspect path silently does nothing
+           `[ref: PRD/F2 AC]`
 
 - [ ] **T5.2 Field controls per type** `[activity: frontend-ui]`
 
