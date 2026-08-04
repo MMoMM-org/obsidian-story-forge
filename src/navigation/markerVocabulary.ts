@@ -90,3 +90,17 @@ export const SIDEBAR_MARKERS: readonly string[] = [
 	"data-sf-link",
 	CODEX_CARD_BODY_ATTR,
 ];
+
+/**
+ * `CardBasesView`'s recognised markers — a standalone `.base` has no Anvil/
+ * Workbench chrome around a Card, only `buildCardWrapper`'s own two markers
+ * (`codex/cardWrapper.ts`): a name nested inside its card body. None of the
+ * structural controls apply here (no section toggles, no Card selector, no
+ * Codex collection pills — those belong to the Codex tab's own chrome, which
+ * this surface never renders), so this list is deliberately the shortest of
+ * the three.
+ */
+export const CARD_BASES_MARKERS: readonly string[] = [
+	"data-sf-link",
+	CODEX_CARD_BODY_ATTR,
+];

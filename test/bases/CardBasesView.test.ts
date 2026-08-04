@@ -276,7 +276,12 @@ describe("CardBasesView — empty state", () => {
 // ---------------------------------------------------------------------------
 
 describe("CardBasesView — onEntryClick", () => {
-	it("fires onEntryClick with the entry's path when its card is clicked", () => {
+	// ADR-28 closure (see test/bases/CardBasesView.navigation.test.ts for the full F2
+	// matrix): a plain click no longer opens unconditionally — "inspect" is inert on
+	// this surface, so only a modifier click enacts "openNote". This test asserts the
+	// entry-resolution/path-passing contract; the modifier-vs-plain routing itself is
+	// covered by the dedicated navigation test file.
+	it("fires onEntryClick with the entry's path when its card is modifier-clicked", () => {
 		const { view, container, onEntryClick, app } = makeView();
 		stubFrontmatter(app, { role: "Scout" });
 		document.body.appendChild(container);
@@ -286,7 +291,7 @@ describe("CardBasesView — onEntryClick", () => {
 
 		const cardEl = container.querySelector("[data-sf-card-body='Characters/Mara.md']") as HTMLElement;
 		expect(cardEl).not.toBeNull();
-		cardEl.click();
+		cardEl.dispatchEvent(new MouseEvent("click", { bubbles: true, metaKey: true }));
 
 		expect(onEntryClick).toHaveBeenCalledTimes(1);
 		expect(onEntryClick).toHaveBeenCalledWith("Characters/Mara.md");
