@@ -224,8 +224,12 @@ export interface CodexTabOptions {
 /** The host's half of S99's split: where the grid goes, and what sits beside it. */
 export interface CodexTabSplit {
 	/**
-	 * Wrap the left column's grid host and return the element the grid should
-	 * be appended to. Optional — defaults to the left column itself.
+	 * Wrap the left column and return the element the grid is appended to —
+	 * the left column itself, or something the host mounts inside it.
+	 *
+	 * Required, not optional: the one caller always supplies it, and an
+	 * unexercised `?? left` fallback is a branch no test can reach. A host that
+	 * wants no wrapper returns the column unchanged.
 	 *
 	 * This exists so the Anvil can mount its zoom wrapper (`.sf-zoom-wrap >
 	 * .sf-zoom-scaled`) around the **grid alone**: that element carries a
@@ -233,7 +237,7 @@ export interface CodexTabSplit {
 	 * the containing block for absolutely-positioned controls. The grid stays
 	 * zoomable, the pane stays out of the transform.
 	 */
-	readonly mountGrid?: (left: HTMLElement) => HTMLElement;
+	readonly wrapGridHost: (left: HTMLElement) => HTMLElement;
 	/** Draw whatever goes beside the grid (the Anvil's editor pane) into `host`. */
 	readonly renderPane: (host: HTMLElement) => void;
 }
@@ -267,10 +271,10 @@ export function renderCodexTab(container: HTMLElement, opts: CodexTabOptions): C
 		split.appendChild(left);
 		split.appendChild(right);
 		root.appendChild(split);
-		// `left` is in the document before `mountGrid` runs, so a host that
+		// `left` is in the document before `wrapGridHost` runs, so a host that
 		// mounts a wrapper into it (the Anvil's zoom) builds against a parented
 		// element rather than a detached one.
-		(opts.split.mountGrid?.(left) ?? left).appendChild(grid);
+		opts.split.wrapGridHost(left).appendChild(grid);
 		opts.split.renderPane(right);
 	} else {
 		root.appendChild(grid);

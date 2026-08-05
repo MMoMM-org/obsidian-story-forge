@@ -3125,10 +3125,6 @@ body {
 	border-top: none;
 }
 
-.sf-ed--fullscreen {
-	flex: 1;
-}
-
 .sf-ed-head {
 	display: flex;
 	align-items: center;
@@ -3193,11 +3189,15 @@ body {
  * "shown as a single column beside it" means, and it is scoped to the split so
  * the full-width grid (S91/S92) is untouched.
  *
- * In the Codex the split is built INSIDE the tab body (`codexTab.ts`'s `split`
- * seam), below the full-width pill row: `overflow: auto` on the left column
- * would otherwise clip the Card selector's absolutely-positioned dropdown, and
- * four pills plus the selector do not fit 236px. The same two classes serve the
- * generic body-level split the other four layouts use.
+ * The split is built INSIDE the tab body (`codexTab.ts`'s `split` seam), below
+ * the full-width pill row: `overflow: auto` on the left column would otherwise
+ * clip the Card selector's absolutely-positioned dropdown, and four pills plus
+ * the selector do not fit 236px.
+ *
+ * These classes are the CODEX's and belong to it alone. The fixed 236px is
+ * sized for a column of cards; the other four layouts dock the pane through
+ * `.sf-ws-split*` below, whose left column grows instead — a Timeline squeezed
+ * into a card column while the editor takes the rest is the priority inverted.
  */
 .sf-cx-split {
 	display: flex;
@@ -3230,6 +3230,34 @@ body {
 	flex: 1;
 	min-width: 0;
 	background: var(--background-secondary);
+}
+
+
+/*
+ * The generic body-level split: Timeline, Plotgrid, Plotlines and Board docking
+ * the pane to the right. No mockup covers these, so the rule is the neutral one
+ * — the LAYOUT keeps the room and the pane takes a readable column beside it,
+ * the opposite weighting to the Codex's fixed card column above.
+ */
+.sf-ws-split {
+	display: flex;
+	gap: 12px;
+	min-height: 0;
+}
+
+.sf-ws-split-left {
+	flex: 1;
+	min-width: 0;
+	overflow: auto;
+}
+
+.sf-ws-split-right {
+	flex: none;
+	width: 340px;
+	max-width: 50%;
+	min-width: 0;
+	border-left: 1px solid var(--background-modifier-border);
+	overflow: auto;
 }
 
 /*

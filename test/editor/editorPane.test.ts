@@ -35,7 +35,7 @@ import {
 	type CachedMetadata,
 } from "../__mocks__/obsidian";
 import { AnvilView, type AnvilLayout } from "anvil/AnvilView";
-import { EDITOR_PATH_ATTR, type EditorDock, type EditorPaneMode } from "editor/editorPane";
+import { EDITOR_PATH_ATTR, EditorPaneStore, type EditorDock, type EditorPaneMode } from "editor/editorPane";
 
 // ---------------------------------------------------------------------------
 // Fixture: canon entries (the Codex half) + a two-scene book (every other tab)
@@ -401,9 +401,14 @@ describe("editor pane — docks and tools (T5.1)", () => {
 		const right = await openAnvil(app, { dock: dockStore("right") });
 		inspectMara(right);
 
-		const zoomed = (view: AnvilView, sel: string): boolean =>
-			bodyOf(view).querySelector(sel)?.closest(".sf-zoom-scaled") !== undefined &&
-			bodyOf(view).querySelector(sel)?.closest(".sf-zoom-scaled") !== null;
+		// Resolved once, and asserted present: "absent" and "present but not
+		// zoomed" must not collapse into the same `false`, or this test would
+		// pass vacuously if the chrome ever stopped rendering.
+		const zoomed = (view: AnvilView, sel: string): boolean => {
+			const el = bodyOf(view).querySelector(sel);
+			expect(el, `expected ${sel} to be rendered`).not.toBeNull();
+			return el!.closest(".sf-zoom-scaled") !== null;
+		};
 
 		// Deliberate asymmetry, pinned so it cannot drift unnoticed. In the right
 		// dock the zoom wraps the GRID ALONE (it has to: the pane must stay out
@@ -435,6 +440,29 @@ describe("editor pane — docks and tools (T5.1)", () => {
 
 			click(tool(view, "close"));
 			expect(selectedCardPaths(view)).toEqual([]);
+		},
+	);
+
+	it.each<AnvilLayout>(["timeline", "plotgrid", "plotlines", "kanban"])(
+		"docks right in the %s tab without confining the layout to the card column",
+		async (layout) => {
+			const app = new App();
+			seedVault(app);
+			const view = await openAnvil(app, { dock: dockStore("right"), layout });
+
+			click(bodyOf(view).querySelector(`[data-sf-link="${s1.path}"]`));
+
+			// `editorDock` is persisted, so docking right in the Codex and then
+			// switching tab lands here. `.sf-cx-split-left` is 236px wide because
+			// it holds a column of Codex CARDS (S99) — applied to a Timeline or a
+			// Board it crushes the whole layout into 236px while the pane takes
+			// the rest, which is the priority inverted. These four get their own
+			// split whose left column grows.
+			expect(bodyOf(view).querySelector(".sf-cx-split-left")).toBeNull();
+			expect(bodyOf(view).querySelector(".sf-cx-split")).toBeNull();
+			expect(bodyOf(view).querySelector(`.sf-ws-split-left [data-sf-link="${s1.path}"]`)).not.toBeNull();
+			expect(bodyOf(view).querySelector(".sf-ws-split-right .sf-ed")).not.toBeNull();
+			expect(pane(view)?.closest(".sf-zoom-scaled") ?? null).toBeNull();
 		},
 	);
 
@@ -545,6 +573,91 @@ describe("editor pane — docks and tools (T5.1)", () => {
 		expect(dock.changes).toEqual([]);
 		expect(bodyOf(view).querySelector(".sf-cx-split-right .sf-ed")).not.toBeNull();
 		expect(pane(view)?.classList.contains("sf-ed--right")).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// The one-line branches (watchers, so a later task cannot invert them silently)
+// ---------------------------------------------------------------------------
+
+describe("editor pane — edges (T5.1)", () => {
+	it("ignores a tool marker carrying an unrecognised value", async () => {
+		const app = new App();
+		seedVault(app);
+		const dock = dockStore("bottom");
+		const view = await openAnvil(app, { dock });
+		inspectMara(view);
+
+		// The attribute is a DOM string, so it is narrowed rather than trusted
+		// (CON-8). An unknown value must do nothing at all — not close, not
+		// dock, not throw.
+		const bogus = pane(view)!.ownerDocument.createElement("span");
+		bogus.setAttribute("data-sf-ed-tool", "self-destruct");
+		pane(view)!.appendChild(bogus);
+		click(bogus);
+
+		expect(panePath(view)).toBe(mara.path);
+		expect(dock.changes).toEqual([]);
+	});
+
+	it("falls back to the path as the title when the note no longer resolves", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openAnvil(app);
+		inspectMara(view);
+		expect(pane(view)?.querySelector(".sf-ed-title")?.textContent).toBe("Mara Stoneway");
+
+		// The store holds a path, not a TFile, so an unresolvable target must
+		// degrade to showing the path rather than throwing. (Closing the pane on
+		// a deleted note is T5.4's — this only pins the render.)
+		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(null);
+		view.setLayout("codex");
+
+		expect(pane(view)?.querySelector(".sf-ed-title")?.textContent).toBe(mara.path);
+		expect(panePath(view)).toBe(mara.path);
+	});
+
+	it("operates a pane tool from the keyboard, like every other control", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openAnvil(app);
+		inspectMara(view);
+
+		// The tools carry role="button"/tabindex="0" and claim parity with the
+		// collection pill; the host's Enter/Space router is what delivers it.
+		tool(view, "close")!.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+		);
+
+		expect(pane(view)).toBeNull();
+	});
+});
+
+describe("EditorPaneStore (T5.1)", () => {
+	it("keeps fullscreen when a different entry is opened", () => {
+		const store = new EditorPaneStore();
+		store.open("a.md");
+		store.toggleFullscreen();
+
+		store.open("b.md");
+
+		// Inspecting a second entry while fullscreen must not throw the user
+		// back to the grid. Unreachable from the Anvil today (fullscreen shows
+		// no grid to click), so it is pinned here rather than left to a later
+		// task to invert unnoticed.
+		expect(store.path).toBe("b.md");
+		expect(store.mode("bottom")).toBe("fullscreen");
+	});
+
+	it("leaves fullscreen on close, so the next open starts in its dock", () => {
+		const store = new EditorPaneStore();
+		store.open("a.md");
+		store.toggleFullscreen();
+
+		store.close();
+		store.open("b.md");
+
+		expect(store.mode("right")).toBe("right");
 	});
 });
 

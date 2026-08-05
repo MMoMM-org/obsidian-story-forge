@@ -348,7 +348,7 @@ export class AnvilView extends ItemView {
 		// Zoom controls slot — always present in the header, outside the
 		// timeline-specific bar, so zoom is available for ALL layouts.
 		// createTimelineZoom places its .sf-zoom-bar in this host; the scaled
-		// body goes into the main body (zoom.scaledEl).
+		// body goes into the main body (scaledEl).
 		this._zoomSlotEl = head.createDiv({ cls: "sf-ws-zoomslot" });
 
 		this._bodyEl = ce.createDiv({ cls: "sf-ws-body" });
@@ -520,14 +520,19 @@ export class AnvilView extends ItemView {
 		// instead wraps four pills onto three rows in a 236px column and clips
 		// the Card selector's dropdown against that column's `overflow: auto`.
 		// The generic body-level split below therefore serves the other four
-		// layouts, none of which any mockup covers.
+		// layouts, none of which any mockup covers — and it has its OWN classes
+		// (`sf-ws-split*`), not the Codex's. `.sf-cx-split-left` is 236px wide
+		// because it holds a column of CARDS; a Timeline, Plotgrid, Plotlines or
+		// Board crushed into 236px while the pane takes the rest is the priority
+		// inverted, and `editorDock` being persisted makes that one tab click
+		// away from S99.
 		const codexOwnsSplit = paneMode === "right" && this._layout === "codex";
 		let layoutHost = body;
 		let paneHost = body;
 		if (paneMode === "right" && !codexOwnsSplit) {
-			const split = body.createDiv({ cls: "sf-cx-split" });
-			layoutHost = split.createDiv({ cls: "sf-cx-split-left" });
-			paneHost = split.createDiv({ cls: "sf-cx-split-right" });
+			const split = body.createDiv({ cls: "sf-ws-split" });
+			layoutHost = split.createDiv({ cls: "sf-ws-split-left" });
+			paneHost = split.createDiv({ cls: "sf-ws-split-right" });
 		}
 
 		// Fresh child Component owns zoom listeners this render cycle.
@@ -565,30 +570,23 @@ export class AnvilView extends ItemView {
 		// deliberately: in this dock the Codex chrome (pill row, Card selector,
 		// Bases hint) and the scope hint sit outside the zoom, where before X1
 		// the whole tab scaled. The grid still zooms, and the pane never does.
+		// No `noScopeHint` here: `renderCodexTab` empties its container as its
+		// first statement, so a hint written before it would be created and
+		// destroyed in the same tick. Codex empty-state messaging belongs to
+		// `codexTab.ts` (S98's empty state), not here.
 		if (codexOwnsSplit) {
-			noScopeHint(body);
 			this._renderCodex(body, {
-				mountGrid: (left: HTMLElement): HTMLElement => {
-					// `left` comes from `codexTab.ts`, which builds plain DOM
-					// (`activeDocument.createElement`) rather than Obsidian's
-					// augmented helpers, while `createTimelineZoom` calls
-					// `createEl` on its host. Real Obsidian patches the element
-					// prototype so both work; the test mock augments only the
-					// elements it creates — and per the mock's own discipline it
-					// is right not to pretend otherwise. Creating the zoom host
-					// through the augmented body and reparenting it keeps the two
-					// environments honest instead of relying on that difference.
-					const zoomHost = body.createDiv({ cls: "sf-ws-zoomhost" });
-					left.appendChild(zoomHost);
-					return mountZoom(zoomHost);
-				},
+				// The zoom wrapper goes in a host of its own inside the left
+				// column, so the wrapper scales the grid and nothing else.
+				wrapGridHost: (left: HTMLElement): HTMLElement =>
+					mountZoom(left.createDiv({ cls: "sf-ws-zoomhost" })),
 				renderPane: (host: HTMLElement): void => { this._renderEditor(host, "right"); },
 			});
 			return;
 		}
 
-		const zoom = { scaledEl: mountZoom(layoutHost) };
-		noScopeHint(zoom.scaledEl);
+		const scaledEl = mountZoom(layoutHost);
+		noScopeHint(scaledEl);
 
 		const rows = scenes.map((s) => mapSceneRow(this.app, s));
 		const sourcePath = f?.path ?? "";
@@ -596,24 +594,24 @@ export class AnvilView extends ItemView {
 
 		switch (this._layout) {
 			case "codex":
-				this._renderCodex(zoom.scaledEl);
+				this._renderCodex(scaledEl);
 				break;
 			case "timeline":
-				this._renderTimeline(zoom.scaledEl, rows);
+				this._renderTimeline(scaledEl, rows);
 				break;
 			case "kanban":
-				this._renderKanban(zoom.scaledEl, rows);
+				this._renderKanban(scaledEl, rows);
 				break;
 			case "plotgrid": {
 				// Plotgrid is read-only: columns = all scope plotlines (persistent);
 				// rows = all scenes. No write deps — no app/component/onAfter needed.
 				const allPlotlines = resolvePlotlineScope(this.app, this.getExcludedFolders());
-				renderPlotgrid(zoom.scaledEl, plotgridModelFromScope(rows, allPlotlines, resolve));
+				renderPlotgrid(scaledEl, plotgridModelFromScope(rows, allPlotlines, resolve));
 				break;
 			}
 			case "plotlines":
 				renderPlotlines(
-					zoom.scaledEl,
+					scaledEl,
 					plotlineModel(rows, resolve),
 					{ isCollapsed: (g) => this._collapse.isCollapsed("main", this._scopeKey, g) },
 					"list",
@@ -675,7 +673,7 @@ export class AnvilView extends ItemView {
 		});
 	}
 
-	/** Timeline layout: rail or swimlane grid (read-only). `body` is `zoom.scaledEl`. */
+	/** Timeline layout: rail or swimlane grid (read-only). `body` is `scaledEl`. */
 	private _renderTimeline(body: HTMLElement, rows: SceneRow[]): void {
 		if (this._timelineMode === "swimlane") {
 			const key = this._swimKeyByScope.get(this._scopeKey) ?? "plotline";

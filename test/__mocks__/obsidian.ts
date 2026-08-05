@@ -40,6 +40,97 @@ if (typeof (globalThis as Record<string, unknown>).activeWindow === "undefined")
 	(globalThis as Record<string, unknown>).activeWindow = window;
 }
 
+/**
+ * Obsidian's element helpers, installed on `HTMLElement.prototype` — the way
+ * the real app provides them.
+ *
+ * `augmentEl` below attaches the same helpers per instance, which was fine
+ * while every element in a test came from an already-augmented parent. It
+ * stopped being fine once src/ modules mixed the two DOM styles: `codexTab.ts`
+ * builds plain `activeDocument.createElement` nodes (deliberately — it keeps no
+ * Obsidian dependency), while `timelineZoom.ts` calls `createEl` on whatever
+ * host it is given. Real Obsidian augments `HTMLElement.prototype`, so that
+ * combination works in a vault; a mock that augments only what it created does
+ * not, and the difference pushed a create-then-reparent workaround into
+ * `AnvilView` that exists for the mock's benefit alone. That is the standing
+ * "the mock must match the real API" hazard running backwards — the mock
+ * shaping shipped code — so the fix belongs here.
+ *
+ * `augmentEl` is kept: it is exported and widely used, and re-attaching the
+ * same helpers per instance is harmless now that the prototype carries them.
+ */
+function installElementHelpers(): void {
+	const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
+	if (proto["createDiv"] !== undefined) return;
+
+	proto["createEl"] = function (
+		this: HTMLElement,
+		childTag: string,
+		opts?: {
+			text?: string;
+			cls?: string;
+			type?: string;
+			placeholder?: string;
+			value?: string;
+			href?: string;
+			attr?: Record<string, string>;
+			title?: string;
+		},
+	): HTMLElement {
+		const child = document.createElement(childTag);
+		if (opts?.text) child.textContent = opts.text;
+		if (opts?.cls) child.className = opts.cls;
+		if (opts?.type) (child as HTMLInputElement).type = opts.type;
+		if (opts?.placeholder) (child as HTMLInputElement).placeholder = opts.placeholder;
+		if (opts?.value) (child as HTMLInputElement).value = opts.value;
+		if (opts?.href) (child as HTMLAnchorElement).href = opts.href;
+		if (opts?.title) child.title = opts.title;
+		if (opts?.attr) {
+			for (const [k, v] of Object.entries(opts.attr)) child.setAttribute(k, v);
+		}
+		this.appendChild(child);
+		return child;
+	};
+
+	proto["createDiv"] = function (this: HTMLElement, opts?: { cls?: string; text?: string }): HTMLElement {
+		const div = document.createElement("div");
+		if (opts?.cls) div.className = opts.cls;
+		if (opts?.text) div.textContent = opts.text;
+		this.appendChild(div);
+		return div;
+	};
+
+	proto["createSpan"] = function (this: HTMLElement, opts?: { cls?: string; text?: string }): HTMLElement {
+		const span = document.createElement("span");
+		if (opts?.cls) span.className = opts.cls;
+		if (opts?.text) span.textContent = opts.text;
+		this.appendChild(span);
+		return span;
+	};
+
+	proto["appendText"] = function (this: HTMLElement, text: string): void {
+		this.appendChild(document.createTextNode(text));
+	};
+
+	proto["empty"] = function (this: HTMLElement): void {
+		while (this.firstChild) this.removeChild(this.firstChild);
+	};
+
+	proto["addClass"] = function (this: HTMLElement, ...classes: string[]): void {
+		this.classList.add(...classes);
+	};
+
+	proto["removeClass"] = function (this: HTMLElement, ...classes: string[]): void {
+		this.classList.remove(...classes);
+	};
+
+	proto["toggleClass"] = function (this: HTMLElement, cls: string, force?: boolean): void {
+		this.classList.toggle(cls, force);
+	};
+}
+
+installElementHelpers();
+
 // --- Core types ---
 
 /** Matches the real Obsidian PluginManifest interface. */
