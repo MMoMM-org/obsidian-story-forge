@@ -169,8 +169,19 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > regression — but it has the same root cause and the same fix, and once the pane holds a full
   > field set it stops being theoretical.
 
+  > **Inherited from T5.2 (2026-08-05): the `Select` cell does not look like S102, and T5.3's gate
+  > is the one that has to rule on it.** S102 draws the select cell as a flat `.ed-f.sel-f` with an
+  > `::after` chevron (`anvil-workbench-codex.html:404, 675`); T5.2 shipped a **native `<select>`**
+  > with its own platform arrow. That was correct for T5.2 — its Prime references no mockup, and a
+  > native control is what makes the out-of-list value genuinely non-reselectable via `disabled`,
+  > which is the property the 2026-08-05 reconciliation turns on. But T5.3's success criterion is
+  > *"the rendered pane matches S102/S103"*, so T5.3 must decide explicitly: restyle the native
+  > control to match the figure, or record the divergence. **Per the repo rule, that ruling goes in
+  > the decision log — the mockup is not re-synced to match shipped code.** Do not let a native
+  > widget's default chrome silently redefine a signed-off figure.
+
   1. Prime: Mockups **S102/S103**; `[ref: SDD/Complex Logic]` traced walkthrough; **OQ-1**, the
-     `origin` debt above, and the inherited fullscreen-height item.
+     `origin` debt above, the inherited fullscreen-height item, and the `Select` chrome question.
   2. Test: one section per FileClass in chain order, base first `[ref: PRD/F6 AC]`; the width rule
      places `name/role/status/occupation` two-up and `skills/guild` full-width, matching S102/S103
      field-for-field; a user FileClass renders **in its own labelled section**, not appended
