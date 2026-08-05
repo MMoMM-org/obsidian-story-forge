@@ -71,6 +71,15 @@ export interface CardWrapperDeps {
 	 * `@typescript-eslint/unbound-method` — there is no `this` to lose.
 	 */
 	readonly resolveAsset: (raw: string) => string;
+	/**
+	 * This entry is the one the editor pane is showing (S92/S99's `.hero.sel`,
+	 * T5.1). Optional and defaulting to `false`: a standalone `.base` Card grid
+	 * (`CardBasesView`) has no editor pane, so it simply never marks one.
+	 *
+	 * It matters most in the `right` dock, where a column of cards sits beside
+	 * the pane and nothing else says which of them is being edited.
+	 */
+	readonly selected?: boolean;
 }
 
 /**
@@ -93,6 +102,12 @@ export function buildCardWrapper(
 	cardEl.setAttribute(CARD_BODY_ATTR, entry.path);
 	cardEl.setAttribute("role", "button");
 	cardEl.setAttribute("tabindex", "0");
+	if (deps.selected === true) {
+		cardEl.classList.add("sf-cx-card--sel");
+		// The class carries the visual cue; `aria-current` carries the same fact
+		// to a screen reader, which cannot see an accent border.
+		cardEl.setAttribute("aria-current", "true");
+	}
 
 	const renderDeps: CardRenderDeps = {
 		compact: deps.compact,

@@ -200,6 +200,27 @@ export interface CodexTabOptions {
 	 * T4.6). Optional: defaults to none dismissed.
 	 */
 	readonly dismissedHints?: readonly string[];
+	/**
+	 * The vault path of the entry the host's editor pane is showing (T5.1), so
+	 * its card is drawn selected — S92/S99's `.hero.sel`. Optional: a host with
+	 * no editor pane (or with it closed) passes nothing and no card is marked.
+	 */
+	readonly openPath?: string;
+	/**
+	 * S99's split. When supplied, the grid is placed in a left column and
+	 * `renderPane` is called with the right one.
+	 *
+	 * The split lives HERE rather than around the whole tab body because S99
+	 * draws `.cx-cats` **full width above** `.cx-split`, and that is not a
+	 * cosmetic detail: the pill row wraps onto three rows inside a 236px
+	 * column, and the Card selector's absolutely-positioned dropdown would be
+	 * clipped by the column's own `overflow: auto` — a T4.4 control broken by a
+	 * layout choice. The host still owns what the pane *is*; this module only
+	 * owns where the Codex's own chrome sits relative to it.
+	 */
+	readonly split?: {
+		readonly renderPane: (host: HTMLElement) => void;
+	};
 }
 
 /**
@@ -221,8 +242,21 @@ export function renderCodexTab(container: HTMLElement, opts: CodexTabOptions): C
 
 	maybeRenderBasesHint(root, opts);
 
+	// The pill row and the hint stay full width above the split (S99); only the
+	// grid moves into the left column.
 	const grid = el("div", "sf-cx-grid");
-	root.appendChild(grid);
+	if (opts.split) {
+		const split = el("div", "sf-cx-split");
+		const left = el("div", "sf-cx-split-left");
+		const right = el("div", "sf-cx-split-right");
+		left.appendChild(grid);
+		split.appendChild(left);
+		split.appendChild(right);
+		root.appendChild(split);
+		opts.split.renderPane(right);
+	} else {
+		root.appendChild(grid);
+	}
 
 	if (!active) {
 		grid.appendChild(message("sf-cx-empty", "No collections are enabled — enable one in settings."));
@@ -329,6 +363,7 @@ function renderEntry(note: IndexedNote, card: CardRenderer, opts: CodexTabOption
 	return buildCardWrapper(entry, card, {
 		compact: Boolean(opts.compact),
 		resolveAsset: (raw: string): string => opts.resolveAsset?.(note.path, raw) ?? raw,
+		selected: opts.openPath === note.path,
 	});
 }
 

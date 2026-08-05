@@ -101,10 +101,6 @@ export class EditorPaneStore {
 		return this._path;
 	}
 
-	isOpen(): boolean {
-		return this._path !== null;
-	}
-
 	/**
 	 * Show `path`. Keeps the current fullscreen mode: inspecting a second entry
 	 * while fullscreen should stay fullscreen, not throw the user back to the

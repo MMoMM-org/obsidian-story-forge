@@ -3192,6 +3192,12 @@ body {
  * inside the left column collapses to a single column here — that is what
  * "shown as a single column beside it" means, and it is scoped to the split so
  * the full-width grid (S91/S92) is untouched.
+ *
+ * In the Codex the split is built INSIDE the tab body (`codexTab.ts`'s `split`
+ * seam), below the full-width pill row: `overflow: auto` on the left column
+ * would otherwise clip the Card selector's absolutely-positioned dropdown, and
+ * four pills plus the selector do not fit 236px. The same two classes serve the
+ * generic body-level split the other four layouts use.
  */
 .sf-cx-split {
 	display: flex;
@@ -3213,4 +3219,15 @@ body {
 	flex: 1;
 	min-width: 0;
 	background: var(--background-secondary);
+}
+
+/*
+ * The entry the editor pane is showing (S92:658 / S99:714 `.hero.sel`). The
+ * mockup's accent border plus an inset ring, in Obsidian's accent variable; the
+ * wrapper also carries `aria-current="true"` (`cardWrapper.ts`) so the state is
+ * not conveyed by colour alone.
+ */
+.sf-cx-card--sel {
+	border-color: var(--interactive-accent);
+	box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }

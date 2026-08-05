@@ -35,7 +35,7 @@ import {
 	type CachedMetadata,
 } from "../__mocks__/obsidian";
 import { AnvilView, type AnvilLayout } from "anvil/AnvilView";
-import type { EditorDock } from "editor/editorPane";
+import { EDITOR_PATH_ATTR, type EditorDock } from "editor/editorPane";
 
 // ---------------------------------------------------------------------------
 // Fixture: canon entries (the Codex half) + a two-scene book (every other tab)
@@ -178,7 +178,16 @@ function pane(view: AnvilView): HTMLElement | null {
 }
 
 function panePath(view: AnvilView): string | null {
-	return pane(view)?.getAttribute("data-sf-ed-path") ?? null;
+	// Via the exported constant, so renaming the attribute breaks here rather
+	// than silently in a host that reads it.
+	return pane(view)?.getAttribute(EDITOR_PATH_ATTR) ?? null;
+}
+
+/** Card wrappers currently marked as the open entry (S92/S99's `.hero.sel`). */
+function selectedCardPaths(view: AnvilView): string[] {
+	return Array.from(bodyOf(view).querySelectorAll<HTMLElement>("[data-sf-card-body].sf-cx-card--sel")).map(
+		(el) => el.getAttribute("data-sf-card-body") ?? "",
+	);
 }
 
 function tool(view: AnvilView, name: string): HTMLElement | null {
@@ -333,6 +342,49 @@ describe("editor pane — docks and tools (T5.1)", () => {
 		).toEqual([mara.path, tobias.path]);
 	});
 
+	it("keeps the collection chrome full width above the split, not inside the column (S99)", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openAnvil(app, { dock: dockStore("right") });
+		inspectMara(view);
+
+		const cats = bodyOf(view).querySelector<HTMLElement>(".sf-cx-cats");
+		expect(cats).not.toBeNull();
+		// S99 draws `.cx-cats` above `.cx-split`; only the card grid is in the
+		// left column. Nesting the pill row in a 236px column wraps four pills
+		// onto three rows — and the Card selector's absolutely-positioned
+		// dropdown would be CLIPPED by the column's `overflow: auto`, breaking a
+		// control T4.4 shipped working.
+		expect(bodyOf(view).querySelector(".sf-cx-split-left .sf-cx-cats")).toBeNull();
+		expect(bodyOf(view).querySelector(".sf-cx-split-left .sf-cx-cardsel")).toBeNull();
+		expect(cats?.closest(".sf-cx-split")).toBeNull();
+		// The split is inside the Codex body, below the chrome — not wrapped
+		// around the whole tab.
+		expect(bodyOf(view).querySelector<HTMLElement>(".sf-cx-split")?.closest(".sf-cx")).not.toBeNull();
+	});
+
+	it.each<EditorDock>(["bottom", "right"])(
+		"marks the open entry's card as selected in the %s dock (S92/S99)",
+		async (dock) => {
+			const app = new App();
+			seedVault(app);
+			const view = await openAnvil(app, { dock: dockStore(dock) });
+
+			expect(selectedCardPaths(view)).toEqual([]);
+			inspectMara(view);
+
+			// Without this the dock=right column beside the pane gives no cue
+			// which of its entries is being edited (S92:658 / S99:714 `hero sel`).
+			expect(selectedCardPaths(view)).toEqual([mara.path]);
+
+			click(cardBody(view, tobias.path));
+			expect(selectedCardPaths(view)).toEqual([tobias.path]);
+
+			click(tool(view, "close"));
+			expect(selectedCardPaths(view)).toEqual([]);
+		},
+	);
+
 	it("switches dock only when the dock tool is used, persisting through the host", async () => {
 		const app = new App();
 		seedVault(app);
@@ -408,7 +460,8 @@ describe("editor pane — docks and tools (T5.1)", () => {
 	it("leaves fullscreen when a tab is used, so the strip is not merely decorative", async () => {
 		const app = new App();
 		seedVault(app);
-		const view = await openAnvil(app);
+		const dock = dockStore("bottom");
+		const view = await openAnvil(app, { dock });
 		inspectMara(view);
 		click(tool(view, "fullscreen"));
 
@@ -417,9 +470,11 @@ describe("editor pane — docks and tools (T5.1)", () => {
 		// The requested layout is actually shown...
 		expect(bodyOf(view).querySelector(`[data-sf-link="${s1.path}"]`)).not.toBeNull();
 		// ...and the pane is still open, just back in its dock (a mode change,
-		// never a dock change — ADR-33).
+		// never a dock change — ADR-33, guarded on this path too and not only
+		// on `back`).
 		expect(panePath(view)).toBe(mara.path);
 		expect(pane(view)?.classList.contains("sf-ed--bottom")).toBe(true);
+		expect(dock.changes).toEqual([]);
 	});
 
 	it("never changes the dock on a window resize (ADR-33)", async () => {

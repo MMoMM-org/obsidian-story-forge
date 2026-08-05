@@ -497,6 +497,13 @@ export class AnvilView extends ItemView {
 		// is built and no zoom controls are offered over a body that isn't
 		// there. The tab strip lives in the header, OUTSIDE `body`, so it
 		// survives this untouched — the Anvil is never a trap.
+		//
+		// NOTE for T5.3: this returns BEFORE `resolveWorkspaceScope` and
+		// `_syncToggle`, so `_scopeKey` is not refreshed while fullscreen.
+		// Harmless today (nothing scope-derived is on screen, and `setLayout`
+		// leaves fullscreen before switching tabs), but anything that starts
+		// reading `_scopeKey` from the pane must move the scope resolution
+		// above this branch.
 		if (paneMode === "fullscreen") {
 			this._renderEditor(body, paneMode);
 			return;
@@ -505,9 +512,18 @@ export class AnvilView extends ItemView {
 		// S99: the pane sits beside a single card column; S92: below the layout.
 		// Either way it renders OUTSIDE the zoom-scaled element — the editor is
 		// a form, not a zoomable canvas.
+		//
+		// The **Codex builds its own split** (`renderCodexTab`'s `split` seam),
+		// because S99 puts the pill row and the Bases hint full width ABOVE the
+		// split with only the grid beside the pane. Wrapping the whole tab body
+		// instead wraps four pills onto three rows in a 236px column and clips
+		// the Card selector's dropdown against that column's `overflow: auto`.
+		// The generic body-level split below therefore serves the other four
+		// layouts, none of which any mockup covers.
+		const codexOwnsSplit = paneMode === "right" && this._layout === "codex";
 		let layoutHost = body;
 		let paneHost = body;
-		if (paneMode === "right") {
+		if (paneMode === "right" && !codexOwnsSplit) {
 			const split = body.createDiv({ cls: "sf-cx-split" });
 			layoutHost = split.createDiv({ cls: "sf-cx-split-left" });
 			paneHost = split.createDiv({ cls: "sf-cx-split-right" });
@@ -541,7 +557,7 @@ export class AnvilView extends ItemView {
 
 		switch (this._layout) {
 			case "codex":
-				this._renderCodex(zoom.scaledEl);
+				this._renderCodex(zoom.scaledEl, codexOwnsSplit);
 				break;
 			case "timeline":
 				this._renderTimeline(zoom.scaledEl, rows);
@@ -565,7 +581,9 @@ export class AnvilView extends ItemView {
 				);
 		}
 
-		if (paneMode !== null) this._renderEditor(paneHost, paneMode);
+		// The Codex has already drawn the pane inside its own split when it owns
+		// it; every other case docks the pane at body level.
+		if (paneMode !== null && !codexOwnsSplit) this._renderEditor(paneHost, paneMode);
 	}
 
 	/**
@@ -592,10 +610,18 @@ export class AnvilView extends ItemView {
 	 * is shared with the Workbench; everything host-specific stays here — the
 	 * note index, the selection store and the click enactment.
 	 */
-	private _renderCodex(body: HTMLElement): void {
+	private _renderCodex(body: HTMLElement, ownsSplit: boolean): void {
 		const collections = this.getCollections();
 		const active = this._codexSelection.resolve(collections);
 		renderCodexTab(body, {
+			// S92/S99 draw the open entry as a selected card; the grid is the
+			// only place that cue can live (T5.1).
+			...(this._editor.path !== null ? { openPath: this._editor.path } : {}),
+			// S99: the pane goes inside the Codex's own split, beside the grid
+			// and below the pill row — see the `split` seam's doc comment.
+			...(ownsSplit
+				? { split: { renderPane: (host: HTMLElement): void => { this._renderEditor(host, "right"); } } }
+				: {}),
 			collections,
 			selection: this._codexSelection,
 			index: this._noteIndex?.notes() ?? [],
