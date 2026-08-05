@@ -181,11 +181,15 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > `::after` chevron (`anvil-workbench-codex.html:404, 675`); T5.2 shipped a **native `<select>`**
   > with its own platform arrow. That was correct for T5.2 — its Prime references no mockup, and a
   > native control is what makes the out-of-list value genuinely non-reselectable via `disabled`,
-  > which is the property the 2026-08-05 reconciliation turns on. But T5.3's success criterion is
-  > *"the rendered pane matches S102/S103"*, so T5.3 must decide explicitly: restyle the native
-  > control to match the figure, or record the divergence. **Per the repo rule, that ruling goes in
-  > the decision log — the mockup is not re-synced to match shipped code.** Do not let a native
-  > widget's default chrome silently redefine a signed-off figure.
+  > which is the property the 2026-08-05 reconciliation turns on.
+  >
+  > **RULED 2026-08-05 (user): keep the native chrome. Do NOT restyle the `<select>`.** Restyling
+  > with `appearance: none` plus the figure's chevron was offered and declined; a hand-built dropdown
+  > was rejected outright. The divergence is recorded in the spec `README.md` decision log and the
+  > **mockup is not re-synced**. So: T5.3's "matches S102/S103" gate is assessed on **sections,
+  > labels, ordering and the width rule** — the enum cell's chrome is **out of scope for that gate**
+  > and must not be re-raised as a defect here or in any later mockup comparison. Do not spend a
+  > round on it.
 
   1. Prime: Mockups **S102/S103**; `[ref: SDD/Complex Logic]` traced walkthrough; **OQ-1**, the
      `origin` debt above, the inherited fullscreen-height item, and the `Select` chrome question.
