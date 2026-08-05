@@ -264,10 +264,17 @@ export class AnvilView extends ItemView {
 		// T2.5 and T5.1 it defaulted to a deliberate no-op, recorded as a decision
 		// (2026-07-31): there was nowhere IN the Anvil to show an inspection, and a
 		// click that does nothing is honest where a click that jumps a panel is not.
-		// T5.1 built that somewhere — the editor pane — so the default is now the pane,
-		// and `main.ts` feeds the seam explicitly at the construction site. The seam
-		// itself stays: a test observes inspection through it without a real pane.
-		this._drill = opts?.drill ?? ((file: TFile): void => { this.inspect(file); });
+		//
+		// T5.1 built that somewhere — the editor pane — and FEEDS THE SEAM at the
+		// single construction site (`main.ts`) rather than changing this default.
+		// The default stays a no-op deliberately (ruling on the T5.1 review): if it
+		// resolved to `this.inspect(file)`, deleting the injection in `main.ts`
+		// would change nothing observable and "a name click is no longer a no-op"
+		// would be carried by a default nobody asked for — unfalsifiable. With the
+		// no-op default, `test/main.editorPane.test.ts` fails the moment the
+		// construction site stops feeding the seam. A host that wants inspection
+		// wires it; that is what the seam is for.
+		this._drill = opts?.drill ?? ((): void => {});
 		this.getExcludedFolders = opts?.settings?.getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
 		this.getCollections = opts?.codex?.getCollections ?? ((): readonly CodexCollection[] => BUILT_IN_COLLECTIONS);
 		this.getCardByCollection = opts?.codex?.getCardByCollection ?? ((): Readonly<Record<string, string>> => ({}));

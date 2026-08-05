@@ -131,17 +131,41 @@ function dockStore(initial: EditorDock = "bottom"): {
 	};
 }
 
+/**
+ * A view wired exactly as `main.ts` wires it: the `drill` seam fed with this
+ * view's own `inspect`.
+ *
+ * The seam is fed HERE rather than defaulted inside `AnvilView`, and that is
+ * deliberate (ruling on the T5.1 review). A default of `this.inspect(file)`
+ * would make the construction site's injection unobservable — deleting it from
+ * `main.ts` would break nothing — and "a name click is no longer a no-op" is
+ * precisely the criterion that has to be falsifiable. `main.editorPane.test.ts`
+ * is what watches the real construction site; this file exercises the pane's
+ * behaviour given a wired host, and "does nothing when the seam is unfed"
+ * below pins the default down so it cannot quietly grow back.
+ */
 async function openAnvil(
 	app: App,
 	opts: { dock?: ReturnType<typeof dockStore>; layout?: AnvilLayout } = {},
 ): Promise<AnvilView> {
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: App }).app = app;
-	const view = new AnvilView(leaf, {
+	const view: AnvilView = new AnvilView(leaf, {
+		drill: (file) => { view.inspect(file); },
 		...(opts.dock ? { editor: { getDock: opts.dock.getDock, onDockChange: opts.dock.onDockChange } } : {}),
 	});
 	await view.onOpen();
 	view.setLayout(opts.layout ?? "codex");
+	return view;
+}
+
+/** A view with the drill seam left unfed — the pre-T5.1 default (2026-07-31). */
+async function openUnwiredAnvil(app: App): Promise<AnvilView> {
+	const leaf = new WorkspaceLeaf();
+	(leaf as unknown as { app: App }).app = app;
+	const view = new AnvilView(leaf);
+	await view.onOpen();
+	view.setLayout("codex");
 	return view;
 }
 
@@ -216,6 +240,22 @@ describe("editor pane — opening (T5.1)", () => {
 		click(cardBody(view, tobias.path));
 
 		expect(panePath(view)).toBe(tobias.path);
+	});
+
+	it("does nothing when the drill seam is unfed — no default may stand in for the wiring", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openUnwiredAnvil(app);
+
+		click(nameEl(view, mara.path));
+		click(cardBody(view, tobias.path));
+
+		// The seam is the contract: a host that wants inspection wires it. If
+		// `AnvilView` ever defaults `drill` to its own `inspect`, this fails —
+		// and so does the whole point of injecting it in `main.ts`, since
+		// deleting that injection would then change nothing observable.
+		expect(pane(view)).toBeNull();
+		expect(app.workspace.openLinkText).not.toHaveBeenCalled();
 	});
 
 	it("opens no other leaf and reveals nothing when inspecting (PRD/F2)", async () => {

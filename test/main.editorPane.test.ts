@@ -8,7 +8,10 @@
  *
  *  - the `drill` seam is fed there, so an inspect click is no longer inert
  *    (the 2026-07-31 decision this task discharges), and no other leaf is
- *    opened, revealed or re-targeted while doing it (PRD/F2);
+ *    opened, revealed or re-targeted while doing it (PRD/F2). `AnvilView`
+ *    deliberately keeps its no-op default, so **deleting `drill:` from the
+ *    construction site fails the first test below** — that is the only reason
+ *    the criterion "a name click is no longer a no-op" is falsifiable at all;
  *  - the dock is **persisted settings** (ADR-33), not view-local state — a
  *    replica of the getter/callback pair in a unit test cannot prove that,
  *    exactly as `main.cardSelect.test.ts` records for the Card choice.

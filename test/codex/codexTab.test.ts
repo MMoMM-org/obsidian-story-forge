@@ -940,12 +940,15 @@ describe("Codex tab: Card selector [PRD/F4]", () => {
 		// the document), so the test mounts `contentEl` the same way — see
 		// `mountToDocument`.
 		//
-		// Updated by T5.1: this used to click a card BODY, which was then the
-		// clearest no-re-render case ("inspect" was inert — the 2026-07-31
-		// decision). Inspect now opens the editor pane and therefore DOES
-		// re-render, so a card-body click no longer exercises this listener at
-		// all; the surviving case is a click on inert chrome, here the grid's own
-		// padding, which carries no marker.
+		// Updated by T5.1: this used to click a card BODY, relying on inspect
+		// being inert (the 2026-07-31 decision). Inspect now opens the editor
+		// pane and re-renders **on any host that feeds the `drill` seam** —
+		// `main.ts` does — so a card body is no longer a dependable no-render
+		// target; it only still behaves like one here because `openCodex` leaves
+		// the seam unfed. Depending on that would make this test a hostage to an
+		// unrelated wiring decision, so it now clicks inert chrome (the grid's
+		// own padding, which carries no marker) — a click that resolves to no
+		// action in every configuration.
 		const view = await openCodex(app);
 		const unmount = mountToDocument(view);
 		try {
