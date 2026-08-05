@@ -75,6 +75,7 @@ import {
 	CodexSelectionStore,
 	renderCodexTab,
 	type CodexCollection,
+	type CodexTabSplit,
 } from "codex/codexTab";
 import { CODEX_CARD_SELECT_ATTR } from "codex/cardSelector";
 import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
@@ -533,10 +534,17 @@ export class AnvilView extends ItemView {
 		const zoomChild = new Component();
 		this.addChild(zoomChild);
 		this._zoomChild = zoomChild;
-		const zoom = createTimelineZoom(zoomChild, {
-			controlsHost: this._zoomSlotEl ?? layoutHost,
-			scaledHost: layoutHost,
-		});
+		// Mounting the zoom is deferred to a callback so the Codex can place it
+		// INSIDE its own left column (R1): `.sf-zoom-scaled` carries
+		// `transform: scale(...)`, and a pane inside it would scale with the
+		// grid, scroll inside `.sf-zoom-wrap`, and become the containing block
+		// for any absolutely-positioned control a later task adds. Every other
+		// layout mounts it exactly where it always did.
+		const mountZoom = (host: HTMLElement): HTMLElement =>
+			createTimelineZoom(zoomChild, {
+				controlsHost: this._zoomSlotEl ?? host,
+				scaledHost: host,
+			}).scaledEl;
 
 		const f = this.app.workspace.getActiveFile();
 
@@ -544,12 +552,43 @@ export class AnvilView extends ItemView {
 		this._scopeKey = scope.kind === "none" ? "none" : `${scope.kind}:${scope.ref.path}`;
 		this._syncToggle();
 
-		if (scope.kind === "none") {
-			zoom.scaledEl.createDiv({
+		const noScopeHint = (host: HTMLElement): void => {
+			if (scope.kind !== "none") return;
+			host.createDiv({
 				cls: "sf-ws-hint",
 				text: "No book/plotline in focus — showing all scenes in the vault.",
 			});
+		};
+
+		// Codex + dock right: the Codex owns the split (S99), and the zoom is
+		// mounted in its left column around the GRID ALONE. Consequence, taken
+		// deliberately: in this dock the Codex chrome (pill row, Card selector,
+		// Bases hint) and the scope hint sit outside the zoom, where before X1
+		// the whole tab scaled. The grid still zooms, and the pane never does.
+		if (codexOwnsSplit) {
+			noScopeHint(body);
+			this._renderCodex(body, {
+				mountGrid: (left: HTMLElement): HTMLElement => {
+					// `left` comes from `codexTab.ts`, which builds plain DOM
+					// (`activeDocument.createElement`) rather than Obsidian's
+					// augmented helpers, while `createTimelineZoom` calls
+					// `createEl` on its host. Real Obsidian patches the element
+					// prototype so both work; the test mock augments only the
+					// elements it creates — and per the mock's own discipline it
+					// is right not to pretend otherwise. Creating the zoom host
+					// through the augmented body and reparenting it keeps the two
+					// environments honest instead of relying on that difference.
+					const zoomHost = body.createDiv({ cls: "sf-ws-zoomhost" });
+					left.appendChild(zoomHost);
+					return mountZoom(zoomHost);
+				},
+				renderPane: (host: HTMLElement): void => { this._renderEditor(host, "right"); },
+			});
+			return;
 		}
+
+		const zoom = { scaledEl: mountZoom(layoutHost) };
+		noScopeHint(zoom.scaledEl);
 
 		const rows = scenes.map((s) => mapSceneRow(this.app, s));
 		const sourcePath = f?.path ?? "";
@@ -557,7 +596,7 @@ export class AnvilView extends ItemView {
 
 		switch (this._layout) {
 			case "codex":
-				this._renderCodex(zoom.scaledEl, codexOwnsSplit);
+				this._renderCodex(zoom.scaledEl);
 				break;
 			case "timeline":
 				this._renderTimeline(zoom.scaledEl, rows);
@@ -581,9 +620,9 @@ export class AnvilView extends ItemView {
 				);
 		}
 
-		// The Codex has already drawn the pane inside its own split when it owns
-		// it; every other case docks the pane at body level.
-		if (paneMode !== null && !codexOwnsSplit) this._renderEditor(paneHost, paneMode);
+		// The `codexOwnsSplit` path returned above having drawn its own pane;
+		// every other case docks the pane at body level, outside the zoom.
+		if (paneMode !== null) this._renderEditor(paneHost, paneMode);
 	}
 
 	/**
@@ -610,7 +649,7 @@ export class AnvilView extends ItemView {
 	 * is shared with the Workbench; everything host-specific stays here — the
 	 * note index, the selection store and the click enactment.
 	 */
-	private _renderCodex(body: HTMLElement, ownsSplit: boolean): void {
+	private _renderCodex(body: HTMLElement, split?: CodexTabSplit): void {
 		const collections = this.getCollections();
 		const active = this._codexSelection.resolve(collections);
 		renderCodexTab(body, {
@@ -619,9 +658,7 @@ export class AnvilView extends ItemView {
 			...(this._editor.path !== null ? { openPath: this._editor.path } : {}),
 			// S99: the pane goes inside the Codex's own split, beside the grid
 			// and below the pill row — see the `split` seam's doc comment.
-			...(ownsSplit
-				? { split: { renderPane: (host: HTMLElement): void => { this._renderEditor(host, "right"); } } }
-				: {}),
+			...(split ? { split } : {}),
 			collections,
 			selection: this._codexSelection,
 			index: this._noteIndex?.notes() ?? [],

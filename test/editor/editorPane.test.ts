@@ -35,7 +35,7 @@ import {
 	type CachedMetadata,
 } from "../__mocks__/obsidian";
 import { AnvilView, type AnvilLayout } from "anvil/AnvilView";
-import { EDITOR_PATH_ATTR, type EditorDock } from "editor/editorPane";
+import { EDITOR_PATH_ATTR, type EditorDock, type EditorPaneMode } from "editor/editorPane";
 
 // ---------------------------------------------------------------------------
 // Fixture: canon entries (the Codex half) + a two-scene book (every other tab)
@@ -361,6 +361,59 @@ describe("editor pane — docks and tools (T5.1)", () => {
 		// The split is inside the Codex body, below the chrome — not wrapped
 		// around the whole tab.
 		expect(bodyOf(view).querySelector<HTMLElement>(".sf-cx-split")?.closest(".sf-cx")).not.toBeNull();
+	});
+
+	it.each<EditorPaneMode>(["bottom", "right", "fullscreen"])(
+		"keeps the pane outside the zoom-scaled element in the %s dock",
+		async (mode) => {
+			const app = new App();
+			seedVault(app);
+			const view = await openAnvil(app, { dock: dockStore(mode === "right" ? "right" : "bottom") });
+			inspectMara(view);
+			if (mode === "fullscreen") click(tool(view, "fullscreen"));
+
+			// `.sf-zoom-scaled` carries `transform: scale(var(--sf-zoom))`, and
+			// zoom is reachable from every layout. A pane inside it would scale
+			// with the grid, scroll inside `.sf-zoom-wrap`, and — because a
+			// non-`none` transform creates a containing block — silently become
+			// the anchor for any absolutely-positioned control T5.2 adds. The
+			// editor is a form, not a zoomable canvas.
+			expect(pane(view)?.closest(".sf-zoom-scaled") ?? null).toBeNull();
+		},
+	);
+
+	it("keeps the card grid zoomable beside the pane in the right dock", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openAnvil(app, { dock: dockStore("right") });
+		inspectMara(view);
+
+		// The other half of the same rule: the grid has zoomed since Phase 4 and
+		// keeps doing so — the pane moves out of the transform, the grid does not.
+		expect(bodyOf(view).querySelector(".sf-cx-grid")?.closest(".sf-zoom-scaled") ?? null).not.toBeNull();
+	});
+
+	it("zooms the Codex chrome in the bottom dock but not in the right dock", async () => {
+		const app = new App();
+		seedVault(app);
+		const bottom = await openAnvil(app, { dock: dockStore("bottom") });
+		inspectMara(bottom);
+		const right = await openAnvil(app, { dock: dockStore("right") });
+		inspectMara(right);
+
+		const zoomed = (view: AnvilView, sel: string): boolean =>
+			bodyOf(view).querySelector(sel)?.closest(".sf-zoom-scaled") !== undefined &&
+			bodyOf(view).querySelector(sel)?.closest(".sf-zoom-scaled") !== null;
+
+		// Deliberate asymmetry, pinned so it cannot drift unnoticed. In the right
+		// dock the zoom wraps the GRID ALONE (it has to: the pane must stay out
+		// of the transform, and S99 keeps the chrome full width above the split),
+		// so the pill row and Card selector no longer scale there. Every other
+		// dock is unchanged — the whole tab still scales.
+		expect(zoomed(bottom, ".sf-cx-cats")).toBe(true);
+		expect(zoomed(bottom, ".sf-cx-cardsel")).toBe(true);
+		expect(zoomed(right, ".sf-cx-cats")).toBe(false);
+		expect(zoomed(right, ".sf-cx-cardsel")).toBe(false);
 	});
 
 	it.each<EditorDock>(["bottom", "right"])(

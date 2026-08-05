@@ -3215,6 +3215,17 @@ body {
 	grid-template-columns: 1fr;
 }
 
+/*
+ * The zoom host the Anvil mounts inside the left column (R1): the zoom wrapper
+ * scales the GRID and nothing else, so the editor pane beside it never sits
+ * inside a `transform` — which would scale the form, trap it in the zoom's
+ * scroll box, and make it the containing block for absolutely-positioned
+ * controls. Layout-neutral by design; it exists only to host the wrapper.
+ */
+.sf-ws-zoomhost {
+	min-width: 0;
+}
+
 .sf-cx-split-right {
 	flex: 1;
 	min-width: 0;
