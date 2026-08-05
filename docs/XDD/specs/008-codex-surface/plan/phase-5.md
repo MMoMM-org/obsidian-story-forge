@@ -153,8 +153,17 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > Likely mechanism: pass the set of plugin-generated FileClass names (the six from `schema/*.json`)
   > into `buildFieldModel`, so "not one of ours" ⇒ `"user"`.
 
-  1. Prime: Mockups **S102/S103**; `[ref: SDD/Complex Logic]` traced walkthrough; **OQ-1** and the
-     `origin` debt above.
+  > **Inherited from T5.1 (2026-08-05): the fullscreen pane does not actually fill the tab body.**
+  > `.sf-ed--fullscreen { flex: 1 }` was **inert** — `.sf-ws-body` is a block box with `overflow:
+  > auto`, not a flex container — so "fullscreen" is content-height today. T5.1 **removed** the dead
+  > rule rather than making it effective, deliberately: filling the body requires `.sf-ws` to become
+  > a flex column with `.sf-ws-body { flex: 1; min-height: 0 }`, which changes the box model for
+  > **all five layouts** and **jsdom cannot verify the result**. That is not a change to slip into a
+  > fix round unseen. T5.3 owns it because T5.3 adds the content that wants the height. Verify it in
+  > a real vault, not only in tests, and check the other four layouts still lay out correctly.
+
+  1. Prime: Mockups **S102/S103**; `[ref: SDD/Complex Logic]` traced walkthrough; **OQ-1**, the
+     `origin` debt above, and the inherited fullscreen-height item.
   2. Test: one section per FileClass in chain order, base first `[ref: PRD/F6 AC]`; the width rule
      places `name/role/status/occupation` two-up and `skills/guild` full-width, matching S102/S103
      field-for-field; a user FileClass renders **in its own labelled section**, not appended
