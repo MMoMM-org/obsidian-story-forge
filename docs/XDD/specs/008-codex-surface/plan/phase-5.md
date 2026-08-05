@@ -88,7 +88,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
            genuinely works while the plain-click → inspect path silently does nothing
            `[ref: PRD/F2 AC]`
 
-- [ ] **T5.2 Field controls per type** `[activity: frontend-ui]`
+- [x] **T5.2 Field controls per type** `[activity: frontend-ui]`
 
   1. Prime: `[ref: SDD/Application Data Models]` — `FieldDef`; the six generated types plus
      `Boolean` and `Date`; `[ref: PRD/Won't Have]` — `Lookup`/`Formula`/`Canvas` are out.
@@ -132,6 +132,13 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   4. Validate: unit tests per control; lint; types.
   5. Success:
      - [ ] Relations are editable — the gap that motivated this spec `[ref: PRD/F5 AC]`
+
+     > **Deliberately left unticked when T5.2 closed (2026-08-05).** The relation chip control is
+     > built, reviewed and tested — chips add and remove `[[wikilinks]]` a human could have typed,
+     > and `MultiFile`/`File` project their values correctly. But relations are not *user-reachable*
+     > until **T5.3** mounts the controls into the pane from the `FieldModel` and **T5.4** commits
+     > them through `frontmatterWriter`. Ticking it now would claim a user-visible outcome that no
+     > user can reach. **T5.4 ticks it**, once a chip edit reaches the file.
 
 - [ ] **T5.3 Sections and layout from the model** `[activity: frontend-ui]`
 
