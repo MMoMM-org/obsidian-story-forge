@@ -31,6 +31,7 @@ import { CODEX_CARD_SELECT_ATTR } from "codex/cardSelector";
 import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
 import { CODEX_HINT_DISMISS_ATTR } from "codex/basesHint";
 import { EDITOR_TOOL_ATTR } from "editor/editorPane";
+import { FIELD_CONTROL_ATTR } from "editor/fieldControls";
 
 /** Every marker attribute either host can emit, mapped to its `TargetKind`. */
 export const MARKER_VOCABULARY: Record<string, TargetKind> = {
@@ -44,6 +45,7 @@ export const MARKER_VOCABULARY: Record<string, TargetKind> = {
 	[CODEX_CHANGE_TAG_ATTR]: "structuralControl",
 	[CODEX_HINT_DISMISS_ATTR]: "structuralControl",
 	[EDITOR_TOOL_ATTR]: "structuralControl",
+	[FIELD_CONTROL_ATTR]: "editableField",
 	"data-sf-plotline": "structuralControl",
 	"data-sf-nav": "structuralControl",
 };
@@ -81,6 +83,14 @@ export const ANVIL_MARKERS: readonly string[] = [
 	// dock). Appended rather than inserted — order only decides between two
 	// markers on ONE element, and a tool span carries no other marker.
 	EDITOR_TOOL_ATTR,
+	// T5.2: the editor pane's field controls — the FIRST producer of
+	// `editableField` anywhere in the plugin. Until this entry existed the F2
+	// matrix row for an editable field was green in unit tests and unreachable
+	// from any real click. Position is irrelevant for the same reason as above:
+	// a control cell carries this marker and no other, and precedence between a
+	// control and the card or section AROUND it is proximity, not order
+	// (ADR-28) — the control is always the nearer element.
+	FIELD_CONTROL_ATTR,
 ];
 
 /**

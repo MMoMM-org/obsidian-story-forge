@@ -3273,3 +3273,109 @@ body {
 	border-color: var(--interactive-accent);
 	box-shadow: inset 0 0 0 1px var(--interactive-accent);
 }
+
+/*
+ * Field controls (spec 008 T5.2, mockup S102/S103's `.ed-f` vocabulary).
+ *
+ * The mockup draws each field as a flat value cell — a box that reads as text
+ * until you use it — so the real controls are styled to sit INSIDE that cell
+ * without the browser's default chrome, rather than the cell being decoration
+ * around a stock input. Obsidian's own Properties UI reads the same way.
+ *
+ * The two-column/full-width placement of these cells is T5.3's (the width rule
+ * lives on `FieldDef.width`, which is why `--half`/`--full` is already stamped
+ * here for it to key off).
+ */
+.sf-ed-f {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	min-height: 22px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	padding: 2px 7px;
+	color: var(--text-normal);
+	font-size: 11px;
+}
+
+.sf-ed-f:focus-within {
+	border-color: var(--interactive-accent);
+}
+
+.sf-ed-input,
+.sf-ed-select {
+	flex: 1;
+	min-width: 0;
+	border: none;
+	background: transparent;
+	padding: 0;
+	color: inherit;
+	font-size: inherit;
+	box-shadow: none;
+}
+
+.sf-ed-input--checkbox {
+	flex: none;
+}
+
+/*
+ * The out-of-list entry (reconciled 2026-08-05): DISPLAYED so the control never
+ * reads as empty over a file that holds a value, and `disabled` so it can never
+ * be re-chosen. Option styling is limited across platforms, which is exactly
+ * why the marking is the words "(not in list)" in the option text and not a
+ * colour — see `fieldControls.ts`.
+ */
+.sf-ed-opt--outoflist {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.sf-ed-chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+}
+
+.sf-ed-chip {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	border-radius: 10px;
+	background: var(--background-modifier-hover);
+	padding: 1px 5px;
+	color: var(--text-normal);
+	font-size: 9.5px;
+}
+
+.sf-ed-chip-x {
+	color: var(--text-faint);
+	cursor: pointer;
+}
+
+.sf-ed-chip-x:hover {
+	color: var(--text-error);
+}
+
+.sf-ed-chip-add {
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: 10px;
+	padding: 1px 5px;
+	color: var(--text-faint);
+	font-size: 9.5px;
+	cursor: pointer;
+}
+
+.sf-ed-chip-add:hover {
+	color: var(--text-normal);
+}
+
+.sf-ed-chip-input {
+	border: 1px solid var(--interactive-accent);
+	border-radius: 10px;
+	padding: 1px 5px;
+	font-size: 9.5px;
+}

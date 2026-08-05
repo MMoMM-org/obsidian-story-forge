@@ -42,6 +42,9 @@ describe("MARKER_VOCABULARY", () => {
 			"data-sf-cx-hint-dismiss": "structuralControl",
 			// T5.1: the editor pane's header tools (close / fullscreen / back / dock).
 			"data-sf-ed-tool": "structuralControl",
+			// T5.2: the editor pane's field controls — the first producer of
+			// `editableField` anywhere in the plugin.
+			"data-sf-ed-field": "editableField",
 			"data-sf-plotline": "structuralControl",
 			"data-sf-nav": "structuralControl",
 		});

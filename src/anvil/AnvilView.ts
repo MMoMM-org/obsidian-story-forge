@@ -879,6 +879,23 @@ export class AnvilView extends ItemView {
 	}
 
 	/**
+	 * Enact a `focusField` outcome (T5.2): put the caret in the control the
+	 * click landed on.
+	 *
+	 * A click directly on an `<input>` focuses it in a browser anyway; this
+	 * exists for the rest of the cell — the padding around the box, and the
+	 * chip row's empty space — so the whole control behaves as one target
+	 * rather than a live box surrounded by dead pixels. It focuses nothing else
+	 * and opens nothing: an editable field is the one target kind in the F2
+	 * matrix that must never navigate.
+	 */
+	private _focusField(nearest: HTMLElement | null): void {
+		if (!nearest) return;
+		const control = nearest.querySelector<HTMLElement>("input, select, textarea");
+		(control ?? nearest).focus();
+	}
+
+	/**
 	 * Enact one of the pane's four header tools (T5.1). `raw` comes straight
 	 * off a DOM attribute, so it is narrowed before use (CON-8) — an attribute
 	 * carrying anything else is ignored rather than trusted.
@@ -961,6 +978,8 @@ export class AnvilView extends ItemView {
 				// Already invoked via deps.inspect inside controller.handle().
 				break;
 			case "focusField":
+				this._focusField(nearest);
+				break;
 			case "none":
 				break;
 		}
