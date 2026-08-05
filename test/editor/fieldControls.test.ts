@@ -231,6 +231,10 @@ describe("field controls — one per type (T5.2)", () => {
 			// the inner control is what it lands on from the tab order — both need
 			// the field's name.
 			expect(c.el.getAttribute("aria-label")).toBe("occupation");
+			// ...and the cell needs a role for that label to be announced at all —
+			// the same rule as the inner element below, applied to the element the
+			// marker walk actually lands on.
+			expect(c.el.hasAttribute("role")).toBe(true);
 			const labelled = c.el.querySelector("[aria-label]");
 			expect(labelled?.getAttribute("aria-label")).toBe("occupation");
 
@@ -256,6 +260,19 @@ describe("field controls — one per type (T5.2)", () => {
 
 		// T5.4's commit path keys off exactly this: null deletes the key, "" writes
 		// an empty Property. They are different edits to the file.
+		expect(c.value()).toBeNull();
+		expect(c.edits.at(-1)).toBeNull();
+	});
+
+	it("reports null, not zero, when a number is cleared", () => {
+		const c = render(fieldDef({ name: "age", type: "Number" }), 34);
+
+		type(inputIn(c.el), "");
+
+		// `Number("")` is 0, so an unguarded read turns "the user emptied this
+		// box" into "the user set it to zero" — and T5.4 would write `age: 0`
+		// into the note instead of deleting the key. The text branch has its own
+		// guard and its own test; this is the numeric twin.
 		expect(c.value()).toBeNull();
 		expect(c.edits.at(-1)).toBeNull();
 	});
@@ -434,6 +451,23 @@ describe("field controls — relation chips (T5.2)", () => {
 		// It carries role="button" and tabindex="0", so a keyboard user can reach
 		// it; if it only listens for `click` they can reach it and not use it.
 		expect(c.value()).toEqual(["[[Elke Stoneway]]"]);
+	});
+
+	it("returns focus to the cell after a keyboard removal, not to nowhere", () => {
+		const c = render(
+			fieldDef({ name: "allies", type: "MultiFile", width: "full" }),
+			["[[Tobias Ferro]]", "[[Elke Stoneway]]"],
+		);
+		const remove = c.el.querySelector<HTMLElement>(`[${CHIP_REMOVE_ATTR}]`);
+		remove?.focus();
+
+		press(remove, "Enter");
+
+		// The × the user just operated is gone from the DOM, so focus has to be
+		// placed deliberately — nothing else can. The host's router cannot do it
+		// either: a marker walk from a detached node finds nothing (measured).
+		// Without this a keyboard user lands on <body> in the middle of editing.
+		expect(document.activeElement).toBe(c.el);
 	});
 
 	it("removes a chip with Space as well as Enter", () => {

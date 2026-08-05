@@ -120,6 +120,9 @@ export function renderFieldControl(
 	// it out of the tab order while making `focus()` on it actually do something
 	// — a chip-only cell (a `File` at its cap) has no input to fall back to.
 	cell.setAttribute("aria-label", field.name);
+	// An aria-label on a role-less <div> is ignored outright — the same fix the
+	// chip row needed. Without this the label is an attribute that does nothing.
+	cell.setAttribute("role", "group");
 	cell.setAttribute("tabindex", "-1");
 	host.appendChild(cell);
 
@@ -174,7 +177,7 @@ function textControl(
 ): () => FieldValue {
 	const input = inputEl(cell, field, "text");
 	input.value = asText(value);
-	onInput(input, deps, () => report(deps, field, emptyToNull(input.value)));
+	onInput(input, () => report(deps, field, emptyToNull(input.value)));
 	return () => emptyToNull(input.value);
 }
 
@@ -190,7 +193,7 @@ function numberControl(
 	// reads back as "", which the guard below turns into null. There is no
 	// NaN path to defend against.
 	const read = (): FieldValue => (input.value.trim() === "" ? null : Number(input.value));
-	onInput(input, deps, () => report(deps, field, read()));
+	onInput(input, () => report(deps, field, read()));
 	return read;
 }
 
@@ -202,7 +205,7 @@ function booleanControl(
 ): () => FieldValue {
 	const input = inputEl(cell, field, "checkbox");
 	input.checked = value === true || value === "true";
-	listen(input, "change", deps, () => report(deps, field, input.checked));
+	listen(input, "change", () => report(deps, field, input.checked));
 	return () => input.checked;
 }
 
@@ -215,7 +218,7 @@ function dateControl(
 ): () => FieldValue {
 	const input = inputEl(cell, field, type);
 	input.value = asText(value);
-	onInput(input, deps, () => report(deps, field, emptyToNull(input.value)));
+	onInput(input, () => report(deps, field, emptyToNull(input.value)));
 	return () => emptyToNull(input.value);
 }
 
@@ -251,7 +254,7 @@ function selectControl(
 	}
 	select.value = current;
 
-	listen(select, "change", deps, () => report(deps, field, emptyToNull(select.value)));
+	listen(select, "change", () => report(deps, field, emptyToNull(select.value)));
 	return () => emptyToNull(select.value);
 }
 
@@ -285,16 +288,22 @@ function chipControl(
 
 	const redraw = (): void => {
 		empty(row);
-		values.forEach((raw, i) => row.appendChild(chipEl(raw, i, deps, () => {
+		values.forEach((raw, i) => row.appendChild(chipEl(raw, i, () => {
 			values.splice(i, 1);
 			redraw();
+			// Focus has to be placed deliberately: the × the user just operated is
+			// gone from the DOM, so nothing else can put it anywhere — a keyboard
+			// user would otherwise be dropped on <body> mid-edit. The host's click
+			// router cannot help either, because a walk from a detached node finds
+			// no markers at all (`domTargetWalk.ts`).
+			cell.focus();
 			report(deps, field, read());
 		})));
 		// A field that holds one link offers no second one: the control must
 		// never show state it cannot write (only the first would ever reach the
 		// file). Removing the chip brings the affordance back.
 		if (values.length < (opts.max ?? Number.POSITIVE_INFINITY)) {
-			row.appendChild(addEl(opts.link, deps, (entry) => {
+			row.appendChild(addEl(opts.link, (entry) => {
 				values.push(opts.link ? toWikilink(entry) : entry);
 				redraw();
 				report(deps, field, read());
@@ -339,7 +348,7 @@ interface ChipOptions {
 }
 
 /** One chip: its label plus the remove affordance. */
-function chipEl(raw: string, index: number, deps: FieldControlDeps, onRemove: () => void): HTMLElement {
+function chipEl(raw: string, index: number, onRemove: () => void): HTMLElement {
 	const chip = el("span", "sf-ed-chip");
 	const label = el("span", "sf-ed-chip-label");
 	label.textContent = linkLabel(raw);
@@ -351,7 +360,7 @@ function chipEl(raw: string, index: number, deps: FieldControlDeps, onRemove: ()
 	remove.setAttribute("tabindex", "0");
 	remove.setAttribute("aria-label", `Remove ${linkLabel(raw)}`);
 	remove.textContent = "×";
-	activate(remove, deps, onRemove);
+	activate(remove, onRemove);
 	chip.appendChild(remove);
 	return chip;
 }
@@ -362,7 +371,7 @@ function chipEl(raw: string, index: number, deps: FieldControlDeps, onRemove: ()
  * one a human could have typed, and a plain box makes that literally true while
  * keeping the control usable with metadata-menu and Bases absent (CON-3).
  */
-function addEl(link: boolean, deps: FieldControlDeps, onAdd: (entry: string) => void): HTMLElement {
+function addEl(link: boolean, onAdd: (entry: string) => void): HTMLElement {
 	const wrap = el("span", "sf-ed-chip-addwrap");
 
 	const button = el("span", "sf-ed-chip-add");
@@ -373,26 +382,26 @@ function addEl(link: boolean, deps: FieldControlDeps, onAdd: (entry: string) => 
 	button.textContent = link ? "+ link" : "+ add";
 	wrap.appendChild(button);
 
-	activate(button, deps, () => {
+	activate(button, () => {
 		// One box at a time: a second click (or Enter) on the affordance while the
 		// box is open must not stack another one over the first.
 		if (wrap.querySelector(`[${CHIP_INPUT_ATTR}]`)) return;
 		// (2) Focus AFTER appending — `focus()` does nothing to a detached node,
 		// which made the call inside `entryEl` inert and left the control leaning
 		// on the host's router to focus its own affordance.
-		wrap.appendChild(entryEl(link, deps, onAdd)).focus();
+		wrap.appendChild(entryEl(link, onAdd)).focus();
 	});
 	return wrap;
 }
 
 /** The inline entry box: Enter adds, Escape cancels, blank is ignored. */
-function entryEl(link: boolean, deps: FieldControlDeps, onAdd: (entry: string) => void): HTMLInputElement {
+function entryEl(link: boolean, onAdd: (entry: string) => void): HTMLInputElement {
 	const entry = activeDocument.createElement("input");
 	entry.type = "text";
 	entry.className = "sf-ed-chip-input";
 	entry.setAttribute(CHIP_INPUT_ATTR, link ? "link" : "value");
 	entry.setAttribute("aria-label", link ? "Link to add" : "Value to add");
-	listen(entry, "keydown", deps, (event) => {
+	listen(entry, "keydown", (event) => {
 		const key = (event as KeyboardEvent).key;
 		if (key === "Escape") entry.remove();
 		if (key !== "Enter") return;
@@ -475,7 +484,6 @@ function addOption(select: HTMLSelectElement, value: string, text: string): HTML
 function listen(
 	target: HTMLElement,
 	type: "click" | "change" | "input" | "keydown",
-	deps: FieldControlDeps,
 	handler: (event: Event) => void,
 ): void {
 	target.addEventListener(type, handler);
@@ -486,24 +494,25 @@ function listen(
  * click AND Enter/Space, or a keyboard user can reach something that announces
  * itself as a button and cannot operate it (WCAG 2.1.1).
  *
- * `preventDefault` matters twice: Space would scroll the pane, and the Anvil's
- * own Enter/Space parity handler would otherwise resolve the same key press to
- * the surrounding CELL (`editableField` → focusField) and swallow the action.
+ * `preventDefault` stops Space scrolling the pane. Propagation is deliberately
+ * left alone: this handler is on the deeper element so it has already acted by
+ * the time the Anvil's Enter/Space parity handler sees the key — it cannot
+ * swallow anything, and an earlier comment here claiming otherwise overstated
+ * the case (measured, both ways).
  */
-function activate(target: HTMLElement, deps: FieldControlDeps, handler: () => void): void {
-	listen(target, "click", deps, handler);
-	listen(target, "keydown", deps, (event) => {
+function activate(target: HTMLElement, handler: () => void): void {
+	listen(target, "click", handler);
+	listen(target, "keydown", (event) => {
 		const key = (event as KeyboardEvent).key;
 		if (key !== "Enter" && key !== " ") return;
 		event.preventDefault();
-		event.stopPropagation();
 		handler();
 	});
 }
 
 /** `input` fires per keystroke; `change` alone would miss an edit until blur. */
-function onInput(target: HTMLElement, deps: FieldControlDeps, handler: () => void): void {
-	listen(target, "input", deps, handler);
+function onInput(target: HTMLElement, handler: () => void): void {
+	listen(target, "input", handler);
 }
 
 function report(deps: FieldControlDeps, field: FieldDef, value: FieldValue): void {
