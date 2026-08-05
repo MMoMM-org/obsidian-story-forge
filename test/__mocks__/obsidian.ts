@@ -44,25 +44,6 @@ if (typeof (globalThis as Record<string, unknown>).activeWindow === "undefined")
 }
 
 /**
- * Obsidian's element helpers, installed on `HTMLElement.prototype` — the way
- * the real app provides them.
- *
- * `augmentEl` below attaches the same helpers per instance, which was fine
- * while every element in a test came from an already-augmented parent. It
- * stopped being fine once src/ modules mixed the two DOM styles: `codexTab.ts`
- * builds plain `activeDocument.createElement` nodes (deliberately — it keeps no
- * Obsidian dependency), while `timelineZoom.ts` calls `createEl` on whatever
- * host it is given. Real Obsidian augments `HTMLElement.prototype`, so that
- * combination works in a vault; a mock that augments only what it created does
- * not, and the difference pushed a create-then-reparent workaround into
- * `AnvilView` that exists for the mock's benefit alone. That is the standing
- * "the mock must match the real API" hazard running backwards — the mock
- * shaping shipped code — so the fix belongs here.
- *
- * `augmentEl` is kept: it is exported and widely used, and re-attaching the
- * same helpers per instance is harmless now that the prototype carries them.
- */
-/**
  * The subset of Obsidian's `DomElementInfo` this mock implements, plus the two
  * members it deliberately REFUSES (see `applyElementInfo`).
  */
@@ -129,6 +110,25 @@ function rejectCallback(callback: unknown): void {
 	}
 }
 
+/**
+ * Obsidian's element helpers, installed on `HTMLElement.prototype` — the way
+ * the real app provides them (`obsidian.d.ts` declares `createEl`/`createDiv`
+ * on `Node`, so in a vault EVERY element has them however it was created).
+ *
+ * The mock used to attach them per instance instead, from `augmentEl`, which
+ * held only while every element in a test descended from an already-augmented
+ * parent. It stopped holding once src/ modules mixed DOM styles: `codexTab.ts`
+ * builds plain `activeDocument.createElement` nodes (deliberately — it keeps no
+ * Obsidian dependency) while `timelineZoom.ts` calls `createEl` on whatever
+ * host it is handed. That combination works in a vault and threw here, which
+ * pushed a create-then-reparent workaround into `AnvilView` written for the
+ * mock's benefit alone — the standing "the mock must match the real API" hazard
+ * running backwards, the mock shaping shipped code. Installing on the prototype
+ * removed both the false alarm and the workaround.
+ *
+ * `augmentEl` survives as a no-op for its many call sites; see its own
+ * docstring for why keeping the body would have been worse than deleting it.
+ */
 function installElementHelpers(): void {
 	const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
 	if (proto["createDiv"] !== undefined) return;
