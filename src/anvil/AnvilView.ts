@@ -891,6 +891,15 @@ export class AnvilView extends ItemView {
 	 */
 	private _focusField(nearest: HTMLElement | null): void {
 		if (!nearest) return;
+		// The fallback is the CELL, and it is real: `fieldControls` gives every
+		// cell `tabindex="-1"`, so `focus()` on it does something. Before that it
+		// focused a plain <div> and a chip-only cell (a `File` holding its one
+		// link, which renders no input at all) was dead pixels.
+		//
+		// Deliberately NOT `[role="button"]` as well: that would land focus on a
+		// chip's remove affordance, putting a destructive action under Enter for
+		// anyone who merely clicked the cell. Two overlapping mechanisms would
+		// also mean one of them never being exercised.
 		const control = nearest.querySelector<HTMLElement>("input, select, textarea");
 		(control ?? nearest).focus();
 	}

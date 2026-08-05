@@ -31,9 +31,11 @@
  *
  * **Listener discipline (CON-4).** Every listener is attached to an element this
  * module created, so it dies with the pane's DOM on the next `_render`; none
- * touch `document`, `window` or the app. A host that wants deterministic
- * teardown passes `deps.signal` (an `AbortSignal`, the same seam
- * `InspectorController` uses) and every listener is registered with it.
+ * touch `document`, `window` or the app, and none survive the element they are
+ * on. An `AbortSignal` seam was written and then removed: no host produced one,
+ * so it was an untestable public option whose failure mode — a host passing a
+ * signal that silently did nothing — nothing could have caught. Add it back
+ * with a producer and a test when a host actually needs it.
  *
  * Scope: controls only. Sections and the two-column layout are T5.3, the commit
  * path T5.4, and the `Media` control T5.5 — until then a `Media` field takes the
@@ -85,8 +87,6 @@ export interface FieldEdit {
 export interface FieldControlDeps {
 	/** Called whenever the user changes the control. Defaults to a no-op (CON-1: no write path here). */
 	readonly onEdit?: (edit: FieldEdit) => void;
-	/** Optional deterministic teardown for every listener this control attaches (CON-4). */
-	readonly signal?: AbortSignal;
 }
 
 export interface FieldControlHandle {
@@ -115,6 +115,12 @@ export function renderFieldControl(
 ): FieldControlHandle {
 	const cell = el("div", `sf-ed-f sf-ed-f--${field.width}`);
 	cell.setAttribute(FIELD_CONTROL_ATTR, field.name);
+	// The cell is what the marker walk lands on, so it carries the field's name
+	// for assistive tech as well as the inner control does. `tabindex="-1"` keeps
+	// it out of the tab order while making `focus()` on it actually do something
+	// — a chip-only cell (a `File` at its cap) has no input to fall back to.
+	cell.setAttribute("aria-label", field.name);
+	cell.setAttribute("tabindex", "-1");
 	host.appendChild(cell);
 
 	const read = buildControl(cell, field, value, deps);
@@ -180,13 +186,10 @@ function numberControl(
 ): () => FieldValue {
 	const input = inputEl(cell, field, "number");
 	input.value = asText(value);
-	const read = (): FieldValue => {
-		if (input.value.trim() === "") return null;
-		const parsed = Number(input.value);
-		// A box that cannot hold a non-number still reports what it holds rather
-		// than inventing NaN — the commit path (T5.4) decides what to do with it.
-		return Number.isNaN(parsed) ? input.value : parsed;
-	};
+	// `<input type="number">` sanitizes its own value: anything unparseable
+	// reads back as "", which the guard below turns into null. There is no
+	// NaN path to defend against.
+	const read = (): FieldValue => (input.value.trim() === "" ? null : Number(input.value));
 	onInput(input, deps, () => report(deps, field, read()));
 	return read;
 }
@@ -273,6 +276,9 @@ function chipControl(
 ): () => FieldValue {
 	const values = asList(value);
 	const row = el("div", "sf-ed-chips");
+	// A bare div's aria-label is ignored; `role="group"` is what makes the name
+	// reach assistive tech.
+	row.setAttribute("role", "group");
 	row.setAttribute("aria-label", field.name);
 	cell.appendChild(row);
 	const read = (): FieldValue => (opts.project ?? ((v): FieldValue => [...v]))(values);
@@ -345,7 +351,7 @@ function chipEl(raw: string, index: number, deps: FieldControlDeps, onRemove: ()
 	remove.setAttribute("tabindex", "0");
 	remove.setAttribute("aria-label", `Remove ${linkLabel(raw)}`);
 	remove.textContent = "×";
-	listen(remove, "click", deps, onRemove);
+	activate(remove, deps, onRemove);
 	chip.appendChild(remove);
 	return chip;
 }
@@ -367,9 +373,14 @@ function addEl(link: boolean, deps: FieldControlDeps, onAdd: (entry: string) => 
 	button.textContent = link ? "+ link" : "+ add";
 	wrap.appendChild(button);
 
-	listen(button, "click", deps, () => {
+	activate(button, deps, () => {
+		// One box at a time: a second click (or Enter) on the affordance while the
+		// box is open must not stack another one over the first.
 		if (wrap.querySelector(`[${CHIP_INPUT_ATTR}]`)) return;
-		wrap.appendChild(entryEl(link, deps, onAdd));
+		// (2) Focus AFTER appending — `focus()` does nothing to a detached node,
+		// which made the call inside `entryEl` inert and left the control leaning
+		// on the host's router to focus its own affordance.
+		wrap.appendChild(entryEl(link, deps, onAdd)).focus();
 	});
 	return wrap;
 }
@@ -389,7 +400,6 @@ function entryEl(link: boolean, deps: FieldControlDeps, onAdd: (entry: string) =
 		entry.remove();
 		if (typed !== "") onAdd(typed);
 	});
-	entry.focus();
 	return entry;
 }
 
@@ -462,14 +472,33 @@ function addOption(select: HTMLSelectElement, value: string, text: string): HTML
 	return option;
 }
 
-/** Attach a listener, honouring the host's teardown signal when one was given (CON-4). */
 function listen(
 	target: HTMLElement,
 	type: "click" | "change" | "input" | "keydown",
 	deps: FieldControlDeps,
 	handler: (event: Event) => void,
 ): void {
-	target.addEventListener(type, handler, deps.signal ? { signal: deps.signal } : undefined);
+	target.addEventListener(type, handler);
+}
+
+/**
+ * Wire an affordance that is a `<span role="button">` rather than a `<button>`:
+ * click AND Enter/Space, or a keyboard user can reach something that announces
+ * itself as a button and cannot operate it (WCAG 2.1.1).
+ *
+ * `preventDefault` matters twice: Space would scroll the pane, and the Anvil's
+ * own Enter/Space parity handler would otherwise resolve the same key press to
+ * the surrounding CELL (`editableField` → focusField) and swallow the action.
+ */
+function activate(target: HTMLElement, deps: FieldControlDeps, handler: () => void): void {
+	listen(target, "click", deps, handler);
+	listen(target, "keydown", deps, (event) => {
+		const key = (event as KeyboardEvent).key;
+		if (key !== "Enter" && key !== " ") return;
+		event.preventDefault();
+		event.stopPropagation();
+		handler();
+	});
 }
 
 /** `input` fires per keystroke; `change` alone would miss an edit until blur. */

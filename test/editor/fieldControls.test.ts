@@ -27,11 +27,18 @@
  * @ref docs/mockups/anvil-workbench-codex.html — S102, S103
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App, WorkspaceLeaf, type TFile } from "obsidian";
 import { createMockCachedMetadata, createMockTFile, type CachedMetadata } from "../__mocks__/obsidian";
 import { AnvilView } from "anvil/AnvilView";
-import { FIELD_CONTROL_ATTR, renderFieldControl, type FieldValue } from "editor/fieldControls";
+import {
+	CHIP_ADD_ATTR,
+	CHIP_INPUT_ATTR,
+	CHIP_REMOVE_ATTR,
+	FIELD_CONTROL_ATTR,
+	renderFieldControl,
+	type FieldValue,
+} from "editor/fieldControls";
 import type { FieldDef } from "editor/fieldModel";
 import type { FieldType } from "fileclass/fileClassTypes";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
@@ -57,8 +64,20 @@ interface Rendered {
 	readonly edits: FieldValue[];
 }
 
+/**
+ * Mounted hosts. Focus only moves to a CONNECTED element (in jsdom and in a
+ * browser), so every control here is rendered into the document and removed
+ * afterwards — a detached host would make every focus assertion vacuous.
+ */
+const mounted: HTMLElement[] = [];
+afterEach(() => {
+	while (mounted.length > 0) mounted.pop()?.remove();
+});
+
 function render(field: FieldDef, value: unknown = null): Rendered {
 	const host = document.createElement("div");
+	document.body.appendChild(host);
+	mounted.push(host);
 	const edits: FieldValue[] = [];
 	const handle = renderFieldControl(host, field, value, {
 		onEdit: (change) => { edits.push(change.value); },
@@ -106,7 +125,13 @@ function type(input: HTMLInputElement, value: string): void {
 }
 
 function pressEnter(input: HTMLInputElement): void {
-	input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+	press(input, "Enter");
+}
+
+/** Press a key on any element — chips are `role="button"`, not inputs. */
+function press(el: Element | null | undefined, key: string): void {
+	if (!el) throw new Error("no element to press");
+	el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 }
 
 // ---------------------------------------------------------------------------
@@ -191,14 +216,55 @@ describe("field controls — one per type (T5.2)", () => {
 	])("renders an appropriate control for the remaining declared type %s", (type_, expected) => {
 		const c = render(fieldDef({ name: "when", type: type_, values: ["a", "b"] }), null);
 
-		if (expected === "select") expect(selectIn(c.el)).not.toBeNull();
+		// `selectIn`/`inputIn` throw when absent, so reaching the assertion is
+		// itself the existence check.
+		if (expected === "select") expect(selectIn(c.el).tagName).toBe("SELECT");
 		else expect(inputIn(c.el).type).toBe(expected);
 	});
 
-	it("labels every control for assistive technology", () => {
+	it.each<FieldType>(["Input", "Number", "Boolean", "Date", "Select", "Multi", "MultiFile", "File"])(
+		"labels the %s control, and its cell, for assistive technology",
+		(type_) => {
+			const c = render(fieldDef({ name: "occupation", type: type_, values: ["a"] }), null);
+
+			// The cell is what a screen reader lands on from the marker walk, and
+			// the inner control is what it lands on from the tab order — both need
+			// the field's name.
+			expect(c.el.getAttribute("aria-label")).toBe("occupation");
+			const labelled = c.el.querySelector("[aria-label]");
+			expect(labelled?.getAttribute("aria-label")).toBe("occupation");
+
+			// ...and the label has to be one assistive tech will actually read: a
+			// form control carries its own name, a plain <div> needs a role or the
+			// aria-label is ignored outright.
+			const named = ["INPUT", "SELECT", "TEXTAREA"].includes(labelled?.tagName ?? "");
+			expect(named || labelled?.hasAttribute("role")).toBe(true);
+		},
+	);
+
+	it("stamps the declared width so the layout task can key off it", () => {
+		// T5.3 places these cells two-up or full-width from this class alone
+		// (styles.css says so outright). Its only precondition lives here.
+		expect(render(fieldDef({ width: "half" })).el.classList.contains("sf-ed-f--half")).toBe(true);
+		expect(render(fieldDef({ width: "full" })).el.classList.contains("sf-ed-f--full")).toBe(true);
+	});
+
+	it("reports null, not an empty string, when a value is cleared", () => {
 		const c = render(fieldDef({ name: "occupation", type: "Input" }), "harbour warden");
 
-		expect(c.el.querySelector("[aria-label]")?.getAttribute("aria-label")).toBe("occupation");
+		type(inputIn(c.el), "");
+
+		// T5.4's commit path keys off exactly this: null deletes the key, "" writes
+		// an empty Property. They are different edits to the file.
+		expect(c.value()).toBeNull();
+		expect(c.edits.at(-1)).toBeNull();
+	});
+
+	it("reads a Boolean stored as the string \"true\"", () => {
+		// YAML `alive: \"true\"` is a string, and a note written by hand or by
+		// another plugin may well hold one. The checkbox must still read as on.
+		expect(inputIn(render(fieldDef({ name: "alive", type: "Boolean" }), "true").el).checked).toBe(true);
+		expect(inputIn(render(fieldDef({ name: "alive", type: "Boolean" }), "false").el).checked).toBe(false);
 	});
 });
 
@@ -283,7 +349,7 @@ describe("field controls — relation chips (T5.2)", () => {
 			["[[Tobias Ferro]]", "[[Elke Stoneway]]"],
 		);
 
-		click(c.el.querySelectorAll("[data-sf-ed-chip-remove]")[0]);
+		click(c.el.querySelectorAll(`[${CHIP_REMOVE_ATTR}]`)[0]);
 
 		expect(chipLabels(c.el)).toEqual(["Elke Stoneway"]);
 		expect(c.value()).toEqual(["[[Elke Stoneway]]"]);
@@ -293,8 +359,8 @@ describe("field controls — relation chips (T5.2)", () => {
 	it("adds a link as a wikilink a human could have typed", () => {
 		const c = render(fieldDef({ name: "allies", type: "MultiFile", width: "full" }), []);
 
-		click(c.el.querySelector("[data-sf-ed-chip-add]"));
-		const entry = c.el.querySelector<HTMLInputElement>("[data-sf-ed-chip-input]");
+		click(c.el.querySelector(`[${CHIP_ADD_ATTR}]`));
+		const entry = c.el.querySelector<HTMLInputElement>(`[${CHIP_INPUT_ATTR}]`);
 		expect(entry).not.toBeNull();
 		type(entry!, "Elke Stoneway");
 		pressEnter(entry!);
@@ -308,8 +374,8 @@ describe("field controls — relation chips (T5.2)", () => {
 	it("adds a plain value for Multi — brackets belong to link fields only", () => {
 		const c = render(fieldDef({ name: "skills", type: "Multi", width: "full" }), []);
 
-		click(c.el.querySelector("[data-sf-ed-chip-add]"));
-		const entry = c.el.querySelector<HTMLInputElement>("[data-sf-ed-chip-input]");
+		click(c.el.querySelector(`[${CHIP_ADD_ATTR}]`));
+		const entry = c.el.querySelector<HTMLInputElement>(`[${CHIP_INPUT_ATTR}]`);
 		type(entry!, "shortblade");
 		pressEnter(entry!);
 
@@ -319,8 +385,8 @@ describe("field controls — relation chips (T5.2)", () => {
 	it("ignores an empty entry rather than adding a blank chip", () => {
 		const c = render(fieldDef({ name: "allies", type: "MultiFile", width: "full" }), []);
 
-		click(c.el.querySelector("[data-sf-ed-chip-add]"));
-		const entry = c.el.querySelector<HTMLInputElement>("[data-sf-ed-chip-input]");
+		click(c.el.querySelector(`[${CHIP_ADD_ATTR}]`));
+		const entry = c.el.querySelector<HTMLInputElement>(`[${CHIP_INPUT_ATTR}]`);
 		type(entry!, "   ");
 		pressEnter(entry!);
 
@@ -331,8 +397,8 @@ describe("field controls — relation chips (T5.2)", () => {
 	it("reports a File as a scalar, not as a one-element list", () => {
 		const c = render(fieldDef({ name: "book", type: "File" }), []);
 
-		click(c.el.querySelector("[data-sf-ed-chip-add]"));
-		const entry = c.el.querySelector<HTMLInputElement>("[data-sf-ed-chip-input]");
+		click(c.el.querySelector(`[${CHIP_ADD_ATTR}]`));
+		const entry = c.el.querySelector<HTMLInputElement>(`[${CHIP_INPUT_ATTR}]`);
 		type(entry!, "Wardens of Moonharbor");
 		pressEnter(entry!);
 
@@ -347,19 +413,97 @@ describe("field controls — relation chips (T5.2)", () => {
 
 		// A File holds one link. Letting a user add a second would show state the
 		// control cannot write — only the first would ever reach the file.
-		expect(c.el.querySelector("[data-sf-ed-chip-add]")).toBeNull();
+		expect(c.el.querySelector(`[${CHIP_ADD_ATTR}]`)).toBeNull();
 
-		click(c.el.querySelector("[data-sf-ed-chip-remove]"));
+		click(c.el.querySelector(`[${CHIP_REMOVE_ATTR}]`));
 
 		expect(c.value()).toBeNull();
-		expect(c.el.querySelector("[data-sf-ed-chip-add]")).not.toBeNull();
+		expect(c.el.querySelector(`[${CHIP_ADD_ATTR}]`)).not.toBeNull();
+	});
+
+	it("removes a chip from the keyboard — the × announces itself as a button", () => {
+		const c = render(
+			fieldDef({ name: "allies", type: "MultiFile", width: "full" }),
+			["[[Tobias Ferro]]", "[[Elke Stoneway]]"],
+		);
+		const remove = c.el.querySelectorAll(`[${CHIP_REMOVE_ATTR}]`)[0];
+		expect(remove?.getAttribute("role")).toBe("button");
+
+		press(remove, "Enter");
+
+		// It carries role="button" and tabindex="0", so a keyboard user can reach
+		// it; if it only listens for `click` they can reach it and not use it.
+		expect(c.value()).toEqual(["[[Elke Stoneway]]"]);
+	});
+
+	it("removes a chip with Space as well as Enter", () => {
+		const c = render(fieldDef({ name: "allies", type: "MultiFile", width: "full" }), ["[[Tobias Ferro]]"]);
+
+		press(c.el.querySelector(`[${CHIP_REMOVE_ATTR}]`), " ");
+
+		expect(c.value()).toEqual([]);
+	});
+
+	it("opens the entry box from the keyboard, and focuses it", () => {
+		const c = render(fieldDef({ name: "allies", type: "MultiFile", width: "full" }), []);
+
+		press(c.el.querySelector(`[${CHIP_ADD_ATTR}]`), "Enter");
+
+		const entry = c.el.querySelector<HTMLInputElement>(`[${CHIP_INPUT_ATTR}]`);
+		expect(entry).not.toBeNull();
+		// Focus is the whole point of revealing it: without it a keyboard user
+		// opens a box they then cannot type into, and a mouse user has to click
+		// twice. Asserted with no host present, so nothing else can be doing it.
+		expect(document.activeElement).toBe(entry);
+	});
+
+	it("focuses the entry box when opened by click, with no host router involved", () => {
+		const c = render(fieldDef({ name: "allies", type: "MultiFile", width: "full" }), []);
+
+		click(c.el.querySelector(`[${CHIP_ADD_ATTR}]`));
+
+		expect(document.activeElement).toBe(c.el.querySelector(`[${CHIP_INPUT_ATTR}]`));
+	});
+
+	it("opens only one entry box however often the affordance is used", () => {
+		const c = render(fieldDef({ name: "allies", type: "MultiFile", width: "full" }), []);
+
+		click(c.el.querySelector(`[${CHIP_ADD_ATTR}]`));
+		click(c.el.querySelector(`[${CHIP_ADD_ATTR}]`));
+
+		expect(c.el.querySelectorAll(`[${CHIP_INPUT_ATTR}]`)).toHaveLength(1);
+	});
+
+	it("cancels the entry box on Escape, adding nothing", () => {
+		const c = render(fieldDef({ name: "allies", type: "MultiFile", width: "full" }), []);
+		click(c.el.querySelector(`[${CHIP_ADD_ATTR}]`));
+		const entry = c.el.querySelector<HTMLInputElement>(`[${CHIP_INPUT_ATTR}]`);
+		type(entry!, "Elke Stoneway");
+
+		press(entry, "Escape");
+
+		expect(c.el.querySelector(`[${CHIP_INPUT_ATTR}]`)).toBeNull();
+		expect(c.value()).toEqual([]);
+		expect(c.edits).toEqual([]);
+	});
+
+	it("skips a null entry in a stored list rather than rendering a blank chip", () => {
+		// A YAML list with an empty item (`- `) parses to null. Rendering it would
+		// give the user a chip they cannot read and cannot explain.
+		const c = render(
+			fieldDef({ name: "allies", type: "MultiFile", width: "full" }),
+			["[[Tobias Ferro]]", null],
+		);
+
+		expect(chipLabels(c.el)).toEqual(["Tobias Ferro"]);
+		expect(c.value()).toEqual(["[[Tobias Ferro]]"]);
 	});
 
 	it("does not double-bracket a name the user typed with brackets", () => {
 		const c = render(fieldDef({ name: "allies", type: "MultiFile", width: "full" }), []);
 
-		click(c.el.querySelector("[data-sf-ed-chip-add]"));
-		const entry = c.el.querySelector<HTMLInputElement>("[data-sf-ed-chip-input]");
+		click(c.el.querySelector(`[${CHIP_ADD_ATTR}]`));
+		const entry = c.el.querySelector<HTMLInputElement>(`[${CHIP_INPUT_ATTR}]`);
 		type(entry!, "[[Elke Stoneway]]");
 		pressEnter(entry!);
 
@@ -477,6 +621,42 @@ describe("field controls — inside the live editor pane (T5.2)", () => {
 			expect(view.contentEl.ownerDocument.activeElement).toBe(input);
 			expect(app.workspace.openLinkText).not.toHaveBeenCalled();
 			expect(view.contentEl.querySelector(".sf-ed")).not.toBeNull();
+		} finally {
+			view.contentEl.parentNode?.removeChild(view.contentEl);
+		}
+	});
+
+	it("focuses something real in a cell that has no input at all", async () => {
+		const app = new App();
+		seedVault(app);
+		const leaf = new WorkspaceLeaf();
+		(leaf as unknown as { app: App }).app = app;
+		const view: AnvilView = new AnvilView(leaf, { drill: (f) => { view.inspect(f); } });
+		await view.onOpen();
+		view.setLayout("codex");
+		document.body.appendChild(view.contentEl);
+		try {
+			click(view.contentEl.querySelector(`[data-sf-link="${mara.path}"]`));
+			const fieldsEl = view.contentEl.querySelector<HTMLElement>(".sf-ed-grid");
+
+			// A File at its cap renders chips and NO add affordance, so this cell
+			// contains no input, select or textarea. The promise is that the whole
+			// cell is one target — a cell whose only outcome is focusing nothing
+			// makes it dead pixels instead.
+			const handle = renderFieldControl(
+				fieldsEl!,
+				fieldDef({ name: "book", type: "File" }),
+				"[[Wardens of Moonharbor]]",
+				{},
+			);
+			expect(handle.el.querySelector("input, select, textarea")).toBeNull();
+
+			click(handle.el.querySelector(".sf-ed-chip-label"));
+
+			// Focus lands on the CELL — which only works because the cell is
+			// focusable. Not on the chip's × : that would put a destructive action
+			// under Enter for anyone who merely clicked the cell.
+			expect(view.contentEl.ownerDocument.activeElement).toBe(handle.el);
 		} finally {
 			view.contentEl.parentNode?.removeChild(view.contentEl);
 		}
