@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: The editor pane"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 5
 ---
@@ -111,14 +111,21 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      > T1.3, whose test list claimed it): the shipped `FieldDef` has no current-value slot, so the
      > model layer cannot satisfy it. This pane does — it has the note's value.
      >
-     > **Reconcile two contradictory statements before implementing.** `requirements.md:265` says
-     > *"the control offers **exactly** those values"*; `solution.md` AC (Edge Cases) says an
-     > out-of-list current value is **preserved and displayed**. Taken literally the first forbids
-     > what the second requires. Phase 5 must state the reconciliation explicitly — the likely
-     > reading is that the *selectable* set is exactly the declared list while the *current* value
-     > is still shown (e.g. as a marked, non-reselectable entry), so no click ever silently rewrites
-     > a value the user put there by hand. Record the resolution; do not leave it to the control's
-     > implementation to decide by accident.
+     > **RECONCILED 2026-08-05 — do not re-derive this.** `requirements.md:265` ("the control offers
+     > **exactly** those values") and `solution.md`'s Edge-Case AC ("preserve and display the current
+     > value") contradict each other only if *offers* and *displays* name the same set. They do not:
+     >
+     > - **selectable = the declared list, exactly** — the control never offers an undeclared value.
+     > - **displayed = the declared list + the current value**, when that value is out of list, shown
+     >   as a **marked, non-reselectable** entry.
+     >
+     > The non-reselectable property is the one that matters: once the user leaves an out-of-list
+     > value they cannot re-enter it *through the control*, so the plugin never becomes the author of
+     > a value it does not declare, and no click silently rewrites something typed by hand. Both
+     > rejected readings break one half — an ordinary selectable option violates ":265", and the
+     > declared list alone leaves the control showing **no selection while the file holds a value**,
+     > which is the state most likely to be clicked away. Test both directions: the marked entry is
+     > displayed, **and** it cannot be re-selected once left.
 
   3. Implement: `src/editor/fieldControls.ts`; stamp the field-control marker and extend the host's
      `markerKindOf` so it classifies as `editableField`.
@@ -128,12 +135,15 @@ The editor the withdrawn "note panel" surface was actually reaching for.
 
 - [ ] **T5.3 Sections and layout from the model** `[activity: frontend-ui]`
 
-  > **BLOCKED on OQ-1 `[ref: SDD/Open Questions]`** — where a section's display **label** comes from
-  > is undecided. The mockup shows "Character"/"Isekai"; the model currently yields `fc-character` /
-  > `fc-character-custom1`. Option 1 is a title property in the fc file (works today, but
-  > metadata-menu may drop an unrecognised key on its own save); Option 2 derives from the file name
-  > (immune to that, but a rename must carry every referring `extends:` with it). **Do not pick one
-  > here — get the decision first.**
+  > **OQ-1 RESOLVED 2026-08-05 — T5.3 is unblocked** `[ref: SDD/Open Questions]`. The label is
+  > **`fc.title ?? prettify(stripPrefix(basename))`** — read the `title` key from the FileClass
+  > frontmatter, and when it is absent derive from the file name (`fc-character` → "Character",
+  > `fc-character-custom1` → "Character custom1"). Neither SDD option was taken alone: Option 1
+  > renders the mockup but stakes the only label source on a key metadata-menu may drop; Option 2
+  > survives that but cannot produce "Isekai", which would mean re-reading a signed-off figure to
+  > fit the implementation (CON-10 forbids it). **Implement the fallback, not just the title read** —
+  > the degradation path is the point of the decision, so it needs a test: a FileClass with **no**
+  > `title` key must still render a labelled section.
   >
   > **Also owns the `origin: "user"` debt.** Phase 1 shipped `FieldSection.origin` as
   > `"builtin" | "other"`, because `ParsedFileClass` carries no provenance. The SDD declares three

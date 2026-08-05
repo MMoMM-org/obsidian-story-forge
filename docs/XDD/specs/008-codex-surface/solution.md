@@ -603,9 +603,9 @@ ENTITY: FieldModel (NEW — pure, produced by fileClassReader + fieldModel)
 
 ENTITY: FieldSection (NEW)
   FIELDS:
-    label: string                  # the section's human display name — SOURCE UNDECIDED, see OQ-1.
-                                   # The mockup shows "Character"/"Isekai"; generated fc frontmatter
-                                   # carries no title key and "Isekai" is derivable from no transform
+    label: string                  # the section's human display name — RESOLVED 2026-08-05 (OQ-1):
+                                   # `fc.title ?? prettify(stripPrefix(basename))`. The title key is
+                                   # optional, so a dropped key degrades the label, never removes it
                                    # of "fc-character-custom1". Phase 1 ships the fc file name.
     source: string                 # fc file NAME (e.g. "fc-character.md"), or "other" for undeclared
                                    # keys. Name, not path: this layer is pure and never sees
@@ -829,9 +829,10 @@ OUTPUT: FieldModel { sections }
                name, type: mapType(def.type), values: def.options?.valuesList,
                ui: schemaUiHints[name], width: widthOf(...)
            }
-       # `class.title` presumes a title key the fc frontmatter does not have — see OQ-1 (open).
-       # Phase 1 ships `class.name` (the fc file name); the human label is undecided.
-       sections += FieldSection{ label: class.title, origin: originOf(class), fields }
+       # OQ-1 resolved 2026-08-05: the title key is OPTIONAL and the file name is the fallback.
+       # Phase 1 ships `class.name` (the fc file name); T5.3 adds the title-key read in front of it.
+       sections += FieldSection{ label: class.title ?? prettify(stripPrefix(class.name)),
+                                 origin: originOf(class), fields }
 
 3. TIER 2 — no chain at all:
    IF chain is empty:
@@ -854,8 +855,9 @@ OUTPUT: FieldModel { sections }
 | 2b | Section "Isekai": `level`(Number,half) `affinity`(Select,half) `awakened`(Boolean,half) `skills`(Multi,full) `guild`(MultiFile,full) |
 | 4 | Note also carries `scratch` → Section "Other properties": `scratch`(text,full) |
 
-Matches S103 exactly, including which fields sit two-up. **Except the section *labels*** — "Character"
-and "Isekai" are the mockup's human names, and where they come from is **OQ-1**, still open.
+Matches S103 exactly, including which fields sit two-up. The section *labels* — "Character" and
+"Isekai" — come from **OQ-1, resolved 2026-08-05**: `fc.title ?? prettify(stripPrefix(basename))`,
+so the mockup's own labels render as signed off.
 
 ## Deployment View
 
@@ -1148,7 +1150,27 @@ Not applicable — single component.
 
 ## Open Questions
 
-### OQ-1 — Where does a section's display **label** come from? (open, due before T5.3)
+### OQ-1 — Where does a section's display **label** come from? (**RESOLVED 2026-08-05**, before T5.3)
+
+> **Resolution — the hybrid, neither option as written.**
+>
+> ```
+> label = fc.title ?? prettify(stripPrefix(basename))
+> ```
+>
+> Read the `title` key from the FileClass frontmatter; when it is absent, derive the label from the
+> file name by stripping the user's `fc-` convention and prettifying. Both options below were
+> rejected **alone** because they fail in opposite directions and the fallback composes them:
+> Option 1 renders the mockup correctly but makes a droppable key the *only* label source; Option 2
+> survives any metadata-menu save but **cannot produce "Isekai"**, which would force the signed-off
+> mockup to be re-read to fit an implementation constraint — CON-10 forbids exactly that.
+>
+> Under the hybrid the mockup renders **as signed off**, and if metadata-menu drops the key the
+> label degrades to `"Character custom1"` instead of vanishing: a visible cosmetic regression rather
+> than a silent data loss. Renaming remains *a* way to relabel but is no longer the *only* way, so
+> the "`extends:` strings do not follow a rename" hazard leaves the common path.
+>
+> **T5.3 is unblocked.** The two options are retained below as the record of what was weighed.
 
 **The gap.** The signed-off mockup labels the editor's sections **"Character"** and **"Isekai"**
 (`docs/mockups/anvil-workbench-codex.html:808, 827, 894, 919`) while showing the fc file name as the
