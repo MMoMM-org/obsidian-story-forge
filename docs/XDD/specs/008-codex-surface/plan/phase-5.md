@@ -161,6 +161,13 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > **all five layouts** and **jsdom cannot verify the result**. That is not a change to slip into a
   > fix round unseen. T5.3 owns it because T5.3 adds the content that wants the height. Verify it in
   > a real vault, not only in tests, and check the other four layouts still lay out correctly.
+  >
+  > **The same change fixes a second thing, so do them together.** `.sf-ws-split-left` and
+  > `.sf-cx-split-left` both carry `overflow: auto` with **no height constraint**, so a dock-right
+  > column grows to content height instead of scrolling independently, and the two columns are as
+  > tall as the taller one. This is pre-existing (`.sf-cx-split-left` shipped that way), not a T5.1
+  > regression — but it has the same root cause and the same fix, and once the pane holds a full
+  > field set it stops being theoretical.
 
   1. Prime: Mockups **S102/S103**; `[ref: SDD/Complex Logic]` traced walkthrough; **OQ-1**, the
      `origin` debt above, and the inherited fullscreen-height item.
