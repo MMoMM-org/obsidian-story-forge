@@ -243,3 +243,23 @@ The editor the withdrawn "note panel" surface was actually reaching for.
     confirm the file changed in the core Properties UI, and **confirm Cmd+Z in the note reverts it**
     (the file-level guarantee that stands in for the missing journal). `npm test`, `npm run lint`,
     `npm run typecheck` green.
+
+  > **Real-vault verification checklist — these CANNOT be unit tests** (routed here 2026-08-05 on the
+  > TDD gate's ruling for T5.3). jsdom computes no CSS, so a jsdom assertion for any of these would
+  > **pass silently while the real vault is broken** — which is worse than no test. Verify each by
+  > eye in a real vault and record the result:
+  >
+  > - [ ] **Fullscreen actually fills the tab body.** `.sf-ed--fullscreen { flex: 1 }` was inert
+  >       because `.sf-ws-body` is a block box; the fix makes `.sf-ws` a flex column with
+  >       `.sf-ws-body { flex: 1; min-height: 0 }`. That is a box-model change across **all five
+  >       layouts** — so also confirm Timeline, Plotgrid, Plotlines and Board still lay out correctly.
+  > - [ ] **The dock-right columns scroll independently.** `.sf-ws-split-left` and
+  >       `.sf-cx-split-left` carry `overflow: auto` with no height constraint, so today a column
+  >       grows to content height and the two columns are as tall as the taller one. With a long
+  >       field set in the pane this stops being theoretical.
+  > - [ ] **The width rule renders two-up.** Unit tests can only assert the stamped
+  >       `sf-ed-f--half` / `sf-ed-f--full` modifier per named field; whether the grid actually
+  >       places them two-up is a CSS outcome. Compare against **S102/S103** by eye.
+  >
+  > Note the enum cell's **native chrome is a recorded divergence** (2026-08-05, user) and is
+  > explicitly **not** a defect in this comparison.
