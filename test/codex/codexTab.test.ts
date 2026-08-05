@@ -933,12 +933,19 @@ describe("Codex tab: Card selector [PRD/F4]", () => {
 	});
 
 	it("closes the open dropdown on a click elsewhere that does not itself trigger a re-render", async () => {
-		// The reachable gap this guards: a card-body click drills (inspect)
-		// WITHOUT calling `_render()` (see `_onClick`'s "inspect" branch) — so
-		// without an explicit dismiss, an open dropdown would stay open over
-		// whatever the click just did. The dismiss listener is document-scoped
-		// (real Obsidian mounts a leaf's content into the document), so the test
-		// mounts `contentEl` the same way — see `mountToDocument`.
+		// The reachable gap this guards: a click that resolves to NO action also
+		// runs no `_render()`, so without an explicit dismiss an open dropdown
+		// would stay open over whatever the user just clicked. The dismiss
+		// listener is document-scoped (real Obsidian mounts a leaf's content into
+		// the document), so the test mounts `contentEl` the same way — see
+		// `mountToDocument`.
+		//
+		// Updated by T5.1: this used to click a card BODY, which was then the
+		// clearest no-re-render case ("inspect" was inert — the 2026-07-31
+		// decision). Inspect now opens the editor pane and therefore DOES
+		// re-render, so a card-body click no longer exercises this listener at
+		// all; the surviving case is a click on inert chrome, here the grid's own
+		// padding, which carries no marker.
 		const view = await openCodex(app);
 		const unmount = mountToDocument(view);
 		try {
@@ -948,7 +955,7 @@ describe("Codex tab: Card selector [PRD/F4]", () => {
 			click(trigger);
 			expect(dd.hidden).toBe(false);
 
-			click(bodyOf(view).querySelector(`[data-sf-card-body="${mara.path}"]`));
+			click(bodyOf(view).querySelector(".sf-cx-grid"));
 
 			expect(dd.hidden).toBe(true);
 			expect(trigger.getAttribute("aria-expanded")).toBe("false");

@@ -40,6 +40,8 @@ describe("MARKER_VOCABULARY", () => {
 			"data-sf-section-toggle": "structuralControl",
 			"data-sf-cx-change-tag": "structuralControl",
 			"data-sf-cx-hint-dismiss": "structuralControl",
+			// T5.1: the editor pane's header tools (close / fullscreen / back / dock).
+			"data-sf-ed-tool": "structuralControl",
 			"data-sf-plotline": "structuralControl",
 			"data-sf-nav": "structuralControl",
 		});

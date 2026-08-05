@@ -5,7 +5,7 @@
  * note (active-leaf-change), resolves scope via the shared core, maps rows, and routes
  * to one of five layouts (tab strip built by `anvilTabs.ts`, S91/S94):
  *
- *   codex     — collection grid (Phase 4, `codexTab.ts`) + editor pane (arrives Phase 5)
+ *   codex     — collection grid (Phase 4, `codexTab.ts`)
  *   timeline  — rail OR swimlane (read; M6 adds swimlane + zoom)
  *   plotlines — Plotlines list (read, M5)
  *   kanban    — status columns, drag→status+order write-back (M6); displays as "Board" (S91)
@@ -21,6 +21,13 @@
  * A debounced `metadataCache.changed` subscription reconciles this view and refreshes any
  * other open AnvilView on the same scope (hybrid re-render, ADR-22; last-write-wins,
  * ADR-25).
+ *
+ * Across ALL five layouts the view also hosts the **editor pane** (T5.1,
+ * `editor/editorPane.ts`): `inspect(file)` is where every drill click lands, and the pane
+ * renders below the layout (S92), beside it (S99) or instead of it (S100) per the persisted
+ * dock. It is not a Codex-only surface, because the drill seam is not — a name click in
+ * Timeline, Plotgrid, Plotlines or Board must show its entry somewhere IN the Anvil, which
+ * is the whole reason inspect was inert until this pane existed (decision 2026-07-31).
  *
  * Moved from `src/workspace/WorkspaceView.ts` to `src/anvil/AnvilView.ts`, with the class
  * itself renamed `WorkspaceView` → `AnvilView` and `WorkspaceLayout` → `AnvilLayout` in the
@@ -73,6 +80,14 @@ import { CODEX_CARD_SELECT_ATTR } from "codex/cardSelector";
 import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
 import { CODEX_HINT_DISMISS_ATTR } from "codex/basesHint";
 import { createNoteIndex, type CodexNoteIndex } from "codex/noteIndex";
+import {
+	EDITOR_TOOL_ATTR,
+	EditorPaneStore,
+	isEditorTool,
+	renderEditorPane,
+	type EditorDock,
+	type EditorPaneMode,
+} from "editor/editorPane";
 import { createAssetResolver } from "panel/assetResolver";
 import type { BasesCapability } from "bases/basesCapability";
 
@@ -114,7 +129,13 @@ const ORDER_FIELD = { name: "order", type: "number" as const };
  * before this reshape, only its home moved.
  */
 export interface AnvilViewOpts {
-	/** Drill seam — injected for testability; defaults to the sidebar Context drill. */
+	/**
+	 * The Anvil's "inspect" (ADR-28). Defaults to `view.inspect(file)` — the
+	 * editor pane, in this view, opening no other leaf (PRD/F2). Injected by
+	 * `main.ts` at the construction site (T5.1) so the production path is
+	 * visible there rather than only in a default, and overridable so a test
+	 * can observe inspection through the seam that exists for it.
+	 */
 	drill?: (file: TFile) => void;
 
 	/** Live plugin settings the Anvil reads on every render (T3.5). */
@@ -157,6 +178,25 @@ export interface AnvilViewOpts {
 		onChangeTag?: (collectionId: string) => void;
 	};
 
+	/** Editor pane concerns: the persisted dock (T5.1, ADR-33). */
+	editor?: {
+		/**
+		 * Reads the live dock (`PluginSettings.editorDock`). Defaults to
+		 * `"bottom"` (S92), the shipped settings default.
+		 */
+		getDock?: () => EditorDock;
+		/**
+		 * Persist a dock change — write-through to settings only, never to a
+		 * note's frontmatter (CON-2). Defaults to a no-op, which makes the dock
+		 * effectively fixed for a host that has not wired persistence: better
+		 * than an in-memory dock that silently forgets itself on reload.
+		 *
+		 * ADR-33: this is the ONLY thing that ever changes the dock. Nothing
+		 * calls it in response to a resize, and nothing ever will.
+		 */
+		onDockChange?: (dock: EditorDock) => void;
+	};
+
 	/** Bases capability + hint dismissal (T4.6, ADR-36). */
 	bases?: {
 		/**
@@ -187,6 +227,8 @@ export class AnvilView extends ItemView {
 	private readonly _collapse = new CollapseStore();
 	/** Which Codex collection this Anvil is showing — survives follow re-renders (T4.1). */
 	private readonly _codexSelection = new CodexSelectionStore();
+	/** Which note the editor pane is showing, and whether it is fullscreen (T5.1). */
+	private readonly _editor = new EditorPaneStore();
 	/** Vault-backed note index feeding the pure collection resolver. Built in onOpen. */
 	private _noteIndex: CodexNoteIndex | null = null;
 	private _scopeKey = "none";
@@ -209,6 +251,8 @@ export class AnvilView extends ItemView {
 	private readonly getDismissedHints: () => readonly string[];
 	private readonly onDismissHint: (hintId: string) => void;
 	private readonly onChangeTag: (collectionId: string) => void;
+	private readonly getEditorDock: () => EditorDock;
+	private readonly onEditorDockChange: (dock: EditorDock) => void;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
@@ -216,11 +260,14 @@ export class AnvilView extends ItemView {
 		this.getLinkClickAction = opts?.settings?.getLinkClickAction ?? ((): "drill" => "drill");
 		// ADR-28: this is the Anvil's "inspect" implementation. It used to default to
 		// revealAndShowFile(app, file), which opened/revealed the Workbench leaf — the
-		// reported regression (a click in the Anvil must target no other leaf). The
-		// Anvil has nowhere to show an inspection until its own editor pane lands in
-		// Phase 4/5, so the default deliberately does nothing; tests inject `drill`
-		// to observe inspection through the seam that exists for exactly this purpose.
-		this._drill = opts?.drill ?? ((): void => {});
+		// reported regression (a click in the Anvil must target no other leaf). Between
+		// T2.5 and T5.1 it defaulted to a deliberate no-op, recorded as a decision
+		// (2026-07-31): there was nowhere IN the Anvil to show an inspection, and a
+		// click that does nothing is honest where a click that jumps a panel is not.
+		// T5.1 built that somewhere — the editor pane — so the default is now the pane,
+		// and `main.ts` feeds the seam explicitly at the construction site. The seam
+		// itself stays: a test observes inspection through it without a real pane.
+		this._drill = opts?.drill ?? ((file: TFile): void => { this.inspect(file); });
 		this.getExcludedFolders = opts?.settings?.getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
 		this.getCollections = opts?.codex?.getCollections ?? ((): readonly CodexCollection[] => BUILT_IN_COLLECTIONS);
 		this.getCardByCollection = opts?.codex?.getCardByCollection ?? ((): Readonly<Record<string, string>> => ({}));
@@ -229,6 +276,8 @@ export class AnvilView extends ItemView {
 		this.getDismissedHints = opts?.bases?.getDismissedHints ?? ((): readonly string[] => []);
 		this.onDismissHint = opts?.bases?.onDismissHint ?? ((): void => {});
 		this.onChangeTag = opts?.codex?.onChangeTag ?? ((): void => {});
+		this.getEditorDock = opts?.editor?.getDock ?? ((): EditorDock => "bottom");
+		this.onEditorDockChange = opts?.editor?.onDockChange ?? ((): void => {});
 		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
 	}
 
@@ -331,9 +380,11 @@ export class AnvilView extends ItemView {
 			this._onClick(e.target, e.metaKey || e.ctrlKey);
 		});
 		// Click-outside-to-dismiss for the Codex Card selector dropdown (T4.4
-		// follow-up). A click on a card body drills (inspect) WITHOUT a
-		// `_render()` — see `_onClick`'s "inspect" branch — so an open dropdown
-		// would otherwise stay open over whatever the click just did. Registered
+		// follow-up). A click that resolves to NO action runs no `_render()`, so
+		// an open dropdown would otherwise stay open over whatever the user just
+		// clicked. (Until T5.1 the clearest case was a card body, whose inspect
+		// was inert; inspect now opens the editor pane and re-renders, leaving
+		// clicks on inert chrome as the case this still covers.) Registered
 		// document-wide via the same `register*` seam as every other listener
 		// here (CON-4): a plain `document.addEventListener` would leak past
 		// unload. Runs after `ce`'s click router in the same bubble (document is
@@ -365,13 +416,35 @@ export class AnvilView extends ItemView {
 		this._handler = null;
 		this._collapse.clear();
 		this._codexSelection.clear();
+		this._editor.clear();
 		this._noteIndex = null;
 		this.contentEl.empty();
+	}
+
+	/**
+	 * PRD/F2: show `file` **within the Anvil** — its own editor pane — opening,
+	 * revealing and re-targeting no other leaf. This is what the `drill` seam
+	 * resolves to, from every layout: a Codex card, a Timeline scene, a Plotgrid
+	 * row header, a Plotlines entry or a Board card title all land here.
+	 *
+	 * Public because `main.ts` injects it as the `drill` at the construction
+	 * site (T5.1) and because the F2 discharge is a behaviour of the view, not
+	 * of a private field.
+	 */
+	inspect(file: TFile): void {
+		this._editor.open(file.path);
+		this._render();
 	}
 
 	/** Switch the layout and re-render. */
 	setLayout(layout: AnvilLayout): void {
 		this._layout = layout;
+		// A fullscreen pane hides the layout entirely (S100), so a tab click
+		// would otherwise change nothing the user can see — the tab strip would
+		// be visible but inert, which is exactly the trap keeping it visible is
+		// meant to prevent. Leaving fullscreen is a MODE change, not a dock
+		// change: the pane stays open in whichever dock is configured (ADR-33).
+		this._editor.exitFullscreen();
 		this._syncToggle();
 		this._render();
 	}
@@ -408,13 +481,38 @@ export class AnvilView extends ItemView {
 			this._zoomChild = null;
 		}
 		this._zoomSlotEl?.empty();
+
+		// Where the editor pane goes this cycle — the dock the user set, never
+		// anything derived from a width (ADR-33). `null` means no pane is open.
+		const paneMode = this._editor.mode(this.getEditorDock());
+
+		// S100: fullscreen takes the layout's space entirely, so no layout body
+		// is built and no zoom controls are offered over a body that isn't
+		// there. The tab strip lives in the header, OUTSIDE `body`, so it
+		// survives this untouched — the Anvil is never a trap.
+		if (paneMode === "fullscreen") {
+			this._renderEditor(body, paneMode);
+			return;
+		}
+
+		// S99: the pane sits beside a single card column; S92: below the layout.
+		// Either way it renders OUTSIDE the zoom-scaled element — the editor is
+		// a form, not a zoomable canvas.
+		let layoutHost = body;
+		let paneHost = body;
+		if (paneMode === "right") {
+			const split = body.createDiv({ cls: "sf-cx-split" });
+			layoutHost = split.createDiv({ cls: "sf-cx-split-left" });
+			paneHost = split.createDiv({ cls: "sf-cx-split-right" });
+		}
+
 		// Fresh child Component owns zoom listeners this render cycle.
 		const zoomChild = new Component();
 		this.addChild(zoomChild);
 		this._zoomChild = zoomChild;
 		const zoom = createTimelineZoom(zoomChild, {
-			controlsHost: this._zoomSlotEl ?? body,
-			scaledHost: body,
+			controlsHost: this._zoomSlotEl ?? layoutHost,
+			scaledHost: layoutHost,
 		});
 
 		const f = this.app.workspace.getActiveFile();
@@ -459,6 +557,27 @@ export class AnvilView extends ItemView {
 					"list",
 				);
 		}
+
+		if (paneMode !== null) this._renderEditor(paneHost, paneMode);
+	}
+
+	/**
+	 * Draw the open pane into `host` (T5.1 — shell only; fields are T5.2/T5.3).
+	 *
+	 * The store holds a **path**, so the title is re-resolved every render: a
+	 * renamed note shows its new name on the next reconcile, and a note that no
+	 * longer resolves degrades to showing its path rather than throwing. Closing
+	 * the pane on a deleted note is T5.4's (`SDD/Error Handling`).
+	 */
+	private _renderEditor(host: HTMLElement, mode: EditorPaneMode): void {
+		const path = this._editor.path;
+		if (path === null) return;
+		const file = this.app.vault.getAbstractFileByPath(path);
+		renderEditorPane(host, {
+			path,
+			title: file instanceof TFile ? file.basename : path,
+			mode,
+		});
 	}
 
 	/**
@@ -628,6 +747,12 @@ export class AnvilView extends ItemView {
 		const collectionId = nearest.getAttribute(CODEX_COLLECTION_ATTR);
 		if (collectionId !== null) {
 			this._codexSelection.select(collectionId);
+			// PRD/F3: the pane must never survive into a collection it does not
+			// belong to. The entry it shows has no counterpart in the new
+			// collection to retarget to, so switching closes it. This was
+			// vacuously true while `_render` emptied the body wholesale; pane
+			// state is what makes it a real obligation (see T5.1).
+			this._editor.close();
 			this._render();
 			return;
 		}
@@ -672,6 +797,13 @@ export class AnvilView extends ItemView {
 			return;
 		}
 
+		// T5.1: an editor pane header tool (S92/S99/S100).
+		const editorTool = nearest.getAttribute(EDITOR_TOOL_ATTR);
+		if (editorTool !== null) {
+			this._operateEditorTool(editorTool);
+			return;
+		}
+
 		if (nearest.hasAttribute("data-sf-section-toggle")) {
 			const key = nearest.getAttribute("data-sf-group-key");
 			if (key) {
@@ -679,6 +811,35 @@ export class AnvilView extends ItemView {
 				this._render();
 			}
 		}
+	}
+
+	/**
+	 * Enact one of the pane's four header tools (T5.1). `raw` comes straight
+	 * off a DOM attribute, so it is narrowed before use (CON-8) — an attribute
+	 * carrying anything else is ignored rather than trusted.
+	 *
+	 * `dock` is the only branch that touches the dock, and it always goes
+	 * through the host's persistence callback (ADR-33): the pane never keeps a
+	 * dock of its own, so a change made here is the same change the next reload
+	 * sees.
+	 */
+	private _operateEditorTool(raw: string): void {
+		if (!isEditorTool(raw)) return;
+		switch (raw) {
+			case "close":
+				this._editor.close();
+				break;
+			case "fullscreen":
+				this._editor.toggleFullscreen();
+				break;
+			case "back":
+				this._editor.exitFullscreen();
+				break;
+			case "dock":
+				this.onEditorDockChange(this.getEditorDock() === "bottom" ? "right" : "bottom");
+				break;
+		}
+		this._render();
 	}
 
 	/**

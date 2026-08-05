@@ -30,6 +30,7 @@ import { CODEX_CARD_BODY_ATTR, CODEX_COLLECTION_ATTR } from "codex/codexTab";
 import { CODEX_CARD_SELECT_ATTR } from "codex/cardSelector";
 import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
 import { CODEX_HINT_DISMISS_ATTR } from "codex/basesHint";
+import { EDITOR_TOOL_ATTR } from "editor/editorPane";
 
 /** Every marker attribute either host can emit, mapped to its `TargetKind`. */
 export const MARKER_VOCABULARY: Record<string, TargetKind> = {
@@ -42,6 +43,7 @@ export const MARKER_VOCABULARY: Record<string, TargetKind> = {
 	"data-sf-section-toggle": "structuralControl",
 	[CODEX_CHANGE_TAG_ATTR]: "structuralControl",
 	[CODEX_HINT_DISMISS_ATTR]: "structuralControl",
+	[EDITOR_TOOL_ATTR]: "structuralControl",
 	"data-sf-plotline": "structuralControl",
 	"data-sf-nav": "structuralControl",
 };
@@ -75,6 +77,10 @@ export const ANVIL_MARKERS: readonly string[] = [
 	"data-sf-section-toggle",
 	CODEX_CHANGE_TAG_ATTR,
 	CODEX_HINT_DISMISS_ATTR,
+	// T5.1: the editor pane's own header tools (close / fullscreen / back /
+	// dock). Appended rather than inserted — order only decides between two
+	// markers on ONE element, and a tool span carries no other marker.
+	EDITOR_TOOL_ATTR,
 ];
 
 /**

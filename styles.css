@@ -3097,3 +3097,120 @@ body {
 	align-items: center;
 	gap: 8px;
 }
+
+/* ==========================================================================
+ * Editor pane (spec 008 T5.1, mockups S92 / S99 / S100)
+ * ==========================================================================
+ *
+ * One component, three dock modes (ADR-33): `--bottom` below the layout,
+ * `--right` beside a single card column, `--fullscreen` instead of the layout.
+ * The dock is a persisted setting the user sets once — there is deliberately
+ * NO media query and NO container query anywhere in this block, because a
+ * layout that moves during a resize is worse than one set once.
+ *
+ * The mockup's fixed palette is replaced by Obsidian's own variables, this
+ * file's convention throughout; `.sf-ed-grid` is left to T5.2/T5.3, which own
+ * the field controls and the section/width rules.
+ */
+.sf-ed {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	border-top: 2px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.sf-ed--right,
+.sf-ed--fullscreen {
+	border-top: none;
+}
+
+.sf-ed--fullscreen {
+	flex: 1;
+}
+
+.sf-ed-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 6px 11px;
+}
+
+.sf-ed-title {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+.sf-ed-path {
+	overflow: hidden;
+	color: var(--text-faint);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 10px;
+}
+
+.sf-ed-sp {
+	flex: 1;
+}
+
+.sf-ed-tools {
+	display: flex;
+	flex: none;
+	gap: 4px;
+}
+
+.sf-ed-tool {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 1px 6px;
+	color: var(--text-muted);
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.sf-ed-tool:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.sf-ed-grid {
+	display: grid;
+	grid-template-columns: 96px 1fr 96px 1fr;
+	gap: 6px 10px;
+	padding: 10px 11px;
+	overflow: auto;
+}
+
+/* S99: the same fields in a narrower column — the docks differ only in room. */
+.sf-ed-grid--narrow {
+	grid-template-columns: 88px 1fr;
+}
+
+/*
+ * S99's split: one card column on the left, the pane on the right. The grid
+ * inside the left column collapses to a single column here — that is what
+ * "shown as a single column beside it" means, and it is scoped to the split so
+ * the full-width grid (S91/S92) is untouched.
+ */
+.sf-cx-split {
+	display: flex;
+	min-height: 0;
+}
+
+.sf-cx-split-left {
+	flex: none;
+	width: 236px;
+	border-right: 1px solid var(--background-modifier-border);
+	overflow: auto;
+}
+
+.sf-cx-split-left .sf-cx-grid {
+	grid-template-columns: 1fr;
+}
+
+.sf-cx-split-right {
+	flex: 1;
+	min-width: 0;
+	background: var(--background-secondary);
+}

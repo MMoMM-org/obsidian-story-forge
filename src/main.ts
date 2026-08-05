@@ -131,51 +131,70 @@ export default class StoryForgePlugin extends Plugin {
 		// Register the main-area AnvilView (M5): Timeline rail + Plotlines list.
 		this.registerView(
 			WORKSPACE_VIEW_TYPE,
-			(leaf: WorkspaceLeaf) => new AnvilView(leaf, {
-				settings: {
-					getLinkClickAction: () => this.settings.linkClickAction,
-					getExcludedFolders: () => this.settings.excludedFolders,
-				},
-				codex: {
-					getCardByCollection: () => this.settings.cardByCollection,
-					onCardSelect: (collectionId, cardId) => {
-						// Operational state (CON-2) — never written to a note's frontmatter.
-						this.settings = {
-							...this.settings,
-							cardByCollection: { ...this.settings.cardByCollection, [collectionId]: cardId },
-						};
-						void this.saveSettings();
+			(leaf: WorkspaceLeaf) => {
+				// T5.1 discharges the 2026-07-31 "inspect is inert" decision: the
+				// seam is fed here, at the construction site, so the Anvil's
+				// inspect is visible in the wiring rather than only in a default.
+				// It resolves to THIS view's editor pane — no other leaf is
+				// opened, revealed or re-targeted (PRD/F2).
+				const view: AnvilView = new AnvilView(leaf, {
+					drill: (file) => { view.inspect(file); },
+					settings: {
+						getLinkClickAction: () => this.settings.linkClickAction,
+						getExcludedFolders: () => this.settings.excludedFolders,
 					},
-					// T4.6, S98 "Change tag": per-collection settings UI doesn't exist yet
-					// (Phase 7's Library owns it — SettingsTab.ts's Scope section comment).
-					// Until then, the closest real anchor is the plugin's own Settings tab.
-					onChangeTag: () => {
-						const setting = (
-							this.app as unknown as { setting?: { open?: () => void; openTabById?: (id: string) => void } }
-						).setting;
-						setting?.open?.();
-						setting?.openTabById?.(this.manifest.id);
+					editor: {
+						// ADR-33: the dock is a persisted setting, changed only by the
+						// pane's own dock tool — never by a resize.
+						getDock: () => this.settings.editorDock,
+						onDockChange: (dock) => {
+							// Operational state (CON-2) — never written to a note's frontmatter.
+							this.settings = { ...this.settings, editorDock: dock };
+							void this.saveSettings();
+						},
 					},
-				},
-				bases: {
-					// T4.6, ADR-36. Reads the cached registration outcome
-					// (registerCodexView, called below) + apiVersion — safe to call before
-					// that line runs textually because this is a getter, invoked only when
-					// the Codex actually renders, by which point onload has completed.
-					getCapability: () => getBasesCapability(this),
-					getDismissedHints: () => this.settings.dismissedHints,
-					onDismissHint: (hintId) => {
-						// Idempotent: a hint already dismissed is not appended again.
-						// Operational state (CON-2) — never written to a note's frontmatter.
-						if (this.settings.dismissedHints.includes(hintId)) return;
-						this.settings = {
-							...this.settings,
-							dismissedHints: [...this.settings.dismissedHints, hintId],
-						};
-						void this.saveSettings();
+					codex: {
+						getCardByCollection: () => this.settings.cardByCollection,
+						onCardSelect: (collectionId, cardId) => {
+							// Operational state (CON-2) — never written to a note's frontmatter.
+							this.settings = {
+								...this.settings,
+								cardByCollection: { ...this.settings.cardByCollection, [collectionId]: cardId },
+							};
+							void this.saveSettings();
+						},
+						// T4.6, S98 "Change tag": per-collection settings UI doesn't exist yet
+						// (Phase 7's Library owns it — SettingsTab.ts's Scope section comment).
+						// Until then, the closest real anchor is the plugin's own Settings tab.
+						onChangeTag: () => {
+							const setting = (
+								this.app as unknown as { setting?: { open?: () => void; openTabById?: (id: string) => void } }
+							).setting;
+							setting?.open?.();
+							setting?.openTabById?.(this.manifest.id);
+						},
 					},
-				},
-			}),
+					bases: {
+						// T4.6, ADR-36. Reads the cached registration outcome
+						// (registerCodexView, called below) + apiVersion — safe to call before
+						// that line runs textually because this is a getter, invoked only when
+						// the Codex actually renders, by which point onload has completed.
+						getCapability: () => getBasesCapability(this),
+						getDismissedHints: () => this.settings.dismissedHints,
+						onDismissHint: (hintId) => {
+							// Idempotent: a hint already dismissed is not appended again.
+							// Operational state (CON-2) — never written to a note's frontmatter.
+							if (this.settings.dismissedHints.includes(hintId)) return;
+							this.settings = {
+								...this.settings,
+								dismissedHints: [...this.settings.dismissedHints, hintId],
+							};
+							void this.saveSettings();
+						},
+					},
+				});
+				return view;
+			},
 		);
 
 		// Ribbon icon — open the Workbench on click. "Workbench" is a registered
