@@ -452,12 +452,10 @@ describe("editor pane — docks and tools (T5.1)", () => {
 
 			click(bodyOf(view).querySelector(`[data-sf-link="${s1.path}"]`));
 
-			// `editorDock` is persisted, so docking right in the Codex and then
-			// switching tab lands here. `.sf-cx-split-left` is 236px wide because
-			// it holds a column of Codex CARDS (S99) — applied to a Timeline or a
-			// Board it crushes the whole layout into 236px while the pane takes
-			// the rest, which is the priority inverted. These four get their own
-			// split whose left column grows.
+			// These four must never get the Codex's fixed card column — the
+			// reasoning lives with the 236px itself, on `.sf-cx-split-left` in
+			// styles.css. Reachable because `editorDock` persists: dock right in
+			// the Codex, click Timeline, land here.
 			expect(bodyOf(view).querySelector(".sf-cx-split-left")).toBeNull();
 			expect(bodyOf(view).querySelector(".sf-cx-split")).toBeNull();
 			expect(bodyOf(view).querySelector(`.sf-ws-split-left [data-sf-link="${s1.path}"]`)).not.toBeNull();
@@ -591,11 +589,17 @@ describe("editor pane — edges (T5.1)", () => {
 		// The attribute is a DOM string, so it is narrowed rather than trusted
 		// (CON-8). An unknown value must do nothing at all — not close, not
 		// dock, not throw.
-		const bogus = pane(view)!.ownerDocument.createElement("span");
+		const before = pane(view);
+		const bogus = before!.ownerDocument.createElement("span");
 		bogus.setAttribute("data-sf-ed-tool", "self-destruct");
-		pane(view)!.appendChild(bogus);
+		before!.appendChild(bogus);
 		click(bogus);
 
+		// Node IDENTITY, not just state: dropping the narrowing leaves the
+		// switch matching nothing but still runs `_render()`, which rebuilds the
+		// body — same path, different node. Asserting the path alone cannot see
+		// that, so it is the wasted re-render this pins.
+		expect(pane(view)).toBe(before);
 		expect(panePath(view)).toBe(mara.path);
 		expect(dock.changes).toEqual([]);
 	});
@@ -623,11 +627,15 @@ describe("editor pane — edges (T5.1)", () => {
 		const view = await openAnvil(app);
 		inspectMara(view);
 
-		// The tools carry role="button"/tabindex="0" and claim parity with the
-		// collection pill; the host's Enter/Space router is what delivers it.
-		tool(view, "close")!.dispatchEvent(
-			new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-		);
+		// A synthetic keydown reaches the delegated router whether or not the
+		// element can be focused, so the affordance has to be asserted on the
+		// markup as well — otherwise deleting `tabindex="0"` leaves a tool that
+		// no keyboard user can reach and the whole suite stays green.
+		const close = tool(view, "close")!;
+		expect(close.getAttribute("tabindex")).toBe("0");
+		expect(close.getAttribute("role")).toBe("button");
+
+		close.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 
 		expect(pane(view)).toBeNull();
 	});

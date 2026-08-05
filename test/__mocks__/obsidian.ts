@@ -7,8 +7,11 @@
  * new Obsidian API usage.
  *
  * Key behaviours:
- * - augmentEl(): mounts Obsidian's `createEl/createDiv/createSpan/empty/
- *   addClass/removeClass/toggleClass` helpers onto plain DOM elements.
+ * - Obsidian's element helpers (`createEl/createDiv/createSpan/appendText/
+ *   empty/addClass/removeClass/toggleClass`) are installed ONCE on
+ *   `HTMLElement.prototype`, the way the real app provides them, so every
+ *   element has them however it was created. `augmentEl()` is a retained
+ *   no-op kept for its many call sites.
  * - Setting + UI components (Text/Toggle/Button/Dropdown) attach real DOM
  *   nodes and fire real events, so tests can dispatch clicks and inputs
  *   against `inputEl` / `toggleEl` / `buttonEl` / `selectEl`.
@@ -59,53 +62,113 @@ if (typeof (globalThis as Record<string, unknown>).activeWindow === "undefined")
  * `augmentEl` is kept: it is exported and widely used, and re-attaching the
  * same helpers per instance is harmless now that the prototype carries them.
  */
+/**
+ * The subset of Obsidian's `DomElementInfo` this mock implements, plus the two
+ * members it deliberately REFUSES (see `applyElementInfo`).
+ */
+interface MockDomElementInfo {
+	cls?: string | string[];
+	text?: string;
+	type?: string;
+	placeholder?: string;
+	value?: string;
+	href?: string;
+	attr?: Record<string, string>;
+	title?: string;
+	/** Not implemented — throws. Would otherwise change DOM ORDER silently. */
+	prepend?: boolean;
+	/** Not implemented — throws. Would otherwise change the PARENT silently. */
+	parent?: Node;
+}
+
+/**
+ * Apply Obsidian's `DomElementInfo` to a freshly created child.
+ *
+ * Two deliberate choices, both about failing loudly rather than diverging from
+ * a vault:
+ *
+ *  - **`cls` accepts a string OR an array**, and an array is joined with a
+ *    SPACE. Ignoring the array form produced `class="a,b"` here and `"a b"` in
+ *    Obsidian — a difference every `querySelector(".a")` in the suite would
+ *    have silently disagreed about.
+ *  - **`prepend`, `parent` and the trailing `callback` throw.** They are the
+ *    dangerous ones precisely because ignoring them fails QUIETLY: the element
+ *    still appears, just in the wrong place or the wrong parent, so tests pass
+ *    while the vault renders something else. No `src/` module uses them today,
+ *    which is exactly why refusing them costs nothing now.
+ */
+function applyElementInfo(child: HTMLElement, info?: MockDomElementInfo | string): void {
+	if (info === undefined) return;
+	if (typeof info === "string") {
+		// Obsidian's shorthand: `createDiv("my-cls")` === `{ cls: "my-cls" }`.
+		child.className = info;
+		return;
+	}
+	if (info.prepend !== undefined) {
+		throw new Error("obsidian mock: DomElementInfo.prepend is not implemented (it would fail quietly — implement it here before using it)");
+	}
+	if (info.parent !== undefined) {
+		throw new Error("obsidian mock: DomElementInfo.parent is not implemented (it would fail quietly — implement it here before using it)");
+	}
+	if (info.cls !== undefined) child.className = Array.isArray(info.cls) ? info.cls.join(" ") : info.cls;
+	if (info.text !== undefined) child.textContent = info.text;
+	if (info.type !== undefined) (child as HTMLInputElement).type = info.type;
+	if (info.placeholder !== undefined) (child as HTMLInputElement).placeholder = info.placeholder;
+	if (info.value !== undefined) (child as HTMLInputElement).value = info.value;
+	if (info.href !== undefined) (child as HTMLAnchorElement).href = info.href;
+	if (info.title !== undefined) child.title = info.title;
+	if (info.attr !== undefined) {
+		for (const [k, v] of Object.entries(info.attr)) child.setAttribute(k, v);
+	}
+}
+
+/** The real API takes a trailing callback; the mock refuses it rather than dropping it. */
+function rejectCallback(callback: unknown): void {
+	if (callback !== undefined) {
+		throw new Error("obsidian mock: the createEl/createDiv/createSpan callback is not implemented (it would fail quietly — implement it here before using it)");
+	}
+}
+
 function installElementHelpers(): void {
 	const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
 	if (proto["createDiv"] !== undefined) return;
 
-	proto["createEl"] = function (
+	const create = function (
 		this: HTMLElement,
-		childTag: string,
-		opts?: {
-			text?: string;
-			cls?: string;
-			type?: string;
-			placeholder?: string;
-			value?: string;
-			href?: string;
-			attr?: Record<string, string>;
-			title?: string;
-		},
+		tag: string,
+		info?: MockDomElementInfo | string,
+		callback?: unknown,
 	): HTMLElement {
-		const child = document.createElement(childTag);
-		if (opts?.text) child.textContent = opts.text;
-		if (opts?.cls) child.className = opts.cls;
-		if (opts?.type) (child as HTMLInputElement).type = opts.type;
-		if (opts?.placeholder) (child as HTMLInputElement).placeholder = opts.placeholder;
-		if (opts?.value) (child as HTMLInputElement).value = opts.value;
-		if (opts?.href) (child as HTMLAnchorElement).href = opts.href;
-		if (opts?.title) child.title = opts.title;
-		if (opts?.attr) {
-			for (const [k, v] of Object.entries(opts.attr)) child.setAttribute(k, v);
-		}
+		rejectCallback(callback);
+		const child = document.createElement(tag);
+		applyElementInfo(child, info);
 		this.appendChild(child);
 		return child;
 	};
 
-	proto["createDiv"] = function (this: HTMLElement, opts?: { cls?: string; text?: string }): HTMLElement {
-		const div = document.createElement("div");
-		if (opts?.cls) div.className = opts.cls;
-		if (opts?.text) div.textContent = opts.text;
-		this.appendChild(div);
-		return div;
+	proto["createEl"] = function (
+		this: HTMLElement,
+		tag: string,
+		info?: MockDomElementInfo | string,
+		callback?: unknown,
+	): HTMLElement {
+		return create.call(this, tag, info, callback);
 	};
 
-	proto["createSpan"] = function (this: HTMLElement, opts?: { cls?: string; text?: string }): HTMLElement {
-		const span = document.createElement("span");
-		if (opts?.cls) span.className = opts.cls;
-		if (opts?.text) span.textContent = opts.text;
-		this.appendChild(span);
-		return span;
+	proto["createDiv"] = function (
+		this: HTMLElement,
+		info?: MockDomElementInfo | string,
+		callback?: unknown,
+	): HTMLElement {
+		return create.call(this, "div", info, callback);
+	};
+
+	proto["createSpan"] = function (
+		this: HTMLElement,
+		info?: MockDomElementInfo | string,
+		callback?: unknown,
+	): HTMLElement {
+		return create.call(this, "span", info, callback);
 	};
 
 	proto["appendText"] = function (this: HTMLElement, text: string): void {
@@ -748,77 +811,24 @@ export class Setting {
 	});
 }
 
-// Extend HTMLElement with Obsidian-specific DOM helpers used by setting tabs.
-// Exported so component tests (e.g. HeaderSection) can build augmented
-// containers without instantiating a full PluginSettingTab.
+/**
+ * Retained no-op: every element already carries Obsidian's helpers, because
+ * they are installed on `HTMLElement.prototype` above (as the real app does).
+ *
+ * The body used to attach the same eight helpers as OWN properties. Deleting
+ * it changes nothing observable — the whole suite is green either way — and
+ * keeping it would mean two copies of one contract, differing only in
+ * `this`-binding versus closure, applied to disjoint sets of elements
+ * depending on where each one came from (`makeObsidianEl`, `Setting.descEl`
+ * and `PluginSettingTab.containerEl` used the own-property copy; everything
+ * else the prototype copy). Fixing one and not the other — say, adding the
+ * array-`cls` support the real API has — would make the mock behave two ways
+ * invisibly. That is the failure this file just removed one layer up.
+ *
+ * The export and signature stay: it has many call sites, and reading
+ * `augmentEl(document.createElement("div"))` still says the right thing.
+ */
 export function augmentEl(el: HTMLElement): HTMLElement {
-	const any = el as unknown as Record<string, unknown>;
-
-	any["createEl"] = (
-		childTag: string,
-		opts?: {
-			text?: string;
-			cls?: string;
-			type?: string;
-			placeholder?: string;
-			value?: string;
-			href?: string;
-			attr?: Record<string, string>;
-			title?: string;
-		},
-	): HTMLElement => {
-		const child = augmentEl(document.createElement(childTag));
-		if (opts?.text) child.textContent = opts.text;
-		if (opts?.cls) child.className = opts.cls;
-		if (opts?.type) (child as HTMLInputElement).type = opts.type;
-		if (opts?.placeholder)
-			(child as HTMLInputElement).placeholder = opts.placeholder;
-		if (opts?.value) (child as HTMLInputElement).value = opts.value;
-		if (opts?.href) (child as HTMLAnchorElement).href = opts.href;
-		if (opts?.title) child.title = opts.title;
-		if (opts?.attr) {
-			for (const [k, v] of Object.entries(opts.attr)) child.setAttribute(k, v);
-		}
-		el.appendChild(child);
-		return child;
-	};
-
-	any["createDiv"] = (opts?: { cls?: string; text?: string }): HTMLElement => {
-		const div = augmentEl(document.createElement("div"));
-		if (opts?.cls) div.className = opts.cls;
-		if (opts?.text) div.textContent = opts.text;
-		el.appendChild(div);
-		return div;
-	};
-
-	any["createSpan"] = (opts?: { cls?: string; text?: string }): HTMLElement => {
-		const span = augmentEl(document.createElement("span"));
-		if (opts?.cls) span.className = opts.cls;
-		if (opts?.text) span.textContent = opts.text;
-		el.appendChild(span);
-		return span;
-	};
-
-	any["appendText"] = (text: string): void => {
-		el.appendChild(document.createTextNode(text));
-	};
-
-	any["empty"] = (): void => {
-		while (el.firstChild) el.removeChild(el.firstChild);
-	};
-
-	any["addClass"] = (...classes: string[]): void => {
-		el.classList.add(...classes);
-	};
-
-	any["removeClass"] = (...classes: string[]): void => {
-		el.classList.remove(...classes);
-	};
-
-	any["toggleClass"] = (cls: string, force?: boolean): void => {
-		el.classList.toggle(cls, force);
-	};
-
 	return el;
 }
 

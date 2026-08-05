@@ -3194,10 +3194,14 @@ body {
  * clip the Card selector's absolutely-positioned dropdown, and four pills plus
  * the selector do not fit 236px.
  *
- * These classes are the CODEX's and belong to it alone. The fixed 236px is
- * sized for a column of cards; the other four layouts dock the pane through
- * `.sf-ws-split*` below, whose left column grows instead — a Timeline squeezed
- * into a card column while the editor takes the rest is the priority inverted.
+ * These classes are the CODEX's and belong to it alone. THE 236px IS SIZED FOR
+ * A COLUMN OF CARDS — that is the whole reason the other four layouts must not
+ * borrow it: a Timeline, Plotgrid, Plotlines or Board crushed into a card
+ * column while the editor takes the rest is the priority inverted, and
+ * `editorDock` persisting makes that one tab click away. They dock through
+ * `.sf-ws-split*` below, whose left column grows instead. This is the single
+ * statement of that rule; `AnvilView._render` and `editorPane.test.ts` point
+ * here rather than restating it.
  */
 .sf-cx-split {
 	display: flex;
@@ -3229,7 +3233,6 @@ body {
 .sf-cx-split-right {
 	flex: 1;
 	min-width: 0;
-	background: var(--background-secondary);
 }
 
 

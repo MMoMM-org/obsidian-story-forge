@@ -521,11 +521,8 @@ export class AnvilView extends ItemView {
 		// the Card selector's dropdown against that column's `overflow: auto`.
 		// The generic body-level split below therefore serves the other four
 		// layouts, none of which any mockup covers — and it has its OWN classes
-		// (`sf-ws-split*`), not the Codex's. `.sf-cx-split-left` is 236px wide
-		// because it holds a column of CARDS; a Timeline, Plotgrid, Plotlines or
-		// Board crushed into 236px while the pane takes the rest is the priority
-		// inverted, and `editorDock` being persisted makes that one tab click
-		// away from S99.
+		// (`sf-ws-split*`), never the Codex's fixed card column. Why they must
+		// not share: see `.sf-cx-split-left` in styles.css.
 		const codexOwnsSplit = paneMode === "right" && this._layout === "codex";
 		let layoutHost = body;
 		let paneHost = body;
