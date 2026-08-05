@@ -45,7 +45,7 @@ finishes the job by deleting the hardcoded lists and replacing the `portrait`/`i
 
 The editor the withdrawn "note panel" surface was actually reaching for.
 
-- [ ] **T5.1 Pane shell, docks and tools** `[activity: frontend-ui]`
+- [x] **T5.1 Pane shell, docks and tools** `[activity: frontend-ui]`
 
   > **Also owns the Anvil's inert `inspect` (decided 2026-07-31).** `AnvilView` defaults `_drill`
   > to a no-op and `src/main.ts` constructs it with `getLinkClickAction` only — no `drill` is
@@ -69,19 +69,19 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      unfed.
   4. Validate: unit tests; stylelint for `sf-ed-*`; types.
   5. Success:
-     - [ ] Three docks, no automatic switching `[ref: SDD/AC — PRD F5]`
-     - [ ] `AnvilView`'s `drill` seam is wired to the editor pane and injected at construction —
+     - [x] Three docks, no automatic switching `[ref: SDD/AC — PRD F5]`
+     - [x] `AnvilView`'s `drill` seam is wired to the editor pane and injected at construction —
            a name click in Timeline / Plotgrid / Plotlines / Board is no longer a no-op
            `[ref: SDD/ADR-28]`
-     - [ ] **PRD F2's "inspect in the Anvil is shown within the Anvil (the editor pane) and no
+     - [x] **PRD F2's "inspect in the Anvil is shown within the Anvil (the editor pane) and no
            other leaf is opened, revealed or re-targeted" AC is discharged here**, having been
            deferred from T2.5 by decision `[ref: PRD/F2 AC]`
-     - [ ] **Switching collection closes or retargets an open editor pane — it never shows a note
+     - [x] **Switching collection closes or retargets an open editor pane — it never shows a note
            from the previous collection**, with a test that fails if pane state survives a
            collection switch `[ref: PRD/F3 AC]`. Added 2026-08-04: this F3 criterion had **no
            owner**; it is vacuously true while `_render` empties the body wholesale, and this task
            is the one that introduces pane state capable of breaking it.
-     - [ ] A plain click on a **Codex card body** inspects — added 2026-08-04, since Phase 4 made
+     - [x] A plain click on a **Codex card body** inspects — added 2026-08-04, since Phase 4 made
            the `cardBody` marker reachable for the first time. The 2026-07-31 inert-inspect decision
            enumerates only Timeline / Plotgrid / Plotlines / Board and predates the grid, so the
            Codex would otherwise fall through the gap: today the modifier-click → open-note path
