@@ -87,6 +87,48 @@ function click(el: Element | null): void {
 	el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 }
 
+describe("main.ts — the FileClasses folder wiring (T5.3)", () => {
+	it("renders the fields declared in the folder the SETTING names", async () => {
+		const { plugin, app } = await makePlugin();
+		const fcInCustomFolder = createMockTFile({
+			basename: "fc-character",
+			path: "90 Elsewhere/fc-character.md",
+		});
+		const fcCache: CachedMetadata = createMockCachedMetadata({
+			frontmatter: {
+				fieldsOrder: ["f-role"],
+				fields: [{ id: "f-role", name: "role", type: "Input" }],
+			},
+		});
+		const noteCache: CachedMetadata = createMockCachedMetadata({
+			frontmatter: { tags: ["canon/character"], fileClass: "fc-character", role: "protagonist" },
+		});
+		vi.mocked(app.metadataCache.getFileCache).mockImplementation((f) =>
+			f === mara ? noteCache : f === fcInCustomFolder ? fcCache : null,
+		);
+		vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([mara, fcInCustomFolder]);
+		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p) =>
+			p === mara.path ? mara : p === fcInCustomFolder.path ? fcInCustomFolder : null,
+		);
+		app.workspace.getActiveFile = vi.fn(() => null);
+		app.workspace.openLinkText = vi.fn(async () => {});
+		await plugin.onload();
+		plugin.settings = { ...plugin.settings, fileClassesFolder: "90 Elsewhere" };
+
+		const view = await openAnvil(plugin, app);
+		click(bodyOf(view).querySelector(`[data-sf-link="${mara.path}"]`));
+
+		// The FileClass lives nowhere near the default folder, so a hardcoded
+		// default finds no declaration and the pane falls back to the note's own
+		// keys — which would NOT include a control seeded from `role`'s
+		// declaration. Reading `.value` (not the attribute — assigning `.value`
+		// never reflects to it) is what proves the chain resolved.
+		const role = bodyOf(view).querySelector<HTMLInputElement>('[data-sf-ed-field="role"] input');
+		expect(role?.value).toBe("protagonist");
+		expect(bodyOf(view).querySelector(".sf-ed-sec-label")?.textContent).toBe("Character");
+	});
+});
+
 describe("main.ts — the real editor pane wiring (T5.1)", () => {
 	it("inspects within the Anvil on a plain click, opening no other leaf", async () => {
 		const { plugin, app } = await makePlugin();

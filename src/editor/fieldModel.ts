@@ -22,6 +22,7 @@
 
 import type { FieldType, FileClassField, ParsedFileClass } from "fileclass/fileClassTypes";
 import { widthOf } from "editor/uiHints";
+import { isGeneratedFileClass } from "editor/generatedFileClasses";
 
 /** A single rendered field: its control type, its selectable values (if any), and its width. */
 export interface FieldDef {
@@ -35,26 +36,39 @@ export interface FieldDef {
 /**
  * Where a section's fields came from.
  *
- * `"builtin"` — every section built from a resolved FileClass chain link.
- * `ParsedFileClass` carries no provenance flag (it does not know which
- * FileClass files ship with the plugin versus which a user authored), so
- * this pure layer cannot yet distinguish "ours" from "the user's own
- * FileClass" — see this task's report for the reasoning. `"other"` — tier 2
- * (no chain at all) and tier 3 (the trailing "Other properties" section),
- * neither of which is backed by a FileClass declaration.
+ * `"builtin"` — a FileClass the plugin generates (`generatedFileClasses.ts`).
+ * `"user"` — a FileClass the user wrote, including one that extends ours; S103
+ * exists to show these as visibly theirs, so collapsing the two would remove
+ * the whole point of that figure. `"other"` — tier 2 (no chain at all) and
+ * tier 3 (the trailing "Other properties" section), neither of which is backed
+ * by a FileClass declaration at all.
+ *
+ * Provenance cannot come from `ParsedFileClass` — metadata-menu's format has
+ * nowhere to put it, and a key of our own would be dropped the first time
+ * metadata-menu rewrote the file — so it comes from the generated-name set,
+ * which a drift test pins to `schema/*.json` (T5.3).
  */
-export type FieldSectionOrigin = "builtin" | "other";
+export type FieldSectionOrigin = "builtin" | "user" | "other";
 
 export interface FieldSection {
 	/**
-	 * The raw FileClass name (e.g. `"fc-character"`), not a display-ready
-	 * title — there is no separate "title" field anywhere in the real
-	 * generated FileClass frontmatter to draw one from. Prettifying this
-	 * (e.g. "fc-character" -> "Character") is deliberately left to a later,
-	 * render-facing layer (`editorPane.ts`), not this pure model.
+	 * The display label (OQ-1, resolved 2026-08-05): the FileClass's own
+	 * `title` when it declares one, otherwise derived from the file name
+	 * (`fc-character` -> "Character", `fc-character-custom1` -> "Character
+	 * custom1").
+	 *
+	 * Resolved HERE rather than in the renderer, reversing the note this
+	 * comment used to carry: ADR-31 says the editor renders a `FieldModel` and
+	 * never reads FileClasses itself, so the layer that knows what `fc-` means
+	 * has to be this one. The fallback is not a nicety — no FileClass the
+	 * plugin generates carries a `title` today, so it is the live path for
+	 * every shipped section, and a metadata-menu that drops the key degrades
+	 * to it rather than to a blank heading.
 	 */
 	label: string;
 	source: string;
+	/** What this section's FileClass extends, when it extends one (S102/S103's source line). */
+	extends?: string;
 	origin: FieldSectionOrigin;
 	fields: FieldDef[];
 }
@@ -65,6 +79,22 @@ export interface FieldModel {
 
 /** Field name -> presentation override. Lives in our `schema/*.json`, never in a FileClass file. */
 export type UiHints = Readonly<Record<string, "wide">>;
+
+/**
+ * Keys that classify a note rather than describe it, and so never render as
+ * editable fields (T5.3).
+ *
+ * `tags` decides which collection a note belongs to and `fileClass` decides
+ * which fields it has — editing either from the editor would change what the
+ * pane itself is, and a typo in `fileClass` would silently empty it. S103's
+ * *Other properties* section shows exactly one key (`scratch`) for a note that
+ * certainly carries tags, which is the same call made in the figure.
+ *
+ * Excluded only from the UNDECLARED sections: a FileClass that genuinely
+ * declares `tags` as a field still renders it, because then it is that
+ * FileClass's business, not ours.
+ */
+const CLASSIFICATION_KEYS: ReadonlySet<string> = new Set(["tags", "fileClass"]);
 
 const OTHER_PROPERTIES_LABEL = "Other properties";
 const TIER2_LABEL = "Properties";
@@ -114,7 +144,30 @@ function buildChainSection(fileClass: ParsedFileClass, uiHints: UiHints, seen: S
 		seen.add(field.name);
 		fields.push(toFieldDef(field, uiHints));
 	}
-	return { label: fileClass.name, source: `${fileClass.name}.md`, origin: "builtin", fields };
+	const section: FieldSection = {
+		label: sectionLabel(fileClass),
+		source: `${fileClass.name}.md`,
+		origin: isGeneratedFileClass(fileClass.name) ? "builtin" : "user",
+		fields,
+	};
+	if (fileClass.extends !== undefined) section.extends = fileClass.extends;
+	return section;
+}
+
+/**
+ * OQ-1: the FileClass's own `title`, else the file name made readable —
+ * `fc-character` -> "Character", `fc-character-custom1` -> "Character custom1".
+ *
+ * Only the leading `fc-` is stripped; the rest becomes one sentence-cased
+ * phrase. A user FileClass called `fc-isekai` reads "Isekai" without needing a
+ * title key at all, and one that wants "Isekai" from `fc-character-custom1`
+ * declares it.
+ */
+function sectionLabel(fileClass: ParsedFileClass): string {
+	if (fileClass.title !== undefined) return fileClass.title;
+	const words = fileClass.name.replace(/^fc-/, "").replace(/[-_]+/g, " ").trim();
+	if (words === "") return fileClass.name;
+	return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 function toFieldDef(field: FileClassField, uiHints: UiHints): FieldDef {
@@ -130,7 +183,8 @@ function toFieldDef(field: FileClassField, uiHints: UiHints): FieldDef {
 // ---------------------------------------------------------------------------
 
 function buildTier2Section(frontmatter: Record<string, unknown> | undefined): FieldSection {
-	const fields = Object.entries(frontmatter ?? {}).map(([name, value]) => {
+	const declared = Object.entries(frontmatter ?? {}).filter(([name]) => !CLASSIFICATION_KEYS.has(name));
+	const fields = declared.map(([name, value]) => {
 		const type = inferTypeFromValue(value);
 		return { name, type, width: widthOf({ type }) };
 	});
@@ -164,7 +218,9 @@ function buildOtherPropertiesSection(
 	frontmatter: Record<string, unknown> | undefined,
 	declared: ReadonlySet<string>,
 ): FieldSection | undefined {
-	const extraNames = Object.keys(frontmatter ?? {}).filter((name) => !declared.has(name));
+	const extraNames = Object.keys(frontmatter ?? {}).filter(
+		(name) => !declared.has(name) && !CLASSIFICATION_KEYS.has(name),
+	);
 	if (extraNames.length === 0) return undefined;
 
 	const fields = extraNames.map((name) => ({ name, type: "Unknown" as const, width: widthOf({ type: "Unknown" }) }));

@@ -51,7 +51,12 @@ export interface PluginSettings {
 	dismissedHints: string[];
 }
 
-const DEFAULT_FILE_CLASSES_FOLDER = "00 Meta/FileClasses";
+/**
+ * Shipped default for `fileClassesFolder`. Exported since T5.3: the Anvil's
+ * editor pane needs the same default when a host wires no getter, and two
+ * copies of a path string is exactly how they drift.
+ */
+export const DEFAULT_FILE_CLASSES_FOLDER = "00 Meta/FileClasses";
 const DEFAULT_EDITOR_DOCK: PluginSettings["editorDock"] = "bottom";
 
 /**

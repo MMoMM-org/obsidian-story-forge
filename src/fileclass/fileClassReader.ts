@@ -134,7 +134,19 @@ function tryParseFileClass(
 
 	const parsed: ParsedFileClass = { name, fields };
 	if (extendsName !== undefined) parsed.extends = extendsName;
+	const title = readTitle(record["title"]);
+	if (title !== undefined) parsed.title = title;
 	return parsed;
+}
+
+/**
+ * The FileClass's display title (OQ-1). A blank one counts as absent, so the
+ * label falls back to the file name rather than rendering an empty heading —
+ * metadata-menu writes these files through its own UI and an emptied key is a
+ * likelier state than a missing one.
+ */
+function readTitle(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
 }
 
 /** Parse a single `fields[]` entry. Undefined = unusable (no stable id/name) — skip just this field. */

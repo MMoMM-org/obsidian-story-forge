@@ -147,6 +147,9 @@ export default class StoryForgePlugin extends Plugin {
 						// ADR-33: the dock is a persisted setting, changed only by the
 						// pane's own dock tool — never by a resize.
 						getDock: () => this.settings.editorDock,
+						// T5.3: where the pane looks for the field declarations it
+						// renders. Read live, so changing the setting needs no reopen.
+						getFileClassesFolder: () => this.settings.fileClassesFolder,
 						onDockChange: (dock) => {
 							// Operational state (CON-2) — never written to a note's frontmatter.
 							this.settings = { ...this.settings, editorDock: dock };

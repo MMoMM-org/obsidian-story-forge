@@ -48,6 +48,14 @@ export interface FileClassField {
 export interface ParsedFileClass {
 	/** The FileClass's own name (its file basename, e.g. "fc-character-fantasy"). */
 	name: string;
+	/**
+	 * The FileClass's own display title, when it declares one (OQ-1, resolved
+	 * 2026-08-05). Optional by decision, not by accident: metadata-menu writes
+	 * these files through its own UI and may drop a key it does not recognise,
+	 * and every FileClass this plugin generates today carries none — so the
+	 * label falls back to the file name and never vanishes.
+	 */
+	title?: string;
 	/** The FileClass this one extends, if any — read for chain traversal, not exposed further. */
 	extends?: string;
 	/** Fields in render order: `fieldsOrder` first, then any declared field `fieldsOrder` omitted. */

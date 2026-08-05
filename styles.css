@@ -2042,7 +2042,27 @@ body {
 	color: var(--text-on-accent);
 }
 
+/*
+ * The Anvil shell is a flex column so the body can be given the remaining
+ * height (T5.3). Two things depend on it and neither worked before:
+ * `.sf-ed--fullscreen` filling the tab body (S100), and a dock-right column
+ * scrolling independently instead of both columns growing to the taller one.
+ *
+ * PENDING REAL-VAULT VERIFICATION (T5.6): jsdom computes no CSS, so no test
+ * here can see the result — a jsdom assertion would pass while the vault was
+ * broken. Conservative on purpose: only the shell and the body are touched, and
+ * no layout is given an explicit height it did not have.
+ */
+.sf-ws {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
 .sf-ws-body {
+	flex: 1;
+	min-height: 0;
 	padding: 14px 16px 18px;
 	overflow: auto;
 }
@@ -3244,6 +3264,7 @@ body {
  */
 .sf-ws-split {
 	display: flex;
+	flex: 1;
 	gap: 12px;
 	min-height: 0;
 }
@@ -3378,4 +3399,90 @@ body {
 	border-radius: 10px;
 	padding: 1px 5px;
 	font-size: 9.5px;
+}
+
+/*
+ * Fullscreen (S100) fills the tab body, now that `.sf-ws-body` is a flex
+ * column. T5.1 removed this rule rather than leave it inert; it returns with
+ * the shell change that makes it mean something. Also pending the real-vault
+ * check at T5.6.
+ */
+.sf-ed--fullscreen {
+	flex: 1;
+	min-height: 0;
+}
+
+/*
+ * Sections from the FileClass chain (T5.3, mockups S102/S103).
+ *
+ * The heading is a real `<h3>` — the SDD's accessibility line — styled to the
+ * figure's flat label + source + rule. The three origins differ in colour here
+ * AND in words in the source line (`editorPane.ts`), because colour alone says
+ * nothing to a screen reader or a colour-blind reader.
+ */
+.sf-ed-sec {
+	display: flex;
+	grid-column: 1 / -1;
+	align-items: center;
+	gap: 8px;
+	margin: 9px 0 1px;
+	font-size: inherit;
+	font-weight: inherit;
+}
+
+.sf-ed-sec:first-child {
+	margin-top: 0;
+}
+
+.sf-ed-sec-label {
+	color: var(--text-muted);
+	letter-spacing: 0.05em;
+	font-size: 10px;
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+}
+
+.sf-ed-sec--user .sf-ed-sec-label {
+	color: var(--text-accent);
+}
+
+.sf-ed-sec--other .sf-ed-sec-label {
+	color: var(--text-faint);
+}
+
+.sf-ed-sec-src {
+	border-radius: var(--radius-s);
+	background: var(--background-secondary-alt);
+	padding: 1px 5px;
+	color: var(--text-faint);
+	font-size: 9.5px;
+}
+
+.sf-ed-sec-ln {
+	flex: 1;
+	background: var(--background-modifier-border);
+	height: 1px;
+}
+
+/* One label per field, in the grid's narrow column (S102's `<label>`). */
+.sf-ed-label {
+	align-self: center;
+	overflow: hidden;
+	color: var(--text-faint);
+	text-overflow: ellipsis;
+	font-size: 10.5px;
+}
+
+/*
+ * The width rule, applied (F6 / ADR-32). `.sf-ed-grid` is four columns —
+ * label, field, label, field — so a half-width field takes one cell and a
+ * full-width one runs to the end of the row, the mockup's `.span2`. The
+ * narrow (dock-right) grid has one pair, so there is nothing to span.
+ */
+.sf-ed-f--full {
+	grid-column: span 3;
+}
+
+.sf-ed-grid--narrow .sf-ed-f--full {
+	grid-column: span 1;
 }

@@ -86,9 +86,14 @@ import {
 	EditorPaneStore,
 	isEditorTool,
 	renderEditorPane,
+	renderFieldSections,
 	type EditorDock,
 	type EditorPaneMode,
 } from "editor/editorPane";
+import { buildFieldModel } from "editor/fieldModel";
+import { resolveFileClassChain } from "fileclass/fileClassReader";
+import { createFileClassSource, type FileClassSource } from "fileclass/fileClassVault";
+import { DEFAULT_FILE_CLASSES_FOLDER } from "types/index";
 import { createAssetResolver } from "panel/assetResolver";
 import type { BasesCapability } from "bases/basesCapability";
 
@@ -187,6 +192,12 @@ export interface AnvilViewOpts {
 		 */
 		getDock?: () => EditorDock;
 		/**
+		 * Reads the live FileClasses folder (`PluginSettings.fileClassesFolder`),
+		 * where the pane looks for the field declarations it renders (T5.3).
+		 * Defaults to the shipped `00 Meta/FileClasses`.
+		 */
+		getFileClassesFolder?: () => string;
+		/**
 		 * Persist a dock change — write-through to settings only, never to a
 		 * note's frontmatter (CON-2). Defaults to a no-op, which makes the dock
 		 * effectively fixed for a host that has not wired persistence: better
@@ -230,6 +241,8 @@ export class AnvilView extends ItemView {
 	private readonly _codexSelection = new CodexSelectionStore();
 	/** Which note the editor pane is showing, and whether it is fullscreen (T5.1). */
 	private readonly _editor = new EditorPaneStore();
+	/** Reads FileClasses out of the configured folder for the pane (T5.3). Built in onOpen. */
+	private _fileClasses: FileClassSource | null = null;
 	/** Vault-backed note index feeding the pure collection resolver. Built in onOpen. */
 	private _noteIndex: CodexNoteIndex | null = null;
 	private _scopeKey = "none";
@@ -253,6 +266,7 @@ export class AnvilView extends ItemView {
 	private readonly onDismissHint: (hintId: string) => void;
 	private readonly onChangeTag: (collectionId: string) => void;
 	private readonly getEditorDock: () => EditorDock;
+	private readonly getFileClassesFolder: () => string;
 	private readonly onEditorDockChange: (dock: EditorDock) => void;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
@@ -285,6 +299,8 @@ export class AnvilView extends ItemView {
 		this.onDismissHint = opts?.bases?.onDismissHint ?? ((): void => {});
 		this.onChangeTag = opts?.codex?.onChangeTag ?? ((): void => {});
 		this.getEditorDock = opts?.editor?.getDock ?? ((): EditorDock => "bottom");
+		this.getFileClassesFolder =
+			opts?.editor?.getFileClassesFolder ?? ((): string => DEFAULT_FILE_CLASSES_FOLDER);
 		this.onEditorDockChange = opts?.editor?.onDockChange ?? ((): void => {});
 		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
 	}
@@ -374,6 +390,9 @@ export class AnvilView extends ItemView {
 		// Note index for the Codex tab. Its metadataCache subscriptions go through
 		// this view's registerEvent, so unload releases them (CON-4).
 		this._noteIndex = createNoteIndex(this.app, (ref) => { this.registerEvent(ref); });
+		// The pane's field declarations (T5.3). Reads the folder through a getter
+		// so a settings change needs no reopen, same as every other live setting.
+		this._fileClasses = createFileClassSource(this.app, () => this.getFileClassesFolder());
 
 		// One delegated click router on the persistent contentEl (survives body.empty()).
 		this.registerDomEvent(ce, "click", (e: MouseEvent) => {
@@ -426,6 +445,7 @@ export class AnvilView extends ItemView {
 		this._codexSelection.clear();
 		this._editor.clear();
 		this._noteIndex = null;
+		this._fileClasses = null;
 		this.contentEl.empty();
 	}
 
@@ -632,10 +652,35 @@ export class AnvilView extends ItemView {
 		const path = this._editor.path;
 		if (path === null) return;
 		const file = this.app.vault.getAbstractFileByPath(path);
-		renderEditorPane(host, {
+		const pane = renderEditorPane(host, {
 			path,
 			title: file instanceof TFile ? file.basename : path,
 			mode,
+		});
+		if (file instanceof TFile) this._renderFields(pane.fieldsEl, file);
+	}
+
+	/**
+	 * Fill the pane with the note's fields (T5.3): resolve the FileClass chain,
+	 * reduce it to a `FieldModel`, and hand that to the renderer — which reads
+	 * no FileClass of its own (ADR-31).
+	 *
+	 * Every dock renders through here, so "the docks differ only in room"
+	 * (PRD/F5) holds by construction rather than by three call sites agreeing.
+	 * A note with no FileClass at all still renders: `buildFieldModel` falls
+	 * back to the keys the note actually has.
+	 *
+	 * Writes nothing — the controls report edits and T5.4 wires them to the
+	 * single commit seam (CON-1).
+	 */
+	private _renderFields(fieldsEl: HTMLElement, file: TFile): void {
+		const source = this._fileClasses;
+		if (!source) return;
+		const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
+		const startName = source.nameFor(file);
+		const chain = startName === undefined ? [] : resolveFileClassChain(startName, source.lookup);
+		renderFieldSections(fieldsEl, buildFieldModel(chain, frontmatter), {
+			valueOf: (name: string): unknown => frontmatter[name] ?? null,
 		});
 	}
 

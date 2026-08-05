@@ -74,7 +74,17 @@ describe("buildFieldModel — tier 1: a FileClass chain resolves", () => {
 	it("renders one section per FileClass in the chain, base first", () => {
 		const model = buildFieldModel([makeCharacterClass(), makeIsekaiClass()], {}, {});
 
-		expect(model.sections.map((section) => section.label)).toEqual(["fc-character", "fc-character-custom1"]);
+		// Labels are display labels as of OQ-1 (resolved 2026-08-05): the
+		// FileClass's own `title` when it has one, otherwise derived from the file
+		// name. These fixtures declare no title, so both take the fallback — which
+		// is the live path for every FileClass the plugin generates.
+		expect(model.sections.map((section) => section.label)).toEqual(["Character", "Character custom1"]);
+	});
+
+	it("marks a FileClass the plugin did not generate as the user's own", () => {
+		const model = buildFieldModel([makeCharacterClass(), makeIsekaiClass()], {}, {});
+
+		expect(model.sections.map((section) => section.origin)).toEqual(["builtin", "user"]);
 	});
 
 	it("labels a section's source with the FileClass file it came from", () => {
