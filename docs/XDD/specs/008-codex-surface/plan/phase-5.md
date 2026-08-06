@@ -157,8 +157,13 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > variants and CON-10 requires them — the mockup defines exactly three section styles
   > (`.ed-sec` / `.ed-sec.usr` / `.ed-sec.other`, `anvil-workbench-codex.html:485-486`), so without
   > `"user"` a user's own section cannot be styled as theirs, which is the whole point of S103.
-  > Likely mechanism: pass the set of plugin-generated FileClass names (the six from `schema/*.json`)
+  > Likely mechanism: pass the set of plugin-generated FileClass names (those from `schema/*.json`)
   > into `buildFieldModel`, so "not one of ours" ⇒ `"user"`.
+  >
+  > **Corrected 2026-08-06: `schema/*.json` holds EIGHT entity types, not six** — the count above was
+  > stale (it omits `book` and `plotline`). T5.3 reads the directory off disk rather than hardcoding
+  > any list, with a drift test that fails if the two ever disagree, so the implementation is right
+  > and this note was wrong. Do not "correct" the code back to six.
 
   > **Inherited from T5.1 (2026-08-05): the fullscreen pane does not actually fill the tab body.**
   > `.sf-ed--fullscreen { flex: 1 }` was **inert** — `.sf-ws-body` is a block box with `overflow:
