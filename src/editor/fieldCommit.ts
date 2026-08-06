@@ -38,7 +38,7 @@
  */
 
 import { Notice, type App, type TFile } from "obsidian";
-import { FIELD_CONTROL_ATTR, renderFieldControl, type FieldEdit } from "editor/fieldControls";
+import { FIELD_CONTROL_ATTR, renderFieldControl, type FieldEdit, type FieldValue } from "editor/fieldControls";
 import type { FieldDef, FieldModel } from "editor/fieldModel";
 import type { FieldType } from "fileclass/fileClassTypes";
 // Relative, not the `inspector/...` alias every other internal import uses:
@@ -124,8 +124,23 @@ export interface FieldCommitOptions {
 	readonly host: HTMLElement;
 	/** The note's current value for a key — read ONCE per field, to snapshot. */
 	readonly valueOf: (name: string) => unknown;
-	/** Called after every commit settles, so the host can run a deferred reconcile. */
-	readonly onSettled?: () => void;
+	/**
+	 * A write for `name` has been issued and has not landed yet.
+	 *
+	 * The host needs this because a render can happen *during* the write —
+	 * `metadataCache` has not caught up, so anything rebuilt from it would show
+	 * the pre-edit value. The host is the right owner rather than this class:
+	 * a render REPLACES the committer, so state kept here would be discarded at
+	 * exactly the moment it matters.
+	 */
+	readonly onWriteIssued?: (name: string, value: FieldValue) => void;
+	/** That write has settled, refused or not. Always fires, once per issue. */
+	readonly onWriteSettled?: (name: string) => void;
+	/**
+	 * A failure was rolled back on a pane that is **no longer on screen** — the
+	 * live one still shows the refused value and must be reseeded from the file.
+	 */
+	readonly onNeedsReseed?: () => void;
 }
 
 /**
@@ -139,7 +154,6 @@ export class FieldCommitter {
 	private readonly _fields = new Map<string, FieldDef>();
 	/** What the file holds for each field, as far as this committer knows. */
 	private readonly _committed = new Map<string, unknown>();
-	private _pending = 0;
 
 	constructor(private readonly _opts: FieldCommitOptions) {
 		for (const section of _opts.model.sections) {
@@ -148,11 +162,6 @@ export class FieldCommitter {
 				this._committed.set(field.name, _opts.valueOf(field.name));
 			}
 		}
-	}
-
-	/** True while at least one write is unresolved — the host's re-render guard. */
-	get busy(): boolean {
-		return this._pending > 0;
 	}
 
 	/**
@@ -171,24 +180,33 @@ export class FieldCommitter {
 		if (field === undefined) return;
 
 		this._clearError(edit.name);
-		this._pending++;
-		const result: CommitResult = await commit(
-			this._opts.app,
-			this._opts.file,
-			edit.name,
-			edit.value,
-			specFor(field),
-		).finally(() => {
-			this._pending--;
-		});
-
-		if (result.ok) {
-			this._committed.set(edit.name, edit.value);
-		} else {
+		this._opts.onWriteIssued?.(edit.name, edit.value);
+		try {
+			const result: CommitResult = await commit(
+				this._opts.app,
+				this._opts.file,
+				edit.name,
+				edit.value,
+				specFor(field),
+			);
+			if (result.ok) {
+				this._committed.set(edit.name, edit.value);
+				return;
+			}
 			this._restore(edit.name, field);
 			this._surface(edit.name, result.message);
+			// A render during the write rebuilt the pane, so everything above just
+			// fixed a DETACHED tree — `querySelectorAll` works there, which is
+			// precisely why this fails silently rather than throwing. The live pane
+			// is still showing the value the file refused, and only the host can
+			// put that right.
+			if (!this._opts.host.isConnected) this._opts.onNeedsReseed?.();
+		} finally {
+			// In a `finally` so the host's in-flight record is released even if
+			// something above throws. A stuck record would make the host defer
+			// every reconcile from then on.
+			this._opts.onWriteSettled?.(edit.name);
 		}
-		this._opts.onSettled?.();
 	}
 
 	/** Rebuild the field's control from the committed snapshot (see the module docstring). */

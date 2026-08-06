@@ -215,7 +215,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
 
 - [x] **T5.4 Commit path, rollback and external sync** `[activity: backend-api]`
 
-  > **Three findings from the build, all recorded in the spec `README.md` decision log rather than
+  > **Four findings from the build, all recorded in the spec `README.md` decision log rather than
   > left in the code.** (1) The pane **restores** on failure instead of honouring the writer's
   > `keepDirty`, deliberately opposite to `InspectorController` — that surface has an explicit Save
   > to press again, this one commits without one. (2) `frontmatterWriter.FieldType` gained
@@ -228,6 +228,10 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > `Marcus`). **Resolved here, not handed to T5.6** — a debounce and a write queue were both
   > offered and declined; the trigger moved instead. Three call sites in `fieldControls.ts`; the
   > checkbox, the `<select>` and the chip row were already discrete and did not move.
+  > (4) A render that happens **while a write is unresolved** is corrected, not deferred: the view
+  > overlays the in-flight value on the `metadataCache` read, so a dock toggle mid-write shows the
+  > value the user just typed rather than the pre-edit one. **User-initiated renders were
+  > deliberately NOT made to wait on I/O** — the review's suggested fix, rejected.
 
   1. Prime: Read `src/inspector/frontmatterWriter.ts` — the **exported** seam you wire to is
      `commit` / `commitMany` plus the `FieldSpec` and `CommitResult` types. **`validateField`

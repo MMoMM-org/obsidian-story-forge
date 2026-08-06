@@ -461,6 +461,108 @@ describe("external changes reach the open editor (T5.4)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// A render that is NOT the debounced reconcile, while a write is in flight
+// ---------------------------------------------------------------------------
+
+/**
+ * `_reconcile`'s defer covers the debounced paths only (`active-leaf-change`,
+ * `metadataCache.changed`). Every other render is **user-initiated** — a dock
+ * toggle, fullscreen, a collection switch, a section collapse — and those must
+ * stay immediate: a pane that ignores clicks until a write lands is worse than
+ * one that briefly shows a stale value. So the render is *corrected*, not
+ * delayed, and these are the tests that say so.
+ *
+ * The trigger is real, not contrived: a click's mousedown blurs the box, which
+ * fires the `change` that starts the commit, and the click handler then renders
+ * in the same tick — while the write is still unresolved.
+ */
+describe("a user-initiated render during an in-flight write (T5.4)", () => {
+	it("keeps showing the just-typed value when the dock is toggled mid-write", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		vi.mocked(app.fileManager.processFrontMatter).mockImplementationOnce(
+			async () => new Promise<void>(() => { /* never settles */ }),
+		);
+
+		typeInto(view.contentEl, "name", "Mara Ironwright");
+		// The tool the blur came from — an immediate, user-initiated render.
+		click(view.contentEl.querySelector('[data-sf-ed-tool="fullscreen"]'));
+		await vi.runAllTimersAsync();
+
+		// The pane rebuilt from a metadataCache the write has not reached. Without
+		// the in-flight overlay it reseeds "Mara Stoneway" and the user watches
+		// their own edit revert — with no undo journal to get it back (#17).
+		expect(view.contentEl.querySelector(".sf-ed--fullscreen")).not.toBeNull();
+		expect(inputIn(view.contentEl, "name").value).toBe("Mara Ironwright");
+	});
+
+	it("acts on the click immediately rather than waiting for the write", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		vi.mocked(app.fileManager.processFrontMatter).mockImplementationOnce(
+			async () => new Promise<void>(() => { /* never settles */ }),
+		);
+
+		typeInto(view.contentEl, "name", "Mara Ironwright");
+		click(view.contentEl.querySelector('[data-sf-ed-tool="close"]'));
+		await vi.runAllTimersAsync();
+
+		// Deferring user-initiated renders was the rejected fix: it makes "close"
+		// do nothing until I/O completes.
+		expect(view.contentEl.querySelector(".sf-ed")).toBeNull();
+	});
+
+	it("goes back to the file's value once the write settles", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		let releaseWrite = (): void => {};
+		vi.mocked(app.fileManager.processFrontMatter).mockImplementationOnce(
+			async () => new Promise<void>((res) => { releaseWrite = (): void => { res(); }; }),
+		);
+
+		typeInto(view.contentEl, "name", "Mara Ironwright");
+		click(view.contentEl.querySelector('[data-sf-ed-tool="fullscreen"]'));
+		await vi.runAllTimersAsync();
+		releaseWrite();
+		await vi.runAllTimersAsync();
+
+		// The optimistic value must not outlive its write, or it becomes a second
+		// source of truth that can shadow an external edit indefinitely. The stub
+		// never wrote the store, so the file still says "Mara Stoneway" — and that
+		// is what a render after the write must show.
+		app.metadataCache._trigger("changed", mara);
+		await vi.runAllTimersAsync();
+		expect(inputIn(view.contentEl, "name").value).toBe("Mara Stoneway");
+	});
+
+	it("reseeds the live pane when a write refused AFTER the pane was rebuilt", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		let rejectWrite = (): void => {};
+		vi.mocked(app.fileManager.processFrontMatter).mockImplementationOnce(
+			async () => new Promise<void>((_res, rej) => { rejectWrite = (): void => { rej(new Error("disk is full")); }; }),
+		);
+
+		typeInto(view.contentEl, "name", "Mara Ironwright");
+		click(view.contentEl.querySelector('[data-sf-ed-tool="fullscreen"]'));
+		await vi.runAllTimersAsync();
+		rejectWrite();
+		await vi.runAllTimersAsync();
+
+		// The committer that owns this write restores into a control the rebuild
+		// already detached, so its rollback cannot reach the pane the user is
+		// looking at. Something has to, or the optimistic display survives a write
+		// the file refused — the exact state T5.4's success criterion forbids.
+		expect(inputIn(view.contentEl, "name").value).toBe("Mara Stoneway");
+		expect(Notice._instances).toHaveLength(1);
+	});
+});
+
+// ---------------------------------------------------------------------------
 // RED 7 — a note deleted while the editor is open (SDD/Error Handling)
 // ---------------------------------------------------------------------------
 

@@ -244,9 +244,20 @@ export class AnvilView extends ItemView {
 	private readonly _editor = new EditorPaneStore();
 	/** Reads FileClasses out of the configured folder for the pane (T5.3). Built in onOpen. */
 	private _fileClasses: FileClassSource | null = null;
-	/** The open pane's write path (T5.4). Rebuilt on every render, `null` when no pane is open. */
-	private _commits: FieldCommitter | null = null;
-	/** A reconcile that arrived while a commit was unresolved, owed once it settles (T5.4). */
+	/**
+	 * Writes issued for the open note that have not landed yet (T5.4): field
+	 * name → the value on its way to the file.
+	 *
+	 * Owned by the VIEW rather than by the `FieldCommitter` that issued them,
+	 * because a render replaces the committer — so committer-held state would be
+	 * dropped at exactly the moment it is needed. Two jobs, one map: it is the
+	 * re-render guard, and it is what a render overlays on `metadataCache` so a
+	 * pane rebuilt mid-write does not show the pre-edit value.
+	 */
+	private readonly _inFlight = new Map<string, unknown>();
+	/** The note `_inFlight` belongs to — a different note's writes are never overlaid. */
+	private _inFlightPath: string | null = null;
+	/** A reconcile that arrived while a write was unresolved, owed once it settles (T5.4). */
 	private _reconcileOwed = false;
 	/** Vault-backed note index feeding the pure collection resolver. Built in onOpen. */
 	private _noteIndex: CodexNoteIndex | null = null;
@@ -456,7 +467,8 @@ export class AnvilView extends ItemView {
 		this._collapse.clear();
 		this._codexSelection.clear();
 		this._editor.clear();
-		this._commits = null;
+		this._inFlight.clear();
+		this._inFlightPath = null;
 		this._reconcileOwed = false;
 		this._noteIndex = null;
 		this._fileClasses = null;
@@ -513,24 +525,44 @@ export class AnvilView extends ItemView {
 	}
 
 	/**
-	 * The debounced reconcile (T5.4). A re-render rebuilds every control from the
-	 * note's frontmatter, so running one while the user's own write is still
-	 * unresolved would replace what they just typed with the value the file has
-	 * not been given yet. The reconcile is therefore *owed* rather than dropped:
-	 * `_afterCommits` runs it the moment the write settles, so the pane is never
-	 * left permanently stale either (last-write-wins, ADR-25).
+	 * The **debounced** reconcile — `active-leaf-change` and `metadataCache`
+	 * `"changed"` (T5.4). Neither is anything the user asked for right now, so
+	 * running one mid-write, and replacing what they just typed with a value the
+	 * file has not been given yet, buys nothing. It is *owed* rather than
+	 * dropped: `_afterWriteSettled` runs it the moment the last write lands, so
+	 * the pane is never left permanently stale either (last-write-wins, ADR-25).
+	 *
+	 * **User-initiated renders do NOT come through here and must not**: a dock
+	 * toggle, fullscreen, close, a collection switch or a section collapse has to
+	 * act on the click. A pane that ignores clicks until I/O completes is worse
+	 * than one that briefly shows a stale value — and `_renderFields` makes sure
+	 * it does not show one either.
 	 */
 	private _reconcile(): void {
-		if (this._commits?.busy === true) {
+		if (this._inFlight.size > 0) {
 			this._reconcileOwed = true;
 			return;
 		}
 		this._render();
 	}
 
-	/** Pay off a reconcile that arrived mid-write, once the last write has settled. */
-	private _afterCommits(): void {
-		if (this._commits?.busy === true) return;
+	/** A write is on its way to `path`'s frontmatter; show it until the cache agrees. */
+	private _onWriteIssued(path: string, name: string, value: unknown): void {
+		if (this._inFlightPath !== path) {
+			this._inFlight.clear();
+			this._inFlightPath = path;
+		}
+		this._inFlight.set(name, value);
+	}
+
+	/**
+	 * The write landed or was refused. Either way it stops being ours to display
+	 * — an optimistic value that outlived its write would become a second source
+	 * of truth able to shadow an external edit indefinitely.
+	 */
+	private _afterWriteSettled(name: string): void {
+		this._inFlight.delete(name);
+		if (this._inFlight.size > 0) return;
 		if (!this._reconcileOwed) return;
 		this._reconcileOwed = false;
 		this._render();
@@ -546,6 +578,10 @@ export class AnvilView extends ItemView {
 		if (this._editor.path !== file.path) return;
 		this._editor.close();
 		this._reconcileOwed = false;
+		// The note is gone; a value still on its way to it must not be shown as
+		// though it were somewhere.
+		this._inFlight.clear();
+		this._inFlightPath = null;
 		new Notice(`"${file.basename}" was deleted. The editor closed.`);
 		this._render();
 	}
@@ -553,9 +589,6 @@ export class AnvilView extends ItemView {
 	private _render(): void {
 		if (!this._bodyEl) return;
 		const body = this._bodyEl;
-		// The committer belongs to the controls this render is about to destroy.
-		// Dropping it here means a pane that closes leaves no write path behind.
-		this._commits = null;
 		body.empty();
 
 		// Tear down prior zoom child (releases DOM listeners, CON-4).
@@ -733,7 +766,7 @@ export class AnvilView extends ItemView {
 	private _renderFields(fieldsEl: HTMLElement, file: TFile): void {
 		const source = this._fileClasses;
 		if (!source) return;
-		const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
+		const frontmatter = this._shownFrontmatter(file);
 		const startName = source.nameFor(file);
 		const chain = startName === undefined ? [] : resolveFileClassChain(startName, source.lookup);
 		const model = buildFieldModel(chain, frontmatter);
@@ -745,11 +778,34 @@ export class AnvilView extends ItemView {
 			model,
 			host: fieldsEl,
 			valueOf,
-			onSettled: (): void => { this._afterCommits(); },
+			onWriteIssued: (name, value): void => { this._onWriteIssued(file.path, name, value); },
+			onWriteSettled: (name): void => { this._afterWriteSettled(name); },
+			onNeedsReseed: (): void => { this._reconcileOwed = true; },
 		});
-		this._commits = commits;
 
 		renderFieldSections(fieldsEl, model, { valueOf, onEdit: commits.onEdit });
+	}
+
+	/**
+	 * The note's frontmatter **as the pane must show it**: what `metadataCache`
+	 * holds, plus any write already issued for this note that has not landed yet.
+	 *
+	 * `_reconcile` defers only the two debounced paths. Every other render is
+	 * user-initiated and stays immediate (ruled) — and a click is exactly what
+	 * produces the race, because its mousedown blurs the box, which fires the
+	 * `change` that starts the commit, and the click handler then renders in the
+	 * same tick. Rebuilt from `metadataCache` alone, the controls would show the
+	 * pre-edit value and the user would watch their own edit revert, with no undo
+	 * journal to get it back (#17). So the render is corrected, not delayed.
+	 *
+	 * The overlay cannot go stale: an entry lives only while its write is
+	 * unresolved (`_afterWriteSettled` drops it either way), so it can never
+	 * shadow a later external edit.
+	 */
+	private _shownFrontmatter(file: TFile): Record<string, unknown> {
+		const cached = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
+		if (this._inFlightPath !== file.path || this._inFlight.size === 0) return cached;
+		return { ...cached, ...Object.fromEntries(this._inFlight) };
 	}
 
 	/**
