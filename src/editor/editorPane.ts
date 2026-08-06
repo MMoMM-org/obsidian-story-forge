@@ -329,21 +329,25 @@ function renderLabelledField(
 	sectionIndex: number,
 	deps: FieldSectionsDeps,
 ): void {
-	const id = `sf-ed-${sectionIndex}-${field.name.replace(/[^\w-]/g, "_")}`;
 	const label = activeDocument.createElement("label");
 	label.className = "sf-ed-label";
 	label.textContent = field.name;
-	label.htmlFor = id;
 	host.appendChild(label);
 
 	const handle = renderFieldControl(host, field, deps.valueOf(field.name), {
 		...(deps.onEdit ? { onEdit: deps.onEdit } : {}),
 	});
-	// `htmlFor` needs something to point at: the control owns its own markup, so
-	// the id goes on whatever focusable element it built. A chip row has none —
-	// there the cell's own `aria-label` (T5.2) carries the name instead.
+
+	// `for` is written only when there is something to point AT. A Multi,
+	// MultiFile or File cell is a chip row with no labelable control until the
+	// entry box opens, and a `for` naming an element that does not exist is an
+	// unassociated label — worse for a screen reader than no attribute at all.
+	// Those cells carry the field name themselves (`role="group"` +
+	// `aria-label`, T5.2), so nothing is lost.
 	const control = handle.el.querySelector<HTMLElement>("input, select, textarea");
-	if (control) control.id = id;
+	if (!control) return;
+	control.id = `sf-ed-${sectionIndex}-${field.name.replace(/[^\w-]/g, "_")}`;
+	label.htmlFor = control.id;
 }
 
 // ---------------------------------------------------------------------------

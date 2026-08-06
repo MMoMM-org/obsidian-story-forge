@@ -124,6 +124,13 @@ function widthOf(host: HTMLElement, name: string): string {
 	return Array.from(cell.classList).find((c) => c.startsWith("sf-ed-f--")) ?? "";
 }
 
+/** The visible label rendered immediately before a named field's cell. */
+function labelFor(host: HTMLElement, name: string): HTMLLabelElement | null {
+	const cell = host.querySelector<HTMLElement>(`[data-sf-ed-field="${name}"]`);
+	const previous = cell?.previousElementSibling;
+	return previous instanceof HTMLLabelElement ? previous : null;
+}
+
 /** Field names rendered between one section heading and the next. */
 function fieldsUnder(host: HTMLElement, label: string): string[] {
 	const heading = sectionEls(host).find((el) => el.textContent?.includes(label));
@@ -288,14 +295,32 @@ describe("editor sections — the width rule (T5.3)", () => {
 		expect(widthOf(host, "allies")).toBe("sf-ed-f--full");
 	});
 
-	it("renders a visible label per field, tied to its control", () => {
+	it("ties a field's label to the control it names", () => {
 		const host = renderChain("fc-character", { "fc-character": FC_CHARACTER });
-		const label = host.querySelector<HTMLLabelElement>(".sf-ed-label");
+		const label = labelFor(host, "name");
 		const input = host.querySelector<HTMLInputElement>('[data-sf-ed-field="name"] input');
 
 		expect(label?.textContent).toBe("name");
 		expect(label?.htmlFor).not.toBe("");
 		expect(label?.htmlFor).toBe(input?.id);
+	});
+
+	it("writes no `for` on a chip field, which has no labelable control", () => {
+		const host = renderChain("fc-character-custom1", {
+			"fc-character": FC_CHARACTER,
+			"fc-character-custom1": FC_ISEKAI,
+		});
+		const cell = host.querySelector<HTMLElement>('[data-sf-ed-field="skills"]');
+
+		// A Multi/MultiFile/File cell is a chip row with NO input until the entry
+		// box opens, so `for` would point at an element that does not exist —
+		// an unassociated label, which is worse for a screen reader than none.
+		expect(cell?.querySelector("input, select, textarea")).toBeNull();
+		expect(labelFor(host, "skills")?.hasAttribute("for")).toBe(false);
+
+		// The name still reaches assistive tech, through the cell itself (T5.2).
+		expect(cell?.getAttribute("role")).toBe("group");
+		expect(cell?.getAttribute("aria-label")).toBe("skills");
 	});
 });
 

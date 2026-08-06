@@ -311,6 +311,17 @@ describe("editor pane — opening (T5.1)", () => {
 // ---------------------------------------------------------------------------
 
 describe("editor pane — docks and tools (T5.1)", () => {
+	it("leaves the split modifier off the Codex root in the bottom dock", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openAnvil(app, { dock: dockStore("bottom") });
+		inspectMara(view);
+
+		// The modifier makes the root a flex column with a fixed height; the
+		// ordinary full-width Codex tab must keep its own block layout.
+		expect(bodyOf(view).querySelector(".sf-cx")?.classList.contains("sf-cx--split")).toBe(false);
+	});
+
 	it("closes back to the full grid", async () => {
 		const app = new App();
 		seedVault(app);
@@ -358,6 +369,12 @@ describe("editor pane — docks and tools (T5.1)", () => {
 		expect(bodyOf(view).querySelector(".sf-cx-split-left .sf-cx-cats")).toBeNull();
 		expect(bodyOf(view).querySelector(".sf-cx-split-left .sf-cx-cardsel")).toBeNull();
 		expect(cats?.closest(".sf-cx-split")).toBeNull();
+		// The Codex root carries the split modifier, which is the only hook the
+		// stylesheet has for giving that split a bounded height (its parent is
+		// `.sf-cx`, not the body). This pins the HOOK, not the geometry — jsdom
+		// computes no CSS, and whether the columns actually scroll is a
+		// real-vault check (T5.6).
+		expect(bodyOf(view).querySelector(".sf-cx")?.classList.contains("sf-cx--split")).toBe(true);
 		// The split is inside the Codex body, below the chrome — not wrapped
 		// around the whole tab.
 		expect(bodyOf(view).querySelector<HTMLElement>(".sf-cx-split")?.closest(".sf-cx")).not.toBeNull();

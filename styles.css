@@ -2043,15 +2043,23 @@ body {
 }
 
 /*
- * The Anvil shell is a flex column so the body can be given the remaining
- * height (T5.3). Two things depend on it and neither worked before:
- * `.sf-ed--fullscreen` filling the tab body (S100), and a dock-right column
- * scrolling independently instead of both columns growing to the taller one.
+ * The Anvil shell is a flex column, which gives `.sf-ws-body` a DEFINITE height
+ * (a flex item with `flex: 1`) instead of one that grows with its content.
  *
- * PENDING REAL-VAULT VERIFICATION (T5.6): jsdom computes no CSS, so no test
- * here can see the result — a jsdom assertion would pass while the vault was
- * broken. Conservative on purpose: only the shell and the body are touched, and
- * no layout is given an explicit height it did not have.
+ * `.sf-ws-body` deliberately stays `display: block`. That is the whole basis of
+ * how the pane and the splits are sized below: a block container ignores
+ * `flex: *` on its children — the first attempt at this used `flex: 1` on the
+ * pane and was therefore INERT — but a block child of a definite-height block
+ * CAN resolve `height: 100%`. So the children take explicit heights and no
+ * layout root becomes a flex item. Converting this to `display: flex` would
+ * change the box model of all five layouts at once, blind, which is exactly
+ * what T5.1 refused to do.
+ *
+ * NOT VERIFIED HERE, BY CONSTRUCTION (T5.6 real-vault check): jsdom computes no
+ * CSS, so no test in this repo can see any of it — a jsdom assertion would pass
+ * while the vault was broken. Two things need eyes: that `height: 100%` on
+ * `.sf-ws` resolves inside Obsidian's own `.view-content`, and that Timeline,
+ * Plotgrid, Plotlines and Board still lay out unchanged.
  */
 .sf-ws {
 	display: flex;
@@ -3195,6 +3203,11 @@ body {
 	grid-template-columns: 96px 1fr 96px 1fr;
 	gap: 6px 10px;
 	padding: 10px 11px;
+	/* `min-height: 0` is what lets a flex item shrink below its content, which
+	 * is what makes this element's own `overflow: auto` engage rather than the
+	 * whole pane growing. Only meaningful when the pane has a bounded height —
+	 * i.e. fullscreen; harmless otherwise. */
+	min-height: 0;
 	overflow: auto;
 }
 
@@ -3225,6 +3238,27 @@ body {
  */
 .sf-cx-split {
 	display: flex;
+	min-height: 0;
+}
+
+/*
+ * The Codex builds its split INSIDE its own root, so unlike `.sf-ws-split` it
+ * has `.sf-cx` between it and the body — and `height: 100%` against an
+ * auto-height parent resolves to auto, i.e. to nothing. The root therefore
+ * becomes a flex column ONLY when it owns a split (`codexTab.ts` stamps the
+ * modifier), leaving the ordinary full-width Codex tab exactly as it was.
+ * Scoped this narrowly on purpose: the alternative was making every layout
+ * root a flex item. Pending the T5.6 real-vault check.
+ */
+.sf-cx--split {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.sf-cx--split .sf-cx-split {
+	flex: 1;
 	min-height: 0;
 }
 
@@ -3264,7 +3298,11 @@ body {
  */
 .sf-ws-split {
 	display: flex;
-	flex: 1;
+	/* Same reasoning as `.sf-ed--fullscreen`: this is a block-level child of a
+	 * block `.sf-ws-body`, so `flex: 1` here was inert. With a real height the
+	 * two columns below can finally scroll independently instead of both
+	 * growing to the taller one. Pending the T5.6 real-vault check. */
+	height: 100%;
 	gap: 12px;
 	min-height: 0;
 }
@@ -3402,13 +3440,19 @@ body {
 }
 
 /*
- * Fullscreen (S100) fills the tab body, now that `.sf-ws-body` is a flex
- * column. T5.1 removed this rule rather than leave it inert; it returns with
- * the shell change that makes it mean something. Also pending the real-vault
- * check at T5.6.
+ * Fullscreen (S100) fills the tab body.
+ *
+ * `height: 100%`, NOT `flex: 1`: the pane is a block-level child of a block
+ * `.sf-ws-body`, so a flex-item property would be ignored — which is how this
+ * rule was inert twice (T5.1 removed it for that reason; the first T5.3 attempt
+ * reintroduced the same mistake). The body has a definite height, so a
+ * percentage resolves. `.sf-ed` is itself a flex column, so the header stays
+ * put and `.sf-ed-grid` scrolls inside it.
+ *
+ * Pending the real-vault check (T5.6) — jsdom cannot see it.
  */
 .sf-ed--fullscreen {
-	flex: 1;
+	height: 100%;
 	min-height: 0;
 }
 

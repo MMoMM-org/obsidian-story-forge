@@ -253,6 +253,9 @@ export function renderCodexTab(container: HTMLElement, opts: CodexTabOptions): C
 
 	const root = el("div", "sf-cx");
 	if (opts.compact) root.classList.add("sf-cx--compact");
+	// The split needs a bounded height to scroll its columns, and it can only
+	// get one from this root (styles.css: `.sf-cx--split`).
+	if (opts.split) root.classList.add("sf-cx--split");
 	container.appendChild(root);
 
 	const active = opts.selection.resolve(opts.collections);
