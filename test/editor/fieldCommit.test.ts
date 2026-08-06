@@ -132,10 +132,16 @@ function inputIn(host: HTMLElement, name: string): HTMLInputElement {
 	return el;
 }
 
+/**
+ * Type a value and leave the box: the `input` per keystroke, then the `change`
+ * a browser fires on blur or Enter. Scalar controls commit on the LATTER (user
+ * ruling 2026-08-06) — typing alone must reach the file not at all.
+ */
 function typeInto(host: HTMLElement, name: string, value: string): void {
 	const el = inputIn(host, name);
 	el.value = value;
 	el.dispatchEvent(new Event("input", { bubbles: true }));
+	el.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function errorTextFor(host: HTMLElement, name: string): string | null {
@@ -227,6 +233,32 @@ describe("the commit path — one edit writes exactly one plain Property (T5.4)"
 		}
 	});
 
+	it("writes once when a typed value settles, never once per keystroke", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		const box = inputIn(view.contentEl, "name");
+
+		for (const partial of ["M", "Ma", "Mar", "Marc", "Marcu", "Marcus"]) {
+			box.value = partial;
+			box.dispatchEvent(new Event("input", { bubbles: true }));
+		}
+		await vi.runAllTimersAsync();
+
+		// Undo is out of scope (#17) and this phase forbids writes that are easy
+		// to trigger accidentally, so nothing has reached the file yet.
+		expect(vi.mocked(app.fileManager.processFrontMatter)).not.toHaveBeenCalled();
+		expect(app.fileManager._getFrontmatter(mara.path)["name"]).toBe("Mara Stoneway");
+
+		box.dispatchEvent(new Event("change", { bubbles: true }));
+		await vi.runAllTimersAsync();
+
+		// One write, of the final value. Six unserialized writes could have let
+		// the file settle on "Marcu".
+		expect(vi.mocked(app.fileManager.processFrontMatter)).toHaveBeenCalledTimes(1);
+		expect(app.fileManager._getFrontmatter(mara.path)["name"]).toBe("Marcus");
+	});
+
 	it("writes plain YAML values, never an object or a class instance", async () => {
 		const app = new App();
 		seedVault(app);
@@ -234,8 +266,7 @@ describe("the commit path — one edit writes exactly one plain Property (T5.4)"
 
 		typeInto(view.contentEl, "name", "Mara Ironwright");
 		await vi.runAllTimersAsync();
-		inputIn(view.contentEl, "level").value = "7";
-		inputIn(view.contentEl, "level").dispatchEvent(new Event("input", { bubbles: true }));
+		typeInto(view.contentEl, "level", "7");
 		await vi.runAllTimersAsync();
 		const checkbox = inputIn(view.contentEl, "active");
 		checkbox.checked = false;

@@ -118,10 +118,19 @@ function click(el: Element | null | undefined): void {
 	el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 }
 
-/** Type into an input and fire the event a real keystroke would. */
+/**
+ * Type into an input and fire the event a real keystroke fires — `input`, and
+ * ONLY `input`. A scalar box reports on `change` (blur/Enter), so typing alone
+ * must not report anything; `settle` below is what a real blur or Enter does.
+ */
 function type(input: HTMLInputElement, value: string): void {
 	input.value = value;
 	input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+/** Leave the box — the `change` a browser fires on blur or Enter when the value moved. */
+function settle(input: HTMLInputElement): void {
+	input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function pressEnter(input: HTMLInputElement): void {
@@ -257,6 +266,7 @@ describe("field controls — one per type (T5.2)", () => {
 		const c = render(fieldDef({ name: "occupation", type: "Input" }), "harbour warden");
 
 		type(inputIn(c.el), "");
+		settle(inputIn(c.el));
 
 		// T5.4's commit path keys off exactly this: null deletes the key, "" writes
 		// an empty Property. They are different edits to the file.
@@ -268,6 +278,7 @@ describe("field controls — one per type (T5.2)", () => {
 		const c = render(fieldDef({ name: "age", type: "Number" }), 34);
 
 		type(inputIn(c.el), "");
+		settle(inputIn(c.el));
 
 		// `Number("")` is 0, so an unguarded read turns "the user emptied this
 		// box" into "the user set it to zero" — and T5.4 would write `age: 0`
@@ -282,6 +293,73 @@ describe("field controls — one per type (T5.2)", () => {
 		// another plugin may well hold one. The checkbox must still read as on.
 		expect(inputIn(render(fieldDef({ name: "alive", type: "Boolean" }), "true").el).checked).toBe(true);
 		expect(inputIn(render(fieldDef({ name: "alive", type: "Boolean" }), "false").el).checked).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// When a scalar control reports (user ruling, 2026-08-06)
+// ---------------------------------------------------------------------------
+
+describe("field controls — a scalar box reports when it settles, not per keystroke", () => {
+	// T5.2 bound `input` here. Once T5.4 turned a report into a vault write that
+	// became one write per character — and, because those writes were issued
+	// unserialized, a file that could settle on an intermediate value. Undo is out
+	// of scope (#17) and this phase forbids making writes easy to trigger by
+	// accident, so the trigger moved to `change` (blur/Enter).
+	it.each<[FieldType, string, string]>([
+		["Input", "harbour warden", "harbour pilot"],
+		["Number", "34", "35"],
+		["Date", "1998-04-02", "1999-05-03"],
+	])("stays silent while the user types into a %s box", (type_, from, to) => {
+		const c = render(fieldDef({ name: "f", type: type_ }), from);
+
+		type(inputIn(c.el), to);
+
+		expect(c.edits).toEqual([]);
+	});
+
+	it.each<[FieldType, string, string, FieldValue]>([
+		["Input", "harbour warden", "harbour pilot", "harbour pilot"],
+		["Number", "34", "35", 35],
+		["Date", "1998-04-02", "1999-05-03", "1999-05-03"],
+	])("reports the %s box's value once it settles", (type_, from, to, expected) => {
+		const c = render(fieldDef({ name: "f", type: type_ }), from);
+
+		type(inputIn(c.el), to);
+		settle(inputIn(c.el));
+
+		expect(c.edits).toEqual([expected]);
+	});
+
+	it("reports once for a whole typed word, not once per character", () => {
+		const c = render(fieldDef({ name: "name", type: "Input" }), "");
+
+		// What a real six-keystroke edit looks like at the DOM.
+		for (const partial of ["M", "Ma", "Mar", "Marc", "Marcu", "Marcus"]) {
+			type(inputIn(c.el), partial);
+		}
+		settle(inputIn(c.el));
+
+		// One report, carrying the FINAL value. Per-keystroke reporting produced
+		// six writes whose completion order was not guaranteed, so the file could
+		// settle on "Marcu".
+		expect(c.edits).toEqual(["Marcus"]);
+	});
+
+	it("still reports a checkbox and a select on their own change, untouched by the above", () => {
+		const box = render(fieldDef({ name: "alive", type: "Boolean" }), false);
+		inputIn(box.el).checked = true;
+		inputIn(box.el).dispatchEvent(new Event("change", { bubbles: true }));
+
+		const enum_ = render(fieldDef({ name: "role", type: "Select", values: ["a", "b"] }), "a");
+		selectIn(enum_.el).value = "b";
+		selectIn(enum_.el).dispatchEvent(new Event("change", { bubbles: true }));
+
+		// These two were already discrete and were deliberately NOT changed; the
+		// assertion exists so "moved the scalar binding" cannot quietly become
+		// "moved every binding".
+		expect(box.edits).toEqual([true]);
+		expect(enum_.edits).toEqual(["b"]);
 	});
 });
 

@@ -177,7 +177,7 @@ function textControl(
 ): () => FieldValue {
 	const input = inputEl(cell, field, "text");
 	input.value = asText(value);
-	onInput(input, () => report(deps, field, emptyToNull(input.value)));
+	onSettled(input, () => report(deps, field, emptyToNull(input.value)));
 	return () => emptyToNull(input.value);
 }
 
@@ -193,7 +193,7 @@ function numberControl(
 	// reads back as "", which the guard below turns into null. There is no
 	// NaN path to defend against.
 	const read = (): FieldValue => (input.value.trim() === "" ? null : Number(input.value));
-	onInput(input, () => report(deps, field, read()));
+	onSettled(input, () => report(deps, field, read()));
 	return read;
 }
 
@@ -218,7 +218,7 @@ function dateControl(
 ): () => FieldValue {
 	const input = inputEl(cell, field, type);
 	input.value = asText(value);
-	onInput(input, () => report(deps, field, emptyToNull(input.value)));
+	onSettled(input, () => report(deps, field, emptyToNull(input.value)));
 	return () => emptyToNull(input.value);
 }
 
@@ -510,9 +510,31 @@ function activate(target: HTMLElement, handler: () => void): void {
 	});
 }
 
-/** `input` fires per keystroke; `change` alone would miss an edit until blur. */
-function onInput(target: HTMLElement, handler: () => void): void {
-	listen(target, "input", handler);
+/**
+ * Report a scalar box's value when it **settles** — blur or Enter — not on
+ * every keystroke.
+ *
+ * T5.2 originally bound `input` here, reasoning that `change` "would miss an
+ * edit until blur". T5.4 turned a report into a vault write, and that reversed
+ * the argument: waiting for blur is not a missed edit, it is the whole point.
+ * Per-keystroke reporting meant typing a name wrote the file once per
+ * character, and because those writes were issued unserialized the file could
+ * settle on an intermediate value (`Marcu` for `Marcus`). **Undo is out of
+ * scope (#17)** and this phase's Key Decisions state outright that the editor
+ * must not make writes easy to trigger accidentally — so the trigger moved
+ * rather than the write path. Debouncing and serializing the writes were both
+ * offered and declined: `change` makes both unnecessary.
+ *
+ * The checkbox and the `<select>` already report on `change`, and the chip row
+ * reports on a discrete click or Enter, so this is the one binding that had to
+ * move. `value()` is unaffected — it still reads whatever the box holds right
+ * now, mid-edit included.
+ *
+ * @ref docs/XDD/specs/008-codex-surface/plan/phase-5.md — Key Decisions (#17)
+ * @ref docs/XDD/specs/008-codex-surface/README.md — decision log, 2026-08-06
+ */
+function onSettled(target: HTMLElement, handler: () => void): void {
+	listen(target, "change", handler);
 }
 
 function report(deps: FieldControlDeps, field: FieldDef, value: FieldValue): void {
