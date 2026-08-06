@@ -41,8 +41,10 @@ artifacts under `test/StoryForge/00 Meta/` — FileClasses, entity/scene Templat
 reference `Schema/` — are **generated** from it: edit the JSON, then `npm run schema:gen`.
 `npm run schema:check` is the gate. **Before changing the schema, read
 `docs/schema-change-runbook.md`** — it covers add/rename/remove, seed-note updates, and the
-ripple into the XDD spec. All six entity types (`scene`, `character`, `character-fantasy`,
-`location`, `object`, `lore`) are generated from `schema/<type>.json`.
+ripple into the XDD spec. All eight entity types (`book`, `character`, `character-fantasy`,
+`location`, `lore`, `object`, `plotline`, `scene`) are generated from `schema/<type>.json`.
+**Do not hardcode this list** — read `schema/*.json` off disk, so adding a type needs no code
+change. `src/editor/generatedFileClasses.ts` is the reference for that, with a drift test.
 
 ## Memory & context
 

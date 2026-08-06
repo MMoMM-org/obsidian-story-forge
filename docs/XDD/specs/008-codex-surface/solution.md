@@ -618,7 +618,8 @@ ENTITY: FieldSection (NEW)
                                    # exactly three section styles (.ed-sec / .ed-sec.usr /
                                    # .ed-sec.other, anvil-workbench-codex.html:485-486).
                                    # Due: Phase 5 T5.3. Likely mechanism: pass the set of
-                                   # plugin-generated FileClass names (the six from schema/*.json)
+                                   # plugin-generated FileClass names (read schema/*.json off
+                                   # disk — EIGHT types, not six; corrected 2026-08-06)
                                    # into buildFieldModel, so "not ours" ⇒ "user".
     fields: FieldDef[]
 
