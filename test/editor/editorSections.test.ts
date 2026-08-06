@@ -305,6 +305,48 @@ describe("editor sections — the width rule (T5.3)", () => {
 		expect(label?.htmlFor).toBe(input?.id);
 	});
 
+	it("starts a full-width field's label in the first column, so the pair gets its own row", () => {
+		const host = renderChain("fc-character-custom1", {
+			"fc-character": FC_CHARACTER,
+			"fc-character-custom1": FC_ISEKAI,
+		});
+
+		// The grid is `96px 1fr 96px 1fr`, so a full-width VALUE spans 3 columns —
+		// correct only when its label sits in column 1. After an ODD number of
+		// half fields the label lands in column 3, the value no longer fits, and
+		// sparse placement drops it to the next row, orphaning the label. Three of
+		// the eight shipped FileClasses hit this (fc-scene, fc-character-fantasy,
+		// fc-lore). Stamping the label is what forces a fresh row.
+		// As with `sf-ed-f--full`, this asserts the MODIFIER, not the geometry.
+		expect(labelFor(host, "skills")?.classList.contains("sf-ed-label--full")).toBe(true);
+		expect(labelFor(host, "guild")?.classList.contains("sf-ed-label--full")).toBe(true);
+		expect(labelFor(host, "allies")?.classList.contains("sf-ed-label--full")).toBe(true);
+
+		expect(labelFor(host, "name")?.classList.contains("sf-ed-label--full")).toBe(false);
+		expect(labelFor(host, "level")?.classList.contains("sf-ed-label--full")).toBe(false);
+	});
+
+	it("gives two panes over the same model distinct control ids", () => {
+		const chain = resolveFileClassChain("fc-character", lookupOf({ "fc-character": FC_CHARACTER }));
+		const model = buildFieldModel(chain, {});
+		const first = document.createElement("div");
+		const second = document.createElement("div");
+		document.body.append(first, second);
+		mounted.push(first, second);
+
+		renderFieldSections(first, model, { valueOf: () => null });
+		renderFieldSections(second, model, { valueOf: () => null });
+
+		// Two Anvils can be open at once (`EditorPaneStore` exists per view for
+		// exactly that reason). Shared ids would make a label click in the second
+		// pane focus the FIRST pane's input.
+		const firstId = first.querySelector<HTMLInputElement>('[data-sf-ed-field="name"] input')?.id;
+		const secondId = second.querySelector<HTMLInputElement>('[data-sf-ed-field="name"] input')?.id;
+		expect(firstId).not.toBe(secondId);
+		expect(labelFor(first, "name")?.htmlFor).toBe(firstId);
+		expect(labelFor(second, "name")?.htmlFor).toBe(secondId);
+	});
+
 	it("writes no `for` on a chip field, which has no labelable control", () => {
 		const host = renderChain("fc-character-custom1", {
 			"fc-character": FC_CHARACTER,
@@ -380,6 +422,19 @@ describe("editor sections — undeclared keys (T5.3)", () => {
 
 		expect(sectionLabels(host)).toEqual(["Properties"]);
 		expect(fieldNames(host)).toEqual(["name", "age"]);
+	});
+
+	it("keeps the classification keys out of tier 2 as well", () => {
+		// The live path: a note with no FileClass almost always still has tags,
+		// so this is the common case, not an edge one — and the tier-3 filter
+		// having four watchers says nothing about this one.
+		const host = renderChain(
+			"fc-nonexistent",
+			{},
+			{ tags: ["canon/character"], fileClass: "fc-gone", name: "Mara" },
+		);
+
+		expect(fieldNames(host)).toEqual(["name"]);
 	});
 });
 

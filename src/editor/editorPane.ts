@@ -266,9 +266,12 @@ export interface FieldSectionsDeps {
 }
 
 /**
- * Render `model` into `host` (replacing its contents): one section per
- * FileClass in chain order, each with its label, the file it came from, and
- * its fields as labelled controls.
+ * Render `model` into `host`: one section per FileClass in chain order, each
+ * with its label, the file it came from, and its fields as labelled controls.
+ *
+ * Appends rather than clearing — `renderEditorPane` builds a fresh
+ * `.sf-ed-grid` on every render, so there is never anything to clear, and a
+ * clear step would be an untested claim about a state that cannot happen.
  *
  * Everything presentational that could have been a decision — which sections
  * exist, their order, their labels, whether a field is half or full width — is
@@ -277,12 +280,20 @@ export interface FieldSectionsDeps {
  * exists.
  */
 export function renderFieldSections(host: HTMLElement, model: FieldModel, deps: FieldSectionsDeps): void {
-	emptyEl(host);
-	model.sections.forEach((section, index) => {
+	// Ids must be unique across every pane on screen, not just within one: two
+	// Anvils can be open at once (`EditorPaneStore` is per view for exactly that
+	// reason), and a shared id would make a label click in the second pane focus
+	// the FIRST pane's input. A per-render counter is enough — field names are
+	// already unique across a whole model (`buildFieldModel`'s `seen` set), so
+	// nothing finer is needed.
+	const paneId = `sf-ed-${++paneCounter}`;
+	for (const section of model.sections) {
 		host.appendChild(sectionHeadingEl(section));
-		for (const field of section.fields) renderLabelledField(host, field, index, deps);
-	});
+		for (const field of section.fields) renderLabelledField(host, field, paneId, deps);
+	}
 }
+
+let paneCounter = 0;
 
 /**
  * A section heading: a REAL heading element (the SDD's accessibility line —
@@ -326,11 +337,18 @@ function sourceLine(section: FieldSection): string {
 function renderLabelledField(
 	host: HTMLElement,
 	field: FieldDef,
-	sectionIndex: number,
+	paneId: string,
 	deps: FieldSectionsDeps,
 ): void {
 	const label = activeDocument.createElement("label");
-	label.className = "sf-ed-label";
+	// A full-width field's LABEL is stamped too, not just its value. The grid is
+	// `96px 1fr 96px 1fr`, so a full-width value spans three columns — which only
+	// fits when its label sits in column 1. After an odd number of half fields
+	// the label lands in column 3 and the value is pushed to the next row,
+	// orphaning it; `fc-scene`, `fc-character-fantasy` and `fc-lore` all do that
+	// with their real `fieldsOrder`. The modifier forces the pair onto a fresh
+	// row (styles.css).
+	label.className = field.width === "full" ? "sf-ed-label sf-ed-label--full" : "sf-ed-label";
 	label.textContent = field.name;
 	host.appendChild(label);
 
@@ -346,7 +364,7 @@ function renderLabelledField(
 	// `aria-label`, T5.2), so nothing is lost.
 	const control = handle.el.querySelector<HTMLElement>("input, select, textarea");
 	if (!control) return;
-	control.id = `sf-ed-${sectionIndex}-${field.name.replace(/[^\w-]/g, "_")}`;
+	control.id = `${paneId}-${field.name.replace(/[^\w-]/g, "_")}`;
 	label.htmlFor = control.id;
 }
 
@@ -358,8 +376,4 @@ function el(tag: "div" | "span" | "b" | "code", cls: string): HTMLElement {
 	const node = activeDocument.createElement(tag);
 	node.className = cls;
 	return node;
-}
-
-function emptyEl(node: HTMLElement): void {
-	while (node.firstChild) node.removeChild(node.firstChild);
 }

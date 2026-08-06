@@ -2043,20 +2043,23 @@ body {
 }
 
 /*
- * The Anvil shell is a flex column, which gives `.sf-ws-body` a DEFINITE height
- * (a flex item with `flex: 1`) instead of one that grows with its content.
+ * THE HEIGHT RULE — the single statement; everything else points here.
  *
- * `.sf-ws-body` deliberately stays `display: block`. That is the whole basis of
- * how the pane and the splits are sized below: a block container ignores
- * `flex: *` on its children — the first attempt at this used `flex: 1` on the
- * pane and was therefore INERT — but a block child of a definite-height block
- * CAN resolve `height: 100%`. So the children take explicit heights and no
- * layout root becomes a flex item. Converting this to `display: flex` would
- * change the box model of all five layouts at once, blind, which is exactly
- * what T5.1 refused to do.
+ * The Anvil shell is a flex column, which gives `.sf-ws-body` a DEFINITE height
+ * (a flex item with `flex: 1`) rather than one that grows with its content.
+ * `.sf-ws-body` then stays `display: block` on purpose, and that is the basis
+ * of how everything inside it is sized:
+ *
+ *   a block container IGNORES `flex: *` on its children,
+ *   but a block child of a definite-height block CAN resolve `height: 100%`.
+ *
+ * So anything that needs to fill the body — the fullscreen pane, either split,
+ * the pane docked right — takes an explicit `height`, and no layout root
+ * becomes a flex item. Converting this to `display: flex` would change the box
+ * model of all five layouts at once, blind; T5.1 refused that and so does this.
  *
  * NOT VERIFIED HERE, BY CONSTRUCTION (T5.6 real-vault check): jsdom computes no
- * CSS, so no test in this repo can see any of it — a jsdom assertion would pass
+ * CSS, so no test in this repo can see any of it — an assertion would pass
  * while the vault was broken. Two things need eyes: that `height: 100%` on
  * `.sf-ws` resolves inside Obsidian's own `.view-content`, and that Timeline,
  * Plotgrid, Plotlines and Board still lay out unchanged.
@@ -3154,26 +3157,24 @@ body {
 }
 
 /*
- * Dock right (S99): the pane fills its column, so its header — which carries
- * the dock, fullscreen and close controls — stays put and only `.sf-ed-grid`
- * scrolls, exactly as fullscreen now behaves.
+ * The two bounded docks (S99, S100). Both fill their container, so the pane's
+ * header — which carries the dock, fullscreen and close controls — stays put
+ * and only `.sf-ed-grid` scrolls. `height` rather than `flex` per THE HEIGHT
+ * RULE above: every one of these parents is a block container.
  *
- * `height`, not `flex`, and the reasoning is the same shape as everywhere else
- * in this file: both `.sf-cx-split-right` and `.sf-ws-split-right` are flex
- * ITEMS (stretched to their row, so their own height is definite) but block
- * CONTAINERS, so a flex property on this pane would be ignored while a
- * percentage resolves.
+ * Dock right needs it for a second reason: `.sf-cx-split-right` carries no
+ * `overflow` (unlike `.sf-ws-split-right`), so without a bounded pane a full
+ * field set spilled out of the split and dragged the whole tab body's
+ * scrollbar, pill row and all. Bounding the pane fixes both split flavours at
+ * once and keeps the header out of the scroll.
  *
- * Without this the column had no scroll box at all — `.sf-cx-split-right`
- * carries no `overflow`, unlike its `.sf-ws-split-right` counterpart — so a
- * full field set spilled out of the bounded split and dragged the whole tab
- * body's scrollbar, pill row and all. Fixing it here rather than adding
- * `overflow` to the Codex column fixes BOTH split flavours and keeps the
- * header from scrolling away with the fields.
+ * The bottom dock is deliberately absent: there the pane is content-height by
+ * design and grows the body's own scroll.
  *
  * Pending the real-vault check (T5.6) — jsdom cannot see it.
  */
-.sf-ed--right {
+.sf-ed--right,
+.sf-ed--fullscreen {
 	height: 100%;
 	min-height: 0;
 }
@@ -3269,12 +3270,11 @@ body {
 
 /*
  * The Codex builds its split INSIDE its own root, so unlike `.sf-ws-split` it
- * has `.sf-cx` between it and the body — and `height: 100%` against an
- * auto-height parent resolves to auto, i.e. to nothing. The root therefore
- * becomes a flex column ONLY when it owns a split (`codexTab.ts` stamps the
- * modifier), leaving the ordinary full-width Codex tab exactly as it was.
- * Scoped this narrowly on purpose: the alternative was making every layout
- * root a flex item. Pending the T5.6 real-vault check.
+ * has `.sf-cx` between it and the body — and a percentage height against an
+ * auto-height parent resolves to nothing. The root therefore becomes a flex
+ * column ONLY when it owns a split (`codexTab.ts` stamps the modifier), leaving
+ * the ordinary full-width Codex tab exactly as it was. Scoped this narrowly on
+ * purpose: the alternative was making every layout root a flex item.
  */
 .sf-cx--split {
 	display: flex;
@@ -3324,10 +3324,9 @@ body {
  */
 .sf-ws-split {
 	display: flex;
-	/* Same reasoning as `.sf-ed--fullscreen`: this is a block-level child of a
-	 * block `.sf-ws-body`, so `flex: 1` here was inert. With a real height the
-	 * two columns below can finally scroll independently instead of both
-	 * growing to the taller one. Pending the T5.6 real-vault check. */
+	/* THE HEIGHT RULE (see `.sf-ws`): a block child of the block body, so
+	 * `height`, not `flex`. This is what lets the two columns below scroll
+	 * independently instead of both growing to the taller one. */
 	height: 100%;
 	gap: 12px;
 	min-height: 0;
@@ -3466,23 +3465,6 @@ body {
 }
 
 /*
- * Fullscreen (S100) fills the tab body.
- *
- * `height: 100%`, NOT `flex: 1`: the pane is a block-level child of a block
- * `.sf-ws-body`, so a flex-item property would be ignored — which is how this
- * rule was inert twice (T5.1 removed it for that reason; the first T5.3 attempt
- * reintroduced the same mistake). The body has a definite height, so a
- * percentage resolves. `.sf-ed` is itself a flex column, so the header stays
- * put and `.sf-ed-grid` scrolls inside it.
- *
- * Pending the real-vault check (T5.6) — jsdom cannot see it.
- */
-.sf-ed--fullscreen {
-	height: 100%;
-	min-height: 0;
-}
-
-/*
  * Sections from the FileClass chain (T5.3, mockups S102/S103).
  *
  * The heading is a real `<h3>` — the SDD's accessibility line — styled to the
@@ -3539,8 +3521,25 @@ body {
 	align-self: center;
 	overflow: hidden;
 	color: var(--text-faint);
+	/* All three are needed for an ellipsis: without `nowrap` the text wraps and
+	 * `text-overflow` never engages (cf. `.sf-ed-path`). */
+	white-space: nowrap;
 	text-overflow: ellipsis;
 	font-size: 10.5px;
+}
+
+/*
+ * A full-width field starts a fresh row — the LABEL is what forces it.
+ *
+ * The value spans three of the four columns, which only fits when its label is
+ * in column 1. After an odd number of half fields the label lands in column 3,
+ * the value no longer fits beside it, and sparse auto-placement drops the value
+ * to the next row, orphaning the label and leaving column 4 empty on both rows.
+ * `fc-scene`, `fc-character-fantasy` and `fc-lore` all reach that state with
+ * their real `fieldsOrder` — this is not a hypothetical.
+ */
+.sf-ed-label--full {
+	grid-column-start: 1;
 }
 
 /*

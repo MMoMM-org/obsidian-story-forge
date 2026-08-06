@@ -103,11 +103,20 @@ function claimedName(
 /**
  * The strings in a frontmatter list.
  *
- * Blank entries are kept rather than filtered: the generated FileClasses write
- * `tagNames:` with one empty item when they claim nothing, and an empty claim
- * already matches nothing — no note carries a tag named `""`, and `filesPaths`
- * of `""` tests `startsWith("/")`, which no vault-relative path satisfies. A
- * filter here would be a guard no test could reach, which is worse than none.
+ * The narrowing is load-bearing, not defensive tidiness: every generated
+ * FileClass that claims nothing writes
+ *
+ *     tagNames:
+ *       - 
+ *
+ * which YAML parses to `[null]` — NOT `[""]`, as an earlier version of this
+ * comment claimed. Dropping the `typeof` check therefore throws
+ * `Cannot read properties of null` on `startsWith` for any vault holding the
+ * shipped `fc-character-fantasy`, i.e. every vault.
+ *
+ * Entries that survive the narrowing but claim nothing (`""`) need no filter:
+ * no note carries a tag named `""`, and a `filesPaths` of `""` tests
+ * `startsWith("/")`, which no vault-relative path satisfies.
  */
 function listOf(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];

@@ -57,13 +57,12 @@ export interface FieldSection {
 	 * (`fc-character` -> "Character", `fc-character-custom1` -> "Character
 	 * custom1").
 	 *
-	 * Resolved HERE rather than in the renderer, reversing the note this
-	 * comment used to carry: ADR-31 says the editor renders a `FieldModel` and
-	 * never reads FileClasses itself, so the layer that knows what `fc-` means
-	 * has to be this one. The fallback is not a nicety — no FileClass the
-	 * plugin generates carries a `title` today, so it is the live path for
-	 * every shipped section, and a metadata-menu that drops the key degrades
-	 * to it rather than to a blank heading.
+	 * Resolved HERE rather than in the renderer: ADR-31 says the editor renders
+	 * a `FieldModel` and never reads FileClasses itself, so the layer that knows
+	 * what `fc-` means has to be this one. The fallback is not a nicety — no
+	 * FileClass the plugin generates carries a `title` today, so it is the live
+	 * path for every shipped section, and a metadata-menu that drops or empties
+	 * the key degrades to it rather than to a blank heading.
 	 */
 	label: string;
 	source: string;

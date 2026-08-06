@@ -107,7 +107,12 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 
 	it.each<[string, Record<string, unknown>]>([
 		["omits the keys", { extends: "fc-character", fields: [] }],
-		["writes a single empty item", { tagNames: [""], filesPaths: [""], fields: [] }],
+		// What the SHIPPED files actually contain: `tagNames:\n  - ` is a list
+		// holding one NULL, not one empty string (fc-character-fantasy.md:5-8).
+		// The earlier fixture used [""], which no vault writes, so the string
+		// narrowing that stands between this shape and a TypeError had no cover.
+		["writes a bare list item, which parses to null", { tagNames: [null], filesPaths: [null], fields: [] }],
+		["writes an empty string", { tagNames: [""], filesPaths: [""], fields: [] }],
 	])("attaches nothing to an unclaimed note when a FileClass %s", (_shape, frontmatter) => {
 		const app = new App();
 		const note = createMockTFile({ basename: "Nothing", path: "90 Inbox/Nothing.md" });
@@ -116,6 +121,35 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 
 		// Both shapes mean "claims nothing". Treating either as a wildcard would
 		// silently give every note in the vault this FileClass's fields.
+		expect(createFileClassSource(app, () => FOLDER).nameFor(note)).toBeUndefined();
+	});
+
+	it("does not render a null claim as a crash — the shipped fc-character-fantasy shape", () => {
+		const app = new App();
+		const note = createMockTFile({ basename: "Mara", path: "30 Canon/31 Characters/Mara.md" });
+		const fcFantasy = createMockTFile({ basename: "fc-character-fantasy", path: `${FOLDER}/fc-character-fantasy.md` });
+		seed(app, [
+			{ file: fcFantasy, frontmatter: { tagNames: [null], filesPaths: [null], extends: "fc-character", fields: [] } },
+			{ file: note, tags: ["#canon/character"] },
+		]);
+
+		// Every vault carrying the shipped FileClasses hits this on every render.
+		expect(() => createFileClassSource(app, () => FOLDER).nameFor(note)).not.toThrow();
+	});
+
+	it("treats only files inside the configured folder as FileClasses", () => {
+		const app = new App();
+		const note = createMockTFile({ basename: "Moonharbor", path: "30 Canon/32 Locations/Moonharbor.md" });
+		// A perfectly ordinary note that happens to carry a `tagNames` key —
+		// someone's template, or another plugin's metadata. Without the folder
+		// filter its basename would be returned as a FileClass name and the pane
+		// would try to render fields declared by a note that is not one.
+		const impostor = createMockTFile({ basename: "Not a FileClass", path: "20 Planning/Not a FileClass.md" });
+		seed(app, [
+			{ file: impostor, frontmatter: { tagNames: ["canon/location"], fields: [] } },
+			{ file: note, tags: ["#canon/location"] },
+		]);
+
 		expect(createFileClassSource(app, () => FOLDER).nameFor(note)).toBeUndefined();
 	});
 
