@@ -537,9 +537,22 @@ export class AnvilView extends ItemView {
 	 * act on the click. A pane that ignores clicks until I/O completes is worse
 	 * than one that briefly shows a stale value — and `_renderFields` makes sure
 	 * it does not show one either.
+	 *
+	 * **Scoped to the note the pane is showing**, matching `_shownFrontmatter`.
+	 * The defer exists to protect one thing: the optimistic value this pane is
+	 * displaying. That is only ever the open note's, so an unresolved write to
+	 * some OTHER note buys nothing here and costs the hybrid reconcile — inspect
+	 * a second entry while a write to the first is still in flight and, unscoped,
+	 * this would suspend every external update to the note now on screen until an
+	 * abandoned write to a note nobody is looking at happened to settle. Nothing
+	 * clears `_inFlight` on the inspect path (`_onWriteIssued` resets on a path
+	 * change only when the user *edits* the new note), and it deliberately should
+	 * not: the write really is still in flight, and if the user comes back to
+	 * that note before it lands the overlay must still be there. The state stays
+	 * honest; the guard narrows the decision.
 	 */
 	private _reconcile(): void {
-		if (this._inFlight.size > 0) {
+		if (this._inFlight.size > 0 && this._inFlightPath === this._editor.path) {
 			this._reconcileOwed = true;
 			return;
 		}

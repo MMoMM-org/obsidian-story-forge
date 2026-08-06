@@ -86,11 +86,15 @@ const fcFile = createMockTFile({ basename: "fc-character", path: "00 Meta/FileCl
  */
 function seedVault(app: App): void {
 	app.fileManager._setFrontmatter(mara.path, seedFrontmatter());
+	// A SECOND editable note, not just a link target: the pane follows whichever
+	// entry is inspected, so "a write to one note" and "the note on screen" have
+	// to be separable to test at all.
+	app.fileManager._setFrontmatter(elke.path, { ...seedFrontmatter(), name: "Elke Stoneway" });
 	const byPath = new Map<string, TFile>([mara, elke, fcFile].map((f) => [f.path, f]));
 
 	vi.mocked(app.metadataCache.getFileCache).mockImplementation((file) => {
-		if (file.path === mara.path) {
-			return createMockCachedMetadata({ frontmatter: app.fileManager._getFrontmatter(mara.path) });
+		if (file.path === mara.path || file.path === elke.path) {
+			return createMockCachedMetadata({ frontmatter: app.fileManager._getFrontmatter(file.path) });
 		}
 		if (file.path === fcFile.path) return createMockCachedMetadata({ frontmatter: FC_CHARACTER });
 		return createMockCachedMetadata({ frontmatter: {} });
@@ -536,6 +540,35 @@ describe("a user-initiated render during an in-flight write (T5.4)", () => {
 		app.metadataCache._trigger("changed", mara);
 		await vi.runAllTimersAsync();
 		expect(inputIn(view.contentEl, "name").value).toBe("Mara Stoneway");
+	});
+
+	it("keeps a DIFFERENT note's pane reconciling while another note's write is unresolved", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		vi.mocked(app.fileManager.processFrontMatter).mockImplementationOnce(
+			async () => new Promise<void>(() => { /* never settles */ }),
+		);
+
+		// A write to Mara is issued and abandoned mid-flight.
+		typeInto(view.contentEl, "name", "Mara Ironwright");
+		// The user moves on to a different entry. Nothing clears the record of
+		// Mara's write — `_onWriteIssued` only resets on a path change when the
+		// user EDITS the new note, and merely inspecting it is not an edit.
+		view.inspect(elke);
+		await vi.runAllTimersAsync();
+		expect(inputIn(view.contentEl, "name").value).toBe("Elke Stoneway");
+
+		// An external edit to the note now on screen.
+		app.fileManager._setFrontmatter(elke.path, { ...seedFrontmatter(), name: "Elke Ashford" });
+		app.metadataCache._trigger("changed", elke);
+		await vi.runAllTimersAsync();
+
+		// The defer exists to protect the pane's OWN optimistic value. Mara's
+		// abandoned write is not Elke's business, and deferring on it suspends the
+		// hybrid reconcile (ADR-22, ADR-25) for a note nobody is writing to — the
+		// display is path-scoped, so the guard has to be too.
+		expect(inputIn(view.contentEl, "name").value).toBe("Elke Ashford");
 	});
 
 	it("reseeds the live pane when a write refused AFTER the pane was rebuilt", async () => {
