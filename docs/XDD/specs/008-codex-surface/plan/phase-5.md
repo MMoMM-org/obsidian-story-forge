@@ -262,6 +262,15 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   >       `.sf-cx-split-left` carry `overflow: auto` with no height constraint, so today a column
   >       grows to content height and the two columns are as tall as the taller one. With a long
   >       field set in the pane this stops being theoretical.
+  > - [ ] **The dock-right EDITOR column scrolls in place — check the Codex flavour first.** Added
+  >       2026-08-06. This is the one S99 actually draws, and it was the flavour missed twice:
+  >       `.sf-cx-split-right` carries no `overflow` (unlike `.sf-ws-split-right`), so before the fix
+  >       a full field set spilled out of the now-bounded split and dragged the **whole tab body's**
+  >       scrollbar, pill row and all. The fix is `.sf-ed--right { height: 100%; min-height: 0 }`,
+  >       which pins the pane's header and scrolls `.sf-ed-grid` internally in **both** split
+  >       flavours. Verify with a character that has enough fields to overflow: the collection pills
+  >       and the card column must stay put while the field grid scrolls, and the pane's own header
+  >       (dock / fullscreen / close) must not scroll away with the fields.
   > - [ ] **The width rule renders two-up.** Unit tests can only assert the stamped
   >       `sf-ed-f--half` / `sf-ed-f--full` modifier per named field; whether the grid actually
   >       places them two-up is a CSS outcome. Compare against **S102/S103** by eye.

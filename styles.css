@@ -3153,6 +3153,31 @@ body {
 	border-top: none;
 }
 
+/*
+ * Dock right (S99): the pane fills its column, so its header — which carries
+ * the dock, fullscreen and close controls — stays put and only `.sf-ed-grid`
+ * scrolls, exactly as fullscreen now behaves.
+ *
+ * `height`, not `flex`, and the reasoning is the same shape as everywhere else
+ * in this file: both `.sf-cx-split-right` and `.sf-ws-split-right` are flex
+ * ITEMS (stretched to their row, so their own height is definite) but block
+ * CONTAINERS, so a flex property on this pane would be ignored while a
+ * percentage resolves.
+ *
+ * Without this the column had no scroll box at all — `.sf-cx-split-right`
+ * carries no `overflow`, unlike its `.sf-ws-split-right` counterpart — so a
+ * full field set spilled out of the bounded split and dragged the whole tab
+ * body's scrollbar, pill row and all. Fixing it here rather than adding
+ * `overflow` to the Codex column fixes BOTH split flavours and keeps the
+ * header from scrolling away with the fields.
+ *
+ * Pending the real-vault check (T5.6) — jsdom cannot see it.
+ */
+.sf-ed--right {
+	height: 100%;
+	min-height: 0;
+}
+
 .sf-ed-head {
 	display: flex;
 	align-items: center;
@@ -3205,8 +3230,9 @@ body {
 	padding: 10px 11px;
 	/* `min-height: 0` is what lets a flex item shrink below its content, which
 	 * is what makes this element's own `overflow: auto` engage rather than the
-	 * whole pane growing. Only meaningful when the pane has a bounded height —
-	 * i.e. fullscreen; harmless otherwise. */
+	 * whole pane growing. Meaningful wherever the pane has a bounded height —
+	 * fullscreen and dock right — and harmless in the bottom dock, where the
+	 * pane is content-height by design. */
 	min-height: 0;
 	overflow: auto;
 }
