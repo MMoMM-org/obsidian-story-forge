@@ -131,7 +131,9 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      `markerKindOf` so it classifies as `editableField`.
   4. Validate: unit tests per control; lint; types.
   5. Success:
-     - [ ] Relations are editable — the gap that motivated this spec `[ref: PRD/F5 AC]`
+     - [x] Relations are editable — the gap that motivated this spec `[ref: PRD/F5 AC]`
+           — **ticked by T5.4 (2026-08-06)**: a chip added or removed in the pane now reaches the
+           file as a `[[wikilink]]` a human could have typed, through `frontmatterWriter`.
 
      > **Deliberately left unticked when T5.2 closed (2026-08-05).** The relation chip control is
      > built, reviewed and tested — chips add and remove `[[wikilinks]]` a human could have typed,
@@ -211,7 +213,19 @@ The editor the withdrawn "note panel" surface was actually reaching for.
            divergence** (2026-08-05, user), and the *geometry* of the width rule is a T5.6
            real-vault check, not a jsdom claim.
 
-- [ ] **T5.4 Commit path, rollback and external sync** `[activity: backend-api]`
+- [x] **T5.4 Commit path, rollback and external sync** `[activity: backend-api]`
+
+  > **Two findings from the build, both recorded in the spec `README.md` decision log rather than
+  > left in the code.** (1) The pane **restores** on failure instead of honouring the writer's
+  > `keepDirty`, deliberately opposite to `InspectorController` — that surface has an explicit Save
+  > to press again, this one commits on change. (2) `frontmatterWriter.FieldType` gained
+  > **`"boolean"`**: every existing spec type rejects a boolean as a type error, so metadata-menu's
+  > `Boolean` type — one of the 13 PRD/F6 requires — was silently uneditable. Additive; no
+  > `schema/*.json` field is boolean, so the Workbench inspector never reaches the new branch.
+  >
+  > **Left for T5.6 to judge in a real vault:** the pane commits on **every `input` event**, which
+  > is T5.2's control contract and the ruled "commits on change" model — so typing a long value
+  > writes the file once per keystroke. Correct, and not something a jsdom test can feel.
 
   1. Prime: Read `src/inspector/frontmatterWriter.ts` — the **exported** seam you wire to is
      `commit` / `commitMany` plus the `FieldSpec` and `CommitResult` types. **`validateField`
@@ -228,8 +242,8 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   3. Implement: wire controls → `commit`; optimistic update with rollback.
   4. Validate: unit tests with the spy-able `processFrontMatter` mock; lint; types.
   5. Success:
-     - [ ] Every write is a plain Property `[ref: SDD/AC — PRD F5]`
-     - [ ] A failure never leaves the UI showing a value the file lacks `[ref: SDD/Error Handling]`
+     - [x] Every write is a plain Property `[ref: SDD/AC — PRD F5]`
+     - [x] A failure never leaves the UI showing a value the file lacks `[ref: SDD/Error Handling]`
 
 - [ ] **T5.5 The portrait control** `[activity: frontend-ui]`
 
