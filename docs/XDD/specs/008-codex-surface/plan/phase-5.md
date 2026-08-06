@@ -140,7 +140,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      > them through `frontmatterWriter`. Ticking it now would claim a user-visible outcome that no
      > user can reach. **T5.4 ticks it**, once a chip edit reaches the file.
 
-- [ ] **T5.3 Sections and layout from the model** `[activity: frontend-ui]`
+- [x] **T5.3 Sections and layout from the model** `[activity: frontend-ui]`
 
   > **OQ-1 RESOLVED 2026-08-05 — T5.3 is unblocked** `[ref: SDD/Open Questions]`. The label is
   > **`fc.title ?? prettify(stripPrefix(basename))`** — read the `title` key from the FileClass
@@ -206,7 +206,10 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   3. Implement: section rendering in `editorPane` driven purely by `FieldModel` `[ref: ADR-31]`.
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] The rendered pane matches S102/S103 `[ref: SDD/AC — PRD F6]`
+     - [x] The rendered pane matches S102/S103 `[ref: SDD/AC — PRD F6]` — assessed on sections,
+           labels, ordering and the width rule; the enum cell's native chrome is a **recorded
+           divergence** (2026-08-05, user), and the *geometry* of the width rule is a T5.6
+           real-vault check, not a jsdom claim.
 
 - [ ] **T5.4 Commit path, rollback and external sync** `[activity: backend-api]`
 
