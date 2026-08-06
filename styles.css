@@ -3555,3 +3555,18 @@ body {
 .sf-ed-grid--narrow .sf-ed-f--full {
 	grid-column: span 1;
 }
+
+/*
+ * A failed commit's reason, inline on the field it belongs to (T5.4,
+ * SDD/Error Handling). It takes a whole row of the grid rather than sitting
+ * beside the control: the writer's messages are sentences, and squeezing one
+ * into a half-width cell would truncate the only explanation the user gets.
+ * The colour is a reinforcement, never the message — the text says what went
+ * wrong on its own.
+ */
+.sf-ed-err {
+	grid-column: 1 / -1;
+	margin-top: -2px;
+	color: var(--text-error);
+	font-size: 10.5px;
+}

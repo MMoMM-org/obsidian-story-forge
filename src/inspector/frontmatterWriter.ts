@@ -21,8 +21,26 @@ import type { App, TFile } from "obsidian";
 // Types
 // ---------------------------------------------------------------------------
 
-/** Field type discriminant. Mirrors schema/*.json field.type values. */
-export type FieldType = "text" | "number" | "select" | "list" | "tags" | "relation" | "fixed";
+/**
+ * Field type discriminant. Mirrors schema/*.json field.type values.
+ *
+ * `"boolean"` was added by T5.4 (spec 008): the editor pane renders a checkbox
+ * for metadata-menu's `Boolean` type, and a checkbox reports a real `true` /
+ * `false`. Every other member rejects a boolean as a type error, so without
+ * this a `Boolean` field would be silently uneditable — and writing `"true"`
+ * instead would put a string where Bases and Dataview expect a boolean. No
+ * `schema/*.json` field is boolean today, so nothing the Workbench inspector
+ * builds reaches this branch.
+ */
+export type FieldType =
+	| "text"
+	| "number"
+	| "boolean"
+	| "select"
+	| "list"
+	| "tags"
+	| "relation"
+	| "fixed";
 
 /**
  * Minimal field descriptor consumed by the writer.
@@ -32,6 +50,7 @@ export type FieldType = "text" | "number" | "select" | "list" | "tags" | "relati
 export type FieldSpec =
 	| { name: string; type: Extract<FieldType, "text" | "list" | "tags" | "relation" | "fixed"> }
 	| { name: string; type: Extract<FieldType, "number"> }
+	| { name: string; type: Extract<FieldType, "boolean"> }
 	| { name: string; type: Extract<FieldType, "select">; values?: string[] };
 
 /** Success result. */
@@ -83,6 +102,17 @@ function validateField(field: FieldSpec, value: unknown): ValidationResult {
 				return {
 					kind: "type-error",
 					message: `Field "${field.name}" expects a finite number, got ${got}.`,
+				};
+			}
+			return { kind: "ok" };
+
+		case "boolean":
+			// A checkbox's value. Frontmatter must hold a real boolean, not the
+			// string "true" — see the FieldType docstring.
+			if (typeof value !== "boolean") {
+				return {
+					kind: "type-error",
+					message: `Field "${field.name}" expects true or false, got ${typeof value}.`,
 				};
 			}
 			return { kind: "ok" };

@@ -90,6 +90,7 @@ import {
 	type EditorDock,
 	type EditorPaneMode,
 } from "editor/editorPane";
+import { FieldCommitter } from "editor/fieldCommit";
 import { buildFieldModel } from "editor/fieldModel";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
 import { createFileClassSource, type FileClassSource } from "fileclass/fileClassVault";
@@ -243,6 +244,10 @@ export class AnvilView extends ItemView {
 	private readonly _editor = new EditorPaneStore();
 	/** Reads FileClasses out of the configured folder for the pane (T5.3). Built in onOpen. */
 	private _fileClasses: FileClassSource | null = null;
+	/** The open pane's write path (T5.4). Rebuilt on every render, `null` when no pane is open. */
+	private _commits: FieldCommitter | null = null;
+	/** A reconcile that arrived while a commit was unresolved, owed once it settles (T5.4). */
+	private _reconcileOwed = false;
 	/** Vault-backed note index feeding the pure collection resolver. Built in onOpen. */
 	private _noteIndex: CodexNoteIndex | null = null;
 	private _scopeKey = "none";
@@ -302,7 +307,7 @@ export class AnvilView extends ItemView {
 		this.getFileClassesFolder =
 			opts?.editor?.getFileClassesFolder ?? ((): string => DEFAULT_FILE_CLASSES_FOLDER);
 		this.onEditorDockChange = opts?.editor?.onDockChange ?? ((): void => {});
-		this._debouncedRender = debounce((): void => { this._render(); }, DEBOUNCE_MS, true);
+		this._debouncedRender = debounce((): void => { this._reconcile(); }, DEBOUNCE_MS, true);
 	}
 
 	getViewType(): string {
@@ -425,6 +430,13 @@ export class AnvilView extends ItemView {
 		this.registerEvent(this.app.workspace.on("active-leaf-change", () => { this._debouncedRender(); }));
 		// Hybrid reconcile: react to external/self frontmatter changes (ADR-22, ADR-25).
 		this.registerEvent(this.app.metadataCache.on("changed", () => { this._debouncedRender(); }));
+		// SDD/Error Handling: a note deleted while the editor is open (T5.4).
+		// `metadataCache`'s "deleted" rather than the vault's "delete" because the
+		// pane only ever shows a note WITH metadata, and this event hands over a
+		// `TFile` where the vault's hands over a `TAbstractFile` to narrow. NOT
+		// debounced: the pane is showing a file that no longer exists, so waiting
+		// out a debounce window would leave the user editing a ghost.
+		this.registerEvent(this.app.metadataCache.on("deleted", (file: TFile) => { this._onNoteDeleted(file); }));
 
 		this._syncToggle();
 		this._render();
@@ -444,6 +456,8 @@ export class AnvilView extends ItemView {
 		this._collapse.clear();
 		this._codexSelection.clear();
 		this._editor.clear();
+		this._commits = null;
+		this._reconcileOwed = false;
 		this._noteIndex = null;
 		this._fileClasses = null;
 		this.contentEl.empty();
@@ -498,9 +512,50 @@ export class AnvilView extends ItemView {
 		}
 	}
 
+	/**
+	 * The debounced reconcile (T5.4). A re-render rebuilds every control from the
+	 * note's frontmatter, so running one while the user's own write is still
+	 * unresolved would replace what they just typed with the value the file has
+	 * not been given yet. The reconcile is therefore *owed* rather than dropped:
+	 * `_afterCommits` runs it the moment the write settles, so the pane is never
+	 * left permanently stale either (last-write-wins, ADR-25).
+	 */
+	private _reconcile(): void {
+		if (this._commits?.busy === true) {
+			this._reconcileOwed = true;
+			return;
+		}
+		this._render();
+	}
+
+	/** Pay off a reconcile that arrived mid-write, once the last write has settled. */
+	private _afterCommits(): void {
+		if (this._commits?.busy === true) return;
+		if (!this._reconcileOwed) return;
+		this._reconcileOwed = false;
+		this._render();
+	}
+
+	/**
+	 * SDD/Error Handling — "close the pane, return to the grid, notify".
+	 *
+	 * The path check is what keeps this from being a global listener that closes
+	 * the pane whenever anything in the vault is deleted.
+	 */
+	private _onNoteDeleted(file: TFile): void {
+		if (this._editor.path !== file.path) return;
+		this._editor.close();
+		this._reconcileOwed = false;
+		new Notice(`"${file.basename}" was deleted. The editor closed.`);
+		this._render();
+	}
+
 	private _render(): void {
 		if (!this._bodyEl) return;
 		const body = this._bodyEl;
+		// The committer belongs to the controls this render is about to destroy.
+		// Dropping it here means a pane that closes leaves no write path behind.
+		this._commits = null;
 		body.empty();
 
 		// Tear down prior zoom child (releases DOM listeners, CON-4).
@@ -670,8 +725,10 @@ export class AnvilView extends ItemView {
 	 * A note with no FileClass at all still renders: `buildFieldModel` falls
 	 * back to the keys the note actually has.
 	 *
-	 * Writes nothing — the controls report edits and T5.4 wires them to the
-	 * single commit seam (CON-1).
+	 * The controls report their edits to a `FieldCommitter` built here (T5.4),
+	 * which is the pane's only write path and goes through `frontmatterWriter`
+	 * (CON-1). It is per-render on purpose: it snapshots what the file held when
+	 * the pane was drawn, and that snapshot is what a failed write rolls back to.
 	 */
 	private _renderFields(fieldsEl: HTMLElement, file: TFile): void {
 		const source = this._fileClasses;
@@ -679,9 +736,20 @@ export class AnvilView extends ItemView {
 		const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
 		const startName = source.nameFor(file);
 		const chain = startName === undefined ? [] : resolveFileClassChain(startName, source.lookup);
-		renderFieldSections(fieldsEl, buildFieldModel(chain, frontmatter), {
-			valueOf: (name: string): unknown => frontmatter[name] ?? null,
+		const model = buildFieldModel(chain, frontmatter);
+		const valueOf = (name: string): unknown => frontmatter[name] ?? null;
+
+		const commits = new FieldCommitter({
+			app: this.app,
+			file,
+			model,
+			host: fieldsEl,
+			valueOf,
+			onSettled: (): void => { this._afterCommits(); },
 		});
+		this._commits = commits;
+
+		renderFieldSections(fieldsEl, model, { valueOf, onEdit: commits.onEdit });
 	}
 
 	/**
