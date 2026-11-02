@@ -142,11 +142,11 @@ const ORDER_FIELD = { name: "order", type: "number" as const };
  */
 export interface AnvilViewOpts {
 	/**
-	 * The Anvil's "inspect" (ADR-28). Defaults to `view.inspect(file)` — the
-	 * editor pane, in this view, opening no other leaf (PRD/F2). Injected by
-	 * `main.ts` at the construction site (T5.1) so the production path is
-	 * visible there rather than only in a default, and overridable so a test
-	 * can observe inspection through the seam that exists for it.
+	 * The Anvil's "inspect" (ADR-28). Defaults to a deliberate no-op: the host
+	 * wires it. `main.ts` injects `view.inspect(file)` — the editor pane, in this
+	 * view, opening no other leaf (PRD/F2) — at the construction site (T5.1), so
+	 * the production path is visible there rather than hidden in a default, and
+	 * a test can observe inspection through the same seam.
 	 */
 	drill?: (file: TFile) => void;
 

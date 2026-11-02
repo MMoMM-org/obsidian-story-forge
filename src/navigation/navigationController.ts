@@ -71,8 +71,8 @@ export type TargetKind = "name" | "cardTitle" | "paneTitle" | "cardBody" | "stru
  * walking up from the event target (as `closest()` calls already do) and
  * recording each marker kind it recognises as it climbs — the same order the
  * two existing handlers implicitly rely on for the nested name-in-a-
- * structural-control case. An empty array means none of the four marker
- * kinds matched anything in the ancestor chain.
+ * structural-control case. An empty array means none of the `TargetKind`s
+ * matched anything in the ancestor chain.
  *
  * Kept as a plain array of kinds — not a DOM node — so this module stays
  * free of any DOM or Obsidian dependency.
