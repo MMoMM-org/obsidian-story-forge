@@ -754,7 +754,8 @@ describe("T6.1.6 — write failure: edit preserved, error state, no fan-out", ()
 		// Error state must be shown (write failure)
 		const errorEl = container.querySelector("[data-sf-inspector-error='occupation']");
 		expect(errorEl).not.toBeNull();
-		expect(errorEl!.textContent).toContain("Couldn't write frontmatter");
+		// The inspector KEEPS the draft, so it says so; the writer's own text is neutral.
+		expect(errorEl!.textContent).toBe("Couldn't write frontmatter. Your edits are kept.");
 
 		// The Retry button must be present (write errors → Retry affordance)
 		const retryBtn = container.querySelector("[data-sf-inspector-retry='occupation']");

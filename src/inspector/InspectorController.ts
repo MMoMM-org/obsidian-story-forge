@@ -637,7 +637,7 @@ export class InspectorController {
 			state.status = {
 				kind: "error",
 				reason: result.reason,
-				message: result.message,
+				message: result.reason === "write" ? `${result.message} Your edits are kept.` : result.message,
 			};
 		}
 

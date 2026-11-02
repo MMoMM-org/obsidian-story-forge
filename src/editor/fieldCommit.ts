@@ -50,7 +50,7 @@ import type { FieldType } from "fileclass/fileClassTypes";
 // Relative, not the `inspector/...` alias every other internal import uses:
 // eslint's `import/no-nodejs-modules` reads that bare specifier as Node's own
 // `inspector` builtin. `AnvilView.ts` imports the same module the same way.
-import { commit, type CommitResult, type FieldSpec } from "../inspector/frontmatterWriter";
+import { commit, type CommitError, type CommitResult, type FieldSpec } from "../inspector/frontmatterWriter";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (the same local declaration
@@ -205,7 +205,7 @@ export class FieldCommitter {
 				return;
 			}
 			this._restore(edit.name, field);
-			this._surface(edit.name, result.message);
+			this._surface(edit.name, this._failureText(result));
 			// A render during the write rebuilt the pane, so everything above just
 			// fixed a DETACHED tree — `querySelectorAll` works there, which is
 			// precisely why this fails silently rather than throwing. The live pane
@@ -218,6 +218,11 @@ export class FieldCommitter {
 			// every reconcile from then on.
 			this._opts.onWriteSettled?.(edit.name);
 		}
+	}
+
+	/** The writer's reason plus what THIS surface did about it: it restored the old value. */
+	private _failureText(result: CommitError): string {
+		return result.reason === "write" ? `${result.message} The previous value was restored.` : result.message;
 	}
 
 	/** Rebuild the field's control from the committed snapshot (see the module docstring). */

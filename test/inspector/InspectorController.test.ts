@@ -502,7 +502,7 @@ describe("InspectorController: commit → write error", () => {
 		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({
 			ok: false,
 			reason: "write",
-			message: "Couldn't write frontmatter. Your edits are kept.",
+			message: "Couldn't write frontmatter.",
 			keepDirty: true,
 		});
 
@@ -525,7 +525,7 @@ describe("InspectorController: commit → write error", () => {
 		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({
 			ok: false,
 			reason: "write",
-			message: "Couldn't write frontmatter. Your edits are kept.",
+			message: "Couldn't write frontmatter.",
 			keepDirty: true,
 		});
 
@@ -547,7 +547,7 @@ describe("InspectorController: commit → write error", () => {
 		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({
 			ok: false,
 			reason: "write",
-			message: "Couldn't write frontmatter. Your edits are kept.",
+			message: "Couldn't write frontmatter.",
 			keepDirty: true,
 		});
 
@@ -571,7 +571,7 @@ describe("InspectorController: commit → write error", () => {
 			.mockResolvedValueOnce({
 				ok: false,
 				reason: "write",
-				message: "Couldn't write frontmatter. Your edits are kept.",
+				message: "Couldn't write frontmatter.",
 				keepDirty: true,
 			})
 			.mockResolvedValueOnce({ ok: true });
@@ -933,7 +933,7 @@ describe("InspectorController: dirty-guard — notifyFileChanged return value", 
 		vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({
 			ok: false,
 			reason: "write",
-			message: "Couldn't write frontmatter. Your edits are kept.",
+			message: "Couldn't write frontmatter.",
 			keepDirty: true,
 		});
 

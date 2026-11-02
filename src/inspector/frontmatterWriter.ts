@@ -165,8 +165,13 @@ function outOfVocabWarning(value: unknown, key: string): string {
 	return `[StoryForge] Inspector: "${String(value)}" is not in the declared vocabulary for field "${key}". Writing anyway (frontmatter is truth).`;
 }
 
-/** User-facing message when processFrontMatter rejects. */
-const WRITE_ERROR_MESSAGE = "Couldn't write frontmatter. Your edits are kept.";
+/**
+ * User-facing message when processFrontMatter rejects. Deliberately says
+ * nothing about what happens to the user's edit: that depends on the surface
+ * (the inspector keeps its draft, the editor pane restores the old value), so
+ * each surface appends its own consequence.
+ */
+const WRITE_ERROR_MESSAGE = "Couldn't write frontmatter.";
 
 // ---------------------------------------------------------------------------
 // Public API

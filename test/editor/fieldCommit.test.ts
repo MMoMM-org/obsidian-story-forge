@@ -385,8 +385,10 @@ describe("a failed commit restores the previous value and surfaces the reason (T
 		expect(vi.mocked(app.fileManager.processFrontMatter)).toHaveBeenCalledTimes(1);
 		expect(inputIn(pane.host, "name").value).toBe("Mara Stoneway");
 		expect(pane.valueOf).not.toHaveBeenCalled();
-		expect(errorTextFor(pane.host, "name")).toMatch(/couldn't write frontmatter/i);
-		expect(Notice._instances).toHaveLength(1);
+		// The pane RESTORES the old value, so it must not claim the edit is kept.
+		const expected = "Couldn't write frontmatter. The previous value was restored.";
+		expect(errorTextFor(pane.host, "name")).toBe(expected);
+		expect(Notice._instances.map((n) => n.message)).toEqual([expected]);
 		// And the file still holds what it held.
 		expect(app.fileManager._getFrontmatter(mara.path)["name"]).toBe("Mara Stoneway");
 	});

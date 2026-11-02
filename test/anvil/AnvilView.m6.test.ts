@@ -353,7 +353,7 @@ describe("AnvilView M6 — write-error surface (ADR-24)", () => {
 		const pv = view as unknown as {
 			_surfaceWriteError: (file: TFile, result: { ok: false; reason: string; message: string; keepDirty: true }) => void;
 		};
-		pv._surfaceWriteError(fx.s1, { ok: false, reason: "write", message: "Couldn't write frontmatter. Your edits are kept.", keepDirty: true });
+		pv._surfaceWriteError(fx.s1, { ok: false, reason: "write", message: "Couldn't write frontmatter.", keepDirty: true });
 
 		const card = [...body(view).querySelectorAll(".sf-kb-card")].find(
 			(c) => c.getAttribute("data-sf-card-path") === fx.s1.path,
