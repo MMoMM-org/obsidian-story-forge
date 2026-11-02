@@ -251,7 +251,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      - [x] Every write is a plain Property `[ref: SDD/AC — PRD F5]`
      - [x] A failure never leaves the UI showing a value the file lacks `[ref: SDD/Error Handling]`
 
-- [ ] **T5.5 The portrait control** `[activity: frontend-ui]`
+- [x] **T5.5 The portrait control** `[activity: frontend-ui]`
 
   1. Prime: Mockup **S102** (preview, path, *Choose image…* / *Clear*). Note the finding in
      `[ref: SDD/Technical Debt]`: today the image field is special-cased **by name**, and its name
@@ -263,7 +263,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
      field name, and **not** by a `ui` hint (`ui: "image"` was withdrawn, ADR-32 revised 2026-07-29).
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] The control is selected by the field's declared **type**, not by field name `[ref: ADR-32]`
+     - [x] The control is selected by the field's declared **type**, not by field name `[ref: ADR-32]`
 
 - [ ] **T5.6 Phase Validation** `[activity: validate]`
 
