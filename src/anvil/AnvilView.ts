@@ -43,7 +43,7 @@
  */
 
 import { Component, ItemView, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
-import { DEBOUNCE_MS, WORKSPACE_VIEW_TYPE } from "pluginConstants";
+import { DEBOUNCE_MS, ICON, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import { resolveWorkspaceScope, resolvePlotlineScope, DEFAULT_EXCLUDED_FOLDERS } from "scoping/workspaceScope";
 import { mapSceneRow } from "workspace/sceneMapper";
 import {
@@ -64,7 +64,7 @@ import { createTimelineZoom } from "workspace/timelineZoom";
 import { InteractionHandler } from "workspace/interactionHandler";
 import { commit, commitMany, type CommitResult, type CommitError } from "../inspector/frontmatterWriter";
 import { CollapseStore } from "workspace/collapseStore";
-import { ANVIL_TAB_LABEL, buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
+import { buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
 import { createNavigationController } from "navigation/navigationController";
 import { walkTargetMarkers, type MarkerKindOf } from "navigation/domTargetWalk";
 import { linkContextMenuHandler } from "navigation/linkContextMenu";
@@ -83,6 +83,7 @@ import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
 import { CODEX_HINT_DISMISS_ATTR } from "codex/basesHint";
 import { createNoteIndex, type CodexNoteIndex } from "codex/noteIndex";
 import {
+	EDITOR_PATH_ATTR,
 	EDITOR_TOOL_ATTR,
 	EditorPaneStore,
 	isEditorTool,
@@ -331,18 +332,17 @@ export class AnvilView extends ItemView {
 		return WORKSPACE_VIEW_TYPE;
 	}
 
+	/**
+	 * Stable on purpose: Obsidian reads the title and icon when the leaf opens and
+	 * has no public way to refresh them, so per-tab values went stale on the first
+	 * tab switch. The Anvil's own tab strip shows which tab is active.
+	 */
 	getDisplayText(): string {
-		return `Anvil — ${ANVIL_TAB_LABEL[this._layout]}`;
+		return "Anvil";
 	}
 
 	getIcon(): string {
-		switch (this._layout) {
-			case "codex": return "library";
-			case "plotlines": return "git-branch";
-			case "kanban": return "columns";
-			case "plotgrid": return "grid";
-			default: return "clock";
-		}
+		return ICON;
 	}
 
 	async onOpen(): Promise<void> {
@@ -988,8 +988,14 @@ export class AnvilView extends ItemView {
 		if (!path) return null;
 		const file =
 			this.app.vault.getAbstractFileByPath(path) ??
-			this.app.metadataCache.getFirstLinkpathDest(path, "");
+			this.app.metadataCache.getFirstLinkpathDest(path, this._linkSourcePath(nearest));
 		return file instanceof TFile ? file : null;
+	}
+
+	/** The note a link sits in, so a name shared by two notes resolves as Obsidian would. */
+	private _linkSourcePath(link: HTMLElement | null): string {
+		const card = link?.closest(`[${CODEX_CARD_BODY_ATTR}]`)?.getAttribute(CODEX_CARD_BODY_ATTR);
+		return card ?? link?.closest(`[${EDITOR_PATH_ATTR}]`)?.getAttribute(EDITOR_PATH_ATTR) ?? "";
 	}
 
 	/**
