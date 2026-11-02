@@ -272,7 +272,17 @@ function dateControl(
 	type: "date" | "datetime-local" | "time",
 ): () => FieldValue {
 	const input = inputEl(cell, field, type);
-	input.value = asText(value);
+	const stored = asText(value);
+	input.value = stored;
+	// A native date/time input silently discards a value that is not in its own
+	// ISO shape, so it would show EMPTY over a file that holds one — and the
+	// next edit would overwrite it unseen. The browser's own sanitisation is the
+	// test: when it blanked a non-empty value, show the value in a text box.
+	if (stored !== "" && input.value === "") {
+		input.type = "text";
+		input.className = "sf-ed-input sf-ed-input--text";
+		input.value = stored;
+	}
 	onSettled(input, () => report(deps, field, emptyToNull(input.value)));
 	return () => emptyToNull(input.value);
 }

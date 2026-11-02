@@ -179,6 +179,44 @@ describe("field controls — one per type (T5.2)", () => {
 		expect(inputIn(c.el).value).toBe("1998-04-02");
 	});
 
+	it.each<[FieldType, string, string]>([
+		["Date", "date", "1998-04-02"],
+		["Datetime", "datetime-local", "1998-04-02T09:30"],
+		["Time", "time", "09:30"],
+	])("keeps the native %s input for a value it can show", (type_, expected, stored) => {
+		const c = render(fieldDef({ name: "when", type: type_ }), stored);
+
+		expect(inputIn(c.el).type).toBe(expected);
+		expect(inputIn(c.el).value).toBe(stored);
+	});
+
+	it.each<[FieldType, string]>([
+		["Date", "April 2nd, 1998"],
+		["Date", "1998-13-45"],
+		["Datetime", "1998-04-02T09:30:00Z"],
+		["Time", "half past nine"],
+	])("falls back to a text box showing a %s value the native input cannot parse: %s", (type_, stored) => {
+		const c = render(fieldDef({ name: "when", type: type_ }), stored);
+
+		expect(inputIn(c.el).type).toBe("text");
+		expect(inputIn(c.el).value).toBe(stored);
+	});
+
+	it("reports an edit made in the fallback text box as the plain string typed", () => {
+		const c = render(fieldDef({ name: "born", type: "Date" }), "April 2nd, 1998");
+		const box = inputIn(c.el);
+
+		box.value = "1998-04-02";
+		box.dispatchEvent(new Event("change", { bubbles: true }));
+
+		expect(c.edits).toEqual(["1998-04-02"]);
+	});
+
+	it("leaves an empty date empty rather than falling back", () => {
+		const c = render(fieldDef({ name: "born", type: "Date" }), null);
+		expect(inputIn(c.el).type).toBe("date");
+	});
+
 	it("renders a select offering exactly the declared values for Select", () => {
 		const c = render(
 			fieldDef({ name: "role", type: "Select", values: ["protagonist", "supporting"] }),
