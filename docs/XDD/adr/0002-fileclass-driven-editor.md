@@ -115,3 +115,5 @@ vault data, not information.**
 - `src/inspector/inspectorFields.ts` — the list being derived away
 - `src/panel/kindFields.ts` — the `portrait` name-coupling being replaced
 - `scripts/schema-gen.mjs` — write-only, no delete path
+
+> **Revised 2026-11-02 (T6.3).** `inspectorFields.ts` is deleted. It held one field that was never vault data: `tags`, which FileClasses deliberately omit. Tags are not shown in the Workbench editor.
