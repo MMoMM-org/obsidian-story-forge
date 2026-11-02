@@ -305,7 +305,7 @@ function inferFromValue(value: unknown): { type: FieldType; readOnly?: true } {
 	if (typeof value === "number") return { type: "Number" };
 	if (typeof value === "boolean") return { type: "Boolean" };
 	if (Array.isArray(value) && value.every((v) => typeof v === "string")) {
-		return { type: isLinkList(value as string[]) ? "MultiFile" : "Multi" };
+		return { type: isLinkList(value) ? "MultiFile" : "Multi" };
 	}
 	return { type: "Unknown", readOnly: true };
 }
