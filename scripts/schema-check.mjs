@@ -15,6 +15,7 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { deriveNativeTypes, diffTypes } from './schema-types-json.mjs';
+import { collectUiHints, renderUiHintsModule, UI_HINT_FILE } from './schema-ui-hints.mjs';
 import { readInfra, injectEnums, baseRefErrors, schemaLookups } from './schema-infra.mjs';
 
 const args = process.argv.slice(2);
@@ -198,6 +199,21 @@ if (existsSync(INFRA_SRC)) {
     }
   }
   if (infraOk) log.push(`✓ infra: ${infraOk} file(s) deployed + schema-coupled`);
+}
+
+// ── ui hints — src/editor/generatedUiHints.ts must equal a fresh render ──────
+try {
+  const want = renderUiHintsModule(collectUiHints(schemas));
+  const have = existsSync(UI_HINT_FILE) ? readFileSync(UI_HINT_FILE, 'utf8') : null;
+  if (have === want) {
+    log.push(`✓ ui hints: ${UI_HINT_FILE} in sync`);
+  } else {
+    log.push(`✗ ui hints: ${UI_HINT_FILE} ${have === null ? 'missing' : 'differs from schema'} (run schema:gen)`);
+    errors++;
+  }
+} catch (e) {
+  log.push(`✗ ui hints: ${e.message}`);
+  errors++;
 }
 
 // ── Action 2 — types.json drift gate (present-only; local dev-vault artifact) ──

@@ -249,7 +249,7 @@ describe("buildFieldModel — tier 3: a key no FileClass declares", () => {
 
 describe("buildFieldModel — the width rule reproduces S102/S103", () => {
 	it("gives name/role/status/occupation half width, tagline (ui:wide) and portrait (Media) full", () => {
-		const model = buildFieldModel([makeCharacterClass()], {}, { tagline: "wide" });
+		const model = buildFieldModel([makeCharacterClass()], {}, { "fc-character": { tagline: "wide" } });
 
 		expect(widthsByName(model.sections[0]!.fields)).toEqual({
 			name: "half",

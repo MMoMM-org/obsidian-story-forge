@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deriveNativeTypes, diffTypes } from './schema-types-json.mjs';
+import { collectUiHints, renderUiHintsModule, UI_HINT_FILE } from './schema-ui-hints.mjs';
 import { readInfra, injectEnums, schemaLookups } from './schema-infra.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -221,6 +222,10 @@ for (const file of files.sort()) {
   writeFileSync(join(OUT.docs, `${s.entity}.json`), rawText);
   written.push(`Schema/${s.entity}.json`);
 }
+
+// ── ui hints — the editor's `wide` hints, for the bundled plugin (never a FileClass) ──
+writeFileSync(join(ROOT, UI_HINT_FILE), renderUiHintsModule(collectUiHints(allSchemas)));
+written.push(`(src) ${UI_HINT_FILE}`);
 
 // ── Action 3 — deploy the schema-coupled vault infra (Scripts/Bases/dataview-views)
 // from infra/ into 00 Meta/, injecting schema-derived enum fallbacks. These land under

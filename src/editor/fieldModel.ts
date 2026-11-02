@@ -89,6 +89,12 @@ export interface FieldModel {
 export type UiHints = Readonly<Record<string, "wide">>;
 
 /**
+ * Hints keyed by the FileClass that declares them (`fc-character`), so a hint
+ * for our `tagline` never widens a user's own FileClass field of that name.
+ */
+export type UiHintsByFileClass = Readonly<Record<string, UiHints>>;
+
+/**
  * Keys that classify a note rather than describe it, and so never render as
  * editable fields (T5.3).
  *
@@ -118,7 +124,7 @@ const NO_FILECLASS_SOURCE = "other";
 export function buildFieldModel(
 	chain: ParsedFileClass[],
 	frontmatter: Record<string, unknown> | undefined,
-	uiHints: UiHints = {},
+	uiHints: UiHintsByFileClass = {},
 ): FieldModel {
 	if (chain.length === 0) {
 		return { sections: [buildTier2Section(frontmatter)] };
@@ -145,12 +151,12 @@ export function buildFieldModel(
  * nor filters it, it only removes a name already claimed by an earlier
  * section in the chain (R1/R4: first declaration wins).
  */
-function buildChainSection(fileClass: ParsedFileClass, uiHints: UiHints, seen: Set<string>): FieldSection {
+function buildChainSection(fileClass: ParsedFileClass, uiHints: UiHintsByFileClass, seen: Set<string>): FieldSection {
 	const fields: FieldDef[] = [];
 	for (const field of fileClass.fields) {
 		if (seen.has(field.name)) continue; // first declaration wins (F6 edge case)
 		seen.add(field.name);
-		fields.push(toFieldDef(field, uiHints));
+		fields.push(toFieldDef(field, uiHints[fileClass.name] ?? {}));
 	}
 	const section: FieldSection = {
 		label: sectionLabel(fileClass),

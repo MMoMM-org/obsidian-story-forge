@@ -15,6 +15,7 @@ vault (`test/StoryForge/00 Meta/`), these artifacts:
 | `FileClasses/fc-<type>.md` | per type | metadata-menu enforced schema |
 | `Schema/<type>.md` | per type | human property reference (from the `description` fields) |
 | `Schema/<type>.json` | per type | raw machine schema (byte-identical to `schema/<type>.json`); the runtime enum source-of-truth vault scripts read |
+| `src/editor/generatedUiHints.ts` | repo (not the vault) | the `ui` hints, keyed by FileClass, compiled into the plugin (`schema:check` fails on drift) |
 | `.obsidian/types.json` | vault-wide | Obsidian's property→widget-type registry, **merge-only** (schema keys added, foreign keys preserved). Local-only — `.obsidian/` is gitignored |
 
 `npm run schema:check` is the gate: it verifies the human doc agrees with the schema
@@ -63,6 +64,14 @@ doc note:
 | `list` + `relation` | MultiFile | `[]` | list of `[[links]]` |
 | `list` (no relation) | Multi | `[]` | free multi-value |
 | `tags` | — (excluded) | `[<tag>]` | classifier; not a FileClass field |
+
+### Optional `ui` hint
+
+A field may carry `"ui": "wide"` to take a full row in the editor (only `character.tagline` does).
+It is **ours, not the FileClass's**: `schema:gen` never writes it into a `fc-*.md` file. Instead it is
+compiled into `src/editor/generatedUiHints.ts` (the plugin cannot read `schema/` at runtime), keyed by the
+declaring FileClass (`fc-character`), so a user's own FileClass with a `tagline` field is not widened. Any
+other `ui` value is rejected at generation time. Images need no hint: width comes from the `media` type.
 
 `description` is data (not a comment) — it generates the human-reference doc. FileClass
 `id:`s are generated deterministically (`<prefix>-<name>`) and are internal; never hand-edit them.

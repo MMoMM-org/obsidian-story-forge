@@ -96,6 +96,7 @@ import {
 import { FIELD_CONTROL_ATTR } from "editor/fieldControls";
 import { FieldCommitter } from "editor/fieldCommit";
 import { buildFieldModel } from "editor/fieldModel";
+import { GENERATED_UI_HINTS } from "editor/generatedUiHints";
 import { createMediaSeams } from "editor/mediaPicker";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
 import { createFileClassSource, type FileClassSource } from "fileclass/fileClassVault";
@@ -993,7 +994,7 @@ export class AnvilView extends ItemView {
 		const frontmatter = this._shownFrontmatter(file);
 		const startName = source.nameFor(file);
 		const chain = startName === undefined ? [] : resolveFileClassChain(startName, source.lookup);
-		const model = buildFieldModel(chain, frontmatter);
+		const model = buildFieldModel(chain, frontmatter, GENERATED_UI_HINTS);
 		const valueOf = (name: string): unknown => frontmatter[name] ?? null;
 
 		const media = createMediaSeams(this.app, file);
