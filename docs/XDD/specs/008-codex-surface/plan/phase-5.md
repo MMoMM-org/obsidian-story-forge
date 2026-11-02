@@ -275,6 +275,8 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > **Live walk reported by the user 2026-11-02: "everything works".** A summary confirmation, not an
   > item-by-item record. It followed the fix in `29fae14`. The rename was seen directly in the file.
   > Meta Bind stays open: no test value was left in the vault to show it was tried.
+  > **Failed on follow-up:** Cmd+Z does not revert an Anvil write (see G22), and `Open Codex` with Bases
+  > off tries to open `Codex.base` instead of the degrade view. T5.6 stays open on both.
   >
   > **Carried over from T4.7 (audit 2026-11-02), which recorded no result.** Run the full manual walk
   > in `phase-4.md` T4.7 here and record it, including: Card choice per collection survives a reload;
