@@ -126,6 +126,33 @@ describe("character tile from a Media-typed field", () => {
 		expect(el.querySelector(".sf-portrait img")?.getAttribute("src")).toBe("https://x.test/p.png");
 	});
 
+	it("first declaration wins: a base's Input avatar is not retyped Media by the leaf", async () => {
+		const w = world({ "fc-base": fileClass([["avatar", "Input"]]), "fc-leaf": fileClass([["avatar", "Media"]], "fc-base") });
+		const el = await render(w, "character", { fileClass: "fc-leaf", avatar: "[[Media/a.png]]" });
+		expect(el.querySelector(".sf-portrait img")).toBeNull();
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
+	});
+
+	it("a MultiMedia field draws no tile", async () => {
+		const w = world({ "fc-mine": fileClass([["gallery", "MultiMedia"]]) });
+		const el = await render(w, "character", { fileClass: "fc-mine", gallery: "[[Media/a.png]]" });
+		expect(el.querySelector(".sf-portrait img")).toBeNull();
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
+	});
+
+	it("a blank first Media field does not fall through to a valued second one", async () => {
+		const w = world({ "fc-mine": fileClass([["first", "Media"], ["second", "Media"]]) });
+		const el = await render(w, "character", { fileClass: "fc-mine", first: "", second: "[[Media/a.png]]" });
+		expect(el.querySelector(".sf-portrait img")).toBeNull();
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
+	});
+
+	it("a list value in a Media field shows the monogram and does not throw", async () => {
+		const el = await render(world(classes), "character", { fileClass: "fc-mine", avatar: ["[[Media/a.png]]"] });
+		expect(el.querySelector(".sf-portrait img")).toBeNull();
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
+	});
+
 	it("shows the monogram when the FileClass has no Media field", async () => {
 		const w = world({ "fc-mine": fileClass([["role", "Input"]]) });
 		const el = await render(w, "character", { fileClass: "fc-mine", portrait: "[[Media/a.png]]" });
@@ -225,5 +252,15 @@ describe("no FileClass applies: the native fallback", () => {
 		const el = augmentEl(document.createElement("div"));
 		await engine.render(null, ctx, el);
 		expect(el.querySelector(".sf-portrait img")?.getAttribute("src")).toBe("https://x.test/p.png");
+	});
+});
+
+describe("collapsing a section keeps the tile", () => {
+	it("a Media-field tile survives toggleCollapse", async () => {
+		const w = world({ "fc-mine": fileClass([["avatar", "Media"]]) });
+		const el = await render(w, "character", { fileClass: "fc-mine", avatar: "[[Media/a.png]]" });
+		const engine = w.engine as unknown as { _lastDeps: { toggleCollapse: (id: string) => void } };
+		engine._lastDeps.toggleCollapse("facts");
+		expect(el.querySelector(".sf-portrait img")?.getAttribute("src")).toBe(IMG_ASSET);
 	});
 });

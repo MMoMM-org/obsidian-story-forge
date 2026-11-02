@@ -83,7 +83,7 @@ export class NativeScopingEngine implements QueryEngine {
 	// ---------------------------------------------------------------------------
 
 	/** Build the PanelDeps for a render pass. */
-	private _buildDeps(ctx: NoteContext, el: HTMLElement, tileField?: string | null): PanelDeps {
+	private _buildDeps(ctx: NoteContext, el: HTMLElement): PanelDeps {
 		const deps: PanelDeps = {
 			onOpenLink: (path: string): void => {
 				void this.app.workspace.openLinkText(path, ctx.activeFile.path, false);
@@ -91,14 +91,15 @@ export class NativeScopingEngine implements QueryEngine {
 			collapsed: this.collapsed,
 			toggleCollapse: (sectionId: string): void => {
 				this.collapsed[sectionId] = !this.collapsed[sectionId];
-				this._reRender(el, ctx);
+				el.empty();
+				renderPanel(ctx, el, deps); // same deps: the tile field resolved for this render stands
 			},
 			// Same "vault path or URL?" answer as the Codex Cards
 			// (src/panel/assetResolver.ts), but a link that resolves to nothing gives
 			// "" so the tile draws its monogram instead of a broken image.
 			resolveAsset: createLinkedImageResolver(this.app, ctx.activeFile.path),
 			// FileClass resolution reads metadataCache synchronously: nothing to await.
-			tileField: tileField !== undefined ? tileField : this._tileField(ctx),
+			tileField: this._tileField(ctx),
 		};
 		return deps;
 	}
@@ -106,13 +107,5 @@ export class NativeScopingEngine implements QueryEngine {
 	/** The field drawing this note's tile (FileClass Media field, else native). */
 	private _tileField(ctx: NoteContext): string | null {
 		return resolveTileField(ctx.activeKind, ctx.activeFile, ctx.frontmatter, this.fileClasses);
-	}
-
-	/** Re-render into the same el after a collapse state change (the tile field cannot have changed). */
-	private _reRender(el: HTMLElement, ctx: NoteContext): void {
-		el.empty();
-		const deps = this._buildDeps(ctx, el, this._lastDeps?.tileField);
-		this._lastDeps = deps;
-		renderPanel(ctx, el, deps);
 	}
 }
