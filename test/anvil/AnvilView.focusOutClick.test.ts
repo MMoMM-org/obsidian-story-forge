@@ -11,7 +11,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
-import { closePanes, elke, inputIn, openPane, seedVault } from "../helpers/paneFixture";
+import { closePanes, draftInto, elke, inputIn, openPane, seedVault, typeInto } from "../helpers/paneFixture";
 
 beforeEach(() => { vi.useFakeTimers(); });
 afterEach(async () => {
@@ -118,5 +118,66 @@ describe("a user-initiated render", () => {
 		focusOut(box, null);
 
 		expect(inputIn(view.contentEl, "name")).toBe(box);
+	});
+});
+
+describe("the deferred reconcile and a live draft", () => {
+	it("keeps a draft typed after focus returned to the pane, and reconciles once focus leaves", async () => {
+		const { view, nameBox } = await owedPane();
+		focusOut(nameBox, tool(view.contentEl, "dock"));
+
+		const box = draftInto(view.contentEl, "name", "Mara Stoneway, typing");
+		box.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+		await vi.advanceTimersByTimeAsync(5000);
+
+		expect(inputIn(view.contentEl, "name")).toBe(box);
+		expect(box.value).toBe("Mara Stoneway, typing");
+
+		focusOut(box, null);
+		expect(inputIn(view.contentEl, "name")).not.toBe(box);
+	});
+
+	// KNOWN LIMIT, not a promise: the fallback fires mid-press when the button is
+	// held past DEFER_FALLBACK_MS (1500), so the pressed element is rebuilt under
+	// the pointer and that click is lost. The committed value survives.
+	it("known limit: a press held past the fallback loses its click, but not the committed value", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		typeInto(view.contentEl, "name", "Mara Renamed");
+		await vi.runAllTimersAsync();
+		const nameBox = inputIn(view.contentEl, "name");
+		nameBox.focus();
+		app.metadataCache._trigger("changed", elke);
+		await vi.runAllTimersAsync();
+		const dock = tool(view.contentEl, "dock");
+
+		focusOut(nameBox, dock);
+		dock.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+		await vi.advanceTimersByTimeAsync(1400);
+		expect(dock.isConnected).toBe(true);
+		await vi.advanceTimersByTimeAsync(200);
+
+		expect(dock.isConnected).toBe(false);
+		expect(inputIn(view.contentEl, "name").value).toBe("Mara Renamed");
+	});
+});
+
+describe("closing the view while a reconcile is deferred", () => {
+	it("cancels the fallback timer, so nothing renders after close", async () => {
+		const { view, nameBox } = await owedPane();
+		focusOut(nameBox, tool(view.contentEl, "dock"));
+		expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+		await view.onClose();
+		expect(vi.getTimerCount()).toBe(0);
+		const mutations: MutationRecord[] = [];
+		const watch = new MutationObserver((m) => { mutations.push(...m); });
+		watch.observe(view.contentEl, { childList: true, subtree: true });
+		await vi.advanceTimersByTimeAsync(5000);
+
+		expect(vi.getTimerCount()).toBe(0);
+		expect([...mutations, ...watch.takeRecords()]).toHaveLength(0);
+		watch.disconnect();
 	});
 });
