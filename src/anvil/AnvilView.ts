@@ -763,7 +763,16 @@ export class AnvilView extends ItemView {
 		if (next === null) return;
 		this._editor.open(next);
 		if (this._inFlightPath === shown) this._inFlightPath = next;
-		this._render();
+		if (this._paneIsDirty()) {
+			// A rebuild would destroy the typed text. The store already follows the
+			// note; the render waits for focus to leave. The pane's committer holds
+			// the same TFile, which Obsidian renames in place, so a commit meanwhile
+			// still lands on the renamed note.
+			this._paneStale = true;
+			this._reconcileOwed = true;
+			return;
+		}
+		this._renderKeepingFocus();
 	}
 
 	/**

@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, TFolder, createMockCachedMetadata, createMockTFile, type TFile } from "obsidian";
 import { EDITOR_PATH_ATTR } from "editor/editorPane";
-import { closePanes, FC_CHARACTER, inputIn, mara, openPane, seedFrontmatter, seedVault } from "../helpers/paneFixture";
+import { closePanes, draftInto, FC_CHARACTER, inputIn, mara, openPane, seedFrontmatter, seedVault } from "../helpers/paneFixture";
 
 beforeEach(() => { vi.useFakeTimers(); });
 afterEach(async () => {
@@ -99,5 +99,55 @@ describe("renaming the note the pane shows", () => {
 		app.vault._trigger("rename", file, mara.path);
 
 		expect(shownPath(view)).toBe(mara.path);
+	});
+});
+
+describe("renaming the note while a pane field holds an uncommitted draft", () => {
+	const NEW_PATH = "30 Canon/31 Characters/Mara Ironwright.md";
+
+	async function renameWithDraft(): Promise<{ app: App; view: Awaited<ReturnType<typeof openPane>>; box: HTMLInputElement }> {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		const file = createMockTFile({ basename: mara.basename, path: mara.path });
+		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p) => (p === mara.path ? file : null));
+		// The pane must hold the very TFile that Obsidian will rename in place.
+		view.inspect(file);
+		const box = draftInto(view.contentEl, "level", "5");
+		const oldPath = moveTo(app, file, NEW_PATH);
+		app.vault._trigger("rename", file, oldPath);
+		return { app, view, box };
+	}
+
+	it("keeps the draft box, its text and its focus", async () => {
+		const { view, box } = await renameWithDraft();
+		await vi.runAllTimersAsync();
+
+		expect(inputIn(view.contentEl, "level")).toBe(box);
+		expect(box.value).toBe("5");
+		expect(document.activeElement).toBe(box);
+	});
+
+	it("commits the draft to the renamed note, then shows the new path", async () => {
+		const { app, view, box } = await renameWithDraft();
+
+		box.dispatchEvent(new Event("change", { bubbles: true }));
+		await vi.runAllTimersAsync();
+		box.blur();
+		await vi.runAllTimersAsync();
+
+		expect(app.fileManager._getFrontmatter(NEW_PATH)["level"]).toBe(5);
+		expect(app.fileManager._getFrontmatter(mara.path)["level"]).not.toBe(5);
+		expect(shownPath(view)).toBe(NEW_PATH);
+	});
+
+	it("shows the new path once focus leaves, with no write to trigger it", async () => {
+		const { view, box } = await renameWithDraft();
+		await vi.runAllTimersAsync();
+		expect(shownPath(view)).toBe(mara.path);
+
+		box.blur();
+
+		expect(shownPath(view)).toBe(NEW_PATH);
 	});
 });
