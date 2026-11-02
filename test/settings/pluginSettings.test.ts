@@ -240,6 +240,14 @@ describe("normalizeFileClassesFolder", () => {
 	it("falls back to the default for an empty string", () => {
 		expect(normalizeFileClassesFolder("")).toBe("00 Meta/FileClasses");
 	});
+	it("strips trailing slashes, which would build a path with a double slash", () => {
+		expect(normalizeFileClassesFolder("Custom/FC/")).toBe("Custom/FC");
+		expect(normalizeFileClassesFolder("Custom/FC///")).toBe("Custom/FC");
+	});
+	it("falls back to the default for a setting of only slashes", () => {
+		expect(normalizeFileClassesFolder("/")).toBe("00 Meta/FileClasses");
+		expect(normalizeFileClassesFolder("///")).toBe("00 Meta/FileClasses");
+	});
 	it("falls back to the default for a non-string", () => expect(normalizeFileClassesFolder(1)).toBe("00 Meta/FileClasses"));
 	it("falls back to the default for null", () => expect(normalizeFileClassesFolder(null)).toBe("00 Meta/FileClasses"));
 	it("falls back to the default for undefined", () => expect(normalizeFileClassesFolder(undefined)).toBe("00 Meta/FileClasses"));

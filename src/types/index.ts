@@ -128,9 +128,15 @@ export function isFileClassesFolder(v: unknown): v is string {
 	return typeof v === "string" && v.length > 0;
 }
 
-/** Normalizer: returns `v` if it is a non-empty string, otherwise the shipped default. */
+/**
+ * Normalizer: returns `v` without trailing slashes if it is a non-empty string,
+ * otherwise the shipped default. A setting of only slashes names no folder, so
+ * it fails closed to the default as an empty one does.
+ */
 export function normalizeFileClassesFolder(v: unknown): string {
-	return isFileClassesFolder(v) ? v : DEFAULT_FILE_CLASSES_FOLDER;
+	if (!isFileClassesFolder(v)) return DEFAULT_FILE_CLASSES_FOLDER;
+	const trimmed = v.replace(/\/+$/, "");
+	return trimmed === "" ? DEFAULT_FILE_CLASSES_FOLDER : trimmed;
 }
 
 /** Type guard: returns true if `v` is a valid `curatedBasesFolder` value (a non-empty string). */
