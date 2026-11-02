@@ -1544,6 +1544,15 @@ body {
 	font-size: 12px;
 }
 
+.sf-inspector-section {
+	margin: 9px 0 1px;
+	color: var(--text-muted);
+	letter-spacing: 0.05em;
+	font-size: 10px;
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+}
+
 .sf-inspector-label {
 	width: 96px;
 	flex: none;

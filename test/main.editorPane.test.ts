@@ -29,8 +29,10 @@ import {
 	type CachedMetadata,
 	type TFile,
 } from "obsidian";
-import { WORKSPACE_VIEW_TYPE } from "pluginConstants";
+import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import { AnvilView } from "anvil/AnvilView";
+import type { NoteContext } from "scoping/NoteContext";
+import type { SidebarView } from "views/SidebarView";
 
 async function makePlugin(): Promise<{
 	plugin: InstanceType<typeof import("main").default>;
@@ -49,6 +51,13 @@ function getAnvilFactory(
 	const call = plugin.registerView.mock.calls.find((c: unknown[]) => c[0] === WORKSPACE_VIEW_TYPE);
 	if (!call) throw new Error("WORKSPACE_VIEW_TYPE was never registered");
 	return call[1] as (leaf: WorkspaceLeaf) => AnvilView;
+}
+
+/** Locate the SidebarView factory registered via registerView(SIDEBAR_VIEW_TYPE, ...). */
+function sidebarFactory(plugin: InstanceType<typeof import("main").default>): (leaf: WorkspaceLeaf) => SidebarView {
+	const call = plugin.registerView.mock.calls.find((c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE);
+	if (!call) throw new Error("SIDEBAR_VIEW_TYPE was never registered");
+	return call[1] as (leaf: WorkspaceLeaf) => SidebarView;
 }
 
 const mara = createMockTFile({ basename: "Mara Stoneway", path: "30 Canon/31 Characters/Mara Stoneway.md" });
@@ -128,6 +137,47 @@ describe("main.ts — the FileClasses folder wiring (T5.3)", () => {
 		const role = bodyOf(view).querySelector<HTMLInputElement>('[data-sf-ed-field="role"] input');
 		expect(role?.value).toBe("protagonist");
 		expect(bodyOf(view).querySelector(".sf-ed-sec-label")?.textContent).toBe("Character");
+	});
+});
+
+describe("main.ts — the Workbench's FileClasses folder wiring (T6.3)", () => {
+	it("hands SidebarView the folder the setting names", async () => {
+		const { plugin, app } = await makePlugin();
+		const elsewhere = createMockTFile({ basename: "fc-character", path: "90 Elsewhere/fc-character.md" });
+		const declared = createMockCachedMetadata({
+			frontmatter: { fieldsOrder: ["f-guild"], fields: [{ id: "f-guild", name: "guild", type: "Input" }] },
+		});
+		const note = createMockCachedMetadata({ frontmatter: { fileClass: "fc-character" } });
+		vi.mocked(app.metadataCache.getFileCache).mockImplementation((f) =>
+			f === mara ? note : f === elsewhere ? declared : null,
+		);
+		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p) => (p === elsewhere.path ? elsewhere : null));
+		app.workspace.getActiveFile = vi.fn(() => null);
+		await plugin.onload();
+		plugin.settings = { ...plugin.settings, fileClassesFolder: "90 Elsewhere" };
+
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		const view = sidebarFactory(plugin)(leaf);
+		await view.onOpen();
+		const internals = view as unknown as {
+			currentRecord: null;
+			_editMode: boolean;
+			_renderResolved(body: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		internals.currentRecord = null;
+		internals._editMode = true;
+		const body = view.contentEl.querySelector(".sf-body") as HTMLElement;
+		await internals._renderResolved(body, {
+			activeFile: mara,
+			activeKind: "character",
+			entities: [],
+			backlinks: [],
+			frontmatter: { fileClass: "fc-character" },
+			resolvedAt: 0,
+		});
+
+		expect(body.querySelector('[data-sf-inspector-field-label="guild"]')).not.toBeNull();
 	});
 });
 

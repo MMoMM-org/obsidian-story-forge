@@ -27,12 +27,12 @@ export function selectVocab(field: FieldSpec): string[] | null {
 /**
  * Return true if `field` is editable as a scalar input in the Inspector.
  *
- * Scalar-editable: text, number, select.
+ * Scalar-editable: text, number, boolean, select.
  * Non-editable (read-only): list, relation, tags, fixed.
  * This drives the Inspector's field rendering decision (T5.2).
  */
 export function isScalarEditable(field: FieldSpec): boolean {
-	return field.type === "text" || field.type === "number" || field.type === "select";
+	return field.type === "text" || field.type === "number" || field.type === "boolean" || field.type === "select";
 }
 
 /**

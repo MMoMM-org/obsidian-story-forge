@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { App, WorkspaceLeaf, TFile } from "obsidian";
+import { App, WorkspaceLeaf, TFile, createMockCachedMetadata } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
@@ -528,7 +528,8 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 		await view.onOpen();
 
 		const file = makeMdFile("Scene 1");
-		const ctx = makeNoteContext(file);
+		// A note with nothing to edit keeps the read view, so this one has a key.
+		const ctx = { ...makeNoteContext(file), frontmatter: { title: "Scene 1" } };
 
 		const privateView = view as unknown as {
 			currentRecord: ViewRecord | null;
@@ -598,12 +599,30 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 			(link: string) => link === "Moonharbor" ? worldFile : null,
 		);
 
+		// The field list comes from the note's FileClass, so `world` is a relation
+		// here because fc-location says so, not because a list did.
+		const fcFile = makeMdFile("fc-location");
+		const fcLocation = {
+			fieldsOrder: ["l-world", "l-region"],
+			fields: [
+				{ id: "l-world", name: "world", type: "File", options: {} },
+				{ id: "l-region", name: "region", type: "Input", options: {} },
+			],
+		};
+		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((path: string) =>
+			path === "00 Meta/FileClasses/fc-location.md" ? fcFile : null,
+		);
+		const frontmatter = { fileClass: "fc-location", world: "Moonharbor", region: "harbour mole" };
+		vi.mocked(app.metadataCache.getFileCache).mockImplementation((candidate) =>
+			createMockCachedMetadata({ frontmatter: candidate === fcFile ? fcLocation : frontmatter }),
+		);
+
 		const ctx: NoteContext = {
 			activeFile: locFile,
 			activeKind: "location",
 			entities: [],
 			backlinks: [],
-			frontmatter: { world: "Moonharbor", region: "harbour mole" },
+			frontmatter,
 			resolvedAt: Date.now(),
 		};
 

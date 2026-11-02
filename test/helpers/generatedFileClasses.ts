@@ -21,12 +21,18 @@ export interface SchemaField {
 	values?: string[];
 	value?: string;
 	relation?: string;
+	query?: string;
 }
 
 export interface EntitySchema {
 	entity: string;
 	extends?: string;
 	fields: SchemaField[];
+}
+
+/** A `list` field `schema-gen` emits as `MultiFile`: one holding `[[links]]`. */
+export function holdsLinks(field: SchemaField): boolean {
+	return field.relation !== undefined || field.query !== undefined;
 }
 
 export function loadSchemas(): EntitySchema[] {

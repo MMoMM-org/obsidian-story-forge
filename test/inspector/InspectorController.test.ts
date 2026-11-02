@@ -30,7 +30,7 @@ import { App, TFile, Component } from "../__mocks__/obsidian";
 import { InspectorController } from "inspector/InspectorController";
 import * as frontmatterWriter from "inspector/frontmatterWriter";
 import type { FieldSpec, CommitResult } from "inspector/frontmatterWriter";
-import { specFor } from "editor/fieldCommit";
+import { inspectorFieldsFromModel } from "inspector/inspectorFieldsFromModel";
 import { buildFieldModel } from "editor/fieldModel";
 import type { FieldType as DeclaredType } from "fileclass/fileClassTypes";
 import type { NoteContext, EntityKind } from "scoping/NoteContext";
@@ -159,8 +159,8 @@ describe("InspectorController: a list stored in a field declared as a scalar", (
 			[{ name: "fc-note", fields: [{ id: "f", name: "subject", type }] }],
 			{ subject: value },
 		);
-		const fields = model.sections.flatMap((section) => section.fields).map(specFor);
-		const { container } = buildController(app, file, makeCtx(file, "character", { subject: value }), fields);
+		const ctx = makeCtx(file, "character", { subject: value });
+		const { container } = buildController(app, file, ctx, inspectorFieldsFromModel(model));
 		return container;
 	}
 

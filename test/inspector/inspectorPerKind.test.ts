@@ -1,8 +1,8 @@
 /**
  * inspectorPerKind — what the Workbench editor does for each shipped kind, field
- * by field (T6.3). Written against the hardcoded list and kept green across the
- * switch to the FieldModel: rendered fields and their order, editable versus
- * read-only, and what a commit actually writes.
+ * by field (T6.3): rendered fields and their order, editable versus read-only,
+ * and what a commit actually writes. Written against the hardcoded list this
+ * replaced, and passing unchanged across the switch to the real FileClasses.
  *
  * The expectations come from `schema/*.json`, read off disk, so a new kind needs
  * no change here.
@@ -10,11 +10,12 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App, Component, TFile } from "../__mocks__/obsidian";
+import { buildFieldModel } from "editor/fieldModel";
 import { InspectorController } from "inspector/InspectorController";
-import { inspectorFields } from "inspector/inspectorFields";
+import { inspectorFieldsFromModel } from "inspector/inspectorFieldsFromModel";
 import type { FieldSpec } from "inspector/frontmatterWriter";
 import type { EntityKind, NoteContext } from "scoping/NoteContext";
-import { loadSchemas, type EntitySchema, type SchemaField } from "../helpers/generatedFileClasses";
+import { generatedChain, holdsLinks, loadSchemas, type EntitySchema, type SchemaField } from "../helpers/generatedFileClasses";
 
 const EDITABLE: ReadonlySet<string> = new Set(["text", "media", "number", "select"]);
 
@@ -32,7 +33,7 @@ function seedValue(field: SchemaField, entity: string): unknown {
 		case "number": return 7;
 		case "select": return field.values?.[0] ?? "";
 		case "relation": return "[[Alpha]]";
-		case "list": return field.relation === undefined ? ["one", "two"] : ["[[Alpha]]", "[[Beta]]"];
+		case "list": return holdsLinks(field) ? ["[[Alpha]]", "[[Beta]]"] : ["one", "two"];
 		default: return `${field.name} value`;
 	}
 }
@@ -42,7 +43,7 @@ function seed(schema: EntitySchema): Record<string, unknown> {
 }
 
 function fieldsFor(schema: EntitySchema): FieldSpec[] {
-	return inspectorFields(schema.entity as EntityKind).filter((field) => field.name !== "tags");
+	return inspectorFieldsFromModel(buildFieldModel(generatedChain(schema.entity), seed(schema)));
 }
 
 function makeFile(): TFile {
@@ -142,7 +143,7 @@ describe("InspectorController, per shipped kind (T6.3)", () => {
 				expect(row.querySelector(".sf-inspector-readonly-value")?.textContent, field.name).toBe(field.value ?? schema.entity);
 			} else if (field.type === "relation") {
 				expect(row.querySelectorAll(".sf-inspector-ro-chip"), field.name).toHaveLength(1);
-			} else if (field.relation !== undefined) {
+			} else if (holdsLinks(field)) {
 				expect(row.querySelectorAll(".sf-inspector-chip-link"), field.name).toHaveLength(2);
 			} else {
 				expect(row.querySelectorAll(".sf-inspector-chip"), field.name).toHaveLength(2);

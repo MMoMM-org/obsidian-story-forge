@@ -95,6 +95,7 @@ function readInputValue(el: HTMLElement, _fieldType: FieldSpec["type"]): unknown
 	const tag = el.tagName.toLowerCase();
 	if (tag === "input") {
 		const inputEl = el as HTMLInputElement;
+		if (inputEl.type === "checkbox") return inputEl.checked;
 		// Number fields use type="text" with data-sf-field-type="number"
 		// to preserve the raw string during editing. The value is parsed only
 		// when the user commits (frontmatterWriter validates the type).
@@ -172,8 +173,15 @@ export class InspectorController {
 	 * AbortSignal (replaced on each render — no per-field-per-render accumulation).
 	 *
 	 * Re-rendering (new subject) should be preceded by teardown() to clear state.
+	 *
+	 * @param headings  field name -> a heading to draw above that field's row
 	 */
-	render(container: HTMLElement, ctx: NoteContext, fields: FieldSpec[]): void {
+	render(
+		container: HTMLElement,
+		ctx: NoteContext,
+		fields: FieldSpec[],
+		headings: ReadonlyMap<string, string> = new Map(),
+	): void {
 		this.ctx = ctx;
 
 		// Build fresh per-field state for fields not already tracked.
@@ -205,7 +213,7 @@ export class InspectorController {
 			}
 		}
 
-		this._renderFields(container, fields);
+		this._renderFields(container, fields, headings);
 		// Abort any previous listener set (prevents accumulation across re-renders).
 		this._listenerController?.abort();
 		this._listenerController = new AbortController();
@@ -256,9 +264,17 @@ export class InspectorController {
 	private _renderFields(
 		container: HTMLElement,
 		fields: FieldSpec[],
+		headings: ReadonlyMap<string, string>,
 	): void {
 		for (const spec of fields) {
 			const state = this.fieldStates.get(spec.name)!;
+			const heading = headings.get(spec.name);
+			if (heading !== undefined) {
+				const headingEl = activeDocument.createElement("h4");
+				headingEl.className = "sf-inspector-section";
+				headingEl.textContent = heading;
+				container.appendChild(headingEl);
+			}
 			const fieldRow = activeDocument.createElement("div");
 			fieldRow.className = "sf-inspector-field";
 
@@ -317,6 +333,15 @@ export class InspectorController {
 			sel.value = strValue;
 			fieldRow.appendChild(sel);
 			state.inputEl = sel;
+		} else if (spec.type === "boolean") {
+			// A real checkbox: the writer rejects the string "true" for a boolean field.
+			const input = activeDocument.createElement("input");
+			input.type = "checkbox";
+			input.className = "sf-inspector-checkbox";
+			input.setAttribute("data-sf-inspector-input", spec.name);
+			input.checked = value === true;
+			fieldRow.appendChild(input);
+			state.inputEl = input;
 		} else if (spec.type === "number") {
 			const input = activeDocument.createElement("input");
 			// Use type="text" to allow intermediate values (e.g. "12.", "-5", "thirty")

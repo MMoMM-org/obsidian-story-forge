@@ -38,14 +38,17 @@ import {
 	type LinkResolver,
 } from "workspace/workspaceModel";
 import { renderNavigator, type NavigatorData } from "workspace/renderNavigator";
-import type { PluginSettings } from "types/index";
+import { DEFAULT_FILE_CLASSES_FOLDER, type PluginSettings } from "types/index";
+import { buildFieldModel, type FieldModel } from "editor/fieldModel";
+import { resolveFileClassChain } from "fileclass/fileClassReader";
+import { createFileClassSource } from "fileclass/fileClassVault";
 import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import { InspectorController } from "../inspector/InspectorController";
-import { inspectorFields } from "../inspector/inspectorFields";
+import { inspectorFieldsFromModel, inspectorHeadings } from "../inspector/inspectorFieldsFromModel";
 import { createNavigationController } from "../navigation/navigationController";
 import { linkContextMenuHandler } from "navigation/linkContextMenu";
 import { isActivationKey } from "navigation/keyboardRouting";
@@ -199,6 +202,9 @@ export class SidebarView extends ItemView {
 	// reassigns this.settings on load. Defaults to DEFAULT_EXCLUDED_FOLDERS when absent.
 	private readonly getExcludedFolders: () => readonly string[];
 
+	// T6.3: reads the live fileClassesFolder setting, where the editor's fields come from.
+	private readonly getFileClassesFolder: () => string;
+
 	// M2: tracks the engine currently rendered into the panel body (ADR-7 teardown)
 	private currentEngine: QueryEngine | null = null;
 	// M2: the ViewRecord currently rendered (selected view tab)
@@ -237,6 +243,8 @@ export class SidebarView extends ItemView {
 	 * @param getExcludedFolders - T3.5: reads the live excludedFolders setting.
 	 *   Defaults to DEFAULT_EXCLUDED_FOLDERS when absent (keeps existing constructor
 	 *   calls valid and default scoping behaviour unchanged).
+	 * @param getFileClassesFolder - T6.3: reads the live fileClassesFolder setting.
+	 *   Defaults to DEFAULT_FILE_CLASSES_FOLDER when absent.
 	 */
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -246,6 +254,7 @@ export class SidebarView extends ItemView {
 		store?: ViewStore,
 		getLinkClickAction?: () => PluginSettings["linkClickAction"],
 		getExcludedFolders?: () => readonly string[],
+		getFileClassesFolder?: () => string,
 	) {
 		super(leaf);
 		this.scoping = new ScopingService(this.app);
@@ -255,6 +264,7 @@ export class SidebarView extends ItemView {
 		this.store = store ?? null;
 		this.getLinkClickAction = getLinkClickAction ?? ((): "drill" => "drill");
 		this.getExcludedFolders = getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
+		this.getFileClassesFolder = getFileClassesFolder ?? ((): string => DEFAULT_FILE_CLASSES_FOLDER);
 		this._debouncedFollow = debounce(
 			(l: WorkspaceLeaf | null) => { this._doFollow(l); },
 			DEBOUNCE_MS,
@@ -1380,11 +1390,11 @@ export class SidebarView extends ItemView {
 			this._prepareBody(body);
 			// Edit mode only applies to inspectable entity notes; for anything else
 			// (unknown kind, no fields) fall through to the styled read-only view so
-			// the panel is never blank.
-			const inspectable =
-				ctx.activeKind !== "unknown" && inspectorFields(ctx.activeKind).length > 0;
-			if (this._editMode && inspectable) {
-				this._renderInspector(body, ctx);
+			// the panel is never blank. Read mode never builds the model: it would
+			// scan the FileClasses for nothing.
+			const model = this._editMode ? this._inspectorModel(ctx) : null;
+			if (model) {
+				this._renderInspector(body, ctx, model);
 			} else {
 				await this.nativeEngine.render(null, ctx, body);
 				if (gen !== this._renderGen) return;
@@ -1504,15 +1514,28 @@ export class SidebarView extends ItemView {
 	 *
 	 * Only shown in the Context tab (no view tab selected).
 	 */
-	private _renderInspector(body: AugEl, ctx: NoteContext): void {
+	private _renderInspector(body: AugEl, ctx: NoteContext, model: FieldModel): void {
 		if (!this._inspector) return;
-		if (ctx.activeKind === "unknown") return;
 		// T5.3: pass ALL fields (scalar editable + read-only relation/list/tags/fixed).
 		// The controller routes each field to the appropriate render path.
-		const allFields = inspectorFields(ctx.activeKind);
-		if (allFields.length === 0) return;
 		const host = body.createDiv({ cls: "sf-inspector-host" });
-		this._inspector.render(host, ctx, allFields);
+		this._inspector.render(host, ctx, inspectorFieldsFromModel(model), inspectorHeadings(model));
+	}
+
+	/**
+	 * This note's field model (T6.3, ADR-0002), or `null` when edit mode has
+	 * nothing to show: an unknown kind, or no fields in any tier.
+	 *
+	 * One snapshot source per render, so a note no `fileClass` key names costs at
+	 * most one scan of the vault's FileClasses. T6.4 owns the general cache.
+	 */
+	private _inspectorModel(ctx: NoteContext): FieldModel | null {
+		if (ctx.activeKind === "unknown") return null;
+		const source = createFileClassSource(this.app, this.getFileClassesFolder, { snapshot: true });
+		const startName = source.nameFor(ctx.activeFile);
+		const chain = startName === undefined ? [] : resolveFileClassChain(startName, source.lookup);
+		const model = buildFieldModel(chain, ctx.frontmatter);
+		return model.sections.some((section) => section.fields.length > 0) ? model : null;
 	}
 
 	// ---------------------------------------------------------------------------

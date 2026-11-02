@@ -116,6 +116,7 @@ export default class StoryForgePlugin extends Plugin {
 				this.store,
 				() => this.settings.linkClickAction,
 				() => this.settings.excludedFolders,
+				() => this.settings.fileClassesFolder,
 			),
 		);
 

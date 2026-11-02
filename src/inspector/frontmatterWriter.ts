@@ -29,8 +29,8 @@ import type { App, TFile } from "obsidian";
  * `false`. Every other member rejects a boolean as a type error, so without
  * this a `Boolean` field would be silently uneditable — and writing `"true"`
  * instead would put a string where Bases and Dataview expect a boolean. No
- * `schema/*.json` field is boolean today, so nothing the Workbench inspector
- * builds reaches this branch.
+ * `schema/*.json` field is boolean today; the Workbench inspector reaches this
+ * through a user FileClass field or an undeclared key holding a boolean.
  */
 export type FieldType =
 	| "text"
