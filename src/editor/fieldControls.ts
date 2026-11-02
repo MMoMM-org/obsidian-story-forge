@@ -106,6 +106,8 @@ export interface MediaSeams {
 	readonly resolveImage?: (target: string) => string;
 	/** Open an image chooser; resolves to the `[[wikilink]]` to store, or null if dismissed. */
 	readonly pickImage?: () => Promise<string | null>;
+	/** The edited note's name: the preview's monogram and accessible name. Falls back to the field name. */
+	readonly label?: string;
 }
 
 export interface FieldControlDeps extends MediaSeams {
@@ -310,7 +312,7 @@ function mediaControl(
 	const draw = (): void => {
 		empty(box);
 		const text = typeof current === "string" ? current : "";
-		previewTile(box, field.name, text, deps);
+		previewTile(box, deps.label ?? field.name, text, deps);
 		const side = el("div", "sf-ed-media-side");
 		const path = el("div", "sf-ed-media-path");
 		path.setAttribute(MEDIA_PATH_ATTR, field.name);

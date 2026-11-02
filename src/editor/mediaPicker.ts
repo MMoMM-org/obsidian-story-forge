@@ -23,6 +23,7 @@ const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "a
 /** The Media control's seams for the note `file`. */
 export function createMediaSeams(app: App, file: TFile): Required<MediaSeams> {
 	return {
+		label: file.basename,
 		resolveImage: createLinkedImageResolver(app, file.path),
 		pickImage: () => pickImageLink(app, file.path),
 	};

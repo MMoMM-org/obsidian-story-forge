@@ -3471,7 +3471,10 @@ body {
 	min-width: 0;
 	align-items: flex-start;
 	gap: 10px;
-	padding: 3px 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-secondary);
+	padding: 8px;
 }
 
 .sf-ed-media-side {

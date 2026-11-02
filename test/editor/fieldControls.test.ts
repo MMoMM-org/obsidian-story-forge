@@ -786,7 +786,7 @@ interface MediaHarness extends Rendered {
 function renderMedia(
 	field: FieldDef,
 	value: unknown,
-	seams: { resolve?: (target: string) => string; picked?: string | null } = {},
+	seams: { resolve?: (target: string) => string; picked?: string | null; label?: string } = {},
 ): MediaHarness {
 	const host = document.createElement("div");
 	document.body.appendChild(host);
@@ -797,6 +797,7 @@ function renderMedia(
 		onEdit: (change) => { edits.push(change.value); },
 		resolveImage: seams.resolve ?? ((target) => `app://vault/${target}`),
 		pickImage: pick,
+		...(seams.label !== undefined ? { label: seams.label } : {}),
 	});
 	return { el: handle.el, value: () => handle.value(), edits, pick };
 }
@@ -858,6 +859,25 @@ describe("the Media preview never shows a broken image (T5.5)", () => {
 		el.querySelector("img")?.dispatchEvent(new Event("error"));
 		expect(el.querySelector("img")).toBeNull();
 		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
+	});
+
+	it("takes the monogram from the note's name, not the field's, when empty", () => {
+		const { el } = renderMedia(mediaField("portrait"), null, { label: "Mara Voss" });
+		expect(el.querySelector(".sf-portrait-mono")?.textContent).toBe("MV");
+		expect(el.querySelector(".sf-portrait")?.getAttribute("aria-label")).toBe("Mara Voss");
+	});
+
+	it("takes the monogram from the note's name after an image load error", () => {
+		const { el } = renderMedia(mediaField("portrait"), "[[corrupt.png]]", { label: "Mara Voss" });
+		expect(el.querySelector("img")?.getAttribute("alt")).toBe("Mara Voss");
+		el.querySelector("img")?.dispatchEvent(new Event("error"));
+		expect(el.querySelector(".sf-portrait-mono")?.textContent).toBe("MV");
+		expect(el.querySelector(".sf-portrait")?.getAttribute("aria-label")).toBe("Mara Voss");
+	});
+
+	it("falls back to the field name when the host supplies no label", () => {
+		const { el } = renderMedia(mediaField("portrait"), null);
+		expect(el.querySelector(".sf-portrait-mono")?.textContent).toBe("P");
 	});
 
 	it("resolves the link target, not the bracketed text, for embeds and aliases", () => {

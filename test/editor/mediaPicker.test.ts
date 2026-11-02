@@ -25,6 +25,13 @@ function seamsFor(app: App): ReturnType<typeof createMediaSeams> {
 	return createMediaSeams(app, note);
 }
 
+describe("label — the note's name (T5.5)", () => {
+	it("is the edited note's basename", () => {
+		const named = createMockTFile({ basename: "Mara Voss", path: "Characters/Mara Voss.md" });
+		expect(createMediaSeams(new App(), named).label).toBe("Mara Voss");
+	});
+});
+
 describe("resolveImage — the production resolver (T5.5)", () => {
 	it("returns the vault resource URL for a link that resolves", () => {
 		const app = new App();
