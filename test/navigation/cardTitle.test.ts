@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 import "../__mocks__/obsidian";
 import { nativeCardEntry, type CardEntry, type CardRenderer } from "codex/cardRegistry";
+import { nativeTileField } from "codex/cardTileField";
 import { buildCardWrapper } from "codex/cardWrapper";
 import { entryPills } from "codex/cards/shared";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
@@ -37,6 +38,7 @@ function wrapper(): HTMLElement {
 	return buildCardWrapper(nativeCardEntry(PATH, { allies: ["[[Tobias Ferro]]"] }), card, {
 		compact: false,
 		resolveAsset: (r) => r,
+		tileField: nativeTileField,
 	});
 }
 

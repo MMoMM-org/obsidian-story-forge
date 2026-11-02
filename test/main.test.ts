@@ -644,7 +644,7 @@ describe("StoryForgePlugin T2.3 — Bases availability capture", () => {
 		// The second argument is a getter closure, not the setting's value at
 		// onload time — asserted by calling it below after changing the setting,
 		// mirroring the same getLinkClickAction wiring SidebarView/AnvilView get.
-		expect(registerCodexView).toHaveBeenCalledWith(plugin, expect.any(Function));
+		expect(registerCodexView).toHaveBeenCalledWith(plugin, expect.any(Function), expect.any(Function));
 
 		const call = vi.mocked(registerCodexView).mock.calls[0];
 		if (!call) throw new Error("registerCodexView was never called");
@@ -655,6 +655,12 @@ describe("StoryForgePlugin T2.3 — Bases availability capture", () => {
 
 		plugin.settings = { ...plugin.settings, linkClickAction: "open" };
 		expect(getLinkClickAction()).toBe("open");
+
+		// T6.2b: the FileClasses folder is a live getter too, so Cards in a `.base` follow the setting.
+		const getFolder = call[2];
+		if (!getFolder) throw new Error("registerCodexView was called without a getFileClassesFolder getter");
+		plugin.settings = { ...plugin.settings, fileClassesFolder: "Elsewhere" };
+		expect(getFolder()).toBe("Elsewhere");
 	});
 
 	it("registerCodexView is NOT called again when the late-join dataview:api-ready fires", async () => {

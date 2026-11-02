@@ -33,6 +33,7 @@ import {
 	type CardRenderDeps,
 	type CardRenderer,
 } from "codex/cardRegistry";
+import { nativeTileField } from "codex/cardTileField";
 import { createAssetResolver } from "panel/assetResolver";
 import { heroCard } from "codex/cards/heroCard";
 
@@ -106,6 +107,7 @@ function getDeps(overrides?: Partial<CardRenderDeps>): CardRenderDeps {
 		// Identity, as the panel renderer suites already stub it. The asset
 		// tests below replace it with the *real* resolver over a mock vault.
 		resolveAsset: (raw: string): string => raw,
+		tileField: nativeTileField,
 		...overrides,
 	};
 }

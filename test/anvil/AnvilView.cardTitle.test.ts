@@ -11,6 +11,7 @@ import { App, WorkspaceLeaf } from "obsidian";
 import { createMockTFile } from "../__mocks__/obsidian";
 import { AnvilView } from "anvil/AnvilView";
 import { nativeCardEntry, type CardEntry, type CardRenderer } from "codex/cardRegistry";
+import { nativeTileField } from "codex/cardTileField";
 import { buildCardWrapper } from "codex/cardWrapper";
 import { entryPills } from "codex/cards/shared";
 
@@ -52,6 +53,7 @@ async function setup(opts: { opensNote: () => boolean; linkClick?: "drill" | "op
 	const w = buildCardWrapper(nativeCardEntry(note.path, { allies: ["[[Tobias Ferro]]"] }), card, {
 		compact: false,
 		resolveAsset: (r) => r,
+		tileField: nativeTileField,
 	});
 	view.contentEl.appendChild(w);
 	return { app, drill, w };

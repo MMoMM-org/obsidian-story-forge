@@ -46,7 +46,8 @@ import type { App, BasesEntry, QueryController } from "obsidian";
 import { BasesView, TFile } from "obsidian";
 import { basesCardEntry, type CardEntry, type CardRegistry, type CardRenderer } from "codex/cardRegistry";
 import { buildCardWrapper, CARD_BODY_ATTR } from "codex/cardWrapper";
-import { createAssetResolver } from "panel/assetResolver";
+import { createLinkedImageResolver } from "panel/assetResolver";
+import { createCardTileField } from "codex/cardTileField";
 import { createNavigationController, type LinkClickAction } from "navigation/navigationController";
 import { walkTargetMarkers, type MarkerKindOf } from "navigation/domTargetWalk";
 import { linkContextMenuHandler } from "navigation/linkContextMenu";
@@ -78,6 +79,11 @@ export interface CardBasesViewDeps {
 	 * marker's rule (plain ⇒ inert, modifier ⇒ open) is fixed and ignores it.
 	 */
 	getLinkClickAction?: () => LinkClickAction;
+	/**
+	 * Reads the live FileClasses folder, so a Card's tile follows the `Media`-typed
+	 * field as the panel's does (T6.2b). Optional: absent, Cards use the shipped names.
+	 */
+	getFileClassesFolder?: () => string;
 }
 
 // ---------------------------------------------------------------------------
@@ -193,8 +199,10 @@ export class CardBasesView extends BasesView {
 			return;
 		}
 
+		// One tile-field resolver per pass: the FileClass scan runs once, not per card.
+		const tileField = this.tileFieldFor(entries);
 		for (const entry of entries) {
-			grid.appendChild(this.renderEntry(entry, card));
+			grid.appendChild(this.renderEntry(entry, card, tileField));
 		}
 
 		// Single delegated click listener — mirrors codexGrid.ts's pattern, now
@@ -245,14 +253,34 @@ export class CardBasesView extends BasesView {
 	 * comes from `metadataCache`'s frontmatter (ground truth), not from
 	 * `getValue()` alone, so a blank-but-present property never reads as absent.
 	 */
-	private renderEntry(entry: BasesEntry, card: CardRenderer): HTMLElement {
+	private renderEntry(
+		entry: BasesEntry,
+		card: CardRenderer,
+		tileField: (entry: CardEntry) => string | null,
+	): HTMLElement {
 		const frontmatter: Record<string, unknown> | null =
 			this.deps.app.metadataCache.getFileCache(entry.file)?.frontmatter ?? null;
 		const cardEntry: CardEntry = basesCardEntry(entry, frontmatter);
 
 		return buildCardWrapper(cardEntry, card, {
 			compact: false,
-			resolveAsset: createAssetResolver(this.deps.app, cardEntry.path),
+			resolveAsset: createLinkedImageResolver(this.deps.app, cardEntry.path),
+			tileField,
 		});
+	}
+
+	/** This pass's tile-field resolver, over the entries about to be drawn. */
+	private tileFieldFor(entries: readonly BasesEntry[]): (entry: CardEntry) => string | null {
+		const files = new Map(entries.map((e) => [e.file.path, e.file] as const));
+		const { app } = this.deps;
+		return createCardTileField(
+			app,
+			this.deps.getFileClassesFolder,
+			(path) => files.get(path) ?? null,
+			(path) => {
+				const file = files.get(path);
+				return (file && app.metadataCache.getFileCache(file)?.frontmatter) || null;
+			},
+		);
 	}
 }

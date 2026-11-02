@@ -26,6 +26,7 @@ import { describe, expect, it } from "vitest";
 // panel/components.ts's portraitTile/kindTileEl (used by heroCard) rely on.
 import "../../__mocks__/obsidian";
 import { nativeCardEntry, type CardEntry, type CardRenderDeps } from "codex/cardRegistry";
+import { nativeTileField } from "codex/cardTileField";
 import { heroCard } from "codex/cards/heroCard";
 
 const PATH = "30 Canon/31 Characters/Mara Stoneway.md";
@@ -46,6 +47,7 @@ function getDeps(overrides?: Partial<CardRenderDeps>): CardRenderDeps {
 			return node;
 		},
 		resolveAsset: (raw: string): string => raw,
+		tileField: nativeTileField,
 		...overrides,
 	};
 }

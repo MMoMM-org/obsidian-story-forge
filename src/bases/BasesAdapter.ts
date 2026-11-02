@@ -124,11 +124,14 @@ function onEntryOpen(plugin: Plugin, path: string): void {
  * @param getLinkClickAction - live getter for the configured name-click
  *   action (`main.ts` passes `() => this.settings.linkClickAction`); defaults
  *   to always `"drill"`, `AnvilView`/`SidebarView`'s own unconfigured default
+ * @param getFileClassesFolder - live FileClasses folder, so Cards draw the
+ *   same tile field the panel does (T6.2b)
  * @returns true when registration succeeded (Bases enabled); false otherwise
  */
 export function registerCodexView(
 	plugin: Plugin,
 	getLinkClickAction: () => LinkClickAction = (): LinkClickAction => "drill",
+	getFileClassesFolder?: () => string,
 ): boolean {
 	if (availabilityCache.has(plugin)) {
 		return availabilityCache.get(plugin)!;
@@ -163,7 +166,7 @@ export function registerCodexView(
 	availabilityCache.set(plugin, available);
 
 	if (available) {
-		registerCardViews(plugin, call, getLinkClickAction);
+		registerCardViews(plugin, call, getLinkClickAction, getFileClassesFolder);
 	}
 
 	return available;
@@ -198,6 +201,7 @@ function registerCardViews(
 	plugin: Plugin,
 	call: RegisterBasesViewFn,
 	getLinkClickAction: () => LinkClickAction,
+	getFileClassesFolder?: () => string,
 ): void {
 	for (const spec of CARD_VIEW_SPECS) {
 		const registration: BasesViewRegistration = {
@@ -209,6 +213,7 @@ function registerCardViews(
 				cardId: spec.cardId,
 				onEntryClick: (path: string): void => onEntryOpen(plugin, path),
 				getLinkClickAction,
+				...(getFileClassesFolder ? { getFileClassesFolder } : {}),
 			}),
 		};
 

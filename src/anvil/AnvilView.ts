@@ -101,7 +101,8 @@ import { createMediaSeams } from "editor/mediaPicker";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
 import { createFileClassSource, type FileClassSource } from "fileclass/fileClassVault";
 import { DEFAULT_FILE_CLASSES_FOLDER } from "types/index";
-import { createAssetResolver } from "panel/assetResolver";
+import { createLinkedImageResolver } from "panel/assetResolver";
+import { createCardTileField } from "codex/cardTileField";
 import type { BasesCapability } from "bases/basesCapability";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
@@ -1043,6 +1044,11 @@ export class AnvilView extends ItemView {
 	private _renderCodex(body: HTMLElement, split?: CodexTabSplit): void {
 		const collections = this.getCollections();
 		const active = this._codexSelection.resolve(collections);
+		const frontmatterFor = (path: string): Record<string, unknown> | null => {
+			const file = this._noteIndex?.fileFor(path) ?? null;
+			if (!file) return null;
+			return this.app.metadataCache.getFileCache(file)?.frontmatter ?? null;
+		};
 		renderCodexTab(body, {
 			// S92/S99 draw the open entry as a selected card; the grid is the
 			// only place that cue can live (T5.1).
@@ -1054,12 +1060,14 @@ export class AnvilView extends ItemView {
 			selection: this._codexSelection,
 			index: this._noteIndex?.notes() ?? [],
 			excludedFolders: this.getExcludedFolders(),
-			frontmatterFor: (path): Record<string, unknown> | null => {
-				const file = this._noteIndex?.fileFor(path) ?? null;
-				if (!file) return null;
-				return this.app.metadataCache.getFileCache(file)?.frontmatter ?? null;
-			},
-			resolveAsset: (sourcePath, raw): string => createAssetResolver(this.app, sourcePath)(raw),
+			frontmatterFor,
+			resolveAsset: (sourcePath, raw): string => createLinkedImageResolver(this.app, sourcePath)(raw),
+			tileField: createCardTileField(
+				this.app,
+				() => this.getFileClassesFolder(),
+				(path) => this._noteIndex?.fileFor(path) ?? null,
+				frontmatterFor,
+			),
 			cardId: active ? this.getCardByCollection()[active.id] : undefined,
 			basesCapability: this.getBasesCapability(),
 			dismissedHints: this.getDismissedHints(),

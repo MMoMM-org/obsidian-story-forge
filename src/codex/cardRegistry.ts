@@ -108,12 +108,18 @@ export interface CardRenderDeps {
 	 * Card reaching for `App` to close that gap would break the same seam
 	 * discipline `nameEl` exists to enforce, so the host injects the resolver.
 	 *
-	 * Total: empty input yields `""` so the Card can draw its monogram fallback,
-	 * protocol URLs pass through, vault paths resolve, and an unresolvable path
-	 * comes back unchanged (`createAssetResolver`). `PanelDeps.resolveAsset` is
-	 * the stricter sibling — it gives `""` for an unresolvable link (T6.2).
+	 * Total, and the same answer the panel gets (`createLinkedImageResolver`):
+	 * empty input yields `""` so the Card can draw its monogram fallback,
+	 * protocol URLs pass through, vault paths and links resolve, and an
+	 * unresolvable link also yields `""` (T6.2b), never a broken image.
 	 */
 	resolveAsset(raw: string): string;
+	/**
+	 * The field that draws this entry's tile, or `null` for the monogram. The host
+	 * resolves it (FileClass `Media` field, else the shipped names, as the panel
+	 * does), so a Card needs neither `App` nor a field-name list.
+	 */
+	tileField(entry: CardEntry): string | null;
 }
 
 /**

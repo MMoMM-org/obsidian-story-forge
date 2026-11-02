@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 import "../../__mocks__/obsidian";
 import { basesCardEntry, nativeCardEntry, type CardEntry, type CardRenderer } from "codex/cardRegistry";
+import { nativeTileField } from "codex/cardTileField";
 import { buildCardWrapper } from "codex/cardWrapper";
 import { entryPills } from "codex/cards/shared";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
@@ -33,6 +34,7 @@ function nativeWrapper(value: unknown): HTMLElement {
 	return buildCardWrapper(nativeCardEntry(PATH, { allies: value }), pillCard("allies"), {
 		compact: false,
 		resolveAsset: (raw) => raw,
+		tileField: nativeTileField,
 	});
 }
 
@@ -76,7 +78,7 @@ describe("entryPills — Bases backend (Value.toString display form)", () => {
 			{ file: { path: PATH }, getValue: () => ({ toString: (): string => display }) },
 			{ allies: display },
 		);
-		return buildCardWrapper(entry, pillCard("allies"), { compact: false, resolveAsset: (r) => r });
+		return buildCardWrapper(entry, pillCard("allies"), { compact: false, resolveAsset: (r) => r, tileField: nativeTileField });
 	}
 
 	it("stamps a pill whose display form still carries its brackets", () => {

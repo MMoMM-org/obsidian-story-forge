@@ -43,7 +43,7 @@ import type { CardEntry, CardRenderDeps, CardRenderer } from "codex/cardRegistry
 import { kindTileEl, portraitTile } from "panel/components";
 import { kindFields } from "panel/kindFields";
 import type { EntityKind } from "scoping/NoteContext";
-import { entryKind, entryPills, imageFieldId, linkDisplay, missBadge } from "./shared";
+import { entryKind, entryPills, linkDisplay, missBadge } from "./shared";
 
 declare const activeDocument: Document;
 
@@ -60,7 +60,8 @@ export const heroCard: CardRenderer = {
 		el.classList.add("sf-cx-hero");
 		const kind = entryKind(entry);
 
-		appendTile(el, entry, kind, (raw) => deps.resolveAsset(raw));
+		const tileField = deps.tileField(entry);
+		appendTile(el, entry, kind, tileField, (raw) => deps.resolveAsset(raw));
 
 		const body = activeDocument.createElement("div");
 		body.className = "sf-cx-card-main sf-cx-hero-body";
@@ -68,7 +69,10 @@ export const heroCard: CardRenderer = {
 
 		body.appendChild(deps.nameEl(entry));
 
-		const { facts, relations } = kindFields(kind);
+		// The tile field is drawn as the tile; never again as a fact or a pill.
+		const notTile = (id: string): boolean => id !== tileField;
+		const facts = kindFields(kind).facts.filter(notTile);
+		const relations = kindFields(kind).relations.filter(notTile);
 		appendFactsLine(body, entry, facts.slice(0, HF_FACT_COUNT));
 		// Skip the pill row in compact (Workbench) density — S95 keeps the
 		// sidebar form to name + the facts line, matching its narrower width.
@@ -84,9 +88,9 @@ function appendTile(
 	el: HTMLElement,
 	entry: CardEntry,
 	kind: EntityKind,
+	fieldId: string | null,
 	resolveAsset: CardRenderDeps["resolveAsset"],
 ): void {
-	const fieldId = imageFieldId(kind);
 	const raw = fieldId ? entry.field(fieldId).text : "";
 	const src = raw ? resolveAsset(raw) : "";
 

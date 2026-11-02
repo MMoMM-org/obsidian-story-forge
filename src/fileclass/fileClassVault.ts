@@ -46,8 +46,17 @@ export interface FileClassSource {
  * `folder` is a getter, not a value: `main.ts` reassigns `settings` on save, so
  * a captured folder would go stale the moment the user changed it — the same
  * convention every other injected setting in this plugin follows.
+ *
+ * `snapshot` reads the folder's FileClasses once, on first need, and reuses
+ * them for this source's lifetime. Without it, every `nameFor` for a note with
+ * no `fileClass` key scans the vault. Build a snapshot source per render pass
+ * (a Card grid), never keep one across vault changes. T6.4 owns the general cache.
  */
-export function createFileClassSource(app: App, folder: () => string): FileClassSource {
+export function createFileClassSource(
+	app: App,
+	folder: () => string,
+	options: { readonly snapshot?: boolean } = {},
+): FileClassSource {
 	const frontmatterOf = (file: TFile): Record<string, unknown> | undefined =>
 		app.metadataCache.getFileCache(file)?.frontmatter;
 
@@ -64,6 +73,10 @@ export function createFileClassSource(app: App, folder: () => string): FileClass
 			.map((file) => ({ name: file.basename, frontmatter: frontmatterOf(file) ?? {} }));
 	};
 
+	let scanned: ReturnType<typeof declaredClasses> | undefined;
+	const classes = (): ReturnType<typeof declaredClasses> =>
+		options.snapshot === true ? (scanned ??= declaredClasses()) : declaredClasses();
+
 	return {
 		lookup: {
 			getFileClassFrontmatter: (name: string): unknown => {
@@ -72,7 +85,7 @@ export function createFileClassSource(app: App, folder: () => string): FileClass
 			},
 		},
 		nameFor: (file: TFile): string | undefined =>
-			declaredName(frontmatterOf(file)) ?? claimedName(app, file, declaredClasses()),
+			declaredName(frontmatterOf(file)) ?? claimedName(app, file, classes()),
 	};
 }
 

@@ -220,7 +220,11 @@ export default class StoryForgePlugin extends Plugin {
 		// closure passed to SidebarView/AnvilView below, so a Card rendered inside
 		// a user's own `.base` honours a Settings change immediately, exactly like
 		// those two hosts (ADR-28 parity — see BasesAdapter.ts's doc comment).
-		const basesAvailable = registerCodexView(this, () => this.settings.linkClickAction);
+		const basesAvailable = registerCodexView(
+			this,
+			() => this.settings.linkClickAction,
+			() => this.settings.fileClassesFolder,
+		);
 
 		// T2.3 (spec 008, PRD F1): the single entry point into the Anvil, opened with
 		// the Codex tab selected. Reveals the existing leaf rather than creating a

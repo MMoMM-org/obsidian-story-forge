@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 // the Card modules rely on for DOM construction.
 import "../../__mocks__/obsidian";
 import { nativeCardEntry, type CardEntry, type CardRenderDeps } from "codex/cardRegistry";
+import { nativeTileField } from "codex/cardTileField";
 import { compactCard } from "codex/cards/compactCard";
 
 const PATH = "30 Canon/31 Characters/Mara Stoneway.md";
@@ -27,6 +28,7 @@ function getDeps(compact = false): CardRenderDeps {
 			return node;
 		},
 		resolveAsset: (raw: string): string => raw,
+		tileField: nativeTileField,
 	};
 }
 

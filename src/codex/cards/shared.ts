@@ -61,22 +61,6 @@ export function entryKind(entry: CardEntry): EntityKind {
 }
 
 // ---------------------------------------------------------------------------
-// Image field per kind
-// ---------------------------------------------------------------------------
-
-/** The frontmatter field a Card draws as its image, per kind (see kindFields.ts's header comment). */
-const IMAGE_FIELD: Partial<Record<EntityKind, string>> = {
-	character: "portrait",
-	location: "image",
-	object: "image",
-};
-
-/** The field id a Card should try for its image tile, or `undefined` for a kind with no image field. */
-export function imageFieldId(kind: EntityKind): string | undefined {
-	return IMAGE_FIELD[kind];
-}
-
-// ---------------------------------------------------------------------------
 // Link display — no raw brackets on a relation value
 // ---------------------------------------------------------------------------
 

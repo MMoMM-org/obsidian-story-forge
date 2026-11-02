@@ -80,6 +80,8 @@ export interface CardWrapperDeps {
 	 * `@typescript-eslint/unbound-method` — there is no `this` to lose.
 	 */
 	readonly resolveAsset: (raw: string) => string;
+	/** The entry's tile field, resolved by the host — see `CardRenderDeps.tileField`. */
+	readonly tileField: (entry: CardEntry) => string | null;
 	/**
 	 * This entry is the one the editor pane is showing (S92/S99's `.hero.sel`,
 	 * T5.1). Optional and defaulting to `false`: a standalone `.base` Card grid
@@ -122,6 +124,7 @@ export function buildCardWrapper(
 		compact: deps.compact,
 		nameEl: buildNameEl,
 		resolveAsset: deps.resolveAsset,
+		tileField: deps.tileField,
 	};
 
 	card.render(entry, cardEl, renderDeps);

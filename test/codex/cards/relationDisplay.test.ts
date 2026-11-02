@@ -9,6 +9,7 @@
 import { describe, expect, it } from "vitest";
 import "../../__mocks__/obsidian";
 import { nativeCardEntry, type CardEntry, type CardRenderDeps } from "codex/cardRegistry";
+import { nativeTileField } from "codex/cardTileField";
 import { compactCard } from "codex/cards/compactCard";
 import { heroCard } from "codex/cards/heroCard";
 import { tableCard } from "codex/cards/tableCard";
@@ -25,6 +26,7 @@ function deps(): CardRenderDeps {
 			return n;
 		},
 		resolveAsset: (raw) => raw,
+		tileField: nativeTileField,
 	};
 }
 

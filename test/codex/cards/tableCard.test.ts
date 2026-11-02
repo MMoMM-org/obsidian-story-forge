@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 // the Card modules rely on for DOM construction.
 import "../../__mocks__/obsidian";
 import { nativeCardEntry, type CardEntry, type CardRenderDeps } from "codex/cardRegistry";
+import { nativeTileField } from "codex/cardTileField";
 import { tableCard } from "codex/cards/tableCard";
 
 const PATH = "30 Canon/32 Locations/Moonharbor.md";
@@ -28,6 +29,7 @@ function getDeps(): CardRenderDeps {
 			return node;
 		},
 		resolveAsset: (raw: string): string => raw,
+		tileField: nativeTileField,
 	};
 }
 
