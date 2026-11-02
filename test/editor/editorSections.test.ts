@@ -30,6 +30,8 @@ import { AnvilView } from "anvil/AnvilView";
 import { buildFieldModel } from "editor/fieldModel";
 import { renderFieldSections } from "editor/editorPane";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
+import { createFileClassCache } from "fileclass/fileClassVault";
+import { DEFAULT_FILE_CLASSES_FOLDER } from "types/index";
 import type { FileClassLookup } from "fileclass/fileClassTypes";
 
 // ---------------------------------------------------------------------------
@@ -476,7 +478,10 @@ async function openPaneOnMara(app: App, dock: "bottom" | "right"): Promise<Anvil
 	const view: AnvilView = new AnvilView(leaf, {
 		settings: { getCardTitleOpensNote: () => false },
 		drill: (f) => { view.inspect(f); },
-		editor: { getDock: () => dock },
+		editor: {
+			getDock: () => dock,
+			fileClasses: createFileClassCache(app, () => DEFAULT_FILE_CLASSES_FOLDER, () => {}),
+		},
 	});
 	await view.onOpen();
 	view.setLayout("codex");

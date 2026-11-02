@@ -25,6 +25,7 @@ import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate, ConsentDecision } from "consent/ConsentGate";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
+import { createFileClassCache } from "fileclass/fileClassVault";
 import type { ViewRecord } from "store/types";
 
 // ---------------------------------------------------------------------------
@@ -587,7 +588,10 @@ describe("SidebarView: engine dispatch (_renderResolved)", () => {
 		const registry = makeMockRegistry(undefined);
 		const consentGate = makeMockConsentGate({ status: "consented" });
 
-		view = new SidebarView(leaf, registry, consentGate, nativeEngine);
+		view = new SidebarView(
+			leaf, registry, consentGate, nativeEngine, undefined, undefined, undefined,
+			createFileClassCache(app, () => "00 Meta/FileClasses", () => {}),
+		);
 		await view.onOpen();
 
 		// location kind: world (relation) + region (text) — a known scalar+relation pair

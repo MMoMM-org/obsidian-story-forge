@@ -25,12 +25,21 @@
  * plain frontmatter in a folder, which is exactly why we read the format
  * instead of depending on the plugin that writes it.
  *
+ * The plugin keeps **one** of these (T6.4): `main.ts` owns it and hands it to
+ * every consumer. What it holds is a *generation*: the folder's FileClasses and
+ * each one read by name, dropped together when anything in the folder changes
+ * or the folder setting does (SDD/Quality Requirements). A note's own answer
+ * from `nameFor` is deliberately not cached: it depends on that note's tags,
+ * which change without touching the folder, and costs no scan once the classes
+ * are held.
+ *
  * @ref docs/XDD/specs/008-codex-surface/solution.md — Complex Logic, step 1
  * @ref src/fileclass/fileClassReader.ts — the pure consumer of `FileClassLookup`
  */
 
-import { TFile, getAllTags, type App } from "obsidian";
+import { TFile, debounce, getAllTags, type App, type EventRef } from "obsidian";
 import type { FileClassLookup } from "fileclass/fileClassTypes";
+import { DEBOUNCE_MS } from "pluginConstants";
 
 /** Reading FileClasses out of one vault folder, plus which one applies to a note. */
 export interface FileClassSource {
@@ -40,53 +49,115 @@ export interface FileClassSource {
 	nameFor(file: TFile): string | undefined;
 }
 
+/** A `FileClassSource` that also says when what it answers has changed. */
+export interface FileClassCache extends FileClassSource {
+	/**
+	 * Be told after the folder's FileClasses change, once per burst. Not called
+	 * for a change of the folder setting, which a cache only sees on its next read.
+	 *
+	 * @returns the call that stops it
+	 */
+	subscribe(listener: () => void): () => void;
+}
+
+interface DeclaredClass {
+	readonly name: string;
+	readonly frontmatter: Record<string, unknown>;
+}
+
+/** What one folder held, until something in it changes. */
+interface Generation {
+	readonly folder: string;
+	classes?: readonly DeclaredClass[];
+	readonly byName: Map<string, unknown>;
+}
+
 /**
- * Build a `FileClassSource` over `app`.
+ * Build the FileClass cache over `app`.
  *
  * `folder` is a getter, not a value: `main.ts` reassigns `settings` on save, so
- * a captured folder would go stale the moment the user changed it — the same
- * convention every other injected setting in this plugin follows.
+ * every read compares it and starts a new generation when it moved.
  *
- * `snapshot` reads the folder's FileClasses once, on first need, and reuses
- * them for this source's lifetime. Without it, every `nameFor` for a note with
- * no `fileClass` key scans the vault. Build a snapshot source per render pass
- * (a Card grid), never keep one across vault changes. T6.4 owns the general cache.
+ * A read of a file Obsidian has not indexed yet is answered but never kept:
+ * `getFileCache` is `null` until then, and the first index at startup need not
+ * fire `changed`, so keeping it could strand an empty FileClass for the session.
+ *
+ * @param registerEvent the owner's `Component.registerEvent`, which releases
+ *        the listeners on unload
  */
-export function createFileClassSource(
+export function createFileClassCache(
 	app: App,
 	folder: () => string,
-	options: { readonly snapshot?: boolean } = {},
-): FileClassSource {
-	const frontmatterOf = (file: TFile): Record<string, unknown> | undefined =>
-		app.metadataCache.getFileCache(file)?.frontmatter;
+	registerEvent: (ref: EventRef) => void,
+): FileClassCache {
+	let generation: Generation | null = null;
+	const listeners = new Set<() => void>();
+	const notify = debounce((): void => { [...listeners].forEach((listener) => { listener(); }); }, DEBOUNCE_MS, true);
 
-	const fileFor = (name: string): TFile | null => {
-		const found = app.vault.getAbstractFileByPath(`${folder()}/${name}.md`);
-		return found instanceof TFile ? found : null;
+	const current = (): Generation => {
+		const now = folder();
+		if (generation?.folder !== now) generation = { folder: now, byName: new Map() };
+		return generation;
 	};
 
-	const declaredClasses = (): { name: string; frontmatter: Record<string, unknown> }[] => {
-		const prefix = `${folder()}/`;
-		return app.vault
-			.getMarkdownFiles()
-			.filter((file) => file.path.startsWith(prefix))
-			.map((file) => ({ name: file.basename, frontmatter: frontmatterOf(file) ?? {} }));
-	};
-
-	let scanned: ReturnType<typeof declaredClasses> | undefined;
-	const classes = (): ReturnType<typeof declaredClasses> =>
-		options.snapshot === true ? (scanned ??= declaredClasses()) : declaredClasses();
+	watchFolder(app, folder, registerEvent, () => {
+		generation = null;
+		notify();
+	});
 
 	return {
-		lookup: {
-			getFileClassFrontmatter: (name: string): unknown => {
-				const file = fileFor(name);
-				return file === null ? undefined : frontmatterOf(file);
-			},
-		},
+		lookup: { getFileClassFrontmatter: (name) => lookUp(app, current(), name) },
 		nameFor: (file: TFile): string | undefined =>
-			declaredName(frontmatterOf(file)) ?? claimedName(app, file, classes()),
+			declaredName(app.metadataCache.getFileCache(file)?.frontmatter) ?? claimedName(app, file, classesIn(app, current())),
+		subscribe: (listener) => {
+			listeners.add(listener);
+			return () => { listeners.delete(listener); };
+		},
 	};
+}
+
+/** Call `onChange` when a file appears in, leaves, or changes inside the folder. */
+function watchFolder(
+	app: App,
+	folder: () => string,
+	registerEvent: (ref: EventRef) => void,
+	onChange: () => void,
+): void {
+	const inFolder = (path: string): boolean => path.startsWith(`${folder()}/`);
+	const check = (file: { readonly path: string }): void => { if (inFolder(file.path)) onChange(); };
+
+	registerEvent(app.metadataCache.on("changed", check));
+	registerEvent(app.vault.on("create", check));
+	registerEvent(app.vault.on("delete", check));
+	registerEvent(app.vault.on("rename", (file, oldPath) => {
+		if (inFolder(file.path) || inFolder(oldPath)) onChange();
+	}));
+}
+
+/** `<folder>/<name>.md`'s frontmatter, read at most once per generation. */
+function lookUp(app: App, generation: Generation, name: string): unknown {
+	if (generation.byName.has(name)) return generation.byName.get(name);
+	const file = app.vault.getAbstractFileByPath(`${generation.folder}/${name}.md`);
+	if (!(file instanceof TFile)) {
+		generation.byName.set(name, undefined);
+		return undefined;
+	}
+	const cached = app.metadataCache.getFileCache(file);
+	if (cached) generation.byName.set(name, cached.frontmatter);
+	return cached?.frontmatter;
+}
+
+/** Every FileClass in the folder: the vault scan, kept for the generation. */
+function classesIn(app: App, generation: Generation): readonly DeclaredClass[] {
+	if (generation.classes) return generation.classes;
+	const prefix = `${generation.folder}/`;
+	const caches = app.vault
+		.getMarkdownFiles()
+		.filter((file) => file.path.startsWith(prefix))
+		.map((file) => ({ name: file.basename, cache: app.metadataCache.getFileCache(file) }));
+	const classes = caches.map(({ name, cache }) => ({ name, frontmatter: cache?.frontmatter ?? {} }));
+	if (caches.every(({ cache }) => cache !== null)) generation.classes = classes;
+	return classes;
 }
 
 /** (a) The note says which FileClass it uses. */
@@ -99,7 +170,7 @@ function declaredName(frontmatter: Record<string, unknown> | undefined): string 
 function claimedName(
 	app: App,
 	file: TFile,
-	classes: readonly { name: string; frontmatter: Record<string, unknown> }[],
+	classes: readonly DeclaredClass[],
 ): string | undefined {
 	const cache = app.metadataCache.getFileCache(file);
 	const tags = new Set((cache ? (getAllTags(cache) ?? []) : []).map(stripHash));

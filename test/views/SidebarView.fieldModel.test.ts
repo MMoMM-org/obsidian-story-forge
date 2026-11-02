@@ -1,7 +1,7 @@
 /**
  * The Workbench editor takes its fields from the FieldModel (T6.3): a real
  * `SidebarView` in edit mode over a vault of FileClasses, so the whole route from
- * `getFileClassesFolder` to the rendered rows is exercised.
+ * the FileClass cache to the rendered rows is exercised.
  *
  * @ref docs/XDD/adr/0002-fileclass-driven-editor.md — the three tiers
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-6.md — T6.3
@@ -18,6 +18,7 @@ import {
 import type { ConsentGate } from "consent/ConsentGate";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { EngineRegistry } from "engines/QueryEngine";
+import { createFileClassCache } from "fileclass/fileClassVault";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import type { EntityKind, NoteContext } from "scoping/NoteContext";
 import { DEFAULT_FILE_CLASSES_FOLDER } from "types/index";
@@ -72,13 +73,13 @@ function world(frontmatter: Fm, fileClasses: Record<string, Fm> = {}, folder = D
 	return { app, nativeEngine: nativeEngine as unknown as World["nativeEngine"] };
 }
 
-async function open(w: World, getFolder?: () => string, editMode = true, kind: EntityKind = "character"): Promise<HTMLElement> {
+async function open(w: World, getFolder: () => string = () => DEFAULT_FILE_CLASSES_FOLDER, editMode = true, kind: EntityKind = "character"): Promise<HTMLElement> {
 	const leaf = new WorkspaceLeaf();
 	leaf.app = w.app;
 	leaf.view.getViewType = vi.fn(() => SIDEBAR_VIEW_TYPE);
 	const registry = { get: vi.fn() } as unknown as EngineRegistry;
 	const gate = { evaluate: vi.fn() } as unknown as ConsentGate;
-	const view = new SidebarView(leaf, registry, gate, w.nativeEngine, undefined, undefined, undefined, getFolder);
+	const view = new SidebarView(leaf, registry, gate, w.nativeEngine, undefined, undefined, undefined, createFileClassCache(w.app, getFolder, () => {}));
 	await view.onOpen();
 	const body = view.contentEl.querySelector(".sf-body") as HTMLElement;
 	const ctx: NoteContext = {

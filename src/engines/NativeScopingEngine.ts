@@ -16,7 +16,7 @@ import type { App } from "obsidian";
 import type { NoteContext } from "scoping/NoteContext";
 import type { ViewRecord } from "store/types";
 import type { QueryEngine } from "engines/QueryEngine";
-import { createFileClassSource, type FileClassSource } from "fileclass/fileClassVault";
+import type { FileClassSource } from "fileclass/fileClassVault";
 import { createLinkedImageResolver } from "panel/assetResolver";
 import { resolveTileField } from "panel/tileField";
 import { renderPanel } from "panel/renderPanel";
@@ -35,16 +35,11 @@ export class NativeScopingEngine implements QueryEngine {
 	/** Built deps for last render — exposed as _lastDeps for testing. */
 	_lastDeps: PanelDeps | null = null;
 
-	/** Where FileClasses live; absent means every note takes the native fallback. */
-	private readonly fileClasses: FileClassSource | undefined;
-
 	/**
-	 * @param getFileClassesFolder  live FileClasses folder (a getter: settings are
-	 *        reassigned on save). Omitted, the panel uses the native field names only.
+	 * @param fileClasses  the plugin's FileClass cache. Omitted, the panel uses the
+	 *        native field names only.
 	 */
-	constructor(private readonly app: App, getFileClassesFolder?: () => string) {
-		this.fileClasses = getFileClassesFolder ? createFileClassSource(app, getFileClassesFolder) : undefined;
-	}
+	constructor(private readonly app: App, private readonly fileClasses?: FileClassSource) {}
 
 	/**
 	 * Render entity context from NoteContext into `el` using the per-kind renderer.

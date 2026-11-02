@@ -99,8 +99,7 @@ import { buildFieldModel } from "editor/fieldModel";
 import { GENERATED_UI_HINTS } from "editor/generatedUiHints";
 import { createMediaSeams } from "editor/mediaPicker";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
-import { createFileClassSource, type FileClassSource } from "fileclass/fileClassVault";
-import { DEFAULT_FILE_CLASSES_FOLDER } from "types/index";
+import type { FileClassCache } from "fileclass/fileClassVault";
 import { createLinkedImageResolver } from "panel/assetResolver";
 import { createCardTileField } from "codex/cardTileField";
 import type { BasesCapability } from "bases/basesCapability";
@@ -204,11 +203,11 @@ export interface AnvilViewOpts {
 		 */
 		getDock?: () => EditorDock;
 		/**
-		 * Reads the live FileClasses folder (`PluginSettings.fileClassesFolder`),
-		 * where the pane looks for the field declarations it renders (T5.3).
-		 * Defaults to the shipped `00 Meta/FileClasses`.
+		 * The plugin's FileClass cache, where the pane and the Codex's Cards get
+		 * the field declarations they render (T5.3, T6.4). Absent, no note has a
+		 * FileClass: the pane shows the note's own keys, Cards the shipped names.
 		 */
-		getFileClassesFolder?: () => string;
+		fileClasses?: FileClassCache;
 		/**
 		 * Persist a dock change — write-through to settings only, never to a
 		 * note's frontmatter (CON-2). Defaults to a no-op, which makes the dock
@@ -253,8 +252,8 @@ export class AnvilView extends ItemView {
 	private readonly _codexSelection = new CodexSelectionStore();
 	/** Which note the editor pane is showing, and whether it is fullscreen (T5.1). */
 	private readonly _editor = new EditorPaneStore();
-	/** Reads FileClasses out of the configured folder for the pane (T5.3). Built in onOpen. */
-	private _fileClasses: FileClassSource | null = null;
+	/** The plugin's FileClass cache, for the pane and the Codex's Cards (T6.4). */
+	private readonly fileClasses: FileClassCache | undefined;
 	/**
 	 * Writes issued for the open note that have not landed yet (T5.4): field
 	 * name → the value on its way to the file.
@@ -313,7 +312,6 @@ export class AnvilView extends ItemView {
 	private readonly onDismissHint: (hintId: string) => void;
 	private readonly onChangeTag: (collectionId: string) => void;
 	private readonly getEditorDock: () => EditorDock;
-	private readonly getFileClassesFolder: () => string;
 	private readonly onEditorDockChange: (dock: EditorDock) => void;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
 
@@ -347,8 +345,7 @@ export class AnvilView extends ItemView {
 		this.onDismissHint = opts?.bases?.onDismissHint ?? ((): void => {});
 		this.onChangeTag = opts?.codex?.onChangeTag ?? ((): void => {});
 		this.getEditorDock = opts?.editor?.getDock ?? ((): EditorDock => "bottom");
-		this.getFileClassesFolder =
-			opts?.editor?.getFileClassesFolder ?? ((): string => DEFAULT_FILE_CLASSES_FOLDER);
+		this.fileClasses = opts?.editor?.fileClasses;
 		this.onEditorDockChange = opts?.editor?.onDockChange ?? ((): void => {});
 		this._debouncedRender = debounce((): void => { this._reconcile(); }, DEBOUNCE_MS, true);
 	}
@@ -437,9 +434,6 @@ export class AnvilView extends ItemView {
 		// Note index for the Codex tab. Its metadataCache subscriptions go through
 		// this view's registerEvent, so unload releases them (CON-4).
 		this._noteIndex = createNoteIndex(this.app, (ref) => { this.registerEvent(ref); });
-		// The pane's field declarations (T5.3). Reads the folder through a getter
-		// so a settings change needs no reopen, same as every other live setting.
-		this._fileClasses = createFileClassSource(this.app, () => this.getFileClassesFolder());
 
 		// One delegated click router on the persistent contentEl (survives body.empty()).
 		this.registerDomEvent(ce, "click", (e: MouseEvent) => {
@@ -498,6 +492,10 @@ export class AnvilView extends ItemView {
 			if (file.path === this._editor.path) this._paneStale = true;
 			this._debouncedRender();
 		}));
+		// A FileClass changed: the pane's sections and the Cards' tiles may with it.
+		// The cache has already coalesced the burst, and `_reconcile` keeps the
+		// pane's drafts and owes the render until focus leaves.
+		if (this.fileClasses) this.register(this.fileClasses.subscribe(() => { this._reconcile(); }));
 		// SDD/Error Handling: a note deleted while the editor is open (T5.4).
 		// `metadataCache`'s "deleted" rather than the vault's "delete" because the
 		// pane only ever shows a note WITH metadata, and this event hands over a
@@ -534,7 +532,6 @@ export class AnvilView extends ItemView {
 		this._draftEl = null;
 		this._paneStale = false;
 		this._noteIndex = null;
-		this._fileClasses = null;
 		this.contentEl.empty();
 	}
 
@@ -990,11 +987,10 @@ export class AnvilView extends ItemView {
 	 * the pane was drawn, and that snapshot is what a failed write rolls back to.
 	 */
 	private _renderFields(fieldsEl: HTMLElement, file: TFile): void {
-		const source = this._fileClasses;
-		if (!source) return;
+		const source = this.fileClasses;
 		const frontmatter = this._shownFrontmatter(file);
-		const startName = source.nameFor(file);
-		const chain = startName === undefined ? [] : resolveFileClassChain(startName, source.lookup);
+		const startName = source?.nameFor(file);
+		const chain = source && startName !== undefined ? resolveFileClassChain(startName, source.lookup) : [];
 		const model = buildFieldModel(chain, frontmatter, GENERATED_UI_HINTS);
 		const valueOf = (name: string): unknown => frontmatter[name] ?? null;
 
@@ -1062,11 +1058,7 @@ export class AnvilView extends ItemView {
 			excludedFolders: this.getExcludedFolders(),
 			frontmatterFor,
 			resolveAsset: (sourcePath, raw): string => createLinkedImageResolver(this.app, sourcePath)(raw),
-			tileField: createCardTileField(
-				this.app,
-				() => this.getFileClassesFolder(),
-				(path) => this._noteIndex?.fileFor(path) ?? null,
-			),
+			tileField: createCardTileField(this.fileClasses, (path) => this._noteIndex?.fileFor(path) ?? null),
 			cardId: active ? this.getCardByCollection()[active.id] : undefined,
 			basesCapability: this.getBasesCapability(),
 			dismissedHints: this.getDismissedHints(),

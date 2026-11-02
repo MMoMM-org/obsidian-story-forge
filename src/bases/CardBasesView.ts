@@ -48,6 +48,7 @@ import { basesCardEntry, type CardEntry, type CardRegistry, type CardRenderer } 
 import { buildCardWrapper, CARD_BODY_ATTR } from "codex/cardWrapper";
 import { createLinkedImageResolver } from "panel/assetResolver";
 import { createCardTileField } from "codex/cardTileField";
+import type { FileClassCache } from "fileclass/fileClassVault";
 import { createNavigationController, type LinkClickAction } from "navigation/navigationController";
 import { walkTargetMarkers, type MarkerKindOf } from "navigation/domTargetWalk";
 import { linkContextMenuHandler } from "navigation/linkContextMenu";
@@ -80,10 +81,10 @@ export interface CardBasesViewDeps {
 	 */
 	getLinkClickAction?: () => LinkClickAction;
 	/**
-	 * Reads the live FileClasses folder, so a Card's tile follows the `Media`-typed
-	 * field as the panel's does (T6.2b). Optional: absent, Cards use the shipped names.
+	 * The plugin's FileClass cache, so a Card's tile follows the `Media`-typed field
+	 * as the panel's does (T6.2b). Optional: absent, Cards use the shipped names.
 	 */
-	getFileClassesFolder?: () => string;
+	fileClasses?: FileClassCache;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,6 +108,9 @@ export class CardBasesView extends BasesView {
 
 	/** CON-4: set to true on unload; guards onDataUpdated against post-teardown repaints. */
 	private disposed = false;
+
+	/** Bases has handed this view data: until then `this.data` may not exist. */
+	private drawn = false;
 
 	/**
 	 * ADR-28's marker vocabulary, scoped to what this surface's markup can
@@ -132,6 +136,11 @@ export class CardBasesView extends BasesView {
 		this.getLinkClickAction = deps.getLinkClickAction ?? ((): LinkClickAction => "drill");
 		// CON-4: mark disposed when Obsidian unloads this Component.
 		this.register(() => { this.disposed = true; });
+		// Bases repaints for its query's results, and a FileClass is rarely one of
+		// them, so a change of field type would otherwise wait for the next repaint.
+		if (deps.fileClasses) {
+			this.register(deps.fileClasses.subscribe(() => { if (this.drawn) this.onDataUpdated(); }));
+		}
 		// Right-click on a link (name or relation pill): Obsidian's own file menu.
 		// On the persistent container (the grid is rebuilt every repaint), so it is
 		// registered once and released with the view.
@@ -176,6 +185,7 @@ export class CardBasesView extends BasesView {
 	onDataUpdated(): void {
 		// CON-4: no stale content bleed after teardown.
 		if (this.disposed) return;
+		this.drawn = true;
 
 		// CON-4: empty before repaint.
 		this.containerEl.innerHTML = "";
@@ -199,7 +209,6 @@ export class CardBasesView extends BasesView {
 			return;
 		}
 
-		// One tile-field resolver per pass: the FileClass scan runs once, not per card.
 		const tileField = this.tileFieldFor(entries);
 		for (const entry of entries) {
 			grid.appendChild(this.renderEntry(entry, card, tileField));
@@ -272,10 +281,6 @@ export class CardBasesView extends BasesView {
 	/** This pass's tile-field resolver, over the entries about to be drawn. */
 	private tileFieldFor(entries: readonly BasesEntry[]): (entry: CardEntry) => string | null {
 		const files = new Map(entries.map((e) => [e.file.path, e.file] as const));
-		return createCardTileField(
-			this.deps.app,
-			this.deps.getFileClassesFolder,
-			(path) => files.get(path) ?? null,
-		);
+		return createCardTileField(this.deps.fileClasses, (path) => files.get(path) ?? null);
 	}
 }

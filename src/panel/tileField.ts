@@ -7,8 +7,7 @@
  * with (CON-3), which is how a vault without FileClasses keeps its portraits.
  *
  * Resolution is synchronous (it reads `metadataCache`), so the panel never
- * waits on it. It is not cached here: T6.4 owns the per-file FileClass cache,
- * and this goes through the same `FileClassSource` it will cache.
+ * waits on it. It is not cached here: `source` is the plugin's FileClass cache.
  *
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-6.md — T6.2
  * @ref docs/XDD/adr/0002-fileclass-driven-editor.md

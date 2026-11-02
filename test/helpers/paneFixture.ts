@@ -16,6 +16,8 @@ import {
 	type TFile,
 } from "obsidian";
 import { AnvilView } from "anvil/AnvilView";
+import { createFileClassCache } from "fileclass/fileClassVault";
+import { DEFAULT_FILE_CLASSES_FOLDER } from "types/index";
 
 function fcField(id: string, name: string, type: string, values?: string[]): Record<string, unknown> {
 	const def: Record<string, unknown> = { id, name, type };
@@ -78,7 +80,10 @@ export async function openPane(app: App): Promise<AnvilView> {
 	(leaf as unknown as { app: App }).app = app;
 	const view: AnvilView = new AnvilView(leaf, {
 		drill: (f) => { view.inspect(f); },
-		editor: { getDock: () => "bottom" },
+		editor: {
+			getDock: () => "bottom",
+			fileClasses: createFileClassCache(app, () => DEFAULT_FILE_CLASSES_FOLDER, () => {}),
+		},
 	});
 	opened.push(view);
 	await view.onOpen();

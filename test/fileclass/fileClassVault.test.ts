@@ -15,11 +15,17 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { App, type TFile } from "obsidian";
+import { App, Component, type TFile } from "obsidian";
+import { DEBOUNCE_MS } from "pluginConstants";
 import { createMockCachedMetadata, createMockTFile, type CachedMetadata } from "../__mocks__/obsidian";
-import { createFileClassSource } from "fileclass/fileClassVault";
+import { createFileClassCache, type FileClassCache } from "fileclass/fileClassVault";
 
 const FOLDER = "00 Meta/FileClasses";
+
+/** A cache whose events nothing owns: enough for the tests of what it resolves. */
+function cacheOver(app: App, folder: () => string = () => FOLDER): FileClassCache {
+	return createFileClassCache(app, folder, () => {});
+}
 
 const fcCharacter = createMockTFile({ basename: "fc-character", path: `${FOLDER}/fc-character.md` });
 const fcLocation = createMockTFile({ basename: "fc-location", path: `${FOLDER}/fc-location.md` });
@@ -64,7 +70,7 @@ const SHIPPED: readonly Note[] = [
 	{ file: fcIsekai, frontmatter: { extends: "fc-character", fields: [] } },
 ];
 
-describe("createFileClassSource — which FileClass applies (T5.3)", () => {
+describe("createFileClassCache — which FileClass applies (T5.3)", () => {
 	it("prefers the note's own fileClass key, so a user's FileClass is reachable at all", () => {
 		const app = new App();
 		const note = createMockTFile({ basename: "Mara", path: "30 Canon/31 Characters/Mara.md" });
@@ -76,7 +82,7 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 		// The note also carries the tag `fc-character` claims and sits in the
 		// folder it claims — the explicit key still wins, or a user could never
 		// select their own FileClass for a note our tag rule already matches.
-		expect(createFileClassSource(app, () => FOLDER).nameFor(note)).toBe("fc-character-custom1");
+		expect(cacheOver(app).nameFor(note)).toBe("fc-character-custom1");
 	});
 
 	it("falls back to the FileClass whose tagNames the note carries", () => {
@@ -84,7 +90,7 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 		const note = createMockTFile({ basename: "Moonharbor", path: "30 Canon/32 Locations/Moonharbor.md" });
 		seed(app, [...SHIPPED, { file: note, tags: ["#canon/location"] }]);
 
-		expect(createFileClassSource(app, () => FOLDER).nameFor(note)).toBe("fc-location");
+		expect(cacheOver(app).nameFor(note)).toBe("fc-location");
 	});
 
 	it("falls back to the FileClass whose filesPaths contains the note", () => {
@@ -93,7 +99,7 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 		seed(app, [...SHIPPED, { file: note, frontmatter: { role: "supporting" } }]);
 
 		// No fileClass key and no matching tag — the folder claim is what is left.
-		expect(createFileClassSource(app, () => FOLDER).nameFor(note)).toBe("fc-character");
+		expect(cacheOver(app).nameFor(note)).toBe("fc-character");
 	});
 
 	it("applies no FileClass to a note nothing claims", () => {
@@ -102,7 +108,7 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 		seed(app, [...SHIPPED, { file: note, frontmatter: { mood: "restless" } }]);
 
 		// Not an error — tier 2 renders the note's own keys instead.
-		expect(createFileClassSource(app, () => FOLDER).nameFor(note)).toBeUndefined();
+		expect(cacheOver(app).nameFor(note)).toBeUndefined();
 	});
 
 	it.each<[string, Record<string, unknown>]>([
@@ -121,7 +127,7 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 
 		// Both shapes mean "claims nothing". Treating either as a wildcard would
 		// silently give every note in the vault this FileClass's fields.
-		expect(createFileClassSource(app, () => FOLDER).nameFor(note)).toBeUndefined();
+		expect(cacheOver(app).nameFor(note)).toBeUndefined();
 	});
 
 	it("does not render a null claim as a crash — the shipped fc-character-fantasy shape", () => {
@@ -134,7 +140,7 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 		]);
 
 		// Every vault carrying the shipped FileClasses hits this on every render.
-		expect(() => createFileClassSource(app, () => FOLDER).nameFor(note)).not.toThrow();
+		expect(() => cacheOver(app).nameFor(note)).not.toThrow();
 	});
 
 	it("treats only files inside the configured folder as FileClasses", () => {
@@ -150,14 +156,14 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 			{ file: note, tags: ["#canon/location"] },
 		]);
 
-		expect(createFileClassSource(app, () => FOLDER).nameFor(note)).toBeUndefined();
+		expect(cacheOver(app).nameFor(note)).toBeUndefined();
 	});
 
 	it("reads a FileClass's frontmatter from the configured folder, live", () => {
 		const app = new App();
 		seed(app, SHIPPED);
 		let folder = "00 Meta/Elsewhere";
-		const source = createFileClassSource(app, () => folder);
+		const source = cacheOver(app, () => folder);
 
 		// Wrong folder: nothing to read.
 		expect(source.lookup.getFileClassFrontmatter("fc-character")).toBeUndefined();
@@ -170,23 +176,233 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 	});
 });
 
-describe("createFileClassSource — snapshot option", () => {
-	function scansFor(options: { snapshot?: boolean }): number {
-		const app = new App();
-		const notes = [1, 2, 3].map((i) =>
-			createMockTFile({ basename: `N${i}`, path: `30 Canon/31 Characters/N${i}.md` }));
-		seed(app, [...SHIPPED, ...notes.map((file) => ({ file, tags: ["#canon/character"] }))]);
-		const source = createFileClassSource(app, () => FOLDER, options);
-		vi.mocked(app.vault.getMarkdownFiles).mockClear();
-		notes.forEach((n) => source.nameFor(n));
-		return vi.mocked(app.vault.getMarkdownFiles).mock.calls.length;
-	}
+// ---------------------------------------------------------------------------
+// The cache (T6.4)
+// ---------------------------------------------------------------------------
 
-	it("rescans the vault on every nameFor by default", () => {
-		expect(scansFor({})).toBe(3);
+const tagged = createMockTFile({ basename: "Mara", path: "30 Canon/31 Characters/Mara.md" });
+const fcFresh = createMockTFile({ basename: "fc-fresh", path: `${FOLDER}/fc-fresh.md` });
+const NOTE_TAGS: Note = { file: tagged, tags: ["#canon/hero"] };
+/** What a read sees once the FileClass arrives: `fc-fresh` claims the note's tag. */
+const AFTER: readonly Note[] = [NOTE_TAGS, { file: fcFresh, frontmatter: { tagNames: ["canon/hero"], fields: [] } }];
+
+interface Reads {
+	readonly app: App;
+	readonly cache: FileClassCache;
+	scans(): number;
+	lookups(path: string): number;
+}
+
+function reads(notes: readonly Note[] = [NOTE_TAGS], folder: () => string = () => FOLDER): Reads {
+	const app = new App();
+	seed(app, notes);
+	const cache = cacheOver(app, folder);
+	return {
+		app,
+		cache,
+		scans: () => vi.mocked(app.vault.getMarkdownFiles).mock.calls.length,
+		lookups: (path) => vi.mocked(app.vault.getAbstractFileByPath).mock.calls.filter(([p]) => p === path).length,
+	};
+}
+
+/** Prime the cache as empty, swap the vault's contents, fire `fire`, and read again. */
+function afterEvent(fire: (app: App) => void): { name: string | undefined; declared: unknown } {
+	const { app, cache } = reads();
+	expect(cache.nameFor(tagged)).toBeUndefined();
+	expect(cache.lookup.getFileClassFrontmatter("fc-fresh")).toBeUndefined();
+	seed(app, AFTER);
+	fire(app);
+	return { name: cache.nameFor(tagged), declared: cache.lookup.getFileClassFrontmatter("fc-fresh") };
+}
+
+describe("createFileClassCache — one read per generation", () => {
+	it("scans the vault once however many notes ask", () => {
+		const others = [1, 2, 3].map((i) => createMockTFile({ basename: `N${i}`, path: `30 Canon/N${i}.md` }));
+		const r = reads([...SHIPPED, ...others.map((file) => ({ file, tags: ["#canon/character"] }))]);
+
+		const names = others.map((note) => r.cache.nameFor(note));
+
+		expect(names).toEqual(["fc-character", "fc-character", "fc-character"]);
+		expect(r.scans()).toBe(1);
 	});
 
-	it("scans once for a { snapshot: true } source", () => {
-		expect(scansFor({ snapshot: true })).toBe(1);
+	it("reads one FileClass file once however often it is asked for", () => {
+		const r = reads(SHIPPED);
+
+		r.cache.lookup.getFileClassFrontmatter("fc-character");
+		r.cache.lookup.getFileClassFrontmatter("fc-character");
+
+		expect(r.lookups(fcCharacter.path)).toBe(1);
+	});
+
+	it("remembers that a FileClass is not there", () => {
+		const r = reads(SHIPPED);
+
+		r.cache.lookup.getFileClassFrontmatter("fc-gone");
+		expect(r.cache.lookup.getFileClassFrontmatter("fc-gone")).toBeUndefined();
+
+		expect(r.lookups(`${FOLDER}/fc-gone.md`)).toBe(1);
+	});
+
+	it("keeps following a note's own tags, which no event of its own clears", () => {
+		const r = reads(SHIPPED);
+		const note = createMockTFile({ basename: "Harbor", path: "30 Canon/Harbor.md" });
+		seed(r.app, [...SHIPPED, { file: note, tags: ["#canon/character"] }]);
+		expect(r.cache.nameFor(note)).toBe("fc-character");
+
+		seed(r.app, [...SHIPPED, { file: note, tags: ["#canon/location"] }]);
+
+		expect(r.cache.nameFor(note)).toBe("fc-location");
+	});
+});
+
+describe("createFileClassCache — invalidation", () => {
+	const inFolder = fcFresh;
+	const outside = createMockTFile({ basename: "fc-fresh", path: "90 Drafts/fc-fresh.md" });
+
+	it.each<[string, (app: App) => void]>([
+		["metadataCache changed in the folder", (app) => { app.metadataCache._trigger("changed", inFolder); }],
+		["vault create in the folder", (app) => { app.vault._trigger("create", inFolder); }],
+		["vault delete in the folder", (app) => { app.vault._trigger("delete", inFolder); }],
+		["vault rename within the folder", (app) => { app.vault._trigger("rename", inFolder, `${FOLDER}/old.md`); }],
+		["vault rename into the folder", (app) => { app.vault._trigger("rename", inFolder, "90 Drafts/fc-fresh.md"); }],
+		["vault rename out of the folder", (app) => { app.vault._trigger("rename", outside, inFolder.path); }],
+	])("%s drops both the scan and the lookup", (_label, fire) => {
+		const after = afterEvent(fire);
+
+		expect(after.name).toBe("fc-fresh");
+		expect(after.declared).toEqual({ tagNames: ["canon/hero"], fields: [] });
+	});
+
+	it.each<[string, (app: App) => void]>([
+		["metadataCache changed outside", (app) => { app.metadataCache._trigger("changed", tagged); }],
+		["vault create outside", (app) => { app.vault._trigger("create", tagged); }],
+		["vault delete outside", (app) => { app.vault._trigger("delete", tagged); }],
+		["vault rename outside", (app) => { app.vault._trigger("rename", tagged, "30 Canon/Old.md"); }],
+		["a sibling folder sharing the prefix", (app) => {
+			app.metadataCache._trigger("changed", createMockTFile({ basename: "x", path: `${FOLDER}-old/x.md` }));
+		}],
+	])("%s keeps them", (_label, fire) => {
+		const after = afterEvent(fire);
+
+		expect(after.name).toBeUndefined();
+		expect(after.declared).toBeUndefined();
+	});
+
+	it("rereads from the new folder when the setting changes, with no event at all", () => {
+		const elsewhere = createMockTFile({ basename: "fc-fresh", path: "Elsewhere/fc-fresh.md" });
+		let folder = FOLDER;
+		const r = reads(
+			[...AFTER, { file: elsewhere, frontmatter: { tagNames: [], fields: ["elsewhere"] } }],
+			() => folder,
+		);
+		expect(r.cache.nameFor(tagged)).toBe("fc-fresh");
+		expect(r.cache.lookup.getFileClassFrontmatter("fc-fresh")).toMatchObject({ fields: [] });
+
+		folder = "Elsewhere";
+
+		expect(r.cache.lookup.getFileClassFrontmatter("fc-fresh")).toMatchObject({ fields: ["elsewhere"] });
+		expect(r.cache.nameFor(tagged)).toBeUndefined();
+		expect(r.scans()).toBe(2);
+	});
+
+	it("watches the new folder after the setting changes", () => {
+		const elsewhere = createMockTFile({ basename: "fc-fresh", path: "Elsewhere/fc-fresh.md" });
+		let folder = FOLDER;
+		const r = reads([NOTE_TAGS], () => folder);
+		r.cache.nameFor(tagged);
+		folder = "Elsewhere";
+		r.cache.nameFor(tagged);
+
+		seed(r.app, [NOTE_TAGS, { file: elsewhere, frontmatter: { tagNames: ["canon/hero"] } }]);
+		r.app.metadataCache._trigger("changed", elsewhere);
+
+		expect(r.cache.nameFor(tagged)).toBe("fc-fresh");
+	});
+
+	it("does not keep a read made before Obsidian has indexed the FileClass", () => {
+		const r = reads([NOTE_TAGS]);
+		// The vault lists the file, the metadata cache has nothing for it yet.
+		vi.mocked(r.app.vault.getMarkdownFiles).mockReturnValue([fcFresh, tagged]);
+		vi.mocked(r.app.vault.getAbstractFileByPath).mockImplementation((p) => (p === fcFresh.path ? fcFresh : null));
+		expect(r.cache.nameFor(tagged)).toBeUndefined();
+		expect(r.cache.lookup.getFileClassFrontmatter("fc-fresh")).toBeUndefined();
+
+		// No event: the first index of a file at startup need not send one.
+		seed(r.app, AFTER);
+
+		expect(r.cache.nameFor(tagged)).toBe("fc-fresh");
+		expect(r.cache.lookup.getFileClassFrontmatter("fc-fresh")).toMatchObject({ tagNames: ["canon/hero"] });
+	});
+
+	it("registers every listener through the seam, so its owner releases them", () => {
+		const app = new App();
+		const owner = new Component();
+		const cache = createFileClassCache(app, () => FOLDER, (ref) => { owner.registerEvent(ref); });
+		seed(app, [NOTE_TAGS]);
+		cache.nameFor(tagged);
+
+		owner._unload();
+		seed(app, AFTER);
+		app.metadataCache._trigger("changed", fcFresh);
+		app.vault._trigger("create", fcFresh);
+		app.vault._trigger("delete", fcFresh);
+		app.vault._trigger("rename", fcFresh, `${FOLDER}/old.md`);
+
+		expect(cache.nameFor(tagged)).toBeUndefined();
+	});
+});
+
+describe("createFileClassCache — subscribe", () => {
+	it("tells a subscriber once, after a burst of changes in the folder", () => {
+		vi.useFakeTimers();
+		try {
+			const { app, cache } = reads();
+			const listener = vi.fn();
+			cache.subscribe(listener);
+
+			app.metadataCache._trigger("changed", fcFresh);
+			app.vault._trigger("create", fcFresh);
+			app.metadataCache._trigger("changed", fcFresh);
+			expect(listener).not.toHaveBeenCalled();
+			vi.advanceTimersByTime(DEBOUNCE_MS);
+
+			expect(listener).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("tells nobody about a change outside the folder", () => {
+		vi.useFakeTimers();
+		try {
+			const { app, cache } = reads();
+			const listener = vi.fn();
+			cache.subscribe(listener);
+
+			app.metadataCache._trigger("changed", tagged);
+			vi.advanceTimersByTime(DEBOUNCE_MS);
+
+			expect(listener).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("stops telling a subscriber that left", () => {
+		vi.useFakeTimers();
+		try {
+			const { app, cache } = reads();
+			const listener = vi.fn();
+			const leave = cache.subscribe(listener);
+
+			app.metadataCache._trigger("changed", fcFresh);
+			leave();
+			vi.advanceTimersByTime(DEBOUNCE_MS);
+
+			expect(listener).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { App, WorkspaceLeaf, TFile, createMockDataviewApi, wireDataviewApi } from "obsidian";
+import { App, WorkspaceLeaf, TFile, createMockCachedMetadata, createMockDataviewApi, createMockTFile, wireDataviewApi } from "obsidian";
 import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { StoryForgeData } from "store/types";
 import { EngineRegistry } from "engines/QueryEngine";
@@ -637,14 +637,14 @@ describe("StoryForgePlugin T2.3 — Bases availability capture", () => {
 		const { registerCodexView } = await import("bases/BasesAdapter");
 		vi.mocked(registerCodexView).mockClear();
 
-		const { plugin } = await makePlugin();
+		const { plugin, app } = await makePlugin();
 		await plugin.onload();
 
 		expect(registerCodexView).toHaveBeenCalledTimes(1);
 		// The second argument is a getter closure, not the setting's value at
 		// onload time — asserted by calling it below after changing the setting,
 		// mirroring the same getLinkClickAction wiring SidebarView/AnvilView get.
-		expect(registerCodexView).toHaveBeenCalledWith(plugin, expect.any(Function), expect.any(Function));
+		expect(registerCodexView).toHaveBeenCalledWith(plugin, expect.any(Function), expect.any(Object));
 
 		const call = vi.mocked(registerCodexView).mock.calls[0];
 		if (!call) throw new Error("registerCodexView was never called");
@@ -656,11 +656,15 @@ describe("StoryForgePlugin T2.3 — Bases availability capture", () => {
 		plugin.settings = { ...plugin.settings, linkClickAction: "open" };
 		expect(getLinkClickAction()).toBe("open");
 
-		// T6.2b: the FileClasses folder is a live getter too, so Cards in a `.base` follow the setting.
-		const getFolder = call[2];
-		if (!getFolder) throw new Error("registerCodexView was called without a getFileClassesFolder getter");
+		// T6.2b, T6.4: Cards in a `.base` read the shared cache, which follows the setting.
+		const fileClasses = call[2];
+		if (!fileClasses) throw new Error("registerCodexView was called without the FileClass cache");
+		const elsewhere = createMockTFile({ basename: "fc-x", path: "Elsewhere/fc-x.md" });
+		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p) => (p === elsewhere.path ? elsewhere : null));
+		vi.mocked(app.metadataCache.getFileCache).mockImplementation(() => createMockCachedMetadata({ frontmatter: { fields: [] } }));
+		expect(fileClasses.lookup.getFileClassFrontmatter("fc-x")).toBeUndefined();
 		plugin.settings = { ...plugin.settings, fileClassesFolder: "Elsewhere" };
-		expect(getFolder()).toBe("Elsewhere");
+		expect(fileClasses.lookup.getFileClassFrontmatter("fc-x")).toEqual({ fields: [] });
 	});
 
 	it("registerCodexView is NOT called again when the late-join dataview:api-ready fires", async () => {

@@ -20,13 +20,19 @@ import {
 	createMockCachedMetadata,
 	createMockTFile,
 } from "../__mocks__/obsidian";
+import { DEBOUNCE_MS } from "pluginConstants";
 import { AnvilView } from "anvil/AnvilView";
 import { CardBasesView } from "bases/CardBasesView";
 import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
+import { createFileClassCache, type FileClassCache } from "fileclass/fileClassVault";
 import type { NoteContext } from "scoping/NoteContext";
 
 const FOLDER = "00 Meta/FileClasses";
+
+function cacheOver(app: App): FileClassCache {
+	return createFileClassCache(app as unknown as ObsidianApp, () => FOLDER, () => {});
+}
 const ASSET = "app://vault/Media/a.png";
 
 type Fm = Record<string, unknown>;
@@ -65,6 +71,8 @@ function vaultOf(notes: readonly Note[], classes: Record<string, Fm>): App {
 	return app;
 }
 
+const FC_MINE_FILE = createMockTFile({ path: `${FOLDER}/fc-mine.md`, basename: "fc-mine" });
+
 const MINE = { "fc-mine": fileClass([["avatar", "Media"], ["role", "Input"]]) };
 
 function character(name: string, fm: Fm = {}): Note {
@@ -78,7 +86,7 @@ function character(name: string, fm: Fm = {}): Note {
 async function renderAnvil(app: App): Promise<HTMLElement> {
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: unknown }).app = app;
-	const view = new AnvilView(leaf as never, { editor: { getFileClassesFolder: () => FOLDER } });
+	const view = new AnvilView(leaf as never, { editor: { fileClasses: cacheOver(app) } });
 	await view.onOpen();
 	view.setLayout("codex");
 	return view.contentEl.querySelector(".sf-ws-body") as HTMLElement;
@@ -117,26 +125,32 @@ describe("Hero Card on the Anvil's Codex", () => {
 		expect(body.querySelector(".sf-cx-card .sf-portrait img")?.getAttribute("src")).toBe(ASSET);
 	});
 
-	it("scans the vault for FileClasses once per render, not once per card", async () => {
-		const callsFor = async (count: number): Promise<number> => {
-			// No `fileClass` key: every card must be claimed by tag, which scans.
-			const notes = Array.from({ length: count }, (_, i) =>
-				note(`30 Canon/31 Characters/C${i}.md`, { tags: ["canon/character"] }));
-			const app = vaultOf(notes, { "fc-mine": fileClass([["avatar", "Media"]], ["canon/character"]) });
-			await renderAnvil(app);
-			const spy = vi.mocked(app.vault.getMarkdownFiles);
-			spy.mockClear();
-			const leaf = new WorkspaceLeaf();
-			(leaf as unknown as { app: unknown }).app = app;
-			const view = new AnvilView(leaf as never, { editor: { getFileClassesFolder: () => FOLDER } });
-			await view.onOpen();
-			spy.mockClear();
+	it("scans the folder once per cache generation, not once per card or per render", async () => {
+		// No `fileClass` key: every card must be claimed by tag, which scans. The
+		// FileClass's own read is the count: the note index scans the vault too.
+		const notes = Array.from({ length: 25 }, (_, i) =>
+			note(`30 Canon/31 Characters/C${i}.md`, { tags: ["canon/character"] }));
+		const app = vaultOf(notes, { "fc-mine": fileClass([["avatar", "Media"]], ["canon/character"]) });
+		const leaf = new WorkspaceLeaf();
+		(leaf as unknown as { app: unknown }).app = app;
+		const view = new AnvilView(leaf as never, { editor: { fileClasses: cacheOver(app) } });
+		await view.onOpen();
+		view.setLayout("codex");
+		const scans = vi.mocked(app.vault.getMarkdownFiles);
+		const scansFor = (act: () => void): number => {
+			scans.mockClear();
+			act();
 			view.setLayout("codex");
-			return spy.mock.calls.length;
+			return scans.mock.calls.length;
 		};
-		const few = await callsFor(2);
-		const many = await callsFor(25);
-		expect(many).toBe(few);
+
+		// The Anvil and its note index scan for their own reasons, so the cache's
+		// share is the difference: a note's change costs it nothing, however many
+		// cards there are, and a FileClass's change costs it one scan.
+		const afterNote = scansFor(() => { app.metadataCache._trigger("changed", notes[0]!.file); });
+		const afterClass = scansFor(() => { app.metadataCache._trigger("changed", FC_MINE_FILE); });
+		expect(afterClass - afterNote).toBe(1);
+		await view.onClose();
 	});
 });
 
@@ -151,16 +165,26 @@ const displayValue: ValueOf = (n, id) => ({ toString: () => String(n.fm[id] ?? "
 function renderBase(
 	app: App,
 	notes: readonly Note[],
-	folder: (() => string) | undefined = () => FOLDER,
+	fileClasses: FileClassCache | undefined = cacheOver(app),
 	valueOf: ValueOf = displayValue,
 ): HTMLElement {
+	return baseView(app, notes, fileClasses, valueOf).container;
+}
+
+function baseView(
+	app: App,
+	notes: readonly Note[],
+	fileClasses: FileClassCache | undefined,
+	valueOf: ValueOf = displayValue,
+	draw = true,
+): { view: CardBasesView; container: HTMLElement } {
 	const container = document.createElement("div");
 	const view = new CardBasesView("story-forge-hero", new QueryController(), container, {
 		app: app as unknown as ObsidianApp,
 		registry: CODEX_CARD_REGISTRY,
 		cardId: "hero",
 		onEntryClick: vi.fn(),
-		...(folder ? { getFileClassesFolder: folder } : {}),
+		...(fileClasses ? { fileClasses } : {}),
 	});
 	const entries = notes.map((n) => {
 		const e = new BasesEntry();
@@ -170,9 +194,11 @@ function renderBase(
 	});
 	const result = new BasesQueryResult();
 	result.data = entries;
-	(view as unknown as { data: BasesQueryResult }).data = result;
-	view.onDataUpdated();
-	return container;
+	if (draw) {
+		(view as unknown as { data: BasesQueryResult }).data = result;
+		view.onDataUpdated();
+	}
+	return { view, container };
 }
 
 describe("Hero Card in a standalone .base", () => {
@@ -205,29 +231,107 @@ describe("Hero Card in a standalone .base", () => {
 	it("draws the monogram for a list-style display string, which names no single asset", () => {
 		const n = character("Mara", { avatar: "[[Media/a.png]]" });
 		const list: ValueOf = (_n, id) => ({ toString: () => (id === "avatar" ? "a.png, b.png" : "") });
-		const el = renderBase(vaultOf([n], MINE), [n], () => FOLDER, list);
+		const app = vaultOf([n], MINE);
+		const el = renderBase(app, [n], cacheOver(app), list);
 		expect(el.querySelector(".sf-portrait img")).toBeNull();
 		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
 	});
 
 	it("draws the monogram when the Media field's value is null", () => {
 		const n = character("Mara", { avatar: "[[Media/a.png]]" });
-		const el = renderBase(vaultOf([n], MINE), [n], () => FOLDER, () => null);
+		const app = vaultOf([n], MINE);
+		const el = renderBase(app, [n], cacheOver(app), () => null);
 		expect(el.querySelector(".sf-portrait img")).toBeNull();
 		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
 	});
 
-	it("scans the vault for FileClasses once per render, not once per card", () => {
-		const countFor = (count: number): number => {
-			const notes = Array.from({ length: count }, (_, i) =>
-				note(`30 Canon/31 Characters/C${i}.md`, { tags: ["canon/character"] }));
-			const app = vaultOf(notes, { "fc-mine": fileClass([["avatar", "Media"]], ["canon/character"]) });
-			vi.mocked(app.vault.getMarkdownFiles).mockClear();
-			renderBase(app, notes);
-			return vi.mocked(app.vault.getMarkdownFiles).mock.calls.length;
-		};
-		expect(countFor(25)).toBe(1);
-		expect(countFor(2)).toBe(1);
+	it("scans the vault once per cache generation, not once per card or per repaint", () => {
+		const notes = Array.from({ length: 25 }, (_, i) =>
+			note(`30 Canon/31 Characters/C${i}.md`, { tags: ["canon/character"] }));
+		const app = vaultOf(notes, { "fc-mine": fileClass([["avatar", "Media"]], ["canon/character"]) });
+		const scans = vi.mocked(app.vault.getMarkdownFiles);
+		scans.mockClear();
+
+		const { view } = baseView(app, notes, cacheOver(app));
+		expect(scans).toHaveBeenCalledTimes(1);
+
+		view.onDataUpdated();
+		expect(scans).toHaveBeenCalledTimes(1);
+
+		app.metadataCache._trigger("changed", FC_MINE_FILE);
+		view.onDataUpdated();
+		expect(scans).toHaveBeenCalledTimes(2);
+	});
+
+	describe("when a FileClass changes", () => {
+		const FACE = "https://x.test/f.png";
+
+		function retyped(): { app: App; mara: Note; declare: () => void } {
+			const mara = character("Mara", { avatar: "[[Media/a.png]]", face: FACE });
+			const app = vaultOf([mara], MINE);
+			const cached = vi.mocked(app.metadataCache.getFileCache);
+			const before = cached.getMockImplementation();
+			const after = createMockCachedMetadata({ frontmatter: fileClass([["face", "Media"]]) });
+			return {
+				app,
+				mara,
+				declare: (): void => {
+					cached.mockImplementation((file) => (file.path === FC_MINE_FILE.path ? after : before?.(file) ?? null));
+					app.metadataCache._trigger("changed", FC_MINE_FILE);
+				},
+			};
+		}
+
+		it("repaints a drawn grid with the field the FileClass now types", () => {
+			vi.useFakeTimers();
+			try {
+				const { app, mara, declare } = retyped();
+				const el = renderBase(app, [mara]);
+				expect(el.querySelector(".sf-portrait img")?.getAttribute("src")).toBe(ASSET);
+
+				declare();
+				vi.advanceTimersByTime(DEBOUNCE_MS);
+
+				expect(el.querySelector(".sf-portrait img")?.getAttribute("src")).toBe(FACE);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it("does not draw a grid Bases has not handed any data yet", () => {
+			vi.useFakeTimers();
+			try {
+				const { app, declare } = retyped();
+				const { view, container } = baseView(app, [], cacheOver(app), displayValue, false);
+				(view as unknown as { data: unknown }).data = undefined;
+
+				declare();
+				vi.advanceTimersByTime(DEBOUNCE_MS);
+
+				expect(container.children).toHaveLength(0);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it("forgets the grid once it is unloaded", () => {
+			vi.useFakeTimers();
+			try {
+				const { app, mara, declare } = retyped();
+				const { view, container } = baseView(app, [mara], cacheOver(app));
+				const drawn = container.querySelector(".sf-cx-grid");
+				const spy = vi.spyOn(view, "onDataUpdated");
+
+				view.unload();
+				declare();
+				vi.advanceTimersByTime(DEBOUNCE_MS);
+
+				expect(spy).not.toHaveBeenCalled();
+				expect(container.querySelector(".sf-cx-grid")).toBe(drawn);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
 	});
 
 	it("does not draw the tile field again as a fact", () => {
@@ -268,7 +372,7 @@ describe("panel and Card agree on an unresolved link", () => {
 			activeFile: n.file, activeKind: "character", entities: [], backlinks: [], frontmatter: n.fm, resolvedAt: 0,
 		};
 		const panel = augmentEl(document.createElement("div"));
-		await new NativeScopingEngine(app as unknown as ObsidianApp, () => FOLDER).render(null, ctx, panel);
+		await new NativeScopingEngine(app as unknown as ObsidianApp, cacheOver(app)).render(null, ctx, panel);
 		const card = renderBase(app, [n]);
 
 		const has = (el: HTMLElement): boolean => el.querySelector(".sf-portrait img") !== null;

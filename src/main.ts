@@ -10,6 +10,7 @@ import { EngineRegistry } from "engines/QueryEngine";
 import { buildEngineRegistry, getDvSettings } from "engines/EngineRegistry";
 import { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
+import { createFileClassCache } from "fileclass/fileClassVault";
 import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
 import { registerCodexView, getBasesCapability } from "bases/BasesAdapter";
@@ -49,10 +50,18 @@ export default class StoryForgePlugin extends Plugin {
 
 		await this.loadSettings();
 
+		// The one FileClass cache (T6.4): every consumer below reads through it, so
+		// a scan is shared and a FileClass change reaches all of them at once.
+		const fileClasses = createFileClassCache(
+			this.app,
+			() => this.settings.fileClassesFolder,
+			(ref) => { this.registerEvent(ref); },
+		);
+
 		// Construct the shared engine infrastructure injected into SidebarView
 		// and SettingsTab. Registry starts empty; populated in onLayoutReady and
 		// the late-join dataview:api-ready handler (SDD Flow A).
-		const nativeEngine = new NativeScopingEngine(this.app, () => this.settings.fileClassesFolder);
+		const nativeEngine = new NativeScopingEngine(this.app, fileClasses);
 		const registry = new EngineRegistry([]);
 
 		// DvSettingsReader: wraps getDvSettings (CON-8 any-cast isolated to
@@ -116,7 +125,7 @@ export default class StoryForgePlugin extends Plugin {
 				this.store,
 				() => this.settings.linkClickAction,
 				() => this.settings.excludedFolders,
-				() => this.settings.fileClassesFolder,
+				fileClasses,
 			),
 		);
 
@@ -140,9 +149,8 @@ export default class StoryForgePlugin extends Plugin {
 						// ADR-33: the dock is a persisted setting, changed only by the
 						// pane's own dock tool — never by a resize.
 						getDock: () => this.settings.editorDock,
-						// T5.3: where the pane looks for the field declarations it
-						// renders. Read live, so changing the setting needs no reopen.
-						getFileClassesFolder: () => this.settings.fileClassesFolder,
+						// T5.3, T6.4: where the pane gets the field declarations it renders.
+						fileClasses,
 						onDockChange: (dock) => {
 							// Operational state (CON-2) — never written to a note's frontmatter.
 							this.settings = { ...this.settings, editorDock: dock };
@@ -224,7 +232,7 @@ export default class StoryForgePlugin extends Plugin {
 		const basesAvailable = registerCodexView(
 			this,
 			() => this.settings.linkClickAction,
-			() => this.settings.fileClassesFolder,
+			fileClasses,
 		);
 
 		// T2.3 (spec 008, PRD F1): the single entry point into the Anvil, opened with

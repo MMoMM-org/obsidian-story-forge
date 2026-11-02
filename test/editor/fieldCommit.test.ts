@@ -38,6 +38,8 @@ import type { FieldValue } from "editor/fieldControls";
 import { buildFieldModel, type FieldModel } from "editor/fieldModel";
 import { createMediaSeams } from "editor/mediaPicker";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
+import { createFileClassCache } from "fileclass/fileClassVault";
+import { DEFAULT_FILE_CLASSES_FOLDER } from "types/index";
 import type { FieldType, FileClassLookup } from "fileclass/fileClassTypes";
 import { commit, type FieldSpec } from "inspector/frontmatterWriter";
 
@@ -119,7 +121,10 @@ async function openPane(app: App): Promise<AnvilView> {
 	(leaf as unknown as { app: App }).app = app;
 	const view: AnvilView = new AnvilView(leaf, {
 		drill: (f) => { view.inspect(f); },
-		editor: { getDock: () => "bottom" },
+		editor: {
+			getDock: () => "bottom",
+			fileClasses: createFileClassCache(app, () => DEFAULT_FILE_CLASSES_FOLDER, () => {}),
+		},
 	});
 	views.push(view);
 	await view.onOpen();

@@ -14,6 +14,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { TFile } from "obsidian";
 import { App, augmentEl, createMockCachedMetadata, createMockTFile } from "../__mocks__/obsidian";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
+import { createFileClassCache } from "fileclass/fileClassVault";
 import type { EntityKind, NoteContext } from "scoping/NoteContext";
 
 const FOLDER = "00 Meta/FileClasses";
@@ -55,7 +56,7 @@ function world(fileClasses: Record<string, Fm>): World {
 	vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((link) =>
 		link === "Media/a.png" || link === "a.png" ? asset : null,
 	);
-	return { app, notes, engine: new NativeScopingEngine(app, () => FOLDER) };
+	return { app, notes, engine: new NativeScopingEngine(app, createFileClassCache(app, () => FOLDER, () => {})) };
 }
 
 async function render(w: World, kind: EntityKind, frontmatter: Fm): Promise<HTMLElement> {

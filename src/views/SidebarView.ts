@@ -38,10 +38,10 @@ import {
 	type LinkResolver,
 } from "workspace/workspaceModel";
 import { renderNavigator, type NavigatorData } from "workspace/renderNavigator";
-import { DEFAULT_FILE_CLASSES_FOLDER, type PluginSettings } from "types/index";
+import type { PluginSettings } from "types/index";
 import { buildFieldModel, type FieldModel } from "editor/fieldModel";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
-import { createFileClassSource } from "fileclass/fileClassVault";
+import type { FileClassCache } from "fileclass/fileClassVault";
 import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
@@ -202,8 +202,8 @@ export class SidebarView extends ItemView {
 	// reassigns this.settings on load. Defaults to DEFAULT_EXCLUDED_FOLDERS when absent.
 	private readonly getExcludedFolders: () => readonly string[];
 
-	// T6.3: reads the live fileClassesFolder setting, where the editor's fields come from.
-	private readonly getFileClassesFolder: () => string;
+	// T6.4: the plugin's FileClass cache, where the editor's fields come from.
+	private readonly fileClasses: FileClassCache | null;
 
 	// M2: tracks the engine currently rendered into the panel body (ADR-7 teardown)
 	private currentEngine: QueryEngine | null = null;
@@ -243,8 +243,8 @@ export class SidebarView extends ItemView {
 	 * @param getExcludedFolders - T3.5: reads the live excludedFolders setting.
 	 *   Defaults to DEFAULT_EXCLUDED_FOLDERS when absent (keeps existing constructor
 	 *   calls valid and default scoping behaviour unchanged).
-	 * @param getFileClassesFolder - T6.3: reads the live fileClassesFolder setting.
-	 *   Defaults to DEFAULT_FILE_CLASSES_FOLDER when absent.
+	 * @param fileClasses - T6.4: the plugin's FileClass cache. Absent, no note has
+	 *   a FileClass, so the editor shows the note's own keys.
 	 */
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -254,7 +254,7 @@ export class SidebarView extends ItemView {
 		store?: ViewStore,
 		getLinkClickAction?: () => PluginSettings["linkClickAction"],
 		getExcludedFolders?: () => readonly string[],
-		getFileClassesFolder?: () => string,
+		fileClasses?: FileClassCache,
 	) {
 		super(leaf);
 		this.scoping = new ScopingService(this.app);
@@ -264,7 +264,7 @@ export class SidebarView extends ItemView {
 		this.store = store ?? null;
 		this.getLinkClickAction = getLinkClickAction ?? ((): "drill" => "drill");
 		this.getExcludedFolders = getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
-		this.getFileClassesFolder = getFileClassesFolder ?? ((): string => DEFAULT_FILE_CLASSES_FOLDER);
+		this.fileClasses = fileClasses ?? null;
 		this._debouncedFollow = debounce(
 			(l: WorkspaceLeaf | null) => { this._doFollow(l); },
 			DEBOUNCE_MS,
@@ -346,6 +346,11 @@ export class SidebarView extends ItemView {
 				}),
 			);
 
+			// A FileClass changed: redraw, since the note's own `changed` never fires for it.
+			if (this.fileClasses) {
+				this.register(this.fileClasses.subscribe(() => { this._onFileClassesChanged(); }));
+			}
+
 			// Initial resolution: try active MarkdownView first (avoids needing
 			// getActiveFile when a markdown note was already focused). Fall back to
 			// getActiveFile() which returns the last-focused file even when the
@@ -357,6 +362,13 @@ export class SidebarView extends ItemView {
 				this._resolveAndRender(seedFile);
 			}
 		});
+	}
+
+	/** Redraw the current subject, unless the editor holds an edit a redraw would lose. */
+	private _onFileClassesChanged(): void {
+		const file = this.subject.file;
+		if (!file || this._inspector?.notifyFileChanged(file)) return;
+		this._resolveAndRender(file);
 	}
 
 	async onClose(): Promise<void> {
@@ -1525,15 +1537,12 @@ export class SidebarView extends ItemView {
 	/**
 	 * This note's field model (T6.3, ADR-0002), or `null` when edit mode has
 	 * nothing to show: an unknown kind, or no fields in any tier.
-	 *
-	 * The source asks for one name once per render, so a note no `fileClass` key
-	 * names costs one scan of the vault's FileClasses. T6.4 owns the general cache.
 	 */
 	private _inspectorModel(ctx: NoteContext): FieldModel | null {
 		if (ctx.activeKind === "unknown") return null;
-		const source = createFileClassSource(this.app, this.getFileClassesFolder);
-		const startName = source.nameFor(ctx.activeFile);
-		const chain = startName === undefined ? [] : resolveFileClassChain(startName, source.lookup);
+		const source = this.fileClasses;
+		const startName = source?.nameFor(ctx.activeFile);
+		const chain = source && startName !== undefined ? resolveFileClassChain(startName, source.lookup) : [];
 		const model = buildFieldModel(chain, ctx.frontmatter);
 		return model.sections.some((section) => section.fields.length > 0) ? model : null;
 	}
