@@ -93,6 +93,7 @@ import {
 	type EditorDock,
 	type EditorPaneMode,
 } from "editor/editorPane";
+import { FIELD_CONTROL_ATTR } from "editor/fieldControls";
 import { FieldCommitter } from "editor/fieldCommit";
 import { buildFieldModel } from "editor/fieldModel";
 import { createMediaSeams } from "editor/mediaPicker";
@@ -265,6 +266,19 @@ export class AnvilView extends ItemView {
 	private _inFlightPath: string | null = null;
 	/** A reconcile that arrived while a write was unresolved, owed once it settles (T5.4). */
 	private _reconcileOwed = false;
+	/**
+	 * The pane control that holds typed text not yet committed (its `change` has
+	 * not fired). Set by a delegated `input`, cleared by `change`/`focusout`. A
+	 * rebuild would destroy it, so the debounced reconcile waits (SDD: "the
+	 * editor keeps focus").
+	 */
+	private _draftEl: HTMLElement | null = null;
+	/**
+	 * A debounced trigger that could change what the pane shows has arrived since
+	 * the last render: the shown note changed, or the active leaf did. A change
+	 * to some OTHER note leaves this false — it concerns the grid, never the pane.
+	 */
+	private _paneStale = false;
 	/** Vault-backed note index feeding the pure collection resolver. Built in onOpen. */
 	private _noteIndex: CodexNoteIndex | null = null;
 	private _scopeKey = "none";
@@ -436,6 +450,14 @@ export class AnvilView extends ItemView {
 			e.preventDefault();
 			this._onClick(e.target, e.metaKey || e.ctrlKey);
 		});
+		// Pane drafts (SDD: the editor keeps focus). `input` marks a control as
+		// holding uncommitted text, `change` (the commit) clears it, and leaving
+		// the pane runs a reconcile that was owed while the draft lived.
+		this.registerDomEvent(ce, "input", (e: Event) => { this._onPaneInput(e.target); });
+		this.registerDomEvent(ce, "change", (e: Event) => {
+			if (e.target === this._draftEl) this._draftEl = null;
+		});
+		this.registerDomEvent(ce, "focusout", (e: FocusEvent) => { this._onFocusOut(e); });
 		// Click-outside-to-dismiss for the Codex Card selector dropdown (T4.4
 		// follow-up). A click that resolves to NO action runs no `_render()`, so
 		// an open dropdown would otherwise stay open over whatever the user just
@@ -452,9 +474,15 @@ export class AnvilView extends ItemView {
 			this._dismissOpenCardDropdown(e.target);
 		});
 		// Follow the active note.
-		this.registerEvent(this.app.workspace.on("active-leaf-change", () => { this._debouncedRender(); }));
+		this.registerEvent(this.app.workspace.on("active-leaf-change", () => {
+			this._paneStale = true;
+			this._debouncedRender();
+		}));
 		// Hybrid reconcile: react to external/self frontmatter changes (ADR-22, ADR-25).
-		this.registerEvent(this.app.metadataCache.on("changed", () => { this._debouncedRender(); }));
+		this.registerEvent(this.app.metadataCache.on("changed", (file: TFile) => {
+			if (file.path === this._editor.path) this._paneStale = true;
+			this._debouncedRender();
+		}));
 		// SDD/Error Handling: a note deleted while the editor is open (T5.4).
 		// `metadataCache`'s "deleted" rather than the vault's "delete" because the
 		// pane only ever shows a note WITH metadata, and this event hands over a
@@ -484,6 +512,8 @@ export class AnvilView extends ItemView {
 		this._inFlight.clear();
 		this._inFlightPath = null;
 		this._reconcileOwed = false;
+		this._draftEl = null;
+		this._paneStale = false;
 		this._noteIndex = null;
 		this._fileClasses = null;
 		this.contentEl.empty();
@@ -570,7 +600,59 @@ export class AnvilView extends ItemView {
 			this._reconcileOwed = true;
 			return;
 		}
+		// The pane is protected while a control in it is focused: a different
+		// note's change never concerns it, and a draft must not be destroyed.
+		// Either way the reconcile is owed and runs when focus leaves.
+		if ((this._paneFocusedField() !== null && !this._paneStale) || this._paneIsDirty()) {
+			this._reconcileOwed = true;
+			return;
+		}
+		this._renderKeepingFocus();
+	}
+
+	/** The `data-sf-ed-field` cell holding focus, or null when focus is outside the pane's fields. */
+	private _paneFocusedField(): HTMLElement | null {
+		const active = activeDocument.activeElement;
+		if (!(active instanceof HTMLElement) || !this.contentEl.contains(active)) return null;
+		return active.closest<HTMLElement>(`[${FIELD_CONTROL_ATTR}]`);
+	}
+
+	/** True while the focused control holds text typed since the last commit. */
+	private _paneIsDirty(): boolean {
+		const draft = this._draftEl;
+		return draft !== null && draft.isConnected && draft === activeDocument.activeElement;
+	}
+
+	private _onPaneInput(target: EventTarget | null): void {
+		if (!(target instanceof HTMLElement)) return;
+		if (target.closest(`[${FIELD_CONTROL_ATTR}]`)) this._draftEl = target;
+	}
+
+	/** Focus left a control: when it left the pane's fields, run the reconcile owed meanwhile. */
+	private _onFocusOut(e: FocusEvent): void {
+		if (e.target === this._draftEl) this._draftEl = null;
+		const next = e.relatedTarget;
+		if (next instanceof HTMLElement && next.closest(`[${FIELD_CONTROL_ATTR}]`)) return;
+		this._runOwedReconcile();
+	}
+
+	/** Run the owed reconcile unless a write is unresolved or a draft is still live. */
+	private _runOwedReconcile(): void {
+		if (!this._reconcileOwed) return;
+		if (this._inFlight.size > 0 && this._inFlightPath === this._editor.path) return;
+		if (this._paneIsDirty()) return;
+		this._reconcileOwed = false;
+		this._renderKeepingFocus();
+	}
+
+	/** Render, then put the caret back in the field that held focus (by name). */
+	private _renderKeepingFocus(): void {
+		const name = this._paneFocusedField()?.getAttribute(FIELD_CONTROL_ATTR) ?? null;
 		this._render();
+		if (name === null) return;
+		const cells = this.contentEl.querySelectorAll<HTMLElement>(`[${FIELD_CONTROL_ATTR}]`);
+		const cell = Array.from(cells).find((c) => c.getAttribute(FIELD_CONTROL_ATTR) === name) ?? null;
+		this._focusField(cell);
 	}
 
 	/** A write is on its way to `path`'s frontmatter; show it until the cache agrees. */
@@ -590,9 +672,7 @@ export class AnvilView extends ItemView {
 	private _afterWriteSettled(name: string): void {
 		this._inFlight.delete(name);
 		if (this._inFlight.size > 0) return;
-		if (!this._reconcileOwed) return;
-		this._reconcileOwed = false;
-		this._render();
+		this._runOwedReconcile();
 	}
 
 	/**
@@ -615,6 +695,8 @@ export class AnvilView extends ItemView {
 
 	private _render(): void {
 		if (!this._bodyEl) return;
+		this._paneStale = false;
+		this._draftEl = null;
 		const body = this._bodyEl;
 		body.empty();
 
