@@ -3,7 +3,7 @@
  * an `<img src>` can use.
  *
  * `schema/character.json`'s `portrait` and `location`/`object`'s `image` are
- * plain **path strings**; every component that draws them
+ * `media` fields holding a **wikilink** (legacy notes may still hold a path or URL); every component that draws them
  * (`portraitTile`, `imageTile`, and the Codex Cards) takes an already-resolved
  * URL. Resolution needs the vault, so it is injected as a seam
  * (`PanelDeps.resolveAsset`, `CardRenderDeps.resolveAsset`) rather than reached
@@ -29,11 +29,33 @@ import { TFile, type App } from "obsidian";
 /** Anything already carrying a scheme is a URL, not a vault path. */
 const PROTOCOL_RE = /^(https?:|data:|app:|blob:)/;
 
+/** `[[target]]` or the embed form `![[target]]`, with optional `|alias` / `#heading`. */
+const WIKILINK_RE = /^!?\[\[(.*)\]\]$/;
+
+/** `a/b.png|alias#x` → `a/b.png`. */
+export function stripLinkSuffix(inner: string): string {
+	return (inner.split("|")[0] ?? "").split("#")[0]?.trim() ?? "";
+}
+
+/**
+ * The link target of a wikilink value (`[[a/b.png|alias]]`, `![[a/b.png]]`), or
+ * `null` when `raw` is not a wikilink — a bare path or URL.
+ *
+ * The one place a `Media` field's stored form is parsed: the panel, the Codex
+ * Cards (both backends) and the editor's Media control all share it.
+ */
+export function wikilinkTarget(raw: string): string | null {
+	const inner = WIKILINK_RE.exec(raw.trim())?.[1];
+	return inner === undefined ? null : stripLinkSuffix(inner);
+}
+
 /**
  * Build the asset resolver for one source note.
  *
  * The returned function is total and never throws:
  * - empty or whitespace-only input → `""` (the caller draws its fallback);
+ * - a wikilink (`[[mara.png]]`, what a `Media` field stores) → resolved by its
+ *   target, exactly as below; a bare path or URL (legacy values) still works;
  * - a protocol URL (`https:`, `http:`, `data:`, `app:`, `blob:`) → unchanged;
  * - a vault path, or a bare name Obsidian can resolve as a link from
  *   `sourcePath` → the vault's resource URL;
@@ -45,7 +67,9 @@ const PROTOCOL_RE = /^(https?:|data:|app:|blob:)/;
  *                    relative to it, exactly as a wikilink in that note is
  */
 export function createAssetResolver(app: App, sourcePath: string): (src: string) => string {
-	return (src: string): string => {
+	return (input: string): string => {
+		// A Media field stores `[[mara.png]]`; link resolution wants `mara.png`.
+		const src = wikilinkTarget(input) ?? input;
 		if (!src.trim()) return "";
 		if (PROTOCOL_RE.test(src)) return src;
 

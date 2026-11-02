@@ -18,8 +18,9 @@
  * @ref SDD/ADR-9 (conditional fantasy sub-block)
  */
 
-import { describe, it, expect } from "vitest";
-import { augmentEl, createMockTFile } from "../../__mocks__/obsidian";
+import { describe, it, expect, vi } from "vitest";
+import { App, augmentEl, createMockTFile } from "../../__mocks__/obsidian";
+import { createAssetResolver } from "panel/assetResolver";
 import { renderCharacter } from "panel/renderers/character";
 import type { NoteContext } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
@@ -641,6 +642,20 @@ describe("renderCharacter: portrait resolution via deps.resolveAsset", () => {
 
 		const img = el.querySelector(".sf-portrait img") as HTMLImageElement | null;
 		expect(img?.src).toBe("app://vault/fake.svg");
+	});
+
+	it("shows the linked image for a wikilink portrait through the real resolver", () => {
+		const app = new App();
+		const asset = createMockTFile({ path: "95 Assets/Mara Stoneway.svg", basename: "Mara Stoneway" });
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((link: string) =>
+			link === "Mara Stoneway.svg" ? (asset as unknown as ReturnType<typeof app.metadataCache.getFirstLinkpathDest>) : null,
+		);
+		const ctx = makeCharCtx({ frontmatter: { portrait: "[[Mara Stoneway.svg]]" } });
+		const el = makeContainer();
+		renderCharacter(ctx, el, makeDeps({ resolveAsset: createAssetResolver(app, "Mara.md") }));
+
+		const img = el.querySelector(".sf-portrait img") as HTMLImageElement | null;
+		expect(img?.getAttribute("src")).toBe("app://vault/95 Assets/Mara Stoneway.svg");
 	});
 
 	it("renders img.src as the raw external URL when portrait is an https URL (pass-through)", () => {

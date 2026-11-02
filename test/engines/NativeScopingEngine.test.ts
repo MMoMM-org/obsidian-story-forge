@@ -352,6 +352,38 @@ describe("NativeScopingEngine", () => {
 			expect(result).toBe("app://vault/95 Assets/portrait.svg");
 		});
 
+		it("resolves a [[wikilink]] value (a Media field) by its link target", async () => {
+			vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(null);
+			const fakeFile = createMockTFile({ path: "95 Assets/portrait.svg", basename: "portrait" });
+			vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValueOnce(fakeFile as unknown as TFile);
+			vi.mocked(app.vault.getResourcePath).mockReturnValueOnce("app://vault/95 Assets/portrait.svg");
+
+			const deps = await buildDeps();
+			expect(deps.resolveAsset("[[portrait.svg]]")).toBe("app://vault/95 Assets/portrait.svg");
+			expect(vi.mocked(app.metadataCache.getFirstLinkpathDest)).toHaveBeenCalledWith(
+				"portrait.svg",
+				expect.any(String),
+			);
+		});
+
+		it("resolves an aliased or embedded wikilink by its target alone", async () => {
+			vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(null);
+			const fakeFile = createMockTFile({ path: "95 Assets/portrait.svg", basename: "portrait" });
+			vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValue(fakeFile as unknown as TFile);
+
+			const deps = await buildDeps();
+			deps.resolveAsset("![[95 Assets/portrait.svg|Mara]]");
+			expect(vi.mocked(app.metadataCache.getFirstLinkpathDest)).toHaveBeenCalledWith(
+				"95 Assets/portrait.svg",
+				expect.any(String),
+			);
+		});
+
+		it("returns a wikilink with an empty target as empty, not as brackets", async () => {
+			const deps = await buildDeps();
+			expect(deps.resolveAsset("[[]]")).toBe("");
+		});
+
 		it("returns src unchanged when vault path cannot be resolved", async () => {
 			vi.mocked(app.vault.getAbstractFileByPath).mockReturnValueOnce(null);
 			vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValueOnce(null);

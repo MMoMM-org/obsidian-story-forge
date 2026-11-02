@@ -57,6 +57,7 @@
 
 import type { FieldDef } from "editor/fieldModel";
 import { portraitTile } from "panel/components";
+import { stripLinkSuffix, wikilinkTarget } from "panel/assetResolver";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (the same local declaration
@@ -374,8 +375,7 @@ function buttonEl(label: string, primary: boolean): HTMLButtonElement {
 
 /** `![[a/b.png|alias#x]]` → `a/b.png`; plain text is returned trimmed. */
 function linkTarget(raw: string): string {
-	const inner = /^!?\[\[(.*)\]\]$/.exec(raw.trim())?.[1] ?? raw;
-	return (inner.split("|")[0] ?? "").split("#")[0]?.trim() ?? "";
+	return wikilinkTarget(raw) ?? stripLinkSuffix(raw);
 }
 
 // ---------------------------------------------------------------------------

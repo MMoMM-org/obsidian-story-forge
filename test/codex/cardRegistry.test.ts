@@ -34,6 +34,7 @@ import {
 	type CardRenderer,
 } from "codex/cardRegistry";
 import { createAssetResolver } from "panel/assetResolver";
+import { heroCard } from "codex/cards/heroCard";
 
 // ---------------------------------------------------------------------------
 // Fixtures — one note, expressed the way each backend delivers it
@@ -347,6 +348,55 @@ describe("card asset resolution", () => {
 		expect(imageSrc(el)).toBe("app://vault/95 Assets/mara.png");
 		// Resolution is relative to the entry's own note, as a wikilink would be.
 		expect(vi.mocked(app.metadataCache.getFirstLinkpathDest)).toHaveBeenCalledWith("mara.png", PATH);
+	});
+
+	it("resolves a wikilink value (a Media field) to the linked image on the native backend", () => {
+		const app = new App();
+		const asset = createMockTFile({ path: "95 Assets/mara.png", basename: "mara" });
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValue(
+			asset as unknown as ReturnType<typeof app.metadataCache.getFirstLinkpathDest>,
+		);
+
+		const el = renderWithVault(getNativeEntry({ portrait: "[[mara.png]]" }), app);
+
+		expect(imageSrc(el)).toBe("app://vault/95 Assets/mara.png");
+		// The brackets must not reach link resolution: Obsidian resolves a link
+		// target, never the `[[ ]]` syntax around it.
+		expect(vi.mocked(app.metadataCache.getFirstLinkpathDest)).toHaveBeenCalledWith("mara.png", PATH);
+	});
+
+	it("resolves the same wikilink when it arrives through Bases Value.toString()", () => {
+		const app = new App();
+		const asset = createMockTFile({ path: "95 Assets/mara.png", basename: "mara" });
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((link: string) =>
+			link === "mara.png" ? (asset as unknown as ReturnType<typeof app.metadataCache.getFirstLinkpathDest>) : null,
+		);
+		const entry = basesCardEntry(
+			{ file: { path: PATH }, getValue: () => ({ toString: () => "[[mara.png]]" }) },
+			{ portrait: "[[mara.png]]" },
+		);
+
+		expect(imageSrc(renderWithVault(entry, app))).toBe("app://vault/95 Assets/mara.png");
+	});
+
+	it("draws the real Hero Card's tile from a wikilink value", () => {
+		const app = new App();
+		const asset = createMockTFile({ path: "95 Assets/harbor.png", basename: "harbor" });
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((link: string) =>
+			link === "harbor.png" ? (asset as unknown as ReturnType<typeof app.metadataCache.getFirstLinkpathDest>) : null,
+		);
+		const entry = nativeCardEntry("30 Canon/32 Locations/Moonharbor.md", {
+			tags: ["canon/location"],
+			image: "![[harbor.png|200]]",
+		});
+		const el = document.createElement("div");
+		heroCard.render(
+			entry,
+			el,
+			getDeps({ resolveAsset: createAssetResolver(app, entry.path) }),
+		);
+
+		expect(imageSrc(el)).toBe("app://vault/95 Assets/harbor.png");
 	});
 
 	it("returns an unresolvable path unchanged rather than blanking the image", () => {
