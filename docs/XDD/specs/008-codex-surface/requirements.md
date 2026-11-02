@@ -217,7 +217,7 @@ behaviour both share — showing the thing where you are — and is the term use
   - [ ] Given excluded folders are configured, When a collection resolves, Then notes inside those folders are **absent** from the result
   - [ ] Given a collection's tag is changed in settings, When the user returns to the Codex, Then the grid reflects the new tag **without any consent or re-approval prompt**
   - [ ] Given the four built-in collections (`character`, `location`, `object`, `lore`), When the plugin is installed, Then all four are available and enabled by default
-  - [ ] Given a collection resolves to no notes, When the grid renders, Then an empty state names **the tag it looked for** and offers **Set up my vault…** and **Change tag**
+  - [ ] Given a collection resolves to no notes, When the grid renders, Then an empty state names **the tag it looked for** and offers **Change tag** and **What are FileClasses?** *(reworded 2026-11-02: **Set up my vault…** was withdrawn 2026-08-04 and returns with #27, see Should Have)*
   - [ ] Given the user selects a different collection, When the grid re-renders, Then any open editor pane closes or follows the new selection — never shows a note from the previous collection
   - [ ] Given a built-in collection, When the user opens its settings, Then **both its tag and its excluded folders are editable**, each pre-filled with a shipped default (`canon/character`… and `00 Meta`)
   - [ ] Given the user changes a tag or an excluded folder, When they confirm, Then the Codex reflects it **without the user editing any file by hand**
@@ -250,7 +250,7 @@ behaviour both share — showing the thing where you are — and is the term use
   - [ ] Given the editor is open, When the user changes a field and commits it, Then the value is written to that note's frontmatter as a **plain Property**, and Then the grid reflects the change
   - [ ] Given the editor is open, When the user activates **close**, Then the pane closes and the full grid returns
   - [ ] Given the editor is open, When the user activates **fullscreen**, Then the pane occupies the tab body including the grid's space, and Then a **Back** affordance returns to the previous dock
-  - [ ] Given the dock position is set to *right* in settings, When the editor opens, Then the grid is shown as a single column beside it; and Then the position **never changes automatically** on resize
+  - [ ] Given the dock position is set to *right* with the toggle in the pane's header, When the editor opens, Then the grid is shown as a single column beside it; and Then the position **never changes automatically** on resize *(reworded 2026-11-02: the header toggle is the dock setting; there is no settings row)*
   - [ ] Given any dock (bottom, right, fullscreen), When the editor renders, Then it shows the **complete** field set — the docks differ only in room
   - [ ] Given a field declared by a FileClass but absent from the note, When the **editor** renders it, Then it is shown as an ordinary empty control and is **not** marked as missing — unlike a Card, typing here creates the property, so the absence is not a dead end
   - [ ] Given a write fails, When the user commits a field, Then the previous value is restored in the editor and the failure is surfaced to the user
@@ -264,7 +264,7 @@ behaviour both share — showing the thing where you are — and is the term use
 - **Acceptance Criteria:**
   - [ ] Given a FileClass applies to the selected note, When the editor renders, Then its fields appear in the order given by that FileClass
   - [ ] Given a FileClass extends another, When the editor renders, Then **one section per FileClass in the chain** is shown, each labelled with that FileClass
-  - [ ] Given a field declares selectable values, When the editor renders it, Then the control offers exactly those values
+  - [ ] Given a `Select` or `Cycle` field declares selectable values, When the editor renders it, Then the control offers exactly those values *(narrowed 2026-11-02: `Multi` stays free chips, as ADR-0002 says)*
   - [ ] Given a user adds a FileClass extending a shipped one, When they select an affected entry, Then their fields appear **in their own labelled section**, typed and laid out like any other — with no plugin change
   - [ ] Given any of metadata-menu's **13 flat field types** — `Input`, `Boolean`, `Number`, `Select`, `Cycle`, `Multi`, `Date`, `Datetime`, `Time`, `File`, `MultiFile`, `Media`, `MultiMedia` — When the editor renders one, Then it maps to a control appropriate to that type
   - [ ] Given a `Media` or `MultiMedia` field, When it renders, Then it shows an image preview with a file picker, and Then the stored value is a **wikilink**, so Obsidian keeps it correct when the file is renamed
@@ -428,7 +428,9 @@ observable behaviour, verified the way specs 006 and 007 were:
 - **Independence:** with Dataview, metadata-menu and Bases all absent, the Codex and editor still
   work, and nothing prompts the user to install anything.
 - **Truth preservation:** every value written by the editor is visible and editable in the core
-  Properties UI, and reverts cleanly with the editor's own undo.
+  Properties UI. **Revised 2026-11-02:** this metric no longer claims undo. This spec ships none, and
+  Cmd+Z in the note does not revert a pane write (live test 2026-11-02; G22 in
+  `docs/gap-analysis.md`). The undo journal is issue #17, out of scope here.
 
 ### Tracking Requirements
 
@@ -480,7 +482,7 @@ observable behaviour, verified the way specs 006 and 007 were:
 | The generated-artifact model (ADR-0003) mishandles an existing install and a user loses a customised `.base` | High | Low | Migration is explicit, not implicit: never overwrite a file whose instance checksum is unknown; on doubt, ask. |
 | No undo for editor writes this phase (#17 is out of scope) | Medium | Medium | The editor commits on deliberate field edits, not on bare clicks — the interaction that caused the earlier data loss. Obsidian's own file history remains available. Revisit if #17 slips further. |
 | Moving four commands into one view breaks a user's hotkeys or saved layout | Low | Medium | Keep the old command ids resolving to the Anvil with the right tab; do not detach existing leaves on upgrade. |
-| The empty state is what a new user sees first, because a fresh install ships no vault artifacts (#27) | Medium | High | The empty state must be genuinely helpful — name the tag, offer setup and settings — and is an acceptance criterion, not a nicety. |
+| The empty state is what a new user sees first, because a fresh install ships no vault artifacts (#27) | Medium | High | The empty state must be genuinely helpful — name the tag, offer **Change tag** and the **What are FileClasses?** documentation link (reworded 2026-11-02: the setup action returns with #27) — and is an acceptance criterion, not a nicety. |
 
 ## Open Questions
 

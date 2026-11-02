@@ -173,6 +173,10 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
   > `src/pluginConstants.ts`**, keeping their existing distinct values, so neither has a second
   > declaration site free to drift. Register the new `story-forge-hero`/`-table`/`-compact` ids the
   > same way — declared there, imported everywhere.
+  >
+  > **Withdrawn 2026-11-02.** `CodexView` and `CODEX_VIEW_TYPE` were deleted in `30963e6` with the
+  > `Open Codex` command, so the degrade path and its id described above no longer exist.
+  > `CODEX_VIEW_ID` and the Card view ids stay, because `.base` files reference them (CON-4).
 
   1. Prime: `[ref: ADR-0001 §Decision 2]`; `src/bases/BasesAdapter.ts`; `[ref: SDD/CON-6]` — Bases
      typings stay behind `basesConfig.ts`.
@@ -190,7 +194,8 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
      - [x] Cards are selectable inside a user's own `.base` `[ref: SDD/AC — PRD F4]`
      - [x] A **blank-but-present** property renders normally on the **Bases** backend, not marked as
            not set — the same as on the native backend `[ref: PRD/F4 AC]`
-     - [x] `CODEX_VIEW_TYPE` has exactly one declaration site, in `src/pluginConstants.ts` (CON-4)
+     - [x] `CODEX_VIEW_TYPE` has exactly one declaration site, in `src/pluginConstants.ts` (CON-4).
+           **Withdrawn 2026-11-02:** the constant and `CodexView` were deleted in `30963e6`.
 
 - [x] **T4.6 Empty state and the Bases hint** `[activity: frontend-ui]`
 

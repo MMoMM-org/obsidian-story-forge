@@ -49,33 +49,32 @@ and 2 have since changed were **re-verified against the working tree on 2026-07-
 below. The unmarked entries still carry their 2026-07-28 verification and are unaffected by Phases
 1–2 — Phase 1 only *added* pure modules, it moved nothing.
 
+- *Line numbers dropped 2026-11-02 from the entries below: they had gone stale, and the symbols are
+  the anchors. All named symbols checked at `368da21`.*
 - `src/anvil/AnvilView.ts` — the polymorphic main-area host. **Re-verified 2026-07-31**: this is the
   former `src/workspace/WorkspaceView.ts`, **moved by T2.1** — the old path no longer exists, so do
   not go looking for it. The class is now `AnvilView` and the layout type `AnvilLayout`
   (`WorkspaceViewOpts` → `AnvilViewOpts`); only the **id** `WORKSPACE_VIEW_TYPE` is frozen, and it
-  now lives in `src/pluginConstants.ts` (ADR-27). Current anchors: layout union **l.65**,
-  `STATUS_VOCAB` **l.71**, delegated click handler `_onClick` **l.481** (now routed through
+  now lives in `src/pluginConstants.ts` (ADR-27). Anchors: the `AnvilLayout` union,
+  `STATUS_VOCAB`, delegated click handler `_onClick` (now routed through
   `NavigationController` via `walkTargetMarkers`, not the old per-attribute chain), plus
   `CollapseStore` and `_debouncedRender`. **`src/workspace/` itself is retained** — the 11 helper
   modules (`workspaceModel`, `interactionHandler`, the six `render*`, `collapseStore`,
   `sceneMapper`, `timelineZoom`) did **not** move and are what Phase 4 imports.
-- `src/views/SidebarView.ts` — the follow-the-note host. **Re-verified 2026-07-31** after T2.5/T2.6
-  shifted every line below ~l.700: now **1663 lines** (was 1612). Tab strip `_renderTabs` **l.928**
-  (was cited ~l.879), built-in Context + Navigator tabs, drill/back nav stack (`navStack` l.176,
-  `_drillInto` l.852), engine decision tree `_renderResolved` **l.1321** (was cited l.1246 — that
-  line is now `_renderNavChrome`). It **already routes clicks through the shared controller**:
-  `_markerKindOf` l.700 is the per-surface marker vocabulary T4.1/T5.2 extend, `_operateControl`
-  l.729, `_onBodyActivate` l.768.
+- `src/views/SidebarView.ts` — the follow-the-note host. Tab strip `_renderTabs`, built-in Context +
+  Navigator tabs, drill/back nav stack (`navStack`, `_drillInto`), engine decision tree
+  `_renderResolved`. It **already routes clicks through the shared controller**: `_markerKindOf` is
+  the per-surface marker vocabulary T4.1/T5.2 extend, plus `_operateControl` and `_onBodyActivate`.
 - `src/inspector/frontmatterWriter.ts` — the **sole write seam**. **Exported**: `commit`,
   `commitMany`, `FieldSpec`, `FieldType`, `CommitEntry`, `CommitOk`/`CommitError`/`CommitResult`.
-  **Internal, not exported** (corrected 2026-07-31): `validateField` (l.61) and `isOutOfVocab`
-  (l.123) — validation `commit`/`commitMany` apply on your behalf, readable for behaviour but
+  **Internal, not exported** (corrected 2026-07-31): `validateField` and `isOutOfVocab`
+  — validation `commit`/`commitMany` apply on your behalf, readable for behaviour but
   **not importable**. CON-1: no second write path is created, and callers get validation by going
   through `commit`/`commitMany`, never by calling the validators themselves.
 - `src/store/types.ts` — `ViewRecord`, fail-closed `applyDefaults`.
 - `src/catalog/CatalogService.ts` — VERIFY → MATERIALISE → PERSIST. **Carries the double-copy
   defect** fixed in P3.
-- `src/consent/ConsentGate.ts` — `evaluate` decision order; `_evaluateBasesRecord` (l.292).
+- `src/consent/ConsentGate.ts` — `evaluate` decision order; `_evaluateBasesRecord`.
 - `src/bases/BasesAdapter.ts` — `registerCodexView` / `isBasesAvailable` (cached in a WeakMap;
   must be called once at load, before the registry is populated).
 - `src/panel/components.ts` — `portraitTile`, `imageTile`, `factRow`, `section` — reused by Cards.
@@ -90,7 +89,8 @@ below. The unmarked entries still carry their 2026-07-28 verification and are un
 - **ADR-28** — one `NavigationController` implements the target-kind matrix for both surfaces.
   **Precedence is proximity, not a kind ranking** (decided 2026-07-31): markers are reported
   nearest-event-target-first and classification is `markers[0]`.
-- **ADR-29** — store records gain a `kind` discriminant; legacy records **migrate silently**.
+- **ADR-29** — store records gain a `kind` discriminant, and `applyDefaults` defaults legacy records
+  to `"view"`. The silent migration was **withdrawn 2026-08-02**: there is nothing to migrate from.
 - **ADR-30** — one `CardRenderer` contract, **both** backends for **all three** built-in Cards.
 - **ADR-31** — a pure `FieldModel` sits between the FileClass reader and the editor.
 - **ADR-32** — column width is derived from field type; `ui` hints live in **our** `schema/*.json`.

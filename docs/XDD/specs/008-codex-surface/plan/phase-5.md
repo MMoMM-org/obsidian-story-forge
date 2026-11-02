@@ -12,7 +12,7 @@ phase: 5
 **GATE**: Read all referenced files before starting this phase.
 
 **Specification References**:
-- `[ref: PRD/F5]` — the editor pane, 9 ACs · `[ref: PRD/F6]` — fields from the chain (rendering half)
+- `[ref: PRD/F5]` — the editor pane, 10 ACs · `[ref: PRD/F6]` — fields from the chain (rendering half)
 - `[ref: PRD/F3]` — **added 2026-08-04 by the Phase 4 drift pass, which found this AC had no owner.**
   F3's *"Given the user selects a different collection, When the grid re-renders, Then any open
   editor pane closes or follows the new selection — never shows a note from the previous
@@ -212,6 +212,9 @@ The editor the withdrawn "note panel" surface was actually reaching for.
            labels, ordering and the width rule; the enum cell's native chrome is a **recorded
            divergence** (2026-08-05, user), and the *geometry* of the width rule is a T5.6
            real-vault check, not a jsdom claim.
+     - [x] A field a FileClass declares but the note lacks is an ordinary empty control, not marked
+           as missing `[ref: PRD/F5 AC]`. Added 2026-11-02: this AC had no owner. Pinned by
+           `test/anvil/AnvilView.absentField.test.ts`.
 
 - [x] **T5.4 Commit path, rollback and external sync** `[activity: backend-api]`
 
@@ -250,6 +253,8 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   5. Success:
      - [x] Every write is a plain Property `[ref: SDD/AC — PRD F5]`
      - [x] A failure never leaves the UI showing a value the file lacks `[ref: SDD/Error Handling]`
+     - [x] After a commit the grid reflects the change `[ref: PRD/F5 AC]`. Added 2026-11-02: this half
+           of the AC had no owner. Pinned by `test/anvil/AnvilView.cardRefresh.test.ts`.
 
 - [x] **T5.5 The portrait control** `[activity: frontend-ui]`
 
@@ -268,9 +273,12 @@ The editor the withdrawn "note panel" surface was actually reaching for.
 - [ ] **T5.6 Phase Validation** `[activity: validate]`
 
   - Run all Phase 5 tests. Manual walk: select a character, edit `status` in each of the three docks,
-    confirm the file changed in the core Properties UI, and **confirm Cmd+Z in the note reverts it**
-    (the file-level guarantee that stands in for the missing journal). `npm test`, `npm run lint`,
+    confirm the file changed in the core Properties UI, ~~and **confirm Cmd+Z in the note reverts it**
+    (the file-level guarantee that stands in for the missing journal)~~. `npm test`, `npm run lint`,
     `npm run typecheck` green.
+
+    *Struck 2026-11-02: in the live test Cmd+Z did not revert a pane write. See G22 in
+    `docs/gap-analysis.md`; undo is issue #17.*
 
   > **Live walk reported by the user 2026-11-02: "everything works".** A summary confirmation, not an
   > item-by-item record. It followed the fix in `29fae14`. The rename was seen directly in the file.
@@ -280,8 +288,10 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > **Resolved 2026-11-02:** `Open Codex` and the degrade view were dropped. Cmd+Z moved to issue #17 as
   > its own task, so T5.6's "file-level guarantee" no longer stands; G22 is the real answer.
   >
-  > **Carried over from T4.7 (audit 2026-11-02), which recorded no result.** Run the full manual walk
-  > in `phase-4.md` T4.7 here and record it, including: Card choice per collection survives a reload;
+  > **Carried over from T4.7 (audit 2026-11-02), which recorded no result.** The full manual walk in
+  > `phase-4.md` T4.7 is **confirmed by the user's summary of 2026-11-02, without per-item results**
+  > (reworded 2026-11-02: this note read as open while the README log read as closed). It included:
+  > Card choice per collection survives a reload;
   > the grid works with Bases disabled; the Bases hint and its dismissal; **Cards selectable in a
   > user's own `.base`**; a **blank-but-present property** on the Bases backend.
   >
@@ -289,17 +299,33 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > `Media` field (the shipped schema only gets one with T6.1):
   > - [x] *Choose image…* stores the choice: the real modal's close-then-choose order must not read
   >       as a dismissal.
-  > - [x] The stored `[[name.png]]` shows as a link in the core Properties UI.
+  > - [x] The stored `[[Art/name.png]]` shows as a link in the core Properties UI. *Updated 2026-11-02:
+  >       a value now stores the full vault path (CON-5). This tick was made on the short
+  >       `[[name.png]]` form.*
   > - [x] An image in a subfolder previews, and a broken link shows the monogram.
   > - [x] The cell matches S102 by eye, and clicking its buttons is not intercepted by the click router.
   >
   > **Added by T6.1 (run early), now on real `Media` fields:**
-  > - [x] Renaming an image updates its `[[...]]` value in the note (F6's rename criterion).
+  > - [ ] Renaming an image updates its `[[...]]` value in the note (F6's rename criterion). *Unticked
+  >       2026-11-02: it ran before `d3bef7c`, on a short-form value. Re-run on a full-path value such
+  >       as `[[95 Assets/Mara Stoneway.svg]]`.*
   > - [x] Mara Stoneway, Moonharbor Lighthouse and The Beacon Lens show their image in the editor, the
   >       sidebar panel and the Codex, including a Card in a standalone `.base`. Mock only so far:
   >       Bases' `Value.toString()` may not return the raw `[[...]]` string.
-  > - [ ] Meta Bind `VIEW[{portrait}][image]` renders a wikilink value (the seed note using it holds a
-  >       URL, so this needs a test value).
+  > - [ ] Meta Bind `VIEW[{portrait}][image]` renders a wikilink value stored with the full vault path,
+  >       the fix in `d3bef7c` (upstream: mProjectsCode/obsidian-meta-bind-plugin#677). The seed note
+  >       using it holds a URL, so this needs a test value.
+  >
+  > **Added 2026-11-02 with the fixes `0723226`, `0a040f1`, `9578554` and `06b408c`.** Unit tests cover
+  > these, but the mock cannot prove them. Confirm in a real vault:
+  > - [ ] Renaming a folder above the shown note keeps the pane open on that note.
+  > - [ ] After an external edit to a clean focused field, the value updates and the caret stays in
+  >       that field.
+  > - [ ] Tab out of a dirty box commits it, and nothing typed is lost.
+  > - [ ] In pane fields, a space can be typed and Enter settles the box.
+  > - [ ] Enter and Space work on the Media buttons and on the Workbench buttons.
+  > - [ ] Native date sanitisation: a non-ISO value in a `Date`, `Datetime` or `Time` field shows in a
+  >       text box instead of an empty control.
   >
   > **Real-vault verification checklist — these CANNOT be unit tests** (routed here 2026-08-05 on the
   > TDD gate's ruling for T5.3). jsdom computes no CSS, so a jsdom assertion for any of these would

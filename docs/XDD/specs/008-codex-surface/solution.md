@@ -52,6 +52,12 @@ version: "1.0"
   with a seed-note ripple — path values must be rewritten as wikilinks — and the schema type
   vocabulary gains `media`, which the generator maps to metadata-menu's `Media`.
   `npm run schema:check` must stay green.
+  **Revised 2026-11-02 — a `Media` value stores the wikilink's full vault path**, such as
+  `[[95 Assets/Mara Stoneway.svg]]`, not the shortest link form. Meta Bind's image view reads a
+  link's target as a path from the vault root, so the shortest form draws a broken image
+  (mProjectsCode/obsidian-meta-bind-plugin#677). The picker writes the full path and
+  `test/schema/mediaFields.test.ts` requires it of the seed notes. Story Forge reads both forms,
+  so a hand-typed short link still works here and stays broken only in Meta Bind.
 - **CON-6 — Bases typings stay behind one adapter.** `BasesConfigFile` and friends may only be
   imported by `src/bases/basesConfig.ts` (existing CON-3 firewall from spec 005).
 - **CON-7 — Structure-agnostic selection.** Notes are selected **by tag**; folders may only
@@ -392,7 +398,9 @@ graph LR
 │   │   ├── AnvilView.ts                # NEW: renamed host (see ADR-27); layout union + `codex`
 │   │   └── anvilTabs.ts                # NEW: tab strip construction + tab registry
 │   ├── codex/
-│   │   ├── CodexView.ts                # MODIFY: today a degrade stub; becomes the shared tab body
+│   │   ├── CodexView.ts                # WITHDRAWN 2026-11-02: deleted in 30963e6 with `Open Codex`.
+│   │   │                               #   Was "MODIFY: today a degrade stub; becomes the shared tab
+│   │   │                               #   body". The tab body shipped as codexTab.ts instead.
 │   │   ├── codexGrid.ts                # MODIFY: card grid, selection, empty state
 │   │   ├── collectionResolver.ts       # NEW: pure — record + settings → resolved note list
 │   │   └── cardRegistry.ts             # NEW: Card contract + built-in registration
@@ -455,7 +463,12 @@ graph LR
 │   │                                   #   one hyphenated suffix away from CODEX_VIEW_ID.
 │   │                                   #   **Consolidate it here before T4.5**, so that task
 │   │                                   #   registers against one inventory rather than adding to two.
+│   │                                   #   **Withdrawn 2026-11-02:** `CodexView` and
+│   │                                   #   `CODEX_VIEW_TYPE` were deleted in 30963e6, so this id
+│   │                                   #   exists nowhere now. `CODEX_VIEW_ID` stays (CON-4).
 │   ├── settings/SettingsTab.ts         # MODIFY: Library section, scope section, dock, capabilities
+│   │                                   #   **Noted 2026-11-02: no dock row.** The pane header's
+│   │                                   #   toggle is the dock setting; it persists `editorDock`.
 │   ├── views/SidebarView.ts            # MODIFY: display name → Workbench; hosts the Codex tab
 │   ├── anvil/AnvilView.ts              # NEW LOCATION (T2.1): the former
 │   │                                   #   src/workspace/WorkspaceView.ts, moved and renamed.
@@ -502,6 +515,7 @@ Settings: PluginSettings (MODIFIED)
   ADD: fileClassesFolder: string                    # default "00 Meta/FileClasses"
   ADD: excludedFolders: string[]                    # default ["00 Meta"] — exclusion only (CON-7)
   ADD: editorDock: "bottom" | "right"               # manual only, never automatic
+  ADD: cardTitleOpensNote: boolean                  # default true (2026-11-02): F2's Card title row
   ADD: cardByCollection: Record<string, string>     # operational state (CON-2)
   ADD: dismissedHints: string[]                     # e.g. "bases-disabled"
 
@@ -548,8 +562,8 @@ ENTITY: CollectionResolution (NEW — public contract, src/codex/collectionResol
       the reason string is part of the contract rather than a log message.
 
 ENTITY: TargetKind (NEW — public contract, src/navigation/navigationController.ts)
-  A union of exactly the four PRD F2 matrix rows:
-    "name" | "cardBody" | "structuralControl" | "editableField"
+  A union of the six PRD F2 matrix rows (four until 2026-11-02, see ADR-28's revised note):
+    "name" | "cardTitle" | "paneTitle" | "cardBody" | "structuralControl" | "editableField"
   RULES:
     - A click matching none of them classifies as "unknown", whose only reachable action is "none"
       (no action, no write — PRD/F2 AC). The resolver switches exhaustively so this is structural,
@@ -572,9 +586,10 @@ ENTITY: NavigationController (NEW — src/navigation/navigationController.ts)
       # so the host can enact the actions that need identity it never sees.
   DEPS (supplied by each host):
     getLinkClickAction(): "drill" | "open"   # read per click, so a settings change needs no reload
+    getCardTitleOpensNote?(): boolean        # read per click; absent means the shipped default, true
     inspect(): void                          # the one action whose MEANING is per-surface
   OUTCOME:
-    NavigationAction = "inspect" | "openNote" | "operateControl" | "focusField" | "none"
+    NavigationAction = "inspect" | "openNote" | "openNoteInTab" | "operateControl" | "focusField" | "none"
 
 ENTITY: WalkedTarget (NEW — public contract, src/navigation/domTargetWalk.ts)
   FIELDS:
@@ -633,6 +648,7 @@ ENTITY: FieldDef (NEW)
     values?: string[]              # from options.valuesList, for Select
     width: "half" | "full"         # derived from type, overridden by ui hint
     ui?: "wide"   # the only remaining hint; images come from the Media type
+    readOnly?: true   # added 2026-11-02: a tier-2 or tier-3 value no control can round-trip
   BEHAVIORS: (none)
 
 ENTITY: GeneratedArtifact (NEW — ADR-0003)
@@ -789,6 +805,7 @@ sequenceDiagram
 | Error | Handling |
 |---|---|
 | **Write fails** (`CommitResult` not ok) | Restore the previous value in the control, surface the reason inline on the field plus a `Notice`. Never leave the UI showing a value the file does not have. |
+| **Write-failure message** (added 2026-11-02) | The writer's `reason: "write"` text is neutral ("Couldn't write frontmatter.") and says nothing about the edit, because that differs by surface. Each surface appends its own consequence: the pane "The previous value was restored.", the inspector "Your edits are kept." |
 | **Collection query invalid** (bad `.base`, DQL parse error) | The grid shows a diagnosable message naming the collection; other collections keep working. Never a blank tab. |
 | **Collection tag empty** | Treated as misconfigured — say so; **never** fall through to "list the whole vault" (F3 AC). |
 | **FileClass malformed** | Skip that FileClass, log once, render the rest of the chain. Tier-2 fallback if the whole chain fails. |
@@ -797,6 +814,7 @@ sequenceDiagram
 | **Dataview absent** | Native resolution; **no prompt** (community — CON-3). |
 | **Generated artifact edited** | `ask` — regenerate or adopt ("this file is yours now"). Never silent overwrite. |
 | **Note deleted while the editor is open** | Close the pane, return to the grid, notify. |
+| **Note renamed while the editor is open** (added 2026-11-02) | The pane follows it to the new path from the vault's `rename` event, including a rename of a folder above the note, matched by path prefix. An unresolved write's path moves with it. The pane stays open. |
 | **Import invalid** | Refuse with a reason; persist nothing (F7 AC). |
 
 ### Complex Logic: building the FieldModel
@@ -842,7 +860,11 @@ OUTPUT: FieldModel { sections }
 4. TIER 3 — undeclared keys:
    extra := keys(note.frontmatter) - seen
    IF extra non-empty:
-       sections += FieldSection{ label: "Other properties", origin: "other", fields: textFields(extra) }
+       # Revised 2026-11-02: typed by value as in tier 2, no longer always text. string → Input,
+       # number → Number, boolean → Boolean, list of strings → Multi, null → editable Unknown.
+       # Anything else (a nested map, a list holding a non-string, a date object) → read-only
+       # Unknown: shown as JSON text and never rewritten. This also applies to tier 2.
+       sections += FieldSection{ label: "Other properties", origin: "other", fields: typedByValue(extra) }
 
 5. RETURN FieldModel{ sections }
 ```
@@ -854,9 +876,11 @@ OUTPUT: FieldModel { sections }
 | 1 | `fc-character-custom1` applies (tag `canon/character`), `extends: fc-character` → chain `[fc-character, fc-character-custom1]` |
 | 2a | Section "Character": `name`(Input,half) `role`(Select,half) `status`(Select,half) `occupation`(Input,half) … `tagline`(Input,**wide**→full) `portrait`(**Media**→full) `allies`(MultiFile,full) |
 | 2b | Section "Isekai": `level`(Number,half) `affinity`(Select,half) `awakened`(Boolean,half) `skills`(Multi,full) `guild`(MultiFile,full) |
-| 4 | Note also carries `scratch` → Section "Other properties": `scratch`(text,full) |
+| 4 | Note also carries `scratch` → Section "Other properties": `scratch`(Input,half; revised 2026-11-02, was text,full) |
 
-Matches S103 exactly, including which fields sit two-up. The section *labels* — "Character" and
+Matches S103 exactly, including which fields sit two-up, **except `scratch`**: since 2026-11-02 a
+tier-3 string is an `Input`, so it is half width and S103's layout shifts (decision log; mockup not
+re-synced). The section *labels* — "Character" and
 "Isekai" — come from **OQ-1, resolved 2026-08-05**: `fc.title ?? prettify(stripPrefix(basename))`,
 so the mockup's own labels render as signed off.
 
@@ -993,6 +1017,19 @@ Not applicable — single component.
       import and the matrix stays testable without a vault. Ordering is the walk's contract, not
       the controller's — a host that reports markers out of order silently breaks the matrix, which
       is the reason there is one shared walk rather than one per surface.
+  - **Revised 2026-11-02 — two more kinds, and two markers now share one element.** `cardTitle` (a
+    Codex Card's title) follows `cardTitleOpensNote`: a plain click opens the note in a new tab, or
+    inspects with the setting off, and a modifier inverts the two. `paneTitle` (the name in the
+    editor pane's header) always opens a new tab. Both use the new `openNoteInTab` action.
+    - *Two markers, one element, deliberately:* each title also carries `data-sf-link`. Only
+      `ANVIL_MARKERS` lists the title markers, so the Workbench and a standalone `.base` still see a
+      plain `name`.
+    - *Proximity cannot decide this,* since both markers are the same distance from the click. The
+      order of `ANVIL_MARKERS` does: the first listed attribute wins, and both title markers are
+      listed before `data-sf-link`. This is not a kind ranking, because it decides only within one
+      element. `classifyTarget` is still `markers[0]`.
+    - *Pinned by* `test/navigation/markerVocabulary.test.ts` ("two markers on ONE element"),
+      whichever attribute the DOM set first. This closes the 2026-08-04 log row's obligation.
   - User confirmed: **Yes** (2026-07-28)
 
 - [x] **ADR-29 — Store records gain a `kind` discriminant** (`"view" | "collection" | "card"`), with
@@ -1223,7 +1260,8 @@ example would have to be read as `fc-character-isekai.md`.
   list was actually read: the image field has *two different names by kind*, and the fix is not a
   `ui: image` declaration but **changing both fields to the `Media` type**. The control then follows
   from the type, the stored value becomes a wikilink that survives a rename, and the special case
-  disappears rather than being redeclared.
+  disappears rather than being redeclared. **Revised 2026-11-02:** that wikilink stores the full
+  vault path (CON-5), and the rename check is open again on that form (T5.6).
 - **`inspectorFields.ts` duplicates the FileClasses** and is deleted rather than extended.
 - **Two view-tab mechanisms** exist (`SidebarView` tab strip, `WorkspaceView` layout switch); this
   spec adds a third host but should converge them, not fork again.

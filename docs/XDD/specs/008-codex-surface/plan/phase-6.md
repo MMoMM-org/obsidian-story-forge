@@ -12,7 +12,7 @@ phase: 6
 **GATE**: Read all referenced files before starting this phase.
 
 **Specification References**:
-- `[ref: PRD/F6]` — 11 ACs · `[ref: ADR-0002]` · `[ref: SDD/ADR-31]`, `[ref: SDD/ADR-32]`
+- `[ref: PRD/F6]` — 12 ACs · `[ref: ADR-0002]` · `[ref: SDD/ADR-31]`, `[ref: SDD/ADR-32]`
 - `[ref: SDD/Technical Debt]` — the full inventory of hardcoded field behaviour
 - `[ref: SDD/CON-5]` (revised) — one **type** change (`portrait`/`image` → media) plus the `wide`
   hint; **read `docs/schema-change-runbook.md` before touching the schema**; `schema:check` stays green
