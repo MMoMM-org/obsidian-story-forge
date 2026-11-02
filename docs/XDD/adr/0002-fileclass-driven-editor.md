@@ -36,6 +36,10 @@ generated types map one-to-one onto controls the inspector already has: `Input` 
 `Number` (7) → number, `File` (5) → single wikilink. The hardcoded list is therefore **a copy of
 vault data, not information.**
 
+**Revised 2026-11-02:** those counts are from 2026-07-27. The eight generated FileClasses now emit
+seven types: `Input` 39, `Select` 17, `Multi` 10, `MultiFile` 10, `Number` 7, `File` 5, `Media` 3.
+`inspectorFields.ts` is deleted.
+
 ## Decision
 
 1. **The editor derives its field list from the FileClass chain** — fields, order, types, enum
@@ -57,6 +61,11 @@ vault data, not information.**
    wikilink rather than a path.
 5. **Field types in scope:** the six generated, plus `Boolean` and `Date`. **Out of scope:**
    `Lookup`, `Formula`, `Canvas`.
+   **Revised 2026-11-02:** the scope became metadata-menu's **13 flat types**: `Input`, `Boolean`,
+   `Number`, `Select`, `Cycle`, `Multi`, `Date`, `Datetime`, `Time`, `File`, `MultiFile`, `Media`,
+   `MultiMedia`. Anything else resolves to `Unknown` and gets a text control. That covers the
+   computed types above and the types that are not flat properties (`JSON`, `YAML`, `Object`,
+   `ObjectList`).
 6. **Three tiers, all data-driven:** (a) a FileClass declares the field → typed, ordered, sectioned,
    laid out; (b) no FileClass for the kind → render the frontmatter keys that exist, typed by
    inspecting their values; (c) a key no FileClass declares → an "Other properties" section.
@@ -112,8 +121,10 @@ vault data, not information.**
 - `docs/mockups/anvil-workbench-codex.html` — S102, S103 (signed off)
 - `docs/gap-analysis.md` §1.2 (extensibility contract), §1.4 (add-ons), G20/#13
 - `test/StoryForge/00 Meta/FileClasses/fc-character-fantasy.md` — `extends`, `fieldsOrder`, `valuesList`
-- `src/inspector/inspectorFields.ts` — the list being derived away
+- `src/inspector/inspectorFields.ts` — the list being derived away (deleted 2026-11-02, `de48091`)
 - `src/panel/kindFields.ts` — the `portrait` name-coupling being replaced
 - `scripts/schema-gen.mjs` — write-only, no delete path
 
 > **Revised 2026-11-02 (T6.3).** `inspectorFields.ts` is deleted. It held one field that was never vault data: `tags`, which FileClasses deliberately omit. Tags are not shown in the Workbench editor.
+
+> **Revised 2026-11-02 (after T6.4).** This corrects the note above. `tags` is never shown in either editor, even if a FileClass declares it. A declared `fileClass` still renders as an editable field, which is open (SDD OQ-2). A Workbench `Media` field stays a text box with no wikilink check; the preview and picker live in the Anvil.

@@ -11,8 +11,8 @@ The schema is canonical in **`schema/<type>.json`** (see `schema/README.md`). Fo
 `npm run schema:gen`, which regenerates the Template, FileClass, and human doc; then
 `npm run schema:check`.
 
-All entity types are generated from `schema/`: `scene`, `character`, `character-fantasy`,
-`location`, `object`, `lore`.
+All eight entity types are generated from `schema/`: `book`, `character`, `character-fantasy`,
+`location`, `lore`, `object`, `plotline`, `scene`.
 
 The flow is `edit schema/<type>.json → npm run schema:gen → npm run schema:check`; the rename /
 seed-note / XDD ripple below still applies. The rest of this runbook describes the underlying
@@ -25,7 +25,9 @@ Every entity type has **three property-surface artifacts that must stay in sync*
 migrated types) — plus a machine-schema JSON (`Schema/<type>.json`, the runtime enum source vault
 scripts read), the vault-wide, local-only `.obsidian/types.json` widget registry, and the deployed
 vault infra (`infra/` → `00 Meta/{Scripts,Bases,dataview-views}`, schema-coupled). See
-`schema/README.md` for the full artifact list; the three property-surface artifacts are:
+`schema/README.md` for the full artifact list. One generated file sits in the repo rather than the
+vault: `src/editor/generatedUiHints.ts`, the `ui` hints keyed by FileClass. The three
+property-surface artifacts are:
 
 1. **FileClass** (metadata-menu, enforced schema): `00 Meta/FileClasses/fc-<type>.md`
    - What matters is `fields:` — each field has a `name:` (**this is the Property**) and an
@@ -38,7 +40,9 @@ vault infra (`infra/` → `00 Meta/{Scripts,Bases,dataview-views}`, schema-coupl
    `### \`property\`` heading, with its meaning, allowed values, and whether it is a
    `[[wikilink]]` relation.
 
-Types: `character` (+ `character-fantasy`, FileClass only), `location`, `object`, `lore`, `scene`.
+`character-fantasy` is FileClass-only (`"hasTemplate": false`): it has no Template. A hand-written
+FileClass in the same folder is not ours: `schema:gen` leaves it alone
+(`test/schema/schemaGenHandwritten.test.ts`).
 
 ## The gate
 
@@ -50,6 +54,15 @@ Types: `character` (+ `character-fantasy`, FileClass only), `location`, `object`
   FileClass `fields[].name`).
 - **FileClass == Template** (cross-check) — FileClass `fields[].name` equals the template keys
   minus `tags`. (`tags` is a classifier, not a FileClass field — it is exempted.)
+- **Machine schema** — `00 Meta/Schema/<type>.json` matches `schema/<type>.json`.
+- **Infra** — every deployed `infra/` file is current, and every `.base` column and `hasTag()`
+  filter exists in the schema.
+- **UI hints** — `src/editor/generatedUiHints.ts` equals a fresh render of the `ui` hints. A
+  mismatch means `schema:gen` was not run. An unknown `ui` value fails both scripts.
+- **`types.json`** — when `.obsidian/types.json` is present, it carries every schema-derived widget
+  type. It is skipped when absent (a fresh clone, CI).
+
+The gate reads its type list from `schema/*.json`, so a new type joins it with no script change.
 
 ## Checklist by change type
 
@@ -71,13 +84,47 @@ FileClass / Schema doc**; the next `schema:gen` overwrites them.
 - **CHANGE a value list** (`select` options): edit the field's `values` array in
   `schema/<type>.json`, regenerate, and check seed values. (`schema:check` does not validate
   values, but they must stay coherent.)
+- **CHANGE a property's `type`** (e.g. `portrait` from `text` to `media`, spec 008 CON-5). Its name
+  stays, but its stored value may not:
+  1. `schema/<type>.json`: change `type`. A new vocabulary value also needs the generator's type
+     maps in `scripts/schema-gen.mjs` and `nativeType` in `scripts/schema-types-json.mjs`.
+  2. `npm run schema:gen`. If the widget type changed, `types.json` keeps the old value and reports
+     a conflict: align it with `npm run schema:gen -- --force`.
+  3. Rewrite every seed note whose stored value has the wrong shape
+     (`rg '<name>:' test/StoryForge`). `schema:check` does not validate values. A `media` value is a
+     wikilink with the full vault path, such as `[[95 Assets/Mara Stoneway.svg]]`, which
+     `test/schema/mediaFields.test.ts` enforces.
+  4. Check code that reads the field by name: `src/panel/kindFields.ts` and the panel renderers.
+  5. `npm run schema:check`, then the XDD ripple below.
+- **ADD or CHANGE a `ui` hint**: set `"ui": "wide"` on the field, the only accepted value. Run
+  `npm run schema:gen`, which rewrites `src/editor/generatedUiHints.ts`, and commit that file. The
+  hint never reaches a FileClass.
+- **ADD an entity type**: add `schema/<type>.json`, regenerate, and add `fc-<type>` to
+  `GENERATED_FILE_CLASSES` in `src/editor/generatedFileClasses.ts`. Without that, its sections read
+  as the user's own, and `test/editor/generatedFileClasses.test.ts` fails.
 - **FileClass `id:`s** are generated (`<prefix>-<name>`) and internal — never hand-edit them.
 
-## Ripple into the XDD spec (only for property-NAME changes, not `id`)
+## Script flags
+
+| Flag | Script | Effect |
+|---|---|---|
+| `--vault <path>` | gen, check | target vault (default `test/StoryForge`) |
+| `--schema <dir>` | gen, check | read another schema directory (default `schema`) |
+| `--no-ui-hints` | gen | skip writing the tracked `src/editor/generatedUiHints.ts` (for tests in temp vaults) |
+| `--force` | gen | overwrite conflicting `types.json` keys |
+
+Through npm, pass them after `--`: `npm run schema:gen -- --vault /tmp/vault --no-ui-hints`.
+
+## Ripple into the XDD spec (for property-NAME and type changes, not `id`)
 
 `docs/XDD/specs/001-core-infrastructure/` references property names (e.g. `storyDay`, `when`,
 `characters`, `location`, `plotlines`) in `requirements.md`, `solution.md`, and `mockups.html`.
 On a name change, `rg '<oldName>' docs/XDD` and update those too. Pure `id:` renames need nothing.
+
+`docs/XDD/specs/008-codex-surface/` and `docs/XDD/adr/0002-fileclass-driven-editor.md` also name
+fields and their types: `requirements.md` (F6), `solution.md` (CON-5, the width and FieldModel
+walkthroughs) and the plan. Check them on a name or a type change, and add a dated revision note
+instead of rewriting a decision.
 
 ## Project rules (important)
 
@@ -95,7 +142,7 @@ On a name change, `rg '<oldName>' docs/XDD` and update those too. Pure `id:` ren
 1. `git status`; create a branch.
 2. Make the change consistent across all three artifacts + seed notes.
 3. `npm run schema:check` until green, then `npm run typecheck && npm run lint && npm run build`.
-4. On a property-name change, check the XDD-spec ripple (`rg` in `docs/XDD`).
+4. On a property-name or type change, check the XDD-spec ripple (`rg` in `docs/XDD`).
 5. Commit (Conventional Commit), **not** on `main`.
 
 **Full verification (all green):**

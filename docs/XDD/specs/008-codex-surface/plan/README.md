@@ -79,6 +79,7 @@ below. The unmarked entries still carry their 2026-07-28 verification and are un
   must be called once at load, before the registry is populated).
 - `src/panel/components.ts` — `portraitTile`, `imageTile`, `factRow`, `section` — reused by Cards.
 - `src/panel/kindFields.ts` — per-kind config **and** the special-field inventory in its header.
+  **Revised 2026-11-02:** this is the native fallback now, and that inventory covers only `image`.
 - `src/scoping/workspaceScope.ts` — `resolveWorkspaceScope`, `DEFAULT_EXCLUDED_FOLDERS`.
 - `test/StoryForge/00 Meta/FileClasses/fc-character-fantasy.md` — the real FileClass shape.
 
@@ -94,6 +95,8 @@ below. The unmarked entries still carry their 2026-07-28 verification and are un
 - **ADR-30** — one `CardRenderer` contract, **both** backends for **all three** built-in Cards.
 - **ADR-31** — a pure `FieldModel` sits between the FileClass reader and the editor.
 - **ADR-32** — column width is derived from field type; `ui` hints live in **our** `schema/*.json`.
+  **Revised 2026-11-02:** hints are keyed by FileClass and reach the bundle through the generated
+  `src/editor/generatedUiHints.ts`.
 - **ADR-35** — two checksums plus the resolved parameters; the store keeps **no** YAML copy.
 
 **Implementation Context**:

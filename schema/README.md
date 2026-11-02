@@ -20,9 +20,11 @@ vault (`test/StoryForge/00 Meta/`), these artifacts:
 
 `npm run schema:check` is the gate: it verifies the human doc agrees with the schema
 (doc headings == template keys == FileClass field names, minus the `tags` classifier),
-that `Schema/<type>.json` matches the canonical `schema/<type>.json`, and — when present
+that `Schema/<type>.json` matches the canonical `schema/<type>.json`, that
+`src/editor/generatedUiHints.ts` equals a fresh render of the `ui` hints, and — when present
 — that `.obsidian/types.json` carries every schema-derived widget type (skipped when
-absent, e.g. a fresh clone / CI).
+absent, e.g. a fresh clone / CI). It reads its type list from `schema/*.json`, so a new
+`schema/<type>.json` joins the gate with no script change.
 
 `schema:gen` also **deploys** the blueprint-managed vault infra from `infra/` (QuickAdd
 `Scripts/`, Obsidian `Bases/`, `dataview-views/`) into `00 Meta/{Scripts,Bases,dataview-views}`.
@@ -78,18 +80,19 @@ other `ui` value is rejected at generation time. Images need no hint: width come
 
 ## Workflow — change the schema
 
-1. Edit `schema/<type>.json` (add/rename/remove a field, change a value list, edit a description).
+1. Edit `schema/<type>.json` (add/rename/remove a field, change a type or a value list, edit a description).
 2. `npm run schema:gen` — regenerate the vault artifacts.
 3. `npm run schema:check && npm run typecheck && npm run lint && npm run build` — all green.
 4. On a property **rename**, also update seed notes (`rg '<oldName>:' test/StoryForge`) and the
-   XDD spec (`rg '<oldName>' docs/XDD`). See `docs/schema-change-runbook.md`.
+   XDD spec (`rg '<oldName>' docs/XDD`). On a **type change**, rewrite the stored values too. See
+   `docs/schema-change-runbook.md`, which also lists the script flags.
 5. Commit on a branch (Conventional Commits; hooks block `main`).
 
 ## Migration status
 
 All entity types are generated from here:
 
-- ✅ `scene`, `character`, `character-fantasy`, `location`, `object`, `lore`.
+- ✅ `book`, `character`, `character-fantasy`, `location`, `lore`, `object`, `plotline`, `scene`.
 
 Note the generator owns the frontmatter; a template's note **body** (prose scaffolding,
 meta-bind display lines) is author content — it is preserved across regeneration, and a

@@ -259,6 +259,10 @@ to make the second route the normal one. Note what is *not* being asked for here
 no user-supplied renderers, no plugin-side schema inference. The user composes
 from what we ship (G19's hero card, tables, the Codex and panel surfaces) and
 points it at their own frontmatter.
+*Revised 2026-11-02 (spec 008):* `src/inspector/inspectorFields.ts` is deleted. The
+editable fields now come from the FileClass chain, through
+`src/inspector/inspectorFieldsFromModel.ts`. `src/panel/kindFields.ts` stays as the
+native fallback.
 
 *Smallest useful version:* a user `.base` or view definition can (a) be selected in
 place of a curated one, and (b) name fields we have never heard of and get them
@@ -377,6 +381,9 @@ validation)"*). Live editing is scalar/enum commits through
 *Impact:* the model is relation-centric (`pov`, `characters`, `location`,
 `plotlines`, `world`, `owner`, `related`); the one thing the panel cannot edit is
 the thing the model is made of.
+*Revised 2026-11-02 (spec 008):* `src/inspector/inspectorFields.ts` is deleted, and
+the Workbench's fields come from the `FieldModel`. The Anvil's editor pane now has
+wikilink chips. Relations stay read-only in the Workbench until #18.
 
 **G14 — The "reuse over rebuild" pillar is unrealised for editing.**
 *Promise:* `views-and-integration.md` division-of-labour table — field editing and

@@ -267,13 +267,13 @@ behaviour both share — showing the thing where you are — and is the term use
   - [ ] Given a `Select` or `Cycle` field declares selectable values, When the editor renders it, Then the control offers exactly those values *(narrowed 2026-11-02: `Multi` stays free chips, as ADR-0002 says)*
   - [ ] Given a user adds a FileClass extending a shipped one, When they select an affected entry, Then their fields appear **in their own labelled section**, typed and laid out like any other — with no plugin change
   - [ ] Given any of metadata-menu's **13 flat field types** — `Input`, `Boolean`, `Number`, `Select`, `Cycle`, `Multi`, `Date`, `Datetime`, `Time`, `File`, `MultiFile`, `Media`, `MultiMedia` — When the editor renders one, Then it maps to a control appropriate to that type
-  - [ ] Given a `Media` or `MultiMedia` field, When it renders, Then it shows an image preview with a file picker, and Then the stored value is a **wikilink**, so Obsidian keeps it correct when the file is renamed
+  - [ ] Given a `Media` field, When it renders in the Anvil, Then it shows an image preview with a file picker; and Given a `MultiMedia` field holding a list of links, When it renders, Then it uses link chips; and Then the stored value is a **wikilink**, so Obsidian keeps it correct when the file is renamed *(narrowed 2026-11-02: this read "a `Media` or `MultiMedia` field" for the preview and picker. No mockup draws a multi-image control, and a `MultiMedia` field with no stored list stays on the text box. In the Workbench a `Media` field is a text box)*
   - [ ] Given a field type the plugin does not support, When the editor renders it, Then it falls back to a plain text control rather than failing
   - [ ] Given no FileClass applies to a note, When the editor opens, Then the frontmatter keys present on the note are shown, typed by inspecting their values
   - [ ] Given the note carries a key no FileClass declares, When the editor renders, Then it appears in a distinct **Other properties** section
   - [ ] Given short field types, When the editor lays out a section, Then they occupy **two columns**; and Given list-valued types, Then they occupy the **full width**
   - [ ] Given a field declared `wide` in the plugin's own schema, When it renders, Then it uses the full width; and Given a field of the `Media` **type**, When it renders, Then it uses the full width and shows a preview with a file picker — the image control follows from the type, never from a `ui` hint
-  - [ ] Given the plugin writes or updates **its own** FileClasses (setup wizard, or an upgrade), When it completes, Then a user-authored FileClass in the same folder is **untouched** — the plugin only ever writes files it authored
+  - [ ] Given `npm run schema:gen` regenerates the shipped FileClasses, When it completes, Then a hand-written FileClass in the same folder is **untouched** *(revised 2026-11-02 to agree with R6: this read "the plugin writes or updates its own FileClasses (setup wizard, or an upgrade)", but the plugin writes no FileClass. The generator is a repo script, and `test/schema/schemaGenHandwritten.test.ts` proves this)*
 
 #### Feature F7: The Library — Collections and Cards in settings
 
@@ -381,9 +381,11 @@ of FileClasses that ship with the plugin.
 - **R1** — A field's *presence and order* come from its FileClass, never from plugin code.
 - **R2** — A field's *control* is chosen by its declared type; an unrecognised type renders as plain
   text rather than failing.
-- **R3** — A field's *width* is derived from its type: short types share a row, list-valued types
-  take the full width. Only two declared exceptions override this, and both live in the plugin's own
-  schema, not in the FileClass.
+- **R3** — A field's *width* is derived from its effective type: the declared type, unless a stored
+  list turns the field into chips. Short types share a row, list-valued types take the full width.
+  One declared hint overrides this, `wide`, and it lives in the plugin's own schema, not in the
+  FileClass. A `Media` field takes the full width from its type. *(Revised 2026-11-02: this read
+  "derived from its type" and "two declared exceptions".)*
 - **R4** — Sections follow the inheritance chain, base class first, in order.
 - **R5** — A key present on the note but declared by no FileClass appears last, in *Other properties*.
 - **R6** — The plugin **never writes** to a FileClass. It reads them; the user (or metadata-menu)
@@ -456,7 +458,9 @@ observable behaviour, verified the way specs 006 and 007 were:
   visual specification; divergence is raised before it is coded.
 - **ADR-0001, ADR-0002 and ADR-0003 are settled** and are not re-opened by this spec.
 - **No new story-schema fields.** This spec adds presentation hints to the plugin's own schema, not
-  new facts to the story model.
+  new facts to the story model. *(Revised 2026-11-02, carrying CON-5: it also changes one type.
+  `portrait` and `image` go from `text` to `media`, so their value becomes a wikilink. The `wide`
+  hint reaches the bundle through the generated `src/editor/generatedUiHints.ts`.)*
 - **English for all committed content**; UI text follows the Obsidian sentence-case rule.
 
 ### Assumptions

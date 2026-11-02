@@ -91,6 +91,10 @@ could only ever know four kinds of thing.
      - [x] The hint is **loaded**, not merely declared — `tagline` is full width in the running
            editor `[ref: SDD/AC — PRD F6]`
 
+  > **Noted 2026-11-02:** this tick was earned in the Anvil. `0e5e8f4` passes the same hints into
+  > the Workbench's model, so both surfaces build one model. Nothing changes on screen there: the
+  > Workbench's flat field list reads no width.
+
 - [x] **T6.2 Replace the name coupling in the panel** `[activity: refactoring]`
 
   1. Prime: Read the inventory in `[ref: SDD/Technical Debt]` and confirm it against the source

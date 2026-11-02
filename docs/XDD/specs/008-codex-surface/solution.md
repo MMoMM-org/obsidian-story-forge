@@ -58,6 +58,10 @@ version: "1.0"
   (mProjectsCode/obsidian-meta-bind-plugin#677). The picker writes the full path and
   `test/schema/mediaFields.test.ts` requires it of the seed notes. Story Forge reads both forms,
   so a hand-typed short link still works here and stays broken only in Meta Bind.
+  **Revised 2026-11-02 — a rename produces short links too.** Renaming an image rewrites the value
+  to the short form, following Obsidian's "New link format" setting. The link stays valid and Story
+  Forge still shows the image, but Meta Bind's image view breaks on that value until upstream #677
+  lands. This is the accepted limit: the plugin does not rewrite notes after a rename.
 - **CON-6 — Bases typings stay behind one adapter.** `BasesConfigFile` and friends may only be
   imported by `src/bases/basesConfig.ts` (existing CON-3 firewall from spec 005).
 - **CON-7 — Structure-agnostic selection.** Notes are selected **by tag**; folders may only
@@ -149,13 +153,16 @@ version: "1.0"
         validateField (l.61) and isOutOfVocab (l.123) — validation that commit/commitMany apply,
         readable but not importable. CON-1 holds because writes go THROUGH commit/commitMany."
 
-- file: src/inspector/inspectorFields.ts
+- file: src/inspector/inspectorFieldsFromModel.ts
   relevance: HIGH
-  why: "The hardcoded field list this spec derives away (ADR-0002)."
+  why: "Revised 2026-11-02: src/inspector/inspectorFields.ts, the hardcoded field list this spec
+        derived away (ADR-0002), was deleted in de48091. This adapter turns the FieldModel into the
+        Workbench editor's field list."
 
 - file: src/panel/kindFields.ts
   relevance: HIGH
-  why: "Per-kind facts/relations lists AND the special-field inventory in its header comment."
+  why: "Per-kind facts/relations lists, kept as the native fallback (CON-3). Revised 2026-11-02:
+        the special-field inventory in its header now covers only `image`, the native tile field."
 
 - file: src/panel/components.ts
   relevance: HIGH
@@ -222,8 +229,12 @@ version: "1.0"
   - `Codex.base` content — the include-by-folder filter is removed.
   - `PluginSettings` — new keys for collections, dock, excluded folders, FileClasses folder.
 - **Must Not Touch**
-  - `schema/*.json` **story fields** — only presentation hints may be added (CON-5).
-  - The FileClass files' content at runtime — the plugin reads them and never writes user ones.
+  - `schema/*.json` **story fields** — no fact is added. Revised 2026-11-02: the allowed changes are
+    the `ui` hint and the `text` to `media` type change on the image fields (CON-5).
+  - The FileClass files' content at runtime — the plugin reads them and writes none of them, ours or
+    a user's (revised 2026-11-02; this read "never writes user ones"). `npm run schema:gen` is a repo
+    script, not the plugin: it rewrites the generated `fc-*.md` files and leaves hand-written ones
+    alone, which `test/schema/schemaGenHandwritten.test.ts` proves.
   - Longform, Calendarium and anything in their domain.
   - `src/workspace/interactionHandler.ts` drag semantics (spec 007 territory).
 
@@ -403,7 +414,8 @@ graph LR
 │   │   │                               #   body". The tab body shipped as codexTab.ts instead.
 │   │   ├── codexGrid.ts                # MODIFY: card grid, selection, empty state
 │   │   ├── collectionResolver.ts       # NEW: pure — record + settings → resolved note list
-│   │   └── cardRegistry.ts             # NEW: Card contract + built-in registration
+│   │   ├── cardRegistry.ts             # NEW: Card contract + built-in registration
+│   │   └── cardTileField.ts            # NEW (T6.2b): `createCardTileField`, see Application Data Models
 │   ├── codex/cards/
 │   │   ├── heroCard.ts                 # NEW: portrait/facts/pills — reuses panel/components primitives
 │   │   ├── tableCard.ts                # NEW
@@ -412,9 +424,18 @@ graph LR
 │   │   ├── editorPane.ts               # NEW: dock modes, header tools, section rendering
 │   │   ├── fieldModel.ts               # NEW: pure — FileClass chain → ordered typed sections
 │   │   ├── fieldControls.ts            # NEW: one control per field type incl. relation chips
+│   │   ├── fieldCommit.ts              # NEW (T5.4): FieldDef → writer spec; rolls back a refused edit.
+│   │   │                               #   No write path of its own (CON-1)
+│   │   ├── mediaPicker.ts              # NEW (T5.5): the `Media` control's vault seams, per note
+│   │   ├── generatedFileClasses.ts     # NEW (T5.3): the names we generate, mirrored from schema/*.json
+│   │   │                               #   with a drift test. Anything else has origin "user"
+│   │   ├── generatedUiHints.ts         # GENERATED (T6.1b): the `ui` hints keyed by FileClass, written
+│   │   │                               #   by schema:gen and compared by schema:check. Do not edit
 │   │   └── uiHints.ts                  # NEW: type → width rule + the `wide` override
 │   ├── fileclass/                      # NEW — read-only FileClass access
 │   │   ├── fileClassReader.ts          # NEW: resolve chain, parse fields, defensive
+│   │   ├── fileClassVault.ts           # NEW (T5.3, cached in T6.4): reads the folder, decides which
+│   │   │                               #   class applies to a note; `main.ts` owns the one cache
 │   │   └── fileClassTypes.ts           # NEW: the narrow shape we depend on (firewall, cf. CON-6)
 │   ├── library/                        # NEW — Collections and Cards management
 │   │   ├── collectionStore.ts          # NEW: record CRUD over ViewStore
@@ -429,6 +450,8 @@ graph LR
 │   │   ├── navigationController.ts     # NEW: target-kind matrix, one rule for both surfaces.
 │   │   │                               #   Pure: no DOM, no Obsidian import, so the matrix is
 │   │   │                               #   unit-testable without a vault.
+│   │   ├── keyboardRouting.ts          # NEW: which Enter/Space presses a view's router may claim
+│   │   ├── linkContextMenu.ts          # NEW: right-click on a link shows Obsidian's own file menu
 │   │   └── domTargetWalk.ts            # NEW (T2.5): the one DOM-touching step — the nearest-first
 │   │                                   #   ancestor walk that BUILDS the TargetMarkers array from a
 │   │                                   #   real click. Deliberately **beside** the controller, not
@@ -440,8 +463,11 @@ graph LR
 │   ├── catalog/CatalogService.ts       # MODIFY: drop the store YAML copy; two-checksum flow
 │   ├── consent/ConsentGate.ts          # MODIFY: generated collections bypass drift (ADR-0003)
 │   ├── import/ViewDefinition.ts        # MODIFY: engine union admits `bases`
-│   ├── inspector/inspectorFields.ts    # DELETE — derived away (ADR-0002)
+│   ├── inspector/inspectorFields.ts    # DELETED 2026-11-02 in de48091 (ADR-0002). Was "DELETE — derived away"
+│   ├── inspector/inspectorFieldsFromModel.ts  # NEW (T6.3): FieldModel → the Workbench's FieldSpec[]
+│   │                                   #   and headings. `readOnly` becomes `fixed`; `Media` stays text
 │   ├── panel/kindFields.ts             # MODIFY: keep as native fallback config only
+│   ├── panel/tileField.ts              # NEW (T6.2): `resolveTileField`, see Application Data Models
 │   ├── pluginConstants.ts              # MODIFY: the single declaration site for **two** frozen
 │   │                                   #   ids (CON-4) —
 │   │                                   #   · CODEX_VIEW_ID = "story-forge-codex", already imported
@@ -483,7 +509,9 @@ graph LR
 │                                       #   collapseStore, sceneMapper, timelineZoom. Phase 4 imports
 │                                       #   from here; it does not need to recreate any of it.
 ├── schema/
-│   └── *.json                          # MODIFY: optional `ui` hint per field (CON-5: no new facts)
+│   └── *.json                          # MODIFY: optional `ui` hint per field; revised 2026-11-02:
+│                                       #   `portrait` and `image` change from `text` to `media`
+│                                       #   (CON-5: no new facts)
 ├── catalog/
 │   └── *.base                          # MODIFY: become templates with parameters
 └── test/
@@ -519,8 +547,10 @@ Settings: PluginSettings (MODIFIED)
   ADD: cardByCollection: Record<string, string>     # operational state (CON-2)
   ADD: dismissedHints: string[]                     # e.g. "bases-disabled"
 
-schema/*.json (MODIFIED — presentation only, CON-5)
+schema/*.json (MODIFIED — a presentation hint and one type change, CON-5; revised 2026-11-02)
   ADD per field (optional): "ui": "wide"      # the only hint; images come from the Media type
+  CHANGE: portrait (character), image (location, object): type "text" → "media"   # stores a wikilink
+  GENERATED: src/editor/generatedUiHints.ts   # the hints keyed by FileClass; the bundle can't read schema/
 ```
 
 #### Internal API Changes
@@ -620,22 +650,19 @@ ENTITY: FieldSection (NEW)
   FIELDS:
     label: string                  # the section's human display name — RESOLVED 2026-08-05 (OQ-1):
                                    # `fc.title ?? prettify(stripPrefix(basename))`. The title key is
-                                   # optional, so a dropped key degrades the label, never removes it
-                                   # of "fc-character-custom1". Phase 1 ships the fc file name.
+                                   # optional, so a dropped key degrades the label, never removes it.
+                                   # Revised 2026-11-02: live since T5.3, so the note that Phase 1
+                                   # ships the fc file name is dropped.
     source: string                 # fc file NAME (e.g. "fc-character.md"), or "other" for undeclared
                                    # keys. Name, not path: this layer is pure and never sees
                                    # settings.fileClassesFolder, and the mockup shows the bare name.
+    extends?: string               # added 2026-11-02: what this FileClass extends, when it does;
+                                   # the pane's source line prints it after `source` (S102/S103)
     origin: "builtin" | "user" | "other"
-                                   # DEBT (Phase 1 close-out): the shipped model has two variants,
-                                   # "builtin" | "other" — ParsedFileClass carries no provenance, so
-                                   # a user's fc is currently indistinguishable from ours. The third
-                                   # variant is REQUIRED, not optional: CON-10's mockup defines
-                                   # exactly three section styles (.ed-sec / .ed-sec.usr /
-                                   # .ed-sec.other, anvil-workbench-codex.html:485-486).
-                                   # Due: Phase 5 T5.3. Likely mechanism: pass the set of
-                                   # plugin-generated FileClass names (read schema/*.json off
-                                   # disk — EIGHT types, not six; corrected 2026-08-06)
-                                   # into buildFieldModel, so "not ours" ⇒ "user".
+                                   # Revised 2026-11-02: all three are live since T5.3, so the Phase 1
+                                   # debt note is dropped. "builtin" = a name in
+                                   # GENERATED_FILE_CLASSES, "user" = any other FileClass, "other" =
+                                   # tiers 2 and 3. CON-10's three section styles map onto these.
     fields: FieldDef[]
 
 ENTITY: FieldDef (NEW)
@@ -645,11 +672,35 @@ ENTITY: FieldDef (NEW)
           # Input Boolean Number Select Cycle Multi Date Datetime Time File MultiFile Media MultiMedia
           # excluded → "Unknown": Lookup Formula Canvas CanvasGroup CanvasGroupLink (computed)
           #                       JSON YAML Object ObjectList (not flat properties)
-    values?: string[]              # from options.valuesList, for Select
-    width: "half" | "full"         # derived from type, overridden by ui hint
+    values?: string[]              # from options.valuesList; the Select and Cycle controls use it.
+                                   # Revised 2026-11-02: dropped when a stored list makes it chips
+    width: "half" | "full"         # derived from the effective type (see the value rules under
+                                   # Complex Logic), overridden by ui hint
     ui?: "wide"   # the only remaining hint; images come from the Media type
-    readOnly?: true   # added 2026-11-02: a tier-2 or tier-3 value no control can round-trip
+    readOnly?: true   # added 2026-11-02: shown, never written. Set on `type` in every tier, on a
+                      # map or a list holding a non-string (declared or not), and on a native date
+                      # in tiers 2 and 3. Revised the same day: it first read "a tier-2 or tier-3
+                      # value". The Workbench renders it as `fixed`.
   BEHAVIORS: (none)
+
+FUNCTION: resolveTileField (NEW T6.2 — src/panel/tileField.ts)
+  resolveTileField(kind: EntityKind, file: TFile, source: FileClassSource | undefined): string | null
+  RULES:
+    - Answers with the first `Media`-typed field of the note's chain, base first.
+    - The chain is read without frontmatter, so the tile follows the DECLARED type: a list stored in
+      a `Media` field does not hand the tile to the next one.
+    - A chain with no `Media` field answers null, the monogram, even if the note holds `portrait`.
+    - No source, no class for the note, or an empty chain answers `kindFields(kind).image ?? null`.
+    - Synchronous and uncached here: `source` is the plugin's FileClass cache.
+
+FUNCTION: createCardTileField (NEW T6.2b — src/codex/cardTileField.ts)
+  createCardTileField(source: FileClassSource | undefined, fileFor: (path: string) => TFile | null):
+    (entry: CardEntry) => string | null
+  RULES:
+    - Builds `CardRenderDeps.tileField`, which keeps Cards free of `App` (ADR-30). The Codex tab and
+      a standalone `.base` both build it here.
+    - Delegates to `resolveTileField`, so the panel and both Card backends cannot disagree.
+    - `fileFor` answering null falls back to `nativeTileField(entry)`, the shipped names.
 
 ENTITY: GeneratedArtifact (NEW — ADR-0003)
   FIELDS: sourceChecksum, params, instanceChecksum, filePath, verify
@@ -686,8 +737,8 @@ signed-off S102/S103 by eye.
 
 ```typescript
 // src/editor/uiHints.ts
-// Verified against the real generated FileClasses: the six types actually emitted are
-// Input (42×), Select (17×), Multi (10×), MultiFile (10×), Number (7×), File (5×).
+// Revised 2026-11-02, recounted from the eight generated FileClasses. The seven types emitted are
+// Input (39×), Select (17×), Multi (10×), MultiFile (10×), Number (7×), File (5×), Media (3×).
 const HALF: ReadonlySet<FieldDef["type"]> = new Set([
   "Input", "Boolean", "Number", "Select", "Cycle", "Date", "Datetime", "Time",
 ]);
@@ -715,7 +766,9 @@ export function widthOf(field: { type: FieldDef["type"]; ui?: "wide" }): "half" 
 | `portrait` | `Media` | — | full | ✔ preview + picker, from the **type** |
 
 **Edge cases**: an unrecognised type resolves to `Unknown` → `full` (a text control on its own row —
-never a crash). A field with `ui` set but an unknown type still gets `full`.
+never a crash). A field with `ui` set but an unknown type still gets `full`. **Revised 2026-11-02:**
+`type` here is the effective type, so a list of strings stored in a `Select` is chips and takes
+`full` (see the value rules under Complex Logic).
 
 #### Example: classifying a generated artifact (ADR-0003 / ADR-35)
 
@@ -841,32 +894,53 @@ OUTPUT: FieldModel { sections }
        # omits, appended in declaration order. A partial or stale `fieldsOrder` therefore hides no
        # field, where the fallback would have dropped every unlisted one. Tested; kept.
        FOR name IN union(class.fieldsOrder, declaredOrder(class)):
+           IF name = "tags": CONTINUE          # revised 2026-11-02: never shown, even if declared
            IF name IN seen: CONTINUE           # first declaration wins
            seen += name
            def := class.fields[name]
+           # Revised 2026-11-02: the stored value can outrank the declared type (VALUE RULES below).
+           rule := valueRules(name, mapType(def.type), note.frontmatter[name])
+           type := rule.type ?? mapType(def.type)
            fields += FieldDef{
-               name, type: mapType(def.type), values: def.options?.valuesList,
-               ui: schemaUiHints[class.name]?[name], width: widthOf(...)  # keyed by FileClass (2026-11-02)
+               name, type, values: def.options?.valuesList,  # omitted when rule.type is set
+               ui: schemaUiHints[class.name]?[name], width: widthOf(...),  # keyed by FileClass (2026-11-02)
+               readOnly: rule.readOnly
            }
        # OQ-1 resolved 2026-08-05: the title key is OPTIONAL and the file name is the fallback.
-       # Phase 1 ships `class.name` (the fc file name); T5.3 adds the title-key read in front of it.
+       # Revised 2026-11-02: the title-key read is live; the Phase 1 note is dropped.
        sections += FieldSection{ label: class.title ?? prettify(stripPrefix(class.name)),
-                                 origin: originOf(class), fields }
+                                 extends: class.extends, origin: originOf(class), fields }
 
 3. TIER 2 — no chain at all:
    IF chain is empty:
-       RETURN sections := [ inferredSectionFrom(note.frontmatter) ]
+       RETURN sections := [ inferredSectionFrom(note.frontmatter) ]   # minus `tags` and `fileClass`
 
 4. TIER 3 — undeclared keys:
-   extra := keys(note.frontmatter) - seen
+   extra := keys(note.frontmatter) - seen - {"tags", "fileClass"}
    IF extra non-empty:
        # Revised 2026-11-02: typed by value as in tier 2, no longer always text. string → Input,
-       # number → Number, boolean → Boolean, list of strings → Multi, null → editable Unknown.
+       # number → Number, boolean → Boolean, list of strings → Multi (MultiFile when every item is a
+       # [[link]]), null → editable Unknown.
        # Anything else (a nested map, a list holding a non-string, a date object) → read-only
        # Unknown: shown as JSON text and never rewritten. This also applies to tier 2.
        sections += FieldSection{ label: "Other properties", origin: "other", fields: typedByValue(extra) }
 
 5. RETURN FieldModel{ sections }
+
+VALUE RULES (added 2026-11-02) — a FieldDef for a declared field, by name, declared type and value:
+   name = "type"                    → readOnly, in every tier and on both surfaces,
+                                      because classifyEntityKind reads it
+   value is a map                   → readOnly
+   list holding a non-string        → readOnly, declared type kept, even for Multi and MultiFile
+   list of strings, declared Multi or MultiFile → unchanged
+   [] in Number, Boolean, Select, Cycle, Date, Datetime, Time → unset; the declared control stays
+   [] in File, Media, MultiMedia    → type MultiFile (link chips)
+   [] in any other type             → type Multi (free chips)
+   non-empty list of strings        → type MultiFile if every item is a [[link]], else type Multi
+   anything else                    → declared type, editable
+
+   `tags` is never a field, in any tier, on either surface, even if a FileClass declares it.
+   `fileClass` is hidden in tiers 2 and 3, but a declared one still renders (OQ-2).
 ```
 
 **Traced walkthrough** — Mara Stoneway with a user FileClass (S103):
@@ -1166,7 +1240,7 @@ Not applicable — single component.
 - [ ] THE SYSTEM SHALL assign half width to Select, Number, Boolean, Date and Input, and full width to Multi and MultiFile, unless a `ui` hint overrides it
 - [ ] IF no FileClass applies, THEN THE SYSTEM SHALL render the note's own frontmatter keys typed by value
 - [ ] IF a key is declared by no FileClass, THEN THE SYSTEM SHALL render it under "Other properties"
-- [ ] THE SYSTEM SHALL NOT write to any FileClass file
+- [ ] THE SYSTEM SHALL NOT write to any FileClass file *(revised 2026-11-02: "the system" is the plugin. `npm run schema:gen` rewrites the generated `fc-*.md` files in the repo and leaves hand-written ones alone)*
 
 **Main Flow: PRD F7 — the Library**
 - [ ] WHEN the user imports a `.base`, THE SYSTEM SHALL accept it as a Collection
@@ -1239,6 +1313,14 @@ example would have to be read as `fc-character-isekai.md`.
 
 **Due:** before **Phase 5 T5.3**, which renders sections and therefore has to print something.
 
+### OQ-2 — Should a declared `fileClass` field render? (**OPEN**, added 2026-11-02)
+
+`tags` is never shown, even when a FileClass declares it (user ruling, `877562e`). `fileClass` is
+hidden only from the undeclared sections: a FileClass that declares it gets an ordinary editable
+field. `src/editor/fieldModel.ts` treats that as the FileClass's own business, but a typo there can
+still empty the pane, which is the reason `fileClass` is hidden elsewhere. No shipped FileClass
+declares it, and no task owns this question yet.
+
 ## Risks and Technical Debt
 
 ### Known Technical Issues
@@ -1254,7 +1336,7 @@ example would have to be read as `fc-character-isekai.md`.
 
 ### Technical Debt
 
-- **Inventory extended 2026-11-02 (T6.2).** `src/panel/renderers/location.ts` and `object.ts` also read `image` by name (now through `tileField`). `src/codex/cards/shared.ts` `IMAGE_FIELD`/`imageFieldId` is a second name coupling, with the panel-vs-Card divergence owned by **T6.2b**. The panel's fact lists and lead lines remain name-based as the native fallback.
+- **Inventory extended 2026-11-02 (T6.2).** `src/panel/renderers/location.ts` and `object.ts` also read `image` by name (now through `tileField`). `src/codex/cards/shared.ts` `IMAGE_FIELD`/`imageFieldId` is a second name coupling, with the panel-vs-Card divergence owned by **T6.2b**. The panel's fact lists and lead lines remain name-based as the native fallback. **Revised 2026-11-02:** T6.2b closed this in `46b43d7`. `imageFieldId` and `IMAGE_FIELD` are gone, and Cards take the field from `CardRenderDeps.tileField`.
 - **The hardcoded field surface is larger than one field.** `src/panel/kindFields.ts` documents it:
   character uses `portrait`, location and object use `image`, each triggering a tile instead of a
   fact row; `src/panel/components.ts` remaps `locationType` → "type" for display;
@@ -1264,8 +1346,15 @@ example would have to be read as `fc-character-isekai.md`.
   `ui: image` declaration but **changing both fields to the `Media` type**. The control then follows
   from the type, the stored value becomes a wikilink that survives a rename, and the special case
   disappears rather than being redeclared. **Revised 2026-11-02:** that wikilink stores the full
-  vault path (CON-5), and the rename check is open again on that form (T5.6).
+  vault path (CON-5). The rename check was re-run on that form and is closed (`plan/phase-5.md`,
+  T5.6): the link follows in the short form, the limit CON-5 accepts. The panel now reads the image
+  through `tileField`. `tagline` and `locationType` stay name-based, and the `kindFields.ts` header
+  now lists only `image`.
 - **`inspectorFields.ts` duplicates the FileClasses** and is deleted rather than extended.
+  **Revised 2026-11-02:** deleted in `de48091`; the Workbench reads the `FieldModel`.
+- **A Workbench `Media` field is a text box with no wikilink check** (added 2026-11-02, ruled at
+  T6.3). `inspectorFieldsFromModel` gives it the writer's `text` spec, so it edits the stored
+  `[[wikilink]]` as a string and accepts whatever is typed. The preview and picker live in the Anvil.
 - **Two view-tab mechanisms** exist (`SidebarView` tab strip, `WorkspaceView` layout switch); this
   spec adds a third host but should converge them, not fork again.
 
