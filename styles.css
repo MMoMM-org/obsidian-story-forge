@@ -3227,6 +3227,10 @@ body {
 .sf-ed-grid {
 	display: grid;
 	grid-template-columns: 96px 1fr 96px 1fr;
+	/* `max-content`, not the default `auto`: a cell's explicit `min-height` is
+	 * its minimum contribution, so in a height-bounded pane (dock right,
+	 * fullscreen) `auto` rows shrink to it and tall cells overlap the next row. */
+	grid-auto-rows: max-content;
 	gap: 6px 10px;
 	padding: 10px 11px;
 	/* `min-height: 0` is what lets a flex item shrink below its content, which
@@ -3388,19 +3392,30 @@ body {
 	border-color: var(--interactive-accent);
 }
 
-.sf-ed-input,
-.sf-ed-select {
+/*
+ * `.sf-ed-f` is in the selector for specificity: core and theme rules such as
+ * `input[type='text']` and `.dropdown` otherwise win and draw a second, tinted
+ * box inside the cell. `background-color`, not the shorthand, because the native
+ * arrow on `.dropdown` is a background image, kept per the T5.3 ruling.
+ */
+.sf-ed-f .sf-ed-input,
+.sf-ed-f .sf-ed-select {
 	flex: 1;
 	min-width: 0;
+	height: auto;
 	border: none;
-	background: transparent;
+	background-color: transparent;
 	padding: 0;
 	color: inherit;
 	font-size: inherit;
 	box-shadow: none;
 }
 
-.sf-ed-input--checkbox {
+.sf-ed-f .sf-ed-select {
+	padding-right: 18px;
+}
+
+.sf-ed-f .sf-ed-input--checkbox {
 	flex: none;
 }
 
@@ -3464,7 +3479,14 @@ body {
 	font-size: 9.5px;
 }
 
-/* Media control (T5.5, mockup S102 ".ed-por"): preview, path, two buttons. */
+/* Media control (T5.5, mockup S102 ".ed-por"): preview, path, two buttons.
+ * The panel is the box, so its cell draws none, or the two borders nest. */
+.sf-ed-f:has(> .sf-ed-media) {
+	border: none;
+	background: none;
+	padding: 0;
+}
+
 .sf-ed-media {
 	display: flex;
 	flex: 1;
