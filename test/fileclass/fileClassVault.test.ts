@@ -169,3 +169,24 @@ describe("createFileClassSource — which FileClass applies (T5.3)", () => {
 		});
 	});
 });
+
+describe("createFileClassSource — snapshot option", () => {
+	function scansFor(options: { snapshot?: boolean }): number {
+		const app = new App();
+		const notes = [1, 2, 3].map((i) =>
+			createMockTFile({ basename: `N${i}`, path: `30 Canon/31 Characters/N${i}.md` }));
+		seed(app, [...SHIPPED, ...notes.map((file) => ({ file, tags: ["#canon/character"] }))]);
+		const source = createFileClassSource(app, () => FOLDER, options);
+		vi.mocked(app.vault.getMarkdownFiles).mockClear();
+		notes.forEach((n) => source.nameFor(n));
+		return vi.mocked(app.vault.getMarkdownFiles).mock.calls.length;
+	}
+
+	it("rescans the vault on every nameFor by default", () => {
+		expect(scansFor({})).toBe(3);
+	});
+
+	it("scans once for a { snapshot: true } source", () => {
+		expect(scansFor({ snapshot: true })).toBe(1);
+	});
+});

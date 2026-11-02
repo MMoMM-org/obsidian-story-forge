@@ -39,7 +39,6 @@
 
 import { resolveCollection, type IndexedNote } from "./collectionResolver";
 import { nativeCardEntry, type CardEntry, type CardRenderer } from "./cardRegistry";
-import { nativeTileField } from "./cardTileField";
 import { buildCardWrapper, CARD_BODY_ATTR } from "./cardWrapper";
 import { CODEX_CARD_REGISTRY } from "./builtinCards";
 import { renderCardSelector } from "./cardSelector";
@@ -171,20 +170,21 @@ export interface CodexTabOptions {
 	 */
 	readonly frontmatterFor?: (path: string) => Record<string, unknown> | null;
 	/**
-	 * Resolve a raw frontmatter asset path (`portrait`/`image`) for the note at
-	 * `sourcePath` to something an `<img src>` can use (T4.3,
-	 * `panel/assetResolver.ts`'s `createAssetResolver`). Optional: defaults to
-	 * the identity function, so a host without vault-relative image resolution
-	 * still renders (plain URLs pass through; a vault path just would not
-	 * resolve to a resource URL).
+	 * Resolve the raw value of the Card's tile field (named by `tileField`) for
+	 * the note at `sourcePath` to something an `<img src>` can use. The host
+	 * passes `createLinkedImageResolver`; a link that does not resolve yields ""
+	 * so the Card draws the monogram. Optional: defaults to the identity
+	 * function, so a host without vault-relative image resolution still renders
+	 * (plain URLs pass through).
 	 */
 	readonly resolveAsset?: (sourcePath: string, raw: string) => string;
 	/**
 	 * The field drawing an entry's tile (T6.2b). The host builds ONE per render
-	 * pass (`createCardTileField`) so a grid scans FileClasses once. Optional:
-	 * defaults to the shipped field names per kind.
+	 * pass (`createCardTileField`) so a grid scans FileClasses once. Required, so a host
+	 * that forgets it fails to compile instead of drawing a tile that disagrees
+	 * with the panel.
 	 */
-	readonly tileField?: (entry: CardEntry) => string | null;
+	readonly tileField: (entry: CardEntry) => string | null;
 	/**
 	 * The Card id this collection is currently rendered with. Optional:
 	 * `undefined` resolves to the registry default (Hero, T4.2). The host reads
@@ -395,7 +395,7 @@ function renderEntry(note: IndexedNote, card: CardRenderer, opts: CodexTabOption
 	return buildCardWrapper(entry, card, {
 		compact: Boolean(opts.compact),
 		resolveAsset: (raw: string): string => opts.resolveAsset?.(note.path, raw) ?? raw,
-		tileField: opts.tileField ?? nativeTileField,
+		tileField: opts.tileField,
 		selected: opts.openPath === note.path,
 	});
 }

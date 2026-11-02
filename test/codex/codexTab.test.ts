@@ -34,6 +34,7 @@ import {
 } from "codex/codexTab";
 import { createNoteIndex } from "codex/noteIndex";
 import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
+import { nativeTileField } from "codex/cardTileField";
 import type { CardRenderer } from "codex/cardRegistry";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
 import type { TargetKind } from "navigation/navigationController";
@@ -665,6 +666,7 @@ describe("renderCodexTab: the shared body", () => {
 			selection: new CodexSelectionStore(),
 			index: [{ path: "30 Canon/31 Characters/Mara Stoneway.md", tags: ["canon/character"] }],
 			excludedFolders: ["00 Meta"],
+			tileField: nativeTileField,
 			compact,
 			...(cardId !== undefined ? { cardId } : {}),
 		});
@@ -713,6 +715,7 @@ describe("renderCodexTab: the shared body", () => {
 			selection: new CodexSelectionStore(),
 			index: [],
 			excludedFolders: [],
+			tileField: nativeTileField,
 		});
 
 		expect(container.contains(stale)).toBe(false);
@@ -726,6 +729,7 @@ describe("renderCodexTab: the shared body", () => {
 			selection: new CodexSelectionStore(),
 			index: [],
 			excludedFolders: [],
+			tileField: nativeTileField,
 		});
 
 		expect(container.querySelectorAll("[data-sf-collection]").length).toBe(0);

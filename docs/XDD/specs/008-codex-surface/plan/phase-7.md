@@ -31,7 +31,7 @@ finally learns what the optional plugins are for.
 
 ## Tasks
 
-> **Note from T6.2b (2026-11-02):** the Workbench's Codex tab must pass `createCardTileField` to `renderCodexTab`. `CodexTabOptions.tileField` is optional and defaults to the shipped names, so TypeScript won't catch an omission, and the Card would disagree with the panel.
+> **Note from T6.2b (2026-11-02):** the Workbench's Codex tab must pass `createCardTileField` to `renderCodexTab`. `CodexTabOptions.tileField` is required, so TypeScript catches an omission.
 
 Closes the gap that started this whole spec: the distribution machinery served five static files.
 

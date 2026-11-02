@@ -144,7 +144,16 @@ describe("Hero Card on the Anvil's Codex", () => {
 // Standalone .base
 // ---------------------------------------------------------------------------
 
-function renderBase(app: App, notes: readonly Note[], folder: (() => string) | undefined = () => FOLDER): HTMLElement {
+type ValueOf = (n: Note, id: string) => { toString(): string } | null;
+
+const displayValue: ValueOf = (n, id) => ({ toString: () => String(n.fm[id] ?? "") });
+
+function renderBase(
+	app: App,
+	notes: readonly Note[],
+	folder: (() => string) | undefined = () => FOLDER,
+	valueOf: ValueOf = displayValue,
+): HTMLElement {
 	const container = document.createElement("div");
 	const view = new CardBasesView("story-forge-hero", new QueryController(), container, {
 		app: app as unknown as ObsidianApp,
@@ -156,7 +165,7 @@ function renderBase(app: App, notes: readonly Note[], folder: (() => string) | u
 	const entries = notes.map((n) => {
 		const e = new BasesEntry();
 		e.file = n.file;
-		e.getValue.mockImplementation((id: string) => ({ toString: () => String(n.fm[id] ?? "") }));
+		e.getValue.mockImplementation((id: string) => valueOf(n, id));
 		return e;
 	});
 	const result = new BasesQueryResult();
@@ -191,6 +200,21 @@ describe("Hero Card in a standalone .base", () => {
 		const n = note("30 Canon/31 Characters/Mara.md", { tags: ["canon/character"], portrait: "[[Media/a.png]]" });
 		const el = renderBase(vaultOf([n], {}), [n], undefined);
 		expect(el.querySelector(".sf-portrait img")?.getAttribute("src")).toBe(ASSET);
+	});
+
+	it("draws the monogram for a list-style display string, which names no single asset", () => {
+		const n = character("Mara", { avatar: "[[Media/a.png]]" });
+		const list: ValueOf = (_n, id) => ({ toString: () => (id === "avatar" ? "a.png, b.png" : "") });
+		const el = renderBase(vaultOf([n], MINE), [n], () => FOLDER, list);
+		expect(el.querySelector(".sf-portrait img")).toBeNull();
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
+	});
+
+	it("draws the monogram when the Media field's value is null", () => {
+		const n = character("Mara", { avatar: "[[Media/a.png]]" });
+		const el = renderBase(vaultOf([n], MINE), [n], () => FOLDER, () => null);
+		expect(el.querySelector(".sf-portrait img")).toBeNull();
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
 	});
 
 	it("scans the vault for FileClasses once per render, not once per card", () => {

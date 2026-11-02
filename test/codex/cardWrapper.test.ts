@@ -21,6 +21,7 @@ import { describe, it, expect, vi } from "vitest";
 import { App, TFile, QueryController, BasesEntry, BasesQueryResult } from "../__mocks__/obsidian";
 import { renderCodexTab, CodexSelectionStore, BUILT_IN_COLLECTIONS } from "codex/codexTab";
 import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
+import { nativeTileField } from "codex/cardTileField";
 import { createCardRegistry, type CardEntry, type CardRenderer } from "codex/cardRegistry";
 import { CardBasesView, type CardBasesViewDeps } from "bases/CardBasesView";
 
@@ -71,6 +72,7 @@ function renderThroughCodex(): HTMLElement {
 		selection: new CodexSelectionStore(),
 		index: [{ path: PATH, tags: ["canon/character"] }],
 		excludedFolders: [],
+		tileField: nativeTileField,
 		cardId,
 		frontmatterFor: (path: string): Record<string, unknown> | null =>
 			path === PATH ? FRONTMATTER : null,
