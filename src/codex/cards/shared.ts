@@ -35,6 +35,7 @@
  */
 
 import type { CardEntry } from "codex/cardRegistry";
+import { wikilinkTarget } from "panel/assetResolver";
 import { humanizeFieldLabel } from "panel/components";
 import { classifyEntityKind, type EntityKind } from "scoping/NoteContext";
 
@@ -163,6 +164,11 @@ export function fieldChip(entry: CardEntry, fieldId: string): HTMLElement {
  * mockup draws no visual distinction between the two, so this function
  * doesn't either (see `heroCard.ts`'s pill row, which mixes both).
  *
+ * A pill whose value is a wikilink carries `data-sf-link` (the TARGET, via
+ * `wikilinkTarget`). Native frontmatter keeps the stored `[[Target|alias]]`
+ * form in `items`; the Bases backend re-reads `Value.toString()`, so it is
+ * only a link there if that display form keeps its brackets.
+ *
  * An empty-but-present field (`[]`, or a blank string) renders as no pills at
  * all: nothing to list is the normal rendering of "blank" for a list field.
  */
@@ -179,6 +185,11 @@ export function entryPills(entry: CardEntry, fieldId: string): HTMLElement[] {
 		// crossing between the two unrelated controls again.
 		pill.className = "sf-cx-relpill";
 		pill.textContent = item;
+		// A link pill is a link (nearest marker beats the card body's). A plain
+		// value is NOT marked: a marker that resolves to nothing would swallow the
+		// click that should fall through to the card.
+		const target = wikilinkTarget(item);
+		if (target) pill.setAttribute("data-sf-link", target);
 		return pill;
 	});
 }

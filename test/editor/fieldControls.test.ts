@@ -763,7 +763,8 @@ describe("field controls — inside the live editor pane (T5.2)", () => {
 			);
 			expect(handle.el.querySelector("input, select, textarea")).toBeNull();
 
-			click(handle.el.querySelector(".sf-ed-chip-label"));
+			// The chip body, not its name: a link chip's NAME is a link and navigates.
+			click(handle.el.querySelector(".sf-ed-chip"));
 
 			// Focus lands on the CELL — which only works because the cell is
 			// focusable. Not on the chip's × : that would put a destructive action

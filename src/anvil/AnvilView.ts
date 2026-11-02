@@ -67,6 +67,7 @@ import { CollapseStore } from "workspace/collapseStore";
 import { ANVIL_TAB_LABEL, buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
 import { createNavigationController } from "navigation/navigationController";
 import { walkTargetMarkers, type MarkerKindOf } from "navigation/domTargetWalk";
+import { linkContextMenuHandler } from "navigation/linkContextMenu";
 import { ANVIL_MARKERS, createMarkerKindOf } from "navigation/markerVocabulary";
 import {
 	BUILT_IN_COLLECTIONS,
@@ -415,6 +416,13 @@ export class AnvilView extends ItemView {
 		this.registerDomEvent(ce, "click", (e: MouseEvent) => {
 			this._onClick(e.target, e.metaKey || e.ctrlKey);
 		});
+		// Right-click on any link (card name, relation pill, editor chip): Obsidian's
+		// own file menu. Delegated on the persistent contentEl, released on unload.
+		this.registerDomEvent(
+			ce,
+			"contextmenu",
+			linkContextMenuHandler(this.app, ce, (link) => this._resolveLinkFile(link), this.leaf),
+		);
 		// Keyboard parity: Enter/Space on a focused card or section header.
 		// (The InteractionHandler owns Arrow-key moves on bound cards; here we only
 		// route the drill/collapse affordances, mirroring _onClick.)

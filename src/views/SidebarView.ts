@@ -47,6 +47,7 @@ import type { ViewStore } from "store/ViewStore";
 import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFields } from "../inspector/inspectorFields";
 import { createNavigationController } from "../navigation/navigationController";
+import { linkContextMenuHandler } from "navigation/linkContextMenu";
 import { walkTargetMarkers, type MarkerKindOf } from "../navigation/domTargetWalk";
 import { createMarkerKindOf, SIDEBAR_MARKERS } from "../navigation/markerVocabulary";
 import { CODEX_CARD_BODY_ATTR } from "../codex/codexTab";
@@ -689,6 +690,12 @@ export class SidebarView extends ItemView {
 		this.registerDomEvent(body, "click", (e: MouseEvent) => {
 			this._onBodyActivate(e.target, e.metaKey || e.ctrlKey);
 		});
+		// Right-click on a link: Obsidian's own file menu, same as the Anvil.
+		this.registerDomEvent(
+			body,
+			"contextmenu",
+			linkContextMenuHandler(this.app, body, (link) => this._resolveLinkFile(link), this.leaf),
+		);
 		// Enter/Space activate the focused link / nav control (keyboard parity).
 		this.registerDomEvent(body, "keydown", (e: KeyboardEvent) => {
 			if (e.key !== "Enter" && e.key !== " ") return;

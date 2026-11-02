@@ -43,12 +43,13 @@
  */
 
 import type { App, BasesEntry, QueryController } from "obsidian";
-import { BasesView } from "obsidian";
+import { BasesView, TFile } from "obsidian";
 import { basesCardEntry, type CardEntry, type CardRegistry, type CardRenderer } from "codex/cardRegistry";
 import { buildCardWrapper, CARD_BODY_ATTR } from "codex/cardWrapper";
 import { createAssetResolver } from "panel/assetResolver";
 import { createNavigationController, type LinkClickAction } from "navigation/navigationController";
 import { walkTargetMarkers, type MarkerKindOf } from "navigation/domTargetWalk";
+import { linkContextMenuHandler } from "navigation/linkContextMenu";
 import { createMarkerKindOf, CARD_BASES_MARKERS } from "navigation/markerVocabulary";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
@@ -125,6 +126,37 @@ export class CardBasesView extends BasesView {
 		this.getLinkClickAction = deps.getLinkClickAction ?? ((): LinkClickAction => "drill");
 		// CON-4: mark disposed when Obsidian unloads this Component.
 		this.register(() => { this.disposed = true; });
+		// Right-click on a link (name or relation pill): Obsidian's own file menu.
+		// On the persistent container (the grid is rebuilt every repaint), so it is
+		// registered once and released with the view.
+		this.registerDomEvent(
+			containerEl,
+			"contextmenu",
+			linkContextMenuHandler(deps.app, containerEl, (link) => this._resolveLinkFile(link)),
+		);
+	}
+
+	/**
+	 * The file a `data-sf-link` element names. A card name stamps its note's
+	 * vault path; a relation pill stamps a LINK target (a basename), resolved
+	 * the way Obsidian does, relative to the card's own note.
+	 */
+	private _resolveLinkFile(link: HTMLElement): TFile | null {
+		const target = link.getAttribute("data-sf-link");
+		if (!target) return null;
+		const { vault, metadataCache } = this.deps.app;
+		const source = link.closest(`[${CARD_BODY_ATTR}]`)?.getAttribute(CARD_BODY_ATTR) ?? "";
+		const file = vault.getAbstractFileByPath(target) ?? metadataCache.getFirstLinkpathDest(target, source);
+		return file instanceof TFile ? file : null;
+	}
+
+	/** The vault path a click on `nearest` should open, or `null` when it names nothing. */
+	private _openPath(nearest: HTMLElement | null): string | null {
+		const link = nearest?.getAttribute("data-sf-link");
+		if (link === null || link === undefined) return nearest?.getAttribute(CARD_BODY_ATTR) ?? null;
+		const cardPath = nearest?.closest(`[${CARD_BODY_ATTR}]`)?.getAttribute(CARD_BODY_ATTR);
+		// A card's own name already carries its path; a pill carries a link target.
+		return link === cardPath ? link : (this._resolveLinkFile(nearest!)?.path ?? null);
 	}
 
 	/**
@@ -203,7 +235,7 @@ export class CardBasesView extends BasesView {
 		const outcome = controller.handle(markers, modifier);
 
 		if (outcome.action === "openNote") {
-			const path = nearest?.getAttribute("data-sf-link") ?? nearest?.getAttribute(CARD_BODY_ATTR);
+			const path = this._openPath(nearest);
 			if (path) this.deps.onEntryClick(path);
 		}
 	}

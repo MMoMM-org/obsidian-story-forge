@@ -474,6 +474,16 @@ export class Workspace {
 
 	getLeaf = vi.fn((_newLeaf?: boolean | string): WorkspaceLeaf => new WorkspaceLeaf());
 
+	/**
+	 * Events.trigger (obsidian.d.ts: `trigger(name: string, ...data: unknown[]): void`)
+	 * — Workspace extends Events. Spy-able, and it really dispatches to the
+	 * handlers registered with `on`, which is what lets a test observe a
+	 * `file-menu` subscriber being invoked.
+	 */
+	trigger = vi.fn((name: string, ...data: unknown[]): void => {
+		this._trigger(name, ...data);
+	});
+
 	/** Trigger a registered event (used in tests to simulate Obsidian events). */
 	_trigger(event: string, ...args: unknown[]): void {
 		const callbacks = this._eventRegistrations.get(event) ?? [];

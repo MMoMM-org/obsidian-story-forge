@@ -408,7 +408,7 @@ function chipControl(
 
 	const redraw = (): void => {
 		empty(row);
-		values.forEach((raw, i) => row.appendChild(chipEl(raw, i, () => {
+		values.forEach((raw, i) => row.appendChild(chipEl(raw, i, opts.link, () => {
 			values.splice(i, 1);
 			redraw();
 			// Focus has to be placed deliberately: the × the user just operated is
@@ -467,11 +467,18 @@ interface ChipOptions {
 	readonly project?: (values: readonly string[]) => FieldValue;
 }
 
-/** One chip: its label plus the remove affordance. */
-function chipEl(raw: string, index: number, onRemove: () => void): HTMLElement {
+/**
+ * One chip: its label plus the remove affordance. In a link field the NAME is a
+ * link (`data-sf-link`, nested inside the `editableField` cell so the nearest
+ * marker makes the name win — no ranking code); the × and the chip body stay
+ * field chrome. A value that is not a wikilink is not marked.
+ */
+function chipEl(raw: string, index: number, link: boolean, onRemove: () => void): HTMLElement {
 	const chip = el("span", "sf-ed-chip");
 	const label = el("span", "sf-ed-chip-label");
 	label.textContent = linkLabel(raw);
+	const target = link ? wikilinkTarget(raw) : null;
+	if (target) markChipLink(label, target);
 	chip.appendChild(label);
 
 	const remove = el("span", "sf-ed-chip-x");
@@ -483,6 +490,17 @@ function chipEl(raw: string, index: number, onRemove: () => void): HTMLElement {
 	activate(remove, onRemove);
 	chip.appendChild(remove);
 	return chip;
+}
+
+/**
+ * Mark a chip name as a link, as the sidebar's `stampLinkEl` does: a focusable
+ * `role="link"`. Unlike a card pill it is not inside a `role="button"`, so it
+ * is not nested-interactive; the × is a sibling, never a descendant.
+ */
+function markChipLink(label: HTMLElement, target: string): void {
+	label.setAttribute("data-sf-link", target);
+	label.setAttribute("role", "link");
+	label.setAttribute("tabindex", "0");
 }
 
 /**
