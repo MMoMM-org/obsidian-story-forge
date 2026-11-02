@@ -2,15 +2,14 @@
 // schema-check — verify the human property reference stays in sync with the
 // machine schema (metadata-menu FileClasses + entity/scene templates).
 //
-// The machine schema is the source of truth:
-//   - `character`          → FileClass fc-character (cross-checked vs its template)
-//   - `character-fantasy`  → FileClass fc-character-fantasy (extension fields)
-//   - location/object/lore/scene → the template frontmatter (no FileClass yet)
+// The machine schema is the source of truth. Every schema/<type>.json is a type:
+//   - with a template → the template frontmatter (cross-checked vs its FileClass)
+//   - `hasTemplate: false` → the FileClass fields
 //
 // The human reference (00 Meta/Schema/<type>.md) must document EXACTLY those
 // properties, one `### \`prop\`` subsection each. Drift → non-zero exit.
 //
-// Usage: node scripts/schema-check.mjs [--vault <path>]   (default test/StoryForge)
+// Usage: node scripts/schema-check.mjs [--vault <path>] [--schema <dir>]   (defaults test/StoryForge, schema)
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -27,18 +26,24 @@ const TEMPLATES = join(META, 'Templates');
 const FILECLASSES = join(META, 'FileClasses');
 const SCHEMA = join(META, 'Schema');
 
-// type → sources. `template` = author-facing frontmatter; `fileclass` = enforced
-// metadata-menu schema; `doc` = the human reference note.
-const TYPES = [
-  { type: 'character', template: 'entity-character.md', fileclass: 'fc-character.md', doc: 'character.md' },
-  { type: 'character-fantasy', fileclass: 'fc-character-fantasy.md', doc: 'character-fantasy.md' },
-  { type: 'location', template: 'entity-location.md', fileclass: 'fc-location.md', doc: 'location.md' },
-  { type: 'object', template: 'entity-object.md', fileclass: 'fc-object.md', doc: 'object.md' },
-  { type: 'lore', template: 'entity-lore.md', fileclass: 'fc-lore.md', doc: 'lore.md' },
-  { type: 'scene', template: 'scene.md', fileclass: 'fc-scene.md', doc: 'scene.md' },
-  { type: 'plotline', template: 'entity-plotline.md', fileclass: 'fc-plotline.md', doc: 'plotline.md' },
-  { type: 'book', template: 'entity-book.md', fileclass: 'fc-book.md', doc: 'book.md' },
-];
+// Canonical schemas, read off disk: adding schema/<type>.json adds a type to the gate.
+const schemaIdx = args.indexOf('--schema');
+const SCHEMA_DIR = schemaIdx !== -1 ? args[schemaIdx + 1] : 'schema';
+const schemas = readdirSync(SCHEMA_DIR)
+  .filter((f) => f.endsWith('.json'))
+  .map((f) => JSON.parse(readFileSync(join(SCHEMA_DIR, f), 'utf8')))
+  .sort((a, b) => a.entity.localeCompare(b.entity));
+
+// type → sources. `template` = author-facing frontmatter (absent when the schema
+// says `hasTemplate: false`); `fileclass` = enforced metadata-menu schema;
+// `doc` = the human reference note. Names follow schema-gen's conventions.
+const templateName = (s) => s.template ?? (s.entity === 'scene' ? 'scene.md' : `entity-${s.entity}.md`);
+const TYPES = schemas.map((s) => ({
+  type: s.entity,
+  ...(s.hasTemplate === false ? {} : { template: templateName(s) }),
+  fileclass: `fc-${s.entity}.md`,
+  doc: `${s.entity}.md`,
+}));
 
 // `tags` classifies the note and is not a metadata-menu field; allow it to be
 // present in a template but absent from the FileClass without flagging drift.
@@ -125,10 +130,10 @@ for (const t of TYPES) {
   // Q6a — the vault's machine-readable schema (00 Meta/Schema/<type>.json) must
   // match the canonical schema/<type>.json (deep-equal). It is the runtime enum
   // source-of-truth the QuickAdd status scripts read; drift → run schema:gen.
-  const canon = read(join('schema', `${t.type}.json`));
+  const canon = read(join(SCHEMA_DIR, `${t.type}.json`));
   const vaultJson = read(join(SCHEMA, `${t.type}.json`));
   if (canon === null) {
-    log.push(`✗ ${t.type}: missing canonical schema/${t.type}.json`);
+    log.push(`✗ ${t.type}: missing canonical ${SCHEMA_DIR}/${t.type}.json`);
     errors++;
   } else if (vaultJson === null) {
     log.push(`✗ ${t.type}: missing machine schema 00 Meta/Schema/${t.type}.json (run schema:gen)`);
@@ -142,7 +147,7 @@ for (const t of TYPES) {
       errors++;
     }
     if (drift) {
-      log.push(`✗ ${t.type}: 00 Meta/Schema/${t.type}.json drifted from schema/${t.type}.json (run schema:gen)`);
+      log.push(`✗ ${t.type}: 00 Meta/Schema/${t.type}.json drifted from ${SCHEMA_DIR}/${t.type}.json (run schema:gen)`);
       errors++;
     }
   }
@@ -167,11 +172,6 @@ for (const t of TYPES) {
     }
   }
 }
-
-// Canonical schemas (read once) for the infra + types.json gates.
-const schemas = readdirSync('schema')
-  .filter((f) => f.endsWith('.json'))
-  .map((f) => JSON.parse(readFileSync(join('schema', f), 'utf8')));
 
 // ── Action 3 — vault infra deploy + schema-coupling gate. 00 Meta/ is tracked,
 // so this runs ALWAYS: the deployed infra must equal the enum-injected source,

@@ -11,7 +11,7 @@
 // Field `type` in the JSON is the only abstraction; it maps to metadata-menu type,
 // template default, and the doc note. `id:` is generated deterministically (internal).
 //
-// Usage: node scripts/schema-gen.mjs [--vault <path>] [--no-ui-hints]   (default test/StoryForge)
+// Usage: node scripts/schema-gen.mjs [--vault <path>] [--no-ui-hints] [--schema <dir>]   (default test/StoryForge)
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -27,7 +27,8 @@ const VAULT = vIdx !== -1 ? args[vIdx + 1] : 'test/StoryForge';
 const NO_UI_HINTS = args.includes('--no-ui-hints'); // skip the tracked src/ module (tests)
 const FORCE = args.includes('--force'); // also overwrite conflicting types.json keys
 
-const SCHEMA_DIR = join(ROOT, 'schema');
+const sIdx = args.indexOf('--schema');
+const SCHEMA_DIR = sIdx !== -1 ? resolve(args[sIdx + 1]) : join(ROOT, 'schema');
 const META = join(resolve(ROOT, VAULT), '00 Meta');
 const OUT = {
   templates: join(META, 'Templates'),
