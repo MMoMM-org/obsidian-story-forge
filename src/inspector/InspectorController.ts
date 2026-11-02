@@ -116,6 +116,15 @@ function readInputValue(el: HTMLElement, _fieldType: FieldSpec["type"]): unknown
 	return null;
 }
 
+/**
+ * A boolean field whose file holds something else (a string "true"). A checkbox
+ * can only say checked or unchecked, so it would show "false" over a file that
+ * says "true"; the field is shown as the text it holds, read-only, instead.
+ */
+function isMisTypedBoolean(spec: FieldSpec, committed: unknown): boolean {
+	return spec.type === "boolean" && committed !== null && committed !== undefined && typeof committed !== "boolean";
+}
+
 /** Return true if the given value is out of the declared select vocabulary. */
 function isOutOfVocab(spec: FieldSpec, value: unknown): boolean {
 	const vocab = selectVocab(spec);
@@ -284,7 +293,7 @@ export class InspectorController {
 			labelEl.setAttribute("data-sf-inspector-field-label", spec.name);
 			fieldRow.appendChild(labelEl);
 
-			if (isScalarEditable(spec)) {
+			if (isScalarEditable(spec) && !isMisTypedBoolean(spec, state.committedValue)) {
 				this._renderEditableField(fieldRow, spec, state);
 			} else {
 				this._renderReadOnlyField(fieldRow, spec, state);
@@ -566,7 +575,11 @@ export class InspectorController {
 			const committedNullish = state.committedValue === null || state.committedValue === undefined;
 			const draftNullish = newValue === null || newValue === "";
 
-			if (committedNullish && draftNullish) {
+			// A checkbox over an absent value has no "empty": unchecked is how it
+			// reads the absence, so checking then unchecking is back where it began.
+			const uncheckedAbsent = committedNullish && newValue === false; // only a checkbox reads as false
+
+			if ((committedNullish && draftNullish) || uncheckedAbsent) {
 				state.status = { kind: "clean" };
 			} else if (toComparableString(newValue) === toComparableString(state.committedValue)) {
 				state.status = { kind: "clean" };

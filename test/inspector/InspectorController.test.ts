@@ -1305,3 +1305,69 @@ describe("InspectorController: T5.3 unified detail — read-only relation/list f
 		expect(commitBtn).not.toBeNull();
 	});
 });
+
+// ---------------------------------------------------------------------------
+// A boolean over an absent value (T6.3)
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: a boolean field", () => {
+	function renderBoolean(frontmatter: Record<string, unknown>): HTMLElement {
+		const file = makeFile();
+		const { container } = buildController(makeApp(), file, makeCtx(file, "character", frontmatter), [
+			{ name: "alive", type: "boolean" },
+		]);
+		return container;
+	}
+
+	function toggle(container: HTMLElement): void {
+		const box = container.querySelector<HTMLInputElement>("input[type='checkbox']");
+		if (!box) throw new Error("no checkbox");
+		box.checked = !box.checked;
+		box.dispatchEvent(new Event("input", { bubbles: true }));
+	}
+
+	const saveButton = (container: HTMLElement): Element | null => container.querySelector("[data-sf-inspector-commit]");
+
+	it.each([["absent", {}], ["null", { alive: null }]])(
+		"checking then unchecking over a(n) %s value is clean, and offers nothing to save",
+		(_label, frontmatter) => {
+			const container = renderBoolean(frontmatter);
+
+			toggle(container);
+			expect(saveButton(container)).not.toBeNull();
+
+			toggle(container);
+			expect(saveButton(container)).toBeNull();
+		},
+	);
+
+	it("writes nothing for that round trip", () => {
+		const commitSpy = vi.spyOn(frontmatterWriter, "commit").mockResolvedValue({ ok: true });
+		const container = renderBoolean({});
+		toggle(container);
+		toggle(container);
+
+		expect(saveButton(container)).toBeNull();
+		expect(commitSpy).not.toHaveBeenCalled();
+		commitSpy.mockRestore();
+	});
+
+	it("still marks unchecking a stored true as an edit", () => {
+		const container = renderBoolean({ alive: true });
+		toggle(container);
+		expect(saveButton(container)).not.toBeNull();
+	});
+
+	it("still marks checking a stored false as an edit", () => {
+		const container = renderBoolean({ alive: false });
+		toggle(container);
+		expect(saveButton(container)).not.toBeNull();
+	});
+
+	it("shows a string \"true\" as what the file holds, with no checkbox to misreport it", () => {
+		const container = renderBoolean({ alive: "true" });
+
+		expect(container.querySelector("input[type='checkbox']")).toBeNull();
+		expect(container.querySelector(".sf-inspector-readonly-value")?.textContent).toBe("true");
+	});
+});
