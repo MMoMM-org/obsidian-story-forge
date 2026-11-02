@@ -145,7 +145,7 @@ graph LR
 - [x] [Phase 2: Anvil shell and navigation](phase-2.md)
 - [x] [Phase 3: Store, settings and the artifact model](phase-3.md)
 - [x] [Phase 4: The Codex grid and Cards](phase-4.md)
-- [ ] [Phase 5: The editor pane](phase-5.md)
+- [x] [Phase 5: The editor pane](phase-5.md)
 - [ ] [Phase 6: Deriving away the hardcoded field lists](phase-6.md)
 - [ ] [Phase 7: The Library, import and capability disclosure](phase-7.md)
 - [ ] [Phase 8: Integration, degradation and gates](phase-8.md)

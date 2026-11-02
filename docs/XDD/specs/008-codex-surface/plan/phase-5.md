@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: The editor pane"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 5
 ---
@@ -270,7 +270,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   5. Success:
      - [x] The control is selected by the field's declared **type**, not by field name `[ref: ADR-32]`
 
-- [ ] **T5.6 Phase Validation** `[activity: validate]`
+- [x] **T5.6 Phase Validation** `[activity: validate]`
 
   - Run all Phase 5 tests. Manual walk: select a character, edit `status` in each of the three docks,
     confirm the file changed in the core Properties UI, ~~and **confirm Cmd+Z in the note reverts it**
@@ -318,19 +318,21 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   >
   > **Added 2026-11-02 with the fixes `0723226`, `0a040f1`, `9578554` and `06b408c`.** Unit tests cover
   > these, but the mock cannot prove them. Confirm in a real vault:
-  > - [ ] Renaming a folder above the shown note keeps the pane open on that note.
+  > - [x] Renaming a folder above the shown note keeps the pane open on that note.
   > - [x] After an external edit to a clean focused field, the value updates and the caret stays in
   >       that field.
-  > - [ ] Tab out of a dirty box commits it, and nothing typed is lost.
-  > - [ ] In pane fields, a space can be typed and Enter settles the box.
-  > - [ ] Enter and Space work on the Media buttons and on the Workbench buttons.
-  > - [ ] Native date sanitisation: a non-ISO value in a `Date`, `Datetime` or `Time` field shows in a
+  > - [x] Tab out of a dirty box commits it, and nothing typed is lost.
+  > - [x] In pane fields, a space can be typed and Enter settles the box.
+  > - [x] Enter and Space work on the Media buttons and on the Workbench buttons.
+  > - [x] Native date sanitisation: a non-ISO value in a `Date`, `Datetime` or `Time` field shows in a
   >       text box instead of an empty control.
   >
   > **Added by the drift fixes' review (2026-11-02):**
   > - [x] With a reconcile owed (an external edit while a field is focused), press and hold a header
   >       tool for a second, and click a card: the first click acts.
-  > - [ ] Rename the open note, and a parent folder, while typing in a pane field: the text survives
+  > - [x] Rename the open note, and a parent folder, with the cursor in a pane field (live 2026-11-02; the
+  >       folder case needed `7446d0a`). Keeping a live draft can't be reached by hand, since the rename
+  >       takes focus and commits first: test/anvil/AnvilView.rename.test.ts covers it. Original wording: the text survives
   >       and the next commit lands in the renamed note.
   > - [x] Window blur (Alt-Tab) with uncommitted text in a pane field keeps or commits the text.
   >
