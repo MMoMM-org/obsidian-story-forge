@@ -153,7 +153,7 @@ export function renderFieldControl(
 	cell.setAttribute("tabindex", "-1");
 	host.appendChild(cell);
 
-	const read = buildControl(cell, field, value, deps);
+	const read = field.readOnly ? readOnlyControl(cell, field, value) : buildControl(cell, field, value, deps);
 	return { el: cell, value: read };
 }
 
@@ -190,6 +190,33 @@ function buildControl(
 		// invents land here. Falling back beats failing (PRD/F6 AC).
 		default:
 			return textControl(cell, field, value, deps);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Read-only control — a value no control can represent
+// ---------------------------------------------------------------------------
+
+/**
+ * Shows a value the pane cannot edit without rewriting it (a nested map, a list
+ * of numbers) as its JSON text in a read-only box. It reports nothing, ever, so
+ * there is no path from here to the file; `value()` is never read by the commit
+ * path and answers `null`.
+ */
+function readOnlyControl(cell: HTMLElement, field: FieldDef, value: unknown): () => FieldValue {
+	const input = inputEl(cell, field, "text");
+	input.readOnly = true;
+	input.setAttribute("aria-readonly", "true");
+	input.value = displayText(value);
+	return () => null;
+}
+
+function displayText(value: unknown): string {
+	if (typeof value === "string") return value;
+	try {
+		return JSON.stringify(value) ?? "";
+	} catch {
+		return "";
 	}
 }
 

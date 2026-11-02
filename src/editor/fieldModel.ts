@@ -12,7 +12,8 @@
  *     trailing "Other properties" section for any undeclared frontmatter key.
  *  2. no chain at all   -> a single section built from the note's own
  *     frontmatter keys, typed by inspecting their values.
- *  3. (folded into 1)   -> the "Other properties" section itself.
+ *  3. (folded into 1)   -> the "Other properties" section itself, typed by
+ *     inspecting values exactly as tier 2 does (`untypedFieldDef`).
  *
  * @ref SDD/Complex Logic  — buildFieldModel algorithm + traced walkthrough
  * @ref SDD/Application Data Models — FieldModel / FieldSection / FieldDef
@@ -31,6 +32,14 @@ export interface FieldDef {
 	values?: string[];
 	width: "half" | "full";
 	ui?: "wide";
+	/**
+	 * The stored value is one no control can represent (a nested map, a list
+	 * that is not all strings, a native date object). The pane shows it but
+	 * offers no way to edit it, so editing can never rewrite it into something
+	 * else. Only ever set by value inference — a declared field is the
+	 * FileClass's business.
+	 */
+	readOnly?: true;
 }
 
 /**
@@ -183,19 +192,36 @@ function toFieldDef(field: FileClassField, uiHints: UiHints): FieldDef {
 
 function buildTier2Section(frontmatter: Record<string, unknown> | undefined): FieldSection {
 	const declared = Object.entries(frontmatter ?? {}).filter(([name]) => !CLASSIFICATION_KEYS.has(name));
-	const fields = declared.map(([name, value]) => {
-		const type = inferTypeFromValue(value);
-		return { name, type, width: widthOf({ type }) };
-	});
+	const fields = declared.map(([name, value]) => untypedFieldDef(name, value));
 	return { label: TIER2_LABEL, source: NO_FILECLASS_SOURCE, origin: "other", fields };
 }
 
-function inferTypeFromValue(value: unknown): FieldType {
-	if (typeof value === "string") return "Input";
-	if (typeof value === "number") return "Number";
-	if (typeof value === "boolean") return "Boolean";
-	if (Array.isArray(value)) return "Multi";
-	return "Unknown";
+/**
+ * A field for a key no FileClass declares (tiers 2 and 3), typed by its value
+ * so that editing keeps the YAML type: a string stays a string, a number a
+ * number, a boolean a boolean, a list of strings a list.
+ *
+ * Two kinds of `Unknown` result, and the difference matters:
+ *  - `null` (an empty `key:`) holds nothing to lose, so it stays an editable
+ *    text box — typing into it creates the value.
+ *  - anything no control can round-trip (a nested map, a list holding a
+ *    non-string, a native date object) is `readOnly`: shown, never writable,
+ *    because the only control that could take it would rewrite it.
+ */
+function untypedFieldDef(name: string, value: unknown): FieldDef {
+	const inferred = inferFromValue(value);
+	const def: FieldDef = { name, type: inferred.type, width: widthOf({ type: inferred.type }) };
+	if (inferred.readOnly) def.readOnly = true;
+	return def;
+}
+
+function inferFromValue(value: unknown): { type: FieldType; readOnly?: true } {
+	if (value === null || value === undefined) return { type: "Unknown" };
+	if (typeof value === "string") return { type: "Input" };
+	if (typeof value === "number") return { type: "Number" };
+	if (typeof value === "boolean") return { type: "Boolean" };
+	if (Array.isArray(value) && value.every((v) => typeof v === "string")) return { type: "Multi" };
+	return { type: "Unknown", readOnly: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -203,10 +229,10 @@ function inferTypeFromValue(value: unknown): FieldType {
 // ---------------------------------------------------------------------------
 
 /**
- * Undeclared frontmatter keys, always rendered as plain text (R2: an
- * unrecognised type never fails, it falls back to text) rather than typed by
- * value the way tier 2 is — a key present on the note but declared by no
- * FileClass is, by definition, of a type this model cannot know.
+ * Undeclared frontmatter keys, typed by their value the way tier 2 is. They
+ * used to be always `Unknown` (text), which silently changed the YAML type on
+ * edit — `age: 34` became `"35"`, a list became one string. A value no control
+ * can round-trip is marked read-only instead (see `untypedFieldDef`).
  *
  * If a FileClass in the chain were literally named "Other properties", its
  * section would share this one's label with no data merge between them —
@@ -222,6 +248,6 @@ function buildOtherPropertiesSection(
 	);
 	if (extraNames.length === 0) return undefined;
 
-	const fields = extraNames.map((name) => ({ name, type: "Unknown" as const, width: widthOf({ type: "Unknown" }) }));
+	const fields = extraNames.map((name) => untypedFieldDef(name, frontmatter?.[name]));
 	return { label: OTHER_PROPERTIES_LABEL, source: NO_FILECLASS_SOURCE, origin: "other", fields };
 }

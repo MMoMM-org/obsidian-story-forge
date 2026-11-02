@@ -189,6 +189,9 @@ export class FieldCommitter {
 		// A name no section declares cannot be rolled back to anything, so it is
 		// not written either — the pane only ever renders fields from the model.
 		if (field === undefined) return;
+		// A read-only field reports nothing, but a stray edit must still never
+		// reach the file: the value it holds cannot survive a rewrite.
+		if (field.readOnly) return;
 
 		this._clearError(edit.name);
 		this._opts.onWriteIssued?.(edit.name, edit.value);

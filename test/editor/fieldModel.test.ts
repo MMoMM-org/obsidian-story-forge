@@ -178,8 +178,18 @@ describe("buildFieldModel — tier 2: no FileClass applies", () => {
 
 		expect(model.sections[0]?.fields).toEqual([
 			{ name: "empty", type: "Unknown", width: "full" },
-			{ name: "born", type: "Unknown", width: "full" },
-			{ name: "meta", type: "Unknown", width: "full" },
+			{ name: "born", type: "Unknown", width: "full", readOnly: true },
+			{ name: "meta", type: "Unknown", width: "full", readOnly: true },
+		]);
+	});
+
+	it("marks a list that is not all strings read-only, so editing cannot stringify it", () => {
+		const model = buildFieldModel([], { scores: [1, 2], mixed: ["a", 2], none: [] }, {});
+
+		expect(model.sections[0]?.fields).toEqual([
+			{ name: "scores", type: "Unknown", width: "full", readOnly: true },
+			{ name: "mixed", type: "Unknown", width: "full", readOnly: true },
+			{ name: "none", type: "Multi", width: "full" },
 		]);
 	});
 });
@@ -194,7 +204,36 @@ describe("buildFieldModel — tier 3: a key no FileClass declares", () => {
 
 		const last = model.sections.at(-1);
 		expect(last?.label).toBe("Other properties");
-		expect(last?.fields).toEqual([{ name: "scratch", type: "Unknown", width: "full" }]);
+		expect(last?.fields).toEqual([{ name: "scratch", type: "Input", width: "half" }]);
+	});
+
+	it("types an undeclared key by its value, as tier 2 does, so editing keeps its YAML type", () => {
+		const model = buildFieldModel(
+			[makeCharacterClass()],
+			{ name: "Mara", age: 34, awakened: true, nicknames: ["Em", "Ash"], note: "x" },
+			{},
+		);
+
+		expect(model.sections.at(-1)?.fields).toEqual([
+			{ name: "age", type: "Number", width: "half" },
+			{ name: "awakened", type: "Boolean", width: "half" },
+			{ name: "nicknames", type: "Multi", width: "full" },
+			{ name: "note", type: "Input", width: "half" },
+		]);
+	});
+
+	it("marks a value no control can represent read-only, and leaves an empty key editable", () => {
+		const model = buildFieldModel(
+			[makeCharacterClass()],
+			{ name: "Mara", meta: { nested: true }, scores: [1, 2], empty: null },
+			{},
+		);
+
+		expect(model.sections.at(-1)?.fields).toEqual([
+			{ name: "meta", type: "Unknown", width: "full", readOnly: true },
+			{ name: "scores", type: "Unknown", width: "full", readOnly: true },
+			{ name: "empty", type: "Unknown", width: "full" },
+		]);
 	});
 
 	it("is omitted entirely when every frontmatter key is declared by the chain", () => {

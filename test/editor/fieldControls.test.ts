@@ -367,6 +367,26 @@ describe("field controls — a scalar box reports when it settles, not per keyst
 // Fallback (PRD/F6 AC — "falls back to plain text rather than failing")
 // ---------------------------------------------------------------------------
 
+describe("field controls — a value no control can represent (read-only)", () => {
+	it("shows the value as text in a read-only box that reports nothing, even when poked", () => {
+		const c = render(fieldDef({ name: "meta", type: "Unknown", readOnly: true }), { nested: true, n: [1, 2] });
+		const box = inputIn(c.el);
+
+		expect(box.readOnly).toBe(true);
+		expect(box.value).toBe('{"nested":true,"n":[1,2]}');
+
+		box.value = "overwritten";
+		box.dispatchEvent(new Event("input", { bubbles: true }));
+		box.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(c.edits).toEqual([]);
+	});
+
+	it("shows a list of numbers whole, not as an empty box", () => {
+		const c = render(fieldDef({ name: "scores", type: "Unknown", readOnly: true }), [1, 2]);
+		expect(inputIn(c.el).value).toBe("[1,2]");
+	});
+});
+
 describe("field controls — unsupported types (T5.2)", () => {
 	it("falls back to a plain text control for an unknown type, preserving the value", () => {
 		const c = render(fieldDef({ name: "mystery", type: "Unknown" }), "kept");
