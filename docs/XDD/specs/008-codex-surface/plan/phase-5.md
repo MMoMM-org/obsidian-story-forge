@@ -285,6 +285,14 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > - [ ] An image in a subfolder previews, and a broken link shows the monogram.
   > - [ ] The cell matches S102 by eye, and clicking its buttons is not intercepted by the click router.
   >
+  > **Added by T6.1 (run early), now on real `Media` fields:**
+  > - [ ] Renaming an image updates its `[[...]]` value in the note (F6's rename criterion).
+  > - [ ] Mara Stoneway, Moonharbor Lighthouse and The Beacon Lens show their image in the editor, the
+  >       sidebar panel and the Codex, including a Card in a standalone `.base`. Mock only so far:
+  >       Bases' `Value.toString()` may not return the raw `[[...]]` string.
+  > - [ ] Meta Bind `VIEW[{portrait}][image]` renders a wikilink value (the seed note using it holds a
+  >       URL, so this needs a test value).
+  >
   > **Real-vault verification checklist — these CANNOT be unit tests** (routed here 2026-08-05 on the
   > TDD gate's ruling for T5.3). jsdom computes no CSS, so a jsdom assertion for any of these would
   > **pass silently while the real vault is broken** — which is worse than no test. Verify each by

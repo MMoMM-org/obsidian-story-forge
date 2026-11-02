@@ -36,7 +36,12 @@ model".
 Removes the duplicated knowledge. Nothing here adds a feature; it removes the reason the plugin
 could only ever know four kinds of thing.
 
-- [ ] **T6.1 Schema change: media type + the `wide` hint** `[activity: data-architecture]`
+- [x] **T6.1 Schema change: media type + the `wide` hint** `[activity: data-architecture]`
+
+  > **Media half done 2026-11-02, ahead of Phase 5's close, at the user's request** so T5.6 can check
+  > real `Media` fields. The `ui: "wide"` work, including the round-trip test below, is T6.1b's.
+  > Every consumer resolves wikilinks through `createAssetResolver`. `inspectorFields.ts` keeps the
+  > fields as `text`, with one named exemption in its drift test, until ADR-0002 deletes that file.
 
   > **Read `docs/schema-change-runbook.md` first** — `CLAUDE.md` requires it before any schema
   > change, and this task changes a field's **type and stored value shape**, not just a hint.
@@ -54,8 +59,9 @@ could only ever know four kinds of thing.
   4. Validate: `npm run schema:gen && npm run schema:check` green; unit tests; lint; types.
   5. Success:
      - [ ] Image fields are wikilinks that survive a rename `[ref: PRD/F6 AC]`
-     - [ ] `ui: image` never exists — the control comes from the type `[ref: SDD/ADR-32]`
-     - [ ] No story **fact** was added `[ref: SDD/CON-5]`
+       — stored as wikilinks; **the rename itself is confirmed live in T5.6**
+     - [x] `ui: image` never exists — the control comes from the type `[ref: SDD/ADR-32]`
+     - [x] No story **fact** was added `[ref: SDD/CON-5]`
 
 - [ ] **T6.1b The `wide` hint — declaration *and* its loader** `[activity: data-architecture]` `[parallel: true]`
 
