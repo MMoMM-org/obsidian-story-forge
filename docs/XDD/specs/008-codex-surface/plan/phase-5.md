@@ -327,6 +327,13 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > - [ ] Native date sanitisation: a non-ISO value in a `Date`, `Datetime` or `Time` field shows in a
   >       text box instead of an empty control.
   >
+  > **Added by the drift fixes' review (2026-11-02):**
+  > - [ ] With a reconcile owed (an external edit while a field is focused), press and hold a header
+  >       tool for a second, and click a card: the first click acts.
+  > - [ ] Rename the open note, and a parent folder, while typing in a pane field: the text survives
+  >       and the next commit lands in the renamed note.
+  > - [ ] Window blur (Alt-Tab) with uncommitted text in a pane field keeps or commits the text.
+  >
   > **Real-vault verification checklist — these CANNOT be unit tests** (routed here 2026-08-05 on the
   > TDD gate's ruling for T5.3). jsdom computes no CSS, so a jsdom assertion for any of these would
   > **pass silently while the real vault is broken** — which is worse than no test. Verify each by
