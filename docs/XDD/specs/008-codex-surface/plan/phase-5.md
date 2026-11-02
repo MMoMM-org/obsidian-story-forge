@@ -272,6 +272,10 @@ The editor the withdrawn "note panel" surface was actually reaching for.
     (the file-level guarantee that stands in for the missing journal). `npm test`, `npm run lint`,
     `npm run typecheck` green.
 
+  > **Live walk reported by the user 2026-11-02: "everything works".** A summary confirmation, not an
+  > item-by-item record. It followed the fix in `29fae14`. The rename was seen directly in the file.
+  > Meta Bind stays open: no test value was left in the vault to show it was tried.
+  >
   > **Carried over from T4.7 (audit 2026-11-02), which recorded no result.** Run the full manual walk
   > in `phase-4.md` T4.7 here and record it, including: Card choice per collection survives a reload;
   > the grid works with Bases disabled; the Bases hint and its dismissal; **Cards selectable in a
@@ -279,15 +283,15 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   >
   > **Added by T5.5.** The mock cannot prove these. Confirm in a real vault, on a test note with a
   > `Media` field (the shipped schema only gets one with T6.1):
-  > - [ ] *Choose image…* stores the choice: the real modal's close-then-choose order must not read
+  > - [x] *Choose image…* stores the choice: the real modal's close-then-choose order must not read
   >       as a dismissal.
-  > - [ ] The stored `[[name.png]]` shows as a link in the core Properties UI.
-  > - [ ] An image in a subfolder previews, and a broken link shows the monogram.
-  > - [ ] The cell matches S102 by eye, and clicking its buttons is not intercepted by the click router.
+  > - [x] The stored `[[name.png]]` shows as a link in the core Properties UI.
+  > - [x] An image in a subfolder previews, and a broken link shows the monogram.
+  > - [x] The cell matches S102 by eye, and clicking its buttons is not intercepted by the click router.
   >
   > **Added by T6.1 (run early), now on real `Media` fields:**
-  > - [ ] Renaming an image updates its `[[...]]` value in the note (F6's rename criterion).
-  > - [ ] Mara Stoneway, Moonharbor Lighthouse and The Beacon Lens show their image in the editor, the
+  > - [x] Renaming an image updates its `[[...]]` value in the note (F6's rename criterion).
+  > - [x] Mara Stoneway, Moonharbor Lighthouse and The Beacon Lens show their image in the editor, the
   >       sidebar panel and the Codex, including a Card in a standalone `.base`. Mock only so far:
   >       Bases' `Value.toString()` may not return the raw `[[...]]` string.
   > - [ ] Meta Bind `VIEW[{portrait}][image]` renders a wikilink value (the seed note using it holds a
@@ -298,15 +302,15 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > **pass silently while the real vault is broken** — which is worse than no test. Verify each by
   > eye in a real vault and record the result:
   >
-  > - [ ] **Fullscreen actually fills the tab body.** `.sf-ed--fullscreen { flex: 1 }` was inert
+  > - [x] **Fullscreen actually fills the tab body.** `.sf-ed--fullscreen { flex: 1 }` was inert
   >       because `.sf-ws-body` is a block box; the fix makes `.sf-ws` a flex column with
   >       `.sf-ws-body { flex: 1; min-height: 0 }`. That is a box-model change across **all five
   >       layouts** — so also confirm Timeline, Plotgrid, Plotlines and Board still lay out correctly.
-  > - [ ] **The dock-right columns scroll independently.** `.sf-ws-split-left` and
+  > - [x] **The dock-right columns scroll independently.** `.sf-ws-split-left` and
   >       `.sf-cx-split-left` carry `overflow: auto` with no height constraint, so today a column
   >       grows to content height and the two columns are as tall as the taller one. With a long
   >       field set in the pane this stops being theoretical.
-  > - [ ] **The dock-right EDITOR column scrolls in place — check the Codex flavour first.** Added
+  > - [x] **The dock-right EDITOR column scrolls in place — check the Codex flavour first.** Added
   >       2026-08-06. This is the one S99 actually draws, and it was the flavour missed twice:
   >       `.sf-cx-split-right` carries no `overflow` (unlike `.sf-ws-split-right`), so before the fix
   >       a full field set spilled out of the now-bounded split and dragged the **whole tab body's**
@@ -315,7 +319,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   >       flavours. Verify with a character that has enough fields to overflow: the collection pills
   >       and the card column must stay put while the field grid scrolls, and the pane's own header
   >       (dock / fullscreen / close) must not scroll away with the fields.
-  > - [ ] **The width rule renders two-up.** Unit tests can only assert the stamped
+  > - [x] **The width rule renders two-up.** Unit tests can only assert the stamped
   >       `sf-ed-f--half` / `sf-ed-f--full` modifier per named field; whether the grid actually
   >       places them two-up is a CSS outcome. Compare against **S102/S103** by eye.
   >

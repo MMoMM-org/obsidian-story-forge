@@ -58,8 +58,7 @@ could only ever know four kinds of thing.
      type map; the seed-note values.
   4. Validate: `npm run schema:gen && npm run schema:check` green; unit tests; lint; types.
   5. Success:
-     - [ ] Image fields are wikilinks that survive a rename `[ref: PRD/F6 AC]`
-       — stored as wikilinks; **the rename itself is confirmed live in T5.6**
+     - [x] Image fields are wikilinks that survive a rename `[ref: PRD/F6 AC]`
      - [x] `ui: image` never exists — the control comes from the type `[ref: SDD/ADR-32]`
      - [x] No story **fact** was added `[ref: SDD/CON-5]`
 
