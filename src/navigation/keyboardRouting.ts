@@ -13,9 +13,10 @@
 
 const FORM_CONTROL_TAGS: ReadonlySet<string> = new Set(["INPUT", "SELECT", "TEXTAREA", "BUTTON"]);
 
-/** True when `target` is an element the browser gives Enter/Space meaning to. */
+/** True when `target` is an element the browser gives Enter/Space meaning to (including editable text). */
 export function isFormControl(target: EventTarget | null): boolean {
-	return target instanceof HTMLElement && FORM_CONTROL_TAGS.has(target.tagName);
+	if (!(target instanceof HTMLElement)) return false;
+	return FORM_CONTROL_TAGS.has(target.tagName) || target.isContentEditable === true;
 }
 
 /** True when this keydown is one the delegated router should activate. */
