@@ -102,10 +102,11 @@ describe("the hint never reaches a FileClass", () => {
 		execFileSync("node", ["scripts/schema-gen.mjs", "--vault", vault, "--no-ui-hints"], { cwd: ROOT, stdio: "pipe" });
 		const fresh = path.join(vault, "00 Meta/FileClasses");
 		const shipped = path.join(ROOT, "test/StoryForge/00 Meta/FileClasses");
-		const names = readdirSync(shipped).filter((f) => f.endsWith(".md"));
+		// The generator's output, not the vault's folder: a hand-written FileClass
+		// is legitimate there and the generator must leave it alone.
+		const names = readdirSync(fresh).filter((f) => f.endsWith(".md"));
 		expect(names.length).toBeGreaterThan(0);
 		for (const name of names) {
-			expect(existsSync(path.join(fresh, name))).toBe(true);
 			const text = readFileSync(path.join(fresh, name), "utf8");
 			expect(text).toBe(readFileSync(path.join(shipped, name), "utf8"));
 			expect(text).not.toMatch(/\bui:/);
