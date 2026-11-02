@@ -581,6 +581,43 @@ export class App {
 			remove: vi.fn(),
 		},
 		configDir: ".obsidian",
+		/** Live registrations (event → callbacks), like `metadataCache`'s. Cleared by off(). */
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		_eventRegistrations: new Map<string, Array<(...args: any[]) => any>>(),
+		/**
+		 * obsidian.d.ts Vault.on: `rename` hands over `(file: TAbstractFile, oldPath: string)`
+		 * — the file ALREADY carries its new path. Returns an EventRef for `registerEvent`.
+		 */
+		on: vi.fn(function(
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			this: { _eventRegistrations: Map<string, Array<(...args: any[]) => any>> },
+			event: string,
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			callback: (...args: any[]) => any,
+		): MockEventRef {
+			if (!this._eventRegistrations.has(event)) this._eventRegistrations.set(event, []);
+			this._eventRegistrations.get(event)!.push(callback);
+			return { e: event, fn: callback, _emitter: this as unknown as { off: (ref: MockEventRef) => void } };
+		}),
+		off: vi.fn(function(
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			this: { _eventRegistrations: Map<string, Array<(...args: any[]) => any>> },
+			ref: MockEventRef,
+		): void {
+			const list = this._eventRegistrations.get(ref.e);
+			if (!list) return;
+			const idx = list.indexOf(ref.fn);
+			if (idx !== -1) list.splice(idx, 1);
+		}),
+		/** Fire live registrations for `event` (tests simulate vault events with this). */
+		_trigger: function(
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			this: { _eventRegistrations: Map<string, Array<(...args: any[]) => any>> },
+			event: string,
+			...args: unknown[]
+		): void {
+			for (const cb of this._eventRegistrations.get(event) ?? []) cb(...args);
+		},
 	};
 	fileManager: MockFileManager = new MockFileManager();
 	workspace: Workspace = new Workspace();

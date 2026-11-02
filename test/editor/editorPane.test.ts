@@ -630,9 +630,10 @@ describe("editor pane — edges (T5.1)", () => {
 		inspectMara(view);
 		expect(pane(view)?.querySelector(".sf-ed-title")?.textContent).toBe("Mara Stoneway");
 
-		// The store holds a path, not a TFile, so an unresolvable target must
-		// degrade to showing the path rather than throwing. (Closing the pane on
-		// a deleted note is T5.4's — this only pins the render.)
+		// The store holds a path, not a TFile, so a target the vault cannot
+		// resolve must degrade to showing the path rather than throwing. A real
+		// rename never reaches this state — the view retargets on the vault's
+		// `rename` event (AnvilView.rename.test.ts); deletion closes the pane.
 		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(null);
 		view.setLayout("codex");
 

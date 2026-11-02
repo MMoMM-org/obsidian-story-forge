@@ -490,6 +490,9 @@ export class AnvilView extends ItemView {
 		// debounced: the pane is showing a file that no longer exists, so waiting
 		// out a debounce window would leave the user editing a ghost.
 		this.registerEvent(this.app.metadataCache.on("deleted", (file: TFile) => { this._onNoteDeleted(file); }));
+		// A rename moves the note the pane shows to a new path. The store holds a
+		// path, so without this the pane would point at nothing.
+		this.registerEvent(this.app.vault.on("rename", (file, oldPath) => { this._onRenamed(file, oldPath); }));
 
 		this._syncToggle();
 		this._render();
@@ -693,6 +696,35 @@ export class AnvilView extends ItemView {
 		this._render();
 	}
 
+	/**
+	 * The open note (or a folder above it) was renamed: follow it. Obsidian
+	 * hands over the file already carrying its new path. A folder rename may
+	 * arrive as the folder's own event (retarget by prefix) or as each child's
+	 * (the exact-path case); handling both keeps this correct either way, and
+	 * whichever lands second finds the path already moved and does nothing.
+	 */
+	private _onRenamed(file: { readonly path: string }, oldPath: string): void {
+		const shown = this._editor.path;
+		if (shown === null) return;
+		const next = this._pathAfterRename(shown, file, oldPath);
+		if (next === null) return;
+		this._editor.open(next);
+		if (this._inFlightPath === shown) this._inFlightPath = next;
+		this._render();
+	}
+
+	/**
+	 * Where `shown` now lives, or null when this rename did not move it. The
+	 * prefix branch needs no folder check: only a folder can be a path's parent.
+	 */
+	private _pathAfterRename(shown: string, file: { readonly path: string }, oldPath: string): string | null {
+		if (shown === oldPath) return file.path;
+		if (shown.startsWith(`${oldPath}/`)) {
+			return `${file.path}${shown.slice(oldPath.length)}`;
+		}
+		return null;
+	}
+
 	private _render(): void {
 		if (!this._bodyEl) return;
 		this._paneStale = false;
@@ -840,10 +872,11 @@ export class AnvilView extends ItemView {
 	/**
 	 * Draw the open pane into `host` (T5.1 — shell only; fields are T5.2/T5.3).
 	 *
-	 * The store holds a **path**, so the title is re-resolved every render: a
-	 * renamed note shows its new name on the next reconcile, and a note that no
-	 * longer resolves degrades to showing its path rather than throwing. Closing
-	 * the pane on a deleted note is T5.4's (`SDD/Error Handling`).
+	 * The store holds a **path**, so the title is re-resolved every render. A
+	 * rename retargets the store first (`_onRenamed`), so the new name shows at
+	 * once; a path that still does not resolve (a rename the vault never
+	 * announced) degrades to showing the path rather than throwing. Closing the
+	 * pane on a deleted note is `_onNoteDeleted`'s.
 	 */
 	private _renderEditor(host: HTMLElement, mode: EditorPaneMode): void {
 		const path = this._editor.path;

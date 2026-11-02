@@ -103,7 +103,9 @@ export function isEditorTool(v: unknown): v is EditorTool {
  * A small class the host owns for its lifetime and `clear()`s on close, exactly
  * like `CollapseStore` and `CodexSelectionStore` — one store per host instance,
  * so two open Anvils inspect independently. It holds a **path**, never a
- * `TFile`: a stale `TFile` outlives a rename, a path re-resolves.
+ * `TFile`: a stale `TFile` goes stale on delete, a path re-resolves. A rename
+ * moves the path itself, so the host retargets the store from the vault's
+ * `rename` event (`AnvilView._onRenamed`) — the store never learns of it alone.
  *
  * The dock itself is deliberately NOT here — it is persisted settings the host
  * reads live (ADR-33), so a change made in one Anvil is honoured by the other
