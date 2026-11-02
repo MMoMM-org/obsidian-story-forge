@@ -138,7 +138,7 @@ function watchFolder(
 	registerEvent: (ref: EventRef) => void,
 	onChange: () => void,
 ): void {
-	const inFolder = (path: string): boolean => path.startsWith(`${folder()}/`);
+	const inFolder = (path: string): boolean => path === folder() || path.startsWith(`${folder()}/`);
 	const check = (file: { readonly path: string }): void => { if (inFolder(file.path)) onChange(); };
 
 	registerEvent(app.metadataCache.on("changed", check));

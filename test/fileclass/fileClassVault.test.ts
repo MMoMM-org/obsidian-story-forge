@@ -267,6 +267,15 @@ describe("createFileClassCache — invalidation", () => {
 		["vault rename within the folder", (app) => { app.vault._trigger("rename", inFolder, `${FOLDER}/old.md`); }],
 		["vault rename into the folder", (app) => { app.vault._trigger("rename", inFolder, "90 Drafts/fc-fresh.md"); }],
 		["vault rename out of the folder", (app) => { app.vault._trigger("rename", outside, inFolder.path); }],
+		["vault rename of the folder itself", (app) => {
+			app.vault._trigger("rename", createMockTFile({ basename: "Old", path: "00 Meta/Old" }), FOLDER);
+		}],
+		["vault delete of the folder itself", (app) => {
+			app.vault._trigger("delete", createMockTFile({ basename: "FileClasses", path: FOLDER }));
+		}],
+		["vault rename of another folder onto the configured path", (app) => {
+			app.vault._trigger("rename", createMockTFile({ basename: "FileClasses", path: FOLDER }), "Elsewhere/Classes");
+		}],
 	])("%s drops both the scan and the lookup", (_label, fire) => {
 		const after = afterEvent(fire);
 
