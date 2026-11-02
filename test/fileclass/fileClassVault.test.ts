@@ -389,6 +389,44 @@ describe("createFileClassCache — subscribe", () => {
 		}
 	});
 
+	it("still tells the others when one subscriber throws, and logs it", () => {
+		vi.useFakeTimers();
+		const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+		try {
+			const { app, cache } = reads();
+			const second = vi.fn();
+			cache.subscribe(() => { throw new Error("broken view"); });
+			cache.subscribe(second);
+
+			app.metadataCache._trigger("changed", fcFresh);
+			vi.advanceTimersByTime(DEBOUNCE_MS);
+
+			expect(second).toHaveBeenCalledTimes(1);
+			expect(logged).toHaveBeenCalledTimes(1);
+		} finally {
+			logged.mockRestore();
+			vi.useRealTimers();
+		}
+	});
+
+	it("skips a subscriber that left earlier in the same pass", () => {
+		vi.useFakeTimers();
+		try {
+			const { app, cache } = reads();
+			const second = vi.fn();
+			let leaveSecond = (): void => {};
+			cache.subscribe(() => { leaveSecond(); });
+			leaveSecond = cache.subscribe(second);
+
+			app.metadataCache._trigger("changed", fcFresh);
+			vi.advanceTimersByTime(DEBOUNCE_MS);
+
+			expect(second).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("stops telling a subscriber that left", () => {
 		vi.useFakeTimers();
 		try {

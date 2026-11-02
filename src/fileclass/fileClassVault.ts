@@ -92,7 +92,7 @@ export function createFileClassCache(
 ): FileClassCache {
 	let generation: Generation | null = null;
 	const listeners = new Set<() => void>();
-	const notify = debounce((): void => { [...listeners].forEach((listener) => { listener(); }); }, DEBOUNCE_MS, true);
+	const notify = debounce((): void => { runListeners(listeners); }, DEBOUNCE_MS, true);
 
 	const current = (): Generation => {
 		const now = folder();
@@ -114,6 +114,21 @@ export function createFileClassCache(
 			return () => { listeners.delete(listener); };
 		},
 	};
+}
+
+/**
+ * Tell each subscriber, isolating them from one another: a throwing listener is
+ * logged and the rest still run, and one that left earlier in the pass is skipped.
+ */
+function runListeners(listeners: ReadonlySet<() => void>): void {
+	for (const listener of [...listeners]) {
+		if (!listeners.has(listener)) continue;
+		try {
+			listener();
+		} catch (error) {
+			console.error("Story Forge: a FileClass subscriber failed", error);
+		}
+	}
 }
 
 /** Call `onChange` when a file appears in, leaves, or changes inside the folder. */
