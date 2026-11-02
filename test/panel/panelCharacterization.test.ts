@@ -13,6 +13,7 @@
 
 import { describe, it, expect } from "vitest";
 import { augmentEl, createMockTFile } from "../__mocks__/obsidian";
+import { wikilinkTarget } from "panel/assetResolver";
 import { renderPanel, type PanelDeps } from "panel/renderPanel";
 import type { EntityKind, NoteContext, ResolvedEntity } from "scoping/NoteContext";
 
@@ -21,7 +22,7 @@ function makeDeps(): PanelDeps {
 		onOpenLink: () => {},
 		collapsed: {},
 		toggleCollapse: () => {},
-		resolveAsset: (src: string) => (src ? `app://vault/${src}` : ""),
+		resolveAsset: (src: string) => (src ? `app://vault/${wikilinkTarget(src) ?? src}` : ""),
 	};
 }
 
