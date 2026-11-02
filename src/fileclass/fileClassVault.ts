@@ -159,10 +159,25 @@ function watchFolder(
 	}));
 }
 
-/** `<folder>/<name>.md`'s frontmatter, read at most once per generation. */
+/**
+ * The FileClass file called `name`: `<folder>/<name>.md` first, else any file of
+ * that name below the folder. `classesIn` scans recursively, so a class in a
+ * subfolder can claim a note; resolving it by the same rule keeps that claim
+ * from pointing at nothing. Metadata-menu names a class by its file's
+ * basename wherever it sits under the folder, so subfolders are kept rather
+ * than cutting the scan back.
+ */
+function classFile(app: App, generation: Generation, name: string): unknown {
+	const direct = app.vault.getAbstractFileByPath(`${generation.folder}/${name}.md`);
+	if (direct) return direct;
+	const prefix = `${generation.folder}/`;
+	return app.vault.getMarkdownFiles().find((f) => f.basename === name && f.path.startsWith(prefix));
+}
+
+/** The named FileClass's frontmatter, read at most once per generation. */
 function lookUp(app: App, generation: Generation, name: string): unknown {
 	if (generation.byName.has(name)) return generation.byName.get(name);
-	const file = app.vault.getAbstractFileByPath(`${generation.folder}/${name}.md`);
+	const file = classFile(app, generation, name);
 	if (!(file instanceof TFile)) {
 		generation.byName.set(name, undefined);
 		return undefined;

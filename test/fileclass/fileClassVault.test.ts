@@ -487,3 +487,33 @@ describe("createFileClassCache — subscribe", () => {
 		}
 	});
 });
+
+describe("createFileClassCache — a FileClass in a subfolder", () => {
+	const nested = createMockTFile({ basename: "fc-nested", path: `${FOLDER}/Mine/fc-nested.md` });
+
+	it("that claims a note also resolves, so the claim never points at nothing", () => {
+		const app = new App();
+		const note = createMockTFile({ basename: "Tern", path: "30 Canon/Tern.md" });
+		seed(app, [
+			{ file: nested, frontmatter: { tagNames: ["canon/bird"], fields: [] } },
+			{ file: note, tags: ["#canon/bird"] },
+		]);
+		const cache = cacheOver(app);
+
+		const name = cache.nameFor(note);
+
+		expect(name).toBe("fc-nested");
+		expect(cache.lookup.getFileClassFrontmatter(name ?? "")).toMatchObject({ tagNames: ["canon/bird"] });
+	});
+
+	it("prefers the file directly in the folder over a namesake below it", () => {
+		const app = new App();
+		const twin = createMockTFile({ basename: "fc-character", path: `${FOLDER}/Mine/fc-character.md` });
+		seed(app, [
+			{ file: twin, frontmatter: { icon: "below" } },
+			{ file: fcCharacter, frontmatter: { icon: "top" } },
+		]);
+
+		expect(cacheOver(app).lookup.getFileClassFrontmatter("fc-character")).toMatchObject({ icon: "top" });
+	});
+});
