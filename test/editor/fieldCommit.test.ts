@@ -20,7 +20,7 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — Error Handling
  */
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -655,10 +655,30 @@ const DIRECT_WRITE_APIS: ReadonlyArray<readonly [string, RegExp]> = [
 	["vault.create", /\.vault\.create\s*\(/],
 ];
 
-const COMMIT_SURFACE_FILES = ["src/editor/fieldCommit.ts", "src/anvil/AnvilView.ts"];
+/**
+ * EVERY module in `src/editor`, read off the directory rather than listed: a
+ * new editor module is covered the day it is added, with no one remembering to
+ * extend a list. `AnvilView` is the one host outside the directory that wires
+ * the commit seam.
+ */
+function commitSurfaceFiles(): string[] {
+	const editorDir = path.resolve(__dirname, "../../src/editor");
+	const editorModules = readdirSync(editorDir)
+		.filter((name) => name.endsWith(".ts"))
+		.map((name) => `src/editor/${name}`);
+	return [...editorModules, "src/anvil/AnvilView.ts"];
+}
 
 describe("CON-1 — every write goes through frontmatterWriter (T5.4)", () => {
-	it.each(COMMIT_SURFACE_FILES)("%s calls no vault write API of its own", (relative) => {
+	it("covers every editor module, including the ones that exist today", () => {
+		const files = commitSurfaceFiles();
+		for (const known of ["fieldCommit", "fieldControls", "fieldModel", "editorPane", "mediaPicker"]) {
+			expect(files).toContain(`src/editor/${known}.ts`);
+		}
+		expect(files.length).toBeGreaterThanOrEqual(7);
+	});
+
+	it.each(commitSurfaceFiles())("%s calls no vault write API of its own", (relative) => {
 		const source = readFileSync(path.resolve(__dirname, "../..", relative), "utf8");
 
 		for (const [label, pattern] of DIRECT_WRITE_APIS) {
