@@ -122,7 +122,7 @@ function readInputValue(el: HTMLElement, _fieldType: FieldSpec["type"]): unknown
  * says "true"; the field is shown as the text it holds, read-only, instead.
  */
 function isMisTypedBoolean(spec: FieldSpec, committed: unknown): boolean {
-	return spec.type === "boolean" && committed !== null && committed !== undefined && typeof committed !== "boolean";
+	return spec.type === "boolean" && committed !== null && committed !== undefined && committed !== "" && typeof committed !== "boolean";
 }
 
 /** Return true if the given value is out of the declared select vocabulary. */
@@ -571,7 +571,7 @@ export class InspectorController {
 			state.draftValue = newValue;
 
 			// Special: both null-ish → clean
-			const committedNullish = state.committedValue === null || state.committedValue === undefined;
+			const committedNullish = state.committedValue === null || state.committedValue === undefined || state.committedValue === "";
 			const draftNullish = newValue === null || newValue === "";
 
 			// A checkbox over an absent value has no "empty": unchecked is how it

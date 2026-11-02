@@ -1328,7 +1328,7 @@ describe("InspectorController: a boolean field", () => {
 
 	const saveButton = (container: HTMLElement): Element | null => container.querySelector("[data-sf-inspector-commit]");
 
-	it.each([["absent", {}], ["null", { alive: null }]])(
+	it.each([["absent", {}], ["null", { alive: null }], ["empty-string", { alive: "" }]])(
 		"checking then unchecking over a(n) %s value is clean, and offers nothing to save",
 		(_label, frontmatter) => {
 			const container = renderBoolean(frontmatter);
