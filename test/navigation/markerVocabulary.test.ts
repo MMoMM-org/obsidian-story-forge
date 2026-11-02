@@ -33,6 +33,7 @@ describe("MARKER_VOCABULARY", () => {
 		expect(MARKER_VOCABULARY).toEqual({
 			"data-sf-link": "name",
 			"data-sf-card-title": "cardTitle",
+			"data-sf-ed-title": "paneTitle",
 			[CODEX_CARD_BODY_ATTR]: "cardBody",
 			"data-ws-layout": "structuralControl",
 			"data-ws-tlmode": "structuralControl",

@@ -67,6 +67,13 @@ export type EditorPaneMode = EditorDock | "fullscreen";
 export const EDITOR_TOOL_ATTR = "data-sf-ed-tool";
 
 /** Carries the open note's vault path, so a host (or a test) can read what is shown. */
+/**
+ * Marks the header title as a link to the pane's note. Sits on the same element
+ * as `data-sf-link` (which supplies the target and the right-click file menu);
+ * hosts classify it as `"paneTitle"`, listed before the link marker.
+ */
+export const EDITOR_TITLE_ATTR = "data-sf-ed-title";
+
 export const EDITOR_PATH_ATTR = "data-sf-ed-path";
 
 /**
@@ -207,6 +214,12 @@ function renderHead(opts: EditorPaneOptions): HTMLElement {
 
 	const title = el("b", "sf-ed-title");
 	title.textContent = opts.title;
+	// A link, not a button: it goes somewhere. Enter/Space reach it through the
+	// Anvil's keyboard router, the same way a chip name or a pill is reached.
+	title.setAttribute(EDITOR_TITLE_ATTR, "");
+	title.setAttribute("data-sf-link", opts.path);
+	title.setAttribute("role", "link");
+	title.setAttribute("tabindex", "0");
 	head.appendChild(title);
 
 	const path = el("span", "sf-ed-path");

@@ -31,13 +31,14 @@ import { CARD_TITLE_ATTR } from "codex/cardWrapper";
 import { CODEX_CARD_SELECT_ATTR } from "codex/cardSelector";
 import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
 import { CODEX_HINT_DISMISS_ATTR } from "codex/basesHint";
-import { EDITOR_TOOL_ATTR } from "editor/editorPane";
+import { EDITOR_TITLE_ATTR, EDITOR_TOOL_ATTR } from "editor/editorPane";
 import { FIELD_CONTROL_ATTR } from "editor/fieldControls";
 
 /** Every marker attribute either host can emit, mapped to its `TargetKind`. */
 export const MARKER_VOCABULARY: Record<string, TargetKind> = {
 	"data-sf-link": "name",
 	[CARD_TITLE_ATTR]: "cardTitle",
+	[EDITOR_TITLE_ATTR]: "paneTitle",
 	[CODEX_CARD_BODY_ATTR]: "cardBody",
 	"data-ws-layout": "structuralControl",
 	"data-ws-tlmode": "structuralControl",
@@ -76,6 +77,7 @@ export const ANVIL_MARKERS: readonly string[] = [
 	// and the first listed attribute wins. This is what lets the title differ
 	// from a pill without any ranking between kinds — proximity is untouched.
 	CARD_TITLE_ATTR,
+	EDITOR_TITLE_ATTR,
 	"data-sf-link",
 	CODEX_CARD_BODY_ATTR,
 	"data-ws-layout",

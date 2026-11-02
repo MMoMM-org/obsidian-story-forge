@@ -3075,16 +3075,19 @@ body {
 
 /* A pill / chip name that is a link: the sidebar link's hover (pointer + accent). */
 .sf-cx-relpill[data-sf-link],
-.sf-ed-chip-label[data-sf-link] {
+.sf-ed-chip-label[data-sf-link],
+.sf-ed-title[data-sf-link] {
 	cursor: pointer;
 }
 
 .sf-cx-relpill[data-sf-link]:hover,
-.sf-ed-chip-label[data-sf-link]:hover {
+.sf-ed-chip-label[data-sf-link]:hover,
+.sf-ed-title[data-sf-link]:hover {
 	color: var(--text-accent);
 }
 
-.sf-ed-chip-label[data-sf-link]:focus-visible {
+.sf-ed-chip-label[data-sf-link]:focus-visible,
+.sf-ed-title[data-sf-link]:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 	border-radius: var(--radius-s);

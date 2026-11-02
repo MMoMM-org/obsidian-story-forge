@@ -59,8 +59,11 @@
  * only the hosts that have an editor pane list its marker, so everywhere else
  * it classifies as a plain `name`. Its behaviour follows `cardTitleOpensNote`,
  * not `linkClickAction`, which keeps governing relation pills and chips.
+ *
+ * `paneTitle` is the name in the editor pane's header: always a new tab, with
+ * no setting and no modifier inversion.
  */
-export type TargetKind = "name" | "cardTitle" | "cardBody" | "structuralControl" | "editableField";
+export type TargetKind = "name" | "cardTitle" | "paneTitle" | "cardBody" | "structuralControl" | "editableField";
 
 /**
  * The target kinds a surface found along the DOM ancestor chain of a click,
@@ -146,6 +149,9 @@ export function resolveNavigationOutcome(
 			return resolveNameOutcome(modifier, linkClickAction);
 		case "cardTitle":
 			return resolveCardTitleOutcome(modifier, cardTitleOpensNote);
+		case "paneTitle":
+			// Always a new tab: this IS the pane, so "show it in the pane" is meaningless.
+			return { action: "openNoteInTab" };
 		case "cardBody":
 			return resolveCardBodyOutcome(modifier);
 		case "structuralControl":
