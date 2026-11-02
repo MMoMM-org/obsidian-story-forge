@@ -202,6 +202,25 @@ describe("buildFieldModel — a declared list field holding non-strings", () => 
 	});
 });
 
+describe("buildFieldModel — an undeclared list of [[links]] is link chips", () => {
+	const links = ["[[A]]", "[[B|b]]"];
+
+	it("is MultiFile in tier 2", () => {
+		expect(buildFieldModel([], { allies: links }).sections[0]?.fields[0]).toMatchObject({ type: "MultiFile", width: "full" });
+	});
+
+	it("is MultiFile in tier 3", () => {
+		const field = buildFieldModel([makeCharacterClass()], { allies: links }).sections.at(-1)?.fields[0];
+		expect(field).toMatchObject({ name: "allies", type: "MultiFile" });
+	});
+
+	it("stays free chips for plain strings, a mix, and an empty list", () => {
+		for (const value of [["a", "b"], ["[[A]]", "b"], []]) {
+			expect(buildFieldModel([], { x: value }).sections[0]?.fields[0]).toMatchObject({ type: "Multi" });
+		}
+	});
+});
+
 // ---------------------------------------------------------------------------
 // Tier 1 — sections from the chain
 // ---------------------------------------------------------------------------

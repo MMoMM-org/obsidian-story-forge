@@ -294,12 +294,19 @@ function untypedFieldDef(name: string, value: unknown): FieldDef {
 	return def;
 }
 
+/** A non-empty list whose every item is a `[[link]]` — link chips, as a declared `MultiFile` has. */
+function isLinkList(items: readonly string[]): boolean {
+	return items.length > 0 && items.every((item) => WIKILINK.test(item.trim()));
+}
+
 function inferFromValue(value: unknown): { type: FieldType; readOnly?: true } {
 	if (value === null || value === undefined) return { type: "Unknown" };
 	if (typeof value === "string") return { type: "Input" };
 	if (typeof value === "number") return { type: "Number" };
 	if (typeof value === "boolean") return { type: "Boolean" };
-	if (Array.isArray(value) && value.every((v) => typeof v === "string")) return { type: "Multi" };
+	if (Array.isArray(value) && value.every((v) => typeof v === "string")) {
+		return { type: isLinkList(value as string[]) ? "MultiFile" : "Multi" };
+	}
 	return { type: "Unknown", readOnly: true };
 }
 

@@ -334,6 +334,17 @@ describe("field controls — one per type (T5.2)", () => {
 	});
 });
 
+describe("field controls — an undeclared list of [[links]]", () => {
+	it("renders link chips that navigate, as a declared MultiFile does", () => {
+		const links = ["[[Tobias Ferro]]", "[[Elke Stoneway]]"];
+		const def = buildFieldModel([], { allies: links }).sections[0]?.fields[0] as FieldDef;
+		const c = render(def, links);
+		const targets = Array.from(c.el.querySelectorAll(".sf-ed-chip-label")).map((l) => l.getAttribute("data-sf-link"));
+
+		expect(targets).toEqual(["Tobias Ferro", "Elke Stoneway"]);
+	});
+});
+
 describe("field controls — a declared list field holding non-strings", () => {
 	it("shows [1,2] as read-only JSON and offers no chip to rewrite it as strings", () => {
 		const chain = [{ name: "fc-x", fields: [{ id: "f", name: "scores", type: "Multi" as const }] }];

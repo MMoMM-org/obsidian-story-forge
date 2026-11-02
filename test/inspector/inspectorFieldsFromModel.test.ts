@@ -88,6 +88,13 @@ describe("inspectorFieldsFromModel, field by field", () => {
 		expect(inspectorFieldsFromModel(declared("MultiFile", { subject: [1, 2] }))).toEqual([{ name: "subject", type: "fixed" }]);
 	});
 
+	it("reads an undeclared list of links as a relation, and plain strings as a list", () => {
+		expect(inspectorFieldsFromModel(buildFieldModel([], { allies: ["[[A]]"], skills: ["x"] }))).toEqual([
+			{ name: "allies", type: "relation" },
+			{ name: "skills", type: "list" },
+		]);
+	});
+
 	it("keeps Media a text field, which writes a string", () => {
 		expect(inspectorFieldsFromModel(declared("Media"))).toEqual([{ name: "subject", type: "text" }]);
 	});
