@@ -41,7 +41,8 @@ export interface FieldDef {
 	 * that is not all strings, a native date object). The pane shows it but
 	 * offers no way to edit it, so editing can never rewrite it into something
 	 * else. Set by value inference, and on a field declared as a scalar that
-	 * holds a list of non-strings (see `listValuedDef`).
+	 * holds a list of non-strings (see `listValuedDef`). Also set on `type`, in
+	 * every tier (see `CLASSIFYING_FIELD`).
 	 */
 	readOnly?: true;
 }
@@ -201,8 +202,20 @@ function toFieldDef(field: FileClassField, uiHints: UiHints, value: unknown): Fi
 	const def: FieldDef = { name: field.name, type, width: widthOf({ type, ui }) };
 	if (field.values !== undefined && listDef?.type === undefined) def.values = field.values;
 	if (ui !== undefined) def.ui = ui;
-	if (listDef?.readOnly) def.readOnly = true;
+	if (listDef?.readOnly || isClassifyingKey(field.name)) def.readOnly = true;
 	return def;
+}
+
+/**
+ * `type` is never editable, in any tier and on either surface: `classifyEntityKind`
+ * falls back to it, so a stray edit (or the clearing "—" of a one-value Select)
+ * would reclassify the note. Decided here, once, so the Anvil and the Workbench
+ * inherit it rather than each restating a rule by name.
+ */
+const CLASSIFYING_FIELD = "type";
+
+function isClassifyingKey(name: string): boolean {
+	return name === CLASSIFYING_FIELD;
 }
 
 /** Declared types whose control holds a list already, so a stored list changes nothing. */
@@ -256,7 +269,7 @@ function buildTier2Section(frontmatter: Record<string, unknown> | undefined): Fi
 function untypedFieldDef(name: string, value: unknown): FieldDef {
 	const inferred = inferFromValue(value);
 	const def: FieldDef = { name, type: inferred.type, width: widthOf({ type: inferred.type }) };
-	if (inferred.readOnly) def.readOnly = true;
+	if (inferred.readOnly || isClassifyingKey(name)) def.readOnly = true;
 	return def;
 }
 

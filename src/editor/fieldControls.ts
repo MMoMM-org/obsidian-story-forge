@@ -213,6 +213,7 @@ function readOnlyControl(cell: HTMLElement, field: FieldDef, value: unknown): ()
 
 function displayText(value: unknown): string {
 	if (typeof value === "string") return value;
+	if (value === null || value === undefined) return "";
 	try {
 		return JSON.stringify(value) ?? "";
 	} catch {

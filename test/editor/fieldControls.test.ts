@@ -39,7 +39,7 @@ import {
 	renderFieldControl,
 	type FieldValue,
 } from "editor/fieldControls";
-import type { FieldDef } from "editor/fieldModel";
+import { buildFieldModel, type FieldDef } from "editor/fieldModel";
 import type { FieldType } from "fileclass/fileClassTypes";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
 import { ANVIL_MARKERS, createMarkerKindOf } from "navigation/markerVocabulary";
@@ -417,6 +417,25 @@ describe("field controls — a value no control can represent (read-only)", () =
 		box.dispatchEvent(new Event("input", { bubbles: true }));
 		box.dispatchEvent(new Event("change", { bubbles: true }));
 		expect(c.edits).toEqual([]);
+	});
+
+	it.each([
+		["a declared Select", [{ name: "fc-x", fields: [{ id: "t", name: "type", type: "Select" as const, values: ["character"] }] }]],
+		["a declared Input", [{ name: "fc-x", fields: [{ id: "t", name: "type", type: "Input" as const }] }]],
+		["tier 2 and 3, no declaration", []],
+	])("shows a note's `type` as read-only text with its value, %s", (_label, chain) => {
+		const model = buildFieldModel(chain, { type: "character" });
+		const def = model.sections.flatMap((section) => section.fields).find((field) => field.name === "type");
+		const c = render(def as FieldDef, "character");
+		const box = inputIn(c.el);
+
+		expect(c.el.querySelector("select")).toBeNull();
+		expect(box.readOnly).toBe(true);
+		expect(box.value).toBe("character");
+	});
+
+	it("shows an empty value as an empty box, not the word null", () => {
+		expect(inputIn(render(fieldDef({ name: "type", readOnly: true }), null).el).value).toBe("");
 	});
 
 	it("shows a list of numbers whole, not as an empty box", () => {

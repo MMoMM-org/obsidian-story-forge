@@ -132,6 +132,35 @@ describe("buildFieldModel — a list stored in a field declared as a scalar (T6.
 });
 
 // ---------------------------------------------------------------------------
+// Rulings of 2026-11-02: what the stored value may and may not turn a field into
+// ---------------------------------------------------------------------------
+
+describe("buildFieldModel — `type` classifies the note, so it is read-only in every tier", () => {
+	it("marks a declared `type` read-only, whether it is a Select or an Input", () => {
+		const select: ParsedFileClass = { name: "fc-a", fields: [{ id: "t", name: "type", type: "Select", values: ["character"] }] };
+		const input: ParsedFileClass = { name: "fc-b", fields: [{ id: "t", name: "type", type: "Input" }] };
+		expect(buildFieldModel([select], { type: "character" }).sections[0]?.fields[0]).toMatchObject({ readOnly: true });
+		expect(buildFieldModel([input], { type: "character" }).sections[0]?.fields[0]).toMatchObject({ readOnly: true });
+	});
+
+	it("marks `type` read-only in tier 2 (no chain) and tier 3 (undeclared)", () => {
+		const tier2 = buildFieldModel([], { type: "character" }).sections[0]?.fields[0];
+		const tier3 = buildFieldModel([makeCharacterClass()], { type: "character" }).sections.at(-1)?.fields[0];
+		expect(tier2).toMatchObject({ name: "type", readOnly: true });
+		expect(tier3).toMatchObject({ name: "type", readOnly: true });
+	});
+
+	it("marks it read-only even when the note holds no value for it", () => {
+		const input: ParsedFileClass = { name: "fc-b", fields: [{ id: "t", name: "type", type: "Input" }] };
+		expect(buildFieldModel([input], {}).sections[0]?.fields[0]).toMatchObject({ readOnly: true });
+	});
+
+	it("leaves a field merely containing the word alone", () => {
+		expect(fieldFor("Input", "x")).not.toHaveProperty("readOnly");
+	});
+});
+
+// ---------------------------------------------------------------------------
 // Tier 1 — sections from the chain
 // ---------------------------------------------------------------------------
 

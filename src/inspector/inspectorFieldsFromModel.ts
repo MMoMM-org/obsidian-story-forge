@@ -2,13 +2,11 @@
  * inspectorFieldsFromModel — the `FieldModel` as the Workbench editor's fields.
  *
  * The Workbench and the Anvil read the same model (ADR-0002), but `specFor` is
- * the Anvil's write map, and the Workbench differs from it in three ways:
+ * the Anvil's write map, and the Workbench differs from it in two ways:
  *
- *  - `type` is never editable. `classifyEntityKind` reads it, and `fixed` reaches
- *    the model as a one-value `Select` at best and an `Input` in tiers 2 and 3,
- *    so the rule goes by name rather than by type. Every `fixed` field in
- *    `schema/*.json` is called `type`, which a test reads off disk.
- *  - `readOnly` has no equivalent in `specFor`. It becomes `fixed`.
+ *  - `readOnly` has no equivalent in `specFor`. It becomes `fixed`. That covers
+ *    `type`, which the model marks read-only for both surfaces because
+ *    `classifyEntityKind` reads it (see `fieldModel.ts`).
  *  - `Media` stays text. `SPEC_TYPE` says `relation` because the Anvil has a
  *    `Media` control, which the Workbench does not; its plain text box already
  *    edits the `[[wikilink]]` as the string it is.
@@ -21,16 +19,13 @@ import { specFor } from "editor/fieldCommit";
 import type { FieldDef, FieldModel, FieldSection } from "editor/fieldModel";
 import type { FieldSpec } from "./frontmatterWriter";
 
-/** The frontmatter key `classifyEntityKind` falls back to. */
-const CLASSIFYING_FIELD = "type";
-
 /** Every field of `model`, in render order, as `InspectorController` takes them. */
 export function inspectorFieldsFromModel(model: FieldModel): FieldSpec[] {
 	return model.sections.flatMap((section) => section.fields).map(inspectorSpec);
 }
 
 function inspectorSpec(field: FieldDef): FieldSpec {
-	if (field.readOnly || field.name === CLASSIFYING_FIELD) return { name: field.name, type: "fixed" };
+	if (field.readOnly) return { name: field.name, type: "fixed" };
 	if (field.type === "Media") return { name: field.name, type: "text" };
 	return specFor(field);
 }
