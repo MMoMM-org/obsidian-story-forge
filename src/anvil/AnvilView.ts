@@ -761,16 +761,20 @@ export class AnvilView extends ItemView {
 	 * The open note (or a folder above it) was renamed: follow it. Obsidian
 	 * hands over the file already carrying its new path. A folder rename may
 	 * arrive as the folder's own event (retarget by prefix) or as each child's
-	 * (the exact-path case); handling both keeps this correct either way, and
-	 * whichever lands second finds the path already moved and does nothing.
+	 * (the exact-path case); handling both keeps this correct either way. The
+	 * folder's event can land before its file resolves at the new path, so the
+	 * file's own event re-renders, and a folder retarget also schedules a refresh
+	 * in case no file event follows.
 	 */
 	private _onRenamed(file: { readonly path: string }, oldPath: string): void {
 		const shown = this._editor.path;
 		if (shown === null) return;
 		const next = this._pathAfterRename(shown, file, oldPath);
-		if (next === null) return;
-		this._editor.open(next);
-		if (this._inFlightPath === shown) this._inFlightPath = next;
+		if (next === null && file.path !== shown) return;
+		if (next !== null) {
+			this._editor.open(next);
+			if (this._inFlightPath === shown) this._inFlightPath = next;
+		}
 		if (this._paneIsDirty()) {
 			// A rebuild would destroy the typed text. The store already follows the
 			// note; the render waits for focus to leave. The pane's committer holds
@@ -781,6 +785,10 @@ export class AnvilView extends ItemView {
 			return;
 		}
 		this._renderKeepingFocus();
+		if (next !== null && next !== file.path) {
+			this._paneStale = true;
+			this._debouncedRender();
+		}
 	}
 
 	/**

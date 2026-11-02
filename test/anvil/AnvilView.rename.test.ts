@@ -78,6 +78,44 @@ describe("renaming the note the pane shows", () => {
 		expect(shownPath(view)).toBe("30 Canon/Heroes/Mara Stoneway.md");
 	});
 
+	describe("when the folder's event arrives before its file carries the new path", () => {
+		const moved = "30 Canon/31 Renamed/Mara Stoneway.md";
+
+		async function folderEventFirst(): Promise<{ app: App; view: Awaited<ReturnType<typeof openPane>>; file: TFile }> {
+			const app = new App();
+			seedVault(app);
+			const view = await openPane(app);
+			const file = createMockTFile({ basename: mara.basename, path: mara.path });
+			vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p) => (p === mara.path ? file : null));
+			const folder = createMockTFile({ path: "30 Canon/31 Renamed" });
+			app.vault._trigger("rename", folder, "30 Canon/31 Characters");
+			return { app, view, file };
+		}
+
+		it("shows the fields once the file's own event follows, with no further click", async () => {
+			const { app, view, file } = await folderEventFirst();
+			expect(view.contentEl.querySelector('[data-sf-ed-field="name"]')).toBeNull();
+
+			const oldPath = moveTo(app, file, moved);
+			vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p) => (p === moved ? file : null));
+			app.vault._trigger("rename", file, oldPath);
+
+			expect(inputIn(view.contentEl, "name").value).toBe("Mara Stoneway");
+		});
+
+		it("shows the fields when no file event follows at all", async () => {
+			vi.useFakeTimers();
+			const { app, view, file } = await folderEventFirst();
+
+			moveTo(app, file, moved);
+			vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p) => (p === moved ? file : null));
+			await vi.runAllTimersAsync();
+			vi.useRealTimers();
+
+			expect(inputIn(view.contentEl, "name").value).toBe("Mara Stoneway");
+		});
+	});
+
 	it("does not mistake a sibling folder sharing a name prefix for a parent", async () => {
 		const app = new App();
 		seedVault(app);
