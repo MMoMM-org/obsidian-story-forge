@@ -259,7 +259,7 @@ graph TB
 inbound:
   - name: "Command palette / ribbon"
     type: Obsidian command
-    data_flow: "Open Anvil, Open Workbench, Open Codex"
+    data_flow: "Open Anvil, Open Workbench" # Open Codex dropped 2026-11-02
 
   - name: "Bases runtime"
     type: registerBasesView factory

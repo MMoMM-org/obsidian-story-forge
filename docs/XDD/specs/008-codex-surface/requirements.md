@@ -189,6 +189,8 @@ The minimum for the Codex to be a surface rather than a table.
     | Target | Plain click | Modifier-click |
     |---|---|---|
     | **Entity name / link** | the configured action (default **inspect**) | the other action (**open note**) |
+    | **Card title** (Anvil Codex; added 2026-11-02) | **open note in a new tab**; with *Open note from card title* off, **inspect** | the other of the two |
+    | **Editor pane name** (added 2026-11-02) | **open note in a new tab** | same |
     | **Card / row body** (not a name) | **inspect** — show it in place; never navigate away | **open note** |
     | **Structural control** (chevron, collapse header, tab, pill, dropdown) | operate the control only | same — modifiers do not navigate |
     | **Editable field** (in the editor pane) | focus the control for editing | same |
