@@ -111,7 +111,7 @@ could only ever know four kinds of thing.
      - [x] A user's image field works without being named `portrait` `[ref: ADR-0002]`
      - [x] No visual regression in the three shipped kinds
 
-- [ ] **T6.2b Cards read the same tile field** `[activity: refactoring]`
+- [x] **T6.2b Cards read the same tile field** `[activity: refactoring]`
 
   > **Added 2026-11-02 at T6.2's review.** T6.2 covered the panel only. The Hero Card still uses
   > `imageFieldId` in `src/codex/cards/shared.ts` and the old `createAssetResolver`, so a user's Media
@@ -123,8 +123,8 @@ could only ever know four kinds of thing.
   3. Implement: one resolved tile-field answer for both surfaces, and remove the second name list.
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] A user's image field works on Cards without being named `portrait` `[ref: ADR-0002]`
-     - [ ] One copy of the image-field fallback names exists
+     - [x] A user's image field works on Cards without being named `portrait` `[ref: ADR-0002]`
+     - [x] One copy of the image-field fallback names exists
 
 - [ ] **T6.3 Delete `inspectorFields.ts`** `[activity: refactoring]`
 
