@@ -57,7 +57,7 @@ describe("panel output before the tile source moves to the field type (T6.2)", (
 	it("character with a portrait", () => {
 		const html = render("character", "Mara Stoneway", { ...CHARACTER, portrait: "[[95 Assets/Mara.svg]]" }, {
 			entities: [entity("allies", "Tom", "character", "outgoing")],
-			backlinks: [entity("pov", "Scene 1", "scene", "incoming")],
+			backlinks: [entity("pov", "Scene 1", "scene", "backlink")],
 		});
 		expect(html).toMatchSnapshot();
 	});
