@@ -160,6 +160,15 @@ describe("buildFieldModel — `type` classifies the note, so it is read-only in 
 	});
 });
 
+describe("buildFieldModel — a map in a declared field is read-only", () => {
+	it.each(["Input", "Number", "Boolean", "Select", "Cycle", "Date", "File", "Multi", "MultiFile", "Unknown"] as const)(
+		"%s holding a map keeps its type and is read-only",
+		(type) => {
+			expect(fieldFor(type, { a: 1 })).toMatchObject({ type, readOnly: true });
+		},
+	);
+});
+
 // ---------------------------------------------------------------------------
 // Tier 1 — sections from the chain
 // ---------------------------------------------------------------------------

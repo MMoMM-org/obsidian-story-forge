@@ -434,6 +434,18 @@ describe("field controls — a value no control can represent (read-only)", () =
 		expect(box.value).toBe("character");
 	});
 
+	it("shows a map held by a declared Number as JSON text, and reports nothing", () => {
+		const chain = [{ name: "fc-x", fields: [{ id: "s", name: "stats", type: "Number" as const }] }];
+		const def = buildFieldModel(chain, { stats: { str: 3 } }).sections[0]?.fields[0] as FieldDef;
+		const c = render(def, { str: 3 });
+		const box = inputIn(c.el);
+
+		expect(box.readOnly).toBe(true);
+		expect(box.value).toBe('{"str":3}');
+		box.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(c.edits).toEqual([]);
+	});
+
 	it("shows an empty value as an empty box, not the word null", () => {
 		expect(inputIn(render(fieldDef({ name: "type", readOnly: true }), null).el).value).toBe("");
 	});

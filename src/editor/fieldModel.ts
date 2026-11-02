@@ -202,7 +202,7 @@ function toFieldDef(field: FileClassField, uiHints: UiHints, value: unknown): Fi
 	const def: FieldDef = { name: field.name, type, width: widthOf({ type, ui }) };
 	if (field.values !== undefined && listDef?.type === undefined) def.values = field.values;
 	if (ui !== undefined) def.ui = ui;
-	if (listDef?.readOnly || isClassifyingKey(field.name)) def.readOnly = true;
+	if (listDef?.readOnly || isClassifyingKey(field.name) || isMap(value)) def.readOnly = true;
 	return def;
 }
 
@@ -216,6 +216,14 @@ const CLASSIFYING_FIELD = "type";
 
 function isClassifyingKey(name: string): boolean {
 	return name === CLASSIFYING_FIELD;
+}
+
+/**
+ * A plain object (a YAML map). No control can hold one, so a declared field
+ * storing one is shown and never written, as an undeclared one is in tiers 2 and 3.
+ */
+function isMap(value: unknown): boolean {
+	return typeof value === "object" && value !== null && Object.getPrototypeOf(value) === Object.prototype;
 }
 
 /** Declared types whose control holds a list already, so a stored list changes nothing. */

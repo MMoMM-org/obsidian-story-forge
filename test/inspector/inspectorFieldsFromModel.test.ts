@@ -72,6 +72,11 @@ describe("inspectorFieldsFromModel, field by field", () => {
 		]);
 	});
 
+	it("makes a declared scalar holding a map fixed, so it is never overwritten", () => {
+		expect(inspectorFieldsFromModel(declared("Input", { subject: { a: 1 } }))).toEqual([{ name: "subject", type: "fixed" }]);
+		expect(inspectorFieldsFromModel(declared("Number", { subject: { a: 1 } }))).toEqual([{ name: "subject", type: "fixed" }]);
+	});
+
 	it("keeps Media a text field, which writes a string", () => {
 		expect(inspectorFieldsFromModel(declared("Media"))).toEqual([{ name: "subject", type: "text" }]);
 	});
