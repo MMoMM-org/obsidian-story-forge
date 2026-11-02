@@ -1254,6 +1254,7 @@ example would have to be read as `fc-character-isekai.md`.
 
 ### Technical Debt
 
+- **Inventory extended 2026-11-02 (T6.2).** `src/panel/renderers/location.ts` and `object.ts` also read `image` by name (now through `tileField`). `src/codex/cards/shared.ts` `IMAGE_FIELD`/`imageFieldId` is a second name coupling, with the panel-vs-Card divergence owned by **T6.2b**. The panel's fact lists and lead lines remain name-based as the native fallback.
 - **The hardcoded field surface is larger than one field.** `src/panel/kindFields.ts` documents it:
   character uses `portrait`, location and object use `image`, each triggering a tile instead of a
   fact row; `src/panel/components.ts` remaps `locationType` → "type" for display;

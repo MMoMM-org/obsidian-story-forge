@@ -111,6 +111,21 @@ could only ever know four kinds of thing.
      - [ ] A user's image field works without being named `portrait` `[ref: ADR-0002]`
      - [ ] No visual regression in the three shipped kinds
 
+- [ ] **T6.2b Cards read the same tile field** `[activity: refactoring]`
+
+  > **Added 2026-11-02 at T6.2's review.** T6.2 covered the panel only. The Hero Card still uses
+  > `imageFieldId` in `src/codex/cards/shared.ts` and the old `createAssetResolver`, so a user's Media
+  > field named `avatar` draws a tile on the panel and a monogram on the Card.
+
+  1. Prime: `src/panel/tileField.ts`; `src/codex/cards/shared.ts`; `CardRenderDeps`; `[ref: SDD/Technical Debt]`.
+  2. Test: a Hero Card shows a user's Media field on both backends; a missing target shows the
+     monogram; shipped kinds are unchanged; the panel and the Card agree on unresolved links.
+  3. Implement: one resolved tile-field answer for both surfaces, and remove the second name list.
+  4. Validate: unit tests; lint; types.
+  5. Success:
+     - [ ] A user's image field works on Cards without being named `portrait` `[ref: ADR-0002]`
+     - [ ] One copy of the image-field fallback names exists
+
 - [ ] **T6.3 Delete `inspectorFields.ts`** `[activity: refactoring]`
 
   1. Prime: Read `src/inspector/inspectorFields.ts` and confirm every field it declares is reachable
