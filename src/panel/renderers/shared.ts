@@ -16,7 +16,30 @@ import {
 	humanizeFieldLabel,
 	factValueEl,
 } from "panel/components";
-import type { ResolvedEntity } from "scoping/NoteContext";
+import { kindFields } from "panel/kindFields";
+import type { PanelDeps } from "panel/renderPanel";
+import type { EntityKind, ResolvedEntity } from "scoping/NoteContext";
+
+/**
+ * The field drawing this note's profile tile: the engine's FileClass-derived
+ * answer when it gave one, else the native `kindFields` name.
+ */
+export function tileFieldOf(kind: EntityKind, deps: PanelDeps): string | null {
+	return deps.tileField !== undefined ? deps.tileField : (kindFields(kind).image ?? null);
+}
+
+/**
+ * The resolved URL for the tile, or `undefined`/`""` when the field is unset,
+ * not a string, or does not resolve (the caller draws its monogram/glyph).
+ */
+export function tileImage(
+	field: string | null,
+	frontmatter: Record<string, unknown>,
+	deps: PanelDeps,
+): string | undefined {
+	const raw = field === null ? undefined : frontmatter[field];
+	return typeof raw === "string" && raw ? deps.resolveAsset(raw) : undefined;
+}
 
 // ---------------------------------------------------------------------------
 // renderReverseSceneList

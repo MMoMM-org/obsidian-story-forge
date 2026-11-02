@@ -35,7 +35,7 @@ import {
 	stampLinkEl,
 } from "panel/components";
 import { kindFields } from "panel/kindFields";
-import { renderFactsSection } from "panel/renderers/shared";
+import { renderFactsSection, tileFieldOf, tileImage } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
 
@@ -81,9 +81,10 @@ export function renderCharacter(
 	const { frontmatter, entities, backlinks } = ctx;
 	const name = ctx.activeFile.basename;
 
-	renderProfile(el, name, frontmatter, deps);
-	renderFacts(el, frontmatter);
-	renderFantasy(el, frontmatter);
+	const tileField = tileFieldOf("character", deps);
+	renderProfile(el, name, frontmatter, deps, tileField);
+	renderFacts(el, frontmatter, tileField);
+	renderFantasy(el, frontmatter, tileField);
 	renderRelationships(el, entities);
 	renderAppearsIn(el, backlinks);
 	renderOwns(el, backlinks);
@@ -96,19 +97,17 @@ export function renderCharacter(
 
 /**
  * Render the profile block (mockup S32): a portrait tile beside stacked pinfo
- * stat lines, then an optional tagline. Portrait uses the `portrait` image or
- * a monogram (existing portraitTile behaviour).
+ * stat lines, then an optional tagline. The tile uses the image in `tileField`
+ * (the FileClass's first Media field, else `portrait`) or a monogram.
  */
 function renderProfile(
 	el: HTMLElement,
 	name: string,
 	frontmatter: Record<string, unknown>,
 	deps: PanelDeps,
+	tileField: string | null,
 ): void {
-	const portrait = frontmatter["portrait"];
-	const rawSrc = typeof portrait === "string" && portrait ? portrait : "";
-	const resolved = deps.resolveAsset(rawSrc);
-	const image = resolved || undefined;
+	const image = tileImage(tileField, frontmatter, deps);
 
 	// Build the portrait tile detached, then hand it to profileRow.
 	const holder = activeDocument.createElement("div");
@@ -166,15 +165,15 @@ function pushLine(lines: Array<string | HTMLElement>, parts: string[]): void {
 	if (kept.length > 0) lines.push(kept.join(" · "));
 }
 
-function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): void {
+function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>, tileField: string | null): void {
 	// Profile-consumed fields (nickname/role/stats/tagline) are shown in the
-	// profile block, not the Facts section (mockup S32).
-	const facts = kindFields("character").facts.filter((f) => !PROFILE_FIELDS.has(f));
+	// profile block, not the Facts section (mockup S32); so is the tile field.
+	const facts = kindFields("character").facts.filter((f) => !PROFILE_FIELDS.has(f) && f !== tileField);
 	renderFactsSection(el, facts, frontmatter);
 }
 
-function renderFantasy(el: HTMLElement, frontmatter: Record<string, unknown>): void {
-	const present = FANTASY_FIELDS.filter((f) => frontmatter[f] !== undefined);
+function renderFantasy(el: HTMLElement, frontmatter: Record<string, unknown>, tileField: string | null): void {
+	const present = FANTASY_FIELDS.filter((f) => f !== tileField && frontmatter[f] !== undefined);
 	if (present.length === 0) return;
 
 	const { bodyEl } = section(el, "Fantasy");

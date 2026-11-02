@@ -25,7 +25,7 @@ import {
 	unresolvedEl,
 } from "panel/components";
 import { kindFields } from "panel/kindFields";
-import { renderFactsSection } from "panel/renderers/shared";
+import { renderFactsSection, tileFieldOf, tileImage } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
 
@@ -43,8 +43,9 @@ export function renderObject(
 ): void {
 	const { frontmatter, entities, backlinks } = ctx;
 
-	renderProfile(el, frontmatter, deps);
-	renderFacts(el, frontmatter);
+	const tileField = tileFieldOf("object", deps);
+	renderProfile(el, frontmatter, deps, tileField);
+	renderFacts(el, frontmatter, tileField);
 	renderOwner(el, entities);
 	renderAppearsIn(el, backlinks);
 }
@@ -58,13 +59,8 @@ export function renderObject(
  * per D5) beside pinfo lead lines. Lead = object `kind`; second line = joined
  * aliases (when present).
  */
-function renderProfile(el: HTMLElement, frontmatter: Record<string, unknown>, deps: PanelDeps): void {
-	const rawSrc =
-		typeof frontmatter["image"] === "string" && frontmatter["image"]
-			? frontmatter["image"]
-			: "";
-	const resolved = rawSrc ? deps.resolveAsset(rawSrc) : undefined;
-	const tile = kindTileEl("object", resolved || undefined);
+function renderProfile(el: HTMLElement, frontmatter: Record<string, unknown>, deps: PanelDeps, tileField: string | null): void {
+	const tile = kindTileEl("object", tileImage(tileField, frontmatter, deps));
 
 	const lines: string[] = [];
 	const kind = stringifyFieldValue(frontmatter["kind"]);
@@ -75,8 +71,8 @@ function renderProfile(el: HTMLElement, frontmatter: Record<string, unknown>, de
 	profileRow(el, tile, lines);
 }
 
-function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): void {
-	renderFactsSection(el, kindFields("object").facts, frontmatter);
+function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>, tileField: string | null): void {
+	renderFactsSection(el, kindFields("object").facts.filter((f) => f !== tileField), frontmatter);
 }
 
 function renderOwner(el: HTMLElement, entities: ResolvedEntity[]): void {

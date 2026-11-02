@@ -16,7 +16,9 @@ import type { App } from "obsidian";
 import type { NoteContext } from "scoping/NoteContext";
 import type { ViewRecord } from "store/types";
 import type { QueryEngine } from "engines/QueryEngine";
-import { createAssetResolver } from "panel/assetResolver";
+import { createFileClassSource, type FileClassSource } from "fileclass/fileClassVault";
+import { createLinkedImageResolver } from "panel/assetResolver";
+import { resolveTileField } from "panel/tileField";
 import { renderPanel } from "panel/renderPanel";
 import type { PanelDeps } from "panel/renderPanel";
 
@@ -33,7 +35,16 @@ export class NativeScopingEngine implements QueryEngine {
 	/** Built deps for last render — exposed as _lastDeps for testing. */
 	_lastDeps: PanelDeps | null = null;
 
-	constructor(private readonly app: App) {}
+	/** Where FileClasses live; absent means every note takes the native fallback. */
+	private readonly fileClasses: FileClassSource | undefined;
+
+	/**
+	 * @param getFileClassesFolder  live FileClasses folder (a getter: settings are
+	 *        reassigned on save). Omitted, the panel uses the native field names only.
+	 */
+	constructor(private readonly app: App, getFileClassesFolder?: () => string) {
+		this.fileClasses = getFileClassesFolder ? createFileClassSource(app, getFileClassesFolder) : undefined;
+	}
 
 	/**
 	 * Render entity context from NoteContext into `el` using the per-kind renderer.
@@ -72,7 +83,7 @@ export class NativeScopingEngine implements QueryEngine {
 	// ---------------------------------------------------------------------------
 
 	/** Build the PanelDeps for a render pass. */
-	private _buildDeps(ctx: NoteContext, el: HTMLElement): PanelDeps {
+	private _buildDeps(ctx: NoteContext, el: HTMLElement, tileField?: string | null): PanelDeps {
 		const deps: PanelDeps = {
 			onOpenLink: (path: string): void => {
 				void this.app.workspace.openLinkText(path, ctx.activeFile.path, false);
@@ -82,18 +93,25 @@ export class NativeScopingEngine implements QueryEngine {
 				this.collapsed[sectionId] = !this.collapsed[sectionId];
 				this._reRender(el, ctx);
 			},
-			// Shared with the Codex Cards (src/panel/assetResolver.ts): both draw the
-			// same frontmatter image field, so both must answer "vault path or URL?"
-			// the same way.
-			resolveAsset: createAssetResolver(this.app, ctx.activeFile.path),
+			// Same "vault path or URL?" answer as the Codex Cards
+			// (src/panel/assetResolver.ts), but a link that resolves to nothing gives
+			// "" so the tile draws its monogram instead of a broken image.
+			resolveAsset: createLinkedImageResolver(this.app, ctx.activeFile.path),
+			// FileClass resolution reads metadataCache synchronously: nothing to await.
+			tileField: tileField !== undefined ? tileField : this._tileField(ctx),
 		};
 		return deps;
 	}
 
-	/** Re-render into the same el after a collapse state change. */
+	/** The field drawing this note's tile (FileClass Media field, else native). */
+	private _tileField(ctx: NoteContext): string | null {
+		return resolveTileField(ctx.activeKind, ctx.activeFile, ctx.frontmatter, this.fileClasses);
+	}
+
+	/** Re-render into the same el after a collapse state change (the tile field cannot have changed). */
 	private _reRender(el: HTMLElement, ctx: NoteContext): void {
 		el.empty();
-		const deps = this._buildDeps(ctx, el);
+		const deps = this._buildDeps(ctx, el, this._lastDeps?.tileField);
 		this._lastDeps = deps;
 		renderPanel(ctx, el, deps);
 	}

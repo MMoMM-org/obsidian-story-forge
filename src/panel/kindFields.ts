@@ -4,10 +4,13 @@
  * Returns the facts and relations field lists for each EntityKind.
  * Field names are canonical and verified against schema/*.json.
  *
- * Special fields handled separately by renderers (not listed here):
- *   - character: `portrait`   (triggers portraitTile, not a factRow)
- *   - location:  `image`      (triggers imageTile, not a factRow)
- *   - object:    `image`      (triggers imageTile, not a factRow)
+ * This is the NATIVE FALLBACK config (CON-3): what the panel shows for a note
+ * no FileClass applies to. When one does, the tile comes from its first
+ * `Media`-typed field (`panel/tileField.ts`), and `image` below is not consulted.
+ *
+ * `image` names the field that draws the profile tile instead of a fact row:
+ *   - character: `portrait`
+ *   - location / object: `image`
  *
  * @ref schema/character.json
  * @ref schema/location.json
@@ -26,11 +29,14 @@ export interface KindFieldConfig {
 	facts: string[];
 	/** Frontmatter relation fields (wikilink lists). */
 	relations: string[];
+	/** The native tile field (never listed in `facts`); absent for kinds with no tile. */
+	image?: string;
 }
 
 /** Static per-kind field configuration. */
 const KIND_FIELD_MAP: Record<EntityKind, KindFieldConfig> = {
 	character: {
+		image: "portrait",
 		relations: ["significant_other", "family", "friends", "allies", "enemies"],
 		facts: [
 			"role", "status", "occupation", "age",
@@ -40,10 +46,12 @@ const KIND_FIELD_MAP: Record<EntityKind, KindFieldConfig> = {
 		],
 	},
 	location: {
+		image: "image",
 		relations: ["world", "inhabitants"],
 		facts: ["locationType", "region", "aliases", "first_appearance"],
 	},
 	object: {
+		image: "image",
 		relations: ["owner"],
 		// `kind` is the object's category (contract/artifact/relic/item from schema/object.json),
 		// NOT the EntityKind discriminant used by the plugin's classification layer.

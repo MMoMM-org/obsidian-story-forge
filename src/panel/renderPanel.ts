@@ -36,9 +36,17 @@ export interface PanelDeps {
 	 * - Empty or whitespace-only string → returns "".
 	 * - Absolute protocol URLs (https:, http:, data:, app:, blob:) → pass through.
 	 * - Vault-relative paths → resolved to an app:// resource URL via the vault API.
-	 * - Unresolvable paths → returned unchanged (graceful fallback).
+	 * - Unresolvable paths or links → "" (the tile draws its monogram/glyph
+	 *   rather than a broken image).
 	 */
 	resolveAsset: (src: string) => string;
+	/**
+	 * The frontmatter field that draws the profile tile, resolved from the
+	 * note's FileClass (its first `Media` field) by `panel/tileField.ts`.
+	 * `null` = the note has no tile source; absent = no resolution was done, so
+	 * the native `kindFields` name applies (CON-3).
+	 */
+	tileField?: string | null;
 }
 
 /** The common signature for all per-kind panel renderers. */

@@ -108,10 +108,10 @@ export interface CardRenderDeps {
 	 * Card reaching for `App` to close that gap would break the same seam
 	 * discipline `nameEl` exists to enforce, so the host injects the resolver.
 	 *
-	 * Total, and identical to `PanelDeps.resolveAsset` because it *is* that
-	 * function (`panel/assetResolver.ts`): empty input yields `""` so the Card can
-	 * draw its monogram fallback, protocol URLs pass through, vault paths resolve,
-	 * and an unresolvable path comes back unchanged.
+	 * Total: empty input yields `""` so the Card can draw its monogram fallback,
+	 * protocol URLs pass through, vault paths resolve, and an unresolvable path
+	 * comes back unchanged (`createAssetResolver`). `PanelDeps.resolveAsset` is
+	 * the stricter sibling — it gives `""` for an unresolvable link (T6.2).
 	 */
 	resolveAsset(raw: string): string;
 }

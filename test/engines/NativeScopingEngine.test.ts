@@ -384,13 +384,13 @@ describe("NativeScopingEngine", () => {
 			expect(deps.resolveAsset("[[]]")).toBe("");
 		});
 
-		it("returns src unchanged when vault path cannot be resolved", async () => {
+		it("returns empty (monogram fallback) when vault path cannot be resolved", async () => {
 			vi.mocked(app.vault.getAbstractFileByPath).mockReturnValueOnce(null);
 			vi.mocked(app.metadataCache.getFirstLinkpathDest).mockReturnValueOnce(null);
 
 			const deps = await buildDeps();
 			const result = deps.resolveAsset("95 Assets/missing.svg");
-			expect(result).toBe("95 Assets/missing.svg");
+			expect(result).toBe("");
 		});
 	});
 });

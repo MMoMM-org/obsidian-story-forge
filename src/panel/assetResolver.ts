@@ -102,7 +102,11 @@ export function createAssetResolver(app: App, sourcePath: string): (src: string)
  */
 export function createLinkedImageResolver(app: App, sourcePath: string): (target: string) => string {
 	const resolve = createAssetResolver(app, sourcePath);
-	return (target: string): string => {
+	return (input: string): string => {
+		// A stored `[[link]]` is accepted as well as its bare target: the panel
+		// hands over the raw field value, and comparing the resolver's output with
+		// an unstripped input would call every unresolved wikilink "resolved".
+		const target = wikilinkTarget(input) ?? input;
 		const out = resolve(target);
 		return out === target && !PROTOCOL_RE.test(target) ? "" : out;
 	};
