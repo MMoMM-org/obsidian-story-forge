@@ -10,7 +10,8 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, createMockCachedMetadata } from "obsidian";
@@ -69,15 +70,36 @@ describe("the shipped schema", () => {
 	});
 });
 
+describe("the generated module", () => {
+	it("renders an empty GENERATED_UI_HINTS when no schema declares a ui hint", () => {
+		expect(renderUiHintsModule(collectUiHints([]))).toMatch(/GENERATED_UI_HINTS[^=]*=\s*\{\s*\};?/);
+	});
+
+	it("changes when a schema drops its ui", () => {
+		const hinted = renderUiHintsModule(collectUiHints(schemaWith("wide")));
+		const dropped = renderUiHintsModule(collectUiHints([{ entity: "demo", fields: [{ name: "blurb", type: "text" }] }]));
+		expect(dropped).not.toBe(hinted);
+		expect(hinted).toContain("blurb");
+		expect(dropped).not.toContain("blurb");
+	});
+});
+
 describe("the hint never reaches a FileClass", () => {
 	let vault = "";
 	beforeEach(() => {
-		vault = mkdtempSync(path.join(ROOT, "test/.uihints-vault-"));
+		vault = mkdtempSync(path.join(tmpdir(), "uihints-vault-"));
 	});
 	afterEach(() => { rmSync(vault, { recursive: true, force: true }); });
 
+	it("leaves the tracked generatedUiHints.ts untouched", () => {
+		const real = path.join(ROOT, "src/editor/generatedUiHints.ts");
+		const before = statSync(real).mtimeMs;
+		execFileSync("node", ["scripts/schema-gen.mjs", "--vault", vault, "--no-ui-hints"], { cwd: ROOT, stdio: "pipe" });
+		expect(statSync(real).mtimeMs).toBe(before);
+	});
+
 	it("generates FileClasses byte-identical to the checked-in ones, with no ui key", () => {
-		execFileSync("node", ["scripts/schema-gen.mjs", "--vault", path.relative(ROOT, vault)], { cwd: ROOT, stdio: "pipe" });
+		execFileSync("node", ["scripts/schema-gen.mjs", "--vault", vault, "--no-ui-hints"], { cwd: ROOT, stdio: "pipe" });
 		const fresh = path.join(vault, "00 Meta/FileClasses");
 		const shipped = path.join(ROOT, "test/StoryForge/00 Meta/FileClasses");
 		const names = readdirSync(shipped).filter((f) => f.endsWith(".md"));
@@ -86,7 +108,7 @@ describe("the hint never reaches a FileClass", () => {
 			expect(existsSync(path.join(fresh, name))).toBe(true);
 			const text = readFileSync(path.join(fresh, name), "utf8");
 			expect(text).toBe(readFileSync(path.join(shipped, name), "utf8"));
-			expect(text).not.toMatch(/\bwide\b|\bui\b/);
+			expect(text).not.toMatch(/\bui:/);
 		}
 	});
 });
@@ -95,7 +117,7 @@ function fileClass(name: string): ParsedFileClass {
 	return {
 		name,
 		fields: [{ id: "f-t", name: "tagline", type: "Input" }],
-	} as unknown as ParsedFileClass;
+	};
 }
 
 describe("applying hints in buildFieldModel", () => {

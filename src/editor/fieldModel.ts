@@ -153,10 +153,11 @@ export function buildFieldModel(
  */
 function buildChainSection(fileClass: ParsedFileClass, uiHints: UiHintsByFileClass, seen: Set<string>): FieldSection {
 	const fields: FieldDef[] = [];
+	const hints = uiHints[fileClass.name] ?? {};
 	for (const field of fileClass.fields) {
 		if (seen.has(field.name)) continue; // first declaration wins (F6 edge case)
 		seen.add(field.name);
-		fields.push(toFieldDef(field, uiHints[fileClass.name] ?? {}));
+		fields.push(toFieldDef(field, hints));
 	}
 	const section: FieldSection = {
 		label: sectionLabel(fileClass),

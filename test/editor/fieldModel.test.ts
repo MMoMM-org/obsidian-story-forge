@@ -20,6 +20,7 @@
 import { describe, it, expect } from "vitest";
 import { buildFieldModel } from "editor/fieldModel";
 import { widthOf } from "editor/uiHints";
+import { GENERATED_UI_HINTS } from "editor/generatedUiHints";
 import type { ParsedFileClass, FileClassField } from "fileclass/fileClassTypes";
 
 // ---------------------------------------------------------------------------
@@ -108,6 +109,35 @@ describe("buildFieldModel — tier 1: a FileClass chain resolves", () => {
 
 		expect(model.sections[0]?.fields.map((f) => f.name)).toEqual(["name"]);
 		expect(model.sections[1]?.fields.map((f) => f.name)).toEqual(["level"]);
+	});
+
+	it("applies each section's own ui hints across a chain, first declaration winning", () => {
+		const fantasy: ParsedFileClass = {
+			name: "fc-character-fantasy",
+			extends: "fc-character",
+			fields: [
+				makeField({ id: "x-tagline", name: "tagline", type: "Input" }), // duplicate: dropped
+				makeField({ id: "x-motto", name: "motto", type: "Input" }),
+			],
+		};
+
+		const model = buildFieldModel([makeCharacterClass(), fantasy], {}, GENERATED_UI_HINTS);
+
+		const width = (s: number, n: string) => model.sections[s]?.fields.find((f) => f.name === n)?.width;
+		expect(width(0, "tagline")).toBe("full");
+		expect(width(1, "motto")).toBe("half");
+		expect(model.sections[1]?.fields.map((f) => f.name)).toEqual(["motto"]);
+	});
+
+	it("keeps a same-named field half width when only another class declares it", () => {
+		const other: ParsedFileClass = {
+			name: "fc-character-fantasy",
+			fields: [makeField({ id: "x-tagline", name: "tagline", type: "Input" })],
+		};
+
+		const model = buildFieldModel([other], {}, GENERATED_UI_HINTS);
+
+		expect(model.sections[0]?.fields[0]?.width).toBe("half");
 	});
 
 	it("passes the reader's field order through untouched, including fieldsOrder-omitted fields appended last", () => {

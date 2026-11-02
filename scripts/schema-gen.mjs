@@ -11,10 +11,10 @@
 // Field `type` in the JSON is the only abstraction; it maps to metadata-menu type,
 // template default, and the doc note. `id:` is generated deterministically (internal).
 //
-// Usage: node scripts/schema-gen.mjs [--vault <path>]   (default test/StoryForge)
+// Usage: node scripts/schema-gen.mjs [--vault <path>] [--no-ui-hints]   (default test/StoryForge)
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deriveNativeTypes, diffTypes } from './schema-types-json.mjs';
 import { collectUiHints, renderUiHintsModule, UI_HINT_FILE } from './schema-ui-hints.mjs';
@@ -24,10 +24,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const vIdx = args.indexOf('--vault');
 const VAULT = vIdx !== -1 ? args[vIdx + 1] : 'test/StoryForge';
+const NO_UI_HINTS = args.includes('--no-ui-hints'); // skip the tracked src/ module (tests)
 const FORCE = args.includes('--force'); // also overwrite conflicting types.json keys
 
 const SCHEMA_DIR = join(ROOT, 'schema');
-const META = join(ROOT, VAULT, '00 Meta');
+const META = join(resolve(ROOT, VAULT), '00 Meta');
 const OUT = {
   templates: join(META, 'Templates'),
   fileclasses: join(META, 'FileClasses'),
@@ -224,8 +225,10 @@ for (const file of files.sort()) {
 }
 
 // ── ui hints — the editor's `wide` hints, for the bundled plugin (never a FileClass) ──
-writeFileSync(join(ROOT, UI_HINT_FILE), renderUiHintsModule(collectUiHints(allSchemas)));
-written.push(`(src) ${UI_HINT_FILE}`);
+if (!NO_UI_HINTS) {
+  writeFileSync(join(ROOT, UI_HINT_FILE), renderUiHintsModule(collectUiHints(allSchemas)));
+  written.push(`(src) ${UI_HINT_FILE}`);
+}
 
 // ── Action 3 — deploy the schema-coupled vault infra (Scripts/Bases/dataview-views)
 // from infra/ into 00 Meta/, injecting schema-derived enum fallbacks. These land under
@@ -251,7 +254,7 @@ console.log(`\n${files.length} schema file(s) → ${written.length} artifact(s).
 // Merge, never overwrite: existing keys survive (Breadcrumbs BC-*, Tasks, relations,
 // the reserved aliases/tags/cssclasses); only safe new keys are added; a differing
 // existing key is a CONFLICT — reported and KEPT unless --force. No key is removed.
-const OBSIDIAN = join(ROOT, VAULT, '.obsidian');
+const OBSIDIAN = join(resolve(ROOT, VAULT), '.obsidian');
 const TYPES_JSON = join(OBSIDIAN, 'types.json');
 if (existsSync(OBSIDIAN)) {
   const { derived, clashes } = deriveNativeTypes(allSchemas);
