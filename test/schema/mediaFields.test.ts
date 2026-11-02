@@ -11,7 +11,7 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-32
  */
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { nativeType } from "../../scripts/schema-types-json.mjs";
@@ -43,7 +43,7 @@ function fileClassType(entity: string, field: string): string | undefined {
 }
 
 describe("schema type `media` (T6.1)", () => {
-	it("declares exactly portrait, image and image as media — and no ui: image anywhere", () => {
+	it("declares exactly one portrait and two image fields as media — and no ui: image anywhere", () => {
 		const found = mediaFields().map((m) => `${m.entity}.${m.name}`).sort();
 		expect(found).toEqual(["character.portrait", "location.image", "object.image"]);
 		expect(JSON.stringify(loadSchemas())).not.toMatch(/"ui"\s*:\s*"image"/);
@@ -80,9 +80,14 @@ describe("seed notes hold wikilinks for media fields (T6.1)", () => {
 		return readdirSync(dir).filter((f) => f.endsWith(".md")).map((f) => path.join(dir, f));
 	}
 
+	/** True only for a regular file (a directory never satisfies a link). */
+	function isFile(p: string): boolean {
+		return existsSync(p) && statSync(p).isFile();
+	}
+
 	function vaultHasFile(target: string): boolean {
 		const assets = path.join(VAULT, "95 Assets");
-		return existsSync(path.join(VAULT, target)) || existsSync(path.join(assets, target));
+		return isFile(path.join(VAULT, target)) || isFile(path.join(assets, target));
 	}
 
 	it("every non-empty media value is a wikilink to an existing file, or an http(s) URL", () => {
@@ -95,7 +100,8 @@ describe("seed notes hold wikilinks for media fields (T6.1)", () => {
 				if (/^https?:/.test(value)) continue;
 				const target = wikilinkTarget(value);
 				expect(target, `${path.basename(file)} ${m.name}: "${value}" is not a wikilink`).not.toBeNull();
-				expect(vaultHasFile(target ?? ""), `${path.basename(file)} → ${target}`).toBe(true);
+				expect(target?.trim(), `${path.basename(file)} ${m.name}: "${value}" links to an empty target`).toBeTruthy();
+				expect(vaultHasFile(target as string), `${path.basename(file)} → ${target}`).toBe(true);
 			}
 		}
 		expect(checked).toBeGreaterThanOrEqual(4);

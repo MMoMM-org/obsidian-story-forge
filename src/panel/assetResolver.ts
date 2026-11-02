@@ -3,8 +3,9 @@
  * an `<img src>` can use.
  *
  * `schema/character.json`'s `portrait` and `location`/`object`'s `image` are
- * `media` fields holding a **wikilink** (legacy notes may still hold a path or URL); every component that draws them
- * (`portraitTile`, `imageTile`, and the Codex Cards) takes an already-resolved
+ * `media` fields holding a **wikilink** (legacy notes may still hold a path or
+ * URL); every component that draws them (`portraitTile`, `imageTile`, and the
+ * Codex Cards) takes an already-resolved
  * URL. Resolution needs the vault, so it is injected as a seam
  * (`PanelDeps.resolveAsset`, `CardRenderDeps.resolveAsset`) rather than reached
  * for — the same discipline that keeps navigation out of renderers.
