@@ -40,6 +40,7 @@ import {
 import { renderNavigator, type NavigatorData } from "workspace/renderNavigator";
 import type { PluginSettings } from "types/index";
 import { buildFieldModel, type FieldModel } from "editor/fieldModel";
+import { GENERATED_UI_HINTS } from "editor/generatedUiHints";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
 import type { FileClassCache } from "fileclass/fileClassVault";
 import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
@@ -1543,7 +1544,7 @@ export class SidebarView extends ItemView {
 		const source = this.fileClasses;
 		const startName = source?.nameFor(ctx.activeFile);
 		const chain = source && startName !== undefined ? resolveFileClassChain(startName, source.lookup) : [];
-		const model = buildFieldModel(chain, ctx.frontmatter);
+		const model = buildFieldModel(chain, ctx.frontmatter, GENERATED_UI_HINTS);
 		return model.sections.some((section) => section.fields.length > 0) ? model : null;
 	}
 

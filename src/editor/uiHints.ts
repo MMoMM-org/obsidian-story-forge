@@ -19,9 +19,10 @@ import type { FieldType } from "fileclass/fileClassTypes";
 /**
  * Types that share a row (two-up) unless overridden by `ui: "wide"`.
  *
- * Verified against the real generated FileClasses: the six types actually
- * emitted are Input (42x), Select (17x), Multi (10x), MultiFile (10x),
- * Number (7x), File (5x).
+ * Counted from the generated FileClasses (`test/StoryForge/00 Meta/FileClasses/`,
+ * the eight `schema/*.json` types): the seven types actually emitted are
+ * Input (39x), Select (17x), Multi (10x), MultiFile (10x), Number (7x),
+ * File (5x), Media (3x). Of those only Input, Select and Number share a row.
  */
 const HALF: ReadonlySet<FieldType> = new Set([
 	"Input",

@@ -44,8 +44,9 @@ export type FieldType =
 
 /**
  * Minimal field descriptor consumed by the writer.
- * Select fields carry an optional `values` array (from schema/*.json).
- * This mirrors the schema field shape without duplicating the full JSON structure.
+ * Select fields carry an optional `values` array (the FileClass field's
+ * `valuesList` options, via `inspectorFieldsFromModel`). A read-only field
+ * arrives as `fixed`.
  */
 export type FieldSpec =
 	| { name: string; type: Extract<FieldType, "text" | "list" | "tags" | "relation" | "fixed"> }

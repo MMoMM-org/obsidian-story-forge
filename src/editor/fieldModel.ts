@@ -40,8 +40,9 @@ export interface FieldDef {
 	 * The stored value is one no control can represent (a nested map, a list
 	 * that is not all strings, a native date object). The pane shows it but
 	 * offers no way to edit it, so editing can never rewrite it into something
-	 * else. Set by value inference, and on a field declared as a scalar that
-	 * holds a list of non-strings (see `listValuedDef`). Also set on `type`, in
+	 * else. Set by value inference; on a declared field holding a map; and on a
+	 * declared field holding a list with a non-string member, including a
+	 * declared `Multi`/`MultiFile` (see `listValuedDef`). Also set on `type`, in
 	 * every tier (see `CLASSIFYING_FIELD`).
 	 */
 	readOnly?: true;

@@ -2,7 +2,9 @@
  * editableFields — scalar/enum edit controls and vocab helpers.
  *
  * Provides helpers for deriving select vocabulary from FieldSpec,
- * which in turn comes from schema/*.json `values` arrays.
+ * which in turn comes from the FileClass-driven field model
+ * (`inspectorFieldsFromModel`): a Select's `values` are its FileClass's
+ * `valuesList` options.
  * The edit control rendering (DOM) lives in InspectorController (T5.2).
  *
  * @ref SDD/ADR-7 — constrained dropdown; select vocab from schema values
@@ -14,7 +16,7 @@ import type { FieldSpec } from "./frontmatterWriter";
 /**
  * Return the select vocabulary for a select field, or null for non-select fields.
  *
- * The vocab comes from FieldSpec.values (sourced from schema/*.json `values`).
+ * The vocab comes from FieldSpec.values (the FileClass field's `valuesList` options).
  * Returns an empty array if the field has type "select" but no values declared.
  * Returns null for all other field types — callers use this to decide whether
  * to render a dropdown vs a plain text input.
