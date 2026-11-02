@@ -118,6 +118,8 @@ const STATUS_VOCAB = ["idea", "outline", "draft", "revised", "done", "final"];
 
 /** The `order` field spec used by the Kanban renumber path. */
 const ORDER_FIELD = { name: "order", type: "number" as const };
+/** How long a deferred reconcile waits for a gesture-end event before it runs anyway. */
+const DEFER_FALLBACK_MS = 1500;
 
 /**
  * AnvilViewOpts — grouped by concern (spec 008 Phase 4 closeout).
@@ -266,6 +268,12 @@ export class AnvilView extends ItemView {
 	private _inFlightPath: string | null = null;
 	/** A reconcile that arrived while a write was unresolved, owed once it settles (T5.4). */
 	private _reconcileOwed = false;
+	/**
+	 * Timer holding an owed reconcile back while focus sits on another element
+	 * of this view (a header tool, a card) so the click that put it there can
+	 * land. Null when nothing is deferred.
+	 */
+	private _deferTimer: number | null = null;
 	/**
 	 * The pane control that holds typed text not yet committed (its `change` has
 	 * not fired). Set by a delegated `input`, cleared by `change`/`focusout`. A
@@ -458,6 +466,11 @@ export class AnvilView extends ItemView {
 			if (e.target === this._draftEl) this._draftEl = null;
 		});
 		this.registerDomEvent(ce, "focusout", (e: FocusEvent) => { this._onFocusOut(e); });
+		// The gesture that a deferred reconcile waits for ends with one of these.
+		// Registered after the click router, so the click has acted by then.
+		for (const type of ["mouseup", "click", "keyup"]) {
+			this.registerDomEvent(ce, type as "click", () => { this._onGestureEnd(); });
+		}
 		// Click-outside-to-dismiss for the Codex Card selector dropdown (T4.4
 		// follow-up). A click that resolves to NO action runs no `_render()`, so
 		// an open dropdown would otherwise stay open over whatever the user just
@@ -515,6 +528,7 @@ export class AnvilView extends ItemView {
 		this._inFlight.clear();
 		this._inFlightPath = null;
 		this._reconcileOwed = false;
+		this._cancelDefer();
 		this._draftEl = null;
 		this._paneStale = false;
 		this._noteIndex = null;
@@ -636,7 +650,46 @@ export class AnvilView extends ItemView {
 		if (e.target === this._draftEl) this._draftEl = null;
 		const next = e.relatedTarget;
 		if (next instanceof HTMLElement && next.closest(`[${FIELD_CONTROL_ATTR}]`)) return;
+		if (this._reconcileOwed && next instanceof Node && this.contentEl.contains(next)) {
+			this._deferOwedReconcile();
+			return;
+		}
 		this._runOwedReconcile();
+	}
+
+	/**
+	 * Focus moved to another element of this view: its mousedown (or Tab) is the
+	 * start of a gesture, and rebuilding the DOM now would swallow the click.
+	 * Wait for the gesture to end (`_onGestureEnd`). The fallback timer is long
+	 * on purpose: a press lasts as long as the user holds it, so a short timer
+	 * would fire mid-press and lose the click; it only covers a gesture that
+	 * never produces an end event, so the owed reconcile is not stranded.
+	 */
+	private _deferOwedReconcile(): void {
+		if (this._deferTimer !== null) return;
+		this._deferTimer = window.setTimeout(() => { this._releaseDeferred(); }, DEFER_FALLBACK_MS);
+	}
+
+	/**
+	 * mouseup, click or keyup: the gesture is over. Run the reconcile in a 0ms
+	 * timer rather than inline, because the browser dispatches `click` right
+	 * after `mouseup` and the click must see the DOM it was aimed at.
+	 */
+	private _onGestureEnd(): void {
+		if (this._deferTimer === null) return;
+		window.clearTimeout(this._deferTimer);
+		this._deferTimer = window.setTimeout(() => { this._releaseDeferred(); }, 0);
+	}
+
+	private _releaseDeferred(): void {
+		this._deferTimer = null;
+		this._runOwedReconcile();
+	}
+
+	private _cancelDefer(): void {
+		if (this._deferTimer === null) return;
+		window.clearTimeout(this._deferTimer);
+		this._deferTimer = null;
 	}
 
 	/** Run the owed reconcile unless a write is unresolved or a draft is still live. */
@@ -728,6 +781,10 @@ export class AnvilView extends ItemView {
 	private _render(): void {
 		if (!this._bodyEl) return;
 		this._paneStale = false;
+		// A render IS the reconcile: nothing is owed after it. Cleared at the
+		// start because `onNeedsReseed` sets it again while the pane is drawn.
+		this._reconcileOwed = false;
+		this._cancelDefer();
 		this._draftEl = null;
 		const body = this._bodyEl;
 		body.empty();
