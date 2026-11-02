@@ -846,7 +846,7 @@ OUTPUT: FieldModel { sections }
            def := class.fields[name]
            fields += FieldDef{
                name, type: mapType(def.type), values: def.options?.valuesList,
-               ui: schemaUiHints[name], width: widthOf(...)
+               ui: schemaUiHints[class.name]?[name], width: widthOf(...)  # keyed by FileClass (2026-11-02)
            }
        # OQ-1 resolved 2026-08-05: the title key is OPTIONAL and the file name is the fallback.
        # Phase 1 ships `class.name` (the fc file name); T5.3 adds the title-key read in front of it.
@@ -1075,7 +1075,9 @@ Not applicable — single component.
       stored in `schema/*.json`, never in the FileClass file. **Revised 2026-07-29: only `wide`
       remains.** metadata-menu has a native **`Media`** type, so an image control follows from the
       *type* like every other control — for our fields and the user's alike. `ui: "image"` is
-      withdrawn before it was ever built.
+      withdrawn before it was ever built. **Revised 2026-11-02:** hints are keyed by FileClass, so a
+      user's own field that shares a hinted name stays half width; they reach the bundle through the
+      generated `src/editor/generatedUiHints.ts`.
   - Rationale: reproduces the signed-off layout for our fields and the user's alike with no
     configuration; metadata-menu rewrites FileClass files through its own UI and could drop unknown
     keys.

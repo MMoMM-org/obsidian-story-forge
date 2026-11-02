@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Deriving away the hardcoded field lists"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 6
 ---
@@ -62,7 +62,7 @@ could only ever know four kinds of thing.
      - [x] `ui: image` never exists — the control comes from the type `[ref: SDD/ADR-32]`
      - [x] No story **fact** was added `[ref: SDD/CON-5]`
 
-- [ ] **T6.1b The `wide` hint — declaration *and* its loader** `[activity: data-architecture]` `[parallel: true]`
+- [x] **T6.1b The `wide` hint — declaration *and* its loader** `[activity: data-architecture]` `[parallel: true]`
 
   > **This task owns the `UiHints` producer** (assigned 2026-07-30 at the Phase 1 close-out).
   > `src/editor/fieldModel.ts` takes `uiHints: UiHints = {}` — `Readonly<Record<string, "wide">>` —
@@ -87,8 +87,8 @@ could only ever know four kinds of thing.
      `UiHints` into `buildFieldModel` wherever the editor builds a model.
   4. Validate: `npm run schema:gen && npm run schema:check` green; unit tests; lint; types.
   5. Success:
-     - [ ] The hint never leaves our schema for a FileClass file `[ref: SDD/ADR-32]`
-     - [ ] The hint is **loaded**, not merely declared — `tagline` is full width in the running
+     - [x] The hint never leaves our schema for a FileClass file `[ref: SDD/ADR-32]`
+     - [x] The hint is **loaded**, not merely declared — `tagline` is full width in the running
            editor `[ref: SDD/AC — PRD F6]`
 
 - [ ] **T6.2 Replace the name coupling in the panel** `[activity: refactoring]`

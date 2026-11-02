@@ -45,6 +45,7 @@ ripple into the XDD spec. All eight entity types (`book`, `character`, `characte
 `location`, `lore`, `object`, `plotline`, `scene`) are generated from `schema/<type>.json`.
 **Do not hardcode this list** — read `schema/*.json` off disk, so adding a type needs no code
 change. `src/editor/generatedFileClasses.ts` is the reference for that, with a drift test.
+`src/editor/generatedUiHints.ts` is generated too (see `schema/README.md`): never edit it by hand.
 
 ## Memory & context
 
