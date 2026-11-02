@@ -874,7 +874,7 @@ sequenceDiagram
 
 ```
 ALGORITHM: buildFieldModel
-INPUT: note, fileClassesFolder, schemaUiHints
+INPUT: chain, frontmatter, uiHints (the chain comes from the shared FileClass cache; `buildFieldModel`)
 OUTPUT: FieldModel { sections }
 
 1. RESOLVE CHAIN:

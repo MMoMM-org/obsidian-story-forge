@@ -155,6 +155,7 @@ could only ever know four kinds of thing.
      `metadataCache.changed` for that folder `[ref: SDD/Quality Requirements]`.
   4. Validate: unit tests; lint; types.
   5. Success:
+     - Tests: `test/integration/fileclass-tiers.test.ts`, including the no-write assertion across an edit session on both surfaces.
      - [x] A fresh install with no FileClasses still edits `[ref: SDD/AC — PRD F6]`
 
 - [ ] **T6.5 Phase Validation** `[activity: validate]`
