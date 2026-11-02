@@ -56,6 +56,15 @@ export const CARD_BODY_ATTR = "data-sf-card-body";
 /** The cross-surface "name" marker, stamped by `buildNameEl` below. */
 const CARD_NAME_ATTR = "data-sf-link";
 
+/**
+ * Marks the title as a Card title, on the same element as `CARD_NAME_ATTR`.
+ * The link marker says WHERE it goes; this one says it is a title, so a host
+ * with an editor pane can give it its own behaviour while relation pills (also
+ * `data-sf-link`) keep following `linkClickAction`. Hosts that do not list it
+ * ignore it.
+ */
+export const CARD_TITLE_ATTR = "data-sf-card-title";
+
 // ---------------------------------------------------------------------------
 // Wrapper builder
 // ---------------------------------------------------------------------------
@@ -125,6 +134,7 @@ function buildNameEl(entry: CardEntry): HTMLElement {
 	const name = activeDocument.createElement("span");
 	name.className = "sf-cx-name";
 	name.setAttribute(CARD_NAME_ATTR, entry.path);
+	name.setAttribute(CARD_TITLE_ATTR, "");
 	name.textContent = entry.name;
 	return name;
 }

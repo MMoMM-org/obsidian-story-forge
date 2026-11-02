@@ -52,8 +52,15 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28
  */
 
-/** The kinds of thing a click can land on, per the PRD F2 matrix. */
-export type TargetKind = "name" | "cardBody" | "structuralControl" | "editableField";
+/**
+ * The kinds of thing a click can land on, per the PRD F2 matrix.
+ *
+ * `cardTitle` is a Codex Card's title: it is also a link (`data-sf-link`), but
+ * only the hosts that have an editor pane list its marker, so everywhere else
+ * it classifies as a plain `name`. Its behaviour follows `cardTitleOpensNote`,
+ * not `linkClickAction`, which keeps governing relation pills and chips.
+ */
+export type TargetKind = "name" | "cardTitle" | "cardBody" | "structuralControl" | "editableField";
 
 /**
  * The target kinds a surface found along the DOM ancestor chain of a click,
@@ -73,7 +80,7 @@ export type TargetMarkers = readonly TargetKind[];
 export type LinkClickAction = "drill" | "open";
 
 /** The decision the matrix resolves to for a given target and click. */
-export type NavigationAction = "inspect" | "openNote" | "operateControl" | "focusField" | "none";
+export type NavigationAction = "inspect" | "openNote" | "openNoteInTab" | "operateControl" | "focusField" | "none";
 
 /** The result of resolving a click: an action, and nothing else. */
 export interface NavigationOutcome {
@@ -103,6 +110,16 @@ function resolveNameOutcome(modifier: boolean, linkClickAction: LinkClickAction)
 }
 
 /**
+ * Resolves a card title click: the setting says whether a plain click opens
+ * the note in a new tab or does what the card body does (inspect); a modifier
+ * inverts the two.
+ */
+function resolveCardTitleOutcome(modifier: boolean, opensNote: boolean): NavigationOutcome {
+	const opensInTab = modifier ? !opensNote : opensNote;
+	return { action: opensInTab ? "openNoteInTab" : "inspect" };
+}
+
+/**
  * Resolves a card/row body click: always inspect on a plain click, always
  * open on a modifier click — the configured action only governs the name,
  * never the surrounding body.
@@ -122,10 +139,13 @@ export function resolveNavigationOutcome(
 	kind: TargetKind | "unknown",
 	modifier: boolean,
 	linkClickAction: LinkClickAction,
+	cardTitleOpensNote = true,
 ): NavigationOutcome {
 	switch (kind) {
 		case "name":
 			return resolveNameOutcome(modifier, linkClickAction);
+		case "cardTitle":
+			return resolveCardTitleOutcome(modifier, cardTitleOpensNote);
 		case "cardBody":
 			return resolveCardBodyOutcome(modifier);
 		case "structuralControl":
@@ -143,6 +163,8 @@ export function resolveNavigationOutcome(
 export interface NavigationControllerDeps {
 	/** Reads the live configured action; called per click so a settings change needs no reload. */
 	readonly getLinkClickAction: () => LinkClickAction;
+	/** Reads the live `cardTitleOpensNote` setting per click. Absent means the shipped default, `true`. */
+	readonly getCardTitleOpensNote?: () => boolean;
 	/**
 	 * Shows the target in place, per this host's own meaning of "inspect".
 	 * Invoked exactly when the resolved action is `"inspect"`.
@@ -169,7 +191,12 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
 	return {
 		handle(markers, modifier) {
 			const kind = classifyTarget(markers);
-			const outcome = resolveNavigationOutcome(kind, modifier, deps.getLinkClickAction());
+			const outcome = resolveNavigationOutcome(
+				kind,
+				modifier,
+				deps.getLinkClickAction(),
+				deps.getCardTitleOpensNote?.() ?? true,
+			);
 			if (outcome.action === "inspect") deps.inspect();
 			return outcome;
 		},

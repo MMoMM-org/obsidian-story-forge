@@ -71,6 +71,8 @@ async function openAnvil(
 ): Promise<AnvilView> {
 	const leaf = new WorkspaceLeaf();
 	leaf.app = app;
+	// Most tests here open the pane by clicking a title, which is the setting's "off" branch.
+	plugin.settings = { ...plugin.settings, cardTitleOpensNote: false };
 	const view = getAnvilFactory(plugin)(leaf);
 	(leaf as unknown as { view: AnvilView }).view = view;
 	await view.onOpen();
@@ -164,5 +166,23 @@ describe("main.ts — the real editor pane wiring (T5.1)", () => {
 		expect(plugin.settings).not.toBe(settingsBefore);
 		// And the pane actually moved beside the grid (S99).
 		expect(bodyOf(view).querySelector(".sf-cx-split-right .sf-ed")).not.toBeNull();
+	});
+});
+
+describe("main.ts wires cardTitleOpensNote into the Anvil, read live", () => {
+	it("a title click opens a new tab while the setting is on, and the pane once it is flipped off", async () => {
+		const { plugin, app } = await makePlugin();
+		seedVault(app);
+		await plugin.onload();
+		const view = await openAnvil(plugin, app);
+		plugin.settings = { ...plugin.settings, cardTitleOpensNote: true };
+		const title = () => view.contentEl.querySelector<HTMLElement>(`.sf-cx-name[data-sf-link="${mara.path}"]`);
+
+		title()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(app.workspace.openLinkText).toHaveBeenCalledWith(mara.path, "", true);
+
+		plugin.settings = { ...plugin.settings, cardTitleOpensNote: false };
+		title()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		expect(app.workspace.openLinkText).toHaveBeenCalledTimes(1);
 	});
 });

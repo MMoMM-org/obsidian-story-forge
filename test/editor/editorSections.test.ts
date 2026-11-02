@@ -474,6 +474,7 @@ async function openPaneOnMara(app: App, dock: "bottom" | "right"): Promise<Anvil
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: App }).app = app;
 	const view: AnvilView = new AnvilView(leaf, {
+		settings: { getCardTitleOpensNote: () => false },
 		drill: (f) => { view.inspect(f); },
 		editor: { getDock: () => dock },
 	});

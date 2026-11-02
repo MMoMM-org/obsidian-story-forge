@@ -27,6 +27,7 @@
 import type { TargetKind } from "./navigationController";
 import type { MarkerKindOf } from "./domTargetWalk";
 import { CODEX_CARD_BODY_ATTR, CODEX_COLLECTION_ATTR } from "codex/codexTab";
+import { CARD_TITLE_ATTR } from "codex/cardWrapper";
 import { CODEX_CARD_SELECT_ATTR } from "codex/cardSelector";
 import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
 import { CODEX_HINT_DISMISS_ATTR } from "codex/basesHint";
@@ -36,6 +37,7 @@ import { FIELD_CONTROL_ATTR } from "editor/fieldControls";
 /** Every marker attribute either host can emit, mapped to its `TargetKind`. */
 export const MARKER_VOCABULARY: Record<string, TargetKind> = {
 	"data-sf-link": "name",
+	[CARD_TITLE_ATTR]: "cardTitle",
 	[CODEX_CARD_BODY_ATTR]: "cardBody",
 	"data-ws-layout": "structuralControl",
 	"data-ws-tlmode": "structuralControl",
@@ -70,6 +72,10 @@ export function createMarkerKindOf(recognisedMarkers: readonly string[]): Marker
  * `AnvilView._markerKindOf`, `AnvilView.ts:563-574` pre-factoring).
  */
 export const ANVIL_MARKERS: readonly string[] = [
+	// Listed BEFORE the link marker: a Card title carries both on one element,
+	// and the first listed attribute wins. This is what lets the title differ
+	// from a pill without any ranking between kinds — proximity is untouched.
+	CARD_TITLE_ATTR,
 	"data-sf-link",
 	CODEX_CARD_BODY_ATTR,
 	"data-ws-layout",

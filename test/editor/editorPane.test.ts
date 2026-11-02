@@ -151,6 +151,8 @@ async function openAnvil(
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: App }).app = app;
 	const view: AnvilView = new AnvilView(leaf, {
+		// These tests open the pane by clicking a title: the pane path is the setting's "off" branch.
+		settings: { getCardTitleOpensNote: () => false },
 		drill: (file) => { view.inspect(file); },
 		...(opts.dock ? { editor: { getDock: opts.dock.getDock, onDockChange: opts.dock.onDockChange } } : {}),
 	});
@@ -163,7 +165,7 @@ async function openAnvil(
 async function openUnwiredAnvil(app: App): Promise<AnvilView> {
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: App }).app = app;
-	const view = new AnvilView(leaf);
+	const view = new AnvilView(leaf, { settings: { getCardTitleOpensNote: () => false } });
 	await view.onOpen();
 	view.setLayout("codex");
 	return view;

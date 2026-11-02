@@ -1,6 +1,6 @@
 import type MyPlugin from "main";
 import { type App, Menu, PluginSettingTab, Setting, ToggleComponent } from "obsidian";
-import { normalizeLinkClickAction, normalizeExcludedFolders, normalizeFileClassesFolder } from "types/index";
+import { normalizeLinkClickAction, normalizeCardTitleOpensNote, normalizeExcludedFolders, normalizeFileClassesFolder } from "types/index";
 
 import { HeaderSection } from "./HeaderSection";
 import type { ViewStore } from "store/ViewStore";
@@ -112,6 +112,19 @@ export class SettingsTab extends PluginSettingTab {
 						this.plugin.settings.linkClickAction = normalizeLinkClickAction(value);
 						await this.plugin.saveSettings();
 					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Open note from card title")
+			.setDesc(
+				"Clicking a card's title opens the note in a new tab. When off, it shows the note in the editor pane. " +
+					"Modifier-click (ctrl/cmd) inverts this choice.",
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.cardTitleOpensNote).onChange(async (value) => {
+					this.plugin.settings.cardTitleOpensNote = normalizeCardTitleOpensNote(value);
+					await this.plugin.saveSettings();
+				}),
 			);
 
 		new Setting(containerEl)

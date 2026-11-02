@@ -340,11 +340,11 @@ describe("Codex tab: F2 target markers through the real walk [PRD/F2, SDD/ADR-28
 		expect(markersFor(view, card)[0]).toBe("cardBody");
 	});
 
-	it("a name inside the card body classifies as name", async () => {
+	it("a title inside the card body classifies as cardTitle", async () => {
 		const view = await openCodex(app);
 		const name = nameIn(cardFor(view, mara));
 
-		expect(markersFor(view, name)[0]).toBe("name");
+		expect(markersFor(view, name)[0]).toBe("cardTitle");
 	});
 
 	it("the name wins over the surrounding card body BY PROXIMITY, not by a ranking", async () => {
@@ -359,7 +359,7 @@ describe("Codex tab: F2 target markers through the real walk [PRD/F2, SDD/ADR-28
 
 		// One walk, two starting points, opposite winners: only proximity can
 		// produce that. A fixed kind ranking would return the same head twice.
-		expect(markersFor(view, name)).toEqual(["name", "cardBody"]);
+		expect(markersFor(view, name)).toEqual(["cardTitle", "cardBody"]);
 		expect(markersFor(view, card)).toEqual(["cardBody"]);
 	});
 
@@ -378,15 +378,15 @@ describe("Codex tab: F2 target markers through the real walk [PRD/F2, SDD/ADR-28
 		expect(drill).toHaveBeenCalledTimes(1);
 	});
 
-	it("clicking the name follows the configured action while the body still inspects", async () => {
-		// linkClickAction "open" splits the two behaviours: a NAME click opens the
-		// note, a BODY click still inspects. If the name did not win by proximity
-		// the name click would inspect too, and this assertion would fail.
+	it("clicking the title opens a new tab (cardTitleOpensNote) while the body still inspects", async () => {
+		// The default setting splits the two behaviours: a TITLE click opens the
+		// note in a new tab, a BODY click still inspects. If the title did not win
+		// by proximity the title click would inspect too, and this would fail.
 		const drill = vi.fn();
 		const view = await openCodex(app, { drill, linkClickAction: "open" });
 
 		click(nameIn(cardFor(view, mara)));
-		expect(app.workspace.openLinkText).toHaveBeenCalledWith(mara.path, "", false);
+		expect(app.workspace.openLinkText).toHaveBeenCalledWith(mara.path, "", true);
 		expect(drill).not.toHaveBeenCalled();
 
 		click(cardFor(view, tobias));

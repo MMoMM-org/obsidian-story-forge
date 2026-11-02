@@ -326,6 +326,7 @@ describe("linkClickAction value round-trip", () => {
 		// Save "open"
 		await saveSettings({
 			linkClickAction: "open",
+			cardTitleOpensNote: true,
 			curatedBasesFolder: "00 Meta/Bases",
 			fileClassesFolder: "00 Meta/FileClasses",
 			excludedFolders: ["00 Meta"],
@@ -358,6 +359,7 @@ describe("linkClickAction value round-trip", () => {
 
 		await saveSettings({
 			linkClickAction: "drill",
+			cardTitleOpensNote: true,
 			curatedBasesFolder: "00 Meta/Bases",
 			fileClassesFolder: "00 Meta/FileClasses",
 			excludedFolders: ["00 Meta"],
@@ -376,5 +378,38 @@ describe("linkClickAction value round-trip", () => {
 		const merged = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
 		merged.linkClickAction = normalizeLinkClickAction(merged.linkClickAction);
 		expect(merged.linkClickAction).toBe("drill");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// SettingsTab — cardTitleOpensNote toggle row
+// ---------------------------------------------------------------------------
+
+describe("SettingsTab — 'Open note from card title' toggle", () => {
+	async function render(initial: boolean) {
+		const app = makeApp();
+		const plugin = makePlugin() as ReturnType<typeof makePlugin> & {
+			settings: { cardTitleOpensNote: boolean; linkClickAction: "drill" | "open" };
+		};
+		plugin.settings.cardTitleOpensNote = initial;
+		const tab = makeTab(app, plugin, makeStore(), makeConsentGate(), makeImporter());
+		const container = await renderTab(tab);
+		const row = container.querySelector('[data-setting-name="Open note from card title"]');
+		return { plugin, row };
+	}
+
+	it("renders with the sentence-case name and a description naming both behaviours", async () => {
+		const { row } = await render(true);
+		expect(row).not.toBeNull();
+		const desc = row?.getAttribute("data-setting-desc") ?? row?.textContent ?? "";
+		expect(desc).toContain("new tab");
+		expect(desc).toContain("editor pane");
+	});
+
+	it("toggling off persists false and saves", async () => {
+		const { plugin, row } = await render(true);
+		(row?.querySelector('[role="switch"]') as HTMLElement).click();
+		expect(plugin.settings.cardTitleOpensNote).toBe(false);
+		expect(plugin.saveSettings).toHaveBeenCalled();
 	});
 });

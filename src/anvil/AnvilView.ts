@@ -151,6 +151,8 @@ export interface AnvilViewOpts {
 	settings?: {
 		/** Reads the live link-click setting (getter — main.ts reassigns settings). */
 		getLinkClickAction?: () => "drill" | "open";
+		/** Reads the live `cardTitleOpensNote` setting, per click. Defaults to `true`. */
+		getCardTitleOpensNote?: () => boolean;
 		/**
 		 * Reads the live excludedFolders setting, threaded into resolveWorkspaceScope
 		 * and resolvePlotlineScope. Defaults to DEFAULT_EXCLUDED_FOLDERS so existing
@@ -274,6 +276,7 @@ export class AnvilView extends ItemView {
 	/** Child Component owning the current zoom listeners. Replaced on every rail render. */
 	private _zoomChild: Component | null = null;
 	private readonly getLinkClickAction: () => "drill" | "open";
+	private readonly getCardTitleOpensNote: () => boolean;
 	private readonly _drill: (file: TFile) => void;
 	private readonly getExcludedFolders: () => readonly string[];
 	private readonly getCollections: () => readonly CodexCollection[];
@@ -291,6 +294,7 @@ export class AnvilView extends ItemView {
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
 		super(leaf);
 		this.getLinkClickAction = opts?.settings?.getLinkClickAction ?? ((): "drill" => "drill");
+		this.getCardTitleOpensNote = opts?.settings?.getCardTitleOpensNote ?? ((): boolean => true);
 		// ADR-28: this is the Anvil's "inspect" implementation. It used to default to
 		// revealAndShowFile(app, file), which opened/revealed the Workbench leaf — the
 		// reported regression (a click in the Anvil must target no other leaf). Between
@@ -1160,6 +1164,7 @@ export class AnvilView extends ItemView {
 
 		const controller = createNavigationController({
 			getLinkClickAction: this.getLinkClickAction,
+			getCardTitleOpensNote: this.getCardTitleOpensNote,
 			inspect: (): void => {
 				const file = this._resolveLinkFile(nearest);
 				if (file) this._drill(file);
@@ -1171,6 +1176,11 @@ export class AnvilView extends ItemView {
 			case "openNote": {
 				const file = this._resolveLinkFile(nearest);
 				if (file) void this.app.workspace.openLinkText(file.path, "", false);
+				break;
+			}
+			case "openNoteInTab": {
+				const file = this._resolveLinkFile(nearest);
+				if (file) void this.app.workspace.openLinkText(file.path, "", true);
 				break;
 			}
 			case "operateControl":

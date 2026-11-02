@@ -1,6 +1,8 @@
 export interface PluginSettings {
 	/** ADR-5: link-click action; modifier-click inverts. Default: "drill". */
 	linkClickAction: "drill" | "open";
+	/** A plain click on a Codex Card title opens the note in a new tab; off, it shows it in the editor pane. */
+	cardTitleOpensNote: boolean;
 	/**
 	 * Vault folder where curated .base files are materialised on install.
 	 * Default "00 Meta/Bases" (colocates with M3-seeded Canon.base/Manuscript.base).
@@ -70,6 +72,7 @@ export const DEFAULT_EXCLUDED_FOLDERS: readonly string[] = ["00 Meta"];
 
 export const DEFAULT_SETTINGS: PluginSettings = {
 	linkClickAction: "drill",
+	cardTitleOpensNote: true,
 	curatedBasesFolder: "00 Meta/Bases",
 	fileClassesFolder: DEFAULT_FILE_CLASSES_FOLDER,
 	excludedFolders: [...DEFAULT_EXCLUDED_FOLDERS],
@@ -86,6 +89,11 @@ export function isLinkClickAction(v: unknown): v is PluginSettings["linkClickAct
 /** Normalizer: returns `v` if it is a valid `linkClickAction`, otherwise `"drill"`. */
 export function normalizeLinkClickAction(v: unknown): PluginSettings["linkClickAction"] {
 	return isLinkClickAction(v) ? v : "drill";
+}
+
+/** Normalizer: only a real boolean is kept; anything else fails closed to the default (`true`). */
+export function normalizeCardTitleOpensNote(v: unknown): boolean {
+	return typeof v === "boolean" ? v : DEFAULT_SETTINGS.cardTitleOpensNote;
 }
 
 /** Type guard: returns true if `v` is a valid `editorDock` value. */
@@ -194,6 +202,7 @@ export function normalizeSettings(raw: unknown): PluginSettings {
 		raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
 	return {
 		linkClickAction: normalizeLinkClickAction(stored.linkClickAction),
+		cardTitleOpensNote: normalizeCardTitleOpensNote(stored.cardTitleOpensNote),
 		curatedBasesFolder: normalizeCuratedBasesFolder(stored.curatedBasesFolder),
 		fileClassesFolder: normalizeFileClassesFolder(stored.fileClassesFolder),
 		excludedFolders: normalizeExcludedFolders(stored.excludedFolders),

@@ -712,7 +712,7 @@ describe("field controls — inside the live editor pane (T5.2)", () => {
 		seedVault(app);
 		const leaf = new WorkspaceLeaf();
 		(leaf as unknown as { app: App }).app = app;
-		const view: AnvilView = new AnvilView(leaf, { drill: (f) => { view.inspect(f); } });
+		const view: AnvilView = new AnvilView(leaf, { settings: { getCardTitleOpensNote: () => false }, drill: (f) => { view.inspect(f); } });
 		await view.onOpen();
 		view.setLayout("codex");
 		document.body.appendChild(view.contentEl);
@@ -743,7 +743,7 @@ describe("field controls — inside the live editor pane (T5.2)", () => {
 		seedVault(app);
 		const leaf = new WorkspaceLeaf();
 		(leaf as unknown as { app: App }).app = app;
-		const view: AnvilView = new AnvilView(leaf, { drill: (f) => { view.inspect(f); } });
+		const view: AnvilView = new AnvilView(leaf, { settings: { getCardTitleOpensNote: () => false }, drill: (f) => { view.inspect(f); } });
 		await view.onOpen();
 		view.setLayout("codex");
 		document.body.appendChild(view.contentEl);

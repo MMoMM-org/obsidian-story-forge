@@ -103,6 +103,7 @@ describe("StoryForgePlugin — settings persistence across reload", () => {
 		const stored: StoryForgeData = {
 			settings: {
 				linkClickAction: "drill",
+				cardTitleOpensNote: true,
 				curatedBasesFolder: "00 Meta/Bases",
 				fileClassesFolder: "custom-value",
 				excludedFolders: ["00 Meta"],
@@ -140,6 +141,7 @@ describe("StoryForgePlugin — clobber guards", () => {
 		const existingData: StoryForgeData = {
 			settings: {
 				linkClickAction: "drill",
+				cardTitleOpensNote: true,
 				curatedBasesFolder: "00 Meta/Bases",
 				fileClassesFolder: "old",
 				excludedFolders: ["00 Meta"],
@@ -169,6 +171,7 @@ describe("StoryForgePlugin — clobber guards", () => {
 		const existingData: StoryForgeData = {
 			settings: {
 				linkClickAction: "drill",
+				cardTitleOpensNote: true,
 				curatedBasesFolder: "00 Meta/Bases",
 				fileClassesFolder: "keep-me",
 				excludedFolders: ["00 Meta"],

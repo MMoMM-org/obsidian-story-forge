@@ -132,6 +132,7 @@ export default class StoryForgePlugin extends Plugin {
 					drill: (file) => { view.inspect(file); },
 					settings: {
 						getLinkClickAction: () => this.settings.linkClickAction,
+						getCardTitleOpensNote: () => this.settings.cardTitleOpensNote,
 						getExcludedFolders: () => this.settings.excludedFolders,
 					},
 					editor: {

@@ -77,7 +77,7 @@ const FIXTURE_LEGACY_SETTINGS = {
 };
 
 /**
- * Fixture C: every one of the seven current `PluginSettings` fields present with a
+ * Fixture C: every one of the eight current `PluginSettings` fields present with a
  * non-default stored value, plus the deleted `exampleSetting`. Pins that
  * `loadSettings()` round-trips ALL declared fields (not just the two Fixture B
  * happens to set) — a normalizer that silently drops or defaults a field it doesn't
@@ -87,6 +87,7 @@ const FIXTURE_ALL_FIELDS_STORED = {
 	settings: {
 		exampleSetting: "custom",
 		linkClickAction: "open",
+		cardTitleOpensNote: false,
 		curatedBasesFolder: "Custom/Bases",
 		fileClassesFolder: "Custom/FileClasses",
 		excludedFolders: ["Custom Excluded"],
@@ -223,7 +224,7 @@ describe("Phase 3 upgrade — settings load through main.ts's loadSettings()", (
 		expect("exampleSetting" in plugin.settings).toBe(false);
 	});
 
-	it("round-trips all seven declared fields when every one is stored, and carries no stray key", async () => {
+	it("round-trips all eight declared fields when every one is stored, and carries no stray key", async () => {
 		const plugin = await makePlugin();
 		plugin.loadData.mockResolvedValue(FIXTURE_ALL_FIELDS_STORED);
 
@@ -231,6 +232,7 @@ describe("Phase 3 upgrade — settings load through main.ts's loadSettings()", (
 
 		expect(plugin.settings).toEqual({
 			linkClickAction: "open",
+			cardTitleOpensNote: false,
 			curatedBasesFolder: "Custom/Bases",
 			fileClassesFolder: "Custom/FileClasses",
 			excludedFolders: ["Custom Excluded"],
@@ -260,6 +262,7 @@ describe("Phase 3 upgrade — settings save through main.ts's saveSettings()", (
 		const persisted = plugin.saveData.mock.calls[0]![0] as { settings?: unknown };
 		expect(persisted.settings).toEqual({
 			linkClickAction: "open",
+			cardTitleOpensNote: true,
 			curatedBasesFolder: "00 Meta/Bases",
 			fileClassesFolder: "00 Meta/FileClasses",
 			excludedFolders: ["00 Meta"],

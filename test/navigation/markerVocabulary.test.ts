@@ -32,6 +32,7 @@ describe("MARKER_VOCABULARY", () => {
 	it("maps every known marker attribute to its correct TargetKind", () => {
 		expect(MARKER_VOCABULARY).toEqual({
 			"data-sf-link": "name",
+			"data-sf-card-title": "cardTitle",
 			[CODEX_CARD_BODY_ATTR]: "cardBody",
 			"data-ws-layout": "structuralControl",
 			"data-ws-tlmode": "structuralControl",

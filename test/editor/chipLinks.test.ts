@@ -125,7 +125,7 @@ async function openAnvil(
 	(leaf as unknown as { app: App }).app = app;
 	const drilled: TFile[] = [];
 	const view: AnvilView = new AnvilView(leaf, {
-		settings: { getLinkClickAction: () => modifier },
+		settings: { getLinkClickAction: () => modifier, getCardTitleOpensNote: () => false },
 		drill: (f) => { drilled.push(f); view.inspect(f); },
 	});
 	await view.onOpen();
