@@ -18,12 +18,12 @@ import { describe, expect, it, vi } from "vitest";
 import { App, Component, type TFile } from "obsidian";
 import { DEBOUNCE_MS } from "pluginConstants";
 import { createMockCachedMetadata, createMockTFile, type CachedMetadata } from "../__mocks__/obsidian";
-import { createFileClassCache, type FileClassCache } from "fileclass/fileClassVault";
+import { createFileClassCache, type OwnedFileClassCache } from "fileclass/fileClassVault";
 
 const FOLDER = "00 Meta/FileClasses";
 
 /** A cache whose events nothing owns: enough for the tests of what it resolves. */
-function cacheOver(app: App, folder: () => string = () => FOLDER): FileClassCache {
+function cacheOver(app: App, folder: () => string = () => FOLDER): OwnedFileClassCache {
 	return createFileClassCache(app, folder, () => {});
 }
 
@@ -188,7 +188,7 @@ const AFTER: readonly Note[] = [NOTE_TAGS, { file: fcFresh, frontmatter: { tagNa
 
 interface Reads {
 	readonly app: App;
-	readonly cache: FileClassCache;
+	readonly cache: OwnedFileClassCache;
 	scans(): number;
 	lookups(path: string): number;
 }
@@ -431,6 +431,40 @@ describe("createFileClassCache — subscribe", () => {
 			vi.advanceTimersByTime(DEBOUNCE_MS);
 
 			expect(second).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("cancels a change still pending when it is disposed", () => {
+		vi.useFakeTimers();
+		try {
+			const { app, cache } = reads();
+			app.metadataCache._trigger("changed", fcFresh);
+			cache.dispose();
+			// Subscribed after, so only a cancelled timer keeps it from being told.
+			const late = vi.fn();
+			cache.subscribe(late);
+			vi.advanceTimersByTime(DEBOUNCE_MS);
+
+			expect(late).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("forgets its subscribers when it is disposed", () => {
+		vi.useFakeTimers();
+		try {
+			const { app, cache } = reads();
+			const listener = vi.fn();
+			cache.subscribe(listener);
+
+			cache.dispose();
+			app.metadataCache._trigger("changed", fcFresh);
+			vi.advanceTimersByTime(DEBOUNCE_MS);
+
+			expect(listener).not.toHaveBeenCalled();
 		} finally {
 			vi.useRealTimers();
 		}

@@ -60,6 +60,12 @@ export interface FileClassCache extends FileClassSource {
 	subscribe(listener: () => void): () => void;
 }
 
+/** The cache as its owner holds it: the owner, and only the owner, can end it. */
+export interface OwnedFileClassCache extends FileClassCache {
+	/** Cancel a change still pending and drop every subscriber. For the owner's unload. */
+	dispose(): void;
+}
+
 interface DeclaredClass {
 	readonly name: string;
 	readonly frontmatter: Record<string, unknown>;
@@ -89,7 +95,7 @@ export function createFileClassCache(
 	app: App,
 	folder: () => string,
 	registerEvent: (ref: EventRef) => void,
-): FileClassCache {
+): OwnedFileClassCache {
 	let generation: Generation | null = null;
 	const listeners = new Set<() => void>();
 	const notify = debounce((): void => { runListeners(listeners); }, DEBOUNCE_MS, true);
@@ -112,6 +118,10 @@ export function createFileClassCache(
 		subscribe: (listener) => {
 			listeners.add(listener);
 			return () => { listeners.delete(listener); };
+		},
+		dispose: () => {
+			notify.cancel();
+			listeners.clear();
 		},
 	};
 }

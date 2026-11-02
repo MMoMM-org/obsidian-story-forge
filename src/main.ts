@@ -57,6 +57,8 @@ export default class StoryForgePlugin extends Plugin {
 			() => this.settings.fileClassesFolder,
 			(ref) => { this.registerEvent(ref); },
 		);
+		// A change still pending must not reach a view that unload has already torn down.
+		this.register(() => { fileClasses.dispose(); });
 
 		// Construct the shared engine infrastructure injected into SidebarView
 		// and SettingsTab. Registry starts empty; populated in onLayoutReady and
