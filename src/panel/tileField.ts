@@ -31,7 +31,6 @@ import type { EntityKind } from "scoping/NoteContext";
 export function resolveTileField(
 	kind: EntityKind,
 	file: TFile,
-	frontmatter: Record<string, unknown>,
 	source: FileClassSource | undefined,
 ): string | null {
 	const native = kindFields(kind).image ?? null;
@@ -41,8 +40,9 @@ export function resolveTileField(
 	const chain = resolveFileClassChain(startName, source.lookup);
 	if (chain.length === 0) return native;
 
-	// Undeclared keys are typed by value and never `Media`, so every section counts.
-	for (const section of buildFieldModel(chain, frontmatter).sections) {
+	// No frontmatter: the tile follows the DECLARED type, and a list stored in a
+	// `Media` field must not hand the tile to the next `Media` field along.
+	for (const section of buildFieldModel(chain, undefined).sections) {
 		const media = section.fields.find((f) => f.type === "Media");
 		if (media) return media.name;
 	}

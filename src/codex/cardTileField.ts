@@ -30,13 +30,11 @@ export function nativeTileField(entry: CardEntry): string | null {
  *
  * @param getFileClassesFolder  absent means every entry takes the native names
  * @param fileFor               the entry's file, or `null` when the host has none
- * @param frontmatterFor        the entry's frontmatter, or `null`
  */
 export function createCardTileField(
 	app: App,
 	getFileClassesFolder: (() => string) | undefined,
 	fileFor: (path: string) => TFile | null,
-	frontmatterFor: (path: string) => Record<string, unknown> | null,
 ): (entry: CardEntry) => string | null {
 	const source = getFileClassesFolder
 		? createFileClassSource(app, getFileClassesFolder, { snapshot: true })
@@ -44,6 +42,6 @@ export function createCardTileField(
 	return (entry: CardEntry): string | null => {
 		const file = fileFor(entry.path);
 		if (file === null) return nativeTileField(entry);
-		return resolveTileField(entryKind(entry), file, frontmatterFor(entry.path) ?? {}, source);
+		return resolveTileField(entryKind(entry), file, source);
 	};
 }

@@ -1066,7 +1066,6 @@ export class AnvilView extends ItemView {
 				this.app,
 				() => this.getFileClassesFolder(),
 				(path) => this._noteIndex?.fileFor(path) ?? null,
-				frontmatterFor,
 			),
 			cardId: active ? this.getCardByCollection()[active.id] : undefined,
 			basesCapability: this.getBasesCapability(),

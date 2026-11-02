@@ -723,6 +723,72 @@ describe("relations are editable — the gap that motivated this spec (T5.4)", (
 	});
 });
 
+describe("a list stored in a field declared as a scalar stays a list (T6.3)", () => {
+	async function paneHolding(app: App, overrides: Record<string, unknown>): Promise<AnvilView> {
+		seedVault(app);
+		app.fileManager._setFrontmatter(mara.path, { ...seedFrontmatter(), ...overrides });
+		return openPane(app);
+	}
+
+	function addChip(host: HTMLElement, name: string, value: string): void {
+		click(cellIn(host, name).querySelector("[data-sf-ed-chip-add]"));
+		const entry = cellIn(host, name).querySelector<HTMLInputElement>("[data-sf-ed-chip-input]");
+		if (!entry) throw new Error("no chip entry box");
+		entry.value = value;
+		entry.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+	}
+
+	it("shows chips, not a text box holding the joined list", async () => {
+		const view = await paneHolding(new App(), { name: ["Mara", "Marie"] });
+
+		const cell = cellIn(view.contentEl, "name");
+		expect(cell.querySelectorAll(".sf-ed-chip")).toHaveLength(2);
+		expect(cell.querySelector("input.sf-ed-input")).toBeNull();
+	});
+
+	it("writes a list when a chip is added to an Input field", async () => {
+		const app = new App();
+		const view = await paneHolding(app, { name: ["Mara"] });
+
+		addChip(view.contentEl, "name", "Marie");
+		await vi.runAllTimersAsync();
+
+		expect(app.fileManager._getFrontmatter(mara.path)["name"]).toEqual(["Mara", "Marie"]);
+	});
+
+	it("writes a list when a chip is removed from a Select field, even the last one", async () => {
+		const app = new App();
+		const view = await paneHolding(app, { role: ["protagonist"] });
+
+		click(cellIn(view.contentEl, "role").querySelector(".sf-ed-chip-x"));
+		await vi.runAllTimersAsync();
+
+		expect(app.fileManager._getFrontmatter(mara.path)["role"]).toEqual([]);
+	});
+
+	it("keeps every link of a list stored in a Media field, as link chips", async () => {
+		const app = new App();
+		const view = await paneHolding(app, { portrait: ["[[a.png]]", "[[b.png]]"] });
+
+		const links = cellIn(view.contentEl, "portrait").querySelectorAll("[data-sf-link]");
+		expect(Array.from(links).map((link) => link.textContent)).toEqual(["a.png", "b.png"]);
+
+		addChip(view.contentEl, "portrait", "c.png");
+		await vi.runAllTimersAsync();
+
+		expect(app.fileManager._getFrontmatter(mara.path)["portrait"]).toEqual(["[[a.png]]", "[[b.png]]", "[[c.png]]"]);
+	});
+
+	it("makes a list of non-strings read-only, so no edit can rewrite it", async () => {
+		const app = new App();
+		const view = await paneHolding(app, { level: [1, 2] });
+
+		const input = cellIn(view.contentEl, "level").querySelector<HTMLInputElement>("input");
+		expect(input?.readOnly).toBe(true);
+		expect(input?.value).toBe("[1,2]");
+	});
+});
+
 // ---------------------------------------------------------------------------
 // RED 10 — the wiring is live: AnvilView feeds `onEdit` (T5.4)
 // ---------------------------------------------------------------------------

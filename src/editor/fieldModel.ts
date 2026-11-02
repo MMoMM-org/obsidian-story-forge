@@ -15,6 +15,10 @@
  *  3. (folded into 1)   -> the "Other properties" section itself, typed by
  *     inspecting values exactly as tier 2 does (`untypedFieldDef`).
  *
+ * The stored value outranks a declared scalar type in one case: a list. Every
+ * scalar control would write it back as a string, or keep only its first item,
+ * so such a field takes chips instead (`listValuedDef`), on both surfaces.
+ *
  * @ref SDD/Complex Logic  — buildFieldModel algorithm + traced walkthrough
  * @ref SDD/Application Data Models — FieldModel / FieldSection / FieldDef
  * @ref PRD/F6             — fields come from the FileClass chain
@@ -36,8 +40,8 @@ export interface FieldDef {
 	 * The stored value is one no control can represent (a nested map, a list
 	 * that is not all strings, a native date object). The pane shows it but
 	 * offers no way to edit it, so editing can never rewrite it into something
-	 * else. Only ever set by value inference — a declared field is the
-	 * FileClass's business.
+	 * else. Set by value inference, and on a field declared as a scalar that
+	 * holds a list of non-strings (see `listValuedDef`).
 	 */
 	readOnly?: true;
 }
@@ -131,7 +135,7 @@ export function buildFieldModel(
 	}
 
 	const seen = new Set<string>();
-	const sections = chain.map((fileClass) => buildChainSection(fileClass, uiHints, seen));
+	const sections = chain.map((fileClass) => buildChainSection(fileClass, uiHints, seen, frontmatter));
 
 	const otherSection = buildOtherPropertiesSection(frontmatter, seen);
 	if (otherSection !== undefined) sections.push(otherSection);
@@ -151,13 +155,18 @@ export function buildFieldModel(
  * nor filters it, it only removes a name already claimed by an earlier
  * section in the chain (R1/R4: first declaration wins).
  */
-function buildChainSection(fileClass: ParsedFileClass, uiHints: UiHintsByFileClass, seen: Set<string>): FieldSection {
+function buildChainSection(
+	fileClass: ParsedFileClass,
+	uiHints: UiHintsByFileClass,
+	seen: Set<string>,
+	frontmatter: Record<string, unknown> | undefined,
+): FieldSection {
 	const fields: FieldDef[] = [];
 	const hints = uiHints[fileClass.name] ?? {};
 	for (const field of fileClass.fields) {
 		if (seen.has(field.name)) continue; // first declaration wins (F6 edge case)
 		seen.add(field.name);
-		fields.push(toFieldDef(field, hints));
+		fields.push(toFieldDef(field, hints, frontmatter?.[field.name]));
 	}
 	const section: FieldSection = {
 		label: sectionLabel(fileClass),
@@ -185,12 +194,41 @@ function sectionLabel(fileClass: ParsedFileClass): string {
 	return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-function toFieldDef(field: FileClassField, uiHints: UiHints): FieldDef {
+function toFieldDef(field: FileClassField, uiHints: UiHints, value: unknown): FieldDef {
 	const ui = uiHints[field.name];
-	const def: FieldDef = { name: field.name, type: field.type, width: widthOf({ type: field.type, ui }) };
-	if (field.values !== undefined) def.values = field.values;
+	const listDef = Array.isArray(value) ? listValuedDef(field, value as unknown[]) : undefined;
+	const type = listDef?.type ?? field.type;
+	const def: FieldDef = { name: field.name, type, width: widthOf({ type, ui }) };
+	if (field.values !== undefined && listDef?.type === undefined) def.values = field.values;
 	if (ui !== undefined) def.ui = ui;
+	if (listDef?.readOnly) def.readOnly = true;
 	return def;
+}
+
+/** Declared types whose control holds a list already, so a stored list changes nothing. */
+const LIST_TYPES: ReadonlySet<FieldType> = new Set<FieldType>(["Multi", "MultiFile"]);
+/** Declared types that hold links, so an EMPTY list stays a link field. */
+const LINK_TYPES: ReadonlySet<FieldType> = new Set<FieldType>(["File", "Media", "MultiMedia"]);
+const WIKILINK = /^\[\[.+\]\]$/;
+
+/**
+ * What a list stored in a field declared as a scalar turns the field into, or
+ * `undefined` when its declared type already holds lists.
+ *
+ * Strings get chips: link chips when every item is a `[[link]]`, free chips
+ * otherwise. A list holding a non-string keeps its declared type and becomes
+ * read-only, since chips would rewrite those members as strings.
+ */
+function listValuedDef(
+	field: FileClassField,
+	value: readonly unknown[],
+): { type?: FieldType; readOnly?: true } | undefined {
+	if (LIST_TYPES.has(field.type)) return undefined;
+	const strings = value.filter((item): item is string => typeof item === "string");
+	if (strings.length !== value.length) return { readOnly: true };
+	const allLinks = strings.every((item) => WIKILINK.test(item.trim()));
+	const links = strings.length === 0 ? LINK_TYPES.has(field.type) : allLinks;
+	return { type: links ? "MultiFile" : "Multi" };
 }
 
 // ---------------------------------------------------------------------------

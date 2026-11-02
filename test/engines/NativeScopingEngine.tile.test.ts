@@ -133,6 +133,14 @@ describe("character tile from a Media-typed field", () => {
 		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
 	});
 
+	it("a list stored in the Media field keeps that field as the tile: the next Media field does not take over", async () => {
+		const w = world({ "fc-mine": fileClass([["avatar", "Media"], ["banner", "Media"]]) });
+		const el = await render(w, "character", {
+			fileClass: "fc-mine", avatar: ["[[Media/a.png]]", "[[Media/b.png]]"], banner: "https://x.test/banner.png",
+		});
+		expect(el.querySelector(".sf-portrait img")?.getAttribute("src")).not.toBe("https://x.test/banner.png");
+	});
+
 	it("a MultiMedia field draws no tile", async () => {
 		const w = world({ "fc-mine": fileClass([["gallery", "MultiMedia"]]) });
 		const el = await render(w, "character", { fileClass: "fc-mine", gallery: "[[Media/a.png]]" });

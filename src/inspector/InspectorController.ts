@@ -352,9 +352,11 @@ export class InspectorController {
 		spec: FieldSpec,
 		state: FieldState,
 	): void {
-		if (spec.type === "relation") {
+		// A `relation` covers one link and many (`SPEC_TYPE.MultiFile`), and only the
+		// value says which. The single chip would join a list into one broken link.
+		if (spec.type === "relation" && !Array.isArray(state.committedValue)) {
 			this._renderRelationChip(fieldRow, spec, state);
-		} else if (spec.type === "list" || spec.type === "tags") {
+		} else if (spec.type === "relation" || spec.type === "list" || spec.type === "tags") {
 			this._renderListChips(fieldRow, state);
 		} else {
 			// fixed and any other read-only types: plain text display

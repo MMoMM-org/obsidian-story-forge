@@ -30,6 +30,9 @@ import { App, TFile, Component } from "../__mocks__/obsidian";
 import { InspectorController } from "inspector/InspectorController";
 import * as frontmatterWriter from "inspector/frontmatterWriter";
 import type { FieldSpec, CommitResult } from "inspector/frontmatterWriter";
+import { specFor } from "editor/fieldCommit";
+import { buildFieldModel } from "editor/fieldModel";
+import type { FieldType as DeclaredType } from "fileclass/fileClassTypes";
 import type { NoteContext, EntityKind } from "scoping/NoteContext";
 
 // ---------------------------------------------------------------------------
@@ -143,6 +146,46 @@ function buildController(
 	controller.render(container, ctx, fields);
 	return { controller, container };
 }
+
+// ---------------------------------------------------------------------------
+// render: a list stored in a field declared as a scalar (T6.3)
+// ---------------------------------------------------------------------------
+
+describe("InspectorController: a list stored in a field declared as a scalar", () => {
+	/** The Workbench row for a field declared `type` on a note holding `value`. */
+	function renderDeclared(app: App, type: DeclaredType, value: unknown): HTMLElement {
+		const file = makeFile();
+		const model = buildFieldModel(
+			[{ name: "fc-note", fields: [{ id: "f", name: "subject", type }] }],
+			{ subject: value },
+		);
+		const fields = model.sections.flatMap((section) => section.fields).map(specFor);
+		const { container } = buildController(app, file, makeCtx(file, "character", { subject: value }), fields);
+		return container;
+	}
+
+	it("shows read-only text chips, with no control to edit them through", () => {
+		const container = renderDeclared(makeApp(), "Input", ["one", "two"]);
+
+		const chips = Array.from(container.querySelectorAll(".sf-inspector-chip")).map((chip) => chip.textContent);
+		expect(chips).toEqual(["one", "two"]);
+		expect(container.querySelector("[data-sf-inspector-input]")).toBeNull();
+	});
+
+	it("shows one link chip per [[link]], never one chip for the joined list", () => {
+		const app = makeApp();
+		vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((link: string) => {
+			const target = makeFile(`30 Canon/${link}.md`);
+			target.basename = link;
+			return target;
+		});
+		const container = renderDeclared(app, "File", ["[[A]]", "[[B]]"]);
+
+		const links = Array.from(container.querySelectorAll(".sf-inspector-chip-link")).map((chip) => chip.textContent);
+		expect(links).toEqual(["A", "B"]);
+		expect(container.querySelector(".sf-inspector-ro-chip")).toBeNull();
+	});
+});
 
 // ---------------------------------------------------------------------------
 // render: field controls

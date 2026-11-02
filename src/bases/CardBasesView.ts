@@ -272,15 +272,10 @@ export class CardBasesView extends BasesView {
 	/** This pass's tile-field resolver, over the entries about to be drawn. */
 	private tileFieldFor(entries: readonly BasesEntry[]): (entry: CardEntry) => string | null {
 		const files = new Map(entries.map((e) => [e.file.path, e.file] as const));
-		const { app } = this.deps;
 		return createCardTileField(
-			app,
+			this.deps.app,
 			this.deps.getFileClassesFolder,
 			(path) => files.get(path) ?? null,
-			(path) => {
-				const file = files.get(path);
-				return (file && app.metadataCache.getFileCache(file)?.frontmatter) || null;
-			},
 		);
 	}
 }

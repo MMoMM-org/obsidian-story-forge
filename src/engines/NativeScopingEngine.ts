@@ -106,6 +106,6 @@ export class NativeScopingEngine implements QueryEngine {
 
 	/** The field drawing this note's tile (FileClass Media field, else native). */
 	private _tileField(ctx: NoteContext): string | null {
-		return resolveTileField(ctx.activeKind, ctx.activeFile, ctx.frontmatter, this.fileClasses);
+		return resolveTileField(ctx.activeKind, ctx.activeFile, this.fileClasses);
 	}
 }

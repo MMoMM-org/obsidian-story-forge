@@ -12,6 +12,7 @@
  *  - tier 3 is omitted entirely when nothing is undeclared
  *  - a Select whose current value is absent from its declared list is left
  *    untouched (no filtering, no throw) — F6 edge case
+ *  - a list stored in a field declared as a scalar becomes chips (T6.3)
  *  - the width rule reproduces S102/S103 exactly, field by field
  *  - widthOf: an unrecognised type is full width; a `ui` hint on an unknown
  *    type is still full width (never a crash, never silently dropped)
@@ -63,9 +64,72 @@ function makeIsekaiClass(overrides: Partial<ParsedFileClass> = {}): ParsedFileCl
 	};
 }
 
+/** The one field a chain declaring `type` yields for a note holding `value`. */
+function fieldFor(type: FileClassField["type"], value: unknown, values?: string[]): unknown {
+	const fileClass: ParsedFileClass = {
+		name: "fc-note",
+		fields: [{ id: "f", name: "subject", type, ...(values ? { values } : {}) }],
+	};
+	return buildFieldModel([fileClass], { subject: value }).sections[0]?.fields[0];
+}
+
 function widthsByName(fields: { name: string; width: "half" | "full" }[]): Record<string, "half" | "full"> {
 	return Object.fromEntries(fields.map((field) => [field.name, field.width]));
 }
+
+// ---------------------------------------------------------------------------
+// The stored value outranks a declared scalar type (T6.3)
+// ---------------------------------------------------------------------------
+
+describe("buildFieldModel — a list stored in a field declared as a scalar (T6.3)", () => {
+	it.each(["Input", "Number", "Boolean", "Select", "Cycle", "Date", "Datetime", "Time", "Unknown"] as const)(
+		"%s holding strings becomes free chips at full width, with no leftover vocabulary",
+		(type) => {
+			expect(fieldFor(type, ["one", "two"], ["a"])).toEqual({ name: "subject", type: "Multi", width: "full" });
+		},
+	);
+
+	it.each(["Input", "File", "Media", "MultiMedia"] as const)("%s holding only [[links]] becomes link chips", (type) => {
+		expect(fieldFor(type, ["[[A]]", "[[B]]"])).toEqual({ name: "subject", type: "MultiFile", width: "full" });
+	});
+
+	it("reads a link with whitespace around it the way the chip control does", () => {
+		expect(fieldFor("Input", [" [[A]] "])).toMatchObject({ type: "MultiFile" });
+	});
+
+	it("keeps a list mixing links and plain strings as free chips", () => {
+		expect(fieldFor("Input", ["[[A]]", "plain"])).toMatchObject({ type: "Multi" });
+	});
+
+	it("treats an empty list as a list: free chips, or link chips where the field holds links", () => {
+		expect(fieldFor("Input", [])).toMatchObject({ type: "Multi" });
+		expect(fieldFor("File", [])).toMatchObject({ type: "MultiFile" });
+		expect(fieldFor("Media", [])).toMatchObject({ type: "MultiFile" });
+		expect(fieldFor("MultiMedia", [])).toMatchObject({ type: "MultiFile" });
+	});
+
+	it("keeps the declared type and marks a list of non-strings read-only", () => {
+		expect(fieldFor("Input", [1, 2])).toEqual({ name: "subject", type: "Input", width: "half", readOnly: true });
+		expect(fieldFor("File", ["[[A]]", 2])).toMatchObject({ type: "File", readOnly: true });
+	});
+
+	it.each(["Multi", "MultiFile"] as const)("leaves a declared %s alone", (type) => {
+		expect(fieldFor(type, ["[[A]]", "plain"])).toMatchObject({ type });
+	});
+
+	it.each([["a string", "text"], ["a number", 3], ["nothing", undefined], ["null", null]])(
+		"leaves a declared scalar holding %s alone",
+		(_label, value) => {
+			expect(fieldFor("Input", value)).toEqual({ name: "subject", type: "Input", width: "half" });
+		},
+	);
+
+	it("keeps a ui hint on the field it turned into chips", () => {
+		const fileClass: ParsedFileClass = { name: "fc-note", fields: [{ id: "f", name: "subject", type: "Input" }] };
+		const model = buildFieldModel([fileClass], { subject: ["x"] }, { "fc-note": { subject: "wide" } });
+		expect(model.sections[0]?.fields[0]).toEqual({ name: "subject", type: "Multi", width: "full", ui: "wide" });
+	});
+});
 
 // ---------------------------------------------------------------------------
 // Tier 1 — sections from the chain
