@@ -140,7 +140,7 @@ could only ever know four kinds of thing.
      - [x] The old list is provably redundant before it is removed `[ref: ADR-0002]`
      - [x] The Workbench editor keeps working `[ref: SDD/Implementation Boundaries]`
 
-- [ ] **T6.4 Tier 2 and tier 3 in the running plugin** `[activity: integration]`
+- [x] **T6.4 Tier 2 and tier 3 in the running plugin** `[activity: integration]`
 
   1. Prime: `[ref: SDD/Complex Logic]` tiers; `[ref: PRD/F6 ACs]`.
   2. Test: with the FileClasses folder **absent or empty**, the editor still opens and shows the
@@ -151,7 +151,7 @@ could only ever know four kinds of thing.
      `metadataCache.changed` for that folder `[ref: SDD/Quality Requirements]`.
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] A fresh install with no FileClasses still edits `[ref: SDD/AC — PRD F6]`
+     - [x] A fresh install with no FileClasses still edits `[ref: SDD/AC — PRD F6]`
 
 - [ ] **T6.5 Phase Validation** `[activity: validate]`
 
