@@ -319,7 +319,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > **Added 2026-11-02 with the fixes `0723226`, `0a040f1`, `9578554` and `06b408c`.** Unit tests cover
   > these, but the mock cannot prove them. Confirm in a real vault:
   > - [ ] Renaming a folder above the shown note keeps the pane open on that note.
-  > - [ ] After an external edit to a clean focused field, the value updates and the caret stays in
+  > - [x] After an external edit to a clean focused field, the value updates and the caret stays in
   >       that field.
   > - [ ] Tab out of a dirty box commits it, and nothing typed is lost.
   > - [ ] In pane fields, a space can be typed and Enter settles the box.
@@ -328,7 +328,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   >       text box instead of an empty control.
   >
   > **Added by the drift fixes' review (2026-11-02):**
-  > - [ ] With a reconcile owed (an external edit while a field is focused), press and hold a header
+  > - [x] With a reconcile owed (an external edit while a field is focused), press and hold a header
   >       tool for a second, and click a card: the first click acts.
   > - [ ] Rename the open note, and a parent folder, while typing in a pane field: the text survives
   >       and the next commit lands in the renamed note.
