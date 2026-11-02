@@ -91,7 +91,7 @@ could only ever know four kinds of thing.
      - [x] The hint is **loaded**, not merely declared — `tagline` is full width in the running
            editor `[ref: SDD/AC — PRD F6]`
 
-- [ ] **T6.2 Replace the name coupling in the panel** `[activity: refactoring]`
+- [x] **T6.2 Replace the name coupling in the panel** `[activity: refactoring]`
 
   1. Prime: Read the inventory in `[ref: SDD/Technical Debt]` and confirm it against the source
      before changing anything: `src/panel/kindFields.ts` header (character → `portrait`, location and
@@ -108,8 +108,8 @@ could only ever know four kinds of thing.
      the **native fallback config only** `[ref: SDD/Implementation Boundaries]`.
   4. Validate: unit tests including the pre-refactor snapshots; lint; types.
   5. Success:
-     - [ ] A user's image field works without being named `portrait` `[ref: ADR-0002]`
-     - [ ] No visual regression in the three shipped kinds
+     - [x] A user's image field works without being named `portrait` `[ref: ADR-0002]`
+     - [x] No visual regression in the three shipped kinds
 
 - [ ] **T6.2b Cards read the same tile field** `[activity: refactoring]`
 
