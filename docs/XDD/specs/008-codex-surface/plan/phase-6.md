@@ -126,7 +126,7 @@ could only ever know four kinds of thing.
      - [x] A user's image field works on Cards without being named `portrait` `[ref: ADR-0002]`
      - [x] One copy of the image-field fallback names exists
 
-- [ ] **T6.3 Delete `inspectorFields.ts`** `[activity: refactoring]`
+- [x] **T6.3 Delete `inspectorFields.ts`** `[activity: refactoring]`
 
   1. Prime: Read `src/inspector/inspectorFields.ts` and confirm every field it declares is reachable
      through the FileClass chain — **this is the gate for deletion** `[ref: SDD/Implementation
@@ -137,8 +137,8 @@ could only ever know four kinds of thing.
   3. Implement: point `InspectorController` at `fieldModel`; delete `inspectorFields.ts` and its test.
   4. Validate: full suite; lint; types.
   5. Success:
-     - [ ] The old list is provably redundant before it is removed `[ref: ADR-0002]`
-     - [ ] The Workbench editor keeps working `[ref: SDD/Implementation Boundaries]`
+     - [x] The old list is provably redundant before it is removed `[ref: ADR-0002]`
+     - [x] The Workbench editor keeps working `[ref: SDD/Implementation Boundaries]`
 
 - [ ] **T6.4 Tier 2 and tier 3 in the running plugin** `[activity: integration]`
 
