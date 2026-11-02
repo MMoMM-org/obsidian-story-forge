@@ -102,9 +102,8 @@ function onEntryOpen(plugin: Plugin, path: string): void {
  * registration throwing must not retroactively make this function (or the
  * cached `isBasesAvailable`) report `false`: that would be a lie about the
  * codex view, which really did register, and — because `main.ts` feeds this
- * same boolean into `buildEngineRegistry` and `_openCodex`'s degrade
- * decision — would disable the `bases` query engine plugin-wide and fall
- * back to the degrade `CodexView` leaf over a Card-only failure. So the Card
+ * same boolean into `buildEngineRegistry` — would disable the `bases`
+ * query engine plugin-wide over a Card-only failure. So the Card
  * registrations run in their OWN try/catch, after `availabilityCache` is
  * already set from the codex outcome alone, and a failure there never
  * touches that cache. See `registerCardViews` for how each failure (a throw,

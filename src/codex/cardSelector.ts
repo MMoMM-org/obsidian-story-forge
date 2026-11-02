@@ -74,7 +74,7 @@ export function renderCardSelector(active: CardRenderer): HTMLElement {
 	// (ADR-28), so it never joins the host's marker vocabulary. This whole
 	// subtree is torn down on every render (`renderCodexTab`'s `empty(container)`
 	// at the top), so a plain listener is GC'd with it — the same documented
-	// ADR-2 exception `CodexView.ts`'s "Enable Bases" button uses.
+	// ADR-2 exception for a plain, subtree-scoped listener.
 	trigger.addEventListener("click", () => {
 		const opening = dd.hidden;
 		dd.hidden = !opening;

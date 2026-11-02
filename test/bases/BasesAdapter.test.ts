@@ -627,8 +627,7 @@ describe("registerCodexView — getLinkClickAction threaded through to Card fact
 // runtime, so a LATER Card registration throwing (or being declined) must
 // never make registerCodexView/isBasesAvailable report false — that would
 // falsely disable the bases query engine plugin-wide (main.ts feeds this
-// same boolean into buildEngineRegistry) and fall back to the degrade
-// CodexView leaf over a Card-only failure.
+// same boolean into buildEngineRegistry) over a Card-only failure.
 // ---------------------------------------------------------------------------
 
 /**
@@ -731,7 +730,7 @@ describe("registerCodexView T4.5 — Card registration isolation (review finding
 
 	it("MUTATION-GUARD downstream: getBasesCapability still reports 'enabled' after a Card registration throws", () => {
 		// This is the exact main.ts consequence the review flagged: a false
-		// negative here would cascade into buildEngineRegistry/_openCodex.
+		// negative here would cascade into buildEngineRegistry.
 		wirePerViewIdBehavior(plugin, {
 			"story-forge-codex": true,
 			"story-forge-hero": "throw",

@@ -23,7 +23,7 @@
  * Why the record no longer stores the YAML (ADR-35, closes the double-copy defect):
  *   Storing `record.source` as a second copy of the YAML meant drift detection
  *   (ConsentGate._evaluateBasesRecord) checksummed the STORE's copy while
- *   `_openCodex` opened the VAULT file — editing the rendered file was invisible.
+ *   the removed Open Codex command opened the VAULT file — editing the rendered file was invisible.
  *   The vault file is now the single artifact; `record.source` is its path, and
  *   `record.generated.instanceChecksum` is the checksum of the bytes actually
  *   written, so classify() can detect a hand-edit against what is really on disk.

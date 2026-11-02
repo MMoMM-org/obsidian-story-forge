@@ -20,23 +20,6 @@ export const SIDEBAR_VIEW_TYPE = "story-forge-panel";
 export const CODEX_VIEW_ID = "story-forge-codex";
 
 /**
- * The view type identifier for the thin `CodexView` host `ItemView` — the S46
- * degrade shown ONLY when Bases is off (`[ref: PRD/AC-F2.5]`). Stable — never
- * change after first release (CON-4): renaming it orphans any saved workspace
- * layout that still contains the leaf.
- *
- * **Distinct from `CODEX_VIEW_ID` — do not merge them.** `CODEX_VIEW_ID` is the
- * Bases polymorphic view type (`registerBasesView`, present only when Bases is
- * on); this is the degrade `ItemView` type (`registerView`, used only when
- * Bases is off). Two ids, two purposes, two lifecycles — merging them would
- * break the degrade path and change a frozen id string, which CON-4 forbids.
- *
- * Formerly declared in `src/codex/CodexView.ts`; consolidated here (spec 008,
- * T4.5) for the same single-source-of-truth reason `CODEX_VIEW_ID` was.
- */
-export const CODEX_VIEW_TYPE = "story-forge-codex-host";
-
-/**
  * Bases view ids for the three built-in Cards (Hero, Table, Compact),
  * registered directly via `registerBasesView` (T4.5) so a user can pick
  * "Story Forge Hero" etc. as a view type inside their own `.base` file —

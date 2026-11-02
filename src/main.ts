@@ -1,10 +1,10 @@
-import { Plugin, Events, Notice, normalizePath, TFile } from "obsidian";
+import { Plugin, Events, Notice } from "obsidian";
 import { SettingsTab } from "settings/SettingsTab";
 import { DEFAULT_SETTINGS, normalizeSettings, type PluginSettings } from "types/index";
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort, StoryForgeData } from "store/types";
 import { SidebarView, activateView } from "views/SidebarView";
-import { SIDEBAR_VIEW_TYPE, ICON, WORKSPACE_VIEW_TYPE, CODEX_VIEW_TYPE } from "pluginConstants";
+import { SIDEBAR_VIEW_TYPE, ICON, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { WorkspaceLeaf } from "obsidian";
 import { EngineRegistry } from "engines/QueryEngine";
 import { buildEngineRegistry, getDvSettings } from "engines/EngineRegistry";
@@ -12,8 +12,7 @@ import { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
-import { registerCodexView, isBasesAvailable, getBasesCapability } from "bases/BasesAdapter";
-import { CodexView } from "codex/CodexView";
+import { registerCodexView, getBasesCapability } from "bases/BasesAdapter";
 import { AnvilView, type AnvilLayout } from "anvil/AnvilView";
 import { CatalogService } from "catalog/CatalogService";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
@@ -120,14 +119,6 @@ export default class StoryForgePlugin extends Plugin {
 			),
 		);
 
-		// Register the thin CodexView host (T3.3, ADR-2 Option A).
-		// This view is only ever activated for the S46 degrade path (Bases off).
-		// When Bases is available, the open-codex command opens Codex.base directly.
-		this.registerView(
-			CODEX_VIEW_TYPE,
-			(leaf: WorkspaceLeaf) => new CodexView(leaf),
-		);
-
 		// Register the main-area AnvilView (M5): Timeline rail + Plotlines list.
 		this.registerView(
 			WORKSPACE_VIEW_TYPE,
@@ -229,16 +220,6 @@ export default class StoryForgePlugin extends Plugin {
 		// a user's own `.base` honours a Settings change immediately, exactly like
 		// those two hosts (ADR-28 parity — see BasesAdapter.ts's doc comment).
 		const basesAvailable = registerCodexView(this, () => this.settings.linkClickAction);
-
-		// "Open Codex" command (T3.3): if Bases is on, open the seed Codex.base in
-		// the main area; if Bases is off, activate the CodexView degrade leaf (S46).
-		this.addCommand({
-			id: "open-codex",
-			name: "Open Codex",
-			callback: () => {
-				void this._openCodex();
-			},
-		});
 
 		// T2.3 (spec 008, PRD F1): the single entry point into the Anvil, opened with
 		// the Codex tab selected. Reveals the existing leaf rather than creating a
@@ -373,47 +354,6 @@ export default class StoryForgePlugin extends Plugin {
 	_getCuratedBasesFolder(): string {
 		const v = this.settings.curatedBasesFolder;
 		return typeof v === "string" && v.length > 0 ? v : "00 Meta/Bases";
-	}
-
-	// ---------------------------------------------------------------------------
-	// Codex navigation (T3.3)
-	// ---------------------------------------------------------------------------
-
-	/**
-	 * Open the Codex.
-	 *
-	 * When Bases is available: resolve the seed Codex.base from the curated
-	 * bases folder (default "00 Meta/Bases") and open it in a main-area leaf.
-	 * When Bases is off: activate the CodexView degrade leaf (S46).
-	 *
-	 * The curated bases folder is read from settings (curatedBasesFolder,
-	 * default "00 Meta/Bases" — added in T4.x; falls back to default here).
-	 */
-	async _openCodex(): Promise<void> {
-		const basePath = normalizePath(`${this._getCuratedBasesFolder()}/Codex.base`);
-
-		if (isBasesAvailable(this)) {
-			const abstract = this.app.vault.getAbstractFileByPath(basePath);
-			if (abstract instanceof TFile) {
-				// getLeaf(true) opens in a new tab — avoids clobbering the user's active note.
-				const leaf = this.app.workspace.getLeaf(true);
-				await leaf.openFile(abstract);
-				return;
-			}
-			// Codex.base not yet seeded — fall through to degrade
-		}
-
-		// Bases off (or Codex.base not yet seeded): reveal existing degrade leaf or create one.
-		const existing = this.app.workspace.getLeavesOfType(CODEX_VIEW_TYPE);
-		const existingLeaf = existing[0];
-		if (existingLeaf) {
-			await this.app.workspace.revealLeaf(existingLeaf);
-			return;
-		}
-		// Open in a new tab — avoids clobbering the user's active note.
-		const leaf = this.app.workspace.getLeaf(true);
-		await leaf.setViewState({ type: CODEX_VIEW_TYPE, active: true });
-		await this.app.workspace.revealLeaf(leaf);
 	}
 
 	/**

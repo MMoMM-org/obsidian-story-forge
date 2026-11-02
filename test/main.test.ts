@@ -12,7 +12,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { App, WorkspaceLeaf, TFile, createMockDataviewApi, wireDataviewApi } from "obsidian";
-import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE, CODEX_VIEW_TYPE } from "pluginConstants";
+import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { StoryForgeData } from "store/types";
 import { EngineRegistry } from "engines/QueryEngine";
 
@@ -753,75 +753,23 @@ describe("StoryForgePlugin T2.3 — Bases availability capture", () => {
 });
 
 // ---------------------------------------------------------------------------
-// T3.3: CodexView registration + "Open Codex" command routing
+// Open Codex was dropped: Open Anvil replaces it
 // ---------------------------------------------------------------------------
 
-describe("StoryForgePlugin T3.3 — CodexView registration + Open Codex command", () => {
-	it("registerView is called with CODEX_VIEW_TYPE", async () => {
+describe("StoryForgePlugin — no Open Codex command or degrade view", () => {
+	it("registers no 'open-codex' command", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
-		expect(plugin.registerView).toHaveBeenCalledWith(
-			CODEX_VIEW_TYPE,
-			expect.any(Function),
-		);
+		const ids = vi.mocked(plugin.addCommand).mock.calls.map((c) => (c[0] as { id: string }).id);
+		expect(ids).not.toContain("open-codex");
+		expect(ids).toContain("open-anvil");
 	});
 
-	it("addCommand registers 'open-codex' command", async () => {
+	it("registers no degrade CodexView host", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
-		expect(plugin.addCommand).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "open-codex" }),
-		);
-	});
-
-	it("'open-codex' command callback opens Codex.base when Bases is available", async () => {
-		const { registerCodexView, isBasesAvailable } = await import("bases/BasesAdapter");
-		vi.mocked(registerCodexView).mockReturnValue(true);
-		vi.mocked(isBasesAvailable).mockReturnValue(true);
-
-		const { plugin, app } = await makePlugin();
-		await plugin.onload();
-
-		// The vault must resolve Codex.base to a file
-		const codexBaseFile = new TFile();
-		codexBaseFile.path = "00 Meta/Bases/Codex.base";
-		app.vault.getAbstractFileByPath.mockReturnValue(codexBaseFile);
-
-		// A dedicated leaf to open the file into (getLeaf(true) = new tab)
-		const mainLeaf = new WorkspaceLeaf();
-		mainLeaf.app = app;
-		app.workspace.getLeaf.mockReturnValue(mainLeaf);
-
-		// Invoke _openCodex directly (avoids the void-wrapping of the command callback)
-		await plugin._openCodex();
-
-		// openFile must have been called on the resolved leaf with the Codex.base TFile
-		expect(mainLeaf.openFile).toHaveBeenCalledWith(codexBaseFile);
-	});
-
-	it("'open-codex' command callback activates CodexView degrade when Bases is off", async () => {
-		const { registerCodexView, isBasesAvailable } = await import("bases/BasesAdapter");
-		vi.mocked(registerCodexView).mockReturnValue(false);
-		vi.mocked(isBasesAvailable).mockReturnValue(false);
-
-		const { plugin, app } = await makePlugin();
-		await plugin.onload();
-
-		// No existing degrade leaf; _openCodex should create one via getLeaf(true)
-		app.workspace.getLeavesOfType.mockReturnValue([]);
-		const degradeLeaf = new WorkspaceLeaf();
-		degradeLeaf.app = app;
-		app.workspace.getLeaf.mockReturnValue(degradeLeaf);
-
-		// Invoke _openCodex directly — must not throw
-		await plugin._openCodex();
-
-		// setViewState must have been called with the degrade view type
-		expect(degradeLeaf.setViewState).toHaveBeenCalledWith(
-			expect.objectContaining({ type: CODEX_VIEW_TYPE }),
-		);
-		// revealLeaf must have been called to focus the newly created degrade leaf
-		expect(app.workspace.revealLeaf).toHaveBeenCalledWith(degradeLeaf);
+		const types = vi.mocked(plugin.registerView).mock.calls.map((c) => c[0]);
+		expect(types).not.toContain("story-forge-codex-host");
 	});
 });
 
