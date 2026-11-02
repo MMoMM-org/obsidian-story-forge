@@ -306,13 +306,13 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   > - [x] The cell matches S102 by eye, and clicking its buttons is not intercepted by the click router.
   >
   > **Added by T6.1 (run early), now on real `Media` fields:**
-  > - [ ] Renaming an image updates its `[[...]]` value in the note (F6's rename criterion). *Unticked
+  > - [x] Renaming an image updates its `[[...]]` value in the note (F6's rename criterion). Re-run 2026-11-02 on a full-path value: the link follows, in the short form (see the decision log). *Unticked
   >       2026-11-02: it ran before `d3bef7c`, on a short-form value. Re-run on a full-path value such
   >       as `[[95 Assets/Mara Stoneway.svg]]`.*
   > - [x] Mara Stoneway, Moonharbor Lighthouse and The Beacon Lens show their image in the editor, the
   >       sidebar panel and the Codex, including a Card in a standalone `.base`. Mock only so far:
   >       Bases' `Value.toString()` may not return the raw `[[...]]` string.
-  > - [ ] Meta Bind `VIEW[{portrait}][image]` renders a wikilink value stored with the full vault path,
+  > - [x] Meta Bind `VIEW[{portrait}][image]` renders a wikilink value stored with the full vault path,
   >       the fix in `d3bef7c` (upstream: mProjectsCode/obsidian-meta-bind-plugin#677). The seed note
   >       using it holds a URL, so this needs a test value.
   >
@@ -332,7 +332,7 @@ The editor the withdrawn "note panel" surface was actually reaching for.
   >       tool for a second, and click a card: the first click acts.
   > - [ ] Rename the open note, and a parent folder, while typing in a pane field: the text survives
   >       and the next commit lands in the renamed note.
-  > - [ ] Window blur (Alt-Tab) with uncommitted text in a pane field keeps or commits the text.
+  > - [x] Window blur (Alt-Tab) with uncommitted text in a pane field keeps or commits the text.
   >
   > **Real-vault verification checklist — these CANNOT be unit tests** (routed here 2026-08-05 on the
   > TDD gate's ruling for T5.3). jsdom computes no CSS, so a jsdom assertion for any of these would
