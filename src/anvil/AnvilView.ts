@@ -704,11 +704,19 @@ export class AnvilView extends ItemView {
 	/** Render, then put the caret back in the field that held focus (by name). */
 	private _renderKeepingFocus(): void {
 		const name = this._paneFocusedField()?.getAttribute(FIELD_CONTROL_ATTR) ?? null;
+		const active = activeDocument.activeElement;
+		const start = active instanceof HTMLInputElement ? active.selectionStart : null;
+		const end = active instanceof HTMLInputElement ? active.selectionEnd : null;
 		this._render();
 		if (name === null) return;
 		const cells = this.contentEl.querySelectorAll<HTMLElement>(`[${FIELD_CONTROL_ATTR}]`);
 		const cell = Array.from(cells).find((c) => c.getAttribute(FIELD_CONTROL_ATTR) === name) ?? null;
 		this._focusField(cell);
+		// Null on input types with no caret (number, date), which also refuse a range.
+		const refocused = activeDocument.activeElement;
+		if (start !== null && end !== null && refocused instanceof HTMLInputElement) {
+			refocused.setSelectionRange(start, end);
+		}
 	}
 
 	/** A write is on its way to `path`'s frontmatter; show it until the cache agrees. */

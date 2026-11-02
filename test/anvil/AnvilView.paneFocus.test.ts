@@ -145,6 +145,37 @@ describe("the reconcile owed while the pane was protected", () => {
 });
 
 describe("a clean pane", () => {
+	it("keeps the caret where it was when a refresh changes the value", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		const box = inputIn(view.contentEl, "name");
+		box.focus();
+		box.setSelectionRange(4, 4);
+
+		externallyRename(app, "Mara Ashford");
+		await vi.runAllTimersAsync();
+
+		const refreshed = inputIn(view.contentEl, "name");
+		expect(refreshed.value).toBe("Mara Ashford");
+		expect(document.activeElement).toBe(refreshed);
+		expect([refreshed.selectionStart, refreshed.selectionEnd]).toEqual([4, 4]);
+	});
+
+	it("clamps the caret to the end when the refreshed value is shorter", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+		const box = inputIn(view.contentEl, "name");
+		box.focus();
+		box.setSelectionRange(box.value.length, box.value.length);
+
+		externallyRename(app, "Mo");
+		await vi.runAllTimersAsync();
+
+		expect(inputIn(view.contentEl, "name").selectionStart).toBe(2);
+	});
+
 	it("shows an external edit to the shown note", async () => {
 		const app = new App();
 		seedVault(app);
