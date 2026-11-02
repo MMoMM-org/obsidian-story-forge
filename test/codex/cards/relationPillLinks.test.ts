@@ -45,10 +45,10 @@ function markersFrom(wrapper: HTMLElement, from: HTMLElement): string[] {
 }
 
 describe("entryPills — link pills (native frontmatter backend)", () => {
-	it("stamps the link target on a wikilink pill, keeping the visible text as stored", () => {
+	it("stamps the link target on a wikilink pill, showing the display text, no brackets", () => {
 		const [pill] = pills(nativeWrapper(["[[Tobias Ferro]]"]));
 		expect(pill?.getAttribute("data-sf-link")).toBe("Tobias Ferro");
-		expect(pill?.textContent).toBe("[[Tobias Ferro]]");
+		expect(pill?.textContent).toBe("Tobias Ferro");
 	});
 
 	it("strips alias and heading from the target", () => {

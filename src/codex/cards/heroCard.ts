@@ -43,7 +43,7 @@ import type { CardEntry, CardRenderDeps, CardRenderer } from "codex/cardRegistry
 import { kindTileEl, portraitTile } from "panel/components";
 import { kindFields } from "panel/kindFields";
 import type { EntityKind } from "scoping/NoteContext";
-import { entryKind, entryPills, imageFieldId, missBadge } from "./shared";
+import { entryKind, entryPills, imageFieldId, linkDisplay, missBadge } from "./shared";
 
 declare const activeDocument: Document;
 
@@ -125,7 +125,7 @@ function appendFactsLine(body: HTMLElement, entry: CardEntry, factIds: readonly 
 		if (field.present) {
 			const value = activeDocument.createElement("span");
 			value.className = "sf-cx-hero-fact-v";
-			value.textContent = field.text;
+			value.textContent = linkDisplay(field.text);
 			row.appendChild(value);
 		} else {
 			row.appendChild(missBadge(id));

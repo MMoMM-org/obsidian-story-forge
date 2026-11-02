@@ -77,6 +77,32 @@ export function imageFieldId(kind: EntityKind): string | undefined {
 }
 
 // ---------------------------------------------------------------------------
+// Link display — no raw brackets on a relation value
+// ---------------------------------------------------------------------------
+
+const INLINE_WIKILINK_RE = /!?\[\[([^\]]*)\]\]/g;
+
+/** One link's visible text: the alias, else the target's last path segment (no extension, no heading). */
+function oneLinkDisplay(inner: string): string {
+	const [targetPart = "", ...aliasParts] = inner.split("|");
+	const alias = aliasParts.join("|").trim();
+	if (alias) return alias;
+	const target = wikilinkTarget(`[[${inner}]]`) ?? targetPart;
+	const last = target.split("/").pop() ?? "";
+	return last.replace(/\.md$/i, "").trim() || inner.trim();
+}
+
+/**
+ * The visible form of a value that may hold wikilinks: every `[[...]]` becomes
+ * its alias or its target's last path segment. Plain text is returned
+ * unchanged. The click marker keeps the full target; this only changes what is
+ * drawn. The ONE helper the relation pills, Hero facts line and fact chips share.
+ */
+export function linkDisplay(raw: string): string {
+	return raw.replace(INLINE_WIKILINK_RE, (_m, inner: string) => oneLinkDisplay(inner));
+}
+
+// ---------------------------------------------------------------------------
 // Field presentation — the shared PRD/F4 vocabulary
 // ---------------------------------------------------------------------------
 
@@ -136,7 +162,7 @@ function factChip(fieldId: string, text: string): HTMLElement {
 
 	const value = activeDocument.createElement("span");
 	value.className = "sf-cx-fact-v";
-	value.textContent = text;
+	value.textContent = linkDisplay(text);
 	chip.appendChild(value);
 
 	return chip;
@@ -184,7 +210,7 @@ export function entryPills(entry: CardEntry, fieldId: string): HTMLElement[] {
 		// collection pill's accent fill. Scoped names keep the cascade from
 		// crossing between the two unrelated controls again.
 		pill.className = "sf-cx-relpill";
-		pill.textContent = item;
+		pill.textContent = linkDisplay(item);
 		// A link pill is a link (nearest marker beats the card body's). A plain
 		// value is NOT marked: a marker that resolves to nothing would swallow the
 		// click that should fall through to the card.

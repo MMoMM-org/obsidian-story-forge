@@ -211,7 +211,7 @@ describe("heroCard [PRD/F4] — S91 structure", () => {
 		);
 
 		const pills = Array.from(pillRow(el)?.querySelectorAll(".sf-cx-relpill") ?? []).map((p) => p.textContent);
-		expect(pills).toEqual(["[[Tobias Ferro]]", "[[Elke Stoneway]]"]);
+		expect(pills).toEqual(["Tobias Ferro", "Elke Stoneway"]);
 	});
 
 	it("renders an empty-but-present relation as no pills at all (blank is not absent)", () => {
