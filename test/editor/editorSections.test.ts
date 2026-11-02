@@ -410,13 +410,24 @@ describe("editor sections — undeclared keys (T5.3)", () => {
 		expect(fieldsUnder(host, "Other properties")).toEqual(["scratch"]);
 	});
 
-	it("still renders a classification key that a FileClass genuinely declares", () => {
-		const host = renderChain("fc-tagged", {
-			"fc-tagged": { fieldsOrder: ["t-tags"], fields: [field("t-tags", "tags", "Multi")] },
+	it("never renders `tags`, even when a FileClass declares it", () => {
+		const host = renderChain(
+			"fc-tagged",
+			{ "fc-tagged": { fieldsOrder: ["t-tags", "t-name"], fields: [field("t-tags", "tags", "Multi"), field("t-name", "name", "Input")] } },
+			{ tags: ["canon/character"], name: "Mara" },
+		);
+
+		// User ruling: tags classifies the note and is never edited here.
+		expect(fieldNames(host)).toEqual(["name"]);
+	});
+
+	it("still renders `fileClass` when a FileClass declares it", () => {
+		const host = renderChain("fc-classy", {
+			"fc-classy": { fieldsOrder: ["c-fc"], fields: [field("c-fc", "fileClass", "Input")] },
 		});
 
-		// Then it is that FileClass's business, not ours to suppress.
-		expect(fieldNames(host)).toEqual(["tags"]);
+		// Only the undeclared `fileClass` is hidden; a declaration is that FileClass's business.
+		expect(fieldNames(host)).toEqual(["fileClass"]);
 	});
 
 	it("shows the note's own keys when no FileClass applies at all (tier 2)", () => {

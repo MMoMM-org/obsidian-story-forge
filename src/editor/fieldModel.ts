@@ -109,11 +109,15 @@ export type UiHintsByFileClass = Readonly<Record<string, UiHints>>;
  * *Other properties* section shows exactly one key (`scratch`) for a note that
  * certainly carries tags, which is the same call made in the figure.
  *
- * Excluded only from the UNDECLARED sections: a FileClass that genuinely
- * declares `tags` as a field still renders it, because then it is that
- * FileClass's business, not ours.
+ * Both are excluded from the UNDECLARED sections. `tags` is excluded outright
+ * (user ruling): even a FileClass that declares it gets no `tags` field, on
+ * either surface. A declared `fileClass` still renders, because then it is that
+ * FileClass's business.
  */
 const CLASSIFICATION_KEYS: ReadonlySet<string> = new Set(["tags", "fileClass"]);
+
+/** Never an editor field, declared or not. */
+const NEVER_SHOWN = "tags";
 
 const OTHER_PROPERTIES_LABEL = "Other properties";
 const TIER2_LABEL = "Properties";
@@ -165,6 +169,7 @@ function buildChainSection(
 	const fields: FieldDef[] = [];
 	const hints = uiHints[fileClass.name] ?? {};
 	for (const field of fileClass.fields) {
+		if (field.name === NEVER_SHOWN) continue; // user ruling: tags is never edited here
 		if (seen.has(field.name)) continue; // first declaration wins (F6 edge case)
 		seen.add(field.name);
 		fields.push(toFieldDef(field, hints, frontmatter?.[field.name]));
