@@ -77,6 +77,12 @@ describe("inspectorFieldsFromModel, field by field", () => {
 		expect(inspectorFieldsFromModel(declared("Number", { subject: { a: 1 } }))).toEqual([{ name: "subject", type: "fixed" }]);
 	});
 
+	it("keeps the declared control for an empty list in a Number or Select, as unset", () => {
+		expect(inspectorFieldsFromModel(declared("Number", { subject: [] }))).toEqual([{ name: "subject", type: "number" }]);
+		expect(inspectorFieldsFromModel(declared("Boolean", { subject: [] }))).toEqual([{ name: "subject", type: "boolean" }]);
+		expect(inspectorFieldsFromModel(declared("Select", { subject: [] }))).toEqual([{ name: "subject", type: "select" }]);
+	});
+
 	it("keeps Media a text field, which writes a string", () => {
 		expect(inspectorFieldsFromModel(declared("Media"))).toEqual([{ name: "subject", type: "text" }]);
 	});

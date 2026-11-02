@@ -169,6 +169,29 @@ describe("buildFieldModel — a map in a declared field is read-only", () => {
 	);
 });
 
+describe("buildFieldModel — an empty list in a declared field", () => {
+	it.each(["Number", "Boolean", "Select", "Cycle", "Date", "Datetime", "Time"] as const)(
+		"%s counts it as unset: the declared control stays",
+		(type) => {
+			const field = fieldFor(type, [], ["a"]) as { type: string };
+			expect(field.type).toBe(type);
+			expect(field).not.toHaveProperty("readOnly");
+		},
+	);
+
+	it.each(["Input", "Unknown"] as const)("%s turns it into free chips", (type) => {
+		expect(fieldFor(type, [])).toMatchObject({ type: "Multi" });
+	});
+
+	it.each(["File", "Media", "MultiMedia"] as const)("%s turns it into link chips", (type) => {
+		expect(fieldFor(type, [])).toMatchObject({ type: "MultiFile" });
+	});
+
+	it("keeps a Select's declared vocabulary when the list is empty", () => {
+		expect(fieldFor("Select", [], ["a", "b"])).toMatchObject({ type: "Select", values: ["a", "b"] });
+	});
+});
+
 // ---------------------------------------------------------------------------
 // Tier 1 — sections from the chain
 // ---------------------------------------------------------------------------

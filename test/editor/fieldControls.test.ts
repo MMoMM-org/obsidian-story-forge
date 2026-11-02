@@ -334,6 +334,24 @@ describe("field controls — one per type (T5.2)", () => {
 	});
 });
 
+describe("field controls — an empty list in a declared scalar field counts as unset", () => {
+	function modelDef(type: FieldType, values?: string[]): FieldDef {
+		const chain = [{ name: "fc-x", fields: [{ id: "f", name: "subject", type, ...(values ? { values } : {}) }] }];
+		return buildFieldModel(chain, { subject: [] }).sections[0]?.fields[0] as FieldDef;
+	}
+
+	it("keeps a Number box, a checkbox and a Select, each empty", () => {
+		const number = render(modelDef("Number"), []);
+		const boolean = render(modelDef("Boolean"), []);
+		const select = render(modelDef("Select", ["a", "b"]), []);
+
+		expect(inputIn(number.el).type).toBe("number");
+		expect(inputIn(boolean.el).type).toBe("checkbox");
+		expect(selectIn(select.el).value).toBe("");
+		expect(selectableValues(select.el)).toEqual(["", "a", "b"]);
+	});
+});
+
 // ---------------------------------------------------------------------------
 // When a scalar control reports (user ruling, 2026-08-06)
 // ---------------------------------------------------------------------------

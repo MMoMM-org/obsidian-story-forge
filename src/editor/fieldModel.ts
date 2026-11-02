@@ -230,13 +230,23 @@ function isMap(value: unknown): boolean {
 const LIST_TYPES: ReadonlySet<FieldType> = new Set<FieldType>(["Multi", "MultiFile"]);
 /** Declared types that hold links, so an EMPTY list stays a link field. */
 const LINK_TYPES: ReadonlySet<FieldType> = new Set<FieldType>(["File", "Media", "MultiMedia"]);
+/**
+ * Declared types whose control cannot hold a list, and for which `[]` is the
+ * same "no value" a missing key or `null` is. The declared control stays.
+ * Text-like and link-like types are not here: there `[]` is a list with no
+ * items yet, which chips represent.
+ */
+const UNSET_WHEN_EMPTY: ReadonlySet<FieldType> = new Set<FieldType>([
+	"Number", "Boolean", "Select", "Cycle", "Date", "Datetime", "Time",
+]);
 const WIKILINK = /^\[\[.+\]\]$/;
 
 /**
  * What a list stored in a field declared as a scalar turns the field into, or
  * `undefined` when its declared type already holds lists.
  *
- * Strings get chips: link chips when every item is a `[[link]]`, free chips
+ * An empty list in a `Number`, `Boolean`, `Select`, `Cycle` or date-like field
+ * counts as unset (`UNSET_WHEN_EMPTY`). Strings get chips: link chips when every item is a `[[link]]`, free chips
  * otherwise. A list holding a non-string keeps its declared type and becomes
  * read-only, since chips would rewrite those members as strings.
  */
@@ -245,6 +255,7 @@ function listValuedDef(
 	value: readonly unknown[],
 ): { type?: FieldType; readOnly?: true } | undefined {
 	if (LIST_TYPES.has(field.type)) return undefined;
+	if (value.length === 0 && UNSET_WHEN_EMPTY.has(field.type)) return undefined;
 	const strings = value.filter((item): item is string => typeof item === "string");
 	if (strings.length !== value.length) return { readOnly: true };
 	const allLinks = strings.every((item) => WIKILINK.test(item.trim()));
