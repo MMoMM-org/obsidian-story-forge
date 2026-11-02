@@ -878,7 +878,7 @@ describe("CatalogService — installed record classifies correctly (T3.3, SDD/Kn
 		expect(state).toBe("regenerate");
 	});
 
-	it("[HAZARD] a params change outranks a hand edit — regenerate wins over ask", async () => {
+	it("a hand edit outranks a params change — ask wins over regenerate", async () => {
 		const app = makeApp();
 		const { store, capturedRecords } = makeStore();
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
@@ -901,23 +901,13 @@ describe("CatalogService — installed record classifies correctly (T3.3, SDD/Kn
 		const fileChecksum = await computeChecksum(editedContent);
 
 		// ...and, independently, the caller now passes DIFFERENT collectionParams
-		// than the record was installed with (this is exactly what happens once
-		// T3.5 replaces main.ts's fixed placeholder with real settings-backed
-		// values that can change from what an already-installed record recorded).
+		// than the record was installed with.
 		const currentParams: CollectionParams = { tag: "characters", excludedFolders: ["00 Meta"] };
 
 		const state = classify(rec!.generated!, entry.checksum, currentParams, fileChecksum);
 
-		// classify() (src/library/baseGenerator.ts) checks params BEFORE the
-		// instance checksum, so a params change wins over a hand edit: the file
-		// is classified for silent regeneration instead of "ask", and would be
-		// overwritten. This is the trap T3.5 must not spring — when it wires real
-		// settings-backed params, it must reconcile already-installed records'
-		// `generated.params` (or otherwise avoid a spurious params diff), not
-		// merely swap the injection site. This assertion pins today's behaviour
-		// as a known hazard, not endorsed behaviour — see CatalogService.ts's
-		// class docstring.
-		expect(state).toBe("regenerate");
+		// The hand edit is checked first, so the file is never overwritten silently.
+		expect(state).toBe("ask");
 	});
 });
 

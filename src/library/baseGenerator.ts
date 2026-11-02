@@ -88,10 +88,14 @@ export type ArtifactState = "clean" | "regenerate" | "ask" | "reconsent";
  * | Scenario                          | source | params    | file      | → |
  * |------------------------------------|--------|-----------|-----------|---|
  * | Nothing happened                   | same   | same      | same      | clean |
- * | User changes tag/folders in settings | same | **changed** | differs | regenerate (silent) |
+ * | User changes tag/folders in settings | same | **changed** | same | regenerate (silent) |
  * | User hand-edits the file           | same   | same      | **differs** | ask |
  * | Catalog update ships a new template | **differs** | —   | —         | reconsent |
  * | Verification switched off          | —      | —         | —         | clean |
+ *
+ * A settings change does not touch the file, so the file still matches the
+ * stored instance checksum. Any mismatch is therefore a foreign edit, and it
+ * outranks a params change: a hand edit is never overwritten silently.
  *
  * `fileChecksum: null` means the file is missing — treated the same as a
  * change WE caused (regenerate), never as a foreign edit.
@@ -105,8 +109,8 @@ export function classify(
 	if (rec.verify === false) return "clean"; // "this file is yours now"
 	if (currentSourceChecksum !== rec.sourceChecksum) return "reconsent"; // upstream changed
 	if (fileChecksum === null) return "regenerate"; // missing → just rewrite
-	if (!sameParams(currentParams, rec.params)) return "regenerate"; // WE caused it — silent
 	if (fileChecksum !== rec.instanceChecksum) return "ask"; // a foreign hand edited the file
+	if (!sameParams(currentParams, rec.params)) return "regenerate"; // WE caused it — silent
 	return "clean";
 }
 

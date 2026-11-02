@@ -51,9 +51,13 @@ into the vault by `schema:gen`, regenerated freely, never checksum-gated.
    | Source checksum | Params | Instance checksum | Meaning | Action |
    |---|---|---|---|---|
    | same | same | same | nothing happened | — |
-   | same | **changed** | differs | **we** caused it | regenerate silently, store the new instance checksum |
-   | same | same | **differs** | a foreign hand edited the file | ask the user; offer regenerate |
+   | same | **changed** | same | **we** caused it | regenerate silently, store the new instance checksum |
+   | same | any | **differs** | a foreign hand edited the file | ask the user; offer regenerate |
    | **differs** | — | — | upstream changed | re-consent, then regenerate |
+
+   > **Revised 2026-11-02.** A settings change does not touch the file, so row 2's instance
+   > checksum is *same*, not *differs* as first written. A hand edit now outranks a params change:
+   > when both happened the state is `ask`, because silently overwriting the edit is unrecoverable.
 
 6. **The store keeps no YAML copy.** Per collection it holds `{ sourceChecksum, params,
    instanceChecksum }`; the vault file is the artifact. This removes the double-copy divergence.

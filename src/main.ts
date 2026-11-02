@@ -81,8 +81,8 @@ export default class StoryForgePlugin extends Plugin {
 		// HAZARD (see CatalogService.ts class docstring): when T7.3 swaps this
 		// placeholder for real settings-backed values, it must also reconcile
 		// `generated.params` on already-installed records — otherwise
-		// classify() flips every one of them to "regenerate" and silently
-		// overwrites any file the user hand-edited.
+		// classify() flips every unedited curated file to "regenerate" and
+		// its curated content is replaced by `renderBase` output.
 		const collectionParams: CollectionParams = { tag: "", excludedFolders: [] };
 
 		// PLACEHOLDER (T3.4): no real template producer is wired yet (T7.3) — a

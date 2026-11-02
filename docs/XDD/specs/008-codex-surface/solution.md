@@ -719,8 +719,8 @@ export function classify(
   if (rec.verify === false) return "clean";                       // "this file is yours now"
   if (currentSourceChecksum !== rec.sourceChecksum) return "reconsent";  // upstream changed
   if (fileChecksum === null) return "regenerate";                 // missing → just rewrite
-  if (!sameParams(currentParams, rec.params)) return "regenerate"; // WE caused it — silent
   if (fileChecksum !== rec.instanceChecksum) return "ask";        // a foreign hand edited it
+  if (!sameParams(currentParams, rec.params)) return "regenerate"; // WE caused it — silent
   return "clean";
 }
 ```
@@ -730,14 +730,14 @@ export function classify(
 | Scenario | source | params | file | → | User sees |
 |---|---|---|---|---|---|
 | Nothing happened | same | same | same | `clean` | nothing |
-| User changes the tag in settings | same | **differs** | differs | `regenerate` | the grid updates; **no prompt** |
-| User hand-edits `Codex.base` | same | same | **differs** | `ask` | "this file was changed — regenerate or keep?" |
+| User changes the tag in settings | same | **differs** | same | `regenerate` | the grid updates; **no prompt** |
+| User hand-edits `Codex.base` | same | any | **differs** | `ask` | "this file was changed — regenerate or keep?" |
 | Catalog update ships a new template | **differs** | — | — | `reconsent` | the existing consent flow |
 | User switched verification off | — | — | — | `clean` | we never touch it again |
 
-**Why params must be stored**: rows 2 and 3 are otherwise indistinguishable — both present only as
-an instance-checksum mismatch. Without `params` the plugin either prompts on every settings change
-or silently overwrites hand edits.
+**Why params must be stored**: a settings change leaves the file untouched, so only the stored
+`params` reveal that a regeneration is due. The instance checksum then separates that case from a
+hand edit, which wins when both happened (revised 2026-11-02, ADR-0003).
 
 ## Runtime View
 
@@ -1143,8 +1143,8 @@ Not applicable — single component.
 - [ ] IF an import's query cannot be resolved, THEN THE SYSTEM SHALL refuse it and persist nothing
 
 **Edge Cases**
-- [ ] IF a generated artifact's file differs while its parameters are unchanged, THEN THE SYSTEM SHALL ask before overwriting
-- [ ] IF a generated artifact's parameters changed, THEN THE SYSTEM SHALL regenerate without prompting
+- [ ] IF a generated artifact's file differs from its stored instance checksum, THEN THE SYSTEM SHALL ask before overwriting
+- [ ] IF a generated artifact's parameters changed AND its file was not hand-edited, THEN THE SYSTEM SHALL regenerate without prompting
 - [ ] WHILE verification is switched off for a collection, THE SYSTEM SHALL neither verify nor regenerate its file
 - [ ] IF two FileClasses in a chain declare the same field, THEN THE SYSTEM SHALL render it once, in the earliest section
 - [ ] IF a `Select` field's current value is not among its declared values, THEN THE SYSTEM SHALL preserve and display the current value

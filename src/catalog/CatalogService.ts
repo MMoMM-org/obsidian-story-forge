@@ -58,15 +58,11 @@
  * `_materialise` — `renderBase` is never invoked to produce them — so
  * `generated.params` on a curated record does NOT describe the bytes on disk.
  * It is bookkeeping for a future render, not a description of the past write.
- * `classify()` (src/library/baseGenerator.ts) checks params BEFORE the
- * instance checksum, so once the injected params change (T3.5 wires real
- * settings-backed values in place of today's placeholder), every
- * already-installed record classifies "regenerate" instead of "ask" — a
- * hand-edited file gets silently overwritten. T3.5 must reconcile
- * already-installed records' `generated.params` when it introduces real
- * values, not merely swap the injection site. See the
- * "[HAZARD]" test in test/catalog/CatalogService.test.ts, which pins today's
- * (undesirable) behaviour so a future change to it is deliberate, not silent.
+ * Once the injected params change, an unedited curated file classifies
+ * "regenerate" and its curated content would be replaced by `renderBase`
+ * output. T7.3 owns this: reconcile already-installed records'
+ * `generated.params` when it wires real settings-backed values. A hand-edited
+ * file is safe either way — it classifies "ask" (see `classify()`).
  *
  * @ref PRD/AC-F4.5 (fail-closed on mismatch)
  * @ref PRD/AC-F4.6 (surfaced via existing view surfaces)

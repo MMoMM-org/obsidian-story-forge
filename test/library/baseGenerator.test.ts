@@ -151,16 +151,24 @@ describe("classify", () => {
 		expect(state).toBe("clean");
 	});
 
-	it("row 2 — user changes a setting: source same, params differ, file differs → regenerate (silent)", () => {
+	it("row 2 — user changes a setting: source same, params differ, file untouched → regenerate (silent)", () => {
 		const rec = getMockArtifact();
 		const changedParams = getMockParams({ tag: "story/location" });
-		// The file on disk still reflects the OLD params, so its checksum differs
-		// from the stored instance checksum too.
-		const fileChecksumUnderOldParams = "sha256:instance-bbb-stale";
-
-		const state = classify(rec, rec.sourceChecksum, changedParams, fileChecksumUnderOldParams);
+		// A settings change does not touch the file: it still has the bytes we
+		// wrote under the OLD params, so it MATCHES the stored instance checksum.
+		const state = classify(rec, rec.sourceChecksum, changedParams, rec.instanceChecksum);
 
 		expect(state).toBe("regenerate");
+	});
+
+	it("row 2b — a setting changed AND the file was hand-edited → ask, the edit is never overwritten silently", () => {
+		const rec = getMockArtifact();
+		const changedParams = getMockParams({ tag: "story/location" });
+		const foreignEditChecksum = "sha256:hand-edited";
+
+		const state = classify(rec, rec.sourceChecksum, changedParams, foreignEditChecksum);
+
+		expect(state).toBe("ask");
 	});
 
 	it("row 3 — user hand-edits the file: source/params same, file differs → ask", () => {
