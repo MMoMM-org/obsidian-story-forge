@@ -3464,6 +3464,60 @@ body {
 	font-size: 9.5px;
 }
 
+/* Media control (T5.5, mockup S102 ".ed-por"): preview, path, two buttons. */
+.sf-ed-media {
+	display: flex;
+	flex: 1;
+	min-width: 0;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 3px 0;
+}
+
+.sf-ed-media-side {
+	display: flex;
+	flex: 1;
+	min-width: 0;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.sf-ed-media-path {
+	min-height: 1.4em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	padding: 3px 7px;
+	color: var(--text-muted);
+	font-size: 10.5px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sf-ed-media-btns {
+	display: flex;
+	gap: 5px;
+}
+
+.sf-ed-media-btn {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: transparent;
+	padding: 2px 8px;
+	color: var(--text-muted);
+	font-size: 10px;
+	height: auto;
+	box-shadow: none;
+	cursor: pointer;
+}
+
+.sf-ed-media-btn--pri {
+	border-color: var(--interactive-accent);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
 /*
  * Sections from the FileClass chain (T5.3, mockups S102/S103).
  *

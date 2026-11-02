@@ -37,9 +37,18 @@
  * signal that silently did nothing — nothing could have caught. Add it back
  * with a producer and a test when a host actually needs it.
  *
- * Scope: controls only. Sections and the two-column layout are T5.3, the commit
- * path T5.4, and the `Media` control T5.5 — until then a `Media` field takes the
- * text fallback, which is its declared seam, not an oversight.
+ * **The `Media` control (T5.5)** is selected by the field's declared **type**
+ * and nothing else — not its name (`portrait` on a character, `image` on a
+ * location/object) and not a `ui` hint (withdrawn, ADR-32 revised 2026-07-29).
+ * It shows a preview, the stored wikilink as text, and Choose image… / Clear.
+ * Resolving a link to a URL and picking a file need the vault, so both arrive
+ * as seams (`resolveImage`, `pickImage`); a host that supplies no picker gets a
+ * control without the Choose button rather than one that cannot do what it
+ * says. `MultiMedia` stays on the text fallback: neither the mockup nor the
+ * spec draws a multi-image control.
+ *
+ * Scope: controls only. Sections and the two-column layout are T5.3 and the
+ * commit path T5.4.
  *
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-5.md — T5.2
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — F2, F5, F6
@@ -47,6 +56,7 @@
  */
 
 import type { FieldDef } from "editor/fieldModel";
+import { portraitTile } from "panel/components";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (the same local declaration
@@ -63,6 +73,9 @@ declare const activeDocument: Document;
  * clicked without the controller ever seeing one.
  */
 export const FIELD_CONTROL_ATTR = "data-sf-ed-field";
+
+/** The stored link shown as text beside a `Media` preview. */
+export const MEDIA_PATH_ATTR = "data-sf-ed-media-path";
 
 /** A chip's remove affordance (the mockup's `×`). */
 export const CHIP_REMOVE_ATTR = "data-sf-ed-chip-remove";
@@ -84,7 +97,18 @@ export interface FieldEdit {
 	readonly value: FieldValue;
 }
 
-export interface FieldControlDeps {
+/** Vault-dependent seams of the `Media` control. Both optional (CON-3, tests). */
+export interface MediaSeams {
+	/**
+	 * Link target (`mara.png`, no brackets) → a URL an `<img>` can load, or `""`
+	 * when it cannot be resolved.
+	 */
+	readonly resolveImage?: (target: string) => string;
+	/** Open an image chooser; resolves to the `[[wikilink]]` to store, or null if dismissed. */
+	readonly pickImage?: () => Promise<string | null>;
+}
+
+export interface FieldControlDeps extends MediaSeams {
 	/** Called whenever the user changes the control. Defaults to a no-op (CON-1: no write path here). */
 	readonly onEdit?: (edit: FieldEdit) => void;
 }
@@ -157,9 +181,10 @@ function buildControl(
 			return chipControl(cell, field, value, deps, { link: true });
 		case "File":
 			return singleLinkControl(cell, field, value, deps);
-		// `Media`/`MultiMedia` land here until T5.5 gives them a preview + picker;
-		// `Input`, `Unknown` and any type a newer metadata-menu invents land here
-		// permanently. Falling back beats failing (PRD/F6 AC).
+		case "Media":
+			return mediaControl(cell, field, value, deps);
+		// `Input`, `MultiMedia`, `Unknown` and any type a newer metadata-menu
+		// invents land here. Falling back beats failing (PRD/F6 AC).
 		default:
 			return textControl(cell, field, value, deps);
 	}
@@ -256,6 +281,91 @@ function selectControl(
 
 	listen(select, "change", () => report(deps, field, emptyToNull(select.value)));
 	return () => emptyToNull(select.value);
+}
+
+// ---------------------------------------------------------------------------
+// Media control (T5.5) — S102's preview + path + Choose image… / Clear
+// ---------------------------------------------------------------------------
+
+/**
+ * A preview tile, the stored link as text, and two buttons. State is the one
+ * `current` value; every change redraws the cell and reports through `onEdit`,
+ * so T5.4's commit and rollback treat it like any other control.
+ */
+function mediaControl(
+	cell: HTMLElement,
+	field: FieldDef,
+	value: unknown,
+	deps: FieldControlDeps,
+): () => FieldValue {
+	let current = emptyToNull(asText(value).trim());
+	const box = el("div", "sf-ed-media");
+	cell.appendChild(box);
+
+	const change = (next: FieldValue): void => {
+		current = next;
+		draw();
+		report(deps, field, current);
+	};
+	const draw = (): void => {
+		empty(box);
+		const text = typeof current === "string" ? current : "";
+		previewTile(box, field.name, text, deps);
+		const side = el("div", "sf-ed-media-side");
+		const path = el("div", "sf-ed-media-path");
+		path.setAttribute(MEDIA_PATH_ATTR, field.name);
+		path.textContent = text;
+		side.appendChild(path);
+		side.appendChild(mediaButtons(deps, change));
+		box.appendChild(side);
+	};
+	draw();
+	return () => current;
+}
+
+/** The preview: the existing portrait tile, with its monogram as every fallback. */
+function previewTile(box: HTMLElement, name: string, stored: string, deps: FieldControlDeps): void {
+	const target = linkTarget(stored);
+	const url = target === "" ? "" : (deps.resolveImage?.(target) ?? "");
+	const tile = portraitTile(box, name, url || undefined);
+	// An unresolvable target comes back unchanged and a corrupt file resolves
+	// fine, so only the load itself can say the image is unusable.
+	const img = tile.querySelector("img");
+	if (!img) return;
+	listen(img, "error", () => {
+		const fallback = portraitTile(box, name, undefined);
+		box.replaceChild(fallback, tile);
+	});
+}
+
+function mediaButtons(deps: FieldControlDeps, change: (next: FieldValue) => void): HTMLElement {
+	const row = el("div", "sf-ed-media-btns");
+	const pick = deps.pickImage;
+	if (pick) {
+		const choose = buttonEl("Choose image…", true);
+		listen(choose, "click", () => {
+			void pick().then((link) => { if (link !== null) change(link); });
+		});
+		row.appendChild(choose);
+	}
+	const clear = buttonEl("Clear", false);
+	listen(clear, "click", () => change(null));
+	row.appendChild(clear);
+	return row;
+}
+
+function buttonEl(label: string, primary: boolean): HTMLButtonElement {
+	const button = activeDocument.createElement("button");
+	button.type = "button";
+	button.className = primary ? "sf-ed-media-btn sf-ed-media-btn--pri" : "sf-ed-media-btn";
+	button.textContent = label;
+	return button;
+}
+
+/** `![[a/b.png|alias#x]]` → `a/b.png`; plain text is returned trimmed. */
+function linkTarget(raw: string): string {
+	const inner = /^!?\[\[(.*)\]\]$/.exec(raw.trim())?.[1] ?? raw;
+	return (inner.split("|")[0] ?? "").split("#")[0]?.trim() ?? "";
 }
 
 // ---------------------------------------------------------------------------
@@ -483,7 +593,7 @@ function addOption(select: HTMLSelectElement, value: string, text: string): HTML
 
 function listen(
 	target: HTMLElement,
-	type: "click" | "change" | "input" | "keydown",
+	type: "click" | "change" | "input" | "keydown" | "error",
 	handler: (event: Event) => void,
 ): void {
 	target.addEventListener(type, handler);

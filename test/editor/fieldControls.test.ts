@@ -774,3 +774,133 @@ describe("field controls — inside the live editor pane (T5.2)", () => {
 		}
 	});
 });
+
+// ---------------------------------------------------------------------------
+// T5.5 — the Media control (S102): preview + path + Choose image… / Clear
+// ---------------------------------------------------------------------------
+
+interface MediaHarness extends Rendered {
+	readonly pick: ReturnType<typeof vi.fn>;
+}
+
+function renderMedia(
+	field: FieldDef,
+	value: unknown,
+	seams: { resolve?: (target: string) => string; picked?: string | null } = {},
+): MediaHarness {
+	const host = document.createElement("div");
+	document.body.appendChild(host);
+	mounted.push(host);
+	const edits: FieldValue[] = [];
+	const pick = vi.fn(async () => seams.picked ?? null);
+	const handle = renderFieldControl(host, field, value, {
+		onEdit: (change) => { edits.push(change.value); },
+		resolveImage: seams.resolve ?? ((target) => `app://vault/${target}`),
+		pickImage: pick,
+	});
+	return { el: handle.el, value: () => handle.value(), edits, pick };
+}
+
+const mediaField = (name: string): FieldDef => fieldDef({ name, type: "Media", width: "full" });
+const MEDIA_PATH = "[data-sf-ed-media-path]";
+const buttonNamed = (el: HTMLElement, text: string): HTMLButtonElement => {
+	const found = Array.from(el.querySelectorAll("button")).find((b) => b.textContent === text);
+	if (!found) throw new Error(`no ${text} button`);
+	return found;
+};
+const flushPicker = async (): Promise<void> => { await new Promise((r) => setTimeout(r, 0)); };
+
+describe("the Media control is chosen by TYPE, never by name (T5.5, ADR-32)", () => {
+	it("gives a Media field named portrait the preview, path and buttons", () => {
+		const { el } = renderMedia(mediaField("portrait"), "[[mara.png]]");
+		expect(el.querySelector("img.sf-portrait-img")?.getAttribute("src")).toBe("app://vault/mara.png");
+		expect(el.querySelector(MEDIA_PATH)?.textContent).toBe("[[mara.png]]");
+		expect(buttonNamed(el, "Choose image…")).toBeTruthy();
+		expect(buttonNamed(el, "Clear")).toBeTruthy();
+	});
+
+	it("gives a Media field with an arbitrary name the same control", () => {
+		const { el } = renderMedia(mediaField("emblem"), "[[crest.png]]");
+		expect(el.querySelector("img")?.getAttribute("src")).toBe("app://vault/crest.png");
+		expect(el.querySelector(MEDIA_PATH)).not.toBeNull();
+	});
+
+	it("leaves an Input field named portrait as a plain text input", () => {
+		const { el } = render(fieldDef({ name: "portrait", type: "Input" }), "mara.png");
+		expect(inputIn(el).value).toBe("mara.png");
+		expect(el.querySelector(MEDIA_PATH)).toBeNull();
+		expect(el.querySelector("button")).toBeNull();
+	});
+
+	it("leaves MultiMedia on the text fallback", () => {
+		const { el } = render(fieldDef({ name: "gallery", type: "MultiMedia" }), "a.png");
+		expect(el.querySelector(MEDIA_PATH)).toBeNull();
+	});
+});
+
+describe("the Media preview never shows a broken image (T5.5)", () => {
+	it.each([[null], [""], [undefined]])("shows the monogram for an empty value %j", (value) => {
+		const { el } = renderMedia(mediaField("portrait"), value);
+		expect(el.querySelector("img")).toBeNull();
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
+	});
+
+	it("shows the monogram when the target cannot be resolved", () => {
+		const { el } = renderMedia(mediaField("portrait"), "[[ghost.png]]", { resolve: () => "" });
+		expect(el.querySelector("img")).toBeNull();
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
+		// The stored text stays visible: the user can see what the file holds.
+		expect(el.querySelector(MEDIA_PATH)?.textContent).toBe("[[ghost.png]]");
+	});
+
+	it("falls back to the monogram when the image fails to load", () => {
+		const { el } = renderMedia(mediaField("portrait"), "[[corrupt.png]]");
+		el.querySelector("img")?.dispatchEvent(new Event("error"));
+		expect(el.querySelector("img")).toBeNull();
+		expect(el.querySelector(".sf-portrait-mono")).not.toBeNull();
+	});
+
+	it("resolves the link target, not the bracketed text, for embeds and aliases", () => {
+		const resolve = vi.fn((t: string) => `app://vault/${t}`);
+		renderMedia(mediaField("portrait"), "![[art/mara.png|Mara]]", { resolve });
+		expect(resolve).toHaveBeenCalledWith("art/mara.png");
+	});
+});
+
+describe("the Media control reports through the normal path (T5.5)", () => {
+	it("reports null and clears preview and path when Clear is pressed", () => {
+		const m = renderMedia(mediaField("portrait"), "[[mara.png]]");
+		buttonNamed(m.el, "Clear").click();
+		expect(m.edits).toEqual([null]);
+		expect(m.value()).toBeNull();
+		expect(m.el.querySelector("img")).toBeNull();
+		expect(m.el.querySelector(".sf-portrait-mono")).not.toBeNull();
+		expect(m.el.querySelector(MEDIA_PATH)?.textContent).toBe("");
+	});
+
+	it("reports the wikilink the picker returns and updates preview and path", async () => {
+		const m = renderMedia(mediaField("portrait"), null, { picked: "[[new.png]]" });
+		buttonNamed(m.el, "Choose image…").click();
+		await flushPicker();
+		expect(m.edits).toEqual(["[[new.png]]"]);
+		expect(m.value()).toBe("[[new.png]]");
+		expect(m.el.querySelector("img")?.getAttribute("src")).toBe("app://vault/new.png");
+		expect(m.el.querySelector(MEDIA_PATH)?.textContent).toBe("[[new.png]]");
+	});
+
+	it("reports nothing when the picker is dismissed", async () => {
+		const m = renderMedia(mediaField("portrait"), "[[mara.png]]", { picked: null });
+		buttonNamed(m.el, "Choose image…").click();
+		await flushPicker();
+		expect(m.edits).toEqual([]);
+		expect(m.value()).toBe("[[mara.png]]");
+	});
+
+	it("offers no picker button when the host supplied no picker", () => {
+		const host = document.createElement("div");
+		document.body.appendChild(host);
+		mounted.push(host);
+		const handle = renderFieldControl(host, mediaField("portrait"), "[[a.png]]");
+		expect(handle.el.querySelector("button")?.textContent).toBe("Clear");
+	});
+});

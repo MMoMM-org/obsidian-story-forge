@@ -38,7 +38,13 @@
  */
 
 import { Notice, type App, type TFile } from "obsidian";
-import { FIELD_CONTROL_ATTR, renderFieldControl, type FieldEdit, type FieldValue } from "editor/fieldControls";
+import {
+	FIELD_CONTROL_ATTR,
+	renderFieldControl,
+	type FieldEdit,
+	type FieldValue,
+	type MediaSeams,
+} from "editor/fieldControls";
 import type { FieldDef, FieldModel } from "editor/fieldModel";
 import type { FieldType } from "fileclass/fileClassTypes";
 // Relative, not the `inspector/...` alias every other internal import uses:
@@ -141,6 +147,11 @@ export interface FieldCommitOptions {
 	 * live one still shows the refused value and must be reseeded from the file.
 	 */
 	readonly onNeedsReseed?: () => void;
+	/**
+	 * The `Media` control's seams. A rollback rebuilds the cell, and a rebuilt
+	 * `Media` control without them would lose its preview and picker.
+	 */
+	readonly media?: MediaSeams;
 }
 
 /**
@@ -217,6 +228,7 @@ export class FieldCommitter {
 
 		const fresh = renderFieldControl(parent, field, this._committed.get(name) ?? null, {
 			onEdit: this.onEdit,
+			...this._opts.media,
 		});
 		parent.insertBefore(fresh.el, cell);
 		// Carry the control's id across, or T5.3's `<label for=...>` would name an

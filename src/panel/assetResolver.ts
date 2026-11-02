@@ -64,3 +64,21 @@ export function createAssetResolver(app: App, sourcePath: string): (src: string)
 		return src;
 	};
 }
+
+/**
+ * The resolver for a **link target** (`mara.png`, already stripped of
+ * `[[ ]]`): like `createAssetResolver`, but total in the other direction too —
+ * a target that resolves to nothing returns `""` rather than itself.
+ *
+ * `createAssetResolver` hands unresolvable input back so a tile shows a broken
+ * image the user can diagnose. The editor's Media control does the opposite on
+ * purpose: it shows the stored link as text beside the preview, so the
+ * diagnosis is already on screen and the preview can fall back to the monogram.
+ */
+export function createLinkedImageResolver(app: App, sourcePath: string): (target: string) => string {
+	const resolve = createAssetResolver(app, sourcePath);
+	return (target: string): string => {
+		const out = resolve(target);
+		return out === target && !PROTOCOL_RE.test(target) ? "" : out;
+	};
+}

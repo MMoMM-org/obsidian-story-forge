@@ -92,6 +92,7 @@ import {
 } from "editor/editorPane";
 import { FieldCommitter } from "editor/fieldCommit";
 import { buildFieldModel } from "editor/fieldModel";
+import { createMediaSeams } from "editor/mediaPicker";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
 import { createFileClassSource, type FileClassSource } from "fileclass/fileClassVault";
 import { DEFAULT_FILE_CLASSES_FOLDER } from "types/index";
@@ -785,8 +786,10 @@ export class AnvilView extends ItemView {
 		const model = buildFieldModel(chain, frontmatter);
 		const valueOf = (name: string): unknown => frontmatter[name] ?? null;
 
+		const media = createMediaSeams(this.app, file);
 		const commits = new FieldCommitter({
 			app: this.app,
+			media,
 			file,
 			model,
 			host: fieldsEl,
@@ -796,7 +799,7 @@ export class AnvilView extends ItemView {
 			onNeedsReseed: (): void => { this._reconcileOwed = true; },
 		});
 
-		renderFieldSections(fieldsEl, model, { valueOf, onEdit: commits.onEdit });
+		renderFieldSections(fieldsEl, model, { valueOf, onEdit: commits.onEdit, media });
 	}
 
 	/**

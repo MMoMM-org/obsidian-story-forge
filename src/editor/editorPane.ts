@@ -38,7 +38,7 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28, ADR-31, ADR-33
  */
 
-import { renderFieldControl, type FieldEdit } from "editor/fieldControls";
+import { renderFieldControl, type FieldEdit, type MediaSeams } from "editor/fieldControls";
 import type { FieldDef, FieldModel, FieldSection } from "editor/fieldModel";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
@@ -263,6 +263,8 @@ export interface FieldSectionsDeps {
 	readonly valueOf: (name: string) => unknown;
 	/** Passed straight to every control — T5.4 turns these into commits (CON-1). */
 	readonly onEdit?: (edit: FieldEdit) => void;
+	/** The `Media` control's vault seams (T5.5), passed to every control. */
+	readonly media?: MediaSeams;
 }
 
 /**
@@ -354,6 +356,7 @@ function renderLabelledField(
 
 	const handle = renderFieldControl(host, field, deps.valueOf(field.name), {
 		...(deps.onEdit ? { onEdit: deps.onEdit } : {}),
+		...deps.media,
 	});
 
 	// `for` is written only when there is something to point AT. A Multi,

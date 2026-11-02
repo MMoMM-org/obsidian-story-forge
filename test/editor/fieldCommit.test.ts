@@ -36,6 +36,7 @@ import { FieldCommitter, SPEC_TYPE, specFor } from "editor/fieldCommit";
 import { renderFieldSections } from "editor/editorPane";
 import type { FieldValue } from "editor/fieldControls";
 import { buildFieldModel, type FieldModel } from "editor/fieldModel";
+import { createMediaSeams } from "editor/mediaPicker";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
 import type { FieldType, FileClassLookup } from "fileclass/fileClassTypes";
 import { commit, type FieldSpec } from "inspector/frontmatterWriter";
@@ -53,13 +54,14 @@ function fcField(id: string, name: string, type: string, values?: string[]): Rec
 }
 
 const FC_CHARACTER: Record<string, unknown> = {
-	fieldsOrder: ["f-name", "f-role", "f-level", "f-active", "f-allies"],
+	fieldsOrder: ["f-name", "f-role", "f-level", "f-active", "f-allies", "f-portrait"],
 	fields: [
 		fcField("f-name", "name", "Input"),
 		fcField("f-role", "role", "Select", ["protagonist", "supporting"]),
 		fcField("f-level", "level", "Number"),
 		fcField("f-active", "active", "Boolean"),
 		fcField("f-allies", "allies", "MultiFile"),
+		fcField("f-portrait", "portrait", "Media"),
 	],
 };
 
@@ -72,6 +74,7 @@ function seedFrontmatter(): Record<string, unknown> {
 		level: 3,
 		active: true,
 		allies: [],
+		portrait: "[[mara.png]]",
 	};
 }
 
@@ -185,8 +188,9 @@ function mountPane(app: App): MountedPane {
 	mounted.push(host);
 
 	const valueOf = vi.fn((name: string): unknown => frontmatter[name] ?? null);
-	const committer = new FieldCommitter({ app, file: mara, model, host, valueOf });
-	renderFieldSections(host, model, { valueOf, onEdit: committer.onEdit });
+	const media = createMediaSeams(app, mara);
+	const committer = new FieldCommitter({ app, file: mara, model, host, valueOf, media });
+	renderFieldSections(host, model, { valueOf, onEdit: committer.onEdit, media });
 	// The snapshot + the first render are setup, not behaviour under test.
 	valueOf.mockClear();
 	return { host, committer, valueOf };
@@ -716,5 +720,61 @@ describe("AnvilView threads the commit seam into the pane's controls (T5.4)", ()
 		// Until T5.4 the Anvil passed `valueOf` alone, so this change reached
 		// nothing at all — the control reported an edit into a `undefined` seam.
 		expect(app.fileManager._getFrontmatter(mara.path)["role"]).toBe("supporting");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T5.5 — the Media control end to end: control -> FieldCommitter -> writer
+// ---------------------------------------------------------------------------
+
+describe("the Media control reaches the commit path (T5.5)", () => {
+	const buttonIn = (host: HTMLElement, text: string): HTMLButtonElement => {
+		const b = Array.from(cellIn(host, "portrait").querySelectorAll("button")).find((x) => x.textContent === text);
+		if (!b) throw new Error(`no ${text} button`);
+		return b;
+	};
+
+	it("writes an empty value to the file when Clear is pressed", async () => {
+		const app = new App();
+		seedVault(app);
+		const pane = mountPane(app);
+
+		click(buttonIn(pane.host, "Clear"));
+		await vi.runAllTimersAsync();
+
+		expect(vi.mocked(app.fileManager.processFrontMatter)).toHaveBeenCalledTimes(1);
+		expect(app.fileManager._getFrontmatter(mara.path)["portrait"]).toBeNull();
+		expect(app.fileManager._getFrontmatter(mara.path)["name"]).toBe("Mara Stoneway");
+	});
+
+	it("keeps preview, path and the picker after a refused write rolls it back", async () => {
+		const app = new App();
+		seedVault(app);
+		const pane = mountPane(app);
+		vi.mocked(app.fileManager.processFrontMatter).mockRejectedValueOnce(new Error("disk is full"));
+
+		click(buttonIn(pane.host, "Clear"));
+		await vi.runAllTimersAsync();
+
+		const cell = cellIn(pane.host, "portrait");
+		expect(cell.querySelector("[data-sf-ed-media-path]")?.textContent).toBe("[[mara.png]]");
+		// The rebuilt control still has its picker: the seams survived the rebuild.
+		expect(buttonIn(pane.host, "Choose image…")).toBeTruthy();
+		expect(app.fileManager._getFrontmatter(mara.path)["portrait"]).toBe("[[mara.png]]");
+	});
+
+	it("is wired in a pane the Anvil rendered", async () => {
+		const app = new App();
+		seedVault(app);
+		const view = await openPane(app);
+
+		const clear = Array.from(cellIn(view.contentEl, "portrait").querySelectorAll("button"))
+			.find((b) => b.textContent === "Clear");
+		click(clear);
+		await vi.runAllTimersAsync();
+
+		expect(app.fileManager._getFrontmatter(mara.path)["portrait"]).toBeNull();
+		expect(Array.from(cellIn(view.contentEl, "portrait").querySelectorAll("button")).map((b) => b.textContent))
+			.toContain("Choose image…");
 	});
 });

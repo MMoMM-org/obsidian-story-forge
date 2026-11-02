@@ -576,6 +576,10 @@ export class App {
 	workspace: Workspace = new Workspace();
 	metadataCache = {
 		getFileCache: vi.fn((_file: TFile): CachedMetadata | null => null),
+		fileToLinktext: vi.fn(
+			(file: TFile, _sourcePath: string, omitMdExtension?: boolean): string =>
+				omitMdExtension === false ? file.path : file.path.replace(/\.md$/, ""),
+		),
 		getFirstLinkpathDest: vi.fn(
 			(_linkpath: string, _sourcePath: string): TFile | null => null,
 		),
@@ -744,6 +748,35 @@ export class Modal {
 	});
 	onOpen(): void {}
 	onClose(): void {}
+}
+
+/**
+ * Mirrors obsidian.d.ts `FuzzySuggestModal<T>`: the subclass supplies
+ * `getItems` / `getItemText` / `onChooseItem`; the modal supplies the chooser.
+ * Real Obsidian closes the modal BEFORE it calls `onChooseItem`, and tests rely
+ * on that ordering, so `_choose` reproduces it.
+ */
+export abstract class FuzzySuggestModal<T> extends Modal {
+	abstract getItems(): T[];
+	abstract getItemText(item: T): string;
+	abstract onChooseItem(item: T, evt: MouseEvent | KeyboardEvent): void;
+	setPlaceholder = vi.fn((_placeholder: string) => {});
+	/** Test hook: every chooser opened since the last `_reset`, in order. */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	static _opened: FuzzySuggestModal<any>[] = [];
+	static _reset(): void {
+		FuzzySuggestModal._opened.length = 0;
+	}
+	override open = vi.fn(() => {
+		FuzzySuggestModal._opened.push(this);
+		document.body.appendChild(this.contentEl);
+		this.onOpen();
+	});
+	/** Test hook: what picking `item` in the chooser does. */
+	_choose(item: T): void {
+		this.close();
+		this.onChooseItem(item, new MouseEvent("click"));
+	}
 }
 
 export class Notice {
