@@ -305,6 +305,7 @@ function mediaControl(
 	cell.appendChild(box);
 
 	const change = (next: FieldValue): void => {
+		if (next === current) return;
 		current = next;
 		draw();
 		report(deps, field, current);
@@ -318,7 +319,7 @@ function mediaControl(
 		path.setAttribute(MEDIA_PATH_ATTR, field.name);
 		path.textContent = text;
 		side.appendChild(path);
-		side.appendChild(mediaButtons(deps, change));
+		side.appendChild(mediaButtons(deps, box, change));
 		box.appendChild(side);
 	};
 	draw();
@@ -335,18 +336,25 @@ function previewTile(box: HTMLElement, name: string, stored: string, deps: Field
 	const img = tile.querySelector("img");
 	if (!img) return;
 	listen(img, "error", () => {
-		const fallback = portraitTile(box, name, undefined);
-		box.replaceChild(fallback, tile);
+		// A detached image can still fire; the box has moved on by then.
+		if (tile.parentNode !== box) return;
+		// Built in a detached holder so nothing is appended to the live box first.
+		box.replaceChild(portraitTile(activeDocument.createElement("div"), name, undefined), tile);
 	});
 }
 
-function mediaButtons(deps: FieldControlDeps, change: (next: FieldValue) => void): HTMLElement {
+function mediaButtons(
+	deps: FieldControlDeps,
+	box: HTMLElement,
+	change: (next: FieldValue) => void,
+): HTMLElement {
 	const row = el("div", "sf-ed-media-btns");
 	const pick = deps.pickImage;
 	if (pick) {
 		const choose = buttonEl("Choose image…", true);
 		listen(choose, "click", () => {
-			void pick().then((link) => { if (link !== null) change(link); });
+			// A pick outliving its control (re-render, rollback, view close) is dropped.
+			void pick().then((link) => { if (link !== null && box.isConnected) change(link); });
 		});
 		row.appendChild(choose);
 	}

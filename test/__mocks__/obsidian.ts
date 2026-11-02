@@ -576,9 +576,16 @@ export class App {
 	workspace: Workspace = new Workspace();
 	metadataCache = {
 		getFileCache: vi.fn((_file: TFile): CachedMetadata | null => null),
+		/**
+		 * Real Obsidian returns the shortest unambiguous link text (`mara.png` for
+		 * `Media/mara.png`). The mock returns the file name; the name-clash case,
+		 * where a folder prefix is needed, is NOT modelled.
+		 */
 		fileToLinktext: vi.fn(
 			(file: TFile, _sourcePath: string, omitMdExtension?: boolean): string =>
-				omitMdExtension === false ? file.path : file.path.replace(/\.md$/, ""),
+				omitMdExtension === false
+					? (file.path.split("/").pop() ?? file.path)
+					: (file.path.split("/").pop() ?? file.path).replace(/\.md$/, ""),
 		),
 		getFirstLinkpathDest: vi.fn(
 			(_linkpath: string, _sourcePath: string): TFile | null => null,

@@ -924,3 +924,62 @@ describe("the Media control reports through the normal path (T5.5)", () => {
 		expect(handle.el.querySelector("button")?.textContent).toBe("Clear");
 	});
 });
+
+describe("the Media control survives late events (T5.5 review)", () => {
+	it("ignores an error from an image a Clear already replaced", () => {
+		const m = renderMedia(mediaField("portrait"), "[[corrupt.png]]");
+		const stale = m.el.querySelector("img");
+		buttonNamed(m.el, "Clear").click();
+		expect(() => stale?.dispatchEvent(new Event("error"))).not.toThrow();
+		expect(m.el.querySelectorAll(".sf-portrait")).toHaveLength(1);
+	});
+
+	it("ignores an error from an image a Choose already replaced", async () => {
+		const m = renderMedia(mediaField("portrait"), "[[old.png]]", { picked: "[[new.png]]" });
+		const stale = m.el.querySelector("img");
+		buttonNamed(m.el, "Choose image…").click();
+		await flushPicker();
+		expect(() => stale?.dispatchEvent(new Event("error"))).not.toThrow();
+		expect(m.el.querySelectorAll(".sf-portrait")).toHaveLength(1);
+		expect(m.el.querySelector("img")?.getAttribute("src")).toBe("app://vault/new.png");
+	});
+
+	it("drops a pick that resolves after the control was removed", async () => {
+		let resolvePick: (link: string | null) => void = () => undefined;
+		const host = document.createElement("div");
+		document.body.appendChild(host);
+		mounted.push(host);
+		const edits: FieldValue[] = [];
+		const handle = renderFieldControl(host, mediaField("portrait"), "[[a.png]]", {
+			onEdit: (change) => { edits.push(change.value); },
+			pickImage: () => new Promise((r) => { resolvePick = r; }),
+		});
+		buttonNamed(handle.el, "Choose image…").click();
+		host.remove();
+		resolvePick("[[late.png]]");
+		await flushPicker();
+		expect(edits).toEqual([]);
+	});
+
+	it("still commits a pick while the control is connected", async () => {
+		const m = renderMedia(mediaField("portrait"), "[[a.png]]", { picked: "[[b.png]]" });
+		buttonNamed(m.el, "Choose image…").click();
+		await flushPicker();
+		expect(m.edits).toEqual(["[[b.png]]"]);
+	});
+});
+
+describe("the Media control does not write a no-op (T5.5 review)", () => {
+	it("reports nothing when the picked link is the one already stored", async () => {
+		const m = renderMedia(mediaField("portrait"), "[[mara.png]]", { picked: "[[mara.png]]" });
+		buttonNamed(m.el, "Choose image…").click();
+		await flushPicker();
+		expect(m.edits).toEqual([]);
+	});
+
+	it.each([[null], [""]])("reports nothing when Clear is pressed on an empty field %j", (value) => {
+		const m = renderMedia(mediaField("portrait"), value);
+		buttonNamed(m.el, "Clear").click();
+		expect(m.edits).toEqual([]);
+	});
+});

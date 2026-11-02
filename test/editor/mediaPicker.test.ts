@@ -64,7 +64,6 @@ describe("pickImage — the image chooser (T5.5)", () => {
 	it("resolves to a [[wikilink]] built by Obsidian from the source note", async () => {
 		const app = new App();
 		vi.mocked(app.vault.getFiles).mockReturnValue([png]);
-		vi.mocked(app.metadataCache.fileToLinktext).mockReturnValue("mara.png");
 		const pending = seamsFor(app).pickImage();
 		opened[0]!._choose(png);
 		await expect(pending).resolves.toBe("[[mara.png]]");
