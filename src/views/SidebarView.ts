@@ -1526,12 +1526,12 @@ export class SidebarView extends ItemView {
 	 * This note's field model (T6.3, ADR-0002), or `null` when edit mode has
 	 * nothing to show: an unknown kind, or no fields in any tier.
 	 *
-	 * One snapshot source per render, so a note no `fileClass` key names costs at
-	 * most one scan of the vault's FileClasses. T6.4 owns the general cache.
+	 * The source asks for one name once per render, so a note no `fileClass` key
+	 * names costs one scan of the vault's FileClasses. T6.4 owns the general cache.
 	 */
 	private _inspectorModel(ctx: NoteContext): FieldModel | null {
 		if (ctx.activeKind === "unknown") return null;
-		const source = createFileClassSource(this.app, this.getFileClassesFolder, { snapshot: true });
+		const source = createFileClassSource(this.app, this.getFileClassesFolder);
 		const startName = source.nameFor(ctx.activeFile);
 		const chain = startName === undefined ? [] : resolveFileClassChain(startName, source.lookup);
 		const model = buildFieldModel(chain, ctx.frontmatter);

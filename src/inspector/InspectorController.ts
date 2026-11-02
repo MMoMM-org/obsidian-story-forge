@@ -346,7 +346,6 @@ export class InspectorController {
 			// A real checkbox: the writer rejects the string "true" for a boolean field.
 			const input = activeDocument.createElement("input");
 			input.type = "checkbox";
-			input.className = "sf-inspector-checkbox";
 			input.setAttribute("data-sf-inspector-input", spec.name);
 			input.checked = value === true;
 			fieldRow.appendChild(input);
@@ -390,7 +389,7 @@ export class InspectorController {
 		// value says which. The single chip would join a list into one broken link.
 		if (spec.type === "relation" && !Array.isArray(state.committedValue)) {
 			this._renderRelationChip(fieldRow, spec, state);
-		} else if (spec.type === "relation" || spec.type === "list" || spec.type === "tags") {
+		} else if (spec.type === "relation" || spec.type === "list") {
 			this._renderListChips(fieldRow, state);
 		} else {
 			// fixed and any other read-only types: plain text display
@@ -437,7 +436,7 @@ export class InspectorController {
 	}
 
 	/**
-	 * Render a list or tags field as read-only chips.
+	 * Render a list field as read-only chips.
 	 *
 	 * Items written as `[[wikilinks]]` (relation lists — characters, plotlines,
 	 * prev, next, family, …) resolve to clickable link chips carrying data-sf-link
