@@ -66,7 +66,6 @@ export type EditorPaneMode = EditorDock | "fullscreen";
  */
 export const EDITOR_TOOL_ATTR = "data-sf-ed-tool";
 
-/** Carries the open note's vault path, so a host (or a test) can read what is shown. */
 /**
  * Marks the header title as a link to the pane's note. Sits on the same element
  * as `data-sf-link` (which supplies the target and the right-click file menu);
@@ -74,6 +73,7 @@ export const EDITOR_TOOL_ATTR = "data-sf-ed-tool";
  */
 export const EDITOR_TITLE_ATTR = "data-sf-ed-title";
 
+/** Carries the open note's vault path, so a host (or a test) can read what is shown. */
 export const EDITOR_PATH_ATTR = "data-sf-ed-path";
 
 /**

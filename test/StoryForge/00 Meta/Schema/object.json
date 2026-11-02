@@ -22,7 +22,7 @@
     { "name": "series", "type": "text", "default": "Forge",
       "description": "Text. The series this canon belongs to." },
     { "name": "image", "type": "media",
-      "description": "Media. Optional `[[wikilink]]` to the thumbnail image (e.g. `[[Moonharbor Lighthouse.svg]]`) — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays." },
+      "description": "Media. Optional `[[wikilink]]` to the thumbnail image with its full vault path (e.g. `[[95 Assets/Moonharbor Lighthouse.svg]]`), which Meta Bind's image view needs — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays." },
     { "name": "tags", "type": "tags",
       "description": "List. Always includes `canon/object` — how views and Bases select object notes." }
   ]

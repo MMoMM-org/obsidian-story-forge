@@ -26,7 +26,7 @@ Text — a `[[scene note]]` link. The scene where the object first appears.
 Text. The series this canon belongs to.
 
 ### `image`
-Media. Optional `[[wikilink]]` to the thumbnail image (e.g. `[[Moonharbor Lighthouse.svg]]`) — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays.
+Media. Optional `[[wikilink]]` to the thumbnail image with its full vault path (e.g. `[[95 Assets/Moonharbor Lighthouse.svg]]`), which Meta Bind's image view needs — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays.
 
 ### `tags`
 List. Always includes `canon/object` — how views and Bases select object notes.

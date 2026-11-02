@@ -85,9 +85,9 @@ describe("seed notes hold wikilinks for media fields (T6.1)", () => {
 		return existsSync(p) && statSync(p).isFile();
 	}
 
+	// Full vault path only: Meta Bind's image view does not resolve links.
 	function vaultHasFile(target: string): boolean {
-		const assets = path.join(VAULT, "95 Assets");
-		return isFile(path.join(VAULT, target)) || isFile(path.join(assets, target));
+		return isFile(path.join(VAULT, target));
 	}
 
 	it("every non-empty media value is a wikilink to an existing file, or an http(s) URL", () => {

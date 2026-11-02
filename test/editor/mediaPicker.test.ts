@@ -61,13 +61,14 @@ describe("pickImage — the image chooser (T5.5)", () => {
 		await pending;
 	});
 
-	it("resolves to a [[wikilink]] built by Obsidian from the source note", async () => {
+	it("resolves to a [[wikilink]] holding the full vault path", async () => {
 		const app = new App();
 		vi.mocked(app.vault.getFiles).mockReturnValue([png]);
 		const pending = seamsFor(app).pickImage();
 		opened[0]!._choose(png);
-		await expect(pending).resolves.toBe("[[mara.png]]");
-		expect(app.metadataCache.fileToLinktext).toHaveBeenCalledWith(png, note.path, false);
+		// Meta Bind's image view reads a link's target as a path from the vault
+		// root, so a shortest-form link shows a broken image there.
+		await expect(pending).resolves.toBe("[[Art/mara.png]]");
 	});
 
 	it("resolves to null when the chooser is dismissed without a choice", async () => {

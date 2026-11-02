@@ -952,8 +952,8 @@ export class AnvilView extends ItemView {
 	 * collection pill, the Codex Card selector option (T4.4) and
 	 * data-sf-section-toggle are all "structuralControl" (the Anvil's tab strip /
 	 * timeline sub-mode toggle / collection switcher / Card switcher /
-	 * collapsible section headers). None of these ever co-occur on the same
-	 * node in the current markup.
+	 * collapsible section headers). Card and pane titles carry a title marker
+	 * beside `data-sf-link`; the order in `ANVIL_MARKERS` decides those.
 	 *
 	 * T4.1 adds the Codex card body — the FIRST producer of "cardBody" in the
 	 * plugin; until now the kind was resolved and unit-tested in

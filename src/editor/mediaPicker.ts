@@ -6,9 +6,9 @@
  * built, per edited note: link resolution is relative to the note the value
  * lives in, exactly as a wikilink in that note is.
  *
- * The picker stores `[[mara.png]]` — built by Obsidian's own
- * `fileToLinktext` — so the value is a wikilink Obsidian keeps correct when the
- * image is renamed, where a path would break silently (SDD/Technical Debt).
+ * The picker stores `[[Art/mara.png]]`, a wikilink with the full vault path.
+ * Obsidian keeps it correct when the image is renamed, where a bare path would
+ * break silently (SDD/Technical Debt), and Meta Bind's image view can read it.
  *
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-5.md — T5.5
  * @ref src/panel/assetResolver.ts — the resolver this wraps
@@ -25,14 +25,14 @@ export function createMediaSeams(app: App, file: TFile): Required<MediaSeams> {
 	return {
 		label: file.basename,
 		resolveImage: createLinkedImageResolver(app, file.path),
-		pickImage: () => pickImageLink(app, file.path),
+		pickImage: () => pickImageLink(app),
 	};
 }
 
 /** Open the image chooser; resolves to a `[[wikilink]]`, or null if dismissed. */
-function pickImageLink(app: App, sourcePath: string): Promise<string | null> {
+function pickImageLink(app: App): Promise<string | null> {
 	return new Promise((resolve) => {
-		new ImageSuggestModal(app, sourcePath, resolve).open();
+		new ImageSuggestModal(app, resolve).open();
 	});
 }
 
@@ -41,7 +41,6 @@ class ImageSuggestModal extends FuzzySuggestModal<TFile> {
 
 	constructor(
 		app: App,
-		private readonly _sourcePath: string,
 		private readonly _resolve: (link: string | null) => void,
 	) {
 		super(app);
@@ -57,8 +56,9 @@ class ImageSuggestModal extends FuzzySuggestModal<TFile> {
 	}
 
 	onChooseItem(file: TFile): void {
-		const text = this.app.metadataCache.fileToLinktext(file, this._sourcePath, false);
-		this._settle(`[[${text}]]`);
+		// The full path, not `fileToLinktext`'s shortest form: Meta Bind's image
+		// view reads a link's target as a path from the vault root (upstream #677).
+		this._settle(`[[${file.path}]]`);
 	}
 
 	/**
