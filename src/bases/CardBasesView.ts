@@ -139,7 +139,13 @@ export class CardBasesView extends BasesView {
 		// Bases repaints for its query's results, and a FileClass is rarely one of
 		// them, so a change of field type would otherwise wait for the next repaint.
 		if (deps.fileClasses) {
-			this.register(deps.fileClasses.subscribe(() => { if (this.drawn) this.onDataUpdated(); }));
+			// Safety net: if Bases drops a view without `unload`, its container is
+			// detached; stop listening rather than repaint a view nobody can see.
+			const stop = deps.fileClasses.subscribe(() => {
+				if (!containerEl.isConnected) { stop(); return; }
+				if (this.drawn) this.onDataUpdated();
+			});
+			this.register(stop);
 		}
 		// Right-click on a link (name or relation pill): Obsidian's own file menu.
 		// On the persistent container (the grid is rebuilt every repaint), so it is

@@ -9,7 +9,7 @@
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-6.md — T6.2b
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { App as ObsidianApp, WorkspaceLeaf, type TFile } from "obsidian";
 import {
 	App,
@@ -158,6 +158,8 @@ describe("Hero Card on the Anvil's Codex", () => {
 // Standalone .base
 // ---------------------------------------------------------------------------
 
+afterEach(() => { document.body.replaceChildren(); });
+
 type ValueOf = (n: Note, id: string) => { toString(): string } | null;
 
 const displayValue: ValueOf = (n, id) => ({ toString: () => String(n.fm[id] ?? "") });
@@ -179,6 +181,8 @@ function baseView(
 	draw = true,
 ): { view: CardBasesView; container: HTMLElement } {
 	const container = document.createElement("div");
+	// Bases hands a view an attached container; a detached one reads as dropped.
+	document.body.appendChild(container);
 	const view = new CardBasesView("story-forge-hero", new QueryController(), container, {
 		app: app as unknown as ObsidianApp,
 		registry: CODEX_CARD_REGISTRY,
@@ -263,25 +267,25 @@ describe("Hero Card in a standalone .base", () => {
 		expect(scans).toHaveBeenCalledTimes(2);
 	});
 
+	const FACE = "https://x.test/f.png";
+
+	function retyped(): { app: App; mara: Note; declare: () => void } {
+		const mara = character("Mara", { avatar: "[[Media/a.png]]", face: FACE });
+		const app = vaultOf([mara], MINE);
+		const cached = vi.mocked(app.metadataCache.getFileCache);
+		const before = cached.getMockImplementation();
+		const after = createMockCachedMetadata({ frontmatter: fileClass([["face", "Media"]]) });
+		return {
+			app,
+			mara,
+			declare: (): void => {
+				cached.mockImplementation((file) => (file.path === FC_MINE_FILE.path ? after : before?.(file) ?? null));
+				app.metadataCache._trigger("changed", FC_MINE_FILE);
+			},
+		};
+	}
+
 	describe("when a FileClass changes", () => {
-		const FACE = "https://x.test/f.png";
-
-		function retyped(): { app: App; mara: Note; declare: () => void } {
-			const mara = character("Mara", { avatar: "[[Media/a.png]]", face: FACE });
-			const app = vaultOf([mara], MINE);
-			const cached = vi.mocked(app.metadataCache.getFileCache);
-			const before = cached.getMockImplementation();
-			const after = createMockCachedMetadata({ frontmatter: fileClass([["face", "Media"]]) });
-			return {
-				app,
-				mara,
-				declare: (): void => {
-					cached.mockImplementation((file) => (file.path === FC_MINE_FILE.path ? after : before?.(file) ?? null));
-					app.metadataCache._trigger("changed", FC_MINE_FILE);
-				},
-			};
-		}
-
 		it("repaints a drawn grid with the field the FileClass now types", () => {
 			vi.useFakeTimers();
 			try {
@@ -328,6 +332,71 @@ describe("Hero Card in a standalone .base", () => {
 
 				expect(spy).not.toHaveBeenCalled();
 				expect(container.querySelector(".sf-cx-grid")).toBe(drawn);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+	});
+
+	describe("the FileClass subscription", () => {
+		/** A cache that counts how many of its subscribers are still listening. */
+		function counted(app: App): { cache: FileClassCache; live: () => number } {
+			const inner = cacheOver(app);
+			let live = 0;
+			const cache: FileClassCache = {
+				lookup: inner.lookup,
+				nameFor: (file) => inner.nameFor(file),
+				subscribe: (listener) => {
+					live += 1;
+					const leave = inner.subscribe(listener);
+					let left = false;
+					return () => { if (!left) { left = true; live -= 1; } leave(); };
+				},
+			};
+			return { cache, live: () => live };
+		}
+
+		it("does not repaint before Bases has called onDataUpdated", () => {
+			vi.useFakeTimers();
+			try {
+				const { app, declare } = retyped();
+				const { view } = baseView(app, [], cacheOver(app), displayValue, false);
+				const spy = vi.spyOn(view, "onDataUpdated");
+
+				declare();
+				vi.advanceTimersByTime(DEBOUNCE_MS);
+
+				expect(spy).not.toHaveBeenCalled();
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it("leaves the cache when the view unloads", () => {
+			const { app, mara } = retyped();
+			const { cache, live } = counted(app);
+			const { view } = baseView(app, [mara], cache);
+			expect(live()).toBe(1);
+
+			view.unload();
+
+			expect(live()).toBe(0);
+		});
+
+		it("does nothing, and leaves the cache, once its container is disconnected", () => {
+			vi.useFakeTimers();
+			try {
+				const { app, mara, declare } = retyped();
+				const { cache, live } = counted(app);
+				const { view, container } = baseView(app, [mara], cache);
+				const spy = vi.spyOn(view, "onDataUpdated");
+
+				container.remove();
+				declare();
+				vi.advanceTimersByTime(DEBOUNCE_MS);
+
+				expect(spy).not.toHaveBeenCalled();
+				expect(live()).toBe(0);
 			} finally {
 				vi.useRealTimers();
 			}
