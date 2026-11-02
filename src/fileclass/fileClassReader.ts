@@ -68,7 +68,7 @@ export function resolveFileClassChain(
 		visited.add(current);
 
 		const record = asRecord(lookup.getFileClassFrontmatter(current));
-		if (record === undefined) break; // unreadable — nothing to add, nothing to continue from
+		if (record === undefined) { warnOnce(current, undefined, "has no readable frontmatter"); break; } // unreadable — nothing to add, nothing to continue from
 
 		const extendsName = readExtends(record);
 		const parsed = tryParseFileClass(current, record, extendsName);
@@ -83,6 +83,21 @@ export function resolveFileClassChain(
 // ---------------------------------------------------------------------------
 // Internals
 // ---------------------------------------------------------------------------
+
+/**
+ * What has been reported already, keyed by FileClass name and content. Module
+ * state on purpose: the cache drops its generation on any change in the
+ * folder, so a per-generation memory would repeat itself for a file nobody
+ * touched. Keyed by content so an edited file that is still broken reports again.
+ */
+const reported = new Set<string>();
+
+function warnOnce(name: string, record: Record<string, unknown> | undefined, why: string): void {
+	const key = `${name}\u0000${JSON.stringify(record ?? null)}`;
+	if (reported.has(key)) return;
+	reported.add(key);
+	console.warn(`Story Forge: FileClass "${name}" ${why}; skipped.`);
+}
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
 	if (value === null || value === undefined || typeof value !== "object" || Array.isArray(value)) {
@@ -103,7 +118,7 @@ function tryParseFileClass(
 	extendsName: string | undefined,
 ): ParsedFileClass | undefined {
 	const rawFields = record["fields"];
-	if (!Array.isArray(rawFields)) return undefined;
+	if (!Array.isArray(rawFields)) { warnOnce(name, record, "has no `fields` list"); return undefined; }
 
 	const declared: FileClassField[] = [];
 	for (const rawField of rawFields) {

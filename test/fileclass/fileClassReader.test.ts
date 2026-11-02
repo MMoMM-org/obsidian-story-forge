@@ -14,7 +14,7 @@
  *  - a declared field omitted from fieldsOrder still renders, appended last
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { resolveFileClassChain } from "fileclass/fileClassReader";
 import type { FileClassLookup } from "fileclass/fileClassTypes";
 import { FC_CHARACTER, FC_CHARACTER_FANTASY } from "./fixtures";
@@ -227,5 +227,60 @@ describe("resolveFileClassChain", () => {
 		const chain = resolveFileClassChain("fc-partial-order", lookup);
 
 		expect(chain[0]?.fields.map((f) => f.id)).toEqual(["a-1", "a-3", "a-2"]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Diagnosable skip — one console.warn per FileClass name and content
+// ---------------------------------------------------------------------------
+
+describe("resolveFileClassChain — a malformed FileClass says so, once", () => {
+	afterEach(() => { vi.restoreAllMocks(); });
+
+	const warnSpy = () => vi.spyOn(console, "warn").mockImplementation(() => {});
+
+	it("warns, naming the FileClass, when its fields are not a list", () => {
+		const warn = warnSpy();
+
+		resolveFileClassChain("fc-warn-fields", makeLookup({ "fc-warn-fields": { fields: "nope" } }));
+
+		expect(warn).toHaveBeenCalledTimes(1);
+		expect(String(warn.mock.calls[0]?.[0])).toContain("fc-warn-fields");
+	});
+
+	it("warns when the FileClass has no readable frontmatter", () => {
+		const warn = warnSpy();
+
+		resolveFileClassChain("fc-warn-missing", makeLookup({}));
+
+		expect(warn).toHaveBeenCalledTimes(1);
+		expect(String(warn.mock.calls[0]?.[0])).toContain("fc-warn-missing");
+	});
+
+	it("does not warn again on a re-render of the same content", () => {
+		const warn = warnSpy();
+		const lookup = makeLookup({ "fc-warn-once": { fields: 1 } });
+
+		resolveFileClassChain("fc-warn-once", lookup);
+		resolveFileClassChain("fc-warn-once", makeLookup({ "fc-warn-once": { fields: 1 } }));
+
+		expect(warn).toHaveBeenCalledTimes(1);
+	});
+
+	it("warns again when the file changed and is still malformed", () => {
+		const warn = warnSpy();
+
+		resolveFileClassChain("fc-warn-changed", makeLookup({ "fc-warn-changed": { fields: 1 } }));
+		resolveFileClassChain("fc-warn-changed", makeLookup({ "fc-warn-changed": { fields: 2 } }));
+
+		expect(warn).toHaveBeenCalledTimes(2);
+	});
+
+	it("stays quiet for a well-formed FileClass", () => {
+		const warn = warnSpy();
+
+		resolveFileClassChain("fc-character", makeLookup({ "fc-character": FC_CHARACTER }));
+
+		expect(warn).not.toHaveBeenCalled();
 	});
 });
