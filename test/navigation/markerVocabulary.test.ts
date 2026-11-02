@@ -23,6 +23,8 @@ import {
 } from "navigation/markerVocabulary";
 import { walkTargetMarkers } from "navigation/domTargetWalk";
 import { CODEX_COLLECTION_ATTR, CODEX_CARD_BODY_ATTR } from "codex/codexTab";
+import { CARD_TITLE_ATTR } from "codex/cardWrapper";
+import { EDITOR_TITLE_ATTR } from "editor/editorPane";
 
 function el(tag = "div"): HTMLElement {
 	return document.createElement(tag);
@@ -98,6 +100,26 @@ describe("createMarkerKindOf", () => {
 
 		expect(linkFirst(node)).toBe("name");
 		expect(toggleFirst(node)).toBe("structuralControl");
+	});
+});
+
+describe("two markers on ONE element — the whitelist decides, not the DOM attribute order", () => {
+	it.each([
+		[CARD_TITLE_ATTR, "cardTitle"],
+		[EDITOR_TITLE_ATTR, "paneTitle"],
+	] as const)("%s beats data-sf-link in the Anvil whichever was set first", (attr, kind) => {
+		const anvilKindOf = createMarkerKindOf(ANVIL_MARKERS);
+
+		const linkFirst = el();
+		linkFirst.setAttribute("data-sf-link", "some/path.md");
+		linkFirst.setAttribute(attr, "");
+
+		const titleFirst = el();
+		titleFirst.setAttribute(attr, "");
+		titleFirst.setAttribute("data-sf-link", "some/path.md");
+
+		expect(anvilKindOf(linkFirst)).toBe(kind);
+		expect(anvilKindOf(titleFirst)).toBe(kind);
 	});
 });
 
