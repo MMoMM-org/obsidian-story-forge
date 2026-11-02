@@ -20,6 +20,7 @@ export interface SchemaField {
 	type: string;
 	values?: string[];
 	value?: string;
+	relation?: string;
 }
 
 export interface EntitySchema {
