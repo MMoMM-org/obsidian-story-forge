@@ -441,6 +441,30 @@ describe("SidebarView: drill-in navigation", () => {
 		expect(pv.subject.source).toBe("drilled");
 	});
 
+	// The Workbench router must stand aside for form controls (same defect as the Anvil).
+	it.each(["input", "select", "textarea", "button"] as const)(
+		"does not swallow Enter or Space on a <%s> inside the body",
+		(tag) => {
+			seedResolved(makeMdFile("Mara Stoneway"), makeMdFile("Silvan Nightweaver"));
+			const control = document.createElement(tag);
+			getBody(view).appendChild(control);
+			for (const key of ["Enter", " "]) {
+				const evt = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+				control.dispatchEvent(evt);
+				expect(evt.defaultPrevented).toBe(false);
+			}
+		},
+	);
+
+	it("still prevents Enter on a link row, so the activation is routed", () => {
+		const to = makeMdFile("Silvan Nightweaver");
+		seedResolved(makeMdFile("Mara Stoneway"), to);
+		const el = getBody(view).querySelector(`[data-sf-link="${to.path}"]`) as HTMLElement;
+		const evt = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+		el.dispatchEvent(evt);
+		expect(evt.defaultPrevented).toBe(true);
+	});
+
 	// FIX 3b: multi-level back — intermediate drilled state, then full pop
 	it("multi-level back: A→B→C then back once is still drilled; back twice returns to follow", () => {
 		const fileA = makeMdFile("A");

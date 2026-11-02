@@ -68,6 +68,7 @@ import { buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
 import { createNavigationController } from "navigation/navigationController";
 import { walkTargetMarkers, type MarkerKindOf } from "navigation/domTargetWalk";
 import { linkContextMenuHandler } from "navigation/linkContextMenu";
+import { isActivationKey } from "navigation/keyboardRouting";
 import { ANVIL_MARKERS, createMarkerKindOf } from "navigation/markerVocabulary";
 import {
 	BUILT_IN_COLLECTIONS,
@@ -431,7 +432,7 @@ export class AnvilView extends ItemView {
 		// (The InteractionHandler owns Arrow-key moves on bound cards; here we only
 		// route the drill/collapse affordances, mirroring _onClick.)
 		this.registerDomEvent(ce, "keydown", (e: KeyboardEvent) => {
-			if (e.key !== "Enter" && e.key !== " ") return;
+			if (!isActivationKey(e)) return;
 			e.preventDefault();
 			this._onClick(e.target, e.metaKey || e.ctrlKey);
 		});

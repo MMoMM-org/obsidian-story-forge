@@ -48,6 +48,7 @@ import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFields } from "../inspector/inspectorFields";
 import { createNavigationController } from "../navigation/navigationController";
 import { linkContextMenuHandler } from "navigation/linkContextMenu";
+import { isActivationKey } from "navigation/keyboardRouting";
 import { walkTargetMarkers, type MarkerKindOf } from "../navigation/domTargetWalk";
 import { createMarkerKindOf, SIDEBAR_MARKERS } from "../navigation/markerVocabulary";
 import { CODEX_CARD_BODY_ATTR } from "../codex/codexTab";
@@ -698,7 +699,7 @@ export class SidebarView extends ItemView {
 		);
 		// Enter/Space activate the focused link / nav control (keyboard parity).
 		this.registerDomEvent(body, "keydown", (e: KeyboardEvent) => {
-			if (e.key !== "Enter" && e.key !== " ") return;
+			if (!isActivationKey(e)) return;
 			e.preventDefault();
 			this._onBodyActivate(e.target, e.metaKey || e.ctrlKey);
 		});
