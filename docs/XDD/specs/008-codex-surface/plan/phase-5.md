@@ -272,6 +272,11 @@ The editor the withdrawn "note panel" surface was actually reaching for.
     (the file-level guarantee that stands in for the missing journal). `npm test`, `npm run lint`,
     `npm run typecheck` green.
 
+  > **Carried over from T4.7 (audit 2026-11-02), which recorded no result.** Run the full manual walk
+  > in `phase-4.md` T4.7 here and record it, including: Card choice per collection survives a reload;
+  > the grid works with Bases disabled; the Bases hint and its dismissal; **Cards selectable in a
+  > user's own `.base`**; a **blank-but-present property** on the Bases backend.
+  >
   > **Real-vault verification checklist — these CANNOT be unit tests** (routed here 2026-08-05 on the
   > TDD gate's ruling for T5.3). jsdom computes no CSS, so a jsdom assertion for any of these would
   > **pass silently while the real vault is broken** — which is worse than no test. Verify each by

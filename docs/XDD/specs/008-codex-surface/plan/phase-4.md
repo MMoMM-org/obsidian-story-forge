@@ -77,7 +77,7 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
      Workbench; extend the host's `markerKindOf` vocabulary with the card-body marker.
   4. Validate: unit tests over rendered DOM; lint; types.
   5. Success:
-     - [ ] Pills reflect exactly the enabled collections `[ref: SDD/AC — PRD F3]`
+     - [x] Pills reflect exactly the enabled collections `[ref: SDD/AC — PRD F3]`
 
 - [x] **T4.2 `CardRenderer` contract and the registry** `[activity: domain-modeling]`
 
@@ -102,7 +102,7 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
   3. Implement: `src/codex/cardRegistry.ts` — the contract plus a normalised entry shape.
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] One Card implementation serves both backends `[ref: SDD/ADR-30]`
+     - [x] One Card implementation serves both backends `[ref: SDD/ADR-30]`
 
 - [x] **T4.3 The three built-in Cards** `[activity: frontend-ui]` `[parallel: true]`
 
@@ -128,7 +128,7 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
   3. Implement: `src/codex/cards/{heroCard,tableCard,compactCard}.ts`.
   4. Validate: unit tests; lint; stylelint for the new `sf-cx-*` classes; types.
   5. Success:
-     - [ ] All three Cards exist and are selectable `[ref: SDD/AC — PRD F4]`
+     - [x] All three Cards exist and are selectable `[ref: SDD/AC — PRD F4]`
 
 - [x] **T4.4 Card selector, persisted per collection** `[activity: frontend-ui]`
 
@@ -141,7 +141,7 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
   3. Implement: selector in the Codex header; persistence via settings.
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] Per-collection memory works across a reload `[ref: SDD/AC — PRD F4]`
+     - [x] Per-collection memory works across a reload `[ref: SDD/AC — PRD F4]`
 
 - [x] **T4.5 Bases backend registration** `[activity: integration]`
 
@@ -188,9 +188,11 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
      hand-rolled mock has previously hidden a real crash; lint; types.
   5. Success:
      - [ ] Cards are selectable inside a user's own `.base` `[ref: SDD/AC — PRD F4]`
+       — unit-tested; **live confirmation pending in T5.6**
      - [ ] A **blank-but-present** property renders normally on the **Bases** backend, not marked as
            not set — the same as on the native backend `[ref: PRD/F4 AC]`
-     - [ ] `CODEX_VIEW_TYPE` has exactly one declaration site, in `src/pluginConstants.ts` (CON-4)
+           — unit-tested; **live confirmation pending in T5.6**
+     - [x] `CODEX_VIEW_TYPE` has exactly one declaration site, in `src/pluginConstants.ts` (CON-4)
 
 - [x] **T4.6 Empty state and the Bases hint** `[activity: frontend-ui]`
 
@@ -242,13 +244,16 @@ Turns the placeholder Codex tab into the surface the plugin has been circling si
   3. Implement: empty-state component; `dismissedHints` in settings.
   4. Validate: unit tests covering the four plugin-availability combinations; lint; types.
   5. Success:
-     - [ ] Core may be suggested once; community is never nagged `[ref: SDD/AC — PRD F4]`
+     - [x] Core may be suggested once; community is never nagged `[ref: SDD/AC — PRD F4]`
 
 - [x] **T4.7 Phase Validation** `[activity: validate]`
 
   - Run all Phase 4 tests. Manual walk on `test/StoryForge/`: open the Anvil's Codex, switch
     collections and Cards, confirm the choice survives a reload, then **disable Bases and repeat** —
     the grid must still work. `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` green.
+
+  > **Audited 2026-11-02: no result of this manual walk is recorded anywhere.** The automated gates
+  > are green; the walk is unproven. It now runs with T5.6 — see that task's checklist.
 
   > **Amended 2026-08-04 — the gate list above is incomplete and that gap already let a regression
   > through.** T4.5 reported "typecheck clean" against `npm run typecheck` alone while

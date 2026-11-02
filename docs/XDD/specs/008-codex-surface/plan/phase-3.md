@@ -46,7 +46,7 @@ consent gate from policing the user's own settings.
      fail-closed `[ref: SDD/ADR-29]`.
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] Legacy shapes parse without loss `[ref: SDD/ADR-29]`
+     - [x] Legacy shapes parse without loss `[ref: SDD/ADR-29]`
 
 - [x] **T3.2 Silent migration of legacy `bases` records** — **DESCOPED 2026-08-02 (user)**
   `[activity: data-architecture]`
@@ -72,8 +72,7 @@ consent gate from policing the user's own settings.
   3. Implement: migration inside the store load path — no separate command, no user action.
   4. Validate: unit tests over persisted-fixture JSON captured from the current shape; lint; types.
   5. Success:
-     - [ ] An existing install upgrades without visible change `[ref: SDD/ADR-29]`
-     - [ ] Migration is idempotent
+     - Descoped with this task, not met: ~~An existing install upgrades without visible change~~ · ~~Migration is idempotent~~
 
 - [x] **T3.3 Close the double-copy defect** `[activity: backend-api]`
 
@@ -88,6 +87,11 @@ consent gate from policing the user's own settings.
   >    files pulls async IO into a render path Phase 4/F7 owns. **Must be closed before a collection
   >    record is bound to a surface (PRD F7)** — i.e. in **Phase 7**. Commented in
   >    `src/engines/BasesFenceEngine.ts` and `src/catalog/CatalogService.ts`.
+  > **Superseded 2026-11-02, audit before T5.5.** Item 2 below named T3.5 as owner, and T3.5 moved the
+  > work on without any task taking it. The hand-edit half is closed in `7cf6440`: a hand edit now
+  > outranks a params change and classifies `ask`. The rest, reconciling `generated.params`, is a
+  > GATE on **T7.3**. The item is kept as written, as the record.
+  >
   > 2. **`generated.params` does not describe verbatim-copied curated entries**, which are written by
   >    `_materialise` and never rendered from params (T7.3 owns templating). Because `classify()`
   >    checks `sameParams` **before** the instance-checksum comparison, a params change **outranks a
@@ -108,8 +112,8 @@ consent gate from policing the user's own settings.
      artifact.
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] Editing the rendered file is detected `[ref: SDD/Known Technical Issues]`
-     - [ ] Exactly one copy of the YAML exists `[ref: SDD/ADR-35]`
+     - [x] Editing the rendered file is detected `[ref: SDD/Known Technical Issues]`
+     - [x] Exactly one copy of the YAML exists `[ref: SDD/ADR-35]`
 
 - [x] **T3.4 Consent gate: generated artifacts are not consented imports** `[activity: backend-api]`
 
@@ -138,8 +142,8 @@ consent gate from policing the user's own settings.
   3. Implement: branch on `kind`/`generated` before the drift check; leave every other path byte-identical.
   4. Validate: unit tests asserting the untouched paths are untouched; lint; types.
   5. Success:
-     - [ ] Settings changes never request consent `[ref: SDD/AC — PRD F3]`
-     - [ ] Imported content keeps its existing protection `[ref: ADR-0003 §Consequences]`
+     - [x] Settings changes never request consent `[ref: SDD/AC — PRD F3]`
+     - [x] Imported content keeps its existing protection `[ref: ADR-0003 §Consequences]`
 
 - [x] **T3.5 Settings fields** `[activity: frontend-ui]`
 
@@ -174,7 +178,8 @@ consent gate from policing the user's own settings.
   4. Validate: unit tests; lint; types.
   5. Success:
      - [ ] Tag and excluded folders are user-editable with shipped defaults `[ref: PRD/F3 AC]`
-     - [ ] The **Link click action** setting's UI copy says *inspect*, and says it
+       — excluded folders done; **open until Phase 7's per-entry Library UI** ships the tag field
+     - [x] The **Link click action** setting's UI copy says *inspect*, and says it
            surface-neutrally `[ref: SDD/ADR-28]`
 
   > **Also owns two settings-copy defects, assigned here 2026-07-31** because this is the task that

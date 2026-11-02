@@ -90,6 +90,13 @@ Closes the gap that started this whole spec: the distribution machinery served f
   > changed" cannot currently be detected. Do not treat the existing tests as evidence that the
   > branch works end-to-end.
   >
+  > **GATE — inherited from T3.3, assigned here 2026-11-02.** Curated entries are copied verbatim, so
+  > `generated.params` does not describe the bytes on disk. When real settings-backed values replace
+  > the `collectionParams` placeholder in `main.ts`, **reconcile `generated.params` on installed
+  > records**. Otherwise every unedited curated file classifies `regenerate` and its curated content
+  > is replaced by `renderBase` output. Add a test for it. Hand-edited files are already safe: they
+  > classify `ask` (`7cf6440`), and the ask prompt is this phase's to build.
+  >
   > **Second, separate defect — the renderer is not yet a replacement for the shipped artifact.**
   > Today `renderBase` emits only `filters` plus a single `{type: CODEX_VIEW_ID, name: "Codex"}`
   > view. The real shipped `infra/Bases/Codex.base` carries a `properties:` block **and five views**,
@@ -105,7 +112,8 @@ Closes the gap that started this whole spec: the distribution machinery served f
      replacement must preserve.
   2. Test: changing a tag or an excluded folder **regenerates the artifact and updates its instance
      checksum silently** `[ref: PRD/F3 AC]`; hand-editing the artifact then changing nothing yields
-     **ask** `[ref: SDD/AC — Edge Cases]`; switching verification off means we **neither verify nor
+     **ask** `[ref: SDD/AC — Edge Cases]`; hand-editing **and** changing a setting also yields **ask**,
+     never an overwrite; switching verification off means we **neither verify nor
      regenerate** `[ref: SDD/AC — Edge Cases]`; the generated `.base` contains a tag filter and a
      `not:` exclusion and **no `file.inFolder` include** `[ref: SDD/Known Technical Issues]`; a
      regenerated `Codex.base` **still carries its `properties:` block and all five categorised
