@@ -70,7 +70,7 @@ fields:
     path: ""
     id: o-series
   - name: image
-    type: Input
+    type: Media
     options: {}
     path: ""
     id: o-image

@@ -2,7 +2,7 @@
 type: location
 name: Moonharbor Lighthouse
 aliases: [the lighthouse]
-image: "95 Assets/Moonharbor Lighthouse.svg"
+image: "[[Moonharbor Lighthouse.svg]]"
 world: "[[Moonharbor]]"
 locationType: building
 region: "harbour mole"

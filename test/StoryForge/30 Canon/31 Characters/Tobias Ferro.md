@@ -16,7 +16,7 @@ distinctive_features:
   - "stiff left leg, walks with a cane"
   - "pipe forever in the corner of his mouth"
 tagline: "The last keeper who still remembers how the moonfire truly burns."
-portrait: "95 Assets/Tobias Ferro.svg"
+portrait: "[[Tobias Ferro.svg]]"
 significant_other: []
 family: []
 friends:

@@ -139,7 +139,7 @@ fields:
     path: ""
     id: f-tagline
   - name: portrait
-    type: Input
+    type: Media
     options: {}
     path: ""
     id: f-portrait

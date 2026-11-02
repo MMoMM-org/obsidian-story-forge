@@ -32,7 +32,7 @@ Text — a `[[scene note]]` link. The scene where the location first appears.
 Text. The series this canon belongs to.
 
 ### `image`
-Text. Optional image link for the panel thumbnail — rendered only when set, like a character's `portrait`.
+Media. Optional `[[wikilink]]` to the thumbnail image (e.g. `[[Moonharbor Lighthouse.svg]]`) — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays.
 
 ### `tags`
 List. Always includes `canon/location` — how views and Bases select location notes.

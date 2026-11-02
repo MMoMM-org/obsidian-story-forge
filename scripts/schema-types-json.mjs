@@ -22,6 +22,7 @@ export function nativeType(f) {
     case 'list': return 'multitext'; // relation/query lists AND plain author lists (Q3)
     case 'fixed':
     case 'text':
+    case 'media': // a [[wikilink]] string, same widget as a relation
     case 'select': // enum VALUES are not stored in types.json — only the widget type
     case 'relation': // a single [[link]] is a text scalar
     default: return 'text';

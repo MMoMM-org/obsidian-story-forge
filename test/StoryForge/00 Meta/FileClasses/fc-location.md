@@ -85,7 +85,7 @@ fields:
     path: ""
     id: l-series
   - name: image
-    type: Input
+    type: Media
     options: {}
     path: ""
     id: l-image

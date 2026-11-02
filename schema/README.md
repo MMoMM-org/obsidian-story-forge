@@ -59,6 +59,7 @@ doc note:
 | `select` + `values` | Select + valuesList | first value (or `default`) | |
 | `fixed` + `value` | Select (single) | the value | e.g. `type: scene` |
 | `relation` + `relation` | File | `""` | single `[[link]]` |
+| `media` | Media | `""` | one `[[wikilink]]` to an image file (`portrait`, `image`); a link survives a rename, a path does not. `types.json` widget stays `text`. The control comes from this type — there is no `ui: image` |
 | `list` + `relation` | MultiFile | `[]` | list of `[[links]]` |
 | `list` (no relation) | Multi | `[]` | free multi-value |
 | `tags` | — (excluded) | `[<tag>]` | classifier; not a FileClass field |

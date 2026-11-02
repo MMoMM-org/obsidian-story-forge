@@ -12,6 +12,10 @@
  * schema/*.json files and asserts that every inspectorFields entry matches exactly —
  * future schema edits that drift without updating this file will fail the test.
  *
+ * A schema `media` field (`portrait`, `image`) is listed as `text` here: it holds a
+ * `[[wikilink]]` string and the Inspector edits it as plain text; the drift test
+ * accepts that one mapping.
+ *
  * @ref schema/character.json
  * @ref schema/location.json
  * @ref schema/object.json

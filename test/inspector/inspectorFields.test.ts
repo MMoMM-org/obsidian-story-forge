@@ -79,7 +79,9 @@ function assertNoSchemaDrift(kind: EntityKind, schema: EntitySchema): void {
 		const specType = spec.type;
 		const isWikilinkList = schemaType === "list" && "relation" in schemaField;
 		const isRelationOrList = specType === "relation" || specType === "list";
-		if (!(isWikilinkList && isRelationOrList)) {
+		// A `media` field stores a `[[wikilink]]` string; the Inspector edits it as plain text.
+		const isMediaAsText = schemaType === "media" && specType === "text";
+		if (!(isWikilinkList && isRelationOrList) && !isMediaAsText) {
 			expect(
 				specType,
 				`inspectorFields(${kind}) field "${spec.name}" has type "${specType}" but schema says "${schemaType}"`,

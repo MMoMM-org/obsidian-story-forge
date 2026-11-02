@@ -87,6 +87,10 @@ function fcField(f, prefix) {
         optionsBlock = '    options:\n      sourceType: ValuesList\n      valuesList: {}';
       }
       break;
+    case 'media':
+      type = 'Media';
+      optionsBlock = '    options: {}';
+      break;
     case 'text':
     default:
       type = 'Input';
@@ -140,6 +144,7 @@ function tplLine(f, tag) {
       return `${f.name}: []${rel ? `           # ["${rel}"]` : ''}`;
     case 'tags':
       return `tags: [${tag}]`;
+    case 'media': // a [[wikilink]] to the file, stored as a string
     case 'text':
     default:
       return `${f.name}: ${f.default != null ? `"${f.default}"` : '""'}`;

@@ -50,7 +50,7 @@ List of text. Signature, recurring identifiers (scars, tattoos) — the details 
 Text. One-line hook capturing the character in a sentence.
 
 ### `portrait`
-Text. Optional image link for the portrait view (Meta Bind `VIEW[{portrait}]`).
+Media. Optional `[[wikilink]]` to the portrait image (e.g. `[[Mara Stoneway.svg]]`) — a link, so it survives a rename. Shown on the portrait tile and Codex Cards; a bare vault path or URL still displays. Meta Bind `VIEW[{portrait}][image]` can render it.
 
 ### `significant_other`
 List of `[[Character]]` links. Spouse / love interest. A typed relation — always wikilinks, so the relationship map and reference panel can resolve it.
