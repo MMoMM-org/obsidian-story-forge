@@ -246,18 +246,20 @@ const WIKILINK = /^\[\[.+\]\]$/;
  * `undefined` when its declared type already holds lists.
  *
  * An empty list in a `Number`, `Boolean`, `Select`, `Cycle` or date-like field
- * counts as unset (`UNSET_WHEN_EMPTY`). Strings get chips: link chips when every item is a `[[link]]`, free chips
- * otherwise. A list holding a non-string keeps its declared type and becomes
- * read-only, since chips would rewrite those members as strings.
+ * counts as unset (`UNSET_WHEN_EMPTY`). Strings get chips: link chips when every
+ * item is a `[[link]]`, free chips otherwise. A list holding a non-string keeps its declared type and becomes
+ * read-only, since chips would rewrite those members as strings. That holds
+ * for a declared `Multi`/`MultiFile` too: its chips would write `[1,2]` back
+ * as `["1","2"]`.
  */
 function listValuedDef(
 	field: FileClassField,
 	value: readonly unknown[],
 ): { type?: FieldType; readOnly?: true } | undefined {
-	if (LIST_TYPES.has(field.type)) return undefined;
-	if (value.length === 0 && UNSET_WHEN_EMPTY.has(field.type)) return undefined;
 	const strings = value.filter((item): item is string => typeof item === "string");
 	if (strings.length !== value.length) return { readOnly: true };
+	if (LIST_TYPES.has(field.type)) return undefined;
+	if (value.length === 0 && UNSET_WHEN_EMPTY.has(field.type)) return undefined;
 	const allLinks = strings.every((item) => WIKILINK.test(item.trim()));
 	const links = strings.length === 0 ? LINK_TYPES.has(field.type) : allLinks;
 	return { type: links ? "MultiFile" : "Multi" };

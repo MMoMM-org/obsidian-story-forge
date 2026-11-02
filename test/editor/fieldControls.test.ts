@@ -334,6 +334,18 @@ describe("field controls — one per type (T5.2)", () => {
 	});
 });
 
+describe("field controls — a declared list field holding non-strings", () => {
+	it("shows [1,2] as read-only JSON and offers no chip to rewrite it as strings", () => {
+		const chain = [{ name: "fc-x", fields: [{ id: "f", name: "scores", type: "Multi" as const }] }];
+		const def = buildFieldModel(chain, { scores: [1, 2] }).sections[0]?.fields[0] as FieldDef;
+		const c = render(def, [1, 2]);
+
+		expect(inputIn(c.el).readOnly).toBe(true);
+		expect(inputIn(c.el).value).toBe("[1,2]");
+		expect(c.el.querySelector(`[${CHIP_REMOVE_ATTR}]`)).toBeNull();
+	});
+});
+
 describe("field controls — an empty list in a declared scalar field counts as unset", () => {
 	function modelDef(type: FieldType, values?: string[]): FieldDef {
 		const chain = [{ name: "fc-x", fields: [{ id: "f", name: "subject", type, ...(values ? { values } : {}) }] }];

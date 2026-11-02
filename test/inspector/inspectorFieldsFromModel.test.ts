@@ -83,6 +83,11 @@ describe("inspectorFieldsFromModel, field by field", () => {
 		expect(inspectorFieldsFromModel(declared("Select", { subject: [] }))).toEqual([{ name: "subject", type: "select" }]);
 	});
 
+	it("makes a Multi or MultiFile holding numbers fixed", () => {
+		expect(inspectorFieldsFromModel(declared("Multi", { subject: [1, 2] }))).toEqual([{ name: "subject", type: "fixed" }]);
+		expect(inspectorFieldsFromModel(declared("MultiFile", { subject: [1, 2] }))).toEqual([{ name: "subject", type: "fixed" }]);
+	});
+
 	it("keeps Media a text field, which writes a string", () => {
 		expect(inspectorFieldsFromModel(declared("Media"))).toEqual([{ name: "subject", type: "text" }]);
 	});

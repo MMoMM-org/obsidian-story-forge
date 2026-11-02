@@ -192,6 +192,16 @@ describe("buildFieldModel — an empty list in a declared field", () => {
 	});
 });
 
+describe("buildFieldModel — a declared list field holding non-strings", () => {
+	it.each(["Multi", "MultiFile"] as const)("%s is read-only, so [1,2] is not rewritten as strings", (type) => {
+		expect(fieldFor(type, [1, 2])).toMatchObject({ type, readOnly: true });
+	});
+
+	it.each(["Multi", "MultiFile"] as const)("%s holding only strings stays editable", (type) => {
+		expect(fieldFor(type, ["a"])).not.toHaveProperty("readOnly");
+	});
+});
+
 // ---------------------------------------------------------------------------
 // Tier 1 — sections from the chain
 // ---------------------------------------------------------------------------
