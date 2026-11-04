@@ -940,7 +940,7 @@ VALUE RULES (added 2026-11-02) — a FieldDef for a declared field, by name, dec
    anything else                    → declared type, editable
 
    `tags` is never a field, in any tier, on either surface, even if a FileClass declares it.
-   `fileClass` is hidden in tiers 2 and 3, but a declared one still renders (OQ-2).
+   `fileClass` is never shown, declared or not (OQ-2, resolved 2026-11-04).
 ```
 
 **Traced walkthrough** — Mara Stoneway with a user FileClass (S103):
@@ -1313,7 +1313,10 @@ example would have to be read as `fc-character-isekai.md`.
 
 **Due:** before **Phase 5 T5.3**, which renders sections and therefore has to print something.
 
-### OQ-2 — Should a declared `fileClass` field render? (**OPEN**, added 2026-11-02)
+### OQ-2 — Should a declared `fileClass` field render? (**RESOLVED 2026-11-04: no**, added 2026-11-02)
+
+> **Resolved (user).** Never shown, like `tags`: it decides which fields a note has.
+
 
 `tags` is never shown, even when a FileClass declares it (user ruling, `877562e`). `fileClass` is
 hidden only from the undeclared sections: a FileClass that declares it gets an ordinary editable

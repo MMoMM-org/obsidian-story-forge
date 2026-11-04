@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Deriving away the hardcoded field lists"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 6
 ---
@@ -158,7 +158,7 @@ could only ever know four kinds of thing.
      - Tests: `test/integration/fileclass-tiers.test.ts`, including the no-write assertion across an edit session on both surfaces.
      - [x] A fresh install with no FileClasses still edits `[ref: SDD/AC — PRD F6]`
 
-- [ ] **T6.5 Phase Validation** `[activity: validate]`
+- [x] **T6.5 Phase Validation** `[activity: validate]`
 
   - Run the full suite. **The demonstration that matters**: hand-write
     `test/StoryForge/00 Meta/FileClasses/fc-character-custom1.md` with `extends: fc-character` and
