@@ -421,13 +421,13 @@ describe("editor sections — undeclared keys (T5.3)", () => {
 		expect(fieldNames(host)).toEqual(["name"]);
 	});
 
-	it("still renders `fileClass` when a FileClass declares it", () => {
+	it("never renders `fileClass`, even when a FileClass declares it", () => {
 		const host = renderChain("fc-classy", {
-			"fc-classy": { fieldsOrder: ["c-fc"], fields: [field("c-fc", "fileClass", "Input")] },
+			"fc-classy": { fieldsOrder: ["c-fc", "c-name"], fields: [field("c-fc", "fileClass", "Input"), field("c-name", "name", "Input")] },
 		});
 
-		// Only the undeclared `fileClass` is hidden; a declaration is that FileClass's business.
-		expect(fieldNames(host)).toEqual(["fileClass"]);
+		// User ruling: it decides which fields the note has, so it is never edited here.
+		expect(fieldNames(host)).toEqual(["name"]);
 	});
 
 	it("shows the note's own keys when no FileClass applies at all (tier 2)", () => {

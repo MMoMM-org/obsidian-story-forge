@@ -117,8 +117,11 @@ export type UiHintsByFileClass = Readonly<Record<string, UiHints>>;
  */
 const CLASSIFICATION_KEYS: ReadonlySet<string> = new Set(["tags", "fileClass"]);
 
-/** Never an editor field, declared or not. */
-const NEVER_SHOWN = "tags";
+/**
+ * Never an editor field, declared or not (user rulings, 2026-11-02): `tags`
+ * classifies the note, and `fileClass` decides which fields it has.
+ */
+const NEVER_SHOWN: ReadonlySet<string> = CLASSIFICATION_KEYS;
 
 const OTHER_PROPERTIES_LABEL = "Other properties";
 const TIER2_LABEL = "Properties";
@@ -170,7 +173,7 @@ function buildChainSection(
 	const fields: FieldDef[] = [];
 	const hints = uiHints[fileClass.name] ?? {};
 	for (const field of fileClass.fields) {
-		if (field.name === NEVER_SHOWN) continue; // user ruling: tags is never edited here
+		if (NEVER_SHOWN.has(field.name)) continue; // user rulings: never edited here
 		if (seen.has(field.name)) continue; // first declaration wins (F6 edge case)
 		seen.add(field.name);
 		fields.push(toFieldDef(field, hints, frontmatter?.[field.name]));
