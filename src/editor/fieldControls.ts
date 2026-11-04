@@ -204,6 +204,8 @@ function buildControl(
  * path and answers `null`.
  */
 function readOnlyControl(cell: HTMLElement, field: FieldDef, value: unknown): () => FieldValue {
+	// Drawn as plain text, not an empty-looking box (S102 draws no read-only state).
+	cell.classList.add("sf-ed-f--readonly");
 	const input = inputEl(cell, field, "text");
 	input.readOnly = true;
 	input.setAttribute("aria-readonly", "true");

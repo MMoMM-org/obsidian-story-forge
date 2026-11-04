@@ -3422,6 +3422,18 @@ body {
 	border-color: var(--interactive-accent);
 }
 
+/* A read-only value reads as text: no box, muted, still selectable. */
+.sf-ed-f--readonly,
+.sf-ed-f--readonly:focus-within {
+	border-color: transparent;
+	background: transparent;
+}
+
+.sf-ed-f--readonly .sf-ed-input {
+	color: var(--text-muted);
+	cursor: text;
+}
+
 /*
  * `.sf-ed-f` is in the selector for specificity: core and theme rules such as
  * `input[type='text']` and `.dropdown` otherwise win and draw a second, tinted

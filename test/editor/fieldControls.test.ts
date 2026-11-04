@@ -355,6 +355,18 @@ describe("field controls — a declared list field holding non-strings", () => {
 		expect(inputIn(c.el).value).toBe("[1,2]");
 		expect(c.el.querySelector(`[${CHIP_REMOVE_ATTR}]`)).toBeNull();
 	});
+
+	it("marks a read-only cell so it doesn't read as an empty box", () => {
+		const c = render(fieldDef({ name: "type", type: "Input", readOnly: true }), "character");
+
+		expect(c.el.classList.contains("sf-ed-f--readonly")).toBe(true);
+	});
+
+	it("leaves an editable cell unmarked", () => {
+		const c = render(fieldDef({ name: "role", type: "Input" }), "hero");
+
+		expect(c.el.classList.contains("sf-ed-f--readonly")).toBe(false);
+	});
 });
 
 describe("field controls — an empty list in a declared scalar field counts as unset", () => {
