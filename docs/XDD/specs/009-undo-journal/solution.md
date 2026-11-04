@@ -485,7 +485,7 @@ test/
 ├── anvil/AnvilView.undo.test.ts                  # NEW
 ├── views/SidebarView.undo.test.ts                # NEW (incl. pinned refresh)
 ├── main.undo.test.ts                             # NEW: wiring, commands, quit, unload flush
-└── __mocks__/obsidian.ts                         # MODIFY: parseYaml, stringifyYaml, Keymap.isModifier, Platform.isMacOS, Debouncer.run, workspace 'window-open'/'quit'
+└── __mocks__/obsidian.ts                         # MODIFY: parseYaml, stringifyYaml, Keymap.isModifier, Platform.isMacOS, Debouncer.run (rename of the mock-only `flush`), a `Tasks` class for the `quit` payload (Workspace.on already accepts any event)
 ```
 
 ### Interface Specifications
@@ -1324,7 +1324,7 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
   each pending debounced flush (`Debouncer.run()`) instead of cancelling it, and the open gesture
   group closes once they settle, so the step and the files agree.
   - Rationale: a pre-existing data loss found while designing this spec: closing the Anvil within
-    300 ms of a drop dropped the dragged card's write while its renumbered siblings landed.
+    200 ms of a drop dropped the dragged card's write while its renumbered siblings landed.
   - Trade-offs: a write can land just after the view closed; that is the user's own gesture.
   - User confirmed: **Yes** (2026-11-04)
 
@@ -1367,7 +1367,7 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 3. Anvil editor: type without committing, Cmd+Z → text undo only.
 4. Workbench: Save a field, Cmd+Z; a dirty draft in the Workbench refuses an Anvil undo of the
    same note.
-5. Kanban: a drag that triggers RENUMBER; one Cmd+Z restores all notes; undo within 300 ms of the
+5. Kanban: a drag that triggers RENUMBER; one Cmd+Z restores all notes; undo within 200 ms of the
    drop.
 6. Outside edit between write and undo (edit the YAML by hand): conflict notice, redo restores it.
 7. Rename a note, then undo its step; delete a note, then undo.
@@ -1488,12 +1488,12 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 ### Known Technical Issues
 
 - **Workbench stale saved value (#30).** `InspectorController.render` refreshes only `clean`
-  fields (l.218); `notifyFileChanged` skips the whole redraw while any field is
+  fields (l.218), so a `saved` field is never refreshed; `notifyFileChanged` skips the whole redraw while any field is
   `dirty`/`saving`/`error` (l.259). Fixed by ADR-42.
 - **Pinned Workbench ignores changes** to its subject (SidebarView l.334). Fixed by ADR-51.
 - **Kanban renumber is fire-and-forget** (`void deps.renumber`, renderKanban l.434) and
   `AnvilView`'s renumber writes sequentially (l.1101–1105). Fixed by ADR-38.
-- **`InteractionHandler.destroy()` cancels pending flushes** — closing the Anvil within 300 ms of
+- **`InteractionHandler.destroy()` cancels pending flushes** — closing the Anvil within 200 ms of
   a drop lost the dragged card's write while its siblings were renumbered. **Fixed here (ADR-52):**
   `destroy()` runs pending flushes instead of cancelling them.
 
@@ -1548,7 +1548,7 @@ Scene 7 is in **draft** with `order` 30. The user drags Scene 7 between Scene 2 
 |---|---|---|
 | 0 ms | pointerup → handler: no pending group for `Scene 7.md` → `G = journal.openGroup()` (holds 1) | G open |
 | 0 ms | `computeDrop(card, target, {group: G})`: new column Scene 2, Scene 7, Scene 5, Scene 9 → orders 10, 20, 30, 40; `G.track(deps.renumber([S2→10, S5→30, S9→40], G))` | renumber running |
-| 0 ms | `_apply(Scene 7, [status→revised, order→20], false, G)`; per-file debounce scheduled (300 ms) | pending: Scene 7 |
+| 0 ms | `_apply(Scene 7, [status→revised, order→20], false, G)`; per-file debounce scheduled (200 ms, `DEBOUNCE_MS`) | pending: Scene 7 |
 | ~5 ms | `commit(S2, order, 10, {group:G})`: before 10, after 10 → equal → no change recorded | — |
 | ~10 ms | `commit(S5, order, 30, {group:G})` → G += `S5 order 11→30` | |
 | ~15 ms | `commit(S9, order, 40, {group:G})` → G += `S9 order 20→40`; renumber promise settles | tracked: 0 open |
@@ -1558,7 +1558,7 @@ Scene 7 is in **draft** with `order` 30. The user drags Scene 7 between Scene 2 
 | 152 ms | S5: target 11, found 30 = expected → ok. S9: target 20, found 40 → ok. S7: status → draft, order → 30; found revised, 20 → ok | |
 | 160 ms | S moved to redo with found values (identical to S here). Notice "Undo: 4 changes in 3 notes"; Anvil live region; Kanban re-renders from the cache with Scene 7 back in **draft** | |
 
-Scene 2 never appears in the step, and the undo never waited for the 300 ms debounce.
+Scene 2 never appears in the step, and the undo never waited for the 200 ms debounce.
 
 #### Traced walkthrough 2 — undo with a conflict, then redo
 
