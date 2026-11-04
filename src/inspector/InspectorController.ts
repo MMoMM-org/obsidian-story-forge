@@ -313,7 +313,7 @@ export class InspectorController {
 		if (spec.type === "select") {
 			const vocab = selectVocab(spec) ?? [];
 			const sel = activeDocument.createElement("select");
-			sel.className = "sf-inspector-input sf-inspector-select";
+			sel.className = "dropdown sf-inspector-input sf-inspector-select";
 			sel.setAttribute("data-sf-inspector-input", spec.name);
 
 			// Add an empty option for null/undefined

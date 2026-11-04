@@ -130,6 +130,8 @@ describe("InspectorController, per shipped kind (T6.3)", () => {
 		for (const field of shown(schema).filter((candidate) => candidate.type === "select")) {
 			const select = controlOf(host, field.name) as HTMLSelectElement;
 			expect(select.tagName, field.name).toBe("SELECT");
+			// Obsidian draws a select's arrow through its `dropdown` class.
+			expect(select.classList.contains("dropdown"), field.name).toBe(true);
 			expect(Array.from(select.options).map((option) => option.value), field.name).toEqual(["", ...(field.values ?? [])]);
 		}
 	});
