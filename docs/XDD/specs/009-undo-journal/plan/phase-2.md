@@ -58,6 +58,11 @@ phase: 2
   - after `dispose`, an apply still in flight must not save;
   - a rejected `store.load()` rejects `load()`, and a later `undo()` still runs;
   - calling `load()` twice must not duplicate steps.
+- **T2.6 (done):** the carry-overs above are in. Cap follows ADR-48 (undo newest-first, then redo
+  newest-first, stop at the first step that does not fit, so redo goes once an undo step is cut).
+  The journal reads `deps.persist()` once, lazily; `setPersistence` rules after that. A load that
+  rejects can be retried; one that succeeded is not repeated. Any shape doubt, a duplicate step id
+  or an empty `files`/`changes`/path makes the whole file corrupt. Path helper: `undoJournalPath`.
 
 **Dependencies**: Phase 1 (only T1.2's result matters here: where the file may live).
 
@@ -183,7 +188,7 @@ palette can undo and redo it across restarts. No UI beyond two commands.
   4. Validate: unit tests, mutation-checked.
   5. Success: `[ref: SDD/AC-F10.1, AC-F10.2]`
 
-- [ ] **T2.6 JournalStore and the persistence setting** `[activity: data-architecture]`
+- [x] **T2.6 JournalStore and the persistence setting** `[activity: data-architecture]`
 
   > Runs after T2.5, because both edit `undoJournal.ts`. Only `journalStore.ts` and the settings
   > part could start earlier.
