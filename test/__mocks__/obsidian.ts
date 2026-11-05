@@ -1319,17 +1319,22 @@ export class Editor {
 
 // --- File System ---
 
-export class TFile {
+export abstract class TAbstractFile {
+	vault = {};
+	path = "";
+	name = "";
+	parent: TFolder | null = null;
+}
+
+export class TFile extends TAbstractFile {
 	path = "test.md";
 	name = "test.md";
 	basename = "test";
 	extension = "md";
-	vault = {};
-	parent: TFolder | null = null;
 	stat = { ctime: 1000, mtime: 2000, size: 100 };
 }
 
-export class TFolder {
+export class TFolder extends TAbstractFile {
 	path = "test-folder";
 	name = "test-folder";
 	children: (TFile | TFolder)[] = [];

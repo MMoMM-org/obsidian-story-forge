@@ -10,13 +10,13 @@
  * Failed files stay on top as a reduced step with the same id, and files whose
  * note is gone are dropped. The journal never creates, renames or deletes a note.
  *
- * Built so far (T2.4): record, stacks, apply, outcomes, and `load` from the
- * store. Still to come: renames/deletes/prune (T2.5), the persistence setting
+ * Built so far (T2.5): record, stacks, apply, outcomes, `load` from the
+ * store, and path upkeep (rename, delete, startup prune). Still to come: the persistence setting
  * and `flushNow` (T2.6), groups, probes and flushers (Phase 3), `clear` (T5.5).
  *
  * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-46, ADR-48, Complex Logic
  */
-import type { App, TFile } from "obsidian";
+import { TFolder, type App, type TAbstractFile, type TFile } from "obsidian";
 import type { RestoreFn, RestoreOp, WriteRecorder } from "../inspector/frontmatterWriter";
 import type {
 	ConflictReport, FieldChange, FileChanges, JournalSnapshot, JournalStore, Slot, Step, StepSummary,
@@ -51,6 +51,12 @@ export interface UndoJournal {
 export interface OwnedUndoJournal extends UndoJournal, WriteRecorder {
 	/** Take the stored stacks; steps recorded before this resolves stay on top. */
 	load(): Promise<void>;
+	/** A vault `rename`: rewrite the path (a folder: every path under it) on both stacks. */
+	onRename(file: TAbstractFile, oldPath: string): Promise<void>;
+	/** A vault `delete`: drop the file's records (a folder: those under it) and empty steps. */
+	onDelete(file: TAbstractFile): Promise<void>;
+	/** Drop every record whose path is no longer a note (renamed or deleted while the plugin was off). */
+	pruneUnresolvable(): Promise<void>;
 	/** Drop every listener. */
 	dispose(): void;
 }
@@ -97,6 +103,11 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 		subscribe: (listener) => addTo(subscribers, listener),
 		onOutcome: (listener) => addTo(outcomeListeners, listener),
 		load: () => enqueue(() => loadInto(deps.store, stacks, changed, tell)),
+		// Queued, like undo/redo: an apply in flight holds its step and file list, so
+		// a path edit must wait for it to settle, then act on the settled stacks.
+		onRename: (file, oldPath) => enqueue(() => rewriteAll(stacks, changed, (p) => renamedPath(p, file, oldPath))),
+		onDelete: (file) => enqueue(() => dropAll(stacks, changed, (p) => isUnder(file, p))),
+		pruneUnresolvable: () => enqueue(() => dropAll(stacks, changed, (p) => deps.app.vault.getFileByPath(p) === null)),
 		dispose: () => {
 			subscribers.clear();
 			outcomeListeners.clear();
@@ -120,6 +131,57 @@ function serialQueue(): <T>(task: () => Promise<T>) => Promise<T> {
 		tail = run.catch(() => undefined);
 		return run;
 	};
+}
+
+/** A rename's new path for `path`, or `path` itself when the rename does not touch it. */
+function renamedPath(path: string, file: TAbstractFile, oldPath: string): string {
+	if (path === oldPath) return file.path;
+	// Folders only, and only below `oldPath + "/"`: "Notes" must not touch "Notes2/x.md".
+	const below = file instanceof TFolder && path.startsWith(`${oldPath}/`);
+	return below ? file.path + path.slice(oldPath.length) : path;
+}
+
+/** Whether a record at `path` is the deleted file, or sits under the deleted folder. */
+function isUnder(file: TAbstractFile, path: string): boolean {
+	return path === file.path || (file instanceof TFolder && path.startsWith(`${file.path}/`));
+}
+
+/**
+ * Rewrite record paths on both stacks. Obsidian never renames onto an existing
+ * note, so a record already at the new path in the same step is stale: the
+ * renamed record wins and the stale one is dropped, keeping one record per path.
+ */
+async function rewriteAll(stacks: Stacks, changed: () => void, rename: (path: string) => string): Promise<void> {
+	let touched = false;
+	for (const stack of [stacks.undo, stacks.redo]) {
+		stack.forEach((step, i) => {
+			if (!step.files.some((f) => rename(f.path) !== f.path)) return;
+			stack[i] = { ...step, files: renamedFiles(step.files, rename) };
+			touched = true;
+		});
+	}
+	if (touched) changed();
+}
+
+function renamedFiles(files: readonly FileChanges[], rename: (path: string) => string): FileChanges[] {
+	const kept = files.filter((f) => rename(f.path) !== f.path || !files.some((o) => o !== f && rename(o.path) === f.path && rename(o.path) !== o.path));
+	return kept.map((f) => ({ ...f, path: rename(f.path) }));
+}
+
+/** Drop the records whose path matches, then any step left with no files, on both stacks. */
+async function dropAll(stacks: Stacks, changed: () => void, drop: (path: string) => boolean): Promise<void> {
+	let touched = false;
+	for (const stack of [stacks.undo, stacks.redo]) {
+		const next: Step[] = [];
+		for (const step of stack) {
+			const files = step.files.filter((f) => !drop(f.path));
+			if (files.length !== step.files.length) touched = true;
+			if (files.length === step.files.length) next.push(step);
+			else if (files.length > 0) next.push({ ...step, files });
+		}
+		stack.splice(0, stack.length, ...next);
+	}
+	if (touched) changed();
 }
 
 /** Each writer report becomes its own step (groups come in Phase 3). */
