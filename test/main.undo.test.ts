@@ -207,8 +207,12 @@ describe("commands", () => {
 	it("the undo command calls journal.undo and the redo command journal.redo", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
+		const empty = (direction: "undo" | "redo") => ({ kind: "empty" as const, direction });
+		vi.mocked(journal().undo).mockResolvedValue(empty("undo"));
+		vi.mocked(journal().redo).mockResolvedValue(empty("redo"));
 		plugin._commands.get("story-forge:undo-last-change")?.callback?.();
 		plugin._commands.get("story-forge:redo-last-change")?.callback?.();
+		await new Promise((r) => setTimeout(r, 0));
 		expect(journal().undo).toHaveBeenCalledTimes(1);
 		expect(journal().redo).toHaveBeenCalledTimes(1);
 	});
@@ -220,7 +224,6 @@ describe("commands", () => {
 			const { plugin } = await makePlugin();
 			await plugin.onload();
 			vi.mocked(journal()[method]).mockRejectedValueOnce(new Error("boom"));
-			Notice._reset(); // drop notices a neighbouring test's async work left behind
 			plugin._commands.get(`story-forge:${id}`)?.callback?.();
 			await new Promise((r) => setTimeout(r, 0));
 			expect(warn).toHaveBeenCalled();
