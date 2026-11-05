@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Live spike"
-status: pending
+status: completed
 version: "1.0"
 phase: 1
 ---
@@ -30,7 +30,7 @@ phase: 1
 
 Settles the two facts the mock cannot show, before any code depends on them.
 
-- [ ] **T1.1 Mod+Z capture spike** `[activity: spike]`
+- [x] **T1.1 Mod+Z capture spike** `[activity: spike]`
 
   1. Prime: ADR-37; Storyline's global keydown handler (`docs/storyline-analysis.md`); how Obsidian
      dispatches hotkeys (`Scope`, `app.scope`).
@@ -44,11 +44,11 @@ Settles the two facts the mock cannot show, before any code depends on them.
   4. Validate: the user runs (a)–(e) in `test/StoryForge/`. The results go into
      `docs/live-testing.md`.
   5. Success:
-     - [ ] The handler receives the key in (a), (b), (c), (e), before Obsidian acts on it `[ref: SDD/OQ-1]`
-     - [ ] (d) is unaffected `[ref: PRD/F5; SDD/AC-F5.5]`
-     - [ ] OQ-1 is marked resolved in `solution.md`, or ADR-37 is re-opened with the user
+     - [x] The handler receives the key in (a), (b), (c), (e), before Obsidian acts on it `[ref: SDD/OQ-1]`
+     - [x] (d) is unaffected `[ref: PRD/F5; SDD/AC-F5.5]`
+     - [x] OQ-1 is marked resolved in `solution.md`, or ADR-37 is re-opened with the user
 
-- [ ] **T1.2 Dev deploy and hot reload keep unknown files** `[activity: spike]` `[parallel: true]`
+- [x] **T1.2 Dev deploy and hot reload keep unknown files** `[activity: spike]` `[parallel: true]`
 
   1. Prime: the `copyAssets` plugin in `esbuild.config.mjs`. It only copies `main.js`, `styles.css`
      and `manifest.json`, with no delete. The `hot-reload` plugin is in the test vault.
@@ -60,7 +60,7 @@ Settles the two facts the mock cannot show, before any code depends on them.
   5. Success: the journal survives rebuild, hot reload and restart `[ref: SDD/Live walk item 8]`;
      the result goes into `docs/live-testing.md`
 
-- [ ] **T1.3 Phase Validation** `[activity: validate]`
+- [x] **T1.3 Phase Validation** `[activity: validate]`
 
   - Delete the spike branch. Commit the findings (`docs/live-testing.md`, the OQ-1 status in
     `solution.md`). If T1.1 failed, mark T5.4 as dropped and log the decision in the spec README.

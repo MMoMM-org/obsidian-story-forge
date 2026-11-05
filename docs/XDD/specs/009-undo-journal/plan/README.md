@@ -116,7 +116,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 
 > **Tracking Principle**: Track logical units that produce verifiable outcomes. The TDD cycle is the method, not separate tracked items.
 
-- [ ] [Phase 1: Live spike](phase-1.md)
+- [x] [Phase 1: Live spike](phase-1.md)
 - [ ] [Phase 2: Journal core](phase-2.md)
 - [ ] [Phase 3: Gestures and pending work](phase-3.md)
 - [ ] [Phase 4: Mockup sign-off and the Workbench fix](phase-4.md)

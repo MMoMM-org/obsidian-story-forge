@@ -822,8 +822,9 @@ return (e: KeyboardEvent): void => {
 	const host = deps.activeHost();                       // null unless Anvil/Workbench is active
 	if (host === null) return;                            // Markdown note: Obsidian's own undo
 	const t = e.target;
-	const inHost = t instanceof Node && host.containerEl.contains(t);
-	const onBody = t === activeDocument.body || t === activeDocument.documentElement;
+	const inHost = isNode(t) && host.containerEl.contains(t);  // isNode: Obsidian's cross-window instanceOf
+	const doc = host.containerEl.doc;                     // the host's own window (main or popout)
+	const onBody = t === doc.body || t === doc.documentElement; // nothing focused, e.g. after a card click
 	if (!inHost && !onBody) return;                       // a modal, the palette, another leaf
 	if (host.undoKeyPolicy(t) === "text") return;         // a draft: the field's own text undo
 	e.preventDefault();
@@ -838,6 +839,11 @@ undoKeyPolicy(target: EventTarget | null): "text" | "journal" {
 	return target === this._draftEl ? "text" : "journal"; // saved field with caret → journal
 }
 ```
+
+**Popouts (Phase 1 spike):** never use `instanceof Node`/`HTMLElement` on an event target. In a
+popout, the element comes from that window's realm, so the main window's constructors return false.
+Use Obsidian's `instanceOf` helper (`el.instanceOf(HTMLElement)`). The same applies inside
+`isEditableText`.
 
 `isEditableText(t)` is true for `textarea`, contenteditable, and `input` whose type is a text
 type (`text`, `search`, `url`, `email`, `tel`, `number`, `password`, `date`, `datetime-local`,
@@ -1474,10 +1480,13 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 
 ## Open Questions
 
-- **OQ-1 — Does a capture-phase `keydown` on the document receive Mod+Z before Obsidian's own
-  handling, in the main window and a popout?** Settled by the Phase 1 live spike (walk item 1),
-  before any F5 code. If not, the fallback is the commands and buttons only and ADR-37 is
-  re-opened (PRD Risks).
+- **OQ-1 — RESOLVED 2026-11-05 (Phase 1 spike): yes.** A capture-phase `keydown` on the document
+  receives Mod+Z before Obsidian's own handling. With the caret in an Anvil text field,
+  `preventDefault` stopped the field's text undo, so our handler ran first. In a Markdown note,
+  Obsidian's editor undo is unaffected. The popout window receives the key through the
+  `window-open` registration. When no field has focus (after a click on a card), the target is the
+  document body, not the view. The `onBody` branch above covers this. ADR-37 stands. Record:
+  `docs/live-testing.md`, "Spec 009 Phase 1".
 - **OQ-2 — Does Obsidian Sync really leave `undo-journal.json` alone?** ADR-40's assumption;
   checked in walk item 10.
 - **OQ-3 — Exact notice and tooltip wording.** The texts in Error Handling and ADR-49 are the

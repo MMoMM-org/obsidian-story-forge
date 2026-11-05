@@ -175,3 +175,31 @@ session with `test/StoryForge/` as the vault:
 > and **clean disable/enable** — was walked through and verified by the maintainer
 > on 2026-07-15. All checklist items pass. Automated results above are real
 > (172 tests).
+
+---
+
+## Spec 009 Phase 1: live spike (2026-11-05)
+
+A throwaway build (never committed) added a capture-phase `keydown` listener on `activeDocument`
+and on each popout document (`workspace.on("window-open")`). It showed a Notice for every Mod+Z
+and Mod+Shift+Z. In the Anvil and the Workbench it called `preventDefault` and `stopPropagation`
+when the target was inside the view.
+
+| Item | Action | Result |
+|------|--------|--------|
+| (a) | Anvil, after clicking a Codex card, Mod+Z | Key received. `inside=false`: the target is the document body, because a card does not keep focus. The real handler treats the body as the active view's (`onBody`, SDD ADR-37 example). |
+| (b) | Anvil, caret in a text field with typed text, Mod+Z | Key received, `inside=true`. **The field's text was unchanged**, so `preventDefault` ran before the field's own undo. Our handler is first. |
+| (c) | Workbench, a field and empty space | Key received. `inside=true` only with a text field focused, otherwise the body (as in a). |
+| (d) | Markdown note, Mod+Z | Notice shown, nothing prevented. Obsidian's editor undo works as normal. |
+| (e) | Anvil in a popout window | Same behaviour as the main window, so the key arrives through `window-open`. |
+
+**OQ-1 resolved: yes.** ADR-37 stands.
+
+**Found on the way, not part of 009:** in a popout Anvil, clicking a different card does nothing.
+`AnvilView._onClick` starts with `target instanceof HTMLElement`, which is false for an element
+from the popout's window realm. The Undo key handler must use Obsidian's `instanceOf`. See the
+note in SDD ADR-37.
+
+**T1.2 (dev deploy keeps unknown files):** a dummy `undo-journal.json` in the deployed plugin folder
+survived `npm run build` with an identical sha256 (`fd945c97…`). `esbuild.config.mjs` only copies
+and writes files; it never deletes. A full Obsidian restart also left it unchanged (same sha256). The dummy file was then removed and the normal build redeployed.
