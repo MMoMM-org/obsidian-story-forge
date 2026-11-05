@@ -221,7 +221,7 @@ palette can undo and redo it across restarts. No UI beyond two commands.
   4. Validate: unit tests, mutation-checked.
   5. Success: `[ref: SDD/AC-F7.1–AC-F7.7]`
 
-- [ ] **T2.7 Plugin wiring and commands** `[activity: integration]`
+- [x] **T2.7 Plugin wiring and commands** `[activity: integration]`
 
   1. Prime: `src/main.ts` (how the FileClass cache is created, registered and disposed);
      `[ref: SDD/ADR-43]`; `[ref: SDD/Integration Points]`.
