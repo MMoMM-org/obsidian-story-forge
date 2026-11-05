@@ -32,6 +32,7 @@ export default defineConfig({
 	},
 	test: {
 		globals: true,
+		setupFiles: ["test/setup/resetWriteRecorder.ts"],
 		environment: "jsdom",
 		include: ["test/**/*.test.ts"],
 		exclude: ["test/live/**"],

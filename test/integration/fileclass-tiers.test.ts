@@ -269,7 +269,8 @@ describe("one cache across the plugin", () => {
 		const live = (): number =>
 			(w.app.metadataCache._eventRegistrations.get("changed")?.length ?? 0)
 			+ ["create", "delete", "rename"].reduce((n, e) => n + (w.app.vault._eventRegistrations.get(e)?.length ?? 0), 0);
-		expect(live()).toBe(4);
+		// 4 from the FileClass cache + the undo journal's vault rename and delete listeners (T2.7).
+		expect(live()).toBe(6);
 
 		w.plugin._runCleanup();
 

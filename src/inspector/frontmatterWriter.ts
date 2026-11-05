@@ -314,6 +314,11 @@ export type RestoreFn = (file: TFile, ops: readonly RestoreOp[]) => Promise<read
 /** The one active recorder; module state, so tests must uninstall. */
 let recorder: WriteRecorder | null = null;
 
+/** Test seam: clears a recorder a test left installed (the global afterEach in test/setup). */
+export function resetWriteRecorderForTests(): void {
+	recorder = null;
+}
+
 /** Assign every entry and push the changes whose stored form differs (ADR-45). */
 function captureInto(captured: FieldChange[], fm: Record<string, unknown>, entries: readonly CommitEntry[]): void {
 	for (const entry of entries) {

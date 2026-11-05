@@ -19,6 +19,7 @@ import { CatalogService } from "catalog/CatalogService";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import type { CollectionParams } from "library/baseGenerator";
 import type { CatalogIndex } from "catalog/catalogTypes";
+import { wireUndoJournal } from "undo/wireUndoJournal";
 import catalogIndexRaw from "../dist/catalog-index.json";
 
 // The bundled catalog-index.json is built by `catalog:build` before esbuild
@@ -59,6 +60,10 @@ export default class StoryForgePlugin extends Plugin {
 		);
 		// A change still pending must not reach a view that unload has already torn down.
 		this.register(() => { fileClasses.dispose(); });
+
+		// The undo journal (spec 009, ADR-43): created once, loaded before the settings tab
+		// exists, released on unload. Views receive it in a later phase.
+		await wireUndoJournal(this);
 
 		// Construct the shared engine infrastructure injected into SidebarView
 		// and SettingsTab. Registry starts empty; populated in onLayoutReady and

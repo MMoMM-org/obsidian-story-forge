@@ -179,7 +179,8 @@ describe("main.ts — the real Bases-hint dismissal wiring (T4.6)", () => {
 		click(firstBody.querySelector<HTMLElement>(`[${CODEX_HINT_DISMISS_ATTR}]`));
 		expect(first.settings.dismissedHints).toEqual([BASES_DISABLED_HINT_ID]);
 
-		// Fresh instance, same underlying store — the reload.
+		// Fresh instance, same underlying store — the reload (which unloads the old plugin first).
+		first._runCleanup();
 		const secondApp = new App();
 		const second = new StoryForgePlugin(secondApp);
 		vi.spyOn(second, "loadData").mockImplementation(async () => stored);

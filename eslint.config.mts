@@ -60,6 +60,7 @@ export default tseslint.config(
 		"vitest.live.config.ts",
 		"main.js",
 		"test/__mocks__/**",
+		"test/setup/**",
 		"test/**/*.test.ts",
 		"test/**/helpers.ts",
 		"test/fixtures/**",
