@@ -23,6 +23,7 @@
  */
 
 import { vi } from "vitest";
+import { parse as yamlParse, stringify as yamlStringify } from "yaml";
 
 // --- Obsidian globals not present in jsdom ---
 
@@ -1615,7 +1616,74 @@ export function _resetApiVersion(): void {
 export const Platform = {
 	isMobile: false,
 	isDesktop: true,
+	isMacOS: false,
 };
+
+// --- Keymap ---
+
+/** Mirrors the real `Modifier` union in obsidian.d.ts. */
+export type Modifier = "Mod" | "Ctrl" | "Meta" | "Shift" | "Alt";
+
+/**
+ * Keymap — only the static `isModifier` this plugin uses. `Mod` resolves per
+ * `Platform.isMacOS` (meta on macOS, ctrl elsewhere), as documented in the d.ts.
+ */
+export class Keymap {
+	static isModifier(evt: MouseEvent | TouchEvent | KeyboardEvent, modifier: Modifier): boolean {
+		const e = evt as { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean };
+		switch (modifier) {
+			case "Mod":
+				return Boolean(Platform.isMacOS ? e.metaKey : e.ctrlKey);
+			case "Ctrl":
+				return Boolean(e.ctrlKey);
+			case "Meta":
+				return Boolean(e.metaKey);
+			case "Shift":
+				return Boolean(e.shiftKey);
+			case "Alt":
+				return Boolean(e.altKey);
+		}
+	}
+}
+
+// --- Tasks (payload of the workspace `quit` event) ---
+
+/**
+ * Tasks — collects async work a `quit` listener registers. `add` runs the
+ * callback and keeps its promise; `promise()` settles when all have settled
+ * successfully (rejects with the first failure).
+ */
+export class Tasks {
+	private readonly promises: Promise<unknown>[] = [];
+
+	add(callback: () => Promise<unknown>): void {
+		this.promises.push(callback());
+	}
+
+	addPromise(promise: Promise<unknown>): void {
+		this.promises.push(promise);
+	}
+
+	isEmpty(): boolean {
+		return this.promises.length === 0;
+	}
+
+	promise(): Promise<unknown> {
+		return Promise.all(this.promises);
+	}
+}
+
+// --- YAML ---
+
+/** Delegates to the `yaml` package; may differ from Obsidian's parser in edge cases. */
+export function parseYaml(yaml: string): unknown {
+	return yamlParse(yaml);
+}
+
+/** Delegates to the `yaml` package; may differ from Obsidian's emitter in edge cases. */
+export function stringifyYaml(obj: unknown): string {
+	return yamlStringify(obj);
+}
 
 // --- Utilities ---
 
@@ -1720,7 +1788,7 @@ export function createMockFrontmatterLink(
 /**
  * debounce — mirrors the real Obsidian `debounce(fn, ms, resetTimer?)` util.
  *
- * Returns a debounced function with `.cancel()` and `.flush()` helpers so
+ * Returns a debounced function with `.cancel()` and `.run()` helpers so
  * tests can control timing without relying on real timers.
  *
  * Works with both real and fake timers (vi.useFakeTimers()).
@@ -1735,7 +1803,7 @@ export function debounce<T extends unknown[], R = void>(
 	fn: (...args: T) => R,
 	ms: number,
 	resetTimer = true,
-): ((...args: T) => void) & { cancel: () => void; flush: () => void } {
+): ((...args: T) => void) & { cancel: () => void; run: () => void } {
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let pending: { args: T } | null = null;
 
@@ -1763,7 +1831,7 @@ export function debounce<T extends unknown[], R = void>(
 		pending = null;
 	};
 
-	debounced.flush = (): void => {
+	debounced.run = (): void => {
 		if (timer !== null) {
 			clearTimeout(timer);
 			timer = null;
@@ -1775,6 +1843,6 @@ export function debounce<T extends unknown[], R = void>(
 		}
 	};
 
-	return debounced as ((...args: T) => void) & { cancel: () => void; flush: () => void };
+	return debounced as ((...args: T) => void) & { cancel: () => void; run: () => void };
 }
 

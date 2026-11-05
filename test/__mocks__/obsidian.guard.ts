@@ -53,6 +53,10 @@ import type {
 	Menu,
 	MenuItem,
 	BasesEntry,
+	Keymap,
+	Tasks,
+	Debouncer,
+	Platform,
 } from "obsidian";
 
 // Import the bodyless mock shape emitted by step 1 of typecheck:mock.
@@ -81,6 +85,10 @@ import type {
 	Menu as MockMenu,
 	MenuItem as MockMenuItem,
 	BasesEntry as MockBasesEntry,
+	Keymap as MockKeymap,
+	Tasks as MockTasks,
+	debounce as mockDebounce,
+	Platform as MockPlatform,
 } from "../../.typecheck-mock-tmp/test/__mocks__/obsidian";
 
 // ---------------------------------------------------------------------------
@@ -247,3 +255,12 @@ const _metadataCacheOk: AssertNoFiction<MockMetadataCache, MetadataCache> = true
 
 const _basesEntryOk: AssertNoFiction<MockBasesEntry, BasesEntry> = true;
 void _basesEntryOk;
+
+// ---------------------------------------------------------------------------
+// Spec 009 additions: Keymap, Tasks, Platform, Debouncer (CON-7)
+// ---------------------------------------------------------------------------
+
+const _keymapOk: AssertNoFiction<typeof MockKeymap, typeof Keymap> = true;
+const _tasksOk: AssertNoFiction<MockTasks, Tasks> = true;
+const _platformOk: AssertNoFiction<typeof MockPlatform, typeof Platform> = true;
+const _debouncerOk: AssertNoFiction<ReturnType<typeof mockDebounce>, Debouncer<unknown[], void>> = true;
