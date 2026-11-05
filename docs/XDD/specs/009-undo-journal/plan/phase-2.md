@@ -89,7 +89,7 @@ palette can undo and redo it across restarts. No UI beyond two commands.
   4. Validate: unit tests, each mutation-checked; lint; typecheck.
   5. Success: `[ref: SDD/AC-F1.2, AC-F1.7, AC-F4.1, AC-F4.2, AC-F4.4]`
 
-- [ ] **T2.3 Writer recorder hook and restore path** `[activity: backend]`
+- [x] **T2.3 Writer recorder hook and restore path** `[activity: backend]`
 
   1. Prime: `src/inspector/frontmatterWriter.ts` (the whole module; the only `processFrontMatter`
      call sites); `[ref: SDD/ADR-44, ADR-45]`; `[ref: SDD/Example: capturing a step inside the writer]`;
