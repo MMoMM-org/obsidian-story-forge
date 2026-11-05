@@ -45,14 +45,17 @@ export function createJournalStore(deps: JournalStoreDeps): JournalStore {
 	let pending: JournalSnapshot | null = null;
 	let chain: Promise<void> = Promise.resolve();
 	const onChain = (task: () => Promise<void>): Promise<void> => {
-		chain = chain.then(task);
+		// A task that rejects is logged and absorbed, so the chain itself never stays rejected.
+		chain = chain.then(task).catch((err: unknown) => {
+			console.warn("[StoryForge] Undo journal: a history file task failed.", err);
+		});
 		return chain;
 	};
 	const writePending = (): Promise<void> => {
 		const snapshot = pending;
 		pending = null;
 		if (snapshot === null) return chain;
-		return onChain(() => writeFile(deps, serialise(snapshot, now())));
+		return onChain(() => writeFile(deps, snapshot, now()));
 	};
 	const scheduled = debounce(() => void writePending(), deps.debounceMs ?? SAVE_DEBOUNCE_MS, true);
 	return {
@@ -73,9 +76,10 @@ export function createJournalStore(deps: JournalStoreDeps): JournalStore {
 	};
 }
 
-async function writeFile(deps: JournalStoreDeps, text: string): Promise<void> {
+async function writeFile(deps: JournalStoreDeps, snapshot: JournalSnapshot, savedAt: number): Promise<void> {
 	try {
-		await deps.adapter.write(deps.path, text);
+		// Serialising can throw (a BigInt or cyclic value), so it belongs inside the try.
+		await deps.adapter.write(deps.path, serialise(snapshot, savedAt));
 	} catch (err) {
 		console.warn("[StoryForge] Undo journal: couldn't save the history file; it stays in memory.", err);
 	}
@@ -109,27 +113,31 @@ async function loadFile(deps: JournalStoreDeps): Promise<JournalSnapshot> {
  * undo stack, which the user reaches for first, is kept before redo.
  */
 function serialise(snapshot: JournalSnapshot, savedAt: number): string {
-	const room = (stack: readonly Step[]): Step[] => stack.filter((s) => s.persist);
-	const empty = JSON.stringify({ version: FILE_VERSION, savedAt, undo: [], redo: [] }).length;
-	let used = empty;
-	let full = false;
-	const take = (stack: readonly Step[]): Step[] => {
-		const kept: Step[] = [];
-		for (const step of [...room(stack)].reverse()) {
-			const json = JSON.stringify(persisted(step));
-			const cost = json.length + (kept.length > 0 ? 1 : 0); // the comma before all but a stack's first
-			if (full || used + cost > MAX_FILE_CHARS) {
-				full = true;
-				break;
-			}
-			used += cost;
-			kept.unshift(step);
-		}
-		return kept;
-	};
-	const undo = take(snapshot.undo);
-	const redo = take(snapshot.redo);
+	const budget = { used: JSON.stringify({ version: FILE_VERSION, savedAt, undo: [], redo: [] }).length, full: false };
+	const undo = takeWithin(budget, snapshot.undo);
+	const redo = takeWithin(budget, snapshot.redo);
 	return JSON.stringify({ version: FILE_VERSION, savedAt, undo: undo.map(persisted), redo: redo.map(persisted) });
+}
+
+interface Budget {
+	used: number;
+	full: boolean;
+}
+
+/** The newest persistable steps of `stack` that still fit; spends from `budget`, which stays full once a step is refused. */
+function takeWithin(budget: Budget, stack: readonly Step[]): Step[] {
+	const persistable = stack.filter((s) => s.persist);
+	const kept: Step[] = [];
+	for (const step of persistable.reverse()) {
+		const cost = JSON.stringify(persisted(step)).length + (kept.length > 0 ? 1 : 0); // the comma before all but a stack's first
+		if (budget.full || budget.used + cost > MAX_FILE_CHARS) {
+			budget.full = true;
+			break;
+		}
+		budget.used += cost;
+		kept.unshift(step);
+	}
+	return kept;
 }
 
 function persisted(step: Step): unknown {

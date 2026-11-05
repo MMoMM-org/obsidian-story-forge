@@ -57,11 +57,25 @@ export interface OwnedUndoJournal extends UndoJournal, WriteRecorder {
 	onDelete(file: TAbstractFile): Promise<void>;
 	/** Drop every record whose path is no longer a note (renamed or deleted while the plugin was off). */
 	pruneUnresolvable(): Promise<void>;
-	/** Persistence on or off: off deletes the file and stops saving; on saves the current state. */
+	/**
+	 * Persistence on or off: off deletes the file and stops saving; on saves the current state.
+	 *
+	 * Not guarded against running before `load()`: with persistence off at startup `load()` reads
+	 * nothing, and switching on later must save the in-memory state (the file was deleted when it
+	 * went off). A caller that has persistence on at startup must `await load()` before it wires
+	 * the settings toggle, or this save would replace the stored history before it is read.
+	 */
 	setPersistence(on: boolean): Promise<void>;
 	/** Write any pending save now (no-op with persistence off). */
 	flushNow(): Promise<void>;
-	/** Drop every listener; no save follows, not even from an apply in flight. */
+	/**
+	 * Drop every listener and stop asking the store to save: no new save follows, not even from an
+	 * apply in flight. It does not flush. A save the store has already debounced stays pending
+	 * there, and is written only by the store's own timer or `flushNow`.
+	 *
+	 * Unload order: `await journal.flushNow()` first, then `journal.dispose()`. Disposing first
+	 * makes `flushNow` a no-op, so the last change (up to the debounce window) is lost.
+	 */
 	dispose(): void;
 }
 

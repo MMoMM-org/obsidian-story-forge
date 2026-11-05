@@ -4,6 +4,7 @@
  * @ref SDD/ADR-48 — AC-F7.2, AC-F7.3, AC-F7.4, AC-F7.8
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createJournalStore } from "undo/journalStore";
 import { MARA, fakeStore, present, setup, stepOf, teardownAndCheckUntouched, type FakeStore } from "./journalHarness";
 
 afterEach(teardownAndCheckUntouched);
@@ -91,6 +92,38 @@ describe("UndoJournal — flushNow and dispose", () => {
 		h.journal.dispose();
 		await h.write(MARA, "status", "dead");
 		expect(store.saves).toHaveLength(0);
+	});
+
+	// The real store (fake timers) so a pending debounce is what flushNow has to write.
+	async function persistedStepsAfterUnload(flushFirst: boolean): Promise<number> {
+		vi.useFakeTimers();
+		try {
+			const files = new Map<string, string>();
+			const adapter = {
+				exists: (p: string) => Promise.resolve(files.has(p)),
+				read: (p: string) => Promise.resolve(files.get(p) ?? ""),
+				write: (p: string, d: string) => { files.set(p, d); return Promise.resolve(); },
+				remove: (p: string) => { files.delete(p); return Promise.resolve(); },
+			};
+			const store = Object.assign(createJournalStore({ adapter, path: "j.json" }), { saves: [] });
+			const h = setup({ [MARA]: { status: "alive" } }, { store });
+			await h.write(MARA, "status", "dead");
+			if (flushFirst) await h.journal.flushNow();
+			h.journal.dispose();
+			if (!flushFirst) await h.journal.flushNow();
+			const text = files.get("j.json");
+			return text === undefined ? 0 : (JSON.parse(text) as { undo: unknown[] }).undo.length;
+		} finally {
+			vi.useRealTimers();
+		}
+	}
+
+	it("flushNow then dispose persists the last change", async () => {
+		expect(await persistedStepsAfterUnload(true)).toBe(1);
+	});
+
+	it("dispose then flushNow loses it (why the order matters)", async () => {
+		expect(await persistedStepsAfterUnload(false)).toBe(0);
 	});
 
 	it("an apply in flight when dispose runs does not save", async () => {

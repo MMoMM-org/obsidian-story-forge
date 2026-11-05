@@ -255,6 +255,26 @@ describe("JournalStore — saving", () => {
 	});
 });
 
+describe("JournalStore — a save that cannot be serialised", () => {
+	const unserialisable = (): Step => step("u-1-1", { files: [{ path: "a.md", changes: [change("k", "x", BigInt(1))] }] });
+
+	it("warns once and does not throw; later saves, flushes and removes still work", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const a = memAdapter();
+		const s = storeOn(a);
+		s.save({ undo: [unserialisable()], redo: [] });
+		await expect(s.flushNow()).resolves.toBeUndefined();
+		expect(warn).toHaveBeenCalledTimes(1);
+		expect(String(warn.mock.calls[0]![0])).toContain("[StoryForge]");
+		expect(a.write).not.toHaveBeenCalled();
+		s.save({ undo: [step("u-2-2")], redo: [] });
+		await s.flushNow();
+		expect((await storeOn(a).load()).undo[0]!.id).toBe("u-2-2");
+		await s.remove();
+		expect(a.files.has(PATH)).toBe(false);
+	});
+});
+
 describe("JournalStore — remove", () => {
 	it("deletes the file", async () => {
 		const a = memAdapter("{}");
