@@ -245,6 +245,7 @@ export async function commitMany(
 	const captured: FieldChange[] = [];
 	try {
 		await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			captured.length = 0; // a repeated callback must not duplicate changes
 			captureInto(captured, fm, entries);
 		});
 	} catch {

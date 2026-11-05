@@ -62,7 +62,9 @@ describe("recording a successful write", () => {
 		expect(calls[0]!.changes[0]!.before).toEqual(ABSENT);
 	});
 
-	it("reads after back from the frontmatter, not from the input", async () => {
+	it("after is the value the frontmatter holds after assignment, not the input", async () => {
+		// The stand-in frontmatter rewrites what is assigned; after must follow it.
+		// This is not a model of YAML reshaping (yamlValue tests cover that).
 		const { app, file, calls } = setup({ k: "a" });
 		vi.mocked(app.fileManager.processFrontMatter).mockImplementationOnce(
 			async (_f: TFile, fn: (fm: Record<string, unknown>) => void) => {
@@ -75,6 +77,18 @@ describe("recording a successful write", () => {
 		);
 		await commit(app, file, "k", "b", { name: "k", type: "text" });
 		expect(calls[0]!.changes[0]!.after).toEqual(present("B"));
+	});
+
+	it("does not duplicate changes when the callback runs twice", async () => {
+		const { app, file, calls } = setup({ k: "a" });
+		vi.mocked(app.fileManager.processFrontMatter).mockImplementationOnce(
+			async (_f: TFile, fn: (fm: Record<string, unknown>) => void) => {
+				fn({ k: "a" });
+				fn({ k: "a" });
+			},
+		);
+		await commit(app, file, "k", "b", { name: "k", type: "text" });
+		expect(calls[0]!.changes).toHaveLength(1);
 	});
 
 	it("keeps a date-looking string a string in after", async () => {
@@ -110,22 +124,35 @@ describe("recording a successful write", () => {
 	});
 
 	it("is called after the write has landed", async () => {
-		const { app, file } = setup({ k: "a" });
 		let seen: unknown;
-		const h = installWriteRecorderAgain(app, (p) => (seen = app.fileManager._getFrontmatter(p).k));
+		const { app, file, handle } = setup({ k: "a" });
+		handle.uninstall();
+		active.push(installWriteRecorder(app, { record: (p) => (seen = app.fileManager._getFrontmatter(p).k) }));
 		await commit(app, file, "k", "b", { name: "k", type: "text" });
-		h.uninstall();
 		expect(seen).toBe("b");
 	});
-});
 
-// A recorder swap helper for the one test that needs its own recorder.
-function installWriteRecorderAgain(app: App, onRecord: (path: string) => void) {
-	active.splice(0).forEach((h) => h.uninstall());
-	const h = installWriteRecorder(app, { record: (p) => onRecord(p) });
-	active.push(h);
-	return h;
-}
+	it("records an empty value as present, not absent", async () => {
+		const listField = { name: "k", type: "list" } as const;
+		const cases: [unknown, typeof listField | { name: string; type: "text" }][] = [
+			["", { name: "k", type: "text" }],
+			[null, { name: "k", type: "text" }],
+			[[], listField],
+		];
+		for (const [value, field] of cases) {
+			const { app, file, calls, handle } = setup({ k: "a" });
+			await commit(app, file, "k", value, field);
+			expect(calls[0]!.changes[0]!.after).toStrictEqual(present(value));
+			handle.uninstall();
+		}
+	});
+
+	it("records an empty string before as present", async () => {
+		const { app, file, calls } = setup({ k: "" });
+		await commit(app, file, "k", "x", { name: "k", type: "text" });
+		expect(calls[0]!.changes[0]!.before).toStrictEqual(present(""));
+	});
+});
 
 describe("writes that record nothing", () => {
 	it("a validation rejection", async () => {
@@ -216,6 +243,17 @@ describe("restore", () => {
 		const fm = app.fileManager._getFrontmatter(PATH);
 		expect(fm).toEqual({ a: "9", c: "new" });
 		expect("b" in fm).toBe(false);
+	});
+
+	it("keeps a key whose target is an empty value", async () => {
+		for (const value of ["", null, []]) {
+			const { app, file, handle } = setup({ k: "a" });
+			await handle.restore(file, [{ key: "k", target: present(value) }]);
+			const fm = app.fileManager._getFrontmatter(PATH);
+			expect("k" in fm).toBe(true);
+			expect(fm.k).toStrictEqual(value);
+			handle.uninstall();
+		}
 	});
 
 	it("uses one processFrontMatter call per file", async () => {
