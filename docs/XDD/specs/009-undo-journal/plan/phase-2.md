@@ -63,6 +63,13 @@ phase: 2
   The journal reads `deps.persist()` once, lazily; `setPersistence` rules after that. A load that
   rejects can be retried; one that succeeded is not repeated. Any shape doubt, a duplicate step id
   or an empty `files`/`changes`/path makes the whole file corrupt. Path helper: `undoJournalPath`.
+  Two deliberate deviations from the SDD text:
+  - **A missing file is silent.** It is the normal first run. ADR-48 says "missing → empty" with
+    no warning, while AC-F7.5 asks for one, so AC-F7.5 now reads that way. An unreadable or invalid
+    file still warns.
+  - **`setPersistence(true)` saves the current state at once.** ADR-48 says "the next change saves",
+    but turning the setting on is itself the trigger. Waiting for the next change would leave the
+    session's steps unprotected against a crash until then.
 
 **Dependencies**: Phase 1 (only T1.2's result matters here: where the file may live).
 

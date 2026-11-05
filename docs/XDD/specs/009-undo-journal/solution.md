@@ -1445,7 +1445,7 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 - [ ] AC-F7.2 WHERE persistence is on, WHEN the plugin loads, THE SYSTEM SHALL restore both stacks in order
 - [ ] AC-F7.3 WHERE persistence is off, THE SYSTEM SHALL write no file and start empty
 - [ ] AC-F7.4 WHEN persistence is turned off, THE SYSTEM SHALL delete the file
-- [ ] AC-F7.5 IF the file is missing, unreadable or invalid, THEN THE SYSTEM SHALL start empty, warn, and load normally
+- [ ] AC-F7.5 IF the file is missing, THEN THE SYSTEM SHALL start empty; IF it is unreadable or invalid, THEN THE SYSTEM SHALL start empty and warn; in both cases it SHALL load normally
 - [ ] AC-F7.6 THE SYSTEM SHALL keep the file in the plugin directory, outside `data.json`
 - [ ] AC-F7.7 IF a value exceeds 16 384 characters, THEN its step SHALL not be persisted; IF the file would exceed 1 MiB, THEN the oldest steps SHALL be omitted
 - [ ] AC-F7.8 WHEN the plugin unloads or the app quits, THE SYSTEM SHALL flush pending state
