@@ -234,6 +234,13 @@ palette can undo and redo it across restarts. No UI beyond two commands.
      - the workspace `quit` event flushes;
      - persistence off loads nothing.
   3. Implement: the wiring in `main.ts`. No key handler and no buttons yet.
+     Contracts from T2.4–T2.6 that this wiring must honour:
+     - `await journal.load()` before anything can call `setPersistence`;
+     - on unload and on `quit`, `await flushNow()` first and `dispose()` after;
+     - the commands catch a rejected `undo()`/`redo()` and warn, because there is no `error`
+       outcome;
+     - the store path comes from `undoJournalPath(manifest, vault.configDir)`;
+     - `persist: () => settings.keepUndoHistory`.
   4. Validate: unit tests, mutation-checked; `npm run build`.
   5. Success: `[ref: SDD/AC-F5.6, AC-F5.7, AC-F7.8]`
 
