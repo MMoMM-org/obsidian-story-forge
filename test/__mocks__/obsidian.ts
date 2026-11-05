@@ -1798,21 +1798,31 @@ export function createMockFrontmatterLink(
  *   ms         — delay in milliseconds
  *   resetTimer — if true (default), each call resets the timer
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/** Mirrors the real `Debouncer<T, V>` in obsidian.d.ts. */
+export interface Debouncer<T extends unknown[], V> {
+	(...args: [...T]): this;
+	cancel(): this;
+	run(): V | void;
+}
+
 export function debounce<T extends unknown[], R = void>(
 	fn: (...args: T) => R,
 	ms: number,
 	resetTimer = true,
-): ((...args: T) => void) & { cancel: () => void; run: () => void } {
+): Debouncer<T, R> {
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let pending: { args: T } | null = null;
 
-	const debounced = (...args: T): void => {
-		pending = { args };
-		if (timer !== null && resetTimer) {
+	const clearTimer = (): void => {
+		if (timer !== null) {
 			clearTimeout(timer);
 			timer = null;
 		}
+	};
+
+	const debounced = ((...args: T) => {
+		pending = { args };
+		if (timer !== null && resetTimer) clearTimer();
 		if (timer === null) {
 			timer = setTimeout(() => {
 				timer = null;
@@ -1821,28 +1831,23 @@ export function debounce<T extends unknown[], R = void>(
 				if (p) fn(...p.args);
 			}, ms);
 		}
-	};
+		return debounced;
+	}) as Debouncer<T, R>;
 
-	debounced.cancel = (): void => {
-		if (timer !== null) {
-			clearTimeout(timer);
-			timer = null;
-		}
+	debounced.cancel = () => {
+		clearTimer();
 		pending = null;
+		return debounced;
 	};
 
-	debounced.run = (): void => {
-		if (timer !== null) {
-			clearTimeout(timer);
-			timer = null;
-		}
-		if (pending) {
-			const p = pending;
-			pending = null;
-			fn(...p.args);
-		}
+	debounced.run = (): R | void => {
+		clearTimer();
+		if (!pending) return;
+		const p = pending;
+		pending = null;
+		return fn(...p.args);
 	};
 
-	return debounced as ((...args: T) => void) & { cancel: () => void; run: () => void };
+	return debounced;
 }
 

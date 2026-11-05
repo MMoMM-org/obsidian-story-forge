@@ -88,6 +88,32 @@ describe("Debouncer.run", () => {
 		expect(fn).toHaveBeenCalledTimes(1);
 	});
 
+	it("run() returns the callback's value so awaiting it waits for the work", async () => {
+		vi.useFakeTimers();
+		const written: string[] = [];
+		const d = debounce(async (v: string): Promise<void> => {
+			await Promise.resolve();
+			written.push(v);
+		}, 1000);
+		d("x");
+		const result = d.run();
+		expect(result).toBeInstanceOf(Promise);
+		await result;
+		expect(written).toEqual(["x"]);
+	});
+
+	it("run() returns undefined when nothing is pending", () => {
+		const d = debounce(() => "value", 1000);
+		expect(d.run()).toBeUndefined();
+	});
+
+	it("cancel() and the debounced call return the debouncer itself", () => {
+		vi.useFakeTimers();
+		const d = debounce(() => undefined, 1000);
+		expect(d()).toBe(d);
+		expect(d.cancel()).toBe(d);
+	});
+
 	it("no longer exposes the fictional flush member", () => {
 		const d = debounce(() => undefined, 10);
 		expect("flush" in d).toBe(false);

@@ -263,4 +263,4 @@ void _basesEntryOk;
 const _keymapOk: AssertNoFiction<typeof MockKeymap, typeof Keymap> = true;
 const _tasksOk: AssertNoFiction<MockTasks, Tasks> = true;
 const _platformOk: AssertNoFiction<typeof MockPlatform, typeof Platform> = true;
-const _debouncerOk: AssertNoFiction<ReturnType<typeof mockDebounce>, Debouncer<unknown[], void>> = true;
+const _debouncerOk: AssertNoFiction<ReturnType<typeof mockDebounce<[], Promise<void>>>, Debouncer<[], Promise<void>>> = true;
