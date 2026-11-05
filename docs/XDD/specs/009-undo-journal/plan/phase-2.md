@@ -53,6 +53,11 @@ phase: 2
   `Promise<void>` and run in the same queue as undo and redo, because an apply in flight holds its
   step and file list. The SDD signature is updated to match. A rename onto a path that the same step
   already holds drops the stale record, so each step keeps one record per path.
+- **`commit` is no longer `async`.** It returns `commitMany`'s promise, so it takes no extra
+  microtask. `test/integration/write-back-fan-out.test.ts` waits exactly two ticks and depends on
+  that.
+- **Drift check (T2.8):** when a step ends with some files failed and the rest vanished, the outcome
+  is `failed`, and the notice does not name the vanished notes. This is decided together with U9.
 - **Carried into T2.6 from the T2.4 review:**
   - isolate `notify` the way the listeners already are;
   - after `dispose`, an apply still in flight must not save;

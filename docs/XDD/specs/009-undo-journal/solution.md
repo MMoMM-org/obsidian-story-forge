@@ -1514,7 +1514,9 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
   which may differ from Obsidian's parser in edge cases (dates, large numbers) — the live walk
   covers real values.
 - **Module-level recorder state** in `frontmatterWriter.ts` (ADR-44) — tests must uninstall; a
-  second install throws.
+  second install throws. `resetWriteRecorderForTests()` (test-only, called by the global
+  `test/setup/resetWriteRecorder.ts`) clears it between tests, so a recorder one test leaves behind
+  is cleaned up silently and no longer shows up in the next test.
 - **`SidebarView` constructor grows** to nine positional parameters; an options object is the
   natural refactor but out of scope.
 
