@@ -94,6 +94,7 @@ const FIXTURE_ALL_FIELDS_STORED = {
 		editorDock: "right",
 		cardByCollection: { character: "table" },
 		dismissedHints: ["bases-disabled"],
+		keepUndoHistory: false,
 	},
 	views: LEGACY_VIEWS_RAW,
 };
@@ -224,7 +225,7 @@ describe("Phase 3 upgrade — settings load through main.ts's loadSettings()", (
 		expect("exampleSetting" in plugin.settings).toBe(false);
 	});
 
-	it("round-trips all eight declared fields when every one is stored, and carries no stray key", async () => {
+	it("round-trips all nine declared fields when every one is stored, and carries no stray key", async () => {
 		const plugin = await makePlugin();
 		plugin.loadData.mockResolvedValue(FIXTURE_ALL_FIELDS_STORED);
 
@@ -239,6 +240,7 @@ describe("Phase 3 upgrade — settings load through main.ts's loadSettings()", (
 			editorDock: "right",
 			cardByCollection: { character: "table" },
 			dismissedHints: ["bases-disabled"],
+			keepUndoHistory: false,
 		});
 		expect(Object.keys(plugin.settings).sort()).toEqual(
 			Object.keys(DEFAULT_SETTINGS).sort(),
@@ -269,6 +271,7 @@ describe("Phase 3 upgrade — settings save through main.ts's saveSettings()", (
 			editorDock: "bottom",
 			cardByCollection: {},
 			dismissedHints: [],
+			keepUndoHistory: true,
 		});
 		expect("exampleSetting" in (persisted.settings as object)).toBe(false);
 	});

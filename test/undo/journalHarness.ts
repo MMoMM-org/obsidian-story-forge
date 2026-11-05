@@ -67,6 +67,10 @@ export interface Harness {
 
 interface SetupOptions {
 	readonly store?: FakeStore;
+	/** The persistence gate (default: on). */
+	readonly persist?: () => boolean;
+	/** Replaces the notice sink (default: collect into `notices`). */
+	readonly notify?: (message: string) => void;
 	/** Wrap the real restore, e.g. to fail one file or to observe concurrency. */
 	readonly wrapRestore?: (real: RestoreFn) => RestoreFn;
 }
@@ -100,7 +104,7 @@ export function setup(notes: Record<string, Record<string, unknown>>, opts: Setu
 	const store = opts.store ?? fakeStore();
 	const notices: string[] = [];
 	let restore: RestoreFn | null = null;
-	const journal = createUndoJournal({ app, store, notify: (m) => void notices.push(m), now: () => 1_000, restore: () => restore! });
+	const journal = createUndoJournal({ app, store, notify: opts.notify ?? ((m) => void notices.push(m)), persist: opts.persist ?? (() => true), now: () => 1_000, restore: () => restore! });
 	const handle = installWriteRecorder(app, journal);
 	restore = opts.wrapRestore ? opts.wrapRestore(handle.restore) : handle.restore;
 	live.push({ app, journal, uninstall: () => handle.uninstall(), bodies, initialBodies: new Map(bodies) });

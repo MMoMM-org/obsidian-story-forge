@@ -51,6 +51,11 @@ export interface PluginSettings {
 	 * @ref SDD/ADR-36 — core may be suggested once; community never
 	 */
 	dismissedHints: string[];
+	/**
+	 * Keep the undo history across restarts (spec 009, ADR-48). The history file holds
+	 * copies of frontmatter values; turning this off deletes it.
+	 */
+	keepUndoHistory: boolean;
 }
 
 /**
@@ -79,6 +84,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	editorDock: DEFAULT_EDITOR_DOCK,
 	cardByCollection: {},
 	dismissedHints: [],
+	keepUndoHistory: true,
 };
 
 /** Type guard: returns true if `v` is a valid `linkClickAction` value. */
@@ -215,5 +221,6 @@ export function normalizeSettings(raw: unknown): PluginSettings {
 		editorDock: normalizeEditorDock(stored.editorDock),
 		cardByCollection: normalizeCardByCollection(stored.cardByCollection),
 		dismissedHints: normalizeDismissedHints(stored.dismissedHints),
+		keepUndoHistory: typeof stored.keepUndoHistory === "boolean" ? stored.keepUndoHistory : DEFAULT_SETTINGS.keepUndoHistory,
 	};
 }

@@ -29,6 +29,7 @@ import {
 	normalizeExcludedFolders,
 	isFileClassesFolder,
 	normalizeFileClassesFolder,
+	normalizeSettings,
 } from "../../src/types/index";
 
 type RemoveCommandCallback = (viewId: string) => void;
@@ -385,5 +386,26 @@ describe("SettingsTab — exampleSetting removal (gap G17)", () => {
 		const container = await renderTab(tab);
 		expect(findSettingEl(container, "Example setting")).toBeNull();
 		expect(container.textContent ?? "").not.toContain("Example setting");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// keepUndoHistory (spec 009 T2.6, AC-F7.1)
+// ---------------------------------------------------------------------------
+
+describe("keepUndoHistory", () => {
+	it("defaults to true", () => {
+		expect(DEFAULT_SETTINGS.keepUndoHistory).toBe(true);
+		expect(normalizeSettings({}).keepUndoHistory).toBe(true);
+		expect(normalizeSettings(null).keepUndoHistory).toBe(true);
+	});
+
+	it("keeps a stored false and a stored true", () => {
+		expect(normalizeSettings({ keepUndoHistory: false }).keepUndoHistory).toBe(false);
+		expect(normalizeSettings({ keepUndoHistory: true }).keepUndoHistory).toBe(true);
+	});
+
+	it.each([["false", "false"], ["0", 0], ["null", null], ["object", {}]])("falls back to true for a non-boolean (%s)", (_n, v) => {
+		expect(normalizeSettings({ keepUndoHistory: v }).keepUndoHistory).toBe(true);
 	});
 });

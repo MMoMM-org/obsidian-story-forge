@@ -333,6 +333,7 @@ describe("linkClickAction value round-trip", () => {
 			editorDock: "bottom",
 			cardByCollection: {},
 			dismissedHints: [],
+			keepUndoHistory: true,
 		});
 		// Load it back
 		const result = await loadSettings();
@@ -366,6 +367,7 @@ describe("linkClickAction value round-trip", () => {
 			editorDock: "bottom",
 			cardByCollection: {},
 			dismissedHints: [],
+			keepUndoHistory: true,
 		});
 		const result = await loadSettings();
 		expect(result.linkClickAction).toBe("drill");

@@ -10,9 +10,9 @@
  * Failed files stay on top as a reduced step with the same id, and files whose
  * note is gone are dropped. The journal never creates, renames or deletes a note.
  *
- * Built so far (T2.5): record, stacks, apply, outcomes, `load` from the
- * store, and path upkeep (rename, delete, startup prune). Still to come: the persistence setting
- * and `flushNow` (T2.6), groups, probes and flushers (Phase 3), `clear` (T5.5).
+ * Built so far (T2.6): record, stacks, apply, outcomes, `load` from the store, path upkeep
+ * (rename, delete, startup prune), and the persistence gate with `flushNow`. Still to come:
+ * groups, probes and flushers (Phase 3), `clear` (T5.5).
  *
  * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-46, ADR-48, Complex Logic
  */
@@ -57,7 +57,11 @@ export interface OwnedUndoJournal extends UndoJournal, WriteRecorder {
 	onDelete(file: TAbstractFile): Promise<void>;
 	/** Drop every record whose path is no longer a note (renamed or deleted while the plugin was off). */
 	pruneUnresolvable(): Promise<void>;
-	/** Drop every listener. */
+	/** Persistence on or off: off deletes the file and stops saving; on saves the current state. */
+	setPersistence(on: boolean): Promise<void>;
+	/** Write any pending save now (no-op with persistence off). */
+	flushNow(): Promise<void>;
+	/** Drop every listener; no save follows, not even from an apply in flight. */
 	dispose(): void;
 }
 
@@ -66,6 +70,8 @@ export interface UndoJournalDeps {
 	/** Late-bound: `installWriteRecorder` runs after the journal exists. */
 	readonly restore: () => RestoreFn;
 	readonly store: JournalStore;
+	/** Whether the history is kept across restarts (`settings.keepUndoHistory`). Read once, then `setPersistence` rules. */
+	readonly persist: () => boolean;
 	/** Shows one notice per outcome (`new Notice(message)`). */
 	readonly notify: (message: string) => void;
 	readonly now?: () => number;
@@ -88,13 +94,17 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 	const subscribers = new Set<() => void>();
 	const outcomeListeners = new Set<OutcomeListener>();
 	const tell = (): void => runEach(subscribers, (l) => l());
+	const gate: Gate = { on: null, disposed: false, loaded: false };
+	const persisting = (): boolean => !gate.disposed && (gate.on ??= deps.persist());
+	const saveNow = (): void => deps.store.save({ undo: [...stacks.undo], redo: [...stacks.redo] });
 	const changed = (): void => {
-		deps.store.save({ undo: [...stacks.undo], redo: [...stacks.redo] });
+		if (persisting()) saveNow();
 		tell();
 	};
+	const notify = (message: string): void => isolated(() => deps.notify(message), "notify failed");
 	const enqueue = serialQueue();
 	const apply = (direction: UndoDirection): Promise<UndoOutcome> =>
-		enqueue(() => applyTop(deps, stacks, direction, changed).then((o) => announce(o, outcomeListeners, deps.notify)));
+		enqueue(() => applyTop(deps, stacks, direction, changed).then((o) => announce(o, outcomeListeners, notify)));
 	return {
 		record: recorderFor(stacks, deps.now ?? Date.now, changed),
 		undo: () => apply("undo"),
@@ -102,13 +112,20 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 		peek: () => ({ undo: summaryOf(stacks.undo), redo: summaryOf(stacks.redo) }),
 		subscribe: (listener) => addTo(subscribers, listener),
 		onOutcome: (listener) => addTo(outcomeListeners, listener),
-		load: () => enqueue(() => loadInto(deps.store, stacks, changed, tell)),
+		load: () => enqueue(() => (persisting() && !gate.loaded ? loadInto(deps.store, stacks, changed, tell, gate) : undefined)),
+		setPersistence: (on) => {
+			gate.on = on;
+			if (on) saveNow();
+			return on ? Promise.resolve() : deps.store.remove();
+		},
+		flushNow: () => (persisting() ? deps.store.flushNow() : Promise.resolve()),
 		// Queued, like undo/redo: an apply in flight holds its step and file list, so
 		// a path edit must wait for it to settle, then act on the settled stacks.
 		onRename: (file, oldPath) => enqueue(() => rewriteAll(stacks, changed, (p) => renamedPath(p, file, oldPath))),
 		onDelete: (file) => enqueue(() => dropAll(stacks, changed, (p) => isUnder(file, p))),
 		pruneUnresolvable: () => enqueue(() => dropAll(stacks, changed, (p) => deps.app.vault.getFileByPath(p) === null)),
 		dispose: () => {
+			gate.disposed = true;
 			subscribers.clear();
 			outcomeListeners.clear();
 		},
@@ -203,8 +220,16 @@ function recorderFor(stacks: Stacks, now: () => number, changed: () => void): Wr
 	};
 }
 
-async function loadInto(store: JournalStore, stacks: Stacks, changed: () => void, tell: () => void): Promise<void> {
+/** Journal-wide switches: persistence (null = ask `deps.persist` once), dispose, and whether the file was taken. */
+interface Gate {
+	on: boolean | null;
+	disposed: boolean;
+	loaded: boolean;
+}
+
+async function loadInto(store: JournalStore, stacks: Stacks, changed: () => void, tell: () => void, gate: Gate): Promise<void> {
 	const loaded: JournalSnapshot = await store.load();
+	gate.loaded = true; // only a load that read the file counts, so a failed one can be retried
 	const fresh = stacks.undo.length === 0 && stacks.redo.length === 0;
 	stacks.undo.splice(0, stacks.undo.length, ...[...loaded.undo, ...stacks.undo].slice(-MAX_STEPS));
 	if (!fresh) return changed(); // the store's file must now include what was recorded meanwhile
@@ -306,6 +331,15 @@ function addTo<T>(set: Set<T>, item: T): () => void {
 	return () => {
 		set.delete(item);
 	};
+}
+
+/** Run one callback; a throw is logged and goes no further. */
+function isolated(call: () => void, what: string): void {
+	try {
+		call();
+	} catch (err) {
+		console.warn(`[StoryForge] Undo journal: ${what}.`, err);
+	}
 }
 
 /** Call each listener in isolation: one that throws is logged and the rest still run. */
