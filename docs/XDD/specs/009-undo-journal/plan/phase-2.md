@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Journal core"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 2
 ---
@@ -40,7 +40,7 @@ phase: 2
 Delivers a working journal behind the writer: every Story Forge write is a step, and the command
 palette can undo and redo it across restarts. No UI beyond two commands.
 
-- [ ] **T2.1 Obsidian mock additions** `[activity: test-infrastructure]`
+- [x] **T2.1 Obsidian mock additions** `[activity: test-infrastructure]`
 
   1. Prime: `test/__mocks__/obsidian.ts`; `obsidian.d.ts` for `parseYaml`, `stringifyYaml`,
      `Keymap.isModifier`, `Platform.isMacOS`, `Debouncer.run`, and the `Tasks` payload of the
@@ -56,7 +56,7 @@ palette can undo and redo it across restarts. No UI beyond two commands.
   4. Validate: full suite green with no behaviour change; `typecheck:mock`, `typecheck:test`.
   5. Success: the mock matches the d.ts for every member this spec uses `[ref: SDD/CON-7]`
 
-- [ ] **T2.2 Types, values, labels and the editable-text check** `[activity: domain-modeling]`
+- [x] **T2.2 Types, values, labels and the editable-text check** `[activity: domain-modeling]`
 
   > Runs after T2.1, because it needs `parseYaml`, `stringifyYaml` and `Platform.isMacOS` from the
   > mock. It runs before T2.3, which needs `slotOf`.

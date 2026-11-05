@@ -925,7 +925,7 @@ sequenceDiagram
 | Kanban writes pending (debounce not fired) | Not a refusal: flushed first, then the gesture's step is the one undone | (normal undo notice) |
 | Conflict on one or more fields | Restore anyway; overwritten values onto the moved step | "Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Cmd+Shift+Z restores it." (multi-field variant names up to three, then "and N more") |
 | `processFrontMatter` rejects for every file | `failed`; step stays on top | "Couldn't undo the change in Mara Stoneway. It stays on the undo stack; try again." |
-| Some files fail in a multi-note step | Others applied and moved; a reduced step of the failed files stays on top | "Undo: 2 changes in 1 note. Couldn't write Scene 4; its change stays on the undo stack." |
+| Some files fail in a multi-note step | Others applied and moved; a reduced step of the failed files stays on top | "Undo: 2 changes in Scene 5. Couldn't write Scene 4; its change stays on the undo stack." |
 | A target note no longer exists | That file's changes dropped; the rest applied; if nothing remains, the step is dropped | "Scene 4 no longer exists; its change was removed from the undo history." |
 | Journal file missing | Empty stacks, silent (first run) | — |
 | Journal file unreadable / invalid JSON / wrong version / bad shape | Empty stacks, `console.warn("[StoryForge] Undo history could not be read; starting empty.", err)`; plugin starts | — |
