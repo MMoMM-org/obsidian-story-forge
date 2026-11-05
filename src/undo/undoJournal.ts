@@ -1,0 +1,252 @@
+/**
+ * undoJournal — the two stacks behind "Undo/Redo last Story Forge change" (spec 009).
+ *
+ * The writer reports every successful write through `record` (ADR-44); each
+ * report is one step on top of the undo stack, and a new step clears redo.
+ * `undo`/`redo` run one at a time on a promise chain (ADR-46): undo writes
+ * `before` expecting `after`, redo writes `after` expecting `before`, file by
+ * file through the late-bound `restore` capability. A conflict is written
+ * anyway; the moved step keeps what the write found, so nothing is lost.
+ * Failed files stay on top as a reduced step with the same id, and files whose
+ * note is gone are dropped. The journal never creates, renames or deletes a note.
+ *
+ * Built so far (T2.4): record, stacks, apply, outcomes, and `load` from the
+ * store. Still to come: renames/deletes/prune (T2.5), the persistence setting
+ * and `flushNow` (T2.6), groups, probes and flushers (Phase 3), `clear` (T5.5).
+ *
+ * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-46, ADR-48, Complex Logic
+ */
+import type { App, TFile } from "obsidian";
+import type { RestoreFn, RestoreOp, WriteRecorder } from "../inspector/frontmatterWriter";
+import type {
+	ConflictReport, FieldChange, FileChanges, JournalSnapshot, JournalStore, Slot, Step, StepSummary,
+	UndoDirection, UndoOutcome,
+} from "undo/journalTypes";
+import { outcomeNotice, summariseStep } from "undo/stepLabel";
+import { slotsEqual, valueSize } from "undo/yamlValue";
+
+/** Steps kept per stack; the oldest is dropped (ADR-48). */
+export const MAX_STEPS = 50;
+/** A step holding a longer value (JSON length) is kept this session but never persisted (ADR-48). */
+export const MAX_VALUE_CHARS = 16_384;
+
+export interface StackPeek {
+	readonly undo: StepSummary | null;
+	readonly redo: StepSummary | null;
+}
+
+export type OutcomeListener = (outcome: UndoOutcome, message: string) => void;
+
+export interface UndoJournal {
+	undo(): Promise<UndoOutcome>;
+	redo(): Promise<UndoOutcome>;
+	peek(): StackPeek;
+	/** Called after any stack change. @returns the call that stops it */
+	subscribe(listener: () => void): () => void;
+	/** Called with each undo/redo outcome and its notice text. @returns the call that stops it */
+	onOutcome(listener: OutcomeListener): () => void;
+}
+
+/** The plugin's handle: only `main.ts` holds it (ADR-43). */
+export interface OwnedUndoJournal extends UndoJournal, WriteRecorder {
+	/** Take the stored stacks; steps recorded before this resolves stay on top. */
+	load(): Promise<void>;
+	/** Drop every listener. */
+	dispose(): void;
+}
+
+export interface UndoJournalDeps {
+	readonly app: App;
+	/** Late-bound: `installWriteRecorder` runs after the journal exists. */
+	readonly restore: () => RestoreFn;
+	readonly store: JournalStore;
+	/** Shows one notice per outcome (`new Notice(message)`). */
+	readonly notify: (message: string) => void;
+	readonly now?: () => number;
+}
+
+interface Stacks {
+	readonly undo: Step[];
+	readonly redo: Step[];
+}
+
+interface ApplyResult {
+	readonly moved: FileChanges[];
+	readonly failed: FileChanges[];
+	readonly vanished: string[];
+	readonly conflicts: ConflictReport[];
+}
+
+export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
+	const stacks: Stacks = { undo: [], redo: [] };
+	const subscribers = new Set<() => void>();
+	const outcomeListeners = new Set<OutcomeListener>();
+	const tell = (): void => runEach(subscribers, (l) => l());
+	const changed = (): void => {
+		deps.store.save({ undo: [...stacks.undo], redo: [...stacks.redo] });
+		tell();
+	};
+	const enqueue = serialQueue();
+	const apply = (direction: UndoDirection): Promise<UndoOutcome> =>
+		enqueue(() => applyTop(deps, stacks, direction, changed).then((o) => announce(o, outcomeListeners, deps.notify)));
+	return {
+		record: recorderFor(stacks, deps.now ?? Date.now, changed),
+		undo: () => apply("undo"),
+		redo: () => apply("redo"),
+		peek: () => ({ undo: summaryOf(stacks.undo), redo: summaryOf(stacks.redo) }),
+		subscribe: (listener) => addTo(subscribers, listener),
+		onOutcome: (listener) => addTo(outcomeListeners, listener),
+		load: () => enqueue(() => loadInto(deps.store, stacks, changed, tell)),
+		dispose: () => {
+			subscribers.clear();
+			outcomeListeners.clear();
+		},
+	};
+}
+
+/** One notice per outcome: every listener gets it with the outcome, then `notify` shows it. */
+function announce(outcome: UndoOutcome, listeners: ReadonlySet<OutcomeListener>, notify: (m: string) => void): UndoOutcome {
+	const message = outcomeNotice(outcome);
+	runEach(listeners, (l) => l(outcome, message));
+	notify(message);
+	return outcome;
+}
+
+/** A promise chain: each task starts after the previous one settled, and a rejection never blocks the next. */
+function serialQueue(): <T>(task: () => Promise<T>) => Promise<T> {
+	let tail: Promise<unknown> = Promise.resolve();
+	return <T>(task: () => Promise<T>): Promise<T> => {
+		const run = tail.then(task);
+		tail = run.catch(() => undefined);
+		return run;
+	};
+}
+
+/** Each writer report becomes its own step (groups come in Phase 3). */
+function recorderFor(stacks: Stacks, now: () => number, changed: () => void): WriteRecorder["record"] {
+	let seq = 0;
+	return (path, changes) => {
+		if (changes.length === 0) return;
+		const at = now();
+		seq += 1;
+		pushTrimmed(stacks.undo, stepWith({ id: `${at.toString(36)}-${seq.toString(36)}`, at }, [{ path, changes: [...changes] }]));
+		stacks.redo.length = 0;
+		changed();
+	};
+}
+
+async function loadInto(store: JournalStore, stacks: Stacks, changed: () => void, tell: () => void): Promise<void> {
+	const loaded: JournalSnapshot = await store.load();
+	const fresh = stacks.undo.length === 0 && stacks.redo.length === 0;
+	stacks.undo.splice(0, stacks.undo.length, ...[...loaded.undo, ...stacks.undo].slice(-MAX_STEPS));
+	if (!fresh) return changed(); // the store's file must now include what was recorded meanwhile
+	stacks.redo.splice(0, stacks.redo.length, ...loaded.redo.slice(-MAX_STEPS));
+	tell();
+}
+
+/** One direction of apply on the top step of its stack (ADR-46, Complex Logic steps 3, 5–7). */
+async function applyTop(deps: UndoJournalDeps, stacks: Stacks, dir: UndoDirection, changed: () => void): Promise<UndoOutcome> {
+	const step = stacks[dir][stacks[dir].length - 1];
+	if (step === undefined) return { kind: "empty", direction: dir };
+	const r: ApplyResult = { moved: [], failed: [], vanished: [], conflicts: [] };
+	for (const f of step.files) await applyFile(deps, f, dir, r);
+	const moved = r.moved.length > 0 ? stepWith(step, r.moved) : null;
+	const failed = r.failed.length > 0 ? stepWith(step, r.failed) : null;
+	settleStacks(stacks, dir, step, moved, failed);
+	if (moved !== null || r.vanished.length > 0) changed();
+	if (moved !== null) {
+		const failedPaths = r.failed.map((f) => f.path);
+		return { kind: "applied", direction: dir, step: moved, conflicts: r.conflicts, failedPaths, vanishedPaths: r.vanished };
+	}
+	return failed !== null ? { kind: "failed", direction: dir, step: failed } : { kind: "vanished", direction: dir, paths: r.vanished };
+}
+
+/**
+ * Take `step` off its stack by identity, not by popping: a write recorded while
+ * the apply ran may sit above it, and on redo a new step may have cleared it.
+ * The reduced step takes its place; the moved step goes on the other stack.
+ */
+function settleStacks(stacks: Stacks, dir: UndoDirection, step: Step, moved: Step | null, failed: Step | null): void {
+	const src = stacks[dir];
+	const at = src.indexOf(step);
+	if (at !== -1) {
+		if (failed !== null) src[at] = failed;
+		else src.splice(at, 1);
+	}
+	if (moved !== null) pushTrimmed(stacks[dir === "undo" ? "redo" : "undo"], moved);
+}
+
+async function applyFile(deps: UndoJournalDeps, f: FileChanges, dir: UndoDirection, r: ApplyResult): Promise<void> {
+	// getFileByPath, not getAbstractFileByPath: a folder at this path is not the note.
+	const file = deps.app.vault.getFileByPath(f.path);
+	if (file === null) {
+		r.vanished.push(f.path);
+		return;
+	}
+	const ops: RestoreOp[] = f.changes.map((c) => ({ key: c.key, target: dir === "undo" ? c.before : c.after }));
+	const found = await tryRestore(deps, file, ops);
+	if (found === null) {
+		r.failed.push(f);
+		return;
+	}
+	r.moved.push({ path: f.path, changes: f.changes.map((c, i) => reoriented(c, found[i] ?? ABSENT, dir)) });
+	f.changes.forEach((c, i) => {
+		const expected = dir === "undo" ? c.after : c.before;
+		const got = found[i] ?? ABSENT;
+		if (!slotsEqual(got, expected)) r.conflicts.push({ path: f.path, key: c.key, expected, found: got, written: ops[i]?.target ?? ABSENT });
+	});
+}
+
+const ABSENT: Slot = { present: false };
+
+/** The written slots, or null when the write failed (logged; the step stays). */
+async function tryRestore(deps: UndoJournalDeps, file: TFile, ops: readonly RestoreOp[]): Promise<readonly Slot[] | null> {
+	try {
+		const found = await deps.restore()(file, ops);
+		if (found.length !== ops.length) throw new Error(`restore answered ${found.length} slots for ${ops.length} keys`);
+		return found;
+	} catch (err) {
+		console.warn(`[StoryForge] Undo journal: couldn't write ${file.path}; its change stays on the stack.`, err);
+		return null;
+	}
+}
+
+/** The moved step restores what THIS write overwrote (F3 AC2). */
+function reoriented(c: FieldChange, found: Slot, dir: UndoDirection): FieldChange {
+	return dir === "undo" ? { key: c.key, before: c.before, after: found } : { key: c.key, before: found, after: c.after };
+}
+
+/** A step with these files; `persist` follows the values it now holds (ADR-48). */
+function stepWith(base: Pick<Step, "id" | "at">, files: readonly FileChanges[]): Step {
+	const fits = (s: Slot): boolean => valueSize(s) <= MAX_VALUE_CHARS;
+	const persist = files.every((f) => f.changes.every((c) => fits(c.before) && fits(c.after)));
+	return { id: base.id, at: base.at, files, persist };
+}
+
+function pushTrimmed(stack: Step[], step: Step): void {
+	stack.push(step);
+	if (stack.length > MAX_STEPS) stack.splice(0, stack.length - MAX_STEPS);
+}
+
+function summaryOf(stack: readonly Step[]): StepSummary | null {
+	const top = stack[stack.length - 1];
+	return top === undefined ? null : summariseStep(top);
+}
+
+function addTo<T>(set: Set<T>, item: T): () => void {
+	set.add(item);
+	return () => {
+		set.delete(item);
+	};
+}
+
+/** Call each listener in isolation: one that throws is logged and the rest still run. */
+function runEach<T>(listeners: ReadonlySet<T>, call: (listener: T) => void): void {
+	for (const listener of [...listeners]) {
+		try {
+			call(listener);
+		} catch (err) {
+			console.warn("[StoryForge] Undo journal: a listener failed.", err);
+		}
+	}
+}
