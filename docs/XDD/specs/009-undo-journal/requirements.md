@@ -170,7 +170,7 @@ The minimum for "every write a view makes can be undone" (epic #16, "Done when")
   - [ ] Given a field in the Anvil editor or the Workbench holds a draft, When the user presses Cmd/Ctrl+Z or Cmd/Ctrl+Shift+Z, Then the key does **text** undo/redo inside that field and Story Forge's journal is untouched
   - [ ] Given a field has been saved and the cursor is still in it, When the user presses Cmd/Ctrl+Z, Then the Story Forge change is undone (not the field's text history), so the field never looks edited while the file holds a different value
   - [ ] Given a Markdown note is the active view, When the user presses Cmd/Ctrl+Z, Then Obsidian's own editor undo runs and Story Forge does nothing
-  - [ ] Given the command palette, When the user searches "Story Forge change", Then **Undo last Story Forge change** and **Redo last Story Forge change** are listed
+  - [ ] Given the command palette, When the user searches "last change", Then **Undo last change** and **Redo last change** are listed (the palette shows them as "Story Forge: Undo last change")
   - [ ] Given a fresh install, When hotkeys are inspected, Then neither command has a default hotkey and no Ctrl+Y binding exists; and Given the user binds a hotkey to either command, Then it works from any view
   - [ ] Given the commands, When the stack is empty, Then they give the "Nothing to undo / redo" notice rather than fail silently
 
@@ -379,7 +379,7 @@ This is a local, single-user plugin with **no telemetry** (see `PRIVACY.md`). Ad
 | Also undoes file create and delete | **Reject** | Story Forge never creates or deletes notes. |
 | A global key handler routes Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z and Ctrl+Y whenever a Storyline view is active and focus is not in a text field | **Deviate** — the view's own key handling, and a saved field with the cursor still in it also undoes | A global handler can swallow editor undo. The saved-field rule avoids the trap where text undo makes a field look edited while the file keeps the new value. |
 | Ctrl+Y for redo | **Reject** | Commands carry no default hotkey; the docs explain the shadowing risk. |
-| Commands "Undo last scene change" / "Redo last scene change" | **Adopt** as "Undo / Redo last Story Forge change" | Same shape; broader scope. |
+| Commands "Undo last scene change" / "Redo last scene change" | **Adopt** as "Undo / Redo last change" | Same shape; broader scope. |
 | ↶ ↷ buttons in the Board toolbar, tooltip "Undo (Ctrl+Z)" | **Adopt** and extend — on every Anvil tab and in the Workbench; the tooltip names the change; disabled when empty | The button states what it will do. |
 
 Obsidian's own undo, and the Properties UI, do not cover frontmatter written by a plugin view; that is the gap.

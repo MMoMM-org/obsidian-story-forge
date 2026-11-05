@@ -265,8 +265,8 @@ inbound:
 
   - name: "Commands"
     type: Obsidian command palette
-    format: "story-forge:undo-last-change 'Undo last Story Forge change',
-             story-forge:redo-last-change 'Redo last Story Forge change'; no default hotkeys"
+    format: "story-forge:undo-last-change 'Undo last change',
+             story-forge:redo-last-change 'Redo last change'; no default hotkeys"
 
   - name: "Buttons"
     type: DOM click / Enter / Space
@@ -1083,7 +1083,7 @@ must sign off, before any task that writes UI code:
 | U6 | Notice: plain undo, plain redo |
 | U7 | Notice: conflict, single field and several fields |
 | U8 | Notice: "Save or discard your edit first" |
-| U9 | Notices: partial failure, total failure, vanished note, nothing to undo |
+| U9 | Notices: partial failure, total failure, vanished note, nothing to undo; and decide whether an unexpected error (a rejected undo) gets a notice (today: console only, T2.7) |
 | U10 | Workbench field after an outside change: a saved field showing the new value; a dirty field keeping its text beside an updated neighbour |
 | U11 | Settings: "Keep undo history across restarts" with its description, and "Clear undo history" |
 
@@ -1335,7 +1335,7 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
   - User confirmed: **Yes** (2026-11-04)
 
 - [x] **ADR-53 — A command right after the key trigger is ignored.** If the user binds Mod+Z to
-  "Undo last Story Forge change", the key handler and the hotkey could both fire. A
+  "Undo last change", the key handler and the hotkey could both fire. A
   command-triggered undo or redo within 100 ms of a key-triggered one is ignored.
   - Rationale: one keystroke must never take two steps.
   - Trade-offs: a deliberate command within 100 ms of a key press is dropped; not a real case.
@@ -1428,7 +1428,7 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 - [ ] AC-F5.3 IF the target field holds a draft, THEN THE SYSTEM SHALL NOT handle the key
 - [ ] AC-F5.4 IF the target field is saved and focused, THEN THE SYSTEM SHALL handle the key as journal undo
 - [ ] AC-F5.5 WHILE any other view is active, THE SYSTEM SHALL NOT handle the key
-- [ ] AC-F5.6 THE SYSTEM SHALL register "Undo last Story Forge change" and "Redo last Story Forge change" with no default hotkey and no Ctrl+Y binding
+- [ ] AC-F5.6 THE SYSTEM SHALL register "Undo last change" and "Redo last change" with no default hotkey and no Ctrl+Y binding
 - [ ] AC-F5.7 WHEN a command runs from any view, THE SYSTEM SHALL undo/redo, or show the empty notice
 - [ ] AC-F5.8 WHERE a popout window shows the Anvil or Workbench, THE SYSTEM SHALL handle the keys there too
 
@@ -1520,7 +1520,7 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 
 ### Implementation Gotchas
 
-- **Double undo with a user hotkey.** If the user binds Mod+Z to "Undo last Story Forge change",
+- **Double undo with a user hotkey.** If the user binds Mod+Z to "Undo last change",
   both the capture handler and Obsidian's hotkey may fire in the Anvil. Mitigation: the key handler
   records `lastKeyTriggerAt`; a command-triggered request within 100 ms of a key-triggered one is
   ignored. Verify live (walk item 12).

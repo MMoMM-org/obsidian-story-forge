@@ -228,7 +228,7 @@ palette can undo and redo it across restarts. No UI beyond two commands.
   2. Test: `main.undo.test.ts`:
      - `onload` creates the journal, installs the recorder, loads the store, and registers the vault
        `rename`/`delete` events and the layout-ready prune;
-     - the commands "Undo last Story Forge change" and "Redo last Story Forge change" exist with no
+     - the commands "Undo last change" and "Redo last change" exist with no
        hotkeys and call the journal;
      - `onunload` flushes and uninstalls;
      - the workspace `quit` event flushes;
@@ -248,4 +248,4 @@ palette can undo and redo it across restarts. No UI beyond two commands.
 
   - All gates pass: `npm test`, `lint`, `typecheck`, `typecheck:test`, `typecheck:mock`,
     `schema:check`, `build`. A quick live check in `test/StoryForge/`: change a field in the Anvil,
-    then run "Undo last Story Forge change" from the palette. Drift check against ADR-41/44/45/46/47/48.
+    then run "Undo last change" from the palette. Drift check against ADR-41/44/45/46/47/48.
