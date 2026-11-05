@@ -1,5 +1,5 @@
 /**
- * undoJournal — the two stacks behind "Undo/Redo last Story Forge change" (spec 009).
+ * undoJournal — the two stacks behind "Undo/Redo last change" (spec 009).
  *
  * The writer reports every successful write through `record` (ADR-44); each
  * report is one step on top of the undo stack, and a new step clears redo.
@@ -325,9 +325,13 @@ function reoriented(c: FieldChange, found: Slot, dir: UndoDirection): FieldChang
 
 /** A step with these files; `persist` follows the values it now holds (ADR-48). */
 function stepWith(base: Pick<Step, "id" | "at">, files: readonly FileChanges[]): Step {
+	return { id: base.id, at: base.at, files, persist: fitsPersistLimit(files) };
+}
+
+/** True when no value in `files` is longer than MAX_VALUE_CHARS (ADR-48). */
+export function fitsPersistLimit(files: readonly FileChanges[]): boolean {
 	const fits = (s: Slot): boolean => valueSize(s) <= MAX_VALUE_CHARS;
-	const persist = files.every((f) => f.changes.every((c) => fits(c.before) && fits(c.after)));
-	return { id: base.id, at: base.at, files, persist };
+	return files.every((f) => f.changes.every((c) => fits(c.before) && fits(c.after)));
 }
 
 function pushTrimmed(stack: Step[], step: Step): void {

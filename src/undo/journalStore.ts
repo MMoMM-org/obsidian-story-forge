@@ -9,6 +9,7 @@
  * @ref docs/XDD/specs/009-undo-journal/solution.md — Data Storage Changes, ADR-48
  */
 import { debounce, normalizePath } from "obsidian";
+import { fitsPersistLimit } from "undo/undoJournal";
 import type { FieldChange, FileChanges, JournalSnapshot, JournalStore, Slot, Step } from "undo/journalTypes";
 
 /** The file may not exceed this many characters (ADR-48). */
@@ -191,7 +192,8 @@ function parseStep(raw: unknown): Step | null {
 	if (!isNonEmptyArray(raw.files)) return null;
 	const files = raw.files.map(parseFileChanges);
 	if (files.some((f) => f === null)) return null;
-	return { id: raw.id, at: raw.at, files: files as FileChanges[], persist: true };
+	const loaded = files as FileChanges[];
+	return { id: raw.id, at: raw.at, files: loaded, persist: fitsPersistLimit(loaded) };
 }
 
 function parseFileChanges(raw: unknown): FileChanges | null {

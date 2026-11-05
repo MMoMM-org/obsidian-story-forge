@@ -321,11 +321,19 @@ export function resetWriteRecorderForTests(): void {
 
 /** Assign every entry and push the changes whose stored form differs (ADR-45). */
 function captureInto(captured: FieldChange[], fm: Record<string, unknown>, entries: readonly CommitEntry[]): void {
-	for (const entry of entries) {
-		const before = slotOf(fm, entry.key);
-		fm[entry.key] = entry.value;
-		const after = slotOf(fm, entry.key);
-		if (!slotsEqual(before, after)) captured.push({ key: entry.key, before, after });
+	try {
+		for (const entry of entries) {
+			const before = slotOf(fm, entry.key);
+			fm[entry.key] = entry.value;
+			const after = slotOf(fm, entry.key);
+			if (!slotsEqual(before, after)) captured.push({ key: entry.key, before, after });
+		}
+	} catch (err) {
+		// A journal failure never turns a successful write into a reported failure:
+		// finish the assignments and record nothing (a partial step would mislead).
+		captured.length = 0;
+		for (const entry of entries) fm[entry.key] = entry.value;
+		console.warn("[StoryForge] Undo journal: could not capture this write; it was saved but cannot be undone.", err);
 	}
 }
 

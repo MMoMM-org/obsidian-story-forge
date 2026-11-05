@@ -69,7 +69,7 @@ describe("JournalStore — round trip", () => {
 		});
 	});
 
-	it("does not write the persist flag; loaded steps are persistable", async () => {
+	it("does not write the persist flag; loaded steps within the value limit are persistable", async () => {
 		const a = memAdapter();
 		const s = storeOn(a);
 		s.save({ undo: [step("u-1-1")], redo: [] });
@@ -332,5 +332,16 @@ describe("undoJournalPath", () => {
 
 	it("normalises the path", () => {
 		expect(undoJournalPath({ id: "x", dir: ".obsidian\\plugins//x" }, ".obsidian")).toBe(".obsidian/plugins/x/undo-journal.json");
+	});
+});
+
+describe("JournalStore — loaded persist flag", () => {
+	it("loads a step holding an oversized value as not persistable", async () => {
+		const a = memAdapter();
+		a.files.set(PATH, JSON.stringify({
+			version: 1, savedAt: 1, redo: [],
+			undo: [{ id: "u-1-1", at: 1, files: [{ path: "a.md", changes: [{ key: "k", before: { v: "x" }, after: { v: "y".repeat(16_385) } }] }] }],
+		}));
+		expect((await storeOn(a).load()).undo[0]!.persist).toBe(false);
 	});
 });

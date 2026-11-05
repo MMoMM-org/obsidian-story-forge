@@ -306,3 +306,22 @@ describe("installWriteRecorder", () => {
 		expect(calls2).toEqual([PATH]);
 	});
 });
+
+describe("a journal failure never fails the write", () => {
+	// A value the journal cannot normalise: stringifyYaml reads toJSON and it throws.
+	const unnormalisable = [{ toJSON: () => { throw new Error("cannot serialise"); } }];
+
+	it("still writes and returns ok, warns, and records nothing when capture throws", async () => {
+		const { app, file, calls } = setup({ status: "draft" });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const result = await commitMany(app, file, [
+			entry("status", "final"),
+			{ key: "odd", value: unnormalisable, field: { name: "odd", type: "list" } },
+		]);
+		expect(result).toEqual({ ok: true });
+		expect(app.fileManager._getFrontmatter(PATH).status).toBe("final");
+		expect(app.fileManager._getFrontmatter(PATH).odd).toBe(unnormalisable);
+		expect(calls).toHaveLength(0);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("[StoryForge]"), expect.anything());
+	});
+});
