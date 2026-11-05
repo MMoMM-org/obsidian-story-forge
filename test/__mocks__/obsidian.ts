@@ -1337,7 +1337,7 @@ export class TFile extends TAbstractFile {
 export class TFolder extends TAbstractFile {
 	path = "test-folder";
 	name = "test-folder";
-	children: (TFile | TFolder)[] = [];
+	children: TAbstractFile[] = [];
 }
 
 // --- Events ---

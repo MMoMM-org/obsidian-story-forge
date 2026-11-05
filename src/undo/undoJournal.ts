@@ -124,9 +124,9 @@ function announce(outcome: UndoOutcome, listeners: ReadonlySet<OutcomeListener>,
 }
 
 /** A promise chain: each task starts after the previous one settled, and a rejection never blocks the next. */
-function serialQueue(): <T>(task: () => Promise<T>) => Promise<T> {
+function serialQueue(): <T>(task: () => T | Promise<T>) => Promise<T> {
 	let tail: Promise<unknown> = Promise.resolve();
-	return <T>(task: () => Promise<T>): Promise<T> => {
+	return <T>(task: () => T | Promise<T>): Promise<T> => {
 		const run = tail.then(task);
 		tail = run.catch(() => undefined);
 		return run;
@@ -151,7 +151,7 @@ function isUnder(file: TAbstractFile, path: string): boolean {
  * note, so a record already at the new path in the same step is stale: the
  * renamed record wins and the stale one is dropped, keeping one record per path.
  */
-async function rewriteAll(stacks: Stacks, changed: () => void, rename: (path: string) => string): Promise<void> {
+function rewriteAll(stacks: Stacks, changed: () => void, rename: (path: string) => string): void {
 	let touched = false;
 	for (const stack of [stacks.undo, stacks.redo]) {
 		stack.forEach((step, i) => {
@@ -163,13 +163,19 @@ async function rewriteAll(stacks: Stacks, changed: () => void, rename: (path: st
 	if (touched) changed();
 }
 
+/** A record that stays put but sits where another record in the step is being renamed to: the renamed one wins. */
+function isStaleTarget(f: FileChanges, files: readonly FileChanges[], rename: (path: string) => string): boolean {
+	if (rename(f.path) !== f.path) return false;
+	return files.some((o) => o !== f && rename(o.path) !== o.path && rename(o.path) === f.path);
+}
+
 function renamedFiles(files: readonly FileChanges[], rename: (path: string) => string): FileChanges[] {
-	const kept = files.filter((f) => rename(f.path) !== f.path || !files.some((o) => o !== f && rename(o.path) === f.path && rename(o.path) !== o.path));
+	const kept = files.filter((f) => !isStaleTarget(f, files, rename));
 	return kept.map((f) => ({ ...f, path: rename(f.path) }));
 }
 
 /** Drop the records whose path matches, then any step left with no files, on both stacks. */
-async function dropAll(stacks: Stacks, changed: () => void, drop: (path: string) => boolean): Promise<void> {
+function dropAll(stacks: Stacks, changed: () => void, drop: (path: string) => boolean): void {
 	let touched = false;
 	for (const stack of [stacks.undo, stacks.redo]) {
 		const next: Step[] = [];

@@ -188,4 +188,23 @@ describe("UndoJournal — path upkeep and the queue", () => {
 		await Promise.all([undone, deleted]);
 		expect(h.journal.peek()).toEqual({ undo: null, redo: null });
 	});
+
+	it("a prune during an undo waits for it, then drops the moved step from the redo stack", async () => {
+		let release!: () => void;
+		let started!: () => void;
+		const begun = new Promise<void>((r) => (started = r));
+		const gate = new Promise<void>((r) => (release = r));
+		const h = setup({ [MARA]: { status: "b" } }, {
+			store: fakeStore({ undo: [stepOf("u", [edit(MARA)])], redo: [] }),
+			wrapRestore: (real) => async (file, ops) => (started(), await gate, real(file, ops)),
+		});
+		await h.journal.load();
+		const undone = h.journal.undo();
+		await begun; // the apply is now mid-flight, holding its step
+		h.removeNote(MARA); // the note no longer resolves while the apply is in flight
+		const pruned = h.journal.pruneUnresolvable();
+		release();
+		await Promise.all([undone, pruned]);
+		expect(h.journal.peek()).toEqual({ undo: null, redo: null });
+	});
 });
