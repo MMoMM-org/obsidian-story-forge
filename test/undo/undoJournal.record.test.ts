@@ -26,6 +26,14 @@ describe("UndoJournal — record", () => {
 		expect(step!.at).toBe(1_000);
 	});
 
+	it("a recorded step's id is u-<at>-<counter> in decimal (SDD PersistedStep.id)", async () => {
+		const h = setup({ [MARA]: { status: "alive" } });
+		await h.write(MARA, "status", "dead");
+		const [step] = h.lastSave().undo;
+		expect(step!.id).toMatch(/^u-\d+-\d+$/);
+		expect(step!.id.split("-")[1]).toBe(String(step!.at));
+	});
+
 	it("the newest step is on top and each call is its own step", async () => {
 		const h = setup({ [MARA]: { status: "alive" }, [SCENE_4]: {} });
 		await h.write(MARA, "status", "dead");

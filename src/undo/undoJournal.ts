@@ -129,7 +129,7 @@ function recorderFor(stacks: Stacks, now: () => number, changed: () => void): Wr
 		if (changes.length === 0) return;
 		const at = now();
 		seq += 1;
-		pushTrimmed(stacks.undo, stepWith({ id: `${at.toString(36)}-${seq.toString(36)}`, at }, [{ path, changes: [...changes] }]));
+		pushTrimmed(stacks.undo, stepWith({ id: `u-${at}-${seq}`, at }, [{ path, changes: [...changes] }]));
 		stacks.redo.length = 0;
 		changed();
 	};
