@@ -31,6 +31,30 @@ phase: 2
 - Groups: `CommitOptions.group` exists in the types here. Its behaviour is Phase 3, so in this
   phase every call records its own step.
 
+**Decisions taken during implementation**:
+- **T2.4 pulls `load()` forward from T2.6.** The apply tests need steps that span several notes,
+  and before Phase 3 the store is the only source of such steps. `load()` runs in the same queue as
+  undo and redo. If no step was recorded before it resolves, it takes both stored stacks. If steps
+  were recorded in the meantime, the stored undo steps go underneath them and the stored redo is
+  dropped, because a new step clears redo. It then saves the merged state, so a debounced save
+  cannot overwrite the stored history. Both stacks are trimmed to the newest 50. T2.6 keeps the
+  `persist()` gate, `setPersistence` and `flushNow`.
+- **The applied step leaves its stack by identity, not by `pop()`.** If a write lands during an
+  apply, `pop()` would remove the new step. The SDD's `src.pop()` wording is wrong on this point.
+  A reduced step, made of the files that failed, replaces the original **in place**. So it stays
+  under any step recorded during the apply, rather than on top as Complex Logic step 6 says.
+- **There is no `error` outcome.** An unexpected exception rejects that `undo()` or `redo()` call,
+  and the queue carries on. The command and button boundary (T2.7, T5.x) catches it and warns.
+- A restore that returns the wrong number of slots counts as a failed file.
+- **A step undone while a new write lands still goes to redo.** It ends up above the new undo top,
+  which looks like it breaks "a new step clears redo". This is deliberate: the conflict rule makes a
+  later redo safe, and dropping the step would lose what the undo found. A test pins it.
+- **Carried into T2.6 from the T2.4 review:**
+  - isolate `notify` the way the listeners already are;
+  - after `dispose`, an apply still in flight must not save;
+  - a rejected `store.load()` rejects `load()`, and a later `undo()` still runs;
+  - calling `load()` twice must not duplicate steps.
+
 **Dependencies**: Phase 1 (only T1.2's result matters here: where the file may live).
 
 ---
@@ -110,7 +134,7 @@ palette can undo and redo it across restarts. No UI beyond two commands.
   4. Validate: the new and the existing writer tests pass; mutation-checked; lint; types.
   5. Success: `[ref: SDD/AC-F1.1, AC-F1.3, AC-F1.4, AC-F1.6, AC-F1.8]`
 
-- [ ] **T2.4 UndoJournal: record, stacks, apply** `[activity: domain-modeling]`
+- [x] **T2.4 UndoJournal: record, stacks, apply** `[activity: domain-modeling]`
 
   1. Prime: `[ref: SDD/Application Data Models; UndoJournal, OwnedUndoJournal, createUndoJournal]`;
      `[ref: SDD/ADR-46]`; `[ref: SDD/Example: one direction of apply]`; `[ref: SDD/Traced walkthrough 2]`.
