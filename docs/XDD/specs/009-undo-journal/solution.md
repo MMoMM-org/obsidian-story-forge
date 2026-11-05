@@ -652,9 +652,9 @@ export interface UndoJournal {
 export interface OwnedUndoJournal extends UndoJournal, WriteRecorder {
 	load(): Promise<void>;                     // from JournalStore when persistence is on
 	setPersistence(on: boolean): Promise<void>; // off → delete the file, stop saving
-	pruneUnresolvable(): void;                 // at layout-ready: drop paths that no longer exist
-	onRename(file: TAbstractFile, oldPath: string): void;
-	onDelete(file: TAbstractFile): void;
+	pruneUnresolvable(): Promise<void>;        // at layout-ready: drop paths that no longer exist
+	onRename(file: TAbstractFile, oldPath: string): Promise<void>; // queued behind any apply (T2.5)
+	onDelete(file: TAbstractFile): Promise<void>;
 	flushNow(): Promise<void>;                 // write pending state immediately
 	dispose(): void;                           // cancel timers, close groups, drop listeners
 }

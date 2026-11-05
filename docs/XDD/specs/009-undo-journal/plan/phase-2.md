@@ -49,6 +49,10 @@ phase: 2
 - **A step undone while a new write lands still goes to redo.** It ends up above the new undo top,
   which looks like it breaks "a new step clears redo". This is deliberate: the conflict rule makes a
   later redo safe, and dropping the step would lose what the undo found. A test pins it.
+- **T2.5: path edits are queued.** `onRename`, `onDelete` and `pruneUnresolvable` return
+  `Promise<void>` and run in the same queue as undo and redo, because an apply in flight holds its
+  step and file list. The SDD signature is updated to match. A rename onto a path that the same step
+  already holds drops the stale record, so each step keeps one record per path.
 - **Carried into T2.6 from the T2.4 review:**
   - isolate `notify` the way the listeners already are;
   - after `dispose`, an apply still in flight must not save;
@@ -165,7 +169,7 @@ palette can undo and redo it across restarts. No UI beyond two commands.
   4. Validate: unit tests, mutation-checked; lint; types.
   5. Success: `[ref: SDD/AC-F2.1–AC-F2.10, AC-F3.1–AC-F3.6, AC-F10.3, AC-F10.4]`
 
-- [ ] **T2.5 Renames, deletes and startup prune** `[activity: domain-modeling]`
+- [x] **T2.5 Renames, deletes and startup prune** `[activity: domain-modeling]`
 
   1. Prime: `[ref: SDD/ADR-47]`.
   2. Test: `undoJournal.paths.test.ts`:
