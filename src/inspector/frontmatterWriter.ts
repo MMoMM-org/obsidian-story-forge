@@ -9,6 +9,8 @@
  *  - If processFrontMatter rejects, returns {ok:false, reason:"write"} with keepDirty.
  *  - Out-of-vocab select values are advisory only (warn, never block — ADR-7).
  *  - This module NEVER persists to plugin state (CON-1 — transient only).
+ *  - Reports each successful write that changed a value to the installed
+ *    WriteRecorder (spec 009, ADR-44); `restore` is the unrecorded write path.
  *
  * @ref SDD/ADR-7 — block type errors, warn vocab
  * @ref PRD/AC-F6.3, AC-F6.5, AC-F6.6, AC-F6.7
@@ -16,6 +18,8 @@
  */
 
 import type { App, TFile } from "obsidian";
+import type { FieldChange, JournalGroup, Slot } from "../undo/journalTypes";
+import { slotOf, slotsEqual } from "../undo/yamlValue";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -210,6 +214,7 @@ export async function commitMany(
 	app: App,
 	file: TFile,
 	entries: CommitEntry[],
+	options?: CommitOptions,
 ): Promise<CommitResult> {
 	// Short-circuit: nothing to validate or write.
 	if (entries.length === 0) {
@@ -237,13 +242,11 @@ export async function commitMany(
 	}
 
 	// 3. Single processFrontMatter — sets all keys atomically (CON-2, ADR-14).
+	const captured: FieldChange[] = [];
 	try {
 		await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-			for (const entry of entries) {
-				fm[entry.key] = entry.value;
-			}
+			captureInto(captured, fm, entries);
 		});
-		return { ok: true };
 	} catch {
 		return {
 			ok: false,
@@ -252,6 +255,9 @@ export async function commitMany(
 			keepDirty: true,
 		};
 	}
+	// Reached only when processFrontMatter resolved: a failed write records nothing.
+	report(file.path, captured, options?.group);
+	return { ok: true };
 }
 
 /**
@@ -267,41 +273,94 @@ export async function commitMany(
  * @param value - new value (any JSON-serialisable type)
  * @param field - field descriptor (type + optional select vocab)
  */
-export async function commit(
+export function commit(
 	app: App,
 	file: TFile,
 	key: string,
 	value: unknown,
 	field: FieldSpec,
+	options?: CommitOptions,
 ): Promise<CommitResult> {
-	// 1. Validate in memory — nothing touches the vault yet.
-	const validation = validateField(field, value);
-	if (validation.kind === "type-error") {
-		return {
-			ok: false,
-			reason: "validation",
-			message: validation.message,
-			keepDirty: true,
-		};
-	}
+	// Not `async`: returning commitMany's promise adds no microtask hop, which
+	// callers that await only a couple of ticks (write-back-fan-out) rely on.
+	return commitMany(app, file, [{ key, value, field }], options);
+}
 
-	// 2. Advisory warn for out-of-vocab select (ADR-7, not a block).
-	if (isOutOfVocab(field, value)) {
-		console.warn(outOfVocabWarning(value, key));
-	}
+// ---------------------------------------------------------------------------
+// Journal hook (spec 009, ADR-44 / ADR-45)
+// ---------------------------------------------------------------------------
 
-	// 3. Write via processFrontMatter — the ONLY vault write path (CON-1, CON-7).
+/** Options shared by commit and commitMany. */
+export interface CommitOptions {
+	/** Join this gesture's step instead of recording one step for this call (ADR-38). */
+	readonly group?: JournalGroup;
+}
+
+/** Receives one report per successful write that changed at least one value. */
+export interface WriteRecorder {
+	record(path: string, changes: readonly FieldChange[], group: JournalGroup | undefined): void;
+}
+
+/** A target for one key: write this slot (absent = delete the key). */
+export interface RestoreOp {
+	readonly key: string;
+	readonly target: Slot;
+}
+
+/** One processFrontMatter: per op, read what is there, then write the target. Not recorded. */
+export type RestoreFn = (file: TFile, ops: readonly RestoreOp[]) => Promise<readonly Slot[]>;
+
+/** The one active recorder; module state, so tests must uninstall. */
+let recorder: WriteRecorder | null = null;
+
+/** Assign every entry and push the changes whose stored form differs (ADR-45). */
+function captureInto(captured: FieldChange[], fm: Record<string, unknown>, entries: readonly CommitEntry[]): void {
+	for (const entry of entries) {
+		const before = slotOf(fm, entry.key);
+		fm[entry.key] = entry.value;
+		const after = slotOf(fm, entry.key);
+		if (!slotsEqual(before, after)) captured.push({ key: entry.key, before, after });
+	}
+}
+
+/** Hand the changes to the recorder; a recorder failure never reaches the caller. */
+function report(path: string, changes: readonly FieldChange[], group: JournalGroup | undefined): void {
+	if (changes.length === 0 || recorder === null) return;
 	try {
-		await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-			fm[key] = value;
-		});
-		return { ok: true };
-	} catch {
-		return {
-			ok: false,
-			reason: "write",
-			message: WRITE_ERROR_MESSAGE,
-			keepDirty: true,
-		};
+		recorder.record(path, changes, group);
+	} catch (err) {
+		console.warn("[StoryForge] Undo journal: recorder failed; the write itself succeeded.", err);
 	}
+}
+
+function makeRestore(app: App): RestoreFn {
+	return async (file, ops) => {
+		const found: Slot[] = [];
+		await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			for (const op of ops) {
+				found.push(slotOf(fm, op.key));
+				if (op.target.present) fm[op.key] = op.target.value;
+				else delete fm[op.key];
+			}
+		});
+		return found;
+	};
+}
+
+/**
+ * Install the plugin's recorder. Returns the ONLY handle to the unrecorded write path.
+ * A second install while one is active throws (one plugin, one journal).
+ */
+export function installWriteRecorder(
+	app: App,
+	next: WriteRecorder,
+): { readonly restore: RestoreFn; uninstall(): void } {
+	if (recorder !== null) throw new Error("[StoryForge] A write recorder is already installed.");
+	recorder = next;
+	return {
+		restore: makeRestore(app),
+		uninstall(): void {
+			if (recorder === next) recorder = null;
+		},
+	};
 }
