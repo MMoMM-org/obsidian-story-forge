@@ -198,8 +198,8 @@ describe("commands", () => {
 		await plugin.onload();
 		const undo = plugin._commands.get("story-forge:undo-last-change");
 		const redo = plugin._commands.get("story-forge:redo-last-change");
-		expect(undo?.name).toBe("Undo last Story Forge change");
-		expect(redo?.name).toBe("Redo last Story Forge change");
+		expect(undo?.name).toBe("Undo last change");
+		expect(redo?.name).toBe("Redo last change");
 		expect(undo).not.toHaveProperty("hotkeys");
 		expect(redo).not.toHaveProperty("hotkeys");
 	});
@@ -220,10 +220,12 @@ describe("commands", () => {
 			const { plugin } = await makePlugin();
 			await plugin.onload();
 			vi.mocked(journal()[method]).mockRejectedValueOnce(new Error("boom"));
+			Notice._reset(); // drop notices a neighbouring test's async work left behind
 			plugin._commands.get(`story-forge:${id}`)?.callback?.();
 			await new Promise((r) => setTimeout(r, 0));
 			expect(warn).toHaveBeenCalled();
-			expect(Notice._instances.length).toBeGreaterThan(0);
+			expect(warn.mock.calls[0]?.[0]).toContain("[StoryForge]");
+			expect(Notice._instances.map((n) => n.message)).toEqual([]);
 			warn.mockRestore();
 		},
 	);

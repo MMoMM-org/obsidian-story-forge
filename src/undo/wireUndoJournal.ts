@@ -30,19 +30,16 @@ function registerCommands(plugin: Plugin, journal: OwnedUndoJournal): void {
 	const run = (action: () => Promise<unknown>, verb: string): void => {
 		action().catch((err: unknown) => {
 			warn(`${verb} failed`)(err);
-			new Notice(`Could not ${verb} the last Story Forge change.`);
 		});
 	};
 	plugin.addCommand({
 		id: "undo-last-change",
-		// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case -- the name is specified verbatim (spec 009 F5)
-		name: "Undo last Story Forge change",
+		name: "Undo last change",
 		callback: () => { run(() => journal.undo(), "undo"); },
 	});
 	plugin.addCommand({
 		id: "redo-last-change",
-		// eslint-disable-next-line obsidianmd/commands/no-plugin-name-in-command-name, obsidianmd/ui/sentence-case -- the name is specified verbatim (spec 009 F5)
-		name: "Redo last Story Forge change",
+		name: "Redo last change",
 		callback: () => { run(() => journal.redo(), "redo"); },
 	});
 }
