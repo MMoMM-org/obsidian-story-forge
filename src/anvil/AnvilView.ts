@@ -62,7 +62,16 @@ import { renderKanban, type RenumberWrite } from "workspace/renderKanban";
 import { renderPlotgrid } from "workspace/renderPlotgrid";
 import { createTimelineZoom } from "workspace/timelineZoom";
 import { InteractionHandler } from "workspace/interactionHandler";
-import { commit, commitMany, type CommitResult, type CommitError } from "../inspector/frontmatterWriter";
+import {
+	commit,
+	commitMany,
+	type CommitEntry,
+	type CommitError,
+	type CommitOptions,
+	type CommitResult,
+} from "../inspector/frontmatterWriter";
+import type { JournalGroup, PendingReason } from "undo/journalTypes";
+import type { UndoJournal } from "undo/undoJournal";
 import { CollapseStore } from "workspace/collapseStore";
 import { buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
 import { createNavigationController } from "navigation/navigationController";
@@ -153,6 +162,13 @@ export interface AnvilViewOpts {
 	 */
 	drill?: (file: TFile) => void;
 
+	/**
+	 * The plugin's undo journal (spec 009, ADR-43). The Kanban writes join each gesture's group
+	 * (ADR-38), and the view registers its probe and the Kanban flusher (ADR-39). Absent: no
+	 * grouping and no registration; every write is still recorded by the writer.
+	 */
+	undo?: UndoJournal;
+
 	/** Live plugin settings the Anvil reads on every render (T3.5). */
 	settings?: {
 		/** Reads the live link-click setting (getter — main.ts reassigns settings). */
@@ -238,6 +254,11 @@ export interface AnvilViewOpts {
 	};
 }
 
+/** The writer's options for a write in `group` (none without a group). */
+function groupOption(group: JournalGroup | null): CommitOptions | undefined {
+	return group ? { group } : undefined;
+}
+
 function isSwimlaneKey(v: unknown): v is SwimlaneKey {
 	return v === "pov" || v === "location" || v === "plotline";
 }
@@ -298,6 +319,14 @@ export class AnvilView extends ItemView {
 	private _zoomSlotEl: HTMLElement | null = null;
 	private _liveEl: HTMLElement | null = null;
 	private _handler: InteractionHandler | null = null;
+	private readonly _undo: UndoJournal | undefined;
+	/** Releases the probes and the flusher registered with `_undo` (ADR-39). */
+	private _undoRegistrations: (() => void)[] = [];
+	/**
+	 * Set when `onClose` starts. A Kanban flush can land after that (ADR-52): renders and
+	 * announcements are then skipped, and only a failure is still reported (a Notice).
+	 */
+	private _closed = false;
 	/** Child Component owning the current zoom listeners. Replaced on every rail render. */
 	private _zoomChild: Component | null = null;
 	private readonly getLinkClickAction: () => "drill" | "open";
@@ -317,6 +346,7 @@ export class AnvilView extends ItemView {
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
 		super(leaf);
+		this._undo = opts?.undo;
 		this.getLinkClickAction = opts?.settings?.getLinkClickAction ?? ((): "drill" => "drill");
 		this.getCardTitleOpensNote = opts?.settings?.getCardTitleOpensNote ?? ((): boolean => true);
 		// ADR-28: this is the Anvil's "inspect" implementation. It used to default to
@@ -421,15 +451,16 @@ export class AnvilView extends ItemView {
 
 		// One InteractionHandler for the whole view (Kanban).
 		// Constructed once; destroyed in onClose (CON-4).
+		this._closed = false;
+		const undo = this._undo;
 		this._handler = new InteractionHandler(this.app, ce, {
-			onWrite: (file, entries): Promise<CommitResult> =>
-				entries.length > 1
-					? commitMany(this.app, file, entries)
-					: commit(this.app, file, entries[0]!.key, entries[0]!.value, entries[0]!.field),
+			onWrite: (file, entries, group): Promise<CommitResult> => this._writeCard(file, entries, group),
+			...(undo ? { openGroup: (): JournalGroup => undo.openGroup() } : {}),
 			onAfter: (): void => { this._render(); },
 			onError: (file, result): void => { if (!result.ok) this._surfaceWriteError(file, result); },
 			announce: (msg): void => { this._announce(msg); },
 		});
+		if (undo) this._registerWithJournal(undo, this._handler);
 
 		// Note index for the Codex tab. Its metadataCache subscriptions go through
 		// this view's registerEvent, so unload releases them (CON-4).
@@ -512,6 +543,7 @@ export class AnvilView extends ItemView {
 	}
 
 	async onClose(): Promise<void> {
+		this._closed = true;
 		this._debouncedRender.cancel();
 		// Belt-and-suspenders: removeChild unloads the zoom child's listeners even if
 		// a re-render didn't run since the last rail render. addChild already ties the
@@ -520,8 +552,13 @@ export class AnvilView extends ItemView {
 			this.removeChild(this._zoomChild);
 			this._zoomChild = null;
 		}
-		this._handler?.destroy();
+		const handler = this._handler;
 		this._handler = null;
+		// ADR-52: destroy starts the pending Kanban writes; wait for them (and so for their
+		// groups) while the probe and flusher are still registered, then release those.
+		handler?.destroy();
+		await handler?.flushPending();
+		for (const unregister of this._undoRegistrations.splice(0)) unregister();
 		this._collapse.clear();
 		this._codexSelection.clear();
 		this._editor.clear();
@@ -803,7 +840,8 @@ export class AnvilView extends ItemView {
 	}
 
 	private _render(): void {
-		if (!this._bodyEl) return;
+		// A write landing after close (ADR-52) still triggers renders; the view's DOM is gone.
+		if (!this._bodyEl || this._closed) return;
 		this._paneStale = false;
 		// A render IS the reconcile: nothing is owed after it. Cleared at the
 		// start because `onNeedsReseed` sets it again while the pane is drawn.
@@ -1098,9 +1136,9 @@ export class AnvilView extends ItemView {
 			kanbanModel(rows, STATUS_VOCAB),
 			{
 				app: this.app,
-				renumber: async (writes: RenumberWrite[]): Promise<void> => {
+				renumber: async (writes: RenumberWrite[], group: JournalGroup | null): Promise<void> => {
 					for (const w of writes) {
-						await commit(this.app, w.file, "order", w.order, ORDER_FIELD);
+						await commit(this.app, w.file, "order", w.order, ORDER_FIELD, groupOption(group));
 					}
 				},
 			},
@@ -1108,12 +1146,43 @@ export class AnvilView extends ItemView {
 		);
 	}
 
+	/** The Kanban handler's write for one card, in the gesture's group when there is one. */
+	private _writeCard(file: TFile, entries: CommitEntry[], group: JournalGroup | null): Promise<CommitResult> {
+		const options = groupOption(group);
+		const [only] = entries;
+		if (entries.length > 1 || only === undefined) return commitMany(this.app, file, entries, options);
+		return commit(this.app, file, only.key, only.value, only.field, options);
+	}
+
+	// --- Undo: pending work (spec 009, ADR-39) ------------------------------
+
+	/** Register the view's probe, the Kanban handler's probe and its flusher; released in onClose. */
+	private _registerWithJournal(undo: UndoJournal, handler: InteractionHandler): void {
+		this._undoRegistrations.push(
+			undo.registerProbe((path) => this._pendingIn(path)),
+			undo.registerProbe((path) => (handler.isBusy(path) ? "write" : null)),
+			undo.registerFlusher(() => handler.flushPending()),
+		);
+	}
+
+	/**
+	 * `draft` while the editor pane shows `path` and a control holds text not yet committed;
+	 * `write` while a pane write to `path` has not landed.
+	 */
+	private _pendingIn(path: string): PendingReason | null {
+		if (this._draftEl?.isConnected === true && this._editor.path === path) return "draft";
+		if (this._inFlightPath === path && this._inFlight.size > 0) return "write";
+		return null;
+	}
+
 	// --- Write-error surface (ADR-24) ---------------------------------------
 
-	/** Mark the offending card with an error class + fire a transient Notice. */
+	/**
+	 * Mark the offending card with an error class + fire a transient Notice. After close only
+	 * the Notice: the view's DOM is gone, but a failed write must not be silent.
+	 */
 	private _surfaceWriteError(file: TFile, result: CommitError): void {
-		const card = this._findCardEl(file.path);
-		card?.classList.add("sf-card--error");
+		if (!this._closed) this._findCardEl(file.path)?.classList.add("sf-card--error");
 		new Notice(result.message);
 	}
 
@@ -1141,7 +1210,7 @@ export class AnvilView extends ItemView {
 
 	/** Write a message into the aria-live region (F8, AC-11). */
 	private _announce(msg: string): void {
-		if (this._liveEl) this._liveEl.textContent = msg;
+		if (this._liveEl && !this._closed) this._liveEl.textContent = msg;
 	}
 
 	/**

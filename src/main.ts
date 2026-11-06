@@ -62,8 +62,8 @@ export default class StoryForgePlugin extends Plugin {
 		this.register(() => { fileClasses.dispose(); });
 
 		// The undo journal (spec 009, ADR-43): created once, loaded before the settings tab
-		// exists, released on unload. Views receive it in a later phase.
-		await wireUndoJournal(this);
+		// exists, released on unload. The Anvil receives it below; the Workbench in Phase 4.
+		const journal = await wireUndoJournal(this);
 
 		// Construct the shared engine infrastructure injected into SidebarView
 		// and SettingsTab. Registry starts empty; populated in onLayoutReady and
@@ -147,6 +147,7 @@ export default class StoryForgePlugin extends Plugin {
 				// opened, revealed or re-targeted (PRD/F2).
 				const view: AnvilView = new AnvilView(leaf, {
 					drill: (file) => { view.inspect(file); },
+					undo: journal,
 					settings: {
 						getLinkClickAction: () => this.settings.linkClickAction,
 						getCardTitleOpensNote: () => this.settings.cardTitleOpensNote,

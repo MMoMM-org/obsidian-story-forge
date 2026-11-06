@@ -10,7 +10,9 @@
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { App, Notice, Tasks, createMockTFile } from "obsidian";
+import { App, Notice, Tasks, WorkspaceLeaf, createMockTFile } from "obsidian";
+import { WORKSPACE_VIEW_TYPE } from "pluginConstants";
+import type { AnvilView } from "anvil/AnvilView";
 import type { OwnedUndoJournal, UndoJournalDeps } from "undo/undoJournal";
 import type { JournalStoreDeps } from "undo/journalStore";
 import type { JournalStore } from "undo/journalTypes";
@@ -233,6 +235,27 @@ describe("commands", () => {
 			warn.mockRestore();
 		},
 	);
+});
+
+describe("views", () => {
+	it("the Anvil view factory hands the view the journal: an open Anvil registers its flusher, closing releases it", async () => {
+		const { plugin, app } = await makePlugin();
+		await plugin.onload();
+		const releases: string[] = [];
+		const real = journal().registerFlusher.bind(journal());
+		vi.spyOn(journal(), "registerFlusher").mockImplementation((f) => {
+			const off = real(f);
+			return () => { releases.push("flusher"); off(); };
+		});
+		const call = plugin.registerView.mock.calls.find((c: unknown[]) => c[0] === WORKSPACE_VIEW_TYPE);
+		const leaf = new WorkspaceLeaf();
+		(leaf as unknown as { app: App }).app = app;
+		const view = (call![1] as (l: WorkspaceLeaf) => AnvilView)(leaf);
+		await view.onOpen();
+		expect(journal().registerFlusher).toHaveBeenCalledTimes(1);
+		await view.onClose();
+		expect(releases).toEqual(["flusher"]);
+	});
 });
 
 describe("shutdown", () => {
