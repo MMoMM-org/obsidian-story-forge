@@ -85,3 +85,15 @@ Gets the UI signed off, then fixes the Workbench so it shows what undo did. This
 
   - All gates green. Live check of #30 (walk item 11): a hand edit of a saved Workbench field shows up
     without re-clicking. Drift check against ADR-42/51 and U10.
+
+## Decisions taken during implementation
+
+- **T4.2: discard is tested as retyping the old value.** Leaving edit mode tears down every field's state, so it cannot show whether a dirty field's stored value followed the file. The signed-off U10 rule ("restoring the old text … lands on the current file value") is the path tested.
+- **T4.2: every blocked redraw counts as owed.** The controller does not try to tell a structural change from a value change; an owed redraw that changes nothing is harmless. Deliberately over-approximate.
+- **T4.2: a subject change drops the owed redraw without calling `onGuardCleared`.** This departs from ADR-42's literal "or the subject changes": `teardown()` runs when the caller is about to render the new subject anyway, so a callback there would only draw twice (or draw a closing view).
+- **T4.2: `isBusy` answers `draft` before `write`** when one field is dirty and another is saving. The ADR does not order them; the draft is what needs the user (tested).
+- **T4.2 review (W1): a write that fails takes the file's current value as the stored value.** A file change during the write leaves a `saving` field's stored value alone; if the write then fails, the field compares against what the file holds now, not against the value from before the save.
+- **T4.2 review (S1): a dirty or error field whose draft the file now holds becomes `clean`.** Its row is redrawn (Save button and error gone), `isBusy` stops answering `draft`, so undo is not blocked by a draft that is already in the file. When this leaves no field protected, `notifyFileChanged` returns `false`: the caller's own redraw is the owed one, so `onGuardCleared` is not called as well and the owed flag is cleared.
+- **T4.2 review (S2): the owning view's unload runs `teardown()`.** A commit that settles after the view closed (without its own teardown) then bails on the generation check, and no owed redraw runs.
+- **T4.2 review (S4): a row redrawn in place keeps the caret.** If the old control had focus, the new one is focused; the HTML value setter already puts the caret at the end, so no explicit selection call is made.
+- **Carry-over to T4.3: SidebarView's `currentCtx` goes stale while the controller guards.** `notifyFileChanged` returning `true` skips `_resolveAndRender`, so `toggleEditMode` (discard) and a tab switch (`_rerenderBody`) render the context from before the change, and `render()` with that context reverts clean and saved fields to the old value. T4.3 must re-resolve `currentCtx` even when `notifyFileChanged` returns `true` (without redrawing), with tests for both paths.
