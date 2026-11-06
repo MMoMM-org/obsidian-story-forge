@@ -230,9 +230,10 @@ export class SidebarView extends ItemView {
 	private _releaseProbe: (() => void) | null = null;
 
 	// U10: a refresh never moves focus. While an IME composition runs in the
-	// editor, a redraw waits for compositionend instead of replacing the field.
+	// editor, a redraw waits until it ends instead of replacing the field.
 	private _composing = false;
 	private _redrawAfterComposition = false;
+	private _compositionTimer: number | null = null;
 
 	// M2: tracks the engine currently rendered into the panel body (ADR-7 teardown)
 	private currentEngine: QueryEngine | null = null;
@@ -442,18 +443,39 @@ export class SidebarView extends ItemView {
 	/** Note IME compositions in the panel; a redraw held back by one runs when it ends. */
 	private _trackComposition(): void {
 		this.registerDomEvent(this.contentEl, "compositionstart", () => { this._composing = true; });
-		this.registerDomEvent(this.contentEl, "compositionend", () => {
-			this._composing = false;
-			if (!this._redrawAfterComposition) return;
+		this.registerDomEvent(this.contentEl, "compositionend", () => { this._endComposition(); });
+		// Focus leaving the field ends the composition too; its compositionend may never reach us.
+		this.registerDomEvent(this.contentEl, "focusout", () => {
+			if (this._composing) this._endComposition();
+		});
+	}
+
+	/**
+	 * The composition ended. A held redraw runs one tick later, so a last
+	 * composition `input` after compositionend (Firefox, Safari) reaches the editor first.
+	 */
+	private _endComposition(): void {
+		this._composing = false;
+		if (!this._redrawAfterComposition || this._compositionTimer !== null) return;
+		this._compositionTimer = window.setTimeout(() => {
+			this._compositionTimer = null;
 			this._redrawAfterComposition = false;
 			if (this.subject.file) this._renderKeepingFocus(this.subject.file);
-		});
+		}, 0);
+	}
+
+	/** The editor's DOM is rebuilt (or the view closes): any composition in it is over, a held redraw is moot. */
+	private _resetComposition(): void {
+		this._composing = false;
+		this._redrawAfterComposition = false;
+		if (this._compositionTimer !== null) window.clearTimeout(this._compositionTimer);
+		this._compositionTimer = null;
 	}
 
 	/**
 	 * Redraw `file`, then put focus and the selection back in the editor field
 	 * that had them, found by name (U10: a refresh never moves focus). During an
-	 * IME composition the redraw waits for compositionend.
+	 * IME composition the redraw is held until it ends (see `_endComposition`).
 	 */
 	private _renderKeepingFocus(file: TFile): void {
 		if (this._composing) {
@@ -503,8 +525,7 @@ export class SidebarView extends ItemView {
 		this.currentEngine = null;
 		// T5.2: tear down the Inspector (clears in-memory dirty state — CON-1)
 		this._disconnectUndo();
-		this._composing = false;
-		this._redrawAfterComposition = false;
+		this._resetComposition();
 		this._inspector?.teardown();
 		aug(this.contentEl).empty();
 		// Clear resolved-context cache and subject so a re-opened view starts
@@ -1336,6 +1357,7 @@ export class SidebarView extends ItemView {
 	}
 
 	private _updateBody(state: RenderState): void {
+		this._resetComposition();
 		if (!this._bodyEl) return;
 		const body = aug(this._bodyEl);
 		body.empty();

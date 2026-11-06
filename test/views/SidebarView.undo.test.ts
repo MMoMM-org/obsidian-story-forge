@@ -220,21 +220,125 @@ describe("the owed redraw (ADR-42)", () => {
 		expect(activeDocument.activeElement?.hasAttribute("data-sf-inspector-input")).toBe(false);
 	});
 
-	it("waits for an IME composition to end, then runs and keeps focus", async () => {
+});
+
+/** One macrotask: a redraw held for a composition runs one tick after it ends. */
+const tick = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0); });
+
+const hasFaction = (view: SidebarView): boolean =>
+	view.contentEl.querySelector('[data-sf-inspector-input="faction"]') !== null;
+
+function compose(el: HTMLElement, phase: "compositionstart" | "compositionend"): void {
+	el.dispatchEvent(new CompositionEvent(phase, { bubbles: true }));
+}
+
+/** An IME composition in `nickname` during which the owed redraw comes due and is held. */
+function composeWithHeldRedraw(w: World): HTMLInputElement {
+	const typedInto = input(w.view, "nickname");
+	typedInto.focus();
+	compose(typedInto, "compositionstart");
+	type(w.view, "nickname", "Flint");
+	outsideChange(w, MARA, { faction: "Wardens" });
+	type(w.view, "nickname", "Stone"); // the guard clears mid-composition
+	return typedInto;
+}
+
+const cacheReads = (w: World): number => vi.mocked(w.h.app.metadataCache.getFileCache).mock.calls.length;
+
+describe("the redraw during an IME composition", () => {
+	it("waits for the composition to end, then runs one tick later and keeps focus", async () => {
 		const w = await open();
-		const typedInto = input(w.view, "nickname");
-		typedInto.focus();
-		typedInto.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
-		type(w.view, "nickname", "Flint");
-		outsideChange(w, MARA, { faction: "Wardens" });
-
-		type(w.view, "nickname", "Stone"); // the guard clears mid-composition
+		const typedInto = composeWithHeldRedraw(w);
 		expect(input(w.view, "nickname")).toBe(typedInto);
-		expect(w.view.contentEl.querySelector('[data-sf-inspector-input="faction"]')).toBeNull();
+		expect(hasFaction(w.view)).toBe(false);
 
-		typedInto.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+		compose(typedInto, "compositionend");
+		await tick();
 		expect(input(w.view, "faction").value).toBe("Wardens");
 		expect(activeDocument.activeElement).toBe(input(w.view, "nickname"));
+	});
+
+	it("lets a last composition input after compositionend reach the editor first (Firefox, Safari)", async () => {
+		const w = await open();
+		const typedInto = composeWithHeldRedraw(w);
+
+		compose(typedInto, "compositionend");
+		expect(input(w.view, "nickname")).toBe(typedInto);
+		type(w.view, "nickname", "Stones");
+		await tick();
+
+		expect(hasFaction(w.view)).toBe(true);
+		expect(input(w.view, "nickname").value).toBe("Stones");
+	});
+
+	it("treats focus leaving the field as the end of the composition", async () => {
+		const w = await open();
+		const typedInto = composeWithHeldRedraw(w);
+
+		typedInto.blur();
+		await tick();
+		expect(hasFaction(w.view)).toBe(true);
+	});
+
+	it("does not freeze when the composing field is destroyed by leaving edit mode", async () => {
+		const w = await open();
+		compose(input(w.view, "nickname"), "compositionstart");
+		click(w.view, ".sf-edit-btn");
+		await settle();
+		click(w.view, ".sf-edit-btn");
+		await settle();
+
+		outsideChange(w, MARA, { faction: "Wardens" });
+		expect(hasFaction(w.view)).toBe(true);
+	});
+
+	it("does not freeze when the composing field is destroyed by a tab switch", async () => {
+		const w = await open();
+		compose(input(w.view, "nickname"), "compositionstart");
+		click(w.view, `.sf-tab[data-view-id="${NAVIGATOR_TAB_ID}"]`);
+		await settle();
+		click(w.view, '.sf-tab[data-view-id="__context__"]');
+		await settle();
+
+		outsideChange(w, MARA, { faction: "Wardens" });
+		expect(hasFaction(w.view)).toBe(true);
+	});
+
+	it("does nothing at compositionend when no redraw is held", async () => {
+		const w = await open();
+		const typedInto = input(w.view, "nickname");
+		compose(typedInto, "compositionstart");
+		const reads = cacheReads(w);
+		compose(typedInto, "compositionend");
+		await tick();
+		expect(input(w.view, "nickname")).toBe(typedInto);
+		expect(cacheReads(w)).toBe(reads);
+	});
+
+	it("runs no held redraw for a view that closed before the tick", async () => {
+		const w = await open();
+		const typedInto = composeWithHeldRedraw(w);
+		compose(typedInto, "compositionend");
+		await w.view.onClose();
+		await w.view.onOpen(); // even a reopened view gets no redraw held from before the close
+		await settle();
+		const reads = cacheReads(w);
+		await tick();
+		expect(cacheReads(w)).toBe(reads);
+	});
+
+	it("forgets a composition when the view closes, so a reopened view redraws", async () => {
+		const w = await open();
+		composeWithHeldRedraw(w);
+		await w.view.onClose();
+		const reads = cacheReads(w);
+		await tick();
+		expect(cacheReads(w)).toBe(reads); // nothing ran for the closed view
+
+		await w.view.onOpen(); // edit mode is kept across a close
+		await settle();
+		outsideChange(w, MARA, { origin: "Highlands" });
+		expect(input(w.view, "origin").value).toBe("Highlands");
 	});
 });
 
