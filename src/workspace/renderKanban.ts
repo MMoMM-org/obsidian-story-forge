@@ -41,6 +41,7 @@ import {
 } from "./workspaceModel";
 import { appendStatusBadge, statusColumnColor } from "./renderShared";
 import type { Draggable, GestureContext, InteractionHandler } from "./interactionHandler";
+import type { JournalGroup } from "../undo/journalTypes";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -81,7 +82,7 @@ export interface KanbanDeps {
 	 * Clarification 1). renderKanban writes the dragged card's `status` change
 	 * separately via the handler's onWrite.
 	 */
-	renumber?: (writes: RenumberWrite[]) => Promise<void>;
+	renumber?: (writes: RenumberWrite[], group: JournalGroup | null) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -152,6 +153,7 @@ function makeKanbanDraggable(
 		colBody: HTMLElement,
 		draggedCard: HTMLElement,
 		dropTarget: Element,
+		ctx: GestureContext,
 	) => CommitEntry[],
 ): Draggable {
 	const statuses = allGroups
@@ -159,7 +161,7 @@ function makeKanbanDraggable(
 		.map((g) => g.label);
 
 	return {
-		computeDrop(dragCard: HTMLElement, dropTarget: Element | null, _ctx: GestureContext): CommitEntry[] {
+		computeDrop(dragCard: HTMLElement, dropTarget: Element | null, ctx: GestureContext): CommitEntry[] {
 			if (!dropTarget) return [];
 
 			// Resolve the target column
@@ -189,7 +191,7 @@ function makeKanbanDraggable(
 			if (orderResult === RENUMBER) {
 				// Renumber path: delegate to renderKanban via callback.
 				// Pass dropTarget so the callback can determine insertion position.
-				return onRenumberAndStatusWrite(targetStatus, colBody, dragCard, dropTarget);
+				return onRenumberAndStatusWrite(targetStatus, colBody, dragCard, dropTarget, ctx);
 			}
 
 			// Same-column no-op: status is the same and the computed order equals
@@ -377,6 +379,7 @@ function bindCard(
 		colBody: HTMLElement,
 		draggedCard: HTMLElement,
 		dropTarget: Element,
+		ctx: GestureContext,
 	): CommitEntry[] {
 		// All cards currently in the target column, excluding the dragged card.
 		const existingCards = Array.from(
@@ -430,8 +433,11 @@ function bindCard(
 			})
 			.filter((w): w is RenumberWrite => w !== null);
 
-		// Fire the batch write for sibling cards (async, fire-and-forget).
-		void deps.renumber(otherWrites);
+		// The sibling writes join the drag's undo group, which commits only once they settle
+		// (ADR-38). Without a group nothing waits for them, so a failure is at least logged.
+		const renumbered = deps.renumber(otherWrites, ctx.group);
+		if (ctx.group) void ctx.group.track(renumbered);
+		else renumbered.catch(warnRenumberFailed);
 
 		// Return BOTH status + order for the dragged card so the handler writes
 		// them atomically in one commitMany call (AC-1, ADR-14).
@@ -457,6 +463,10 @@ function bindCard(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function warnRenumberFailed(err: unknown): void {
+	console.warn("[StoryForge] Kanban: renumbering the column failed.", err);
+}
 
 function findSceneByPath(groups: Group[], path: string): SceneRow | undefined {
 	for (const g of groups) {

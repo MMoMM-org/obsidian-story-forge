@@ -21,6 +21,7 @@ import { InteractionHandler, type InteractionHandlerOpts } from "workspace/inter
 import type { SceneRow, Group } from "workspace/workspaceModel";
 import type { CommitEntry, CommitResult } from "inspector/frontmatterWriter";
 import { kanbanModel } from "workspace/workspaceModel";
+import type { JournalGroup } from "undo/journalTypes";
 
 // ---------------------------------------------------------------------------
 // jsdom shims
@@ -500,5 +501,96 @@ describe("renderKanban", () => {
 
 		const doneCol = host.querySelector("[data-sf-status='done']");
 		expect(doneCol).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// spec 009 T3.4: the RENUMBER writes join the drag's undo group (ADR-38)
+// ---------------------------------------------------------------------------
+
+describe("renderKanban — RENUMBER joins the drag's undo group (spec 009 T3.4)", () => {
+	interface TrackingGroup extends JournalGroup {
+		readonly tracked: Promise<unknown>[];
+	}
+
+	function trackingGroup(): TrackingGroup {
+		const tracked: Promise<unknown>[] = [];
+		const g: TrackingGroup = {
+			id: "g-test",
+			tracked,
+			join: () => g,
+			track: <T,>(p: Promise<T>): Promise<T> => {
+				tracked.push(p);
+				// The real group marks the promise handled; do the same here.
+				p.catch(() => undefined);
+				return p;
+			},
+			close: () => {},
+			settled: Promise.resolve(),
+		};
+		return g;
+	}
+
+	function renumberBoard(
+		renumber: KanbanDeps["renumber"],
+		openGroup?: () => JournalGroup,
+	): { host: HTMLElement; handler: InteractionHandler } {
+		const app = makeApp();
+		const host = makeHost();
+		const handler = new InteractionHandler(app, host, {
+			onWrite: async (): Promise<CommitResult> => ({ ok: true }),
+			onAfter: () => {},
+			debounceMs: 0,
+			dragThreshold: 5,
+			...(openGroup ? { openGroup } : {}),
+		});
+		const rows = [
+			makeSceneRow({ title: "S1", status: "draft", order: 10 }),
+			makeSceneRow({ title: "S2", status: "draft", order: 11 }),
+			makeSceneRow({ title: "Drag", status: "idea", order: 5 }),
+		];
+		renderKanban(host, kanbanModel(rows, STATUS_VOCAB), { app, ...(renumber ? { renumber } : {}) }, handler);
+		const s2 = host.querySelector(".sf-kb-card[data-sf-card-path='scenes/S2.md']")!;
+		const dragged = host.querySelector(".sf-kb-card[data-sf-card-path='scenes/Drag.md']") as HTMLElement;
+		armedDrag(dragged, s2); // before=10, after=11 → RENUMBER
+		return { host, handler };
+	}
+
+	afterEach(() => {
+		document.body.replaceChildren();
+		vi.restoreAllMocks();
+	});
+
+	it("hands the drag's group to renumber and tracks the very promise it returns", () => {
+		const group = trackingGroup();
+		const returned: Promise<void>[] = [];
+		const seen: (JournalGroup | null)[] = [];
+		const renumber = vi.fn((_w: unknown, g: JournalGroup | null): Promise<void> => {
+			seen.push(g);
+			const p = Promise.resolve();
+			returned.push(p);
+			return p;
+		});
+		const { handler } = renumberBoard(renumber, () => group);
+		expect(renumber).toHaveBeenCalledOnce();
+		expect(seen).toEqual([group]);
+		expect(group.tracked).toHaveLength(1);
+		expect(group.tracked[0]).toBe(returned[0]);
+		handler.destroy();
+	});
+
+	it("without a group, a rejected renumber is caught and warned about, not dropped", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const seen: (JournalGroup | null)[] = [];
+		const renumber = vi.fn((_w: unknown, g: JournalGroup | null): Promise<void> => {
+			seen.push(g);
+			return Promise.reject(new Error("disk full"));
+		});
+		const { handler } = renumberBoard(renumber);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(seen).toEqual([null]);
+		expect(warn).toHaveBeenCalledOnce();
+		expect(String(warn.mock.calls[0]?.[0])).toContain("[StoryForge]");
+		handler.destroy();
 	});
 });
