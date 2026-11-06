@@ -150,3 +150,5 @@ pending write.
 - **Mutation check, recorded:** the `_draftEl.isConnected` condition is killed only by a test that removes the drafting control directly. A render already nulls `_draftEl`, so this case is reachable only through a DOM removal outside `_render`. It is kept because ADR-39 names it.
 - **T3.4: settle is bounded for groups (10 s force-close) but not for a flusher whose write never settles (a hung `vault.process`).** Accepted, since the writer has no timeout anywhere else either.
 - **T3.4: on disable then enable, the new instance's load can read `undo-journal.json` before the old instance's settle-delayed `flushNow` writes it** (window: as long as a group stays open, normally microtasks, at most 10 s). Accepted; the stale-read case loses at most that gesture's step.
+- **T3.3 follow-up:** a throwing late `onAfter`/`onError` in a flush is logged with `console.error` (`_startFlush`) instead of becoming an unhandled rejection.
+- **T3.4:** `AnvilView._writeCard` with no entries calls `commitMany([])`, a no-op, instead of indexing `entries[0]`. The handler never sends an empty list.

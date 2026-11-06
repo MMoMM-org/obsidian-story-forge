@@ -20,7 +20,7 @@
  * LISTENER CLEANUP (CON-4):
  *   All listeners are registered via `registerDomEvent` on a private Component
  *   delegate. `destroy()` calls the public `unload()` on that delegate, which
- *   removes all DOM listeners. Pending debounce timers are also cancelled.
+ *   removes all DOM listeners. Pending debounce flushes are run, not cancelled (ADR-52).
  *
  * ANNOUNCE (T3.2 — F8, AC-11):
  *   The keyboard path sets a per-file announce flag before scheduling the
@@ -154,7 +154,7 @@ export class InteractionHandler {
 
 	/**
 	 * Per-file debounced flush functions.
-	 * Created lazily on first _apply(); cancelled on destroy().
+	 * Created lazily on first _apply(); pending flushes are run on destroy() (ADR-52).
 	 */
 	private readonly _flushFns = new Map<
 		string,

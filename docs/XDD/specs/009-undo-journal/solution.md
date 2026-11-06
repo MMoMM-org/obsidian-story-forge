@@ -138,7 +138,7 @@ version: "1.0"
 - file: src/workspace/interactionHandler.ts
   relevance: CRITICAL
   why: "Drag pointerup (l.301–324) calls strategy.computeDrop then _apply; _apply merges per file
-        and schedules a per-file debounced _flush; destroy() cancels pending flushes. Grouping and
+        and schedules a per-file debounced _flush; destroy() cancels pending flushes (before 009; ADR-52 changes this). Grouping and
         the public flush land here (ADR-38, ADR-39)."
 
 - file: src/workspace/renderKanban.ts
@@ -449,7 +449,7 @@ graph LR
 │   │   ├── frontmatterWriter.ts    # MODIFY: CommitOptions {group?}; capture before/after; installWriteRecorder → {uninstall, restore}
 │   │   └── InspectorController.ts  # MODIFY: ADR-42 refresh rules; isBusy(path); undoKeyPolicy(target); onGuardCleared
 │   ├── workspace/
-│   │   ├── interactionHandler.ts   # MODIFY: group per pending batch; GestureContext to strategies; flushPending(); isBusy(path); destroy closes groups
+│   │   ├── interactionHandler.ts   # MODIFY: group per pending batch; GestureContext to strategies; flushPending(); isBusy(path); destroy runs the pending flushes, groups close as they settle
 │   │   └── renderKanban.ts         # MODIFY: computeDrop/computeKey take GestureContext; group.track(deps.renumber(writes, group))
 │   ├── anvil/
 │   │   └── AnvilView.ts            # MODIFY: opts.undo; controls beside tab strip; _onClick routes data-sf-undo; probe; undoKeyPolicy; onOutcome → _announce; onWrite/renumber pass group
@@ -1153,11 +1153,13 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
     force-commits after `GROUP_TIMEOUT_MS = 10 000` with a warning; a write that names an already
     committed group becomes its own step with a warning.
   - Kanban: on pointerup / key move the handler takes the file's pending group or opens one,
-    passes it in `GestureContext`; `renderKanban` calls `ctx.group.track(deps.renumber(writes, group))`
-    instead of `void deps.renumber(...)`, and `AnvilView`'s renumber passes `{ group }` to each
+    passes it in `GestureContext`; `renderKanban` calls `ctx.group.track(deps.renumber(writes, group).catch(warn))`
+    instead of `void deps.renumber(...)`; the group tracks the caught promise, so a failed renumber is
+    warned about with or without a group, and `AnvilView`'s renumber passes `{ group }` to each
     `commit`. `_flush` passes the group to `onWrite` and closes it in `finally`. ArrowLeft/Right
     presses that coalesce in the per-file debounce reuse the pending group, so they stay one step.
-    `destroy()` closes every pending group (writes already landed still form a step).
+    `destroy()` runs the pending flushes and each group closes when its flush settles (writes already
+    landed still form a step); the owning view then awaits `flushPending()` (see ADR-52).
   - Rationale: a drag writes 1 + N files at two different times (immediately and after the
     debounce); only an explicit owner knows when the gesture ends.
   - Trade-offs: surfaces that group must remember to close (the timeout bounds the damage);
@@ -1166,7 +1168,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 
 - [x] **ADR-39 — Pending work: a central probe and flusher registry.** Anvil, Workbench and
   Kanban register `PendingProbe(path) → "draft" | "write" | null`; Kanban also registers
-  `flushPending()`. Undo/redo first awaits every flusher (Kanban calls `Debouncer.run()` on each
+  `flushPending()`. The owning view (the Anvil) registers the Kanban handler's `isBusy` probe and
+  `flushPending` flusher on its behalf. Undo/redo first awaits every flusher (Kanban calls `Debouncer.run()` on each
   pending file — the d.ts name, l.2248 — and awaits its in-flight flush promises), then awaits
   open groups, then asks every probe for every path of the step. Any busy answer → no write,
   stacks unchanged, notice.
@@ -1223,8 +1226,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 
 - [x] **ADR-43 — The journal is a plugin-owned service created in `main.ts` and injected.**
   `createUndoJournal(...)` in `onload` before views are registered;
-  `this.register(() => { void journal.flushNow(); journal.dispose(); })` (T3.4: the shutdown is
-  `settle()` → uninstall the recorder → `flushNow()` → `dispose()`, shared by unload and `quit`); passed to `AnvilView`
+  one memoized shutdown, shared by unload and `quit`, runs `settle()` → uninstall the recorder →
+  `flushNow()` → `dispose()` (T3.4); the journal is passed to `AnvilView`
   through `AnvilViewOpts.undo` and to `SidebarView` as a new trailing constructor argument; to
   `SettingsTab` through its existing plugin reference.
   - Rationale: the FileClass cache precedent; one instance, explicit lifetime, testable with a
@@ -1562,7 +1565,7 @@ Scene 7 is in **draft** with `order` 30. The user drags Scene 7 between Scene 2 
 | t | Event | State |
 |---|---|---|
 | 0 ms | pointerup → handler: no pending group for `Scene 7.md` → `G = journal.openGroup()` (holds 1) | G open |
-| 0 ms | `computeDrop(card, target, {group: G})`: new column Scene 2, Scene 7, Scene 5, Scene 9 → orders 10, 20, 30, 40; `G.track(deps.renumber([S2→10, S5→30, S9→40], G))` | renumber running |
+| 0 ms | `computeDrop(card, target, {group: G})`: new column Scene 2, Scene 7, Scene 5, Scene 9 → orders 10, 20, 30, 40; `G.track(deps.renumber([S2→10, S5→30, S9→40], G).catch(warn))` | renumber running |
 | 0 ms | `_apply(Scene 7, [status→revised, order→20], false, G)`; per-file debounce scheduled (200 ms, `DEBOUNCE_MS`) | pending: Scene 7 |
 | ~5 ms | `commit(S2, order, 10, {group:G})`: before 10, after 10 → equal → no change recorded | — |
 | ~10 ms | `commit(S5, order, 30, {group:G})` → G += `S5 order 11→30` | |
