@@ -10,7 +10,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { outcomeNotice } from "undo/stepLabel";
-import type { PendingReason, UndoDirection } from "undo/journalTypes";
+import type { JournalGroup, PendingReason, UndoDirection } from "undo/journalTypes";
 import type { Harness } from "./journalHarness";
 import { MARA, SCENE_4, SCENE_5, UNRELATED, fakeStore, present, setup, stepOf, teardownAndCheckUntouched } from "./journalHarness";
 
@@ -31,7 +31,10 @@ async function primed(dir: UndoDirection): Promise<Harness> {
 const applied = (dir: UndoDirection): string => (dir === "undo" ? "alive" : "dead");
 const before = (dir: UndoDirection): string => (dir === "undo" ? "dead" : "alive");
 
-/** Resolve after the microtask queue has drained a few times. */
+/**
+ * Resolve after the microtask queue has drained a few times. A fixed count is safe here because every
+ * negative assertion that relies on it is followed by a later positive one, which fails if a wait was cut short.
+ */
 const ticks = async (): Promise<void> => {
 	for (let i = 0; i < 10; i++) await Promise.resolve();
 };
@@ -98,13 +101,20 @@ describe.each(DIRECTIONS)("pending work — %s", (dir) => {
 
 	it("waits for a group that is opened and closed while the flushers run", async () => {
 		const h = await primed(dir);
+		let group!: JournalGroup;
 		h.journal.registerFlusher(async () => {
-			const g = h.journal.openGroup();
-			await h.write(SCENE_4, "order", 2, g);
-			setTimeout(() => g.close(), 0);
+			group = h.journal.openGroup();
+			await h.write(SCENE_4, "order", 2, group);
 		});
-		await h.journal[dir]();
-		expect(h.fm(SCENE_4).order).toBe(dir === "undo" ? 1 : 2); // undo took the group's step; redo had been cleared
+		const done = h.journal[dir]();
+		await ticks(); // the flushers have finished and the group is still open: apply is waiting on it
+		group.close();
+		await done;
+		if (dir === "undo") expect(h.fm(SCENE_4).order).toBe(1); // undo took the group's step
+		else {
+			expect(h.fm(SCENE_4).order).toBe(2);
+			expect(h.fm(MARA).status).toBe("alive"); // the group's step cleared redo: nothing applied
+		}
 	});
 
 	it.each<PendingReason>(["draft", "write"])("a probe reporting %s on the step's note refuses and changes nothing", async (reason) => {

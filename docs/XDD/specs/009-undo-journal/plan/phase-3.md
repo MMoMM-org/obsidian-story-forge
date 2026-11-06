@@ -135,3 +135,5 @@ pending write.
 - **T3.2: the refusal is announced like every outcome** (listeners, then one notice) using the provisional text already in `outcomeNotice` ("Save or discard your edit first (<note>)"); T5.1 owns the final wording. `dispose` clears probes and flushers.
 - **T3.2: `PendingProbe` lives in `journalTypes.ts`** with `PendingReason` (same reason as T2.x: no import cycle with the writer).
 - **Carried into T3.3/T3.4:** a group still open at plugin unload is committed by `dispose` without a save, so the shutdown must close the views' groups (Kanban `destroy` flushes, ADR-52) before `flushNow` runs in `wireUndoJournal`'s shutdown; verify the order there.
+- **Carried into T3.3:** a rename queued behind an undo that waits on flushers or a group (up to 10 s) is applied after that undo, so the undo may report the renamed note as vanished. The same hazard existed during a long apply; the wait widens it. Accepted for now.
+- Registering the same probe or flusher function twice keeps one entry; either unregister removes it.
