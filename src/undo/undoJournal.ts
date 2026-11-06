@@ -10,9 +10,12 @@
  * Failed files stay on top as a reduced step with the same id, and files whose
  * note is gone are dropped. The journal never creates, renames or deletes a note.
  *
- * Built so far (T3.1): record, stacks, apply, outcomes, `load` from the store, path upkeep
- * (rename, delete, startup prune), the persistence gate with `flushNow`, and gesture groups
- * (ADR-38). Still to come: probes and flushers (T3.2), `clear` (T5.5).
+ * Before choosing a step, undo/redo run the registered flushers, wait for open groups, then ask
+ * the probes about every path of the top step; a busy note refuses and writes nothing (ADR-39).
+ *
+ * Built so far (T3.2): record, stacks, apply, outcomes, `load` from the store, path upkeep
+ * (rename, delete, startup prune), the persistence gate with `flushNow`, gesture groups
+ * (ADR-38), and probes with flushers. Still to come: `clear` (T5.5).
  *
  * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-46, ADR-48, Complex Logic
  */
@@ -20,7 +23,7 @@ import { TFolder, type App, type TAbstractFile, type TFile } from "obsidian";
 import type { RestoreFn, RestoreOp, WriteRecorder } from "../inspector/frontmatterWriter";
 import type {
 	ConflictReport, FieldChange, FileChanges, JournalSnapshot, JournalStore, Slot, Step, StepSummary,
-	JournalGroup, UndoDirection, UndoOutcome,
+	JournalGroup, PendingProbe, UndoDirection, UndoOutcome,
 } from "undo/journalTypes";
 import { outcomeNotice, summariseStep } from "undo/stepLabel";
 import { slotsEqual, valueSize } from "undo/yamlValue";
@@ -45,6 +48,13 @@ export interface UndoJournal {
 	openGroup(): JournalGroup;
 	/** Open a group, await `fn`, close it in `finally`. */
 	group<T>(fn: (g: JournalGroup) => Promise<T>): Promise<T>;
+	/** Ask `probe` about every path of a step before it is applied. @returns the call that removes it */
+	registerProbe(probe: PendingProbe): () => void;
+	/**
+	 * Run `flush` (and await it) before each undo/redo picks its step. @returns the call that removes it
+	 * A flusher may write, but must not call `undo`/`redo` itself: it runs inside their queue.
+	 */
+	registerFlusher(flush: () => Promise<void>): () => void;
 	undo(): Promise<UndoOutcome>;
 	redo(): Promise<UndoOutcome>;
 	peek(): StackPeek;
@@ -126,8 +136,16 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 	const enqueue = serialQueue();
 	const pushStep = stepPusher(stacks, deps.now ?? Date.now, changed);
 	const groups = createGroups(pushStep);
+	const probes = new Set<PendingProbe>();
+	const flushers = new Set<() => Promise<void>>();
 	const apply = (direction: UndoDirection): Promise<UndoOutcome> =>
-		enqueue(() => applyTop(deps, stacks, direction, changed).then((o) => announce(o, outcomeListeners, notify)));
+		enqueue(async () => {
+			await runFlushers(flushers);
+			await groups.idle();
+			const refused = refusal(stacks[direction][stacks[direction].length - 1], probes, direction);
+			const outcome = refused ?? (await applyTop(deps, stacks, direction, changed));
+			return announce(outcome, outcomeListeners, notify);
+		});
 	return {
 		record: (path, changes, group) => {
 			if (changes.length === 0) return;
@@ -144,6 +162,8 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 				g.close();
 			}
 		},
+		registerProbe: (probe) => addTo(probes, probe),
+		registerFlusher: (flush) => addTo(flushers, flush),
 		undo: () => apply("undo"),
 		redo: () => apply("redo"),
 		peek: () => ({ undo: summaryOf(stacks.undo), redo: summaryOf(stacks.redo) }),
@@ -165,9 +185,48 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 			gate.disposed = true;
 			subscribers.clear();
 			outcomeListeners.clear();
+			probes.clear();
+			flushers.clear();
 			groups.closeAll();
 		},
 	};
+}
+
+/** Run every flusher at once and wait for all; one that fails is logged and the rest still count. */
+async function runFlushers(flushers: ReadonlySet<() => Promise<void>>): Promise<void> {
+	const runs = [...flushers].map(async (flush) => {
+		try {
+			await flush();
+		} catch (err) {
+			console.warn("[StoryForge] Undo journal: a flusher failed; continuing.", err);
+		}
+	});
+	await Promise.all(runs);
+}
+
+/**
+ * The refusal for `step`, or null when no probe reports its notes busy. Paths go in step order,
+ * probes in registration order; the first busy answer wins. No step: nothing to refuse.
+ */
+function refusal(step: Step | undefined, probes: ReadonlySet<PendingProbe>, dir: UndoDirection): UndoOutcome | null {
+	if (step === undefined) return null;
+	for (const { path } of step.files) {
+		for (const probe of probes) {
+			const reason = askProbe(probe, path);
+			if (reason !== null) return { kind: "refused", direction: dir, path, reason };
+		}
+	}
+	return null;
+}
+
+/** A probe that throws counts as not busy: it is logged, and undo is not held hostage by it. */
+function askProbe(probe: PendingProbe, path: string): ReturnType<PendingProbe> {
+	try {
+		return probe(path);
+	} catch (err) {
+		console.warn(`[StoryForge] Undo journal: a pending-work probe failed for ${path}; treating it as not busy.`, err);
+		return null;
+	}
 }
 
 /** One notice per outcome: every listener gets it with the outcome, then `notify` shows it. */
@@ -264,6 +323,7 @@ interface GroupState {
 	pending: number;
 	done: boolean;
 	timer: number | undefined;
+	readonly settled: Promise<void>;
 	readonly files: Map<string, Map<string, FieldChange>>;
 	finish(): void;
 }
@@ -273,6 +333,8 @@ interface Groups {
 	/** Collect the changes; false when `group` is not open here (unknown or already committed). */
 	add(group: JournalGroup, path: string, changes: readonly FieldChange[]): boolean;
 	closeAll(): void;
+	/** Resolves once no group is open, including groups opened while it waited. */
+	idle(): Promise<void>;
 }
 
 /** Gesture groups (ADR-38): ref-counted holds plus tracked promises; the merged step is pushed once. */
@@ -285,7 +347,7 @@ function createGroups(pushStep: (files: readonly FileChanges[]) => void): Groups
 		let resolve!: () => void;
 		const settled = new Promise<void>((r) => (resolve = r));
 		const state: GroupState = {
-			holds: 1, pending: 0, done: false, timer: undefined, files: new Map(),
+			holds: 1, pending: 0, done: false, timer: undefined, settled, files: new Map(),
 			finish: () => {
 				if (state.done) return;
 				state.done = true;
@@ -338,6 +400,9 @@ function createGroups(pushStep: (files: readonly FileChanges[]) => void): Groups
 			return true;
 		},
 		closeAll: () => [...open].forEach((s) => s.finish()),
+		idle: async () => {
+			while (open.size > 0) await Promise.all([...open].map((s) => s.settled));
+		},
 	};
 }
 

@@ -68,6 +68,9 @@ export type UndoOutcome =
 /** Why a note cannot be undone right now: unsaved text, or a write in flight or pending. */
 export type PendingReason = "draft" | "write";
 
+/** Does this vault path have unsaved text, or a write in flight or pending? (ADR-39) */
+export type PendingProbe = (path: string) => PendingReason | null;
+
 export interface JournalGroup {
 	readonly id: string;
 	/** Another holder joins (nesting = join). Each join needs one close. */
