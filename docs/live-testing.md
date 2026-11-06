@@ -203,3 +203,20 @@ note in SDD ADR-37.
 **T1.2 (dev deploy keeps unknown files):** a dummy `undo-journal.json` in the deployed plugin folder
 survived `npm run build` with an identical sha256 (`fd945c97…`). `esbuild.config.mjs` only copies
 and writes files; it never deletes. A full Obsidian restart also left it unchanged (same sha256). The dummy file was then removed and the normal build redeployed.
+
+## Spec 009 Phase 2: palette undo (2026-11-06)
+
+Build at 2b283d2, vault `test/StoryForge/`, Mara Stoneway in the Anvil editor.
+
+| Step | Action | Result |
+|---|---|---|
+| 1 | Change `status` in the Anvil editor | Written to frontmatter |
+| 2 | "Story Forge: Undo last change" | Old value back, provisional notice shown |
+| 3 | "Story Forge: Redo last change" | New value back |
+| 4 | Undo, full Obsidian restart, then Redo | Redo still available after the restart, so the journal persisted and loaded |
+| 5 | Undo/Redo with an empty stack | "Nothing to undo" / "Nothing to redo" |
+
+All five passed. Side note: a `processFrontMatter` write reformats the whole frontmatter block. It
+expands flow lists, drops redundant quotes, and drops inline comments (`height: 168  # cm`). The
+values stay the same. This is Obsidian's behaviour on every frontmatter write, not the journal's.
+The note was restored from git afterwards.

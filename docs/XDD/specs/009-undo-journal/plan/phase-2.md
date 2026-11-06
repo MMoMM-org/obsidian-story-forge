@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Journal core"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 2
 ---
@@ -249,7 +249,7 @@ palette can undo and redo it across restarts. No UI beyond two commands.
   4. Validate: unit tests, mutation-checked; `npm run build`.
   5. Success: `[ref: SDD/AC-F5.6, AC-F5.7, AC-F7.8]`
 
-- [ ] **T2.8 Phase Validation** `[activity: validate]`
+- [x] **T2.8 Phase Validation** `[activity: validate]`
 
   - All gates pass: `npm test`, `lint`, `typecheck`, `typecheck:test`, `typecheck:mock`,
     `schema:check`, `build`. A quick live check in `test/StoryForge/`: change a field in the Anvil,
