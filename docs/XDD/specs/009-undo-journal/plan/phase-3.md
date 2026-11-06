@@ -91,7 +91,7 @@ pending write.
   4. Validate: the new and the existing handler tests pass; mutation-checked.
   5. Success: `[ref: SDD/AC-F1.5, AC-F8.4]`; the ADR-52 regression test fails on the old `destroy`
 
-- [ ] **T3.4 Kanban renumber and the Anvil's probes** `[activity: frontend-logic]`
+- [x] **T3.4 Kanban renumber and the Anvil's probes** `[activity: frontend-logic]`
 
   1. Prime: `src/workspace/renderKanban.ts` (`void deps.renumber`, ~l.434);
      `src/anvil/AnvilView.ts` (`onWrite` ~425, `renumber` ~1101, `_inFlight`, `_draftEl`);
