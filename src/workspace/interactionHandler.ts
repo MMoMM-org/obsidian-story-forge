@@ -36,6 +36,7 @@ import type { App, TFile } from "obsidian";
 import { Component, debounce } from "obsidian";
 import { DEBOUNCE_MS } from "pluginConstants";
 import type { CommitEntry, CommitResult } from "../inspector/frontmatterWriter";
+import type { JournalGroup } from "../undo/journalTypes";
 
 // ---------------------------------------------------------------------------
 // Re-export CommitEntry so renderers don't need a second import path.
@@ -46,6 +47,11 @@ export type { CommitEntry };
 // ---------------------------------------------------------------------------
 // Interfaces
 // ---------------------------------------------------------------------------
+
+/** What a gesture hands to the strategy: the undo group its writes join, or null. */
+export interface GestureContext {
+	readonly group: JournalGroup | null;
+}
 
 /**
  * Strategy supplied by each interactive renderer.
@@ -59,7 +65,7 @@ export interface Draggable {
 	 * Field(s) to write for a drop landing on `dropTarget`; [] = no-op/cancel.
 	 * Called by the handler on pointerup with the resolved elementFromPoint target.
 	 */
-	computeDrop(card: HTMLElement, dropTarget: Element | null): CommitEntry[];
+	computeDrop(card: HTMLElement, dropTarget: Element | null, ctx: GestureContext): CommitEntry[];
 
 	/**
 	 * Keyboard parity: same entries for a discrete key move.
@@ -72,7 +78,7 @@ export interface Draggable {
 	 *
 	 * Returning [] means no-op (no write).
 	 */
-	computeKey(card: HTMLElement, key: string): CommitEntry[];
+	computeKey(card: HTMLElement, key: string, ctx: GestureContext): CommitEntry[];
 }
 
 /**
@@ -80,7 +86,9 @@ export interface Draggable {
  */
 export interface InteractionHandlerOpts {
 	/** Host wires this to commit/commitMany; the handler calls it on flush. */
-	onWrite: (file: TFile, entries: CommitEntry[]) => Promise<CommitResult>;
+	onWrite: (file: TFile, entries: CommitEntry[], group: JournalGroup | null) => Promise<CommitResult>;
+	/** Opens an undo group for a gesture (ADR-38). Absent: no grouping. */
+	openGroup?: () => JournalGroup;
 	/** Called after a successful write; triggers optimistic re-render (ADR-22). */
 	onAfter: (file: TFile) => void;
 	/**
@@ -121,7 +129,8 @@ interface DragState {
  * keyboard-actionable by recording it in an internal map.
  */
 export class InteractionHandler {
-	private readonly _opts: Required<Omit<InteractionHandlerOpts, "announce" | "onError">> & {
+	private readonly _opts: Required<Omit<InteractionHandlerOpts, "announce" | "onError" | "openGroup">> & {
+		openGroup?: () => JournalGroup;
 		announce?: (msg: string) => void;
 		onError?: (file: TFile, result: CommitResult) => void;
 	};
@@ -152,6 +161,12 @@ export class InteractionHandler {
 		ReturnType<typeof debounce<[], void>>
 	>();
 
+	/** Per-file group opened by the first gesture, closed by its flush (ADR-38). */
+	private readonly _groups = new Map<string, JournalGroup>();
+
+	/** Flushes that have started and not settled, with the path they write (ADR-39). */
+	private readonly _inFlight = new Map<Promise<void>, string>();
+
 	/** Component delegate — owns all DOM listener registrations for CON-4. */
 	private readonly _delegate: Component;
 
@@ -167,6 +182,7 @@ export class InteractionHandler {
 			onAfter: opts.onAfter,
 			onError: opts.onError,
 			announce: opts.announce,
+			openGroup: opts.openGroup,
 			debounceMs: opts.debounceMs ?? DEBOUNCE_MS,
 			dragThreshold: opts.dragThreshold ?? 5,
 		};
@@ -223,14 +239,15 @@ export class InteractionHandler {
 	}
 
 	/**
-	 * Remove all listeners, cancel pending flushes, and clear card registrations.
+	 * Remove all listeners, START the pending flushes, and clear card registrations.
 	 * Call from AnvilView.onClose() (CON-4).
+	 *
+	 * Synchronous: it starts every pending flush (ADR-52) but cannot await them.
+	 * An owner that needs the writes and their groups settled calls
+	 * `await flushPending()` afterwards; it still awaits flushes in flight.
 	 */
 	destroy(): void {
-		// Cancel all pending debounced flushes.
-		for (const fn of this._flushFns.values()) {
-			fn.cancel();
-		}
+		this._runPendingFlushes();
 		this._flushFns.clear();
 		this._pending.clear();
 		this._announceOnFlush.clear();
@@ -240,6 +257,40 @@ export class InteractionHandler {
 		this._removeGhost();
 		// Remove all DOM listeners via the real public Component.unload() (CON-4).
 		this._delegate.unload();
+	}
+
+	/**
+	 * Run every pending debounced flush now and await all writes in flight
+	 * (ADR-39). Undo calls this before it reads the journal.
+	 */
+	async flushPending(): Promise<void> {
+		this._runPendingFlushes();
+		await Promise.all([...this._inFlight.keys()]);
+	}
+
+	/** True while `path` has pending entries or a flush that has not settled. */
+	isBusy(path: string): boolean {
+		return this._pending.has(path) || [...this._inFlight.values()].includes(path);
+	}
+
+	private _runPendingFlushes(): void {
+		for (const fn of this._flushFns.values()) fn.run();
+	}
+
+	/** The file's pending group, or a new one (undefined without `openGroup`). */
+	private _groupFor(file: TFile): { group: JournalGroup | null; fresh: boolean } {
+		const pending = this._groups.get(file.path);
+		if (pending) return { group: pending, fresh: false };
+		const group = this._opts.openGroup?.() ?? null;
+		if (group) this._groups.set(file.path, group);
+		return { group, fresh: group !== null };
+	}
+
+	/** Release a group that was opened for a gesture that wrote nothing. */
+	private _dropEmptyGroup(file: TFile, g: { group: JournalGroup | null; fresh: boolean }): void {
+		if (!g.fresh || !g.group) return;
+		this._groups.delete(file.path);
+		g.group.close();
 	}
 
 	// ---------------------------------------------------------------------------
@@ -315,9 +366,13 @@ export class InteractionHandler {
 		// Resolve drop target via elementFromPoint (ADR-15).
 		// activeDocument is the cross-popout-window-safe equivalent of document.
 		const dropTarget = activeDocument.elementFromPoint(e.clientX, e.clientY);
-		const entries = drag.strategy.computeDrop(drag.card, dropTarget);
+		const g = this._groupFor(drag.file);
+		const entries = drag.strategy.computeDrop(drag.card, dropTarget, { group: g.group });
 
-		if (entries.length === 0) return; // no-op (AC-F1.6, AC-F3.5)
+		if (entries.length === 0) {
+			this._dropEmptyGroup(drag.file, g);
+			return; // no-op (AC-F1.6, AC-F3.5)
+		}
 
 		// Pointer drop — no announce.
 		this._apply(drag.file, entries, false);
@@ -367,8 +422,12 @@ export class InteractionHandler {
 
 		e.preventDefault();
 
-		const entries = binding.strategy.computeKey(card, key);
-		if (entries.length === 0) return; // no-op
+		const g = this._groupFor(binding.file);
+		const entries = binding.strategy.computeKey(card, key, { group: g.group });
+		if (entries.length === 0) {
+			this._dropEmptyGroup(binding.file, g);
+			return; // no-op
+		}
 
 		// Keyboard path — announce on success (F8, AC-11).
 		this._apply(binding.file, entries, true);
@@ -405,7 +464,7 @@ export class InteractionHandler {
 		if (!this._flushFns.has(file.path)) {
 			const flushFn = debounce(
 				(): void => {
-					void this._flush(file);
+					this._startFlush(file);
 				},
 				this._opts.debounceMs,
 				true, // resetTimer = true
@@ -413,6 +472,13 @@ export class InteractionHandler {
 			this._flushFns.set(file.path, flushFn);
 		}
 		this._flushFns.get(file.path)!();
+	}
+
+	/** Start a flush and track it until it settles (isBusy, flushPending). */
+	private _startFlush(file: TFile): void {
+		const p = this._flush(file);
+		this._inFlight.set(p, file.path);
+		void p.finally(() => this._inFlight.delete(p));
 	}
 
 	/**
@@ -430,10 +496,12 @@ export class InteractionHandler {
 		// Clear pending state before the write so re-entrant applies start fresh.
 		this._pending.delete(file.path);
 		this._announceOnFlush.delete(file.path);
+		const group = this._groups.get(file.path) ?? null;
+		this._groups.delete(file.path);
 
 		let result: CommitResult;
 		try {
-			result = await this._opts.onWrite(file, entries);
+			result = await this._opts.onWrite(file, entries, group);
 		} catch {
 			result = {
 				ok: false,
@@ -441,6 +509,8 @@ export class InteractionHandler {
 				message: "Unexpected error during write.",
 				keepDirty: true,
 			};
+		} finally {
+			group?.close();
 		}
 
 		if (result.ok) {

@@ -145,7 +145,7 @@ describe("InteractionHandler — keyboard command parity", () => {
 		keyDown(card, "ArrowRight");
 		await vi.runAllTimersAsync();
 
-		expect(draggable.computeKey).toHaveBeenCalledWith(card, "ArrowRight");
+		expect(draggable.computeKey).toHaveBeenCalledWith(card, "ArrowRight", { group: null });
 		expect(onWrite).toHaveBeenCalledOnce();
 		const [calledFile, calledEntries] = onWrite.mock.calls[0] as [TFile, CommitEntry[]];
 		expect(calledFile).toBe(file);
@@ -167,7 +167,7 @@ describe("InteractionHandler — keyboard command parity", () => {
 		keyDown(card, "ArrowLeft");
 		await vi.runAllTimersAsync();
 
-		expect(draggable.computeKey).toHaveBeenCalledWith(card, "ArrowLeft");
+		expect(draggable.computeKey).toHaveBeenCalledWith(card, "ArrowLeft", { group: null });
 		expect(onWrite).toHaveBeenCalledOnce();
 		vi.useRealTimers();
 	});
@@ -186,7 +186,7 @@ describe("InteractionHandler — keyboard command parity", () => {
 		keyDown(card, "ArrowDown", true /* altKey */);
 		await vi.runAllTimersAsync();
 
-		expect(draggable.computeKey).toHaveBeenCalledWith(card, "Alt+ArrowDown");
+		expect(draggable.computeKey).toHaveBeenCalledWith(card, "Alt+ArrowDown", { group: null });
 		expect(onWrite).toHaveBeenCalledOnce();
 		vi.useRealTimers();
 	});
@@ -204,7 +204,7 @@ describe("InteractionHandler — keyboard command parity", () => {
 		keyDown(card, "ArrowUp", true /* altKey */);
 		await vi.runAllTimersAsync();
 
-		expect(draggable.computeKey).toHaveBeenCalledWith(card, "Alt+ArrowUp");
+		expect(draggable.computeKey).toHaveBeenCalledWith(card, "Alt+ArrowUp", { group: null });
 		vi.useRealTimers();
 	});
 

@@ -7,7 +7,7 @@
  * - Two different files flush independently
  * - Successful flush calls onAfter(file)
  * - Failed flush calls onError(file, result) — does NOT throw
- * - destroy() cancels pending flushes (no further writes)
+ * - destroy() runs pending flushes (ADR-52)
  * - destroy() removes DOM listeners (_runCleanup / _unload verifiable)
  *
  * @ref docs/XDD/specs/007-interactive-views/plan/phase-3.md — T3.3
@@ -291,9 +291,9 @@ describe("InteractionHandler — per-file debounce + flush + cleanup", () => {
 	});
 
 	// -----------------------------------------------------------------------
-	// T3.3-6: destroy() cancels pending flushes — no further onWrite after destroy
+	// T3.3-6 (spec 009, ADR-52): destroy() runs pending flushes instead of cancelling
 	// -----------------------------------------------------------------------
-	it("destroy() cancels pending flushes so no write occurs after destroy", async () => {
+	it("destroy() runs the pending flush so the dropped card's write is not lost", async () => {
 		handler = makeHandler(200);
 		const file = createMockTFile({ path: "scenes/s1.md" });
 		const card = makeCard(host);
@@ -304,10 +304,9 @@ describe("InteractionHandler — per-file debounce + flush + cleanup", () => {
 		// destroy() before the debounce fires.
 		handler.destroy();
 
-		// Advance past debounce — should be a no-op.
 		await vi.runAllTimersAsync();
 
-		expect(onWrite).not.toHaveBeenCalled();
+		expect(onWrite).toHaveBeenCalledOnce();
 	});
 
 	// -----------------------------------------------------------------------

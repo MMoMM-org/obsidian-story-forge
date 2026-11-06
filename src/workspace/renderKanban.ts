@@ -40,7 +40,7 @@ import {
 	RENUMBER,
 } from "./workspaceModel";
 import { appendStatusBadge, statusColumnColor } from "./renderShared";
-import type { Draggable, InteractionHandler } from "./interactionHandler";
+import type { Draggable, GestureContext, InteractionHandler } from "./interactionHandler";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -159,7 +159,7 @@ function makeKanbanDraggable(
 		.map((g) => g.label);
 
 	return {
-		computeDrop(dragCard: HTMLElement, dropTarget: Element | null): CommitEntry[] {
+		computeDrop(dragCard: HTMLElement, dropTarget: Element | null, _ctx: GestureContext): CommitEntry[] {
 			if (!dropTarget) return [];
 
 			// Resolve the target column
@@ -210,7 +210,7 @@ function makeKanbanDraggable(
 			return entries;
 		},
 
-		computeKey(dragCard: HTMLElement, key: string): CommitEntry[] {
+		computeKey(dragCard: HTMLElement, key: string, _ctx: GestureContext): CommitEntry[] {
 			const currentStatus = dragCard.getAttribute("data-sf-card-status") ?? "";
 			const currentIdx = statuses.indexOf(currentStatus);
 

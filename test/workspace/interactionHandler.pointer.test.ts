@@ -252,7 +252,7 @@ describe("InteractionHandler — pointer state machine", () => {
 
 		await vi.runAllTimersAsync();
 
-		expect(draggable.computeDrop).toHaveBeenCalledWith(card, dropTarget);
+		expect(draggable.computeDrop).toHaveBeenCalledWith(card, dropTarget, { group: null });
 		vi.useRealTimers();
 	});
 
