@@ -34,7 +34,7 @@ user before T4.2 or any Phase 5 task starts** (CON-8; memory "Mockups-first, HTM
 
 Gets the UI signed off, then fixes the Workbench so it shows what undo did. This closes #30.
 
-- [ ] **T4.1 Mockups U1–U11 and sign-off** `[activity: ui-design]`
+- [x] **T4.1 Mockups U1–U11 and sign-off** `[activity: ui-design]`
 
   1. Prime: the UI Visualization Guide table; the current Anvil tab strip and Workbench header markup
      and CSS (`AnvilView` head ~375, `SidebarView._buildShell` ~598–628, `styles.css`); the 008

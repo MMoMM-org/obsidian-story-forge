@@ -227,7 +227,7 @@
 </div>
 
 <h1>Story Forge — undo journal mockups (spec 009, U1–U11)</h1>
-<p class="mk-sub">Sign-off gate for Phase 4 (T4.1, CON-8). Once signed off, this file and its notice wording are binding
+<p class="mk-sub">Signed off by the user on 2026-11-06 (Phase 4, T4.1, CON-8). This file and its notice wording are <b>binding</b>
 (resolves OQ-3); the implementation follows it, never the other way round.</p>
 
 <div class="mk-banner">
@@ -239,59 +239,36 @@ the new classes are <code>sf-undo-group</code>, <code>sf-undo-tool</code> and <c
 only from Obsidian theme variables; use the <b>Dark / Light</b> toggle at the top right. Tags:
 <span class="mk-tag sdd">SDD</span> = text or behaviour fixed by the SDD;
 <span class="mk-tag prop">proposal</span> = not specified, invented here for you to accept or change;
-<span class="mk-tag dec">decision needed</span> = a choice the SDD explicitly leaves open.
+<span class="mk-tag dec">decided</span> = a choice the SDD left open, settled at sign-off. All tags are historical: every
+proposal was accepted as shown, and the decided texts are the ones drawn below.
 Notice texts are shown with the macOS key name (<code>Cmd</code>); on Windows and Linux they read <code>Ctrl</code> (ADR-49).
 </div>
 
 <div class="mk-open">
-<h3>Open points for sign-off</h3>
+<h3>Signed off 2026-11-06</h3>
+<p class="mk-note" style="margin-top:0">The user signed off the whole page. Every proposal was accepted as shown; the four
+open decisions (P1, P6, P8, P9) were taken as listed. This page is binding (CON-8).</p>
 <ol>
-  <li id="P1"><b>P1 — Unexpected error notice (U9).</b> <span class="mk-tag dec">decision needed</span> A rejected undo/redo
-    is console-only today (<code>wireUndoJournal</code>, T2.7). Proposal: also show
-    “Couldn't undo: an unexpected error occurred. See the developer console for details.” Alternative: keep console only.</li>
-  <li id="P2"><b>P2 — Look of the Anvil controls (U1–U3).</b> <span class="mk-tag prop">proposal</span> The SDD fixes the markup
-    (toolEl spans) but not the look. Proposed: a small pill like the zoom bar, two bordered 22×20 cells, placed after the
-    zoom slot at the far right of the header.</li>
-  <li id="P3"><b>P3 — Disabled look in the Workbench (U4).</b> <span class="mk-tag prop">proposal</span> The SDD says disabled
-    = <code>--text-faint</code>, but pin and edit already rest at <code>--text-faint</code>, so a disabled ↶ would look
-    exactly like an enabled pin. Proposed: enabled ↶ ↷ use <code>--text-muted</code>; disabled uses
-    <code>--text-faint</code> plus <code>opacity: .55</code> and no hover background. Also a thin separator between ↶ ↷
-    and 📌 ✎.</li>
-  <li id="P4"><b>P4 — Narrow Anvil header (U3).</b> <span class="mk-tag dec">decision needed</span> <code>.sf-ws-head</code>
-    does not wrap today, so at narrow widths the right end (zoom, and then ↶ ↷) is pushed out of the leaf. Proposed:
-    allow the header to wrap, and keep zoom + ↶ ↷ as one cluster that moves to a second row, right-aligned. The ↶ ↷
-    stay last.</li>
-  <li id="P5"><b>P5 — Note name in the refusal (U8).</b> <span class="mk-tag prop">proposal</span> The SDD says
-    “Save or discard your edit first” + note name, without a format. Shown here as shipped:
-    “Save or discard your edit first (Mara Stoneway)”. Alternative: “Save or discard your edit in Mara Stoneway first”.</li>
-  <li id="P6"><b>P6 — “Discard” has no control in the Workbench (U8).</b> <span class="mk-tag dec">decision needed</span> The
-    Workbench has a Save button but no Discard; the only way to discard is to retype the old value (traced walkthrough 3).
-    Options: keep the wording and accept this, word it as “Save your edit or undo it by hand first”, or add a discard
-    affordance (out of scope for 009 unless you say so).</li>
-  <li id="P7"><b>P7 — Multi-field conflict sentence (U7).</b> <span class="mk-tag prop">proposal</span> The SDD gives only the
-    rule (name up to three, then “and N more”). Shown as shipped: “Undo: A, B and C had changed since; Cmd+Shift+Z
-    restores them.” It names fields but no values.</li>
-  <li id="P8"><b>P8 — The shortcut named in the conflict notice (U7).</b> <span class="mk-tag dec">decision needed</span>
-    “Cmd+Shift+Z restores it” is only true when the Anvil or Workbench is the active view (ADR-37). After an undo from
-    the command palette inside a Markdown note, Cmd+Shift+Z is the note editor's own redo. Options: keep the
-    shortcut; or say “Redo restores it” / “Redo last change restores it”.</li>
-  <li id="P9"><b>P9 — Failed and vanished in one step (U9).</b> <span class="mk-tag dec">decision needed</span> Shipped: the
-    outcome is <code>failed</code> and the notice does not name the vanished note (Phase 2 drift check, “decided together
-    with U9”). Proposed: append the vanished sentence.</li>
-  <li id="P10"><b>P10 — Plural grammar (U9).</b> <span class="mk-tag prop">proposal</span> Shipped plural forms read
-    “Couldn't undo the changes in 3 notes. It stays on the undo stack” and “Scene 4 no longer exists; its change was
-    removed” even when Scene 4 had several changes. Proposed: “They stay …” and “its changes were …” when there are
-    several changes.</li>
-  <li id="P11"><b>P11 — Settings texts (U11).</b> <span class="mk-tag prop">proposal</span> The SDD names the two rows and
-    requires that the description mention copies of field values (AC-F7.9); the heading, both descriptions, the button
-    label and its style are proposed here. Also: no confirmation on Clear (undo history is not story data), and the
-    button is always enabled.</li>
-  <li id="P12"><b>P12 — Workbench outside-change cue (U10).</b> <span class="mk-tag prop">proposal</span> ADR-42 says what
-    each field shows, not whether an updated field is highlighted. Proposed: no flash or highlight; the value just
-    changes, as in the Anvil. The “← changed” tags in U10 are mockup annotations, not UI.</li>
-  <li id="P13"><b>P13 — No “running” look (component state diagram).</b> <span class="mk-tag prop">proposal</span> The
-    SDD's state diagram has a Running state. Proposed: no visual change while an undo runs (it takes milliseconds);
-    a second click while running is queued like any other request.</li>
+  <li id="P1"><b>P1 — Unexpected error notice (U9).</b> Decision taken: a rejected undo/redo gets a notice,
+    “Couldn't undo: an unexpected error occurred. See the developer console for details.” (redo: “Couldn't redo: …”).
+    The console warning stays.</li>
+  <li id="P2"><b>P2 — Look of the Anvil controls (U1–U3).</b> Accepted as shown.</li>
+  <li id="P3"><b>P3 — Disabled look in the Workbench (U4).</b> Accepted as shown.</li>
+  <li id="P4"><b>P4 — Narrow Anvil header (U3).</b> Accepted as shown (wrap; zoom + ↶ ↷ as one right-aligned cluster).</li>
+  <li id="P5"><b>P5 — Note name in the refusal (U8).</b> Accepted as shown (parenthesised note name).</li>
+  <li id="P6"><b>P6 — “Discard” has no control in the Workbench (U8).</b> Decision taken: “discard” is dropped from the
+    text because the Workbench has no discard control. The notice reads “Save your edit first (Mara Stoneway)”. No
+    discard control is added in 009.</li>
+  <li id="P7"><b>P7 — Multi-field conflict sentence (U7).</b> Accepted as shown (shortcut text removed by P8).</li>
+  <li id="P8"><b>P8 — The shortcut named in the conflict notice (U7).</b> Decision taken: no keyboard shortcut in the
+    text, because Cmd+Shift+Z is the note editor's own redo outside the Anvil and Workbench. The notice says
+    “Redo restores it” / “Redo restores them” (and “Undo restores it” / “Undo restores them” in a redo notice).</li>
+  <li id="P9"><b>P9 — Failed and vanished in one step (U9).</b> Decision taken: the notice appends the vanished-note
+    sentence.</li>
+  <li id="P10"><b>P10 — Plural grammar (U9).</b> Accepted as shown (“They stay …”, “its changes were …” for several changes).</li>
+  <li id="P11"><b>P11 — Settings texts (U11).</b> Accepted as shown (no confirmation on Clear; button always enabled).</li>
+  <li id="P12"><b>P12 — Workbench outside-change cue (U10).</b> Accepted as shown (no flash or highlight).</li>
+  <li id="P13"><b>P13 — No “running” look.</b> Accepted as shown.</li>
 </ol>
 </div>
 
@@ -306,8 +283,8 @@ Notice texts are shown with the macOS key name (<code>Cmd</code>); on Windows an
 <tr><td><b>U5</b></td><td>Tooltips</td><td>both</td><td>single field, extent, disabled</td></tr>
 <tr><td><b>U6</b></td><td>Notice: plain undo, plain redo</td><td>Obsidian notice + Anvil live region</td><td></td></tr>
 <tr><td><b>U7</b></td><td>Notice: conflict, single and several fields</td><td>notice</td><td></td></tr>
-<tr><td><b>U8</b></td><td>Notice: “Save or discard your edit first”</td><td>notice + Workbench draft</td><td>with the focus-move gotcha and the Phase 3 finding</td></tr>
-<tr><td><b>U9</b></td><td>Notices: partial failure, total failure, vanished, nothing to undo, failed + vanished, unexpected error</td><td>notice</td><td>two marked <span class="mk-tag dec">decision needed</span></td></tr>
+<tr><td><b>U8</b></td><td>Notice: “Save your edit first”</td><td>notice + Workbench draft</td><td>with the focus-move gotcha and the Phase 3 finding</td></tr>
+<tr><td><b>U9</b></td><td>Notices: partial failure, total failure, vanished, nothing to undo, failed + vanished, unexpected error</td><td>notice</td><td>failed + vanished and unexpected error as decided (P9, P1)</td></tr>
 <tr><td><b>U10</b></td><td>Workbench after an outside change</td><td>Workbench inspector</td><td>saved field takes the new value; dirty field keeps its text beside an updated neighbour</td></tr>
 <tr><td><b>U11</b></td><td>Settings</td><td>Story Forge settings tab</td><td>“Keep undo history across restarts”, “Clear undo history”</td></tr>
 </table>
@@ -413,7 +390,7 @@ flight) the controls stay <b>enabled</b>, so the click can explain itself with t
 <span class="mk-tag prop">proposal P2</span>.</p>
 
 <!-- ═════════════════════════════════ U3 ═════════════════════════════════ -->
-<h2><span class="id">U3 — Anvil header at narrow width</span> <span class="mk-tag dec">decision needed P4</span></h2>
+<h2><span class="id">U3 — Anvil header at narrow width</span> <span class="mk-tag dec">decided P4</span></h2>
 <div class="mk-gallery">
   <figure>
     <figcaption><b>U3a · Today's CSS (no wrap), leaf ≈ 470px.</b> <code>.sf-ws-head</code> is a single nowrap flex row.
@@ -622,32 +599,31 @@ opens or takes focus.</p>
   <figure>
     <figcaption><b>U7a · One field had changed since.</b> <span class="mk-tag sdd">SDD exact</span> The undo restores the
     value anyway; the value it overwrote moves onto the redo step, so redo brings it back.</figcaption>
-    <div class="mk-notices"><div class="notice">Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Cmd+Shift+Z restores it.</div></div>
-    <div class="mk-quote">"Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Cmd+Shift+Z restores it."</div>
+    <div class="mk-notices"><div class="notice">Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Redo restores it.</div></div>
+    <div class="mk-quote">"Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Redo restores it."</div>
   </figure>
   <figure>
-    <figcaption><b>U7b · Same, as a redo.</b> <span class="mk-tag sdd">ADR-49 rule</span> The reverse shortcut is Cmd+Z.</figcaption>
-    <div class="mk-notices"><div class="notice">Redo: status in Mara Stoneway is 'missing' again. It had changed to 'dead'; Cmd+Z restores it.</div></div>
-    <div class="mk-quote">"Redo: status in Mara Stoneway is 'missing' again. It had changed to 'dead'; Cmd+Z restores it."</div>
+    <figcaption><b>U7b · Same, as a redo.</b> <span class="mk-tag sdd">ADR-49 rule</span> The reverse operation is named, not a shortcut.</figcaption>
+    <div class="mk-notices"><div class="notice">Redo: status in Mara Stoneway is 'missing' again. It had changed to 'dead'; Undo restores it.</div></div>
+    <div class="mk-quote">"Redo: status in Mara Stoneway is 'missing' again. It had changed to 'dead'; Undo restores it."</div>
   </figure>
   <figure>
     <figcaption><b>U7c · Several fields (up to three named).</b> <span class="mk-tag prop">proposal P7</span> sentence as shipped.</figcaption>
-    <div class="mk-notices"><div class="notice">Undo: status in Mara Stoneway, age in Mara Stoneway and order in Scene 4 had changed since; Cmd+Shift+Z restores them.</div></div>
-    <div class="mk-quote">"Undo: status in Mara Stoneway, age in Mara Stoneway and order in Scene 4 had changed since; Cmd+Shift+Z restores them."</div>
+    <div class="mk-notices"><div class="notice">Undo: status in Mara Stoneway, age in Mara Stoneway and order in Scene 4 had changed since; Redo restores them.</div></div>
+    <div class="mk-quote">"Undo: status in Mara Stoneway, age in Mara Stoneway and order in Scene 4 had changed since; Redo restores them."</div>
   </figure>
   <figure>
     <figcaption><b>U7d · More than three.</b> <span class="mk-tag sdd">SDD rule</span> “and N more”; sentence <span class="mk-tag prop">proposal P7</span>.</figcaption>
-    <div class="mk-notices"><div class="notice">Undo: order in Scene 1, order in Scene 2, order in Scene 6 and 1 more had changed since; Cmd+Shift+Z restores them.</div></div>
-    <div class="mk-quote">"Undo: order in Scene 1, order in Scene 2, order in Scene 6 and 1 more had changed since; Cmd+Shift+Z restores them."</div>
+    <div class="mk-notices"><div class="notice">Undo: order in Scene 1, order in Scene 2, order in Scene 6 and 1 more had changed since; Redo restores them.</div></div>
+    <div class="mk-quote">"Undo: order in Scene 1, order in Scene 2, order in Scene 6 and 1 more had changed since; Redo restores them."</div>
   </figure>
 </div>
 <p class="mk-note" style="max-width:100ch"><b>Value format</b> <span class="mk-tag sdd">ADR-49</span>: strings in single
 quotes; lists joined with “, ”; an absent field reads “not set”; null reads “empty”; values cut at 40 characters with
-“…”. Example: “… is not set again. It had changed to 'Mara, Spark'; …”. <b>Shortcut</b>: “Cmd+Shift+Z” on macOS,
-“Ctrl+Shift+Z” elsewhere. See <span class="mk-tag dec">P8</span> about naming the shortcut at all.</p>
+“…”. Example: “… is not set again. It had changed to 'Mara, Spark'; …”. <b>No shortcut</b> <span class="mk-tag dec">decided P8</span>: the text says “Redo restores it”, never a key, because Cmd+Shift+Z is the note editor's own redo outside the Anvil and Workbench.</p>
 
 <!-- ═════════════════════════════════ U8 ═════════════════════════════════ -->
-<h2><span class="id">U8 — Notice: “Save or discard your edit first”</span></h2>
+<h2><span class="id">U8 — Notice: “Save your edit first”</span></h2>
 <div class="mk-gallery">
   <figure>
     <figcaption><b>U8a · Workbench draft blocks the undo.</b> The top step is “status in Mara Stoneway”. The Workbench is on
@@ -672,12 +648,12 @@ quotes; lists joined with “, ”; an absent field reads “not set”; null re
         </div></div>
       </div>
       <div>
-        <div class="mk-notices" style="width:380px"><div class="notice">Save or discard your edit first (Mara Stoneway)</div></div>
-        <div class="mk-quote">"Save or discard your edit first (Mara Stoneway)"</div>
+        <div class="mk-notices" style="width:380px"><div class="notice">Save your edit first (Mara Stoneway)</div></div>
+        <div class="mk-quote">"Save your edit first (Mara Stoneway)"</div>
         <p class="mk-note" style="max-width:380px"><span class="mk-tag sdd">SDD</span> text +
         note name; the parenthesised format is <span class="mk-tag prop">proposal P5</span>. Nothing is written; both
         stacks and the draft are untouched; the controls stay enabled. The same text is used for a write in flight
-        (AC-F8.2). See <span class="mk-tag dec">P6</span>: the Workbench has no discard control.</p>
+        (AC-F8.2). <span class="mk-tag dec">decided P6</span>: “discard” is not in the text because the Workbench has no discard control, and none is added in 009.</p>
       </div>
     </div>
     <p class="mk-note"><b>Afterwards</b> (traced walkthrough 3): retyping the old aliases → field <code>clean</code> → the next
@@ -733,8 +709,8 @@ quotes; lists joined with “, ”; an absent field reads “not set”; null re
     <div class="mk-notices"><div class="notice">Scene 4 no longer exists; its change was removed from the undo history.</div></div>
     <div class="mk-quote">"Scene 4 no longer exists; its change was removed from the undo history."</div>
     <p class="mk-note">Several notes: “Scene 4 and Scene 6 no longer exist; their changes were removed from the undo
-    history.” If Scene 4 alone had several changes, shipped still says “its change was”
-    (<span class="mk-tag prop">proposal P10</span>: “its changes were”).</p>
+    history.” If Scene 4 alone had several changes, it says “its changes were”
+    (<span class="mk-tag prop">P10</span>, accepted).</p>
   </figure>
   <figure>
     <figcaption><b>U9d · Vanished note, rest applied.</b> <span class="mk-tag sdd">SDD rule</span> The undo sentence, then the
@@ -749,25 +725,21 @@ quotes; lists joined with “, ”; an absent field reads “not set”; null re
     <div class="mk-quote">"Nothing to undo" · "Nothing to redo"</div>
   </figure>
   <figure>
-    <figcaption><b>U9f · Failed and vanished in one step.</b> <span class="mk-tag dec">decision needed P9</span> Scene 4
+    <figcaption><b>U9f · Failed and vanished in one step.</b> <span class="mk-tag dec">decided P9</span> Scene 4
     could not be written, Scene 6 no longer exists. The outcome is <code>failed</code>. Not in the SDD error table; raised
     by the Phase 2 drift check.</figcaption>
     <div class="mk-notices" style="align-items:stretch">
-      <div style="font-size:10.5px;color:var(--text-faint)">Shipped today — the vanished note is not named:</div>
-      <div class="notice" style="align-self:flex-end">Couldn't undo the change in Scene 4. It stays on the undo stack; try again.</div>
-      <div style="font-size:10.5px;color:var(--mk-proposal)">Proposal — append the vanished sentence:</div>
       <div class="notice" style="align-self:flex-end">Couldn't undo the change in Scene 4. It stays on the undo stack; try again. Scene 6 no longer exists; its change was removed from the undo history.</div>
     </div>
   </figure>
   <figure>
-    <figcaption><b>U9g · Unexpected error (the undo itself rejected).</b> <span class="mk-tag dec">decision needed P1</span>
+    <figcaption><b>U9g · Unexpected error (the undo itself rejected).</b> <span class="mk-tag dec">decided P1</span>
     Today: <code>console.warn("[StoryForge] Undo journal: undo failed.", err)</code> and no notice, so a click or key
     press seems to do nothing.</figcaption>
     <div class="mk-notices"><div class="notice">Couldn't undo: an unexpected error occurred. See the developer console for details.</div></div>
     <div class="mk-quote">"Couldn't undo: an unexpected error occurred. See the developer console for details."</div>
-    <p class="mk-note"><span class="mk-tag prop">proposal</span> Redo: “Couldn't redo: …”. The console warning stays
-    either way. The text says nothing about whether the stacks changed, because after an unexpected error we do not know.
-    Alternative: keep console only.</p>
+    <p class="mk-note"><span class="mk-tag dec">decided P1</span> Redo: “Couldn't redo: an unexpected error occurred. See the developer console for details.” The console warning stays.
+    The text says nothing about whether the stacks changed, because after an unexpected error we do not know.</p>
   </figure>
 </div>
 
@@ -823,7 +795,7 @@ write from the Anvil. The tags on the right (“← changed”, state names) are
   <li><code>clean</code> and <code>saved</code> take the file's value on every refresh; a <code>saved</code> field whose
   value changed returns to <code>clean</code>.</li>
   <li><code>dirty</code> keeps its draft; its stored value moves to the file's value, so restoring the old text (the only
-  “discard”) lands on the <b>current</b> file value (AC-F9.6). In U10c, if the user retypes the original aliases, the
+  way to drop a draft) lands on the <b>current</b> file value (AC-F9.6). In U10c, if the user retypes the original aliases, the
   field shows the file's aliases and becomes <code>clean</code>.</li>
   <li><code>saving</code> keeps its draft and its stored value; the write's own result settles it.
   <code>error</code> (red message, Save and Retry) is protected exactly like <code>dirty</code>.</li>
@@ -904,20 +876,20 @@ write from the Anvil. The tags on the right (“← changed”, state names) are
 
 <!-- ═════════════════════════════ Wording vs shipped ═════════════════════════════ -->
 <h2>Wording vs. shipped provisional text (<code>src/undo/stepLabel.ts</code>)</h2>
-<p class="mk-note" style="max-width:100ch;margin-top:0">Every SDD example string (Error Handling table, ADR-48, ADR-49)
-matches what <code>stepLabel.ts</code> produces today, character for character. The differences are where the SDD gives
-only a rule or nothing, so the shipped code had to choose. Pick per row; the chosen column becomes binding.</p>
+<p class="mk-note" style="max-width:100ch;margin-top:0">Binding since the 2026-11-06 sign-off. The third column is what
+<code>src/undo/stepLabel.ts</code> produces today; the fourth is the signed-off text, which <code>stepLabel.ts</code>
+must be aligned to in task T5.1.</p>
 <div class="mk-wrap">
 <table class="mk-inv">
-<tr><th>Case</th><th>SDD</th><th>Shipped (stepLabel.ts)</th><th>This mockup shows</th></tr>
-<tr><td>Refusal with note name</td><td>“Save or discard your edit first” + note name (no format)</td><td class="q">Save or discard your edit first (Mara Stoneway)</td><td>shipped (P5)</td></tr>
-<tr><td>Conflict, several fields</td><td>rule only: names up to three, then “and N more”</td><td class="q">Undo: A, B and C had changed since; Cmd+Shift+Z restores them.</td><td>shipped (P7)</td></tr>
-<tr><td>Total failure, several changes</td><td>only the singular example</td><td class="q">Couldn't undo the changes in 3 notes. It stays on the undo stack; try again.</td><td>proposal “They stay” (P10)</td></tr>
-<tr><td>Vanished / partial failure, one note with several changes</td><td>only the singular example</td><td class="q">Scene 4 no longer exists; its change was removed …<br>Couldn't write Scene 4; its change stays …</td><td>proposal “its changes were / stay” (P10)</td></tr>
+<tr><th>Case</th><th>SDD</th><th>Shipped (stepLabel.ts)</th><th>Signed off (binding)</th></tr>
+<tr><td>Refusal with note name</td><td>“Save or discard your edit first” + note name (no format)</td><td class="q">Save or discard your edit first (Mara Stoneway)</td><td class="q">Save your edit first (Mara Stoneway) (P5, P6)</td></tr>
+<tr><td>Conflict, several fields</td><td>rule only: names up to three, then “and N more”</td><td class="q">Undo: A, B and C had changed since; Cmd+Shift+Z restores them.</td><td class="q">Undo: A, B and C had changed since; Redo restores them. (P7, P8)</td></tr>
+<tr><td>Total failure, several changes</td><td>only the singular example</td><td class="q">Couldn't undo the changes in 3 notes. It stays on the undo stack; try again.</td><td>“They stay” (P10)</td></tr>
+<tr><td>Vanished / partial failure, one note with several changes</td><td>only the singular example</td><td class="q">Scene 4 no longer exists; its change was removed …<br>Couldn't write Scene 4; its change stays …</td><td>“its changes were / stay” (P10)</td></tr>
 <tr><td>Failed + vanished in one step</td><td>not covered</td><td class="q">Couldn't undo the change in Scene 4. It stays on the undo stack; try again.</td><td>shipped + vanished sentence (P9)</td></tr>
-<tr><td>Unexpected error</td><td>open (U9)</td><td>no notice (console only, <code>wireUndoJournal.ts</code>)</td><td>proposal notice (P1)</td></tr>
+<tr><td>Unexpected error</td><td>open (U9)</td><td>no notice (console only, <code>wireUndoJournal.ts</code>)</td><td class="q">Couldn't undo: an unexpected error occurred. See the developer console for details. (P1; “Couldn't redo: …” for redo)</td></tr>
 <tr><td>Clear undo history</td><td class="q">Undo history cleared</td><td>not shipped yet (settings row is Phase 5)</td><td>SDD</td></tr>
-<tr><td>Setting description</td><td>must mention copies of field values</td><td>not shipped yet</td><td>proposal (P11)</td></tr>
+<tr><td>Setting description</td><td>must mention copies of field values</td><td>not shipped yet</td><td>(P11)</td></tr>
 </table>
 </div>
 
@@ -931,9 +903,9 @@ only a rule or nothing, so the shipped code had to choose. Pick per row; the cho
   keyboard users get the text only as the accessible name. Also, Obsidian draws its own tooltip from
   <code>aria-label</code>; with <code>title</code> as well, check live that no double tooltip appears (the existing
   <code>toolEl</code> already sets both).</li>
-  <li><b>Discard</b> is named in the refusal but has no control in the Workbench (P6).</li>
-  <li><b>Shortcut in the conflict notice</b> is only valid with a Story Forge view active (ADR-37 vs ADR-49, P8).</li>
-  <li><b>Error Handling table</b> has no row for failed + vanished, which Phase 2 deferred to U9 (P9); and its Anvil-draft
+  <li><b>Discard</b> was named in the refusal but has no control in the Workbench; dropped from the text (P6, decided).</li>
+  <li><b>Shortcut in the conflict notice</b> was only valid with a Story Forge view active (ADR-37 vs ADR-49); dropped from the text (P8, decided).</li>
+  <li><b>Error Handling table</b> had no row for failed + vanished, which Phase 2 deferred to U9 (P9, decided; row added to the SDD); and its Anvil-draft
   row is practically unreachable per the Phase 3 live test (U8).</li>
   <li><b>Narrow header (U3).</b> The table asks about wrapping, but <code>.sf-ws-head</code> has no
   <code>flex-wrap</code> today; this needs a CSS decision (P4).</li>
@@ -944,6 +916,7 @@ only a rule or nothing, so the shipped code had to choose. Pick per row; the cho
 <table class="mk-inv">
 <tr><th>Date</th><th>Version</th><th>Change</th></tr>
 <tr><td>2026-11-06</td><td>v1</td><td>First draft for sign-off: U1–U11, open points P1–P13, wording comparison against <code>stepLabel.ts</code>.</td></tr>
+<tr><td>2026-11-06</td><td>v2</td><td>Signed off by the user. Decided texts applied (P1, P6, P8, P9); P1–P13 recorded with their outcome; page is binding.</td></tr>
 </table>
 </div>
 

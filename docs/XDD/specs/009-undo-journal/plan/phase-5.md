@@ -38,6 +38,10 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
 - [ ] **T5.1 Signed-off wording and the shared controls** `[activity: frontend-ui]`
 
   1. Prime: the mockups U5–U9; `src/undo/stepLabel.ts`; `[ref: SDD/ADR-50]`.
+     Four sign-off decisions (2026-11-06) change texts in `stepLabel.ts` and its tests: (P1) a rejected
+     undo/redo gets the notice "Couldn't undo: an unexpected error occurred. See the developer console for details." ("Couldn't redo: …");
+     (P6) the refusal is "Save your edit first (<note name>)", no "discard"; (P8) conflict notices end "Redo restores it" /
+     "Redo restores them" (redo notices "Undo restores it/them"), no shortcut name; (P9) failed + vanished appends the vanished-note sentence.
   2. Test:
      - `stepLabel.test.ts`, and the T3.4 walkthrough assertion, are updated to the signed-off texts;
      - `undoControls.test.ts`:

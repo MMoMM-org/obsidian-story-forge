@@ -918,15 +918,17 @@ sequenceDiagram
 
 ### Error Handling
 
-| Situation | Behaviour | Notice (exact text is settled in the mockup sign-off) |
+| Situation | Behaviour | Notice (signed off 2026-11-06; `mockups.html` is binding) |
 |---|---|---|
 | Undo/redo stack empty | No write; `empty` outcome | "Nothing to undo" / "Nothing to redo" |
-| Draft on a target note (Anvil `_draftEl` on that path; Workbench field dirty/saving/error) | `refused`; stacks unchanged; draft untouched | "Save or discard your edit first" + note name |
+| Draft on a target note (Anvil `_draftEl` on that path; Workbench field dirty/saving/error) | `refused`; stacks unchanged; draft untouched | "Save your edit first (Mara Stoneway)" |
 | Write in flight on a target note (Anvil `_inFlight`, Kanban flush running) | Same refusal (PRD F8 AC2) | Same text |
 | Kanban writes pending (debounce not fired) | Not a refusal: flushed first, then the gesture's step is the one undone | (normal undo notice) |
-| Conflict on one or more fields | Restore anyway; overwritten values onto the moved step | "Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Cmd+Shift+Z restores it." (multi-field variant names up to three, then "and N more") |
+| Conflict on one or more fields | Restore anyway; overwritten values onto the moved step | "Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Redo restores it." (multi-field variant names up to three, then "and N more"; no keyboard shortcut in the text, P8) |
 | `processFrontMatter` rejects for every file | `failed`; step stays on top | "Couldn't undo the change in Mara Stoneway. It stays on the undo stack; try again." |
+| Undo/redo rejects with an unexpected error | Console warning stays (`console.warn("[StoryForge] Undo journal: undo failed.", err)`); stacks state unknown | "Couldn't undo: an unexpected error occurred. See the developer console for details." (redo: "Couldn't redo: …") |
 | Some files fail in a multi-note step | Others applied and moved; a reduced step of the failed files stays on top | "Undo: 2 changes in Scene 5. Couldn't write Scene 4; its change stays on the undo stack." |
+| Failed and vanished in one step (one note cannot be written, another no longer exists) | Outcome `failed`; step stays on top (reduced to the failed files) | "Couldn't undo the change in Scene 4. It stays on the undo stack; try again. Scene 6 no longer exists; its change was removed from the undo history." |
 | A target note no longer exists | That file's changes dropped; the rest applied; if nothing remains, the step is dropped | "Scene 4 no longer exists; its change was removed from the undo history." |
 | Journal file missing | Empty stacks, silent (first run) | — |
 | Journal file unreadable / invalid JSON / wrong version / bad shape | Empty stacks, `console.warn("[StoryForge] Undo history could not be read; starting empty.", err)`; plugin starts | — |
@@ -1071,8 +1073,8 @@ Workbench header
 └──────────────────────────────────────┘
 ```
 
-**Mockup gate (CON-8).** `docs/XDD/specs/009-undo-journal/mockups.html` must hold, and the user
-must sign off, before any task that writes UI code:
+**Mockup gate (CON-8): passed 2026-11-06.** `docs/XDD/specs/009-undo-journal/mockups.html` holds these
+states and the user signed it off; it is binding for every task that writes UI code:
 
 | State | Content |
 |---|---|
@@ -1083,8 +1085,8 @@ must sign off, before any task that writes UI code:
 | U5 | Tooltips: single field ("Undo: status in Mara Stoneway"), extent ("Undo: 4 changes in 3 notes"), disabled ("Nothing to undo") |
 | U6 | Notice: plain undo, plain redo |
 | U7 | Notice: conflict, single field and several fields |
-| U8 | Notice: "Save or discard your edit first" |
-| U9 | Notices: partial failure, total failure, vanished note, nothing to undo; and decide whether an unexpected error (a rejected undo) gets a notice (today: console only, T2.7) |
+| U8 | Notice: "Save your edit first (<note name>)" |
+| U9 | Notices: partial failure, total failure, vanished note, nothing to undo, failed + vanished, and the unexpected-error notice (decided P1) |
 | U10 | Workbench field after an outside change: a saved field showing the new value; a dirty field keeping its text beside an updated neighbour |
 | U11 | Settings: "Keep undo history across restarts" with its description, and "Clear undo history" |
 
@@ -1310,8 +1312,11 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
   note → `"3 changes in Mara Stoneway"`; several notes → `"4 changes in 3 notes"`. Note name =
   basename without `.md`. Tooltip/notice prefixes "Undo: " / "Redo: ". Values in notices:
   strings in single quotes, lists joined with ", ", absent as "not set", truncated at 40
-  characters with "…". The shortcut name is "Cmd+Shift+Z" when `Platform.isMacOS`, otherwise
-  "Ctrl+Shift+Z". No per-surface labels (PRD Won't).
+  characters with "…". Conflict notices name no keyboard shortcut: they end "Redo restores it" /
+  "Redo restores them" (in a redo notice "Undo restores it" / "Undo restores them"), because
+  Cmd+Shift+Z is the note editor's own redo outside the Anvil and Workbench (signed off 2026-11-06,
+  P8). Refusal text: "Save your edit first (<note name>)" (no discard control exists, P6).
+  No per-surface labels (PRD Won't).
   - User confirmed: **Yes** (2026-11-04)
 
 - [x] **ADR-50 — Controls: Anvil spans, Workbench native buttons, `aria-disabled`.**
@@ -1459,11 +1464,11 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 - [ ] AC-F7.9 THE setting's description SHALL state that the history contains copies of field values
 
 **PRD F8 — pending work**
-- [ ] AC-F8.1 IF any probe reports a draft on a step's note, THEN THE SYSTEM SHALL write nothing, leave the draft and stacks untouched, and notify "Save or discard your edit first"
+- [ ] AC-F8.1 IF any probe reports a draft on a step's note, THEN THE SYSTEM SHALL write nothing, leave the draft and stacks untouched, and notify "Save your edit first (<note name>)"
 - [ ] AC-F8.2 IF any probe reports a write in flight on a step's note, THEN THE SYSTEM SHALL refuse the same way
 - [ ] AC-F8.3 IF the busy note is not in the step, THEN THE SYSTEM SHALL proceed
 - [ ] AC-F8.4 WHEN Kanban writes are pending, THE SYSTEM SHALL flush them and settle their group before choosing the step
-- [ ] AC-F8.5 WHEN the draft is saved or discarded, THE SYSTEM SHALL accept the next request
+- [ ] AC-F8.5 WHEN the draft is saved or the field returns to its saved value, THE SYSTEM SHALL accept the next request
 
 **PRD F9 — surfaces show the result**
 - [ ] AC-F9.1 WHEN an undone note is open in the Anvil editor, THE SYSTEM SHALL show the restored value after the cache update
@@ -1496,8 +1501,7 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
   `docs/live-testing.md`, "Spec 009 Phase 1".
 - **OQ-2 — Does Obsidian Sync really leave `undo-journal.json` alone?** ADR-40's assumption;
   checked in walk item 10.
-- **OQ-3 — Exact notice and tooltip wording.** The texts in Error Handling and ADR-49 are the
-  proposal; the signed-off mockup (U5–U9) is binding.
+- **OQ-3 — Exact notice and tooltip wording.** Resolved 2026-11-06: the signed-off mockups.html (U5–U9) is binding.
 
 ## Risks and Technical Debt
 
@@ -1537,9 +1541,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
   fires `change` and commits the draft first; the following click then meets an in-flight write
   (refusal) or, once it lands, undoes that commit. Correct, but shown in the mockup notes so it is
   not a surprise.
-- **Saving a refused draft creates a newer step.** After "Save or discard your edit first", saving
-  records a new top step, so the next undo undoes the save, not the earlier step. Discarding does
-  not. This follows the PRD's stack model.
+- **Saving a refused draft creates a newer step.** After "Save your edit first", saving
+  records a new top step, so the next undo undoes the save, not the earlier step. Retyping the old value does not. This follows the PRD's stack model.
 - **`processFrontMatter` on an emptied block.** Undoing the only key Story Forge ever added leaves
   an empty frontmatter block (or removes it, depending on Obsidian); the body is unchanged either
   way. Assert body equality, not byte equality.
@@ -1586,7 +1589,7 @@ Mara Stoneway: `status: dead`. The user sets `alive` in the Anvil → step A
 | Step | Read | Write | Stacks after |
 |---|---|---|---|
 | Undo A | found `missing`, expected `alive` → **conflict** | `dead` | undo: —; redo: A′ `{before dead, after missing}` |
-| Notice | "Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Cmd+Shift+Z restores it." | | |
+| Notice | "Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Redo restores it." | | |
 | Redo A′ | found `dead`, expected `dead` → no conflict | `missing` | undo: A″ `{before dead, after missing}`; redo: — |
 | Notice | "Redo: status in Mara Stoneway" | | |
 | (hand edit to `lost`) then Undo A″ | found `lost`, expected `missing` → conflict | `dead` | redo: `{before dead, after lost}` — `lost` is recoverable |
@@ -1604,7 +1607,7 @@ field holds unsaved text (status `dirty`). The user is on a Codex card in the An
 3. Probes for `20 Characters/Mara Stoneway.md`: Anvil → `_editor.path` is another note → null;
    Kanban → null; Workbench → subject is Mara and `aliases` is `dirty` → `"draft"`.
 4. Outcome `refused`: nothing written; stacks unchanged; the `aliases` draft untouched;
-   Notice "Save or discard your edit first" (with the note name); Anvil live region repeats it.
+   Notice "Save your edit first (Mara Stoneway)"; Anvil live region repeats it.
 5. a) The user restores `aliases` to its old text → status `clean` → next Cmd+Z undoes B.
    b) The user saves `aliases` → step C recorded on top (redo cleared) → next Cmd+Z undoes C;
    B is next after it.

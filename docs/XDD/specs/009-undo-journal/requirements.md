@@ -144,7 +144,7 @@ The minimum for "every write a view makes can be undone" (epic #16, "Done when")
 - **Acceptance Criteria:**
   - [ ] Given a field's current value differs from the value Story Forge last wrote, When the user undoes, Then the earlier value is still restored
   - [ ] Given that conflict, When undo completes, Then redo restores the value that undo found and overwrote — not the value Story Forge originally wrote
-  - [ ] Given that conflict, When undo completes, Then the notice names the note, the field, and both values, and says which shortcut restores the overwritten one, e.g. "status was 'dead', now 'alive' again. Cmd+Shift+Z restores 'dead'" *(wording illustrative; it must carry the note, field and values)*
+  - [ ] Given that conflict, When undo completes, Then the notice names the note, the field, and both values, and says which operation restores the overwritten one, e.g. "status was 'dead', now 'alive' again. Redo restores 'dead'" *(wording illustrative; it must carry the note, field and values; it names no keyboard shortcut, because Cmd+Shift+Z is the note editor's own redo outside the Anvil and Workbench; the signed-off wording is in `mockups.html`)*
   - [ ] Given a field was removed by someone else before undo, When the user undoes, Then the earlier value is restored and redo removes the field again
   - [ ] Given a conflict on redo, When the user redoes, Then the same rule applies against the redo step's recorded values
   - [ ] Given undo, redo, undo with an outside edit in between, When each runs, Then each follows the conflict rule and no value is lost
@@ -205,11 +205,11 @@ The minimum for "every write a view makes can be undone" (epic #16, "Done when")
 
 - **User Story:** As a novelist, I want undo never to discard text I am typing or collide with a save in progress.
 - **Acceptance Criteria:**
-  - [ ] Given a target note of the step has a draft in the Anvil editor or the Workbench, When the user undoes or redoes, Then nothing is written, the draft is untouched, and the notice says "Save or discard your edit first"
+  - [ ] Given a target note of the step has a draft in the Anvil editor or the Workbench, When the user undoes or redoes, Then nothing is written, the draft is untouched, and the notice says "Save your edit first" with the note name
   - [ ] Given a write is still in flight on a target note, When the user undoes or redoes, Then the same refusal and notice apply
   - [ ] Given a draft exists on a note that is **not** a target of the step, When the user undoes, Then the undo proceeds
   - [ ] Given a Kanban gesture whose writes have not all landed yet, When the user undoes, Then those writes finish first and are included in the step being undone
-  - [ ] Given the refusal, When the user saves or discards the draft and undoes again, Then the undo works
+  - [ ] Given the refusal, When the draft is saved or the field returns to its saved value and the user undoes again, Then the undo works
   - [ ] Given a refusal, When it happens, Then the stacks are unchanged
 
 #### Feature F9: Every surface shows the result
@@ -321,7 +321,7 @@ This is a local, single-user plugin with **no telemetry** (see `PRIVACY.md`). Ad
 - **Values are restored, not formatting.** Obsidian re-writes the frontmatter block on every write, so quoting, spacing and YAML comments cannot be restored.
 - **Limits:** 50 steps per stack; a gesture counts as one.
 - **Per device:** history is not shared across devices.
-- **Mockup gate.** Every UI state (button strip, Workbench header, tooltips, conflict notice, "save or discard" notice) is drawn in this spec's `mockups.html` and signed off **before** any UI code (CLAUDE.md; G23).
+- **Mockup gate.** Every UI state (button strip, Workbench header, tooltips, conflict notice, "save your edit first" notice) is drawn in this spec's `mockups.html` and signed off **before** any UI code (CLAUDE.md; G23). Passed 2026-11-06.
 - **Storyline is the reference model.** Deviations are recorded below and in the spec's decision log.
 - **English for all committed content**; UI text follows the Obsidian sentence-case rule.
 - **Left to the SDD:** the numeric size limits for the stored history and for a single value, and the technical shape of grouping a gesture into one step.
