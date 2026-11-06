@@ -117,7 +117,7 @@ version: "1.0"
   relevance: CRITICAL
   why: "Workbench inspector. fieldStates (l.150), gen (l.157), render (l.190) refreshes only
         status 'clean' (l.218) — the #30 stale-saved-value cause; notifyFileChanged (l.255) skips
-        the whole redraw if any field is dirty/saving/error. _commitField (l.643)."
+        the whole redraw if any field is dirty/saving/error (before Phase 4). _commitField (l.643)."
 
 - file: src/anvil/AnvilView.ts
   relevance: CRITICAL
@@ -150,7 +150,7 @@ version: "1.0"
   relevance: CRITICAL
   why: "Workbench. _buildShell header .sf-icons (l.598–628) with native pin/edit buttons; the
         metadataCache 'changed' handler (l.331–347) consults notifyFileChanged and ignores a pinned
-        subject (l.334)."
+        subject (l.334) (before Phase 4)."
 
 - file: src/main.ts
   relevance: CRITICAL
@@ -454,7 +454,7 @@ graph LR
 │   ├── anvil/
 │   │   └── AnvilView.ts            # MODIFY: opts.undo; controls beside tab strip; _onClick routes data-sf-undo; probe; undoKeyPolicy; onOutcome → _announce; onWrite/renumber pass group
 │   ├── views/
-│   │   └── SidebarView.ts          # MODIFY: journal param; header buttons; probe; undoKeyPolicy; pinned subject refresh; owed redraw
+│   │   └── SidebarView.ts          # MODIFY: journal param; header buttons; probe; undoKeyPolicy; pinned subject refresh; owed redraw; focus kept across redraw; IME hold
 │   ├── types/index.ts              # MODIFY: PluginSettings.keepUndoHistory (default true) + normalizeSettings
 │   ├── settings/SettingsTab.ts     # MODIFY: "Keep undo history across restarts" toggle + "Clear undo history" button
 │   └── main.ts                     # MODIFY: create/install/dispose journal; vault + workspace events; keydown on documents; commands; quit task
@@ -706,6 +706,7 @@ export interface KanbanDeps {
 isBusy(path: string): PendingReason | null;  // subject === path and a field is dirty | saving | error
 undoKeyPolicy(target: EventTarget | null): "text" | "journal";
 onGuardCleared?: () => void;                 // set by SidebarView; runs the owed redraw
+notifyFileChanged(file: TFile): boolean;     // true only while a field is still protected after the refresh (caller must not redraw); false = caller redraws, and that redraw is the owed one
 ```
 
 #### Integration Points
@@ -1123,7 +1124,7 @@ stateDiagram-v2
 
 ## Architecture Decisions
 
-Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
+Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was taken during Phase 4 and is not separately confirmed.
 
 - [x] **ADR-37 — Keyboard: a global `keydown` handler, not a view `scope`.**
   Registered with `registerDomEvent(activeDocument, "keydown", handler, { capture: true })` at load,
@@ -1177,7 +1178,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
   stacks unchanged, notice.
   - Probes: Anvil → `"draft"` when `_draftEl` is connected and `_editor.path === path`; `"write"`
     when `_inFlightPath === path && _inFlight.size > 0`. Workbench → `"draft"` when the subject is
-    `path` and a field is `dirty` or `error`, `"write"` when one is `saving`. Kanban →
+    `path` and a field is `dirty` or `error`, `"write"` when one is `saving`; `"draft"` wins over
+    `"write"` when both exist (the draft is what needs the user). Kanban →
     `"write"` when `_pending` or an in-flight flush exists for `path` (after the flush this is only
     a flush that is still running).
   - Mock: `test/__mocks__/obsidian.ts` debounce exposes `flush()`; it is renamed to `run()` to
@@ -1217,13 +1219,27 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
     `draftValue` become the file's value; a `saved` field whose value changed returns to `clean`
     and drops its out-of-vocab advisory, so its status never claims stale text is saved.
   - `dirty` and `saving` are protected: the draft stays; `committedValue` is updated to the
-    file's value for `dirty` (so discarding shows the current file value, F9 AC6), left alone for
-    `saving` (the write's result settles it).
+    file's value for `dirty` (so retyping the old value compares against the current file value, F9
+    AC6; there is no discard control in the field, and leaving edit mode drops all drafts), left
+    alone for `saving` (the write's result settles it).
+  - S1: a `dirty` or `error` field whose draft the file now holds becomes `clean` (its row is
+    redrawn, `isBusy` stops answering `draft`).
+  - W1: a write that fails takes the file's current value as the stored value, so the field
+    compares against what the file holds now, not the value from before the save.
   - `error` holds unsaved text (`keepDirty`) and is protected exactly like `dirty`.
   - Refresh is in place: `notifyFileChanged` updates unprotected fields' inputs immediately (other
     fields update while one holds a draft, F9 AC5). A structural redraw (fields added or removed,
     FileClass change) that a protected field blocks is **owed**; it runs through `onGuardCleared`
-    when the last protected field becomes `clean`/`saved` or the subject changes.
+    when the last protected field becomes `clean`/`saved`. A subject change drops the owed redraw
+    without calling `onGuardCleared`: the caller renders the new subject anyway, so a callback
+    would only draw twice (or draw a closing view). Every blocked redraw counts as owed; the
+    controller does not tell a structural change from a value change (deliberately
+    over-approximate; an owed redraw that changes nothing is harmless).
+  - `notifyFileChanged` returns `false` when nothing is protected after the refresh, so the
+    caller's own redraw is the owed one and `onGuardCleared` is not called as well; it returns
+    `true` only while a field is still protected.
+  - The owning view's unload runs `teardown()`, so a commit that settles after the view closed
+    bails on the generation check and no owed redraw runs.
   - User confirmed: **Yes** (2026-11-04)
 
 - [x] **ADR-43 — The journal is a plugin-owned service created in `main.ts` and injected.**
@@ -1331,9 +1347,10 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
   - User confirmed: **Yes** (2026-11-04)
 
 - [x] **ADR-51 — A pinned Workbench also refreshes on its subject's changes.**
-  `SidebarView`'s `metadataCache` 'changed' handler currently returns early for
-  `subject.source === "pinned"` (l.334). Pinning means "do not follow the active note", not "do
-  not refresh"; the guard becomes "only the subject's own file", whatever the source.
+  `SidebarView`'s `metadataCache` 'changed' handler returned early for
+  `subject.source === "pinned"` before Phase 4. Pinning means "do not follow the active note", not "do
+  not refresh"; the guard is now the subject's own file, whatever the source. See the README
+  decision-log entry of 2026-11-06.
   - Rationale: F9 AC2 — a Workbench pinned on Mara must show an undone value.
   - Trade-offs: changes behaviour shipped in spec 004/006; covered by a new test and the walk.
   - User confirmed: **Yes** (2026-11-04)
@@ -1352,6 +1369,35 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
   - Rationale: one keystroke must never take two steps.
   - Trade-offs: a deliberate command within 100 ms of a key press is dropped; not a real case.
   - User confirmed: **Yes** (2026-11-04)
+
+- [ ] **ADR-54 — The Workbench keeps focus across a refresh; an IME composition holds the redraw.**
+  Taken during Phase 4 (T4.3), reviewed; not separately confirmed by the user.
+  - `_renderKeepingFocus` wraps every full subject redraw (the owed redraw from `onGuardCleared`
+    and the redraw after a subject change). It records the focused `[data-sf-inspector-input]` by
+    field name with its selection start, end and direction, draws, then focuses the same-named
+    control and restores the selection where the control has one (not number inputs or
+    checkboxes). Justified by U10 "Focus is never moved by a refresh": the owed redraw can run
+    inside the field's own `input` handler, when retyping the saved value clears the last
+    protected field.
+  - Composition hold: from `compositionstart` in the panel the redraw is held in the view, because
+    the controller has already cleared its owed flag. The hold ends at `compositionend`, or at a
+    `focusout` while composing (the field's own `compositionend` may never reach the panel). The
+    held redraw runs one tick later via `window.setTimeout(0)`, so a final composition `input`
+    (Firefox and Safari send it after `compositionend`) reaches the controller first. Every body
+    rebuild (`_updateBody`: discard, tab switch, `_resolveAndRender`) and `onClose` reset the
+    composition state and cancel a pending tick, because the composing field is gone and a stuck
+    flag would swallow every later redraw.
+  - `_refreshContext`: while the guard holds (`notifyFileChanged` returns `true`), `currentCtx`
+    is re-resolved without drawing, so discard and tab switches do not render a stale context.
+    If the resolve fails the old context stays on purpose; the owed redraw goes through
+    `_resolveAndRender` and shows the error there.
+  - `onGuardCleared` is set in `onOpen` and cleared in `onClose`, not in the constructor, so a
+    reopened view gets it back and a closed view never redraws.
+  - Rationale: a refresh that steals the caret mid-typing, or a redraw that destroys a composing
+    field, loses the user's input.
+  - Trade-offs: the redraw is not deferred to `focusout`, and no Anvil gesture machinery is
+    reused.
+  - User confirmed: **No** (reviewed in Phase 4 only)
 
 ## Quality Requirements
 
@@ -1508,9 +1554,9 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 ### Known Technical Issues
 
 - **Workbench stale saved value (#30).** `InspectorController.render` refreshes only `clean`
-  fields (l.218), so a `saved` field is never refreshed; `notifyFileChanged` skips the whole redraw while any field is
-  `dirty`/`saving`/`error` (l.259). Fixed by ADR-42.
-- **Pinned Workbench ignores changes** to its subject (SidebarView l.334). Fixed by ADR-51.
+  fields, so a `saved` field is never refreshed; `notifyFileChanged` skips the whole redraw while any field is
+  `dirty`/`saving`/`error`. Fixed in Phase 4 (T4.2, T4.3) by ADR-42; live check pending (walk item 11).
+- **Pinned Workbench ignores changes** to its subject. Fixed in Phase 4 (T4.2, T4.3) by ADR-51; live check pending (walk item 11).
 - **Kanban renumber is fire-and-forget** (`void deps.renumber`, renderKanban l.434) and
   `AnvilView`'s renumber writes sequentially (l.1101–1105). Fixed by ADR-38.
 - **`InteractionHandler.destroy()` cancels pending flushes** — closing the Anvil within 200 ms of
