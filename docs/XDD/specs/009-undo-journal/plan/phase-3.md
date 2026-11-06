@@ -36,7 +36,7 @@ phase: 3
 Makes multi-file gestures one undo step and stops undo from colliding with unsaved text or a
 pending write.
 
-- [ ] **T3.1 JournalGroup** `[activity: domain-modeling]`
+- [x] **T3.1 JournalGroup** `[activity: domain-modeling]`
 
   1. Prime: `[ref: SDD/ADR-38]`; `[ref: SDD/Application Data Models; JournalGroup]`.
   2. Test: `undoJournal.record.test.ts` (extended):
