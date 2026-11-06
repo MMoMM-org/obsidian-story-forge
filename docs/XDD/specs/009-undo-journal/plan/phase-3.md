@@ -126,3 +126,4 @@ pending write.
 - **T3.1: `dispose` clears listeners, then force-commits open groups.** The merged step lands on the in-memory stack but is not saved (dispose stops saving) and `settled` resolves. Disposing does not warn.
 - **T3.1: the 10 s timer uses `window.setTimeout`** (obsidianmd/prefer-window-timers) and is cleared on commit, so a group that commits in time leaves no timer behind.
 - **T3.1: merged changes keep first-write order** by file and by key; a key set again keeps its first position.
+- **Carried into T3.3/T3.4:** a group still open at plugin unload is committed by `dispose` without a save, so the shutdown must close the views' groups (Kanban `destroy` flushes, ADR-52) before `flushNow` runs in `wireUndoJournal`'s shutdown; verify the order there.

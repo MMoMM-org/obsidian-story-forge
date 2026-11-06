@@ -132,7 +132,7 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 		record: (path, changes, group) => {
 			if (changes.length === 0) return;
 			if (group !== undefined && groups.add(group, path, changes)) return;
-			if (group !== undefined) console.warn("[StoryForge] Undo journal: a write named a group that already committed; it becomes its own step.");
+			if (group !== undefined) console.warn("[StoryForge] Undo journal: a write named a group that is closed or unknown; it becomes its own step.");
 			pushStep([{ path, changes: [...changes] }]);
 		},
 		openGroup: () => groups.open(),
@@ -308,6 +308,7 @@ function createGroups(pushStep: (files: readonly FileChanges[]) => void): Groups
 				if (!state.done) state.holds += 1;
 				return handle;
 			},
+			// `p.then(settle, settle)` marks p as handled, so a rejection the caller drops is not reported as unhandled.
 			track: (p) => {
 				if (!state.done) {
 					state.pending += 1;

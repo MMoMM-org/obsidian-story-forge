@@ -8,6 +8,7 @@
  * @ref SDD/ADR-46, ADR-48 — AC-F2.1, AC-F2.2, AC-F2.3
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { JournalGroup } from "undo/journalTypes";
 import { GROUP_TIMEOUT_MS, MAX_STEPS, MAX_VALUE_CHARS } from "undo/undoJournal";
 import { ABSENT, MARA, SCENE_4, fakeStore, present, setup, stepOf, teardownAndCheckUntouched } from "./journalHarness";
 
@@ -430,6 +431,7 @@ describe("UndoJournal — gesture groups (ADR-38)", () => {
 	});
 
 	it("dispose closes open groups: they commit without a save and settle", async () => {
+		vi.useFakeTimers();
 		const h = setup({ [MARA]: {} });
 		const g = h.journal.openGroup();
 		await h.write(MARA, "order", 1, g);
@@ -437,5 +439,48 @@ describe("UndoJournal — gesture groups (ADR-38)", () => {
 		await g.settled;
 		expect(h.journal.peek().undo).not.toBeNull();
 		expect(h.store.saves).toHaveLength(0);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	it("a close and a settle arriving after the timeout commit do not commit a second step", async () => {
+		vi.useFakeTimers();
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const h = setup({ [MARA]: {} });
+		const g = h.journal.openGroup();
+		await h.write(MARA, "order", 1, g);
+		let release!: () => void;
+		void g.track(new Promise<void>((r) => (release = r)));
+		vi.advanceTimersByTime(GROUP_TIMEOUT_MS);
+		g.close();
+		release();
+		await g.settled;
+		expect(h.lastSave().undo).toHaveLength(1);
+		expect(warn).toHaveBeenCalledTimes(1);
+	});
+
+	it("a group handle the journal did not create records its own step and warns", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const h = setup({ [MARA]: {} });
+		const foreign: JournalGroup = {
+			id: "g-foreign", join: () => foreign, track: (p) => p, close: () => {}, settled: Promise.resolve(),
+		};
+		await h.write(MARA, "order", 1, foreign);
+		expect(h.lastSave().undo).toHaveLength(1);
+		expect(warn).toHaveBeenCalledTimes(1);
+	});
+
+	it("join, track and close on a committed group do nothing", async () => {
+		vi.useFakeTimers();
+		const h = setup({ [MARA]: {} });
+		const g = h.journal.openGroup();
+		await h.write(MARA, "order", 1, g);
+		g.close();
+		await g.settled;
+		g.join();
+		void g.track(new Promise<void>(() => {}));
+		g.close();
+		await Promise.resolve();
+		expect(h.lastSave().undo).toHaveLength(1);
+		expect(vi.getTimerCount()).toBe(0);
 	});
 });
