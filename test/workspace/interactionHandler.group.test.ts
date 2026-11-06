@@ -171,7 +171,126 @@ describe("InteractionHandler — gestures, pending work, flushing destroy", () =
 			computeKey: () => [],
 		});
 		keyRight(card);
+		expect(groups).toHaveLength(1);
 		expect(groups.every((g) => g.closes === 1)).toBe(true);
+	});
+
+	it("a pointer no-op (computeDrop returns []) does not leak a group", async () => {
+		const h = make();
+		const card = document.createElement("div");
+		host.appendChild(card);
+		h.bind(card, createMockTFile({ path: "n.md" }), {
+			computeDrop: () => [],
+			computeKey: () => [],
+		});
+		drag(card);
+		expect(groups).toHaveLength(1);
+		expect(groups[0]!.closes).toBe(1);
+		await vi.advanceTimersByTimeAsync(200);
+		expect(onWrite).not.toHaveBeenCalled();
+		keyRight(card);
+		expect(groups).toHaveLength(2);
+	});
+
+	describe("a strategy that throws", () => {
+		let errors: unknown[];
+		const onError = (e: ErrorEvent): void => {
+			e.preventDefault();
+			errors.push(e.error);
+		};
+		beforeEach(() => {
+			errors = [];
+			window.addEventListener("error", onError);
+		});
+		afterEach(() => window.removeEventListener("error", onError));
+
+		const thrower = (): Draggable => ({
+			computeDrop: () => {
+				throw new Error("drop boom");
+			},
+			computeKey: () => {
+				throw new Error("key boom");
+			},
+		});
+
+		it.each([
+			["pointer", drag],
+			["key", keyRight],
+		])("%s path: closes the fresh group and the next gesture opens a new one", async (_n, gesture) => {
+			const h = make();
+			const card = document.createElement("div");
+			host.appendChild(card);
+			const file = createMockTFile({ path: "t.md" });
+			h.bind(card, file, thrower());
+			gesture(card);
+			expect(errors).toHaveLength(1);
+			expect(groups).toHaveLength(1);
+			expect(groups[0]!.closes).toBe(1);
+			expect(h.isBusy("t.md")).toBe(false);
+			h.bind(card, file, makeDraggable());
+			gesture(card);
+			expect(groups).toHaveLength(2);
+			await vi.advanceTimersByTimeAsync(200);
+			expect(onWrite.mock.calls[0]![2]).toBe(groups[1]);
+		});
+
+		it("does not close a reused pending group when the strategy throws", () => {
+			const h = make();
+			const { card } = setup(h, "r.md");
+			keyRight(card);
+			h.bind(card, createMockTFile({ path: "r.md" }), thrower());
+			keyRight(card);
+			expect(groups).toHaveLength(1);
+			expect(groups[0]!.closes).toBe(0);
+		});
+	});
+
+	it("a gesture during an in-flight write gets its own group", async () => {
+		const releases: Array<(r: CommitResult) => void> = [];
+		onWrite.mockImplementation(() => new Promise<CommitResult>((res) => releases.push(res)));
+		const h = make();
+		const { card, d } = setup(h);
+		keyRight(card);
+		await vi.advanceTimersByTimeAsync(200);
+		expect(onWrite).toHaveBeenCalledOnce();
+		keyRight(card);
+		expect(groups).toHaveLength(2);
+		expect(d.keys[1]!.group).toBe(groups[1]);
+		expect(d.keys[1]!.group).not.toBe(groups[0]);
+		releases[0]!({ ok: true });
+		await vi.advanceTimersByTimeAsync(0);
+		expect(groups[0]!.closes).toBe(1);
+		expect(groups[1]!.closes).toBe(0);
+		await vi.advanceTimersByTimeAsync(200);
+		expect(onWrite).toHaveBeenCalledTimes(2);
+		expect(onWrite.mock.calls[1]![2]).toBe(groups[1]);
+		releases[1]!({ ok: true });
+		await vi.advanceTimersByTimeAsync(0);
+		expect(groups[1]!.closes).toBe(1);
+		expect(groups[0]!.closes).toBe(1);
+	});
+
+	it("flushPending resolves even when a late onAfter throws", async () => {
+		const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		let release!: (r: CommitResult) => void;
+		onWrite.mockImplementation(() => new Promise<CommitResult>((r) => (release = r)));
+		const onAfter = vi.fn(() => {
+			throw new Error("late");
+		});
+		const h = new InteractionHandler(new App(), host, {
+			onWrite: onWrite as InteractionHandlerOpts["onWrite"],
+			onAfter,
+			debounceMs: 200,
+			dragThreshold: 5,
+		});
+		const { card } = setup(h);
+		keyRight(card);
+		const p = h.flushPending();
+		release({ ok: true });
+		await expect(p).resolves.toBeUndefined();
+		expect(onAfter).toHaveBeenCalledOnce();
+		expect(logged).toHaveBeenCalledOnce();
+		logged.mockRestore();
 	});
 
 	it("computeDrop and computeKey receive the GestureContext", () => {

@@ -265,7 +265,7 @@ export class InteractionHandler {
 	 */
 	async flushPending(): Promise<void> {
 		this._runPendingFlushes();
-		await Promise.all([...this._inFlight.keys()]);
+		await Promise.allSettled([...this._inFlight.keys()]);
 	}
 
 	/** True while `path` has pending entries or a flush that has not settled. */
@@ -291,6 +291,20 @@ export class InteractionHandler {
 		if (!g.fresh || !g.group) return;
 		this._groups.delete(file.path);
 		g.group.close();
+	}
+
+	/** Run a strategy call; if it throws, release the gesture's fresh group and rethrow. */
+	private _guarded<T>(
+		file: TFile,
+		g: { group: JournalGroup | null; fresh: boolean },
+		call: () => T,
+	): T {
+		try {
+			return call();
+		} catch (err) {
+			this._dropEmptyGroup(file, g);
+			throw err;
+		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -367,7 +381,9 @@ export class InteractionHandler {
 		// activeDocument is the cross-popout-window-safe equivalent of document.
 		const dropTarget = activeDocument.elementFromPoint(e.clientX, e.clientY);
 		const g = this._groupFor(drag.file);
-		const entries = drag.strategy.computeDrop(drag.card, dropTarget, { group: g.group });
+		const entries = this._guarded(drag.file, g, () =>
+			drag.strategy.computeDrop(drag.card, dropTarget, { group: g.group }),
+		);
 
 		if (entries.length === 0) {
 			this._dropEmptyGroup(drag.file, g);
@@ -423,7 +439,9 @@ export class InteractionHandler {
 		e.preventDefault();
 
 		const g = this._groupFor(binding.file);
-		const entries = binding.strategy.computeKey(card, key, { group: g.group });
+		const entries = this._guarded(binding.file, g, () =>
+			binding.strategy.computeKey(card, key, { group: g.group }),
+		);
 		if (entries.length === 0) {
 			this._dropEmptyGroup(binding.file, g);
 			return; // no-op
@@ -478,7 +496,10 @@ export class InteractionHandler {
 	private _startFlush(file: TFile): void {
 		const p = this._flush(file);
 		this._inFlight.set(p, file.path);
-		void p.finally(() => this._inFlight.delete(p));
+		// A throwing onAfter/onError must not become an unhandled rejection.
+		void p
+			.catch((err: unknown) => console.error("[story-forge] flush callback failed", err))
+			.finally(() => this._inFlight.delete(p));
 	}
 
 	/**
