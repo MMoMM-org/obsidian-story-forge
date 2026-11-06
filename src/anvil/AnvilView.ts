@@ -556,9 +556,12 @@ export class AnvilView extends ItemView {
 		this._handler = null;
 		// ADR-52: destroy starts the pending Kanban writes; wait for them (and so for their
 		// groups) while the probe and flusher are still registered, then release those.
-		handler?.destroy();
-		await handler?.flushPending();
-		for (const unregister of this._undoRegistrations.splice(0)) unregister();
+		try {
+			handler?.destroy();
+			await handler?.flushPending();
+		} finally {
+			for (const unregister of this._undoRegistrations.splice(0)) unregister();
+		}
 		this._collapse.clear();
 		this._codexSelection.clear();
 		this._editor.clear();

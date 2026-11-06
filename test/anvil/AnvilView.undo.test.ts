@@ -24,6 +24,7 @@ import {
 	type TFile,
 } from "../__mocks__/obsidian";
 import { AnvilView } from "anvil/AnvilView";
+import { InteractionHandler } from "workspace/interactionHandler";
 import type { PendingProbe, UndoOutcome } from "undo/journalTypes";
 import type { OwnedUndoJournal } from "undo/undoJournal";
 import { MARA, setup, teardownAndCheckUntouched, type Harness } from "../undo/journalHarness";
@@ -364,6 +365,18 @@ describe("registration", () => {
 		await closing;
 		opened.splice(opened.indexOf(a.view), 1);
 		expect(a.h.journal.peek().undo?.label).toBe("status in Scene 7");
+		expect(reg.unregistered.sort()).toEqual(["flusher", ...reg.probes.map(() => "probe")].sort());
+		expect(reg.probes.length).toBeGreaterThan(0);
+	});
+
+	it("unregisters the probes and the flusher even when closing the handler throws", async () => {
+		const reg: Registry = { probes: [], unregistered: [] };
+		const a = await openAnvil(WALKTHROUGH_1, observed(reg));
+		vi.spyOn(InteractionHandler.prototype, "destroy").mockImplementation(() => {
+			throw new Error("destroy failed");
+		});
+		await expect(a.view.onClose()).rejects.toThrow("destroy failed");
+		opened.splice(opened.indexOf(a.view), 1);
 		expect(reg.unregistered.sort()).toEqual(["flusher", ...reg.probes.map(() => "probe")].sort());
 		expect(reg.probes.length).toBeGreaterThan(0);
 	});
