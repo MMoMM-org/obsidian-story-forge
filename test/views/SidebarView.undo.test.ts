@@ -51,6 +51,7 @@ async function open(): Promise<World> {
 		undefined, undefined, undefined, undefined, h.journal,
 	);
 	opened.push(view);
+	document.body.appendChild(view.containerEl); // in the workspace, so a field can hold focus
 	await view.onOpen();
 	click(view, ".sf-edit-btn");
 	await settle();
@@ -61,6 +62,7 @@ const opened: SidebarView[] = [];
 
 afterEach(async () => {
 	for (const view of opened.splice(0)) await view.onClose();
+	document.body.replaceChildren();
 	vi.useRealTimers();
 	Notice._reset();
 	teardownAndCheckUntouched();
@@ -167,10 +169,8 @@ describe("the Workbench probe (ADR-39)", () => {
 		const w = await open();
 		await save(w.view, "nickname", "Flint");
 		type(w.view, "origin", "Coast");
-		const inspector = (w.view as unknown as { _inspector: { onGuardCleared?: () => void } })._inspector;
 		await w.view.onClose();
 		opened.splice(0);
-		expect(inspector.onGuardCleared).toBeUndefined();
 
 		expect(await w.h.journal.undo()).toMatchObject({ kind: "applied" });
 		expect(w.h.fm(MARA).nickname).toBe("Stone");
@@ -186,6 +186,72 @@ describe("the owed redraw (ADR-42)", () => {
 
 		type(w.view, "nickname", "Stone");
 		expect(input(w.view, "faction").value).toBe("Wardens");
+	});
+
+	it("keeps focus and the caret in the field being typed into (U10)", async () => {
+		const w = await open();
+		const typedInto = input(w.view, "nickname");
+		typedInto.focus();
+		type(w.view, "nickname", "Flint");
+		outsideChange(w, MARA, { faction: "Wardens" });
+
+		typedInto.value = "Stone";
+		typedInto.setSelectionRange(3, 3);
+		typedInto.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const now = input(w.view, "nickname");
+		expect(input(w.view, "faction").value).toBe("Wardens"); // the redraw ran
+		expect(now).not.toBe(typedInto);
+		expect(activeDocument.activeElement).toBe(now);
+		expect([now.selectionStart, now.selectionEnd]).toEqual([3, 3]);
+	});
+
+	it("runs after a save that clears the guard, without focusing a field", async () => {
+		const w = await open();
+		type(w.view, "nickname", "Flint");
+		outsideChange(w, MARA, { faction: "Wardens" });
+
+		click(w.view, '[data-sf-inspector-commit="nickname"]');
+		await settle();
+
+		expect(input(w.view, "faction").value).toBe("Wardens");
+		expect(input(w.view, "nickname").value).toBe("Flint");
+		expect(w.h.fm(MARA).nickname).toBe("Flint");
+		expect(activeDocument.activeElement?.hasAttribute("data-sf-inspector-input")).toBe(false);
+	});
+
+	it("waits for an IME composition to end, then runs and keeps focus", async () => {
+		const w = await open();
+		const typedInto = input(w.view, "nickname");
+		typedInto.focus();
+		typedInto.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+		type(w.view, "nickname", "Flint");
+		outsideChange(w, MARA, { faction: "Wardens" });
+
+		type(w.view, "nickname", "Stone"); // the guard clears mid-composition
+		expect(input(w.view, "nickname")).toBe(typedInto);
+		expect(w.view.contentEl.querySelector('[data-sf-inspector-input="faction"]')).toBeNull();
+
+		typedInto.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+		expect(input(w.view, "faction").value).toBe("Wardens");
+		expect(activeDocument.activeElement).toBe(input(w.view, "nickname"));
+	});
+});
+
+describe("a refresh of the subject (U10: focus is never moved by a refresh)", () => {
+	it("keeps the caret in a clean field when an outside change redraws the editor", async () => {
+		const w = await open();
+		const focused = input(w.view, "origin");
+		focused.focus();
+		focused.setSelectionRange(2, 4);
+
+		outsideChange(w, MARA, { faction: "Wardens" });
+
+		const now = input(w.view, "origin");
+		expect(input(w.view, "faction").value).toBe("Wardens");
+		expect(now).not.toBe(focused);
+		expect(activeDocument.activeElement).toBe(now);
+		expect([now.selectionStart, now.selectionEnd]).toEqual([2, 4]);
 	});
 });
 

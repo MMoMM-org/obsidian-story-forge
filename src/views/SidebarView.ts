@@ -166,6 +166,23 @@ export async function revealAndShowFile(app: App, file: TFile): Promise<void> {
 // SidebarView
 // ---------------------------------------------------------------------------
 
+/**
+ * An input or textarea, told apart by tag name: `instanceof` fails for an
+ * element from a popout window's realm (the convention in InspectorController).
+ */
+function asTextControl(el: Element): HTMLInputElement | HTMLTextAreaElement | null {
+	const tag = el.tagName.toLowerCase();
+	return tag === "input" || tag === "textarea" ? (el as HTMLInputElement | HTMLTextAreaElement) : null;
+}
+
+/** The editor field that had focus before a redraw, and its selection. */
+interface FocusedField {
+	readonly name: string;
+	readonly start: number | null;
+	readonly end: number | null;
+	readonly direction: "forward" | "backward" | "none" | undefined;
+}
+
 export class SidebarView extends ItemView {
 	private scoping: ScopingService;
 	private subject: PanelSubject = { file: null, source: "follow" };
@@ -211,6 +228,11 @@ export class SidebarView extends ItemView {
 	// releases this view's probe (set while the view is open).
 	private readonly undo: UndoJournal | null;
 	private _releaseProbe: (() => void) | null = null;
+
+	// U10: a refresh never moves focus. While an IME composition runs in the
+	// editor, a redraw waits for compositionend instead of replacing the field.
+	private _composing = false;
+	private _redrawAfterComposition = false;
 
 	// M2: tracks the engine currently rendered into the panel body (ADR-7 teardown)
 	private currentEngine: QueryEngine | null = null;
@@ -314,6 +336,7 @@ export class SidebarView extends ItemView {
 		// Build the panel shell
 		this._buildShell();
 		this._renderState({ kind: "no-note" });
+		this._trackComposition();
 		this._connectUndo();
 
 		// Stage 1: wire store subscription for live tab refresh
@@ -380,11 +403,12 @@ export class SidebarView extends ItemView {
 			this._refreshContext(file);
 			return;
 		}
-		this._resolveAndRender(file);
+		this._renderKeepingFocus(file);
 	}
 
 	/** Re-resolve `currentCtx` without drawing; a failure is left to the owed redraw to show. */
 	private _refreshContext(file: TFile): void {
+		// Deliberate: on failure `currentCtx` stays as it was; the next redraw shows the error.
 		if (!this.app.metadataCache.getFileCache(file)) return;
 		try {
 			this.currentCtx = this.scoping.resolve(file);
@@ -397,7 +421,7 @@ export class SidebarView extends ItemView {
 	private _connectUndo(): void {
 		if (this._inspector) {
 			this._inspector.onGuardCleared = (): void => {
-				if (this.subject.file) this._resolveAndRender(this.subject.file);
+				if (this.subject.file) this._renderKeepingFocus(this.subject.file);
 			};
 		}
 		if (this.undo && !this._releaseProbe) {
@@ -415,6 +439,57 @@ export class SidebarView extends ItemView {
 		if (this._inspector) this._inspector.onGuardCleared = undefined;
 	}
 
+	/** Note IME compositions in the panel; a redraw held back by one runs when it ends. */
+	private _trackComposition(): void {
+		this.registerDomEvent(this.contentEl, "compositionstart", () => { this._composing = true; });
+		this.registerDomEvent(this.contentEl, "compositionend", () => {
+			this._composing = false;
+			if (!this._redrawAfterComposition) return;
+			this._redrawAfterComposition = false;
+			if (this.subject.file) this._renderKeepingFocus(this.subject.file);
+		});
+	}
+
+	/**
+	 * Redraw `file`, then put focus and the selection back in the editor field
+	 * that had them, found by name (U10: a refresh never moves focus). During an
+	 * IME composition the redraw waits for compositionend.
+	 */
+	private _renderKeepingFocus(file: TFile): void {
+		if (this._composing) {
+			this._redrawAfterComposition = true;
+			return;
+		}
+		const focused = this._focusedEditorField();
+		this._resolveAndRender(file);
+		if (focused) this._restoreFocus(focused);
+	}
+
+	private _focusedEditorField(): FocusedField | null {
+		const active = activeDocument.activeElement;
+		if (!active || !this.contentEl.contains(active)) return null;
+		const name = active.getAttribute("data-sf-inspector-input");
+		if (name === null) return null;
+		const text = asTextControl(active);
+		return {
+			name,
+			start: text?.selectionStart ?? null,
+			end: text?.selectionEnd ?? null,
+			direction: text?.selectionDirection ?? undefined,
+		};
+	}
+
+	private _restoreFocus(field: FocusedField): void {
+		const controls = this.contentEl.querySelectorAll<HTMLElement>("[data-sf-inspector-input]");
+		const control = Array.from(controls).find((el) => el.getAttribute("data-sf-inspector-input") === field.name);
+		if (!control) return;
+		control.focus();
+		const text = asTextControl(control);
+		// selectionStart is null on input types with no caret (number, checkbox), which refuse a range.
+		if (text?.selectionStart == null || field.start === null || field.end === null) return;
+		text.setSelectionRange(field.start, field.end, field.direction ?? undefined);
+	}
+
 	async onClose(): Promise<void> {
 		this._debouncedFollow.cancel();
 		// Stage 1: unsubscribe from store. Two paths call this:
@@ -428,6 +503,8 @@ export class SidebarView extends ItemView {
 		this.currentEngine = null;
 		// T5.2: tear down the Inspector (clears in-memory dirty state — CON-1)
 		this._disconnectUndo();
+		this._composing = false;
+		this._redrawAfterComposition = false;
 		this._inspector?.teardown();
 		aug(this.contentEl).empty();
 		// Clear resolved-context cache and subject so a re-opened view starts
