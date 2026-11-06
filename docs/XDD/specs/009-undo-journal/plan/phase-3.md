@@ -56,7 +56,7 @@ pending write.
   4. Validate: unit tests, mutation-checked.
   5. Success: `[ref: SDD/AC-F1.1, AC-F1.5]`
 
-- [ ] **T3.2 Probe and flusher registry; refusal** `[activity: domain-modeling]`
+- [x] **T3.2 Probe and flusher registry; refusal** `[activity: domain-modeling]`
 
   1. Prime: `[ref: SDD/ADR-39]`; `[ref: SDD/Traced walkthrough 3]`.
   2. Test: `undoJournal.pending.test.ts`:
