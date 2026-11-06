@@ -18,10 +18,20 @@ function warn(what: string): (err: unknown) => void {
 	return (err) => { console.warn(`[StoryForge] Undo journal: ${what}.`, err); };
 }
 
-/** Flush the last change, then dispose. Runs once however many times it is asked for. */
-function onceShutdown(journal: OwnedUndoJournal): () => Promise<void> {
+/**
+ * Settle pending gestures, stop recording, save, dispose. Runs once however many times it is
+ * asked for (unload and quit both ask).
+ *
+ * `settle` comes first and the recorder stays installed through it: a Kanban write still
+ * debounced at shutdown is flushed into its group and recorded, so `flushNow` saves it. This
+ * holds whether Obsidian closes the views before or after `onunload` (T3.4).
+ */
+function onceShutdown(journal: OwnedUndoJournal, uninstall: () => void): () => Promise<void> {
 	let running: Promise<void> | null = null;
-	return () => (running ??= journal.flushNow()
+	return () => (running ??= journal.settle()
+		.catch(warn("pending changes could not be settled"))
+		.finally(uninstall)
+		.then(() => journal.flushNow())
 		.catch(warn("the last save failed"))
 		.finally(() => { journal.dispose(); }));
 }
@@ -82,12 +92,9 @@ export async function wireUndoJournal(plugin: UndoWiringHost): Promise<OwnedUndo
 	});
 	const handle = installWriteRecorder(app, journal);
 	restore = handle.restore;
-	const shutdown = onceShutdown(journal);
-	// Obsidian's onunload is synchronous: stop recording now, finish the save in the background.
-	plugin.register(() => {
-		handle.uninstall();
-		void shutdown();
-	});
+	const shutdown = onceShutdown(journal, () => { handle.uninstall(); });
+	// Obsidian's onunload is synchronous: settle, save and stop recording in the background.
+	plugin.register(() => { void shutdown(); });
 	// On quit the app waits for these tasks, so the last change reaches disk.
 	plugin.registerEvent(app.workspace.on("quit", (tasks: Tasks) => { tasks.addPromise(shutdown()); }));
 	registerVaultEvents(plugin, journal);

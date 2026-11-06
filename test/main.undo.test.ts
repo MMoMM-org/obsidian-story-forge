@@ -14,7 +14,8 @@ import { App, Notice, Tasks, createMockTFile } from "obsidian";
 import type { OwnedUndoJournal, UndoJournalDeps } from "undo/undoJournal";
 import type { JournalStoreDeps } from "undo/journalStore";
 import type { JournalStore } from "undo/journalTypes";
-import { installWriteRecorder } from "inspector/frontmatterWriter";
+import { commit, installWriteRecorder } from "inspector/frontmatterWriter";
+import type { JournalSnapshot } from "undo/journalTypes";
 
 vi.mock("bases/BasesAdapter", () => ({
 	registerCodexView: vi.fn(() => false),
@@ -251,7 +252,8 @@ describe("shutdown", () => {
 		await plugin.onload();
 		const f = deferFlush();
 		plugin._runCleanup();
-		await Promise.resolve();
+		// The flush starts once `settle` has resolved (T3.4), a few microtasks later.
+		await new Promise((r) => setTimeout(r, 0));
 		expect(f.order).toEqual(["flush:start"]);
 		f.settle();
 		await new Promise((r) => setTimeout(r, 0));
@@ -273,6 +275,8 @@ describe("shutdown", () => {
 		const first = await makePlugin();
 		await first.plugin.onload();
 		first.plugin._runCleanup();
+		// The recorder stays installed until pending gestures have settled (T3.4).
+		await new Promise((r) => setTimeout(r, 0));
 		const second = await makePlugin();
 		await expect(second.plugin.onload()).resolves.toBeUndefined();
 	});
@@ -286,10 +290,11 @@ describe("shutdown", () => {
 		const tasks = new Tasks();
 		handlers[0]!(tasks);
 		expect(tasks.isEmpty()).toBe(false);
+		await new Promise((r) => setTimeout(r, 0));
 		expect(f.order).toEqual(["flush:start"]);
 		let settled = false;
 		void tasks.promise().then(() => { settled = true; });
-		await Promise.resolve();
+		await new Promise((r) => setTimeout(r, 0));
 		expect(settled).toBe(false);
 		f.settle();
 		await tasks.promise();
@@ -306,5 +311,84 @@ describe("shutdown", () => {
 		await new Promise((r) => setTimeout(r, 0));
 		expect(journal().flushNow).toHaveBeenCalledTimes(1);
 		expect(journal().dispose).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("shutdown settles pending gestures before the save (spec 009 T3.4)", () => {
+	const STATUS = { name: "status", type: "text" as const };
+	const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+	/** Every call to the fake store, in order, with the snapshot each save handed over. */
+	function storeLog(): { calls: string[]; persisted: () => JournalSnapshot | null } {
+		const calls: string[] = [];
+		let lastBeforeFlush: JournalSnapshot | null = null;
+		let pending: JournalSnapshot | null = null;
+		captured.store.save = vi.fn((s: JournalSnapshot) => { calls.push("save"); pending = structuredClone(s); });
+		captured.store.flushNow = vi.fn(async () => { calls.push("flushNow"); lastBeforeFlush = pending; });
+		return { calls, persisted: () => lastBeforeFlush };
+	}
+
+	async function pluginWithNote(): Promise<{ plugin: Plugin; app: App; file: ReturnType<typeof createMockTFile> }> {
+		const { plugin, app } = await makePlugin();
+		await plugin.onload();
+		const file = createMockTFile({ path: "30 Scenes/Scene 7.md", basename: "Scene 7" });
+		app.fileManager._setFrontmatter(file.path, { status: "draft" });
+		vi.mocked(app.vault.getFileByPath).mockImplementation((p: string) => (p === file.path ? file : null));
+		return { plugin, app, file };
+	}
+
+	const original = { save: captured.store.save, flushNow: captured.store.flushNow };
+	afterEach(() => {
+		captured.store.save = original.save;
+		captured.store.flushNow = original.flushNow;
+	});
+
+	const persistedPaths = (s: JournalSnapshot | null): string[] =>
+		(s?.undo ?? []).flatMap((step) => step.files.map((f) => f.path));
+
+	it("a pending Kanban write at unload is flushed into the group and reaches the persisted journal", async () => {
+		const log = storeLog();
+		const { plugin, app, file } = await pluginWithNote();
+		// A view's debounced Kanban write, still pending in an open gesture group.
+		const group = journal().openGroup();
+		journal().registerFlusher(async () => {
+			await commit(app, file, "status", "revised", STATUS, { group });
+			group.close();
+		});
+		plugin._runCleanup();
+		for (let i = 0; i < 5; i++) await tick();
+		expect(app.fileManager._getFrontmatter(file.path).status).toBe("revised");
+		expect(log.calls.at(-1)).toBe("flushNow");
+		expect(persistedPaths(log.persisted())).toEqual([file.path]);
+		expect(journal().dispose).toHaveBeenCalledTimes(1);
+	});
+
+	it("a group a closed view still holds is waited for, so its late write is persisted too", async () => {
+		const log = storeLog();
+		const { plugin, app, file } = await pluginWithNote();
+		// No flusher: the view already closed and unregistered it; its flush is still in flight.
+		const group = journal().openGroup();
+		setTimeout(() => {
+			void commit(app, file, "status", "revised", STATUS, { group }).finally(() => group.close());
+		}, 5);
+		plugin._runCleanup();
+		await new Promise((r) => setTimeout(r, 30));
+		expect(log.calls.at(-1)).toBe("flushNow");
+		expect(persistedPaths(log.persisted())).toEqual([file.path]);
+	});
+
+	it("quit settles too: the quit task covers the pending write", async () => {
+		const log = storeLog();
+		const { plugin, app, file } = await pluginWithNote();
+		const group = journal().openGroup();
+		journal().registerFlusher(async () => {
+			await commit(app, file, "status", "revised", STATUS, { group });
+			group.close();
+		});
+		const tasks = new Tasks();
+		app.workspace._eventRegistrations.get("quit")![0]!(tasks);
+		await tasks.promise();
+		expect(persistedPaths(log.persisted())).toEqual([file.path]);
+		plugin._runCleanup();
 	});
 });

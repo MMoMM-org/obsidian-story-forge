@@ -181,6 +181,9 @@ describe("main.ts — the real Bases-hint dismissal wiring (T4.6)", () => {
 
 		// Fresh instance, same underlying store — the reload (which unloads the old plugin first).
 		first._runCleanup();
+		// The old journal releases the write recorder once its pending gestures have settled
+		// (spec 009 T3.4). Obsidian gives each load its own module, so only a test shares it.
+		await new Promise((r) => setTimeout(r, 0));
 		const secondApp = new App();
 		const second = new StoryForgePlugin(secondApp);
 		vi.spyOn(second, "loadData").mockImplementation(async () => stored);

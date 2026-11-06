@@ -233,3 +233,23 @@ describe("pending work — dispose", () => {
 		expect(h.fm(MARA)).toEqual({ ...UNRELATED, status: "alive" });
 	});
 });
+
+describe("settle — the shutdown's pre-save step (T3.4)", () => {
+	it("runs the flushers and resolves only once every open group has committed, writing nothing itself", async () => {
+		const h = setup({ [MARA]: { status: "alive" }, [SCENE_4]: { order: 1 } });
+		const g = h.journal.openGroup();
+		h.journal.registerFlusher(async () => {
+			await h.write(MARA, "status", "dead", g);
+		});
+		let settled = false;
+		const done = h.journal.settle().then(() => (settled = true));
+		await ticks();
+		expect(h.fm(MARA).status).toBe("dead");
+		expect(settled).toBe(false); // the group still holds its gesture
+		expect(h.journal.peek().undo).toBeNull();
+		g.close();
+		await done;
+		expect(h.journal.peek().undo?.label).toBe("status in Mara Stoneway");
+		expect(h.notices).toEqual([]);
+	});
+});

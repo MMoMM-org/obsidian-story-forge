@@ -13,9 +13,9 @@
  * Before choosing a step, undo/redo run the registered flushers, wait for open groups, then ask
  * the probes about every path of the top step; a busy note refuses and writes nothing (ADR-39).
  *
- * Built so far (T3.2): record, stacks, apply, outcomes, `load` from the store, path upkeep
+ * Built so far (T3.4): record, stacks, apply, outcomes, `load` from the store, path upkeep
  * (rename, delete, startup prune), the persistence gate with `flushNow`, gesture groups
- * (ADR-38), and probes with flushers. Still to come: `clear` (T5.5).
+ * (ADR-38), probes with flushers, and `settle` for the shutdown. Still to come: `clear` (T5.5).
  *
  * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-46, ADR-48, Complex Logic
  */
@@ -83,6 +83,13 @@ export interface OwnedUndoJournal extends UndoJournal, WriteRecorder {
 	 * the settings toggle, or this save would replace the stored history before it is read.
 	 */
 	setPersistence(on: boolean): Promise<void>;
+	/**
+	 * Finish pending gestures: run the flushers, then wait until no group is open (the
+	 * pre-apply part of undo/redo, queued like them). Writes nothing itself. Shutdown runs
+	 * it before `flushNow`, so a gesture still pending at unload is in the saved state;
+	 * `dispose` would commit an open group without saving it.
+	 */
+	settle(): Promise<void>;
 	/** Write any pending save now (no-op with persistence off). */
 	flushNow(): Promise<void>;
 	/**
@@ -138,10 +145,13 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 	const groups = createGroups(pushStep);
 	const probes = new Set<PendingProbe>();
 	const flushers = new Set<() => Promise<void>>();
+	const settlePending = async (): Promise<void> => {
+		await runFlushers(flushers);
+		await groups.idle();
+	};
 	const apply = (direction: UndoDirection): Promise<UndoOutcome> =>
 		enqueue(async () => {
-			await runFlushers(flushers);
-			await groups.idle();
+			await settlePending();
 			const refused = refusal(stacks[direction][stacks[direction].length - 1], probes, direction);
 			const outcome = refused ?? (await applyTop(deps, stacks, direction, changed));
 			return announce(outcome, outcomeListeners, notify);
@@ -175,6 +185,7 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 			if (on) saveNow();
 			return on ? Promise.resolve() : deps.store.remove();
 		},
+		settle: () => enqueue(settlePending),
 		flushNow: () => (persisting() ? deps.store.flushNow() : Promise.resolve()),
 		// Queued, like undo/redo: an apply in flight holds its step and file list, so
 		// a path edit must wait for it to settle, then act on the settled stacks.

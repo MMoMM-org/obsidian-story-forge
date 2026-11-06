@@ -655,6 +655,7 @@ export interface OwnedUndoJournal extends UndoJournal, WriteRecorder {
 	pruneUnresolvable(): Promise<void>;        // at layout-ready: drop paths that no longer exist
 	onRename(file: TAbstractFile, oldPath: string): Promise<void>; // queued behind any apply (T2.5)
 	onDelete(file: TAbstractFile): Promise<void>;
+	settle(): Promise<void>;                   // T3.4: run flushers, wait for open groups (queued); shutdown runs it before flushNow
 	flushNow(): Promise<void>;                 // write pending state immediately
 	dispose(): void;                           // cancel timers, close groups, drop listeners
 }
@@ -1222,7 +1223,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 
 - [x] **ADR-43 — The journal is a plugin-owned service created in `main.ts` and injected.**
   `createUndoJournal(...)` in `onload` before views are registered;
-  `this.register(() => { void journal.flushNow(); journal.dispose(); })`; passed to `AnvilView`
+  `this.register(() => { void journal.flushNow(); journal.dispose(); })` (T3.4: the shutdown is
+  `settle()` → uninstall the recorder → `flushNow()` → `dispose()`, shared by unload and `quit`); passed to `AnvilView`
   through `AnvilViewOpts.undo` and to `SidebarView` as a new trailing constructor argument; to
   `SettingsTab` through its existing plugin reference.
   - Rationale: the FileClass cache precedent; one instance, explicit lifetime, testable with a
