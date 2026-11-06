@@ -10,9 +10,9 @@
  * Failed files stay on top as a reduced step with the same id, and files whose
  * note is gone are dropped. The journal never creates, renames or deletes a note.
  *
- * Built so far (T2.6): record, stacks, apply, outcomes, `load` from the store, path upkeep
- * (rename, delete, startup prune), and the persistence gate with `flushNow`. Still to come:
- * groups, probes and flushers (Phase 3), `clear` (T5.5).
+ * Built so far (T3.1): record, stacks, apply, outcomes, `load` from the store, path upkeep
+ * (rename, delete, startup prune), the persistence gate with `flushNow`, and gesture groups
+ * (ADR-38). Still to come: probes and flushers (T3.2), `clear` (T5.5).
  *
  * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-46, ADR-48, Complex Logic
  */
@@ -20,7 +20,7 @@ import { TFolder, type App, type TAbstractFile, type TFile } from "obsidian";
 import type { RestoreFn, RestoreOp, WriteRecorder } from "../inspector/frontmatterWriter";
 import type {
 	ConflictReport, FieldChange, FileChanges, JournalSnapshot, JournalStore, Slot, Step, StepSummary,
-	UndoDirection, UndoOutcome,
+	JournalGroup, UndoDirection, UndoOutcome,
 } from "undo/journalTypes";
 import { outcomeNotice, summariseStep } from "undo/stepLabel";
 import { slotsEqual, valueSize } from "undo/yamlValue";
@@ -30,6 +30,9 @@ export const MAX_STEPS = 50;
 /** A step holding a longer value (JSON length) is kept this session but never persisted (ADR-48). */
 export const MAX_VALUE_CHARS = 16_384;
 
+/** An unclosed group force-commits after this long, with a warning (ADR-38). */
+export const GROUP_TIMEOUT_MS = 10_000;
+
 export interface StackPeek {
 	readonly undo: StepSummary | null;
 	readonly redo: StepSummary | null;
@@ -38,6 +41,10 @@ export interface StackPeek {
 export type OutcomeListener = (outcome: UndoOutcome, message: string) => void;
 
 export interface UndoJournal {
+	/** Open a gesture group: writes passing it collect into one step (ADR-38). */
+	openGroup(): JournalGroup;
+	/** Open a group, await `fn`, close it in `finally`. */
+	group<T>(fn: (g: JournalGroup) => Promise<T>): Promise<T>;
 	undo(): Promise<UndoOutcome>;
 	redo(): Promise<UndoOutcome>;
 	peek(): StackPeek;
@@ -117,10 +124,26 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 	};
 	const notify = (message: string): void => isolated(() => deps.notify(message), "notify failed");
 	const enqueue = serialQueue();
+	const pushStep = stepPusher(stacks, deps.now ?? Date.now, changed);
+	const groups = createGroups(pushStep);
 	const apply = (direction: UndoDirection): Promise<UndoOutcome> =>
 		enqueue(() => applyTop(deps, stacks, direction, changed).then((o) => announce(o, outcomeListeners, notify)));
 	return {
-		record: recorderFor(stacks, deps.now ?? Date.now, changed),
+		record: (path, changes, group) => {
+			if (changes.length === 0) return;
+			if (group !== undefined && groups.add(group, path, changes)) return;
+			if (group !== undefined) console.warn("[StoryForge] Undo journal: a write named a group that already committed; it becomes its own step.");
+			pushStep([{ path, changes: [...changes] }]);
+		},
+		openGroup: () => groups.open(),
+		group: async (fn) => {
+			const g = groups.open();
+			try {
+				return await fn(g);
+			} finally {
+				g.close();
+			}
+		},
 		undo: () => apply("undo"),
 		redo: () => apply("redo"),
 		peek: () => ({ undo: summaryOf(stacks.undo), redo: summaryOf(stacks.redo) }),
@@ -142,6 +165,7 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 			gate.disposed = true;
 			subscribers.clear();
 			outcomeListeners.clear();
+			groups.closeAll();
 		},
 	};
 }
@@ -221,17 +245,122 @@ function dropAll(stacks: Stacks, changed: () => void, drop: (path: string) => bo
 	if (touched) changed();
 }
 
-/** Each writer report becomes its own step (groups come in Phase 3). */
-function recorderFor(stacks: Stacks, now: () => number, changed: () => void): WriteRecorder["record"] {
+/** Put one step on top of undo (clears redo, caps the stack, saves, notifies). Nothing to record: no-op. */
+function stepPusher(stacks: Stacks, now: () => number, changed: () => void): (files: readonly FileChanges[]) => void {
 	let seq = 0;
-	return (path, changes) => {
-		if (changes.length === 0) return;
+	return (files) => {
+		if (files.length === 0) return;
 		const at = now();
 		seq += 1;
-		pushTrimmed(stacks.undo, stepWith({ id: `u-${at}-${seq}`, at }, [{ path, changes: [...changes] }]));
+		pushTrimmed(stacks.undo, stepWith({ id: `u-${at}-${seq}`, at }, files));
 		stacks.redo.length = 0;
 		changed();
 	};
+}
+
+/** What a group has collected so far: per file, per key, in first-write order. */
+interface GroupState {
+	holds: number;
+	pending: number;
+	done: boolean;
+	timer: number | undefined;
+	readonly files: Map<string, Map<string, FieldChange>>;
+	finish(): void;
+}
+
+interface Groups {
+	open(): JournalGroup;
+	/** Collect the changes; false when `group` is not open here (unknown or already committed). */
+	add(group: JournalGroup, path: string, changes: readonly FieldChange[]): boolean;
+	closeAll(): void;
+}
+
+/** Gesture groups (ADR-38): ref-counted holds plus tracked promises; the merged step is pushed once. */
+function createGroups(pushStep: (files: readonly FileChanges[]) => void): Groups {
+	const open = new Set<GroupState>();
+	const states = new WeakMap<JournalGroup, GroupState>();
+	let seq = 0;
+	const create = (): JournalGroup => {
+		seq += 1;
+		let resolve!: () => void;
+		const settled = new Promise<void>((r) => (resolve = r));
+		const state: GroupState = {
+			holds: 1, pending: 0, done: false, timer: undefined, files: new Map(),
+			finish: () => {
+				if (state.done) return;
+				state.done = true;
+				window.clearTimeout(state.timer);
+				open.delete(state);
+				try {
+					pushStep(mergedFiles(state.files));
+				} finally {
+					resolve();
+				}
+			},
+		};
+		const settle = (): void => {
+			state.pending -= 1;
+			commitIfIdle(state);
+		};
+		const handle: JournalGroup = {
+			id: `g-${seq}`,
+			join: () => {
+				if (!state.done) state.holds += 1;
+				return handle;
+			},
+			track: (p) => {
+				if (!state.done) {
+					state.pending += 1;
+					p.then(settle, settle);
+				}
+				return p;
+			},
+			close: () => {
+				if (state.holds === 0) return;
+				state.holds -= 1;
+				commitIfIdle(state);
+			},
+			settled,
+		};
+		state.timer = window.setTimeout(() => {
+			console.warn(`[StoryForge] Undo journal: group ${handle.id} was still open after ${GROUP_TIMEOUT_MS} ms; committing it now.`);
+			state.finish();
+		}, GROUP_TIMEOUT_MS);
+		states.set(handle, state);
+		open.add(state);
+		return handle;
+	};
+	return {
+		open: create,
+		add: (group, path, changes) => {
+			const state = states.get(group);
+			if (state === undefined || state.done) return false;
+			collect(state.files, path, changes);
+			return true;
+		},
+		closeAll: () => [...open].forEach((s) => s.finish()),
+	};
+}
+
+function commitIfIdle(state: GroupState): void {
+	if (state.holds === 0 && state.pending === 0) state.finish();
+}
+
+/** Same key twice: the first `before` stays, the last `after` wins (Implementation Gotchas). */
+function collect(files: Map<string, Map<string, FieldChange>>, path: string, changes: readonly FieldChange[]): void {
+	const keys = files.get(path) ?? new Map<string, FieldChange>();
+	files.set(path, keys);
+	for (const c of changes) keys.set(c.key, { key: c.key, before: keys.get(c.key)?.before ?? c.before, after: c.after });
+}
+
+/** The collected changes minus those that ended where they began, and files left with none. */
+function mergedFiles(files: ReadonlyMap<string, ReadonlyMap<string, FieldChange>>): FileChanges[] {
+	const merged: FileChanges[] = [];
+	for (const [path, keys] of files) {
+		const changes = [...keys.values()].filter((c) => !slotsEqual(c.before, c.after));
+		if (changes.length > 0) merged.push({ path, changes });
+	}
+	return merged;
 }
 
 /** Journal-wide switches: persistence (null = ask `deps.persist` once), dispose, and whether the file was taken. */

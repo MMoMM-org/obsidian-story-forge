@@ -10,7 +10,7 @@ import { expect, vi } from "vitest";
 import { App, TFolder, createMockTFile, type TFile } from "../__mocks__/obsidian";
 import { commit, installWriteRecorder, type RestoreFn } from "inspector/frontmatterWriter";
 import { createUndoJournal, type OwnedUndoJournal } from "undo/undoJournal";
-import type { FileChanges, JournalSnapshot, JournalStore, Slot, Step } from "undo/journalTypes";
+import type { FileChanges, JournalGroup, JournalSnapshot, JournalStore, Slot, Step } from "undo/journalTypes";
 
 export const MARA = "20 Characters/Mara Stoneway.md";
 export const SCENE_4 = "30 Scenes/Scene 4.md";
@@ -52,7 +52,7 @@ export interface Harness {
 	readonly store: FakeStore;
 	readonly notices: string[];
 	/** Write one field through the real writer (a number field for numbers, else text). */
-	write(path: string, key: string, value: unknown): Promise<void>;
+	write(path: string, key: string, value: unknown, group?: JournalGroup): Promise<void>;
 	/** The note's current frontmatter (a copy). */
 	fm(path: string): Record<string, unknown>;
 	/** A change made outside Story Forge (a script, a hand edit): merged in, `undefined` deletes. */
@@ -110,8 +110,8 @@ export function setup(notes: Record<string, Record<string, unknown>>, opts: Setu
 	live.push({ app, journal, uninstall: () => handle.uninstall(), bodies, initialBodies: new Map(bodies) });
 	return {
 		app, journal, store, notices,
-		write: async (path, key, value) => {
-			const result = await commit(app, files.get(path)!, key, value, typeof value === "number" ? { name: key, type: "number" } : { name: key, type: "text" });
+		write: async (path, key, value, group) => {
+			const result = await commit(app, files.get(path)!, key, value, typeof value === "number" ? { name: key, type: "number" } : { name: key, type: "text" }, group ? { group } : undefined);
 			expect(result.ok).toBe(true);
 		},
 		fm: (path) => structuredClone(app.fileManager._getFrontmatter(path)),

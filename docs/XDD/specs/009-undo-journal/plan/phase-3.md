@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Gestures and pending work"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 3
 ---
@@ -117,3 +117,12 @@ pending write.
 
   - All gates green. Check by hand with the palette command: a Kanban drag with RENUMBER, then undo
     restores every note. Drift check against ADR-38/39/52.
+
+## Decisions taken during implementation
+
+- **T3.1: a group's step is stamped at commit.** `at` and the id come from `now()` when the group commits, not when it opened, so ids stay in commit order. The step shares the id counter with ungrouped steps.
+- **T3.1: `join()` and `track()` return the same handle / promise.** There is no child group (ADR-38). `join()` or `track()` on a group that already committed does nothing; an extra `close()` beyond the holds is ignored.
+- **T3.1: a write naming an unknown or committed group records its own step and warns** (one `console.warn`). A group handle the journal did not create is treated the same way.
+- **T3.1: `dispose` clears listeners, then force-commits open groups.** The merged step lands on the in-memory stack but is not saved (dispose stops saving) and `settled` resolves. Disposing does not warn.
+- **T3.1: the 10 s timer uses `window.setTimeout`** (obsidianmd/prefer-window-timers) and is cleared on commit, so a group that commits in time leaves no timer behind.
+- **T3.1: merged changes keep first-write order** by file and by key; a key set again keeps its first position.
