@@ -47,7 +47,7 @@ Gets the UI signed off, then fixes the Workbench so it shows what undo did. This
   5. Success: the user signs off. The wording is recorded as binding, OQ-3 is resolved, and the sign-off
      goes in the spec README decision log `[ref: SDD/OQ-3; CON-8]`
 
-- [ ] **T4.2 InspectorController refresh rules** `[activity: frontend-logic]`
+- [x] **T4.2 InspectorController refresh rules** `[activity: frontend-logic]`
 
   1. Prime: `src/inspector/InspectorController.ts` (`render` ~217–221, `notifyFileChanged`);
      `[ref: SDD/ADR-42]`; the Anvil's `_reconcileOwed` as the precedent.
@@ -96,4 +96,5 @@ Gets the UI signed off, then fixes the Workbench so it shows what undo did. This
 - **T4.2 review (S1): a dirty or error field whose draft the file now holds becomes `clean`.** Its row is redrawn (Save button and error gone), `isBusy` stops answering `draft`, so undo is not blocked by a draft that is already in the file. When this leaves no field protected, `notifyFileChanged` returns `false`: the caller's own redraw is the owed one, so `onGuardCleared` is not called as well and the owed flag is cleared.
 - **T4.2 review (S2): the owning view's unload runs `teardown()`.** A commit that settles after the view closed (without its own teardown) then bails on the generation check, and no owed redraw runs.
 - **T4.2 review (S4): a row redrawn in place keeps the caret.** If the old control had focus, the new one is focused; the HTML value setter already puts the caret at the end, so no explicit selection call is made.
+- **Accepted hazards from the T4.2 re-review (non-blocking, both self-heal).** (a) A field saved successfully and then saved again with a failure before `metadataCache.changed` arrives compares against the value from before the first save, because the plugin's own write does not update `ctx.frontmatter`; the next refresh corrects it. (b) If an outside change makes the file hold the draft while a write is in flight and that write then fails, the field stays in `error` (visible error, undo refused for that note) until the user edits the field or the next refresh. Both need two near-simultaneous writes; revisit if the live walk shows them.
 - **Carry-over to T4.3: SidebarView's `currentCtx` goes stale while the controller guards.** `notifyFileChanged` returning `true` skips `_resolveAndRender`, so `toggleEditMode` (discard) and a tab switch (`_rerenderBody`) render the context from before the change, and `render()` with that context reverts clean and saved fields to the old value. T4.3 must re-resolve `currentCtx` even when `notifyFileChanged` returns `true` (without redrawing), with tests for both paths.
