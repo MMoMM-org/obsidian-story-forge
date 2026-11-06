@@ -387,17 +387,22 @@ describe("shutdown settles pending gestures before the save (spec 009 T3.4)", ()
 	});
 
 	it("a group a closed view still holds is waited for, so its late write is persisted too", async () => {
-		const log = storeLog();
-		const { plugin, app, file } = await pluginWithNote();
-		// No flusher: the view already closed and unregistered it; its flush is still in flight.
-		const group = journal().openGroup();
-		setTimeout(() => {
-			void commit(app, file, "status", "revised", STATUS, { group }).finally(() => group.close());
-		}, 5);
-		plugin._runCleanup();
-		await new Promise((r) => setTimeout(r, 30));
-		expect(log.calls.at(-1)).toBe("flushNow");
-		expect(persistedPaths(log.persisted())).toEqual([file.path]);
+		vi.useFakeTimers();
+		try {
+			const log = storeLog();
+			const { plugin, app, file } = await pluginWithNote();
+			// No flusher: the view already closed and unregistered it; its flush is still in flight.
+			const group = journal().openGroup();
+			setTimeout(() => {
+				void commit(app, file, "status", "revised", STATUS, { group }).finally(() => group.close());
+			}, 5);
+			plugin._runCleanup();
+			await vi.advanceTimersByTimeAsync(30);
+			expect(log.calls.at(-1)).toBe("flushNow");
+			expect(persistedPaths(log.persisted())).toEqual([file.path]);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("quit settles too: the quit task covers the pending write", async () => {
