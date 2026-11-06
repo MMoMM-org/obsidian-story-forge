@@ -11,8 +11,9 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { App, Notice, Tasks, WorkspaceLeaf, createMockTFile } from "obsidian";
-import { WORKSPACE_VIEW_TYPE } from "pluginConstants";
+import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { AnvilView } from "anvil/AnvilView";
+import type { SidebarView } from "views/SidebarView";
 import type { OwnedUndoJournal, UndoJournalDeps } from "undo/undoJournal";
 import type { JournalStoreDeps } from "undo/journalStore";
 import type { JournalStore } from "undo/journalTypes";
@@ -255,6 +256,25 @@ describe("views", () => {
 		expect(journal().registerFlusher).toHaveBeenCalledTimes(1);
 		await view.onClose();
 		expect(releases).toEqual(["flusher"]);
+	});
+
+	it("the Workbench view factory hands the view the journal: an open Workbench registers its probe, closing releases it", async () => {
+		const { plugin, app } = await makePlugin();
+		await plugin.onload();
+		const releases: string[] = [];
+		const real = journal().registerProbe.bind(journal());
+		vi.spyOn(journal(), "registerProbe").mockImplementation((p) => {
+			const off = real(p);
+			return () => { releases.push("probe"); off(); };
+		});
+		const call = plugin.registerView.mock.calls.find((c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE);
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		const view = (call![1] as (l: WorkspaceLeaf) => SidebarView)(leaf);
+		await view.onOpen();
+		expect(journal().registerProbe).toHaveBeenCalledTimes(1);
+		await view.onClose();
+		expect(releases).toEqual(["probe"]);
 	});
 });
 

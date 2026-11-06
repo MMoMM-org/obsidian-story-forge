@@ -48,6 +48,7 @@ import type { ConsentGate } from "consent/ConsentGate";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
+import type { UndoJournal } from "undo/undoJournal";
 import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFieldsFromModel, inspectorHeadings } from "../inspector/inspectorFieldsFromModel";
 import { createNavigationController } from "../navigation/navigationController";
@@ -206,6 +207,11 @@ export class SidebarView extends ItemView {
 	// T6.4: the plugin's FileClass cache, where the editor's fields come from.
 	private readonly fileClasses: FileClassCache | null;
 
+	// Spec 009 (ADR-39, ADR-43): the plugin's undo journal, and the call that
+	// releases this view's probe (set while the view is open).
+	private readonly undo: UndoJournal | null;
+	private _releaseProbe: (() => void) | null = null;
+
 	// M2: tracks the engine currently rendered into the panel body (ADR-7 teardown)
 	private currentEngine: QueryEngine | null = null;
 	// M2: the ViewRecord currently rendered (selected view tab)
@@ -246,6 +252,8 @@ export class SidebarView extends ItemView {
 	 *   calls valid and default scoping behaviour unchanged).
 	 * @param fileClasses - T6.4: the plugin's FileClass cache. Absent, no note has
 	 *   a FileClass, so the editor shows the note's own keys.
+	 * @param undo - Spec 009: the plugin's undo journal. While the view is open it
+	 *   asks the editor whether the subject holds a draft or a write (ADR-39).
 	 */
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -256,6 +264,7 @@ export class SidebarView extends ItemView {
 		getLinkClickAction?: () => PluginSettings["linkClickAction"],
 		getExcludedFolders?: () => readonly string[],
 		fileClasses?: FileClassCache,
+		undo?: UndoJournal,
 	) {
 		super(leaf);
 		this.scoping = new ScopingService(this.app);
@@ -266,6 +275,7 @@ export class SidebarView extends ItemView {
 		this.getLinkClickAction = getLinkClickAction ?? ((): "drill" => "drill");
 		this.getExcludedFolders = getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
 		this.fileClasses = fileClasses ?? null;
+		this.undo = undo ?? null;
 		this._debouncedFollow = debounce(
 			(l: WorkspaceLeaf | null) => { this._doFollow(l); },
 			DEBOUNCE_MS,
@@ -304,6 +314,7 @@ export class SidebarView extends ItemView {
 		// Build the panel shell
 		this._buildShell();
 		this._renderState({ kind: "no-note" });
+		this._connectUndo();
 
 		// Stage 1: wire store subscription for live tab refresh
 		if (this.store) {
@@ -327,23 +338,12 @@ export class SidebarView extends ItemView {
 				),
 			);
 
-			// Wire up metadataCache changed (re-resolve on metadata update for current file)
+			// The subject's own file changed, whether followed, pinned or drilled
+			// (ADR-51: pinning stops following, not refreshing).
 			this.registerEvent(
 				this.app.metadataCache.on("changed", (file: TFile) => {
-					if (
-						this.subject.source === "pinned" ||
-						!this.subject.file ||
-						file.path !== this.subject.file.path
-					) {
-						return;
-					}
-					// T5.2: dirty-guard — notify the Inspector first.
-					// Returns true = guard fired (edit in-flight) → skip re-render so
-					// we don't wipe the user's in-progress input or dirty state.
-					// Returns false = all fields clean/saved → proceed with re-render.
-					if (this._inspector?.notifyFileChanged(file)) return;
-					// Re-resolve current subject file
-					this._resolveAndRender(this.subject.file);
+					if (file.path !== this.subject.file?.path) return;
+					this._onSubjectChanged(this.subject.file);
 				}),
 			);
 
@@ -367,9 +367,52 @@ export class SidebarView extends ItemView {
 
 	/** Redraw the current subject, unless the editor holds an edit a redraw would lose. */
 	private _onFileClassesChanged(): void {
-		const file = this.subject.file;
-		if (!file || this._inspector?.notifyFileChanged(file)) return;
+		if (this.subject.file) this._onSubjectChanged(this.subject.file);
+	}
+
+	/**
+	 * The subject changed. The editor takes the change into its fields first; while
+	 * one of them is protected the redraw is owed (ADR-42) and only the context is
+	 * refreshed, so a later discard or tab switch draws the file's current values.
+	 */
+	private _onSubjectChanged(file: TFile): void {
+		if (this._inspector?.notifyFileChanged(file)) {
+			this._refreshContext(file);
+			return;
+		}
 		this._resolveAndRender(file);
+	}
+
+	/** Re-resolve `currentCtx` without drawing; a failure is left to the owed redraw to show. */
+	private _refreshContext(file: TFile): void {
+		if (!this.app.metadataCache.getFileCache(file)) return;
+		try {
+			this.currentCtx = this.scoping.resolve(file);
+		} catch (err) {
+			console.debug("[StoryForge] resolve error", err instanceof Error ? err.message : err);
+		}
+	}
+
+	/** The undo probe (ADR-39) and the owed redraw (ADR-42), while the view is open. */
+	private _connectUndo(): void {
+		if (this._inspector) {
+			this._inspector.onGuardCleared = (): void => {
+				if (this.subject.file) this._resolveAndRender(this.subject.file);
+			};
+		}
+		if (this.undo && !this._releaseProbe) {
+			// Asks whichever editor the view holds at the time of the question.
+			const release = this.undo.registerProbe((path) => this._inspector?.isBusy(path) ?? null);
+			this._releaseProbe = release;
+			this.register(() => { this._disconnectUndo(); });
+		}
+	}
+
+	/** Release the probe and the owed redraw, so nothing runs for a closed view. */
+	private _disconnectUndo(): void {
+		this._releaseProbe?.();
+		this._releaseProbe = null;
+		if (this._inspector) this._inspector.onGuardCleared = undefined;
 	}
 
 	async onClose(): Promise<void> {
@@ -384,6 +427,7 @@ export class SidebarView extends ItemView {
 		this.currentEngine?.teardown();
 		this.currentEngine = null;
 		// T5.2: tear down the Inspector (clears in-memory dirty state — CON-1)
+		this._disconnectUndo();
 		this._inspector?.teardown();
 		aug(this.contentEl).empty();
 		// Clear resolved-context cache and subject so a re-opened view starts

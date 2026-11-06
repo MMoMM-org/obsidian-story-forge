@@ -62,7 +62,7 @@ export default class StoryForgePlugin extends Plugin {
 		this.register(() => { fileClasses.dispose(); });
 
 		// The undo journal (spec 009, ADR-43): created once, loaded before the settings tab
-		// exists, released on unload. The Anvil receives it below; the Workbench in Phase 4.
+		// exists, released on unload. The Workbench and the Anvil receive it below.
 		const journal = await wireUndoJournal(this);
 
 		// Construct the shared engine infrastructure injected into SidebarView
@@ -133,6 +133,7 @@ export default class StoryForgePlugin extends Plugin {
 				() => this.settings.linkClickAction,
 				() => this.settings.excludedFolders,
 				fileClasses,
+				journal,
 			),
 		);
 
