@@ -150,6 +150,18 @@ function toComparableString(v: unknown): string {
 	return "";
 }
 
+/**
+ * True when a field's draft says what its stored value says, so it holds no
+ * unsaved text. Empty, null and absent compare as one value ("" through
+ * toComparableString); a checkbox reads an absent value as unchecked, so
+ * checking then unchecking is back where it began.
+ */
+function draftMatches(committed: unknown, draft: unknown): boolean {
+	const committedNullish = committed === null || committed === undefined || committed === "";
+	if (committedNullish && draft === false) return true;
+	return toComparableString(draft) === toComparableString(committed);
+}
+
 // ---------------------------------------------------------------------------
 // InspectorController
 // ---------------------------------------------------------------------------
@@ -181,8 +193,9 @@ export class InspectorController {
 
 	constructor(app: App, owner: Component) {
 		this.app = app;
-		// Ensure DOM listeners are cleaned up when the owning Component is unloaded.
-		owner.register(() => { this._listenerController?.abort(); });
+		// The owning view unloaded (possibly without teardown()): release the
+		// listeners, drop every field, and let no late commit or owed redraw run.
+		owner.register(() => { this.teardown(); });
 	}
 
 	// -------------------------------------------------------------------------
@@ -269,9 +282,9 @@ export class InspectorController {
 		if (!this.ctx || file.path !== this.ctx.activeFile.path) return false;
 		const cache = this.app.metadataCache.getFileCache(file);
 		if (cache) this._refreshInPlace(cache.frontmatter ?? {});
-		if (!this._hasProtected()) return false;
-		this._redrawOwed = true;
-		return true;
+		// Nothing protected: the caller's redraw is the owed one, if any (S1).
+		this._redrawOwed = this._hasProtected();
+		return this._redrawOwed;
 	}
 
 	/**
@@ -313,7 +326,8 @@ export class InspectorController {
 	/**
 	 * What the file's `value` does to one field. `saving` keeps everything (its
 	 * write settles it); `dirty`/`error` keep the draft but compare against the
-	 * file from now on; `clean`/`saved` adopt a changed value and become `clean`,
+	 * file from now on, and become `clean` when the file now holds the draft;
+	 * `clean`/`saved` adopt a changed value and become `clean`,
 	 * which also drops an out-of-vocab advisory (it is drawn only while `saved`,
 	 * and every commit sets it afresh).
 	 * @returns true when the field's row must be redrawn
@@ -323,7 +337,9 @@ export class InspectorController {
 		if (kind === "saving") return false;
 		if (kind === "dirty" || kind === "error") {
 			state.committedValue = value;
-			return false;
+			if (!draftMatches(value, state.draftValue)) return false;
+			state.status = { kind: "clean" }; // the file now holds the draft
+			return true;
 		}
 		if (deepEqual(state.committedValue, value)) return false;
 		state.committedValue = value;
@@ -332,11 +348,17 @@ export class InspectorController {
 		return true;
 	}
 
-	/** Replace a field's row with a fresh one; listeners are delegated, so nothing to re-attach. */
+	/**
+	 * Replace a field's row with a fresh one; listeners are delegated, so nothing
+	 * to re-attach. A caret in the old control moves to the end of the new one.
+	 */
 	private _redrawRow(state: FieldState): void {
 		const old = state.rowEl;
 		if (!old?.parentNode) return;
+		const hadFocus = state.inputEl !== null && state.inputEl === activeDocument.activeElement;
 		old.replaceWith(this._buildRow(state.spec, state));
+		// Setting a text input's value already puts its caret at the end (HTML value setter).
+		if (hadFocus) state.inputEl?.focus();
 	}
 
 	private _hasProtected(): boolean {
@@ -659,24 +681,8 @@ export class InspectorController {
 			const state = this.fieldStates.get(fieldName);
 			if (!state) return;
 
-			const newValue = readInputValue(target, state.spec.type);
-			state.draftValue = newValue;
-
-			// Special: both null-ish → clean
-			const committedNullish = state.committedValue === null || state.committedValue === undefined || state.committedValue === "";
-			const draftNullish = newValue === null || newValue === "";
-
-			// A checkbox over an absent value has no "empty": unchecked is how it
-			// reads the absence, so checking then unchecking is back where it began.
-			const uncheckedAbsent = committedNullish && newValue === false; // only a checkbox reads as false
-
-			if ((committedNullish && draftNullish) || uncheckedAbsent) {
-				state.status = { kind: "clean" };
-			} else if (toComparableString(newValue) === toComparableString(state.committedValue)) {
-				state.status = { kind: "clean" };
-			} else {
-				state.status = { kind: "dirty" };
-			}
+			state.draftValue = readInputValue(target, state.spec.type);
+			state.status = { kind: draftMatches(state.committedValue, state.draftValue) ? "clean" : "dirty" };
 
 			this._updateFieldAffordances(target.closest(".sf-inspector-field") as HTMLElement ?? container, state.spec, state);
 			this._settleOwed();
@@ -692,19 +698,8 @@ export class InspectorController {
 			if (!state) return;
 
 			const selValue = (target as HTMLSelectElement).value;
-			const newValue = selValue === "" ? null : selValue;
-			state.draftValue = newValue;
-
-			const committedNullish = state.committedValue === null || state.committedValue === undefined;
-			const draftNullish = newValue === null;
-
-			if (committedNullish && draftNullish) {
-				state.status = { kind: "clean" };
-			} else if (toComparableString(newValue) === toComparableString(state.committedValue)) {
-				state.status = { kind: "clean" };
-			} else {
-				state.status = { kind: "dirty" };
-			}
+			state.draftValue = selValue === "" ? null : selValue;
+			state.status = { kind: draftMatches(state.committedValue, state.draftValue) ? "clean" : "dirty" };
 
 			this._updateFieldAffordances(target.closest(".sf-inspector-field") as HTMLElement ?? container, state.spec, state);
 			this._settleOwed();
@@ -765,7 +760,10 @@ export class InspectorController {
 			// Update committed value — the write succeeded
 			state.committedValue = state.draftValue;
 		} else {
-			// Error: validation or write — preserve draft (keepDirty)
+			// Error: validation or write — preserve draft (keepDirty). The draft is
+			// compared against what the file holds now: it may have changed while
+			// the write was in flight (W1).
+			state.committedValue = this.ctx?.frontmatter[fieldName] ?? null;
 			state._outOfVocabAdvisory = false;
 			state.status = {
 				kind: "error",

@@ -64,16 +64,18 @@ interface Workbench {
 	controller: InspectorController;
 	container: HTMLElement;
 	fields: FieldSpec[];
+	owner: Component;
 }
 
 function openWorkbench(frontmatter: Record<string, unknown>, fields: FieldSpec[]): Workbench {
 	const app = new App();
 	const file = createMockTFile({ path: PATH, basename: "Mara Stoneway" });
-	const controller = new InspectorController(app, new Component());
+	const owner = new Component();
+	const controller = new InspectorController(app, owner);
 	const container = document.createElement("div");
 	document.body.appendChild(container);
 	controller.render(container, makeCtx(file, frontmatter), fields);
-	return { app, file, controller, container, fields };
+	return { app, file, controller, container, fields, owner };
 }
 
 /**
@@ -260,7 +262,21 @@ describe("InspectorController refresh: protected fields", () => {
 		expect(hasSave(wb, "nickname")).toBe(false);
 	});
 
-	it("a saving field keeps the value it started from; the write's result settles it", async () => {
+	it("a saving field keeps its text and the value it started from while the write is in flight", () => {
+		stubPendingCommit();
+		const wb = openWorkbench({ nickname: "Spark" }, [NICKNAME]);
+		type(wb, "nickname", "Ember");
+		clickSave(wb, "nickname");
+
+		changeFile(wb, { nickname: "Ash" });
+
+		expect(inputOf(wb, "nickname").value).toBe("Ember");
+		// Its stored value is still "Spark", not the outside "Ash".
+		type(wb, "nickname", "Spark");
+		expect(hasSave(wb, "nickname")).toBe(false);
+	});
+
+	it("a write that fails after an outside change compares against the file's current value (W1)", async () => {
 		const settle = stubPendingCommit();
 		const wb = openWorkbench({ nickname: "Spark" }, [NICKNAME]);
 		type(wb, "nickname", "Ember");
@@ -271,9 +287,71 @@ describe("InspectorController refresh: protected fields", () => {
 		await settled();
 
 		expect(inputOf(wb, "nickname").value).toBe("Ember");
-		// Its stored value is still "Spark", not the outside "Ash".
-		type(wb, "nickname", "Spark");
+		type(wb, "nickname", "Ash");
 		expect(hasSave(wb, "nickname")).toBe(false);
+		type(wb, "nickname", "Spark");
+		expect(hasSave(wb, "nickname")).toBe(true);
+	});
+
+	it("a dirty field whose draft the file now holds becomes clean, so undo is no longer blocked (S1)", () => {
+		const wb = openWorkbench({ nickname: "Spark" }, [NICKNAME]);
+		const onGuardCleared = vi.fn();
+		wb.controller.onGuardCleared = onGuardCleared;
+		type(wb, "nickname", "Ember");
+		expect(changeFile(wb, { nickname: "Ash" })).toBe(true); // a redraw is owed
+
+		// The file now holds the draft: the caller's own redraw is the owed one.
+		expect(changeFile(wb, { nickname: "Ember" })).toBe(false);
+
+		expect(inputOf(wb, "nickname").value).toBe("Ember");
+		expect(hasSave(wb, "nickname")).toBe(false);
+		expect(wb.controller.isBusy(PATH)).toBeNull();
+		type(wb, "nickname", "Fire");
+		type(wb, "nickname", "Ember");
+		expect(onGuardCleared).not.toHaveBeenCalled(); // nothing is owed any more
+	});
+
+	it("an error field whose draft the file now holds becomes clean and drops its error (S1)", async () => {
+		stubCommit({ nickname: WRITE_ERROR });
+		const wb = openWorkbench({ nickname: "Spark", aliases: "Mara" }, [NICKNAME, ALIASES]);
+		type(wb, "nickname", "Ember");
+		clickSave(wb, "nickname");
+		await settled();
+		type(wb, "aliases", "Mara, Stone");
+
+		expect(changeFile(wb, { nickname: "Ember", aliases: "Mara" })).toBe(true); // aliases is still dirty
+
+		expect(inputOf(wb, "nickname").value).toBe("Ember");
+		expect(wb.container.querySelector('[data-sf-inspector-error="nickname"]')).toBeNull();
+		expect(hasSave(wb, "nickname")).toBe(false);
+		expect(hasSave(wb, "aliases")).toBe(true);
+		expect(wb.controller.undoKeyPolicy(inputOf(wb, "nickname"))).toBe("journal");
+	});
+
+	it("keeps the caret in a field whose row is redrawn by an outside change (S4)", () => {
+		// Another field holds a draft, so the in-place redraw is all that runs.
+		const guardedWb = openWorkbench({ nickname: "Spark", aliases: "Mara" }, [NICKNAME, ALIASES]);
+		type(guardedWb, "aliases", "Mara, Stone");
+		const before = inputOf(guardedWb, "nickname");
+		before.focus();
+
+		expect(changeFile(guardedWb, { nickname: "Ash", aliases: "Mara" })).toBe(true);
+
+		const after = inputOf(guardedWb, "nickname");
+		expect(after).not.toBe(before);
+		expect(after.value).toBe("Ash");
+		expect(document.activeElement).toBe(after);
+		expect(after.selectionStart).toBe(3);
+	});
+
+	it("does not move focus into a redrawn row that did not have it (S4)", () => {
+		const wb = openWorkbench({ nickname: "Spark", aliases: "Mara" }, [NICKNAME, ALIASES]);
+		type(wb, "aliases", "Mara, Stone");
+		inputOf(wb, "aliases").focus();
+
+		changeFile(wb, { nickname: "Ash", aliases: "Mara" });
+
+		expect(document.activeElement).toBe(inputOf(wb, "aliases"));
 	});
 });
 
@@ -360,6 +438,23 @@ describe("InspectorController refresh: owed redraw", () => {
 		type(wb, "nickname", "Ember");
 		type(wb, "nickname", "Spark");
 		expect(onGuardCleared).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not run after the owning view has unloaded (S2)", async () => {
+		const settle = stubPendingCommit();
+		const wb = openWorkbench({ nickname: "Spark" }, [NICKNAME]);
+		const onGuardCleared = vi.fn();
+		wb.controller.onGuardCleared = onGuardCleared;
+		type(wb, "nickname", "Ember");
+		clickSave(wb, "nickname");
+		changeFile(wb, { nickname: "Ash" });
+
+		wb.owner.unload();
+		settle({ ok: true });
+		await settled();
+
+		expect(onGuardCleared).not.toHaveBeenCalled();
+		expect(wb.controller.isBusy(PATH)).toBeNull();
 	});
 
 	it("a new subject settles what was owed", () => {
