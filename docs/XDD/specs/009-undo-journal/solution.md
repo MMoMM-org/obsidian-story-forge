@@ -1235,7 +1235,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
 - [x] **ADR-44 — The writer reaches the journal through a writer-level recorder hook; the
   unrecorded path is a capability returned by the install.**
   `installWriteRecorder(app, journal)` sets a module-level `recorder` and returns
-  `{ restore, uninstall }`; `main.ts` registers `uninstall`. Callers of `commit`/`commitMany` pass
+  `{ restore, uninstall }`; the plugin's shutdown calls `uninstall` after `settle()` (T3.4), so a
+  pending write flushed during shutdown is still recorded. Callers of `commit`/`commitMany` pass
   nothing. Undo/redo write through `restore`, which only the journal holds, so there is no second
   exported write function and no way for a surface to write unrecorded. Deleting a key that did not
   exist is part of `restore` (`delete fm[key]`); `commit` keeps its existing semantics (writing
@@ -1288,8 +1289,9 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04.
     adding steps once the next would exceed the cap; older steps are omitted from the file only.
   - `SAVE_DEBOUNCE_MS = 1000` (reset on each change); saves serialised; a save writes the whole
     file.
-  - Flush: `this.register` runs `flushNow()` on unload (fire-and-forget; unload is synchronous) and
-    `workspace.on("quit", tasks => tasks.add(() => journal.flushNow()))` lets the desktop quit wait.
+  - Flush: one memoized shutdown runs `settle()` → `uninstall` → `flushNow()` → `dispose()` (T3.4).
+    Unload starts it through `this.register` (fire-and-forget; unload is synchronous), and
+    `workspace.on("quit", tasks => tasks.addPromise(shutdown()))` lets the desktop quit wait.
   - Load: missing → empty; invalid JSON, wrong `version` or bad shape → empty + warning.
   - Setting `keepUndoHistory` off: `adapter.remove(path)` if it exists, no further saves, stacks
     stay in memory for the session. On again: the next change saves.
