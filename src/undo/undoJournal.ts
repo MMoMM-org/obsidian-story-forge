@@ -305,15 +305,13 @@ function createGroups(pushStep: (files: readonly FileChanges[]) => void): Groups
 		const handle: JournalGroup = {
 			id: `g-${seq}`,
 			join: () => {
-				if (!state.done) state.holds += 1;
+				state.holds += 1;
 				return handle;
 			},
 			// `p.then(settle, settle)` marks p as handled, so a rejection the caller drops is not reported as unhandled.
 			track: (p) => {
-				if (!state.done) {
-					state.pending += 1;
-					p.then(settle, settle);
-				}
+				state.pending += 1;
+				p.then(settle, settle);
 				return p;
 			},
 			close: () => {

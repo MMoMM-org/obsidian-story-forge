@@ -268,6 +268,22 @@ describe("UndoJournal — gesture groups (ADR-38)", () => {
 		expect(h.lastSave().undo).toHaveLength(1);
 	});
 
+	it("a double close while a tracked promise is pending still commits on settle, without the timeout", async () => {
+		vi.useFakeTimers();
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const h = setup({ [MARA]: {} });
+		const g = h.journal.openGroup();
+		await h.write(MARA, "order", 1, g);
+		let release!: () => void;
+		void g.track(new Promise<void>((r) => (release = r)));
+		g.close();
+		g.close();
+		release();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(h.journal.peek().undo).not.toBeNull();
+		expect(warn).not.toHaveBeenCalled();
+	});
+
 	it("track returns the promise it was given", async () => {
 		const h = setup({});
 		const g = h.journal.openGroup();
