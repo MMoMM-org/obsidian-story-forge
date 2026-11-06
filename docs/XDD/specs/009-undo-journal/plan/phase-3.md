@@ -74,7 +74,7 @@ pending write.
   4. Validate: unit tests, mutation-checked.
   5. Success: `[ref: SDD/AC-F8.1–AC-F8.5]`
 
-- [ ] **T3.3 InteractionHandler: groups, flushPending, isBusy, flushing destroy** `[activity: frontend-logic]`
+- [x] **T3.3 InteractionHandler: groups, flushPending, isBusy, flushing destroy** `[activity: frontend-logic]`
 
   1. Prime: `src/workspace/interactionHandler.ts` (the 200 ms per-file debounce; `destroy` cancels
      today); `[ref: SDD/ADR-38, ADR-39, ADR-52]`.
