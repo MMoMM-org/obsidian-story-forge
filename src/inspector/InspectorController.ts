@@ -13,12 +13,14 @@
  *   controller is also aborted in teardown() and via owner.register() on
  *   Component unload — three layers of cleanup.
  *
- * Dirty-guard (SDD/ADR-3, SDD §Interaction Design):
- *   The controller exposes `notifyFileChanged(file)` so SidebarView can forward
- *   metadataCache.changed events. The controller ignores these notifications when
- *   any field is in a dirty/saving/error state, mirroring _renderRelevantEqual's
- *   generation-guard approach (SidebarView.ts:838). This prevents the writer's
- *   own processFrontMatter fan-out from wiping an in-flight edit.
+ * Refresh rules (SDD/ADR-42, closes #30):
+ *   SidebarView forwards metadataCache.changed through `notifyFileChanged(file)`.
+ *   Each field is judged on its own. `clean` and `saved` fields take the file's
+ *   value in place (a `saved` field whose value changed returns to `clean` and
+ *   drops its advisory). `dirty` and `error` fields keep their text but compare
+ *   against the file's value from then on; `saving` fields keep both. While any
+ *   field is protected the full redraw is blocked and owed; it runs through
+ *   `onGuardCleared` once the last protected field is `clean` or `saved` again.
  *
  * Out-of-vocab advisory (ADR-7 carry-over):
  *   When a select field is committed successfully ({ok:true}) but the value is
@@ -37,6 +39,9 @@
 
 import type { App, TFile, Component } from "obsidian";
 import type { NoteContext } from "scoping/NoteContext";
+import type { PendingReason } from "undo/journalTypes";
+import { isEditableText } from "undo/undoKeys";
+import { deepEqual } from "undo/yamlValue";
 import { commit } from "./frontmatterWriter";
 import { isScalarEditable, selectVocab } from "./editableFields";
 import type { FieldSpec } from "./frontmatterWriter";
@@ -69,6 +74,8 @@ interface FieldState {
 	retryEl: HTMLElement | null;
 	/** DOM: the input/select for this field. */
 	inputEl: HTMLElement | null;
+	/** DOM: the field's whole row, redrawn in place on an outside change. */
+	rowEl: HTMLElement | null;
 	/**
 	 * True when the last successful commit was an out-of-vocab select value.
 	 * Drives the inline advisory cue (ADR-7 carry-over). Never persisted (CON-1).
@@ -132,6 +139,9 @@ function isOutOfVocab(spec: FieldSpec, value: unknown): boolean {
 	return typeof value === "string" && !vocab.includes(value);
 }
 
+/** Statuses that hold text the file does not: an outside change must not overwrite it (ADR-42). */
+const PROTECTED: ReadonlySet<FieldStatus["kind"]> = new Set(["dirty", "saving", "error"]);
+
 /** Safely convert a known-primitive unknown value to string for comparison. */
 function toComparableString(v: unknown): string {
 	if (v === null || v === undefined) return "";
@@ -164,6 +174,10 @@ export class InspectorController {
 	 * abort() via owner.register() (registered once in the constructor).
 	 */
 	private _listenerController: AbortController | null = null;
+	/** A full redraw was blocked by a protected field and is still owed (ADR-42). */
+	private _redrawOwed = false;
+	/** Set by SidebarView: runs the owed redraw once no field is protected. */
+	onGuardCleared?: () => void;
 
 	constructor(app: App, owner: Component) {
 		this.app = app;
@@ -207,17 +221,16 @@ export class InspectorController {
 					feedbackEl: null,
 					retryEl: null,
 					inputEl: null,
+					rowEl: null,
 					_outOfVocabAdvisory: false,
 				});
 			} else {
-				// Update spec + committedValue (may have changed after a write fan-out)
-				// BUT preserve draftValue + status so an in-flight edit survives.
+				// Same subject redrawn: clean/saved fields take ctx's value; a
+				// draft or a write in flight survives (ADR-42).
 				const existing = this.fieldStates.get(spec.name)!;
 				existing.spec = spec;
-				// Only refresh committedValue when field is clean (guard dirty edits)
-				if (existing.status.kind === "clean") {
-					existing.committedValue = ctx.frontmatter[spec.name] ?? null;
-					existing.draftValue = ctx.frontmatter[spec.name] ?? null;
+				if (!PROTECTED.has(existing.status.kind)) {
+					this._takeOutsideValue(existing, ctx.frontmatter[spec.name] ?? null);
 				}
 			}
 		}
@@ -236,34 +249,108 @@ export class InspectorController {
 	teardown(): void {
 		this.fieldStates.clear();
 		this.ctx = null;
+		this._redrawOwed = false; // a new subject (or none) settles what was owed
 		this.gen++;
 		this._listenerController?.abort();
 		this._listenerController = null;
 	}
 
 	/**
-	 * Notify the controller that a file has changed in metadataCache.
+	 * The subject's file changed (metadataCache.changed or a FileClass change).
 	 *
-	 * Dirty-guard: if the file matches the current subject AND any field is
-	 * dirty/saving/error, the notification is silently dropped. This prevents
-	 * the writer's own metadataCache.changed fan-out from wiping an in-flight edit.
+	 * Fields without unsaved text take the file's value in place, at once; see
+	 * the refresh rules in the file header (ADR-42).
 	 *
-	 * @returns `true` if the guard fired (caller MUST skip re-render to preserve
-	 *   the in-flight edit); `false` if all fields are clean/saved and the caller
-	 *   should proceed with re-rendering to pick up new frontmatter values.
+	 * @returns `true` when a protected field blocks the full redraw: the caller
+	 *   MUST skip it, and it is owed through `onGuardCleared`. `false` when the
+	 *   caller should redraw (or the file is not the subject).
 	 */
 	notifyFileChanged(file: TFile): boolean {
 		if (!this.ctx || file.path !== this.ctx.activeFile.path) return false;
+		const cache = this.app.metadataCache.getFileCache(file);
+		if (cache) this._refreshInPlace(cache.frontmatter ?? {});
+		if (!this._hasProtected()) return false;
+		this._redrawOwed = true;
+		return true;
+	}
 
-		// Dirty-guard: any field in a non-clean/saved state → preserve in-flight edits
+	/**
+	 * The undo registry's probe (ADR-39): `draft` while the subject `path` has a
+	 * `dirty` or `error` field, `write` while one is `saving`, else `null`.
+	 */
+	isBusy(path: string): PendingReason | null {
+		if (this.ctx?.activeFile.path !== path) return null;
+		const kinds = Array.from(this.fieldStates.values(), (state) => state.status.kind);
+		if (kinds.includes("dirty") || kinds.includes("error")) return "draft";
+		return kinds.includes("saving") ? "write" : null;
+	}
+
+	/**
+	 * Mod+Z in the Workbench (ADR-37): `text` lets the browser undo typing in a
+	 * field that holds unsaved text, or in a text input that is not ours;
+	 * `journal` for a clean/saved field and anything that takes no typed text.
+	 */
+	undoKeyPolicy(target: EventTarget | null): "text" | "journal" {
+		if (!isEditableText(target)) return "journal";
+		const name = (target as HTMLElement).getAttribute("data-sf-inspector-input");
+		const state = name === null ? undefined : this.fieldStates.get(name);
+		if (!state || state.inputEl !== target) return "text";
+		return PROTECTED.has(state.status.kind) ? "text" : "journal";
+	}
+
+	// -------------------------------------------------------------------------
+	// Refresh (ADR-42)
+	// -------------------------------------------------------------------------
+
+	/** Take the file's frontmatter into every field, redrawing the rows that changed. */
+	private _refreshInPlace(frontmatter: Record<string, unknown>): void {
+		if (this.ctx) this.ctx = { ...this.ctx, frontmatter };
 		for (const state of this.fieldStates.values()) {
-			if (state.status.kind !== "clean" && state.status.kind !== "saved") {
-				return true; // Guard fired — caller must skip re-render
-			}
+			if (this._takeOutsideValue(state, frontmatter[state.spec.name] ?? null)) this._redrawRow(state);
 		}
+	}
 
-		// All fields are clean/saved — caller should proceed with re-render.
+	/**
+	 * What the file's `value` does to one field. `saving` keeps everything (its
+	 * write settles it); `dirty`/`error` keep the draft but compare against the
+	 * file from now on; `clean`/`saved` adopt a changed value and become `clean`,
+	 * which also drops an out-of-vocab advisory (it is drawn only while `saved`,
+	 * and every commit sets it afresh).
+	 * @returns true when the field's row must be redrawn
+	 */
+	private _takeOutsideValue(state: FieldState, value: unknown): boolean {
+		const kind = state.status.kind;
+		if (kind === "saving") return false;
+		if (kind === "dirty" || kind === "error") {
+			state.committedValue = value;
+			return false;
+		}
+		if (deepEqual(state.committedValue, value)) return false;
+		state.committedValue = value;
+		state.draftValue = value;
+		state.status = { kind: "clean" };
+		return true;
+	}
+
+	/** Replace a field's row with a fresh one; listeners are delegated, so nothing to re-attach. */
+	private _redrawRow(state: FieldState): void {
+		const old = state.rowEl;
+		if (!old?.parentNode) return;
+		old.replaceWith(this._buildRow(state.spec, state));
+	}
+
+	private _hasProtected(): boolean {
+		for (const state of this.fieldStates.values()) {
+			if (PROTECTED.has(state.status.kind)) return true;
+		}
 		return false;
+	}
+
+	/** Run the owed redraw once the last protected field is clean or saved again. */
+	private _settleOwed(): void {
+		if (!this._redrawOwed || this._hasProtected()) return;
+		this._redrawOwed = false;
+		this.onGuardCleared?.();
 	}
 
 	// -------------------------------------------------------------------------
@@ -284,23 +371,28 @@ export class InspectorController {
 				headingEl.textContent = heading;
 				container.appendChild(headingEl);
 			}
-			const fieldRow = activeDocument.createElement("div");
-			fieldRow.className = "sf-inspector-field";
-
-			const labelEl = activeDocument.createElement("span");
-			labelEl.className = "sf-inspector-label";
-			labelEl.textContent = spec.name;
-			labelEl.setAttribute("data-sf-inspector-field-label", spec.name);
-			fieldRow.appendChild(labelEl);
-
-			if (isScalarEditable(spec) && !isMisTypedBoolean(spec, state.committedValue)) {
-				this._renderEditableField(fieldRow, spec, state);
-			} else {
-				this._renderReadOnlyField(fieldRow, spec, state);
-			}
-
-			container.appendChild(fieldRow);
+			container.appendChild(this._buildRow(spec, state));
 		}
+	}
+
+	/** One field's row: label, then its control or read-only value. */
+	private _buildRow(spec: FieldSpec, state: FieldState): HTMLElement {
+		const fieldRow = activeDocument.createElement("div");
+		fieldRow.className = "sf-inspector-field";
+
+		const labelEl = activeDocument.createElement("span");
+		labelEl.className = "sf-inspector-label";
+		labelEl.textContent = spec.name;
+		labelEl.setAttribute("data-sf-inspector-field-label", spec.name);
+		fieldRow.appendChild(labelEl);
+
+		if (isScalarEditable(spec) && !isMisTypedBoolean(spec, state.committedValue)) {
+			this._renderEditableField(fieldRow, spec, state);
+		} else {
+			this._renderReadOnlyField(fieldRow, spec, state);
+		}
+		state.rowEl = fieldRow;
+		return fieldRow;
 	}
 
 	private _renderEditableField(
@@ -587,6 +679,7 @@ export class InspectorController {
 			}
 
 			this._updateFieldAffordances(target.closest(".sf-inspector-field") as HTMLElement ?? container, state.spec, state);
+			this._settleOwed();
 		}, { signal });
 
 		// Select changes
@@ -614,6 +707,7 @@ export class InspectorController {
 			}
 
 			this._updateFieldAffordances(target.closest(".sf-inspector-field") as HTMLElement ?? container, state.spec, state);
+			this._settleOwed();
 		}, { signal });
 
 		// Commit button clicks
@@ -693,6 +787,7 @@ export class InspectorController {
 		if (targetRow) {
 			this._updateFieldAffordances(targetRow, state.spec, state);
 		}
+		this._settleOwed();
 	}
 }
 
