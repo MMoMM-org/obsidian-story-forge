@@ -66,7 +66,7 @@ Gets the UI signed off, then fixes the Workbench so it shows what undo did. This
   4. Validate: the new and the existing inspector tests pass; mutation-checked.
   5. Success: `[ref: SDD/AC-F9.2, AC-F9.4, AC-F9.5, AC-F9.6]`; matches U10
 
-- [ ] **T4.3 SidebarView: pinned refresh, probe, owed redraw** `[activity: frontend-logic]`
+- [x] **T4.3 SidebarView: pinned refresh, probe, owed redraw** `[activity: frontend-logic]`
 
   1. Prime: `src/views/SidebarView.ts` (pinned early return ~l.334; constructor);
      `[ref: SDD/ADR-51]`.
