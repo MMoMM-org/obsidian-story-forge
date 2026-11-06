@@ -434,10 +434,10 @@ function bindCard(
 			.filter((w): w is RenumberWrite => w !== null);
 
 		// The sibling writes join the drag's undo group, which commits only once they settle
-		// (ADR-38). Without a group nothing waits for them, so a failure is at least logged.
-		const renumbered = deps.renumber(otherWrites, ctx.group);
+		// (ADR-38). The failure is logged either way: `track` marks a rejection handled, so the
+		// warning is attached to the promise the group tracks.
+		const renumbered = deps.renumber(otherWrites, ctx.group).catch(warnRenumberFailed);
 		if (ctx.group) void ctx.group.track(renumbered);
-		else renumbered.catch(warnRenumberFailed);
 
 		// Return BOTH status + order for the dragged card so the handler writes
 		// them atomically in one commitMany call (AC-1, ADR-14).

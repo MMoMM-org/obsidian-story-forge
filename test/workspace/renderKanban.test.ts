@@ -561,21 +561,37 @@ describe("renderKanban — RENUMBER joins the drag's undo group (spec 009 T3.4)"
 		vi.restoreAllMocks();
 	});
 
-	it("hands the drag's group to renumber and tracks the very promise it returns", () => {
+	it("hands the drag's group to renumber and tracks the renumber: the group waits for it to settle", async () => {
 		const group = trackingGroup();
-		const returned: Promise<void>[] = [];
 		const seen: (JournalGroup | null)[] = [];
+		let release!: () => void;
 		const renumber = vi.fn((_w: unknown, g: JournalGroup | null): Promise<void> => {
 			seen.push(g);
-			const p = Promise.resolve();
-			returned.push(p);
-			return p;
+			return new Promise<void>((resolve) => { release = resolve; });
 		});
 		const { handler } = renumberBoard(renumber, () => group);
 		expect(renumber).toHaveBeenCalledOnce();
 		expect(seen).toEqual([group]);
 		expect(group.tracked).toHaveLength(1);
-		expect(group.tracked[0]).toBe(returned[0]);
+		let settled = false;
+		void group.tracked[0]!.then(() => { settled = true; });
+		await Promise.resolve();
+		expect(settled).toBe(false);
+		release();
+		await group.tracked[0];
+		expect(settled).toBe(true);
+		handler.destroy();
+	});
+
+	it("with a group, a rejected renumber is still warned about", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const group = trackingGroup();
+		const renumber = vi.fn((): Promise<void> => Promise.reject(new Error("disk full")));
+		const { handler } = renumberBoard(renumber, () => group);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(group.tracked).toHaveLength(1);
+		expect(warn).toHaveBeenCalledOnce();
+		expect(String(warn.mock.calls[0]?.[0])).toContain("[StoryForge]");
 		handler.destroy();
 	});
 
