@@ -220,3 +220,33 @@ All five passed. Side note: a `processFrontMatter` write reformats the whole fro
 expands flow lists, drops redundant quotes, and drops inline comments (`height: 168  # cm`). The
 values stay the same. This is Obsidian's behaviour on every frontmatter write, not the journal's.
 The note was restored from git afterwards.
+
+## Spec 009 Phase 3: gestures and pending work (2026-11-06)
+
+Build at 078abcf, vault `test/StoryForge/`, Anvil Kanban board. The `draft` column held Scene 1
+(`order` 1), Scene 2 (2) and Scene 6 (6).
+
+| Step | Action | Result |
+|---|---|---|
+| 1 | Drag Scene 3 from `outline` between Scene 1 and Scene 2 | RENUMBER: Scene 1 → 10, Scene 3 → 20 (and `status` → `draft`), Scene 2 → 30, Scene 6 → 40 |
+| 2 | "Undo last change" | One step restores all four notes: Scene 3 back in `outline` with `order` 3, the others at 1, 2, 6 |
+| 3 | "Redo last change" | The whole drag is back |
+| 4 | Anvil: edit Scene 3's `title` without leaving the field, then "Undo last change" | No refusal. The palette took focus, the blur fired `change` and committed the title as its own step, and undo reverted that step. This is the SDD gotcha "Focus moves on a button click" |
+| 5 | Workbench: an unsaved field edit, then "Undo last change" | No refusal: the drag was undone and the Workbench draft stayed unsaved. Expected for now, because the Workbench probe arrives in Phase 4 (T4.3) |
+
+The persisted journal confirms steps 1 and 4. The redo stack held the title step
+(`The Black Cliffs` → `The Black Cliffs!`) and the drag step, with all four files and the five
+changes listed in step 1.
+
+**Finding for Phase 5:** with the palette as the trigger, an Anvil draft can never reach the probe,
+because opening the palette commits it. The Anvil `draft` probe only matters for Mod+Z with focus
+outside the draft field. That case also commits on blur, so it is close to unreachable. Keep it as
+a cheap guard; the live walk in Phase 6 checks the Workbench refusal instead.
+
+**Found on the way, not part of 009:**
+- Kanban cards show only the title, the status and the tag. Storyline's cards carry more
+  (POV, location, synopsis), so this is a gap against the reference model.
+- Clicking a card with the grab cursor focuses it but does not switch the editor pane. Only a
+  click near the title (pointer cursor) does. Storyline opens the scene on any click on the card.
+
+The scene notes were restored from git afterwards (`processFrontMatter` reformat only).

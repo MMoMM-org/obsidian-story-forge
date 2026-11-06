@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Gestures and pending work"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 3
 ---
@@ -113,7 +113,7 @@ pending write.
   4. Validate: tests, mutation-checked; `npm run build`.
   5. Success: `[ref: SDD/AC-F1.5, AC-F8.1, AC-F8.2, AC-F8.4]`
 
-- [ ] **T3.5 Phase Validation** `[activity: validate]`
+- [x] **T3.5 Phase Validation** `[activity: validate]`
 
   - All gates green. Check by hand with the palette command: a Kanban drag with RENUMBER, then undo
     restores every note. Drift check against ADR-38/39/52.
