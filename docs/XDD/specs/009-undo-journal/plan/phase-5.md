@@ -57,7 +57,7 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
   4. Validate: tests, mutation-checked; stylelint.
   5. Success: `[ref: SDD/AC-F6.2, AC-F6.3, AC-F6.4]`; the texts match U5–U9
 
-- [ ] **T5.2 Anvil: controls, activation, live region, key policy** `[activity: frontend-ui]`
+- [x] **T5.2 Anvil: controls, activation, live region, key policy** `[activity: frontend-ui]`
 
   1. Prime: `AnvilView` head ~375, `_onClick` and the activation router, `_announce`; mockups U1–U3.
   2. Test: `AnvilView.undo.test.ts` (UI part):
@@ -75,7 +75,7 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
   4. Validate: tests, mutation-checked.
   5. Success: `[ref: SDD/AC-F4.3, AC-F4.5, AC-F6.1, AC-F6.5, AC-F6.6]`
 
-- [ ] **T5.3 Workbench header controls** `[activity: frontend-ui]` `[parallel: true]`
+- [x] **T5.3 Workbench header controls** `[activity: frontend-ui]` `[parallel: true]`
 
   1. Prime: `SidebarView._buildShell` ~598–628; mockup U4.
   2. Test: `SidebarView.undo.test.ts` (UI part):
@@ -148,3 +148,8 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
 - **T5.1: the P1 notice text exists, wiring moves to T5.2.** `unexpectedErrorNotice(direction)` is in `stepLabel.ts`; T5.1's Implement step names only the texts, the controls and the styles, so showing it from the palette commands and the control click path is added to T5.2.
 - **T5.1: `modKeyName` was removed.** It had no caller once P8 dropped the shortcut name from the conflict notice.
 - **T5.1: the shared activation is `activateUndoControl(el, journal)`.** It returns null for a disabled control or a non-control and never moves focus; T5.2's `_onClick` and T5.3's buttons call it. The U3 narrow-header wrap needs the Anvil markup and stays in T5.2.
+- **T5.2: the Anvil undo group sits in a right-hand header cluster.** `div.sf-ws-headtools` holds the zoom slot, then ↶ ↷, and wraps to the next row as one unit at narrow width. This is what the signed-off U3b/U3c (`.mk-rightcluster`, decision P4) show; ADR-50's "appended to the header after the tab strip" describes the wide U1 layout. `AnvilView.m6.test.ts` changed its zoom selector only.
+- **T5.2: controls are built only when a journal is passed** (`opts.undo`). Production always passes one; other suites keep their header DOM.
+- **T5.2/T5.3: the P1 notice has one path.** `reportRejectedUndo(direction, err)` in `src/undo/undoNotice.ts` warns and shows `unexpectedErrorNotice`; the palette commands, the Anvil controls and the Workbench buttons all call it. `undoControls.ts` stays DOM-only, `stepLabel.ts` strings-only.
+- **T5.2 review: a repeated live-region message is a real DOM change.** `_announce` replaces the region's text node instead of assigning `textContent`, because assigning the same text to a lone text child updates it in place and a screen reader stays silent on the second "Nothing to undo". Some screen readers may still drop identical text arriving within a very short interval; no DOM change can fix that.
+- **T5.3: the Workbench buttons follow the journal in place.** One sync at open, then one per `subscribe` notification, released on close and on unload; `undoKeyPolicy` delegates to the `InspectorController` and falls back to `journal` without an editor.
