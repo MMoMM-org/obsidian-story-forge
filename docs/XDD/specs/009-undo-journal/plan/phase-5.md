@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Controls, notices, keyboard and settings"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 5
 ---
@@ -35,7 +35,7 @@ what the mockup shows. If something must differ, raise it with the user before c
 
 Puts the signed-off controls and texts on screen and makes Mod+Z work in the two views.
 
-- [ ] **T5.1 Signed-off wording and the shared controls** `[activity: frontend-ui]`
+- [x] **T5.1 Signed-off wording and the shared controls** `[activity: frontend-ui]`
 
   1. Prime: the mockups U5–U9; `src/undo/stepLabel.ts`; `[ref: SDD/ADR-50]`.
      Four sign-off decisions (2026-11-06) change texts in `stepLabel.ts` and its tests: (P1) a rejected
@@ -68,8 +68,10 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
      - `onOutcome` writes the message to the live region;
      - `undoKeyPolicy` gives `text` for an editor input with unsaved text, and `journal` for a saved
        focused field and for cards;
-     - nothing moves focus.
-  3. Implement: the Anvil changes.
+     - nothing moves focus;
+     - a rejected undo/redo (from a control or the palette commands in `wireUndoJournal.ts`)
+       shows `unexpectedErrorNotice(direction)` (P1) and still logs the warning.
+  3. Implement: the Anvil changes; the P1 notice in `registerCommands` and the control click path.
   4. Validate: tests, mutation-checked.
   5. Success: `[ref: SDD/AC-F4.3, AC-F4.5, AC-F6.1, AC-F6.5, AC-F6.6]`
 
@@ -139,3 +141,10 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
 
   - All gates green. Compare against the mockups side by side in `test/StoryForge/` (light and dark, narrow
     width for U3). Drift check against ADR-37/49/50/53 and the signed-off mockup.
+
+## Decisions taken during implementation
+
+- **T5.1: the outcome types grew to carry the signed-off plurals.** P9 (failed + vanished) needs the vanished paths on a `failed` outcome, and P10 ("its change" / "its changes") needs per-note change counts. `journalTypes.ts` adds `changeCounts` to the applied, failed and vanished outcomes and `vanishedPaths` to failed; `undoJournal.ts` fills them. These files were not named in T5.1; they are the minimum the signed-off texts need.
+- **T5.1: the P1 notice text exists, wiring moves to T5.2.** `unexpectedErrorNotice(direction)` is in `stepLabel.ts`; T5.1's Implement step names only the texts, the controls and the styles, so showing it from the palette commands and the control click path is added to T5.2.
+- **T5.1: `modKeyName` was removed.** It had no caller once P8 dropped the shortcut name from the conflict notice.
+- **T5.1: the shared activation is `activateUndoControl(el, journal)`.** It returns null for a disabled control or a non-control and never moves focus; T5.2's `_onClick` and T5.3's buttons call it. The U3 narrow-header wrap needs the Anvil markup and stays in T5.2.
