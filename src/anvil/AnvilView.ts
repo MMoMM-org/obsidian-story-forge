@@ -75,10 +75,10 @@ import type { UndoJournal } from "undo/undoJournal";
 import {
 	activateUndoControl,
 	buildAnvilUndoControls,
-	reportRejectedUndo,
 	syncUndoControls,
 	undoDirectionOf,
 } from "undo/undoControls";
+import { reportRejectedUndo } from "undo/undoNotice";
 import { isEditableText } from "undo/undoKeys";
 import { CollapseStore } from "workspace/collapseStore";
 import { buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
@@ -1268,9 +1268,14 @@ export class AnvilView extends ItemView {
 		return null;
 	}
 
-	/** Write a message into the aria-live region (F8, AC-11). */
+	/**
+	 * Write a message into the aria-live region (F8, AC-11). The text is always added as a new
+	 * node: assigning `textContent` may only change the data of the existing text node, which
+	 * a screen reader does not announce, so a repeated message ("Nothing to undo" twice) would
+	 * stay silent (AC-F4.3).
+	 */
 	private _announce(msg: string): void {
-		if (this._liveEl && !this._closed) this._liveEl.textContent = msg;
+		if (this._liveEl && !this._closed) this._liveEl.replaceChildren(activeDocument.createTextNode(msg));
 	}
 
 	/**

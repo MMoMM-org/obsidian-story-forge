@@ -9,7 +9,7 @@
  * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-43, Integration Points
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import { App, Notice, Tasks, WorkspaceLeaf, createMockTFile } from "obsidian";
 import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { AnvilView } from "anvil/AnvilView";
@@ -86,6 +86,9 @@ const journal = (): OwnedUndoJournal => {
 	if (!captured.journal) throw new Error("no journal was created");
 	return captured.journal;
 };
+
+// The first import of `main` pulls in the whole plugin; pay for it once, not inside a test.
+beforeAll(async () => { await import("main"); }, 30_000);
 
 afterEach(() => {
 	for (const p of live.splice(0)) p._runCleanup();

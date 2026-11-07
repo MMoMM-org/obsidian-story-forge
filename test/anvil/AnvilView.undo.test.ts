@@ -550,6 +550,7 @@ describe("the undo controls in the header", () => {
 		await vi.runAllTimersAsync();
 		// The pane may be rebuilt around the new value; the caret stays in the same field.
 		const focused = document.activeElement as HTMLElement | null;
+		expect(focused?.tagName).toBe("INPUT");
 		expect(focused?.closest("[data-sf-ed-field]")?.getAttribute("data-sf-ed-field")).toBe("status");
 		expect(a.view.contentEl.contains(focused)).toBe(true);
 	});
@@ -571,6 +572,68 @@ describe("the live region", () => {
 		draftInto(a.view, "status", "wounded");
 		await a.h.journal.undo();
 		expect(liveText(a.view)).toBe("Save your edit first (Mara Stoneway)");
+	});
+});
+
+describe("the live region repeats a repeated message (AC-F4.3)", () => {
+	/**
+	 * Blink updates the data of a lone text child in place when `textContent` is assigned, which
+	 * a screen reader does not announce when the data is unchanged. jsdom replaces the node, so
+	 * the region is made to behave like that.
+	 */
+	function updateLoneTextNodeInPlace(region: Element): void {
+		const proto = Object.getOwnPropertyDescriptor(Node.prototype, "textContent")!;
+		Object.defineProperty(region, "textContent", {
+			configurable: true,
+			get: () => proto.get!.call(region) as string | null,
+			set: (value: string) => {
+				const only = region.childNodes.length === 1 ? region.firstChild : null;
+				if (only instanceof Text && value !== "") only.data = value;
+				else proto.set!.call(region, value);
+			},
+		});
+	}
+
+	/** Text nodes added since the last take: what a screen reader announces. A changed `data` says nothing. */
+	function watchAnnouncements(view: AnvilView): { takeAdded: () => string[]; stop: () => void } {
+		const region = view.contentEl.querySelector(".sf-ws-live")!;
+		let added: string[] = [];
+		const observer = new MutationObserver((records) => {
+			added.push(...records.flatMap((r) => [...r.addedNodes].map((n) => n.textContent ?? "")));
+		});
+		observer.observe(region, { childList: true, characterData: true, subtree: true });
+		const takeAdded = (): string[] => {
+			added.push(...observer.takeRecords().flatMap((r) => [...r.addedNodes].map((n) => n.textContent ?? "")));
+			const out = added;
+			added = [];
+			return out;
+		};
+		return { takeAdded, stop: () => { observer.disconnect(); } };
+	}
+
+	it("adds the text to the region anew for each outcome, even when it equals the last", async () => {
+		const a = await openAnvil();
+		updateLoneTextNodeInPlace(a.view.contentEl.querySelector(".sf-ws-live")!);
+		const watch = watchAnnouncements(a.view);
+		await a.h.journal.undo();
+		expect(watch.takeAdded()).toContain("Nothing to undo");
+		await a.h.journal.undo();
+		expect(watch.takeAdded()).toContain("Nothing to undo");
+		expect(liveText(a.view)).toBe("Nothing to undo");
+		watch.stop();
+	});
+
+	it("does the same for a repeated refusal", async () => {
+		const a = await openAnvil(WALKTHROUGH_1, undefined, maraChanged);
+		a.view.inspect(a.file(MARA));
+		draftInto(a.view, "status", "wounded");
+		updateLoneTextNodeInPlace(a.view.contentEl.querySelector(".sf-ws-live")!);
+		const watch = watchAnnouncements(a.view);
+		await a.h.journal.undo();
+		await a.h.journal.undo();
+		const added = watch.takeAdded();
+		expect(added.filter((t) => t === "Save your edit first (Mara Stoneway)")).toHaveLength(2);
+		watch.stop();
 	});
 });
 
@@ -631,6 +694,23 @@ describe("a rejected undo or redo from a control (P1)", () => {
 });
 
 describe("close releases the controls' listeners", () => {
+	it("a journal notification after close changes nothing and does not throw", async () => {
+		const a = await openAnvil(WALKTHROUGH_1, undefined, maraChanged);
+		const undoControl = control(a.view, "undo");
+		const live = a.view.contentEl.querySelector(".sf-ws-live")!;
+		await a.view.onClose();
+		opened.splice(opened.indexOf(a.view), 1);
+		const title = undoControl.title;
+
+		const outcome = await a.h.journal.undo(); // notifies subscribers and outcome listeners
+		await vi.runAllTimersAsync();
+
+		expect(outcome.kind).toBe("applied");
+		expect(undoControl.title).toBe(title);
+		expect(undoControl.hasAttribute("aria-disabled")).toBe(false);
+		expect(live.textContent).toBe("");
+	});
+
 	it("releases the subscribe and onOutcome listeners on close", async () => {
 		const offs: string[] = [];
 		const a = await openAnvil(WALKTHROUGH_1, (h) => {
