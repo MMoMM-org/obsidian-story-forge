@@ -2020,10 +2020,13 @@ body {
 }
 
 /* ---- WorkspaceView (main-area host: header toggle + body) ---- */
+/* Wraps at narrow width (spec 009 mockup U3, P4); the right-hand cluster wraps as one. */
 .sf-ws-head {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 12px;
+	row-gap: 6px;
 	padding: 8px 14px;
 	border-bottom: 1px solid var(--background-modifier-border);
 }
@@ -2031,6 +2034,7 @@ body {
 .sf-ws-brand {
 	font-weight: var(--font-bold);
 	color: var(--text-normal);
+	white-space: nowrap;
 }
 
 .sf-ws-toggle {
@@ -2045,6 +2049,7 @@ body {
 	font-size: 12px;
 	color: var(--text-muted);
 	cursor: pointer;
+	white-space: nowrap;
 }
 
 .sf-ws-mode--sel {
@@ -2139,12 +2144,20 @@ body {
 	cursor: not-allowed;
 }
 
-/* Zoom slot — always present in the head row, pushes zoom controls to the far right.
+/* Right-hand cluster: zoom, then the undo group (spec 009 mockup U3). Pushed to the far
+   right, and kept together so a narrow header drops it to a new row as a whole. */
+.sf-ws-headtools {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-left: auto;
+}
+
+/* Zoom slot — always present in the head row, inside the right-hand cluster.
    Lives outside .sf-ws-tlbar so it is visible for ALL layouts (not just timeline). */
 .sf-ws-zoomslot {
 	display: flex;
 	align-items: center;
-	margin-left: auto;
 }
 
 /* ---- Visually-hidden aria-live region (F8, AC-11) ---- */

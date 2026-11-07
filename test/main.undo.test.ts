@@ -19,6 +19,7 @@ import type { JournalStoreDeps } from "undo/journalStore";
 import type { JournalStore } from "undo/journalTypes";
 import { commit, installWriteRecorder } from "inspector/frontmatterWriter";
 import type { JournalSnapshot } from "undo/journalTypes";
+import { unexpectedErrorNotice } from "undo/stepLabel";
 
 vi.mock("bases/BasesAdapter", () => ({
 	registerCodexView: vi.fn(() => false),
@@ -222,7 +223,7 @@ describe("commands", () => {
 	});
 
 	it.each([["undo-last-change", "undo"], ["redo-last-change", "redo"]] as const)(
-		"%s warns instead of throwing when the journal rejects",
+		"%s warns and shows the unexpected-error notice (P1) instead of throwing when the journal rejects",
 		async (id, method) => {
 			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 			const { plugin } = await makePlugin();
@@ -232,7 +233,7 @@ describe("commands", () => {
 			await new Promise((r) => setTimeout(r, 0));
 			expect(warn).toHaveBeenCalled();
 			expect(warn.mock.calls[0]?.[0]).toContain("[StoryForge]");
-			expect(Notice._instances.map((n) => n.message)).toEqual([]);
+			expect(Notice._instances.map((n) => n.message)).toEqual([unexpectedErrorNotice(method)]);
 			warn.mockRestore();
 		},
 	);

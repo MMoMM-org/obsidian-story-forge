@@ -7,9 +7,10 @@
  * follow the stacks only: pending work (a draft, a write in flight) leaves them enabled so the
  * click can explain itself with the "Save your edit first" notice. Nothing here moves focus.
  */
+import { Notice } from "obsidian";
 import type { UndoDirection, UndoOutcome } from "undo/journalTypes";
 import type { StackPeek } from "undo/undoJournal";
-import { controlTitle } from "undo/stepLabel";
+import { controlTitle, unexpectedErrorNotice } from "undo/stepLabel";
 
 /** What the controls need of the journal. */
 export interface UndoControlsJournal {
@@ -21,7 +22,8 @@ export interface UndoControlsJournal {
 const GLYPH: Record<UndoDirection, string> = { undo: "↶", redo: "↷" };
 const CONTROL = "[data-sf-undo]";
 
-function directionOf(el: Element): UndoDirection | null {
+/** The direction a control stands for, or null for an element that is no control. */
+export function undoDirectionOf(el: Element): UndoDirection | null {
 	const value = el.getAttribute("data-sf-undo");
 	return value === "undo" || value === "redo" ? value : null;
 }
@@ -67,7 +69,7 @@ export function buildWorkbenchUndoControls(icons: HTMLElement): HTMLElement[] {
 /** Set `aria-disabled`, `title` and `aria-label` of every control under `root` from `peek`. */
 export function syncUndoControls(root: ParentNode, peek: StackPeek): void {
 	for (const el of Array.from(root.querySelectorAll<HTMLElement>(CONTROL))) {
-		const direction = directionOf(el);
+		const direction = undoDirectionOf(el);
 		if (direction !== null) describeControl(el, direction, peek[direction]?.label ?? null);
 	}
 }
@@ -77,7 +79,16 @@ export function syncUndoControls(root: ParentNode, peek: StackPeek): void {
  * and shows no notice. @returns the outcome, or null when nothing was called.
  */
 export async function activateUndoControl(el: Element, journal: UndoControlsJournal): Promise<UndoOutcome | null> {
-	const direction = directionOf(el);
+	const direction = undoDirectionOf(el);
 	if (direction === null || el.getAttribute("aria-disabled") === "true") return null;
 	return direction === "undo" ? journal.undo() : journal.redo();
+}
+
+/**
+ * A rejected undo/redo (a bug, not an outcome): log it and tell the user (mockup U9, P1).
+ * Shared by the palette commands and the controls.
+ */
+export function reportRejectedUndo(direction: UndoDirection, err: unknown): void {
+	console.warn(`[StoryForge] Undo journal: ${direction} failed.`, err);
+	new Notice(unexpectedErrorNotice(direction));
 }

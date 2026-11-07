@@ -72,6 +72,14 @@ import {
 } from "../inspector/frontmatterWriter";
 import type { JournalGroup, PendingReason } from "undo/journalTypes";
 import type { UndoJournal } from "undo/undoJournal";
+import {
+	activateUndoControl,
+	buildAnvilUndoControls,
+	reportRejectedUndo,
+	syncUndoControls,
+	undoDirectionOf,
+} from "undo/undoControls";
+import { isEditableText } from "undo/undoKeys";
 import { CollapseStore } from "workspace/collapseStore";
 import { buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
 import { createNavigationController } from "navigation/navigationController";
@@ -318,6 +326,8 @@ export class AnvilView extends ItemView {
 	private _keySelectEl: HTMLSelectElement | null = null;
 	private _zoomSlotEl: HTMLElement | null = null;
 	private _liveEl: HTMLElement | null = null;
+	/** The ↶ ↷ group in the header; null without a journal (T5.2). */
+	private _undoGroupEl: HTMLElement | null = null;
 	private _handler: InteractionHandler | null = null;
 	private readonly _undo: UndoJournal | undefined;
 	/** Releases the probes and the flusher registered with `_undo` (ADR-39). */
@@ -435,11 +445,18 @@ export class AnvilView extends ItemView {
 
 		this._timelineBarEl = tlBar;
 
+		// The right-hand cluster (mockup U3): zoom, then ↶ ↷, kept together so a narrow
+		// header wraps them to a new row as one, and the undo controls stay last.
+		const tools = head.createDiv({ cls: "sf-ws-headtools" });
+
 		// Zoom controls slot — always present in the header, outside the
 		// timeline-specific bar, so zoom is available for ALL layouts.
 		// createTimelineZoom places its .sf-zoom-bar in this host; the scaled
 		// body goes into the main body (scaledEl).
-		this._zoomSlotEl = head.createDiv({ cls: "sf-ws-zoomslot" });
+		this._zoomSlotEl = tools.createDiv({ cls: "sf-ws-zoomslot" });
+
+		// ↶ ↷ (ADR-50, mockups U1/U2): in the header, so the same on every tab and in fullscreen.
+		if (this._undo) this._undoGroupEl = buildAnvilUndoControls(tools);
 
 		this._bodyEl = ce.createDiv({ cls: "sf-ws-body" });
 
@@ -460,7 +477,10 @@ export class AnvilView extends ItemView {
 			onError: (file, result): void => { if (!result.ok) this._surfaceWriteError(file, result); },
 			announce: (msg): void => { this._announce(msg); },
 		});
-		if (undo) this._registerWithJournal(undo, this._handler);
+		if (undo) {
+			this._registerWithJournal(undo, this._handler);
+			this._connectControls(undo);
+		}
 
 		// Note index for the Codex tab. Its metadataCache subscriptions go through
 		// this view's registerEvent, so unload releases them (CON-4).
@@ -572,6 +592,7 @@ export class AnvilView extends ItemView {
 		this._draftEl = null;
 		this._paneStale = false;
 		this._noteIndex = null;
+		this._undoGroupEl = null;
 		this.contentEl.empty();
 	}
 
@@ -1169,6 +1190,42 @@ export class AnvilView extends ItemView {
 	}
 
 	/**
+	 * The controls follow the stacks (`subscribe`, AC-F6.5) and the live region repeats every
+	 * outcome's notice (`onOutcome`, AC-F4.3). Released in onClose with the probes.
+	 */
+	private _connectControls(undo: UndoJournal): void {
+		const sync = (): void => {
+			if (this._undoGroupEl) syncUndoControls(this._undoGroupEl, undo.peek());
+		};
+		sync();
+		this._undoRegistrations.push(
+			undo.subscribe(sync),
+			undo.onOutcome((_outcome, message) => { this._announce(message); }),
+		);
+	}
+
+	/** Run a control's undo/redo. Never moves focus (AC-F4.5); a rejection gets the P1 notice. */
+	private _activateUndo(control: HTMLElement, undo: UndoJournal): void {
+		const direction = undoDirectionOf(control);
+		activateUndoControl(control, undo).catch((err: unknown) => {
+			if (direction !== null) reportRejectedUndo(direction, err);
+		});
+	}
+
+	/**
+	 * Mod+Z policy (ADR-37): `text` lets a field's own text undo run, `journal` is Story Forge
+	 * undo. A pane field holding unsaved text is `text`; the same field once saved, with the caret
+	 * still in it, is `journal`. Cards, buttons and other non-text targets are `journal`; a text
+	 * box that is not a pane field (not ours) is `text`.
+	 */
+	undoKeyPolicy(target: EventTarget | null): "text" | "journal" {
+		if (!isEditableText(target)) return "journal";
+		const cell = (target as HTMLElement).closest(`[${FIELD_CONTROL_ATTR}]`);
+		if (cell === null) return "text";
+		return target === this._draftEl ? "text" : "journal";
+	}
+
+	/**
 	 * `draft` while the editor pane shows `path` and a control holds text not yet committed;
 	 * `write` while a pane write to `path` has not landed.
 	 */
@@ -1435,6 +1492,13 @@ export class AnvilView extends ItemView {
 	 */
 	private _onClick(target: EventTarget | null, modifier: boolean): void {
 		if (!(target instanceof HTMLElement)) return;
+
+		// ADR-50: the undo controls first, before the marker walk.
+		const undoControl = target.closest<HTMLElement>("[data-sf-undo]");
+		if (undoControl !== null && this._undo) {
+			this._activateUndo(undoControl, this._undo);
+			return;
+		}
 
 		const { markers, nearest } = walkTargetMarkers(target, this.contentEl, (el) => this._markerKindOf(el));
 

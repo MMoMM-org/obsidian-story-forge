@@ -9,12 +9,15 @@
  *     pane write for it is in flight, and the Kanban handler's `isBusy`;
  *   - the handler's `flushPending` as a flusher, so undo never waits out the debounce;
  *   - everything unregistered on close, after the close has finished the pending writes;
- *   - a flush landing after close does no DOM work and throws nothing.
+ *   - a flush landing after close does no DOM work and throws nothing;
+ *   - (T5.2) the ↶ ↷ controls at the right of the tab strip: activation, live state from
+ *     `subscribe`, the live region from `onOutcome`, the key policy, focus, the P1 notice.
  *
- * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-38, ADR-39, ADR-43, ADR-52, Traced walkthrough 1
+ * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-38, ADR-39, ADR-43, ADR-50, ADR-52, Traced walkthrough 1
+ * @ref docs/XDD/specs/009-undo-journal/mockups.html — U1, U2, U3, U9 (P1)
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	Notice,
 	WorkspaceLeaf,
@@ -24,8 +27,10 @@ import {
 	type TFile,
 } from "../__mocks__/obsidian";
 import { AnvilView } from "anvil/AnvilView";
+import { ANVIL_TABS } from "anvil/anvilTabs";
 import { InteractionHandler } from "workspace/interactionHandler";
-import type { PendingProbe, UndoOutcome } from "undo/journalTypes";
+import type { PendingProbe, UndoDirection, UndoOutcome } from "undo/journalTypes";
+import { unexpectedErrorNotice } from "undo/stepLabel";
 import type { OwnedUndoJournal } from "undo/undoJournal";
 import { MARA, setup, teardownAndCheckUntouched, type Harness } from "../undo/journalHarness";
 
@@ -99,9 +104,14 @@ interface Anvil {
 
 const opened: AnvilView[] = [];
 
-async function openAnvil(notes: Record<string, Record<string, unknown>> = WALKTHROUGH_1, journal?: (h: Harness) => OwnedUndoJournal): Promise<Anvil> {
+async function openAnvil(
+	notes: Record<string, Record<string, unknown>> = WALKTHROUGH_1,
+	journal?: (h: Harness) => OwnedUndoJournal,
+	prime?: (h: Harness) => Promise<void>,
+): Promise<Anvil> {
 	const h = setup(notes);
 	wireMetadata(h.app, Object.keys(notes));
+	await prime?.(h);
 	const leaf = new WorkspaceLeaf();
 	(leaf as unknown as { app: App }).app = h.app;
 	const view: AnvilView = new AnvilView(leaf, {
@@ -421,5 +431,224 @@ describe("a Kanban flush landing after close", () => {
 		expect(board.querySelector(".sf-card--error")).toBeNull(); // no DOM work on the closed view
 		expect(Notice._instances.map((n) => n.message)).toEqual(["Couldn't write frontmatter."]);
 		expect(error).not.toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// The controls (T5.2, ADR-50, mockups U1–U3)
+// ---------------------------------------------------------------------------
+
+beforeAll(() => {
+	// Obsidian's cross-window Node.instanceOf, which the mock does not install
+	// (the same stand-in as test/undo/undoKeys.test.ts).
+	const proto = Node.prototype as unknown as Record<string, unknown>;
+	proto["instanceOf"] = function (this: Node, type: { name: string }): boolean {
+		const win = (this.ownerDocument?.defaultView ?? window) as unknown as Record<string, new () => unknown>;
+		const ctor = win[type.name];
+		return ctor !== undefined && this instanceof ctor;
+	};
+});
+
+function control(view: AnvilView, direction: UndoDirection): HTMLElement {
+	const el = view.contentEl.querySelector<HTMLElement>(`.sf-ws-head [data-sf-undo="${direction}"]`);
+	if (!el) throw new Error(`no ${direction} control`);
+	return el;
+}
+
+const press = (el: HTMLElement, key: string): void => {
+	el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key }));
+};
+
+const liveText = (view: AnvilView): string | null => view.contentEl.querySelector(".sf-ws-live")?.textContent ?? null;
+
+/** Mara's status changed once before the Anvil opened. */
+const maraChanged = async (h: Harness): Promise<void> => {
+	await h.write(MARA, "status", "dead");
+	await vi.runAllTimersAsync();
+};
+
+describe("the undo controls in the header", () => {
+	it.each(ANVIL_TABS)("sit last in the header, right of the tab strip and the zoom slot, on the %s tab", async (tab) => {
+		const a = await openAnvil();
+		a.view.setLayout(tab);
+		const head = a.view.contentEl.querySelector<HTMLElement>(".sf-ws-head")!;
+		const group = head.querySelector<HTMLElement>(".sf-undo-group")!;
+		const strip = head.querySelector(".sf-ws-toggle")!;
+		const zoom = head.querySelector(".sf-ws-zoomslot")!;
+		expect([...group.children].map((c) => c.getAttribute("data-sf-undo"))).toEqual(["undo", "redo"]);
+		expect(head.lastElementChild?.contains(group)).toBe(true);
+		expect(group.parentElement?.lastElementChild).toBe(group);
+		expect(strip.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+		expect(zoom.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+		// U3: the zoom slot and the group are one cluster, so they wrap to a new row together.
+		expect(zoom.parentElement).toBe(group.parentElement);
+		expect(group.parentElement).not.toBe(head);
+	});
+
+	it("show the journal's state when the Anvil opens", async () => {
+		const a = await openAnvil(WALKTHROUGH_1, undefined, maraChanged);
+		expect(control(a.view, "undo").title).toBe("Undo: status in Mara Stoneway");
+		expect(control(a.view, "undo").hasAttribute("aria-disabled")).toBe(false);
+		expect(control(a.view, "redo").getAttribute("aria-disabled")).toBe("true");
+	});
+
+	it("re-sync on every subscribe notification, without a re-render", async () => {
+		const a = await openAnvil();
+		const board = a.view.contentEl.querySelector(".sf-kb-board");
+		expect(control(a.view, "undo").getAttribute("aria-label")).toBe("Nothing to undo");
+		await a.h.write(MARA, "status", "dead");
+		expect(control(a.view, "undo").getAttribute("aria-label")).toBe("Undo: status in Mara Stoneway");
+		await a.h.journal.undo();
+		expect(control(a.view, "undo").getAttribute("aria-disabled")).toBe("true");
+		expect(control(a.view, "redo").getAttribute("aria-label")).toBe("Redo: status in Mara Stoneway");
+		expect(a.view.contentEl.querySelector(".sf-kb-board")).toBe(board);
+	});
+
+	it.each([
+		["a click", (el: HTMLElement): void => { el.click(); }],
+		["Enter", (el: HTMLElement): void => { press(el, "Enter"); }],
+		["Space", (el: HTMLElement): void => { press(el, " "); }],
+	])("%s on ↶ undoes and on ↷ redoes", async (_how, activate) => {
+		const a = await openAnvil(WALKTHROUGH_1, undefined, maraChanged);
+		const undo = vi.spyOn(a.h.journal, "undo");
+		const redo = vi.spyOn(a.h.journal, "redo");
+		activate(control(a.view, "undo"));
+		await vi.runAllTimersAsync();
+		expect(a.h.fm(MARA).status).toBe("alive");
+		activate(control(a.view, "redo"));
+		await vi.runAllTimersAsync();
+		expect(a.h.fm(MARA).status).toBe("dead");
+		expect([undo.mock.calls.length, redo.mock.calls.length]).toEqual([1, 1]);
+	});
+
+	it("a disabled control calls nothing and shows nothing", async () => {
+		const a = await openAnvil();
+		const undo = vi.spyOn(a.h.journal, "undo");
+		control(a.view, "undo").click();
+		press(control(a.view, "undo"), "Enter");
+		await vi.runAllTimersAsync();
+		expect(undo).not.toHaveBeenCalled();
+		expect(a.h.notices).toEqual([]);
+	});
+
+	it("activating a control moves no focus", async () => {
+		const a = await openAnvil(WALKTHROUGH_1, undefined, maraChanged);
+		const undo = control(a.view, "undo");
+		undo.focus();
+		press(undo, "Enter");
+		await vi.runAllTimersAsync();
+		expect(a.h.fm(MARA).status).toBe("alive");
+		expect(document.activeElement).toBe(undo);
+	});
+
+	it("an undo leaves the focus in the pane field where it was", async () => {
+		const a = await openAnvil(WALKTHROUGH_1, undefined, maraChanged);
+		a.view.inspect(a.file(MARA));
+		const box = a.view.contentEl.querySelector<HTMLInputElement>('[data-sf-ed-field="status"] input')!;
+		box.focus();
+		await a.h.journal.undo();
+		await vi.runAllTimersAsync();
+		// The pane may be rebuilt around the new value; the caret stays in the same field.
+		const focused = document.activeElement as HTMLElement | null;
+		expect(focused?.closest("[data-sf-ed-field]")?.getAttribute("data-sf-ed-field")).toBe("status");
+		expect(a.view.contentEl.contains(focused)).toBe(true);
+	});
+});
+
+describe("the live region", () => {
+	it("carries each outcome's notice text", async () => {
+		const a = await openAnvil(WALKTHROUGH_1, undefined, maraChanged);
+		await a.h.journal.undo();
+		expect(liveText(a.view)).toBe("Undo: status in Mara Stoneway");
+		await a.h.journal.undo();
+		expect(liveText(a.view)).toBe(a.h.notices.at(-1));
+		expect(liveText(a.view)).toBe("Nothing to undo");
+	});
+
+	it("carries the refusal when the pane holds a draft", async () => {
+		const a = await openAnvil(WALKTHROUGH_1, undefined, maraChanged);
+		a.view.inspect(a.file(MARA));
+		draftInto(a.view, "status", "wounded");
+		await a.h.journal.undo();
+		expect(liveText(a.view)).toBe("Save your edit first (Mara Stoneway)");
+	});
+});
+
+describe("undoKeyPolicy", () => {
+	async function paneOnMara(): Promise<Anvil> {
+		const a = await openAnvil();
+		a.view.inspect(a.file(MARA));
+		return a;
+	}
+
+	it("is text for a pane field holding unsaved text", async () => {
+		const a = await paneOnMara();
+		expect(a.view.undoKeyPolicy(draftInto(a.view, "status", "wounded"))).toBe("text");
+	});
+
+	it("is journal for a focused pane field whose text is saved", async () => {
+		const a = await paneOnMara();
+		const box = draftInto(a.view, "status", "wounded");
+		box.dispatchEvent(new Event("change", { bubbles: true }));
+		expect(document.activeElement).toBe(box);
+		expect(a.view.undoKeyPolicy(box)).toBe("journal");
+	});
+
+	it("is journal for a card, a control and no target", async () => {
+		const a = await paneOnMara();
+		a.view.setLayout("kanban");
+		expect(a.view.undoKeyPolicy(a.card(S7))).toBe("journal");
+		expect(a.view.undoKeyPolicy(control(a.view, "undo"))).toBe("journal");
+		expect(a.view.undoKeyPolicy(null)).toBe("journal");
+	});
+
+	it("is text for a text box that is not a pane field", async () => {
+		const a = await paneOnMara();
+		const search = a.view.contentEl.createEl("input", { attr: { type: "search" } });
+		expect(a.view.undoKeyPolicy(search)).toBe("text");
+	});
+});
+
+describe("a rejected undo or redo from a control (P1)", () => {
+	it.each(["undo", "redo"] as const)("%s: shows the unexpected-error notice and still warns", async (direction) => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const a = await openAnvil(WALKTHROUGH_1, undefined, async (h) => {
+			await maraChanged(h);
+			await h.write(MARA, "status", "missing");
+			await vi.runAllTimersAsync();
+			await h.journal.undo();
+		});
+		// Both stacks hold a step, so both controls are enabled.
+		expect([control(a.view, "undo"), control(a.view, "redo")].map((c) => c.hasAttribute("aria-disabled"))).toEqual([false, false]);
+		Notice._reset();
+		const boom = new Error("boom");
+		vi.spyOn(a.h.journal, direction).mockRejectedValueOnce(boom);
+		control(a.view, direction).click();
+		await vi.runAllTimersAsync();
+		expect(Notice._instances.map((n) => n.message)).toEqual([unexpectedErrorNotice(direction)]);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("[StoryForge]"), boom);
+	});
+});
+
+describe("close releases the controls' listeners", () => {
+	it("releases the subscribe and onOutcome listeners on close", async () => {
+		const offs: string[] = [];
+		const a = await openAnvil(WALKTHROUGH_1, (h) => {
+			const j = h.journal;
+			const realSubscribe = j.subscribe.bind(j);
+			const realOnOutcome = j.onOutcome.bind(j);
+			vi.spyOn(j, "subscribe").mockImplementation((l) => {
+				const off = realSubscribe(l);
+				return () => { offs.push("subscribe"); off(); };
+			});
+			vi.spyOn(j, "onOutcome").mockImplementation((l) => {
+				const off = realOnOutcome(l);
+				return () => { offs.push("onOutcome"); off(); };
+			});
+			return j;
+		});
+		await a.view.onClose();
+		opened.splice(opened.indexOf(a.view), 1);
+		expect(offs.sort()).toEqual(["onOutcome", "subscribe"]);
 	});
 });

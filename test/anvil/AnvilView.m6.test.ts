@@ -177,8 +177,8 @@ describe("AnvilView M6 — Timeline toolbar", () => {
 	});
 
 	it("mounts the zoom controls in the head (not the tlbar) in rail mode", () => {
-		// Controls live in the head row, outside the timeline-specific bar.
-		expect(view.contentEl.querySelector(".sf-ws-head > .sf-ws-zoomslot .sf-zoom-bar")).not.toBeNull();
+		// Controls live in the head row (its right-hand cluster, U3), outside the timeline-specific bar.
+		expect(view.contentEl.querySelector(".sf-ws-head > .sf-ws-headtools > .sf-ws-zoomslot .sf-zoom-bar")).not.toBeNull();
 		// NOT inside the tlbar.
 		expect(view.contentEl.querySelector(".sf-ws-tlbar .sf-zoom-bar")).toBeNull();
 		// The scaled timeline body lives in the main body.
@@ -236,7 +236,7 @@ describe("AnvilView M6 — Timeline toolbar", () => {
 
 	it("zoom controls are present in the head for the kanban layout", () => {
 		view.setLayout("kanban");
-		expect(view.contentEl.querySelector(".sf-ws-head > .sf-ws-zoomslot .sf-zoom-bar")).not.toBeNull();
+		expect(view.contentEl.querySelector(".sf-ws-head > .sf-ws-headtools > .sf-ws-zoomslot .sf-zoom-bar")).not.toBeNull();
 	});
 
 	it("kanban board renders inside .sf-zoom-scaled", () => {

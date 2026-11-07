@@ -8,6 +8,8 @@ import { Notice, type Plugin, type TAbstractFile, type Tasks } from "obsidian";
 // Relative: the bare `inspector/...` alias reads as Node's builtin to import/no-nodejs-modules.
 import { installWriteRecorder, type RestoreFn } from "../inspector/frontmatterWriter";
 import { createJournalStore, undoJournalPath } from "undo/journalStore";
+import type { UndoDirection } from "undo/journalTypes";
+import { reportRejectedUndo } from "undo/undoControls";
 import { createUndoJournal, type OwnedUndoJournal } from "undo/undoJournal";
 
 export interface UndoWiringHost extends Plugin {
@@ -37,20 +39,18 @@ function onceShutdown(journal: OwnedUndoJournal, uninstall: () => void): () => P
 }
 
 function registerCommands(plugin: Plugin, journal: OwnedUndoJournal): void {
-	const run = (action: () => Promise<unknown>, verb: string): void => {
-		action().catch((err: unknown) => {
-			warn(`${verb} failed`)(err);
-		});
+	const run = (direction: UndoDirection): void => {
+		journal[direction]().catch((err: unknown) => { reportRejectedUndo(direction, err); });
 	};
 	plugin.addCommand({
 		id: "undo-last-change",
 		name: "Undo last change",
-		callback: () => { run(() => journal.undo(), "undo"); },
+		callback: () => { run("undo"); },
 	});
 	plugin.addCommand({
 		id: "redo-last-change",
 		name: "Redo last change",
-		callback: () => { run(() => journal.redo(), "redo"); },
+		callback: () => { run("redo"); },
 	});
 }
 
