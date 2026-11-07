@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Platform } from "obsidian";
-import { formatValue, modKeyName, outcomeNotice, stepLabel, summariseStep } from "../../src/undo/stepLabel";
+import { formatValue, outcomeNotice, stepLabel, summariseStep, unexpectedErrorNotice } from "../../src/undo/stepLabel";
 import type { ConflictReport, FieldChange, Slot, Step, UndoOutcome } from "../../src/undo/journalTypes";
 
 const present = (value: unknown): Slot => ({ present: true, value });
@@ -21,7 +21,14 @@ const conflict = (key: string, path = MARA, written: Slot = present("dead"), fou
 	path, key, expected: present("alive"), found, written,
 });
 const applied = (over: Partial<Extract<UndoOutcome, { kind: "applied" }>> = {}): UndoOutcome => ({
-	kind: "applied", direction: "undo", step: statusStep(), conflicts: [], failedPaths: [], vanishedPaths: [], ...over,
+	kind: "applied", direction: "undo", step: statusStep(), conflicts: [], failedPaths: [], vanishedPaths: [], changeCounts: {}, ...over,
+});
+
+const failed = (over: Partial<Extract<UndoOutcome, { kind: "failed" }>> = {}): UndoOutcome => ({
+	kind: "failed", direction: "undo", step: statusStep(), vanishedPaths: [], changeCounts: {}, ...over,
+});
+const vanished = (over: Partial<Extract<UndoOutcome, { kind: "vanished" }>> = {}): UndoOutcome => ({
+	kind: "vanished", direction: "undo", paths: [SCENE4], changeCounts: {}, ...over,
 });
 
 const setMac = (on: boolean): void => {
@@ -120,18 +127,6 @@ describe("formatValue", () => {
 	});
 });
 
-describe("modKeyName", () => {
-	it("is Cmd on macOS", () => {
-		setMac(true);
-		expect(modKeyName()).toBe("Cmd");
-	});
-
-	it("is Ctrl elsewhere", () => {
-		setMac(false);
-		expect(modKeyName()).toBe("Ctrl");
-	});
-});
-
 describe("outcomeNotice", () => {
 	it("says nothing to undo or redo for an empty stack", () => {
 		expect(outcomeNotice({ kind: "empty", direction: "undo" })).toBe("Nothing to undo");
@@ -143,28 +138,35 @@ describe("outcomeNotice", () => {
 		expect(outcomeNotice(applied({ direction: "redo" }))).toBe("Redo: status in Mara Stoneway");
 	});
 
-	it("asks the user to save or discard, naming the note, for a draft or a write in flight", () => {
+	it("asks the user to save first, naming the note, with no word about discarding (P6)", () => {
 		const base = { kind: "refused", direction: "undo", path: MARA } as const;
-		expect(outcomeNotice({ ...base, reason: "draft" })).toBe("Save or discard your edit first (Mara Stoneway)");
-		expect(outcomeNotice({ ...base, reason: "write" })).toBe("Save or discard your edit first (Mara Stoneway)");
+		expect(outcomeNotice({ ...base, reason: "draft" })).toBe("Save your edit first (Mara Stoneway)");
+		expect(outcomeNotice({ ...base, reason: "write" })).toBe("Save your edit first (Mara Stoneway)");
 	});
 
-	it("explains a single conflict and names the key that redoes it, on macOS", () => {
-		setMac(true);
+	it("explains a single conflict and names the reverse command, not a key (P8)", () => {
 		expect(outcomeNotice(applied({ conflicts: [conflict("status")] }))).toBe(
-			"Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Cmd+Shift+Z restores it.",
+			"Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Redo restores it.",
 		);
 	});
 
-	it("uses Ctrl off macOS", () => {
-		setMac(false);
-		expect(outcomeNotice(applied({ conflicts: [conflict("status")] }))).toContain("Ctrl+Shift+Z restores it.");
+	it("names no shortcut whatever the platform (P8)", () => {
+		for (const mac of [true, false]) {
+			setMac(mac);
+			expect(outcomeNotice(applied({ conflicts: [conflict("status")] }))).not.toMatch(/Cmd|Ctrl|\+Z/);
+		}
 	});
 
-	it("points a redo conflict back at the plain undo key", () => {
-		setMac(true);
+	it("points a redo conflict back at Undo", () => {
 		const text = outcomeNotice(applied({ direction: "redo", conflicts: [conflict("status")] }));
-		expect(text).toBe("Redo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Cmd+Z restores it.");
+		expect(text).toBe("Redo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Undo restores it.");
+	});
+
+	it("points a redo conflict over several fields back at Undo, plural", () => {
+		const conflicts = [conflict("status"), conflict("order", SCENE4)];
+		expect(outcomeNotice(applied({ direction: "redo", conflicts }))).toBe(
+			"Redo: status in Mara Stoneway and order in Scene 4 had changed since; Undo restores them.",
+		);
 	});
 
 	it("shows an absent found value as not set", () => {
@@ -173,18 +175,16 @@ describe("outcomeNotice", () => {
 	});
 
 	it("names up to three conflicts", () => {
-		setMac(true);
 		const conflicts = [conflict("status"), conflict("aliases"), conflict("order", SCENE4)];
 		expect(outcomeNotice(applied({ conflicts }))).toBe(
-			"Undo: status in Mara Stoneway, aliases in Mara Stoneway and order in Scene 4 had changed since; Cmd+Shift+Z restores them.",
+			"Undo: status in Mara Stoneway, aliases in Mara Stoneway and order in Scene 4 had changed since; Redo restores them.",
 		);
 	});
 
 	it("names three and counts the rest", () => {
-		setMac(true);
 		const conflicts = ["a", "b", "c", "d", "e"].map(k => conflict(k));
 		expect(outcomeNotice(applied({ conflicts }))).toBe(
-			"Undo: a in Mara Stoneway, b in Mara Stoneway, c in Mara Stoneway and 2 more had changed since; Cmd+Shift+Z restores them.",
+			"Undo: a in Mara Stoneway, b in Mara Stoneway, c in Mara Stoneway and 2 more had changed since; Redo restores them.",
 		);
 	});
 
@@ -214,39 +214,69 @@ describe("outcomeNotice", () => {
 	});
 
 	it("combines a conflict with failed and vanished files, one sentence each", () => {
-		setMac(true);
 		const text = outcomeNotice(applied({ conflicts: [conflict("status")], failedPaths: [SCENE4], vanishedPaths: [SCENE5] }));
 		expect(text).toBe(
-			"Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Cmd+Shift+Z restores it. " +
+			"Undo: status in Mara Stoneway is 'dead' again. It had changed to 'missing'; Redo restores it. " +
 				"Couldn't write Scene 4; its change stays on the undo stack. " +
 				"Scene 5 no longer exists; its change was removed from the undo history.",
 		);
 	});
 
-	it("says the step stays on the stack when every write failed", () => {
-		expect(outcomeNotice({ kind: "failed", direction: "undo", step: statusStep() })).toBe(
+	it("says the change stays on the stack when every write failed", () => {
+		expect(outcomeNotice(failed())).toBe(
 			"Couldn't undo the change in Mara Stoneway. It stays on the undo stack; try again.",
 		);
 	});
 
-	it("describes a failed multi-note redo", () => {
-		const s = step([[MARA, [change("status")]], [SCENE4, [change("order")]]]);
-		expect(outcomeNotice({ kind: "failed", direction: "redo", step: s })).toBe(
-			"Couldn't redo the changes in 2 notes. It stays on the redo stack; try again.",
+	it("says they stay when a failed step had several changes in one note (P10)", () => {
+		const s = step([[MARA, [change("status"), change("order")]]]);
+		expect(outcomeNotice(failed({ step: s }))).toBe(
+			"Couldn't undo the changes in Mara Stoneway. They stay on the undo stack; try again.",
 		);
 	});
 
-	it("describes a failed step with several changes in one note", () => {
-		const s = step([[MARA, [change("status"), change("order")]]]);
-		expect(outcomeNotice({ kind: "failed", direction: "undo", step: s })).toContain("the changes in Mara Stoneway.");
+	it("describes a failed multi-note redo with the plural sentence (P10)", () => {
+		const s = step([[MARA, [change("status")]], [SCENE4, [change("order")]]]);
+		expect(outcomeNotice(failed({ direction: "redo", step: s }))).toBe(
+			"Couldn't redo the changes in 2 notes. They stay on the redo stack; try again.",
+		);
+	});
+
+	it("appends the vanished-note sentence to a failed step (P9)", () => {
+		expect(outcomeNotice(failed({ step: step([[SCENE4, [change("order")]]]), vanishedPaths: [SCENE5] }))).toBe(
+			"Couldn't undo the change in Scene 4. It stays on the undo stack; try again. " +
+				"Scene 5 no longer exists; its change was removed from the undo history.",
+		);
 	});
 
 	it("says a vanished note's change was removed", () => {
-		expect(outcomeNotice({ kind: "vanished", direction: "undo", paths: [SCENE4] })).toBe(
+		expect(outcomeNotice(vanished({ paths: [SCENE4] }))).toBe(
 			"Scene 4 no longer exists; its change was removed from the undo history.",
 		);
-		expect(outcomeNotice({ kind: "vanished", direction: "redo", paths: [SCENE4, SCENE5] })).toBe(
+		expect(outcomeNotice(vanished({ direction: "redo", paths: [SCENE4, SCENE5] }))).toBe(
 			"Scene 4 and Scene 5 no longer exist; their changes were removed from the undo history.",
+		);
+	});
+
+	it("says its changes were removed for one vanished note that had several (P10)", () => {
+		expect(outcomeNotice(vanished({ paths: [SCENE4], changeCounts: { [SCENE4]: 2 } }))).toBe(
+			"Scene 4 no longer exists; its changes were removed from the undo history.",
+		);
+	});
+
+	it("says its changes stay for one failed note that had several (P10)", () => {
+		const text = outcomeNotice(applied({ failedPaths: [SCENE4], changeCounts: { [SCENE4]: 2 } }));
+		expect(text).toBe("Undo: status in Mara Stoneway. Couldn't write Scene 4; its changes stay on the undo stack.");
+	});
+});
+
+describe("unexpectedErrorNotice", () => {
+	it("tells the user to look at the developer console, for undo and for redo (P1)", () => {
+		expect(unexpectedErrorNotice("undo")).toBe(
+			"Couldn't undo: an unexpected error occurred. See the developer console for details.",
+		);
+		expect(unexpectedErrorNotice("redo")).toBe(
+			"Couldn't redo: an unexpected error occurred. See the developer console for details.",
 		);
 	});
 });

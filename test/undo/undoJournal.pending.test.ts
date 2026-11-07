@@ -126,7 +126,7 @@ describe.each(DIRECTIONS)("pending work — %s", (dir) => {
 		expect(h.fm(MARA).status).toBe(before(dir));
 		expect(h.journal.peek()).toEqual(stacks);
 		expect(h.notices).toEqual([outcomeNotice(outcome)]);
-		expect(h.notices[0]).toContain("Save or discard your edit first");
+		expect(h.notices[0]).toContain("Save your edit first");
 	});
 
 	it("proceeds when the busy note is not in the step", async () => {

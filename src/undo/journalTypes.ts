@@ -50,6 +50,9 @@ export interface ConflictReport {
 
 export type UndoDirection = "undo" | "redo";
 
+/** How many field changes each note of the whole step held, by path; only the notice wording reads it (P10). */
+export type ChangeCounts = Readonly<Record<string, number>>;
+
 export type UndoOutcome =
 	| {
 			kind: "applied";
@@ -59,11 +62,12 @@ export type UndoOutcome =
 			conflicts: readonly ConflictReport[];
 			failedPaths: readonly string[];
 			vanishedPaths: readonly string[];
+			changeCounts: ChangeCounts;
 	  }
 	| { kind: "empty"; direction: UndoDirection }
 	| { kind: "refused"; direction: UndoDirection; path: string; reason: "draft" | "write" }
-	| { kind: "failed"; direction: UndoDirection; step: Step }
-	| { kind: "vanished"; direction: UndoDirection; paths: readonly string[] };
+	| { kind: "failed"; direction: UndoDirection; step: Step; vanishedPaths: readonly string[]; changeCounts: ChangeCounts }
+	| { kind: "vanished"; direction: UndoDirection; paths: readonly string[]; changeCounts: ChangeCounts };
 
 /** Why a note cannot be undone right now: unsaved text, or a write in flight or pending. */
 export type PendingReason = "draft" | "write";

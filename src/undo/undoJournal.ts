@@ -22,7 +22,7 @@
 import { TFolder, type App, type TAbstractFile, type TFile } from "obsidian";
 import type { RestoreFn, RestoreOp, WriteRecorder } from "../inspector/frontmatterWriter";
 import type {
-	ConflictReport, FieldChange, FileChanges, JournalSnapshot, JournalStore, Slot, Step, StepSummary,
+	ChangeCounts, ConflictReport, FieldChange, FileChanges, JournalSnapshot, JournalStore, Slot, Step, StepSummary,
 	JournalGroup, PendingProbe, UndoDirection, UndoOutcome,
 } from "undo/journalTypes";
 import { outcomeNotice, summariseStep } from "undo/stepLabel";
@@ -465,11 +465,17 @@ async function applyTop(deps: UndoJournalDeps, stacks: Stacks, dir: UndoDirectio
 	const failed = r.failed.length > 0 ? stepWith(step, r.failed) : null;
 	settleStacks(stacks, dir, step, moved, failed);
 	if (moved !== null || r.vanished.length > 0) changed();
+	const changeCounts = countChanges(step);
 	if (moved !== null) {
 		const failedPaths = r.failed.map((f) => f.path);
-		return { kind: "applied", direction: dir, step: moved, conflicts: r.conflicts, failedPaths, vanishedPaths: r.vanished };
+		return { kind: "applied", direction: dir, step: moved, conflicts: r.conflicts, failedPaths, vanishedPaths: r.vanished, changeCounts };
 	}
-	return failed !== null ? { kind: "failed", direction: dir, step: failed } : { kind: "vanished", direction: dir, paths: r.vanished };
+	if (failed !== null) return { kind: "failed", direction: dir, step: failed, vanishedPaths: r.vanished, changeCounts };
+	return { kind: "vanished", direction: dir, paths: r.vanished, changeCounts };
+}
+
+function countChanges(step: Step): ChangeCounts {
+	return Object.fromEntries(step.files.map((f) => [f.path, f.changes.length]));
 }
 
 /**

@@ -1,21 +1,14 @@
 /**
  * stepLabel — every user-facing string of the undo journal (ADR-49).
  *
- * The wording is PROVISIONAL until the mockup sign-off (OQ-3). All of it lives
- * here so one file changes. Pure, apart from reading `Platform.isMacOS` for
- * the modifier key name.
+ * The wording is the signed-off text of mockups U5-U9 (2026-11-06, P1/P6/P8/P9/P10).
+ * All of it lives here so one file changes. Pure.
  */
-import { Platform } from "obsidian";
-import type { ConflictReport, Slot, Step, StepSummary, UndoDirection, UndoOutcome } from "./journalTypes";
+import type { ChangeCounts, ConflictReport, Slot, Step, StepSummary, UndoDirection, UndoOutcome } from "./journalTypes";
 
 /** Values longer than this are cut and end in an ellipsis. */
 export const MAX_DISPLAY_CHARS = 40;
 const MAX_NAMED_CONFLICTS = 3;
-
-/** "Cmd" on macOS, "Ctrl" elsewhere. */
-export function modKeyName(): string {
-	return Platform.isMacOS ? "Cmd" : "Ctrl";
-}
 
 function noteName(path: string): string {
 	const base = path.slice(path.lastIndexOf("/") + 1);
@@ -70,9 +63,15 @@ function verb(direction: UndoDirection): string {
 	return direction === "undo" ? "Undo" : "Redo";
 }
 
-/** The shortcut that reverses this direction. */
-function reverseShortcut(direction: UndoDirection): string {
-	return direction === "undo" ? `${modKeyName()}+Shift+Z` : `${modKeyName()}+Z`;
+/** The command that reverses this direction. No key is named: Cmd+Shift+Z is the note editor's own redo (P8). */
+function reverseVerb(direction: UndoDirection): string {
+	return direction === "undo" ? "Redo" : "Undo";
+}
+
+/** True for exactly one note holding exactly one change: "its change", else "their/its changes" (P10). */
+function isSingleChange(paths: readonly string[], counts: ChangeCounts): boolean {
+	const [only] = paths;
+	return paths.length === 1 && only !== undefined && (counts[only] ?? 1) === 1;
 }
 
 function andList(names: readonly string[]): string {
@@ -88,31 +87,32 @@ function conflictNames(conflicts: readonly ConflictReport[]): string {
 
 function conflictSentence(o: Extract<UndoOutcome, { kind: "applied" }>): string {
 	const [only] = o.conflicts;
-	const key = reverseShortcut(o.direction);
+	const reverse = reverseVerb(o.direction);
 	if (o.conflicts.length === 1 && only !== undefined) {
 		return `${verb(o.direction)}: ${only.key} in ${noteName(only.path)} is ${formatValue(only.written)} again. ` +
-			`It had changed to ${formatValue(only.found)}; ${key} restores it.`;
+			`It had changed to ${formatValue(only.found)}; ${reverse} restores it.`;
 	}
-	return `${verb(o.direction)}: ${conflictNames(o.conflicts)} had changed since; ${key} restores them.`;
+	return `${verb(o.direction)}: ${conflictNames(o.conflicts)} had changed since; ${reverse} restores them.`;
 }
 
-function failedSentence(paths: readonly string[], direction: UndoDirection): string {
+function failedSentence(paths: readonly string[], direction: UndoDirection, counts: ChangeCounts): string {
 	const names = andList(paths.map(noteName));
-	const stays = paths.length === 1 ? "its change stays" : "their changes stay";
+	const stays = isSingleChange(paths, counts) ? "its change stays" : paths.length === 1 ? "its changes stay" : "their changes stay";
 	return `Couldn't write ${names}; ${stays} on the ${direction} stack.`;
 }
 
-function vanishedSentence(paths: readonly string[]): string {
+function vanishedSentence(paths: readonly string[], counts: ChangeCounts): string {
 	const names = andList(paths.map(noteName));
-	const clause = paths.length === 1 ? "no longer exists; its change was" : "no longer exist; their changes were";
+	const clause = paths.length > 1 ? "no longer exist; their changes were"
+		: isSingleChange(paths, counts) ? "no longer exists; its change was" : "no longer exists; its changes were";
 	return `${names} ${clause} removed from the undo history.`;
 }
 
 function appliedNotice(o: Extract<UndoOutcome, { kind: "applied" }>): string {
 	const main = o.conflicts.length > 0 ? conflictSentence(o) : `${verb(o.direction)}: ${stepLabel(o.step)}`;
 	const extras: string[] = [];
-	if (o.failedPaths.length > 0) extras.push(failedSentence(o.failedPaths, o.direction));
-	if (o.vanishedPaths.length > 0) extras.push(vanishedSentence(o.vanishedPaths));
+	if (o.failedPaths.length > 0) extras.push(failedSentence(o.failedPaths, o.direction, o.changeCounts));
+	if (o.vanishedPaths.length > 0) extras.push(vanishedSentence(o.vanishedPaths, o.changeCounts));
 	if (extras.length === 0) return main;
 	return [main.endsWith(".") ? main : `${main}.`, ...extras].join(" ");
 }
@@ -122,7 +122,14 @@ function failedNotice(o: Extract<UndoOutcome, { kind: "failed" }>): string {
 	const what = fieldCount === 1 ? "the change" : "the changes";
 	const first = o.step.files[0];
 	const where = noteCount === 1 && first !== undefined ? noteName(first.path) : `${noteCount} notes`;
-	return `Couldn't ${o.direction} ${what} in ${where}. It stays on the ${o.direction} stack; try again.`;
+	const stays = fieldCount === 1 ? "It stays" : "They stay";
+	const main = `Couldn't ${o.direction} ${what} in ${where}. ${stays} on the ${o.direction} stack; try again.`;
+	return o.vanishedPaths.length > 0 ? `${main} ${vanishedSentence(o.vanishedPaths, o.changeCounts)}` : main;
+}
+
+/** The notice for an undo or redo that rejected unexpectedly (P1); the console warning stays. */
+export function unexpectedErrorNotice(direction: UndoDirection): string {
+	return `Couldn't ${direction}: an unexpected error occurred. See the developer console for details.`;
 }
 
 /** The notice text for one undo/redo outcome. */
@@ -131,11 +138,11 @@ export function outcomeNotice(o: UndoOutcome): string {
 		case "empty":
 			return `Nothing to ${o.direction}`;
 		case "refused":
-			return `Save or discard your edit first (${noteName(o.path)})`;
+			return `Save your edit first (${noteName(o.path)})`;
 		case "failed":
 			return failedNotice(o);
 		case "vanished":
-			return vanishedSentence(o.paths);
+			return vanishedSentence(o.paths, o.changeCounts);
 		case "applied":
 			return appliedNotice(o);
 	}

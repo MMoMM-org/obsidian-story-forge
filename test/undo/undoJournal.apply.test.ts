@@ -149,7 +149,7 @@ describe("UndoJournal — failures and vanished notes", () => {
 		const before = h.lastSave().undo[0]!;
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const o = await h.journal.undo();
-		expect(o).toEqual({ kind: "failed", direction: "undo", step: before });
+		expect(o).toEqual({ kind: "failed", direction: "undo", step: before, vanishedPaths: [], changeCounts: { [MARA]: 1 } });
 		expect(h.journal.peek()).toEqual({ undo: { label: "status in Mara Stoneway", fieldCount: 1, noteCount: 1 }, redo: null });
 		expect(h.fm(MARA).status).toBe("dead");
 		expect(h.store.saves).toHaveLength(saves); // no stack change, no save
@@ -162,7 +162,7 @@ describe("UndoJournal — failures and vanished notes", () => {
 		const { h } = twoNoteSetup({ wrapRestore: failing(SCENE_4) });
 		await h.journal.load();
 		const o = await h.journal.undo();
-		expect(o).toMatchObject({ kind: "applied", failedPaths: [SCENE_4], vanishedPaths: [] });
+		expect(o).toMatchObject({ kind: "applied", failedPaths: [SCENE_4], vanishedPaths: [], changeCounts: { [SCENE_4]: 1, [SCENE_5]: 1 } });
 		expect((o as Extract<UndoOutcome, { kind: "applied" }>).step.files.map((f) => f.path)).toEqual([SCENE_5]);
 		expect([h.fm(SCENE_4).order, h.fm(SCENE_5).order]).toEqual([20, 11]);
 		const saved = h.lastSave();
@@ -186,10 +186,23 @@ describe("UndoJournal — failures and vanished notes", () => {
 		await h.write(MARA, "status", "dead");
 		h.removeNote(MARA);
 		const o = await h.journal.undo();
-		expect(o).toEqual({ kind: "vanished", direction: "undo", paths: [MARA] });
+		expect(o).toEqual({ kind: "vanished", direction: "undo", paths: [MARA], changeCounts: { [MARA]: 1 } });
 		expect(h.journal.peek()).toEqual({ undo: null, redo: null });
 		expect(h.lastSave()).toEqual({ undo: [], redo: [] });
 		expect(h.notices).toEqual(["Mara Stoneway no longer exists; its change was removed from the undo history."]);
+	});
+
+	it("counts the changes per note, so a vanished note with several changes reads \"its changes were\" (P10)", async () => {
+		const two: FileChanges = { path: SCENE_4, changes: [
+			{ key: "order", before: present(10), after: present(20) },
+			{ key: "status", before: present("a"), after: present("b") },
+		] };
+		const h = setup({ [SCENE_4]: { order: 20, status: "b" } }, { store: fakeStore({ undo: [stepOf("two", [two])], redo: [] }) });
+		await h.journal.load();
+		h.removeNote(SCENE_4);
+		const o = await h.journal.undo();
+		expect(o).toMatchObject({ kind: "vanished", changeCounts: { [SCENE_4]: 2 } });
+		expect(h.notices).toEqual(["Scene 4 no longer exists; its changes were removed from the undo history."]);
 	});
 
 	it("a folder at the step's path is not the note, so it reports `vanished`", async () => {
@@ -198,7 +211,7 @@ describe("UndoJournal — failures and vanished notes", () => {
 		h.replaceWithFolder(MARA);
 		vi.mocked(h.app.fileManager.processFrontMatter).mockClear();
 		const o = await h.journal.undo();
-		expect(o).toEqual({ kind: "vanished", direction: "undo", paths: [MARA] });
+		expect(o).toEqual({ kind: "vanished", direction: "undo", paths: [MARA], changeCounts: { [MARA]: 1 } });
 		expect(h.app.fileManager.processFrontMatter).not.toHaveBeenCalled();
 	});
 
@@ -208,7 +221,14 @@ describe("UndoJournal — failures and vanished notes", () => {
 		await h.journal.load();
 		h.removeNote(SCENE_5);
 		const o = await h.journal.undo();
-		expect(o).toMatchObject({ kind: "failed", step: { id: "multi", files: [change(SCENE_4, "order", 10, 20)] } });
+		expect(o).toMatchObject({
+			kind: "failed", step: { id: "multi", files: [change(SCENE_4, "order", 10, 20)] },
+			vanishedPaths: [SCENE_5], changeCounts: { [SCENE_4]: 1, [SCENE_5]: 1 },
+		});
+		expect(outcomeNotice(o)).toBe(
+			"Couldn't undo the change in Scene 4. It stays on the undo stack; try again. " +
+				"Scene 5 no longer exists; its change was removed from the undo history.",
+		);
 		expect(h.lastSave().undo.map((s) => s.files.map((f) => f.path))).toEqual([[SCENE_4]]);
 	});
 

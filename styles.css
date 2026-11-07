@@ -2738,6 +2738,108 @@ body {
 	text-align: center;
 }
 
+/*
+ * Undo / redo controls (spec 009, T5.1, ADR-50, mockups U1-U4). The Anvil group shares the
+ * zoom bar's chrome so the two clusters rhyme; the Workbench buttons share the pin button's.
+ * Disabled is `aria-disabled="true"` with a muted look, never the `disabled` attribute, so
+ * the control stays focusable and its "Nothing to undo" tooltip stays reachable.
+ */
+.sf-undo-group {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 4px;
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+	flex: none;
+}
+
+.sf-undo-tool {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 20px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: 13px;
+	line-height: 1;
+	cursor: pointer;
+	user-select: none;
+}
+
+.sf-undo-tool:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.sf-undo-tool[aria-disabled="true"] {
+	color: var(--text-faint);
+	opacity: 0.55;
+	cursor: default;
+}
+
+.sf-undo-tool[aria-disabled="true"]:hover {
+	background: var(--background-primary);
+	color: var(--text-faint);
+}
+
+.sf-undo-tool:focus-visible,
+.sf-undo-btn:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.sf-undo-btn {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius-s);
+	background: transparent;
+	color: var(--text-muted);
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.sf-undo-btn:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.sf-undo-btn[aria-disabled="true"] {
+	color: var(--text-faint);
+	opacity: 0.55;
+	cursor: default;
+}
+
+.sf-undo-btn[aria-disabled="true"]:hover {
+	background: transparent;
+	color: var(--text-faint);
+}
+
+/* The separator between the undo pair and the pin / edit buttons (U4, P3). */
+.sf-undo-btn[data-sf-undo="redo"] {
+	margin-inline-end: 9px;
+}
+
+.sf-undo-btn[data-sf-undo="redo"]::after {
+	content: "";
+	position: absolute;
+	inset-block: 3px;
+	inset-inline-end: -8px;
+	width: 1px;
+	background: var(--background-modifier-border);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * Codex tab (spec 008, T4.1) — collection pills over the entry grid.
  * Ported from mockup S91 (.cx-cats / .cx-grid / .hero), with Obsidian theme
