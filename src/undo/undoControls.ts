@@ -5,12 +5,12 @@
  * Disabled means `aria-disabled="true"` plus the muted look, never the `disabled` attribute, so
  * the "Nothing to undo" tooltip stays reachable and the control stays focusable. The controls
  * follow the stacks only: pending work (a draft, a write in flight) leaves them enabled so the
- * click can explain itself with the "Save your edit first" notice. Nothing here moves focus.
+ * click can explain itself with the "Save your edit first" notice (shown by the journal, not
+ * here). Nothing here shows a notice or moves focus.
  */
-import { Notice } from "obsidian";
 import type { UndoDirection, UndoOutcome } from "undo/journalTypes";
 import type { StackPeek } from "undo/undoJournal";
-import { controlTitle, unexpectedErrorNotice } from "undo/stepLabel";
+import { controlTitle } from "undo/stepLabel";
 
 /** What the controls need of the journal. */
 export interface UndoControlsJournal {
@@ -82,13 +82,4 @@ export async function activateUndoControl(el: Element, journal: UndoControlsJour
 	const direction = undoDirectionOf(el);
 	if (direction === null || el.getAttribute("aria-disabled") === "true") return null;
 	return direction === "undo" ? journal.undo() : journal.redo();
-}
-
-/**
- * A rejected undo/redo (a bug, not an outcome): log it and tell the user (mockup U9, P1).
- * Shared by the palette commands and the controls.
- */
-export function reportRejectedUndo(direction: UndoDirection, err: unknown): void {
-	console.warn(`[StoryForge] Undo journal: ${direction} failed.`, err);
-	new Notice(unexpectedErrorNotice(direction));
 }

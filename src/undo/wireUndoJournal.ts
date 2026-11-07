@@ -9,7 +9,7 @@ import { Notice, type Plugin, type TAbstractFile, type Tasks } from "obsidian";
 import { installWriteRecorder, type RestoreFn } from "../inspector/frontmatterWriter";
 import { createJournalStore, undoJournalPath } from "undo/journalStore";
 import type { UndoDirection } from "undo/journalTypes";
-import { reportRejectedUndo } from "undo/undoControls";
+import { reportRejectedUndo } from "undo/undoNotice";
 import { createUndoJournal, type OwnedUndoJournal } from "undo/undoJournal";
 
 export interface UndoWiringHost extends Plugin {
