@@ -372,7 +372,7 @@ Schema:    npm run schema:check # unaffected by this spec; must stay green
 graph LR
     subgraph Triggers
       Keys[UndoKeyRouter<br/>src/undo/undoKeys.ts]
-      Cmds[Commands<br/>main.ts]
+      Cmds[Commands<br/>src/undo/wireUndoJournal.ts]
       AnvilCtl[Anvil undo controls<br/>src/undo/undoControls.ts]
       WbCtl[Workbench undo controls<br/>src/undo/undoControls.ts]
     end
@@ -382,6 +382,7 @@ graph LR
       GRP[JournalGroup<br/>undoJournal.ts]
       VAL[yamlValue.ts<br/>normalise / slotsEqual]
       LBL[stepLabel.ts<br/>labels and notices]
+      NTC[undoNotice.ts<br/>rejected undo, history cleared]
       STORE[JournalStore<br/>journalStore.ts]
     end
 
@@ -408,6 +409,10 @@ graph LR
     UJ --> VAL
     FW --> VAL
     UJ --> LBL
+    NTC --> LBL
+    Cmds -.rejection.-> NTC
+    AnvilCtl -.rejection.-> NTC
+    WbCtl -.rejection.-> NTC
     UJ --> STORE
     Anvil -.probe.-> UJ
     IH -.probe + flusher.-> UJ
@@ -424,9 +429,11 @@ graph LR
 | **JournalGroup** (`undoJournal.ts`) | One gesture's accumulating step: ref-counted open/close, tracked promises, timeout. |
 | **yamlValue** (`yamlValue.ts`) | `normalise`, `slotOf`, `slotsEqual`, value byte size. Pure. Used by writer and journal alike. |
 | **stepLabel** (`stepLabel.ts`) | Tooltip labels and every notice text, from a step or an outcome. Pure. |
+| **undoNotice** (`undoNotice.ts`) | The notices that are not undo/redo outcomes: `reportRejectedUndo(direction, err)` logs a rejected undo/redo and shows the P1 text; `showHistoryCleared()` shows "Undo history cleared". The one P1 path for the palette commands, the Anvil controls and the Workbench buttons. |
 | **JournalStore** (`journalStore.ts`) | Read/parse/validate, size-capped serialise, debounced write, flush, delete. |
 | **UndoKeyRouter** (`undoKeys.ts`) | The global keydown handler: modifier check, active-host lookup, containment, key policy, dispatch. |
-| **Undo controls** (`undoControls.ts`) | Builds and syncs ↶/↷ for both surfaces from `journal.peek()`. |
+| **Undo controls** (`undoControls.ts`) | Builds and syncs ↶/↷ for both surfaces from `journal.peek()`; `activateUndoControl` runs one (a disabled control does nothing). DOM only, no notices. |
+| **Wiring** (`wireUndoJournal.ts`) | Creates, installs and loads the journal for `main.ts`; vault events, the shared shutdown, the palette commands and the global keydown handler, with the ADR-53 guard (`createTriggers`, `KEY_COMMAND_GAP_MS`) between commands and keys. `main.ts` passes only an `activeHost` closure. |
 | **frontmatterWriter** | Recorder hook; before/after capture; restore capability (the no-journal path). |
 | **InteractionHandler / renderKanban** | Gesture groups, awaited renumber, public `flushPending`, busy probe. |
 | **AnvilView / SidebarView / InspectorController** | Probes, key policy, controls, live region, #30 fix, pinned refresh. |
@@ -442,9 +449,11 @@ graph LR
 │   │   ├── yamlValue.ts        # NEW: normalise (parseYaml∘stringifyYaml), slotOf, slotsEqual, deepEqual, valueSize
 │   │   ├── undoJournal.ts      # NEW: createUndoJournal → OwnedUndoJournal; JournalGroup; stacks; queue; probes; flushers
 │   │   ├── journalStore.ts     # NEW: JournalStore — load/validate, capped serialise, debounced save, flushNow, remove
-│   │   ├── stepLabel.ts        # NEW: stepLabel, outcomeNotice, formatValue, modKeyName
+│   │   ├── stepLabel.ts        # NEW: stepLabel, summariseStep, formatValue, controlTitle, outcomeNotice, unexpectedErrorNotice, HISTORY_CLEARED_NOTICE, MAX_DISPLAY_CHARS
+│   │   ├── undoNotice.ts       # NEW: reportRejectedUndo (P1 notice + console warning), showHistoryCleared
 │   │   ├── undoKeys.ts         # NEW: createUndoKeyHandler, UndoKeyHost, isEditableText
-│   │   └── undoControls.ts     # NEW: buildAnvilUndoControls, buildWorkbenchUndoControls, syncUndoControls
+│   │   ├── undoControls.ts     # NEW: buildAnvilUndoControls, buildWorkbenchUndoControls, syncUndoControls, undoDirectionOf, activateUndoControl, UndoControlsJournal
+│   │   └── wireUndoJournal.ts  # NEW: wireUndoJournal — create/install/load; vault events; shutdown + quit task; commands; keydown on documents; ADR-53 guard
 │   ├── inspector/
 │   │   ├── frontmatterWriter.ts    # MODIFY: CommitOptions {group?}; capture before/after; installWriteRecorder → {uninstall, restore}
 │   │   └── InspectorController.ts  # MODIFY: ADR-42 refresh rules; isBusy(path); undoKeyPolicy(target); onGuardCleared
@@ -452,13 +461,13 @@ graph LR
 │   │   ├── interactionHandler.ts   # MODIFY: group per pending batch; GestureContext to strategies; flushPending(); isBusy(path); destroy runs the pending flushes, groups close as they settle
 │   │   └── renderKanban.ts         # MODIFY: computeDrop/computeKey take GestureContext; group.track(deps.renumber(writes, group))
 │   ├── anvil/
-│   │   └── AnvilView.ts            # MODIFY: opts.undo; controls beside tab strip; _onClick routes data-sf-undo; probe; undoKeyPolicy; onOutcome → _announce; onWrite/renumber pass group
+│   │   └── AnvilView.ts            # MODIFY: opts.undo; controls last in the right-hand header cluster .sf-ws-headtools, after the zoom slot; _onClick routes data-sf-undo; probe; undoKeyPolicy; onOutcome → _announce; onWrite/renumber pass group
 │   ├── views/
 │   │   └── SidebarView.ts          # MODIFY: journal param; header buttons; probe; undoKeyPolicy; pinned subject refresh; owed redraw; focus kept across redraw; IME hold
 │   ├── types/index.ts              # MODIFY: PluginSettings.keepUndoHistory (default true) + normalizeSettings
-│   ├── settings/SettingsTab.ts     # MODIFY: "Keep undo history across restarts" toggle + "Clear undo history" button
-│   └── main.ts                     # MODIFY: create/install/dispose journal; vault + workspace events; keydown on documents; commands; quit task
-├── styles.css                      # MODIFY: .sf-undo-group, .sf-undo-tool, .sf-undo-btn, [aria-disabled="true"] look
+│   ├── settings/SettingsTab.ts     # MODIFY: "Keep undo history across restarts" toggle + "Clear undo history" button; journal as constructor argument (Pick<OwnedUndoJournal, "setPersistence" | "clear">)
+│   └── main.ts                     # MODIFY: await wireUndoJournal(this, activeHost) — activeHost: the active Anvil, else Workbench; pass the journal to both views and SettingsTab
+├── styles.css                      # MODIFY: .sf-ws-head wraps; .sf-ws-headtools (zoom slot + undo group, wraps as one, U3/P4); .sf-undo-group, .sf-undo-tool, .sf-undo-btn, [aria-disabled="true"] look
 ├── README.md                       # MODIFY: "Undo" section (Should Have docs)
 └── docs/
     ├── XDD/specs/009-undo-journal/mockups.html  # NEW (gate, before any UI code)
@@ -474,6 +483,7 @@ test/
 │   ├── undoJournal.apply.test.ts   # NEW: undo/redo, conflicts, partial failure, vanished, queue
 │   ├── undoJournal.pending.test.ts # NEW: probes, flushers, refusal
 │   ├── undoJournal.paths.test.ts   # NEW: rename (file + folder, both stacks), delete, startup prune
+│   ├── undoJournal.clear.test.ts   # NEW: clear empties both stacks, deletes the file, notifies once, queued behind an undo in flight
 │   ├── journalStore.test.ts        # NEW: round trip, corrupt, missing, caps, setting off, clear
 │   ├── stepLabel.test.ts           # NEW
 │   ├── undoKeys.test.ts            # NEW: modifier, host, containment, key policy
@@ -481,6 +491,7 @@ test/
 │   └── writeCoverage.test.ts       # NEW: every write path produces exactly one step
 ├── inspector/frontmatterWriter.journal.test.ts   # NEW: capture, no-op, failure, restore
 ├── inspector/InspectorController.refresh.test.ts # NEW: ADR-42
+├── settings/undoSettings.test.ts                 # NEW: U11 section, toggle → setPersistence, Clear button and its notice
 ├── workspace/interactionHandler.group.test.ts    # NEW
 ├── anvil/AnvilView.undo.test.ts                  # NEW
 ├── views/SidebarView.undo.test.ts                # NEW (incl. pinned refresh)
@@ -608,13 +619,17 @@ export interface Step {
 }
 export interface StepSummary { readonly label: string; readonly fieldCount: number; readonly noteCount: number; }
 
+export type UndoDirection = "undo" | "redo";
+/** Field changes per note of the whole step, by path; only the notice wording reads it (P10: "its change" / "its changes"). */
+export type ChangeCounts = Readonly<Record<string, number>>;
+/** T5.1: changeCounts (P10) on applied, failed and vanished, and vanishedPaths on failed (P9: failed + vanished in one step). */
 export type UndoOutcome =
-	| { kind: "applied"; direction: "undo" | "redo"; step: Step; conflicts: readonly ConflictReport[];
-	    failedPaths: readonly string[]; vanishedPaths: readonly string[] }
-	| { kind: "empty"; direction: "undo" | "redo" }
-	| { kind: "refused"; direction: "undo" | "redo"; path: string; reason: "draft" | "write" }
-	| { kind: "failed"; direction: "undo" | "redo"; step: Step }
-	| { kind: "vanished"; direction: "undo" | "redo"; paths: readonly string[] };
+	| { kind: "applied"; direction: UndoDirection; step: Step; conflicts: readonly ConflictReport[];
+	    failedPaths: readonly string[]; vanishedPaths: readonly string[]; changeCounts: ChangeCounts }
+	| { kind: "empty"; direction: UndoDirection }
+	| { kind: "refused"; direction: UndoDirection; path: string; reason: "draft" | "write" }
+	| { kind: "failed"; direction: UndoDirection; step: Step; vanishedPaths: readonly string[]; changeCounts: ChangeCounts }
+	| { kind: "vanished"; direction: UndoDirection; paths: readonly string[]; changeCounts: ChangeCounts };
 export interface ConflictReport { readonly path: string; readonly key: string;
 	readonly expected: Slot; readonly found: Slot; readonly written: Slot; }
 
@@ -645,13 +660,13 @@ export interface UndoJournal {
 	peek(): { readonly undo: StepSummary | null; readonly redo: StepSummary | null };
 	subscribe(listener: () => void): () => void;                 // any stack change
 	onOutcome(listener: (o: UndoOutcome, message: string) => void): () => void;
-	clear(): Promise<void>;                                      // both stacks + stored file
 }
 
 /** The plugin's handle — only main.ts holds it (like OwnedFileClassCache). */
 export interface OwnedUndoJournal extends UndoJournal, WriteRecorder {
 	load(): Promise<void>;                     // from JournalStore when persistence is on
-	setPersistence(on: boolean): Promise<void>; // off → delete the file, stop saving
+	setPersistence(on: boolean): Promise<void>; // off → delete the file, stop saving; on → save the current state at once
+	clear(): Promise<void>;                    // T5.5: both stacks + stored file; queued like undo/redo; the emptied state is not saved
 	pruneUnresolvable(): Promise<void>;        // at layout-ready: drop paths that no longer exist
 	onRename(file: TAbstractFile, oldPath: string): Promise<void>; // queued behind any apply (T2.5)
 	onDelete(file: TAbstractFile): Promise<void>;
@@ -714,8 +729,16 @@ notifyFileChanged(file: TFile): boolean;     // true only while a field is still
 ```yaml
 # Inter-component (all in-process)
 - from: main.ts
+  to: wireUndoJournal (src/undo/wireUndoJournal.ts)
+  data_flow: "main.ts awaits wireUndoJournal(plugin, activeHost) and passes only the activeHost closure (active Anvil, else Workbench)"
+
+- from: wireUndoJournal
   to: UndoJournal
-  data_flow: "create → installWriteRecorder(app, journal) → load() → events → keydown → commands"
+  data_flow: "create → installWriteRecorder(app, journal) → shutdown (unload + quit) → vault events → commands + keydown (one ADR-53 guard) → load()"
+
+- from: main.ts
+  to: SettingsTab
+  protocol: "constructor argument, typed Pick<OwnedUndoJournal, \"setPersistence\" | \"clear\">; the tab does not subscribe"
 
 - from: frontmatterWriter
   to: UndoJournal
@@ -730,7 +753,7 @@ notifyFileChanged(file: TFile): boolean;     // true only while a field is still
   protocol: registerProbe / registerFlusher (unregister through Component.register)
 
 - from: UndoJournal
-  to: AnvilView, SidebarView, SettingsTab
+  to: AnvilView, SidebarView
   protocol: subscribe (buttons), onOutcome (Anvil live region)
 
 # External
@@ -825,7 +848,7 @@ return (e: KeyboardEvent): void => {
 	if (host === null) return;                            // Markdown note: Obsidian's own undo
 	const t = e.target;
 	const inHost = isNode(t) && host.containerEl.contains(t);  // isNode: Obsidian's cross-window instanceOf
-	const doc = host.containerEl.doc;                     // the host's own window (main or popout)
+	const doc = host.containerEl.ownerDocument;           // the host's own window (main or popout)
 	const onBody = t === doc.body || t === doc.documentElement; // nothing focused, e.g. after a card click
 	if (!inHost && !onBody) return;                       // a modal, the palette, another leaf
 	if (host.undoKeyPolicy(t) === "text") return;         // a draft: the field's own text undo
@@ -1035,16 +1058,21 @@ state, and the new setting defaults through `normalizeSettings`.
 
 **Information Architecture:**
 - Navigation: undo never navigates, opens, reveals or focuses (F4 AC6).
-- Content organisation: ↶ ↷ sit at the right of the Anvil tab strip on every tab; in the
+- Content organisation: ↶ ↷ sit at the right of the Anvil header on every tab, last in the
+  right-hand cluster after the zoom slot (U1; at narrow width the cluster wraps as one, U3); in the
   Workbench they sit at the start of the `.sf-icons` group, before pin and edit.
 - User flows: key, command and button all call the same `journal.undo()` / `redo()`.
 
 **Design System:**
 - Components: Anvil — `span.sf-undo-tool[role=button][tabindex=0][data-sf-undo=undo|redo]` inside
-  `div.sf-undo-group`, with `aria-label` and `title`, mirroring `toolEl`. Workbench —
+  `div.sf-undo-group`, with `aria-label` and `title`, mirroring `toolEl`. The group is the last child
+  of `div.sf-ws-headtools`, the header's right-hand cluster (zoom slot, then ↶ ↷), pushed right with
+  `margin-left: auto`; `.sf-ws-head` wraps, and the cluster moves to the next row as one unit. This
+  is what the signed-off U3b/U3c show (decision P4). Workbench —
   `button.sf-undo-btn[data-sf-undo=undo|redo]`, mirroring `sf-pin-btn`.
-- Tokens: Obsidian CSS variables only (`--text-muted`, `--text-faint` for disabled,
-  `--interactive-hover`). No new colours.
+- Tokens: Obsidian CSS variables only (`--text-muted`, `--text-normal` on hover,
+  `--background-modifier-hover` for the hover background, `--text-faint` plus `opacity: 0.55` for
+  disabled, `--interactive-accent` for the focus ring). No new colours.
 - Patterns: disabled = `aria-disabled="true"` + muted look, not the `disabled` attribute, so the
   tooltip stays reachable by pointer and keyboard (ADR-50).
 
@@ -1052,7 +1080,8 @@ state, and the new setting defaults through `normalizeSettings`.
 - State: the controls hold no state; `syncUndoControls(els, journal.peek())` runs on every
   `subscribe` notification.
 - Feedback: one `Notice` per outcome; the Anvil live region (`role=status`, `aria-live=polite`)
-  repeats the text whenever the Anvil is open.
+  repeats the text whenever the Anvil is open. Each message replaces the region's text node, so a
+  repeated message (a second "Nothing to undo") is still a DOM change.
 - Accessibility: accessible names "Undo: status in Mara Stoneway" / "Nothing to undo"; Enter and
   Space activate (the Anvil's existing activation router reaches `_onClick`, which routes
   `[data-sf-undo]` first).
@@ -1243,14 +1272,17 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
   - User confirmed: **Yes** (2026-11-04)
 
 - [x] **ADR-43 — The journal is a plugin-owned service created in `main.ts` and injected.**
-  `createUndoJournal(...)` in `onload` before views are registered;
+  `createUndoJournal(...)` in `onload` before views are registered, through `wireUndoJournal`
+  (`src/undo/wireUndoJournal.ts`), which `main.ts` awaits;
   one memoized shutdown, shared by unload and `quit`, runs `settle()` → uninstall the recorder →
   `flushNow()` → `dispose()` (T3.4); the journal is passed to `AnvilView`
   through `AnvilViewOpts.undo` and to `SidebarView` as a new trailing constructor argument; to
-  `SettingsTab` through its existing plugin reference.
+  `SettingsTab` as a constructor argument typed `Pick<OwnedUndoJournal, "setPersistence" | "clear">`
+  (T5.5). The settings tab only drives the toggle and the Clear button; it does not subscribe.
   - Rationale: the FileClass cache precedent; one instance, explicit lifetime, testable with a
     fake.
-  - Trade-offs: one more constructor parameter on `SidebarView` (already eight).
+  - Trade-offs: one more constructor parameter on `SidebarView` (already eight) and on
+    `SettingsTab` (now eight).
   - User confirmed: **Yes** (2026-11-04)
 
 - [x] **ADR-44 — The writer reaches the journal through a writer-level recorder hook; the
@@ -1315,9 +1347,15 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
     `workspace.on("quit", tasks => tasks.addPromise(shutdown()))` lets the desktop quit wait.
   - Load: missing → empty; invalid JSON, wrong `version` or bad shape → empty + warning.
   - Setting `keepUndoHistory` off: `adapter.remove(path)` if it exists, no further saves, stacks
-    stay in memory for the session. On again: the next change saves.
-  - **Clear undo history** (PRD Could): `journal.clear()` empties both stacks and removes the file;
-    the button is a deliberate action (CON-4) and shows "Undo history cleared".
+    stay in memory for the session. On again: `setPersistence(true)` saves the current state at
+    once (plan/phase-2.md, T2.6), so the session's steps do not wait for the next change to be
+    protected. This differs from the signed-off U11 note "On again: the next change saves the
+    file.", which is not edited (README decision log, 2026-11-07).
+  - **Clear undo history** (PRD Could): `journal.clear()` empties both stacks and removes the file.
+    It is queued like undo/redo (an undo in flight finishes first), notifies subscribers once and
+    does not save the emptied state over the deleted file; the next change saves again. The button
+    is a deliberate action (CON-4); the settings tab, not the journal, shows "Undo history cleared"
+    (`showHistoryCleared`), and a failed clear shows no notice.
   - Rationale: a typical step is ~150–300 characters, so 100 steps fit in ~30 KB; 1 MiB leaves
     room for large renumbers without letting one huge value bloat every save.
   - Trade-offs: a crash loses at most the last second of steps (accepted, F7 AC8).
@@ -1336,7 +1374,10 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
   - User confirmed: **Yes** (2026-11-04)
 
 - [x] **ADR-50 — Controls: Anvil spans, Workbench native buttons, `aria-disabled`.**
-  Anvil: `div.sf-undo-group` appended to the header after the tab strip, two
+  Anvil: `div.sf-undo-group` placed last in the header's right-hand cluster `div.sf-ws-headtools`,
+  after the zoom slot. The cluster sits at the right of the header after the tab strip (U1); the
+  header (`.sf-ws-head`) wraps, and at narrow width the cluster moves to the next row as one unit.
+  This is what the signed-off U3b/U3c show (decision P4). The group holds two
   `span.sf-undo-tool` built like `toolEl` (role, tabindex, aria-label, title), routed by
   `_onClick` checking `target.closest("[data-sf-undo]")` before the marker walk, so Enter/Space
   reach it through the existing activation router. Workbench: two `button.sf-undo-btn` prepended
@@ -1365,7 +1406,10 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
 
 - [x] **ADR-53 — A command right after the key trigger is ignored.** If the user binds Mod+Z to
   "Undo last change", the key handler and the hotkey could both fire. A
-  command-triggered undo or redo within 100 ms of a key-triggered one is ignored.
+  command-triggered undo or redo within 100 ms of a key-triggered one is ignored. The guard is
+  exclusive (a command at 99 ms is ignored, at 100 ms it runs) and applies across directions (a
+  redo command right after an undo key is ignored too). It lives in `wireUndoJournal.ts`
+  (`createTriggers`, `KEY_COMMAND_GAP_MS`), which registers both the commands and the key handler.
   - Rationale: one keystroke must never take two steps.
   - Trade-offs: a deliberate command within 100 ms of a key press is dropped; not a real case.
   - User confirmed: **Yes** (2026-11-04)
@@ -1562,6 +1606,13 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
 - **`InteractionHandler.destroy()` cancels pending flushes** — closing the Anvil within 200 ms of
   a drop lost the dragged card's write while its siblings were renumbered. **Fixed here (ADR-52):**
   `destroy()` runs pending flushes instead of cancelling them.
+- **Non-Latin keyboard layouts (T5.4, accepted).** The chord is matched on `e.key`, which is the
+  local letter on such a layout, so Mod+Z falls through to the native undo. The ↶ ↷ controls and
+  the palette commands still work.
+- **A popout already open when the plugin loads gets no key handler (T5.4, accepted).** Only
+  `window-open` registers one; the main document is registered at load.
+- **The ADR-53 guard reads `Date.now()` (T5.4, accepted).** A backwards clock jump right after a
+  key trigger can drop palette commands until the next key trigger.
 
 ### Technical Debt
 
