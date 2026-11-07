@@ -1124,7 +1124,7 @@ stateDiagram-v2
 
 ## Architecture Decisions
 
-Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was taken during Phase 4 and is not separately confirmed.
+Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was taken during Phase 4 and confirmed by the user on 2026-11-07.
 
 - [x] **ADR-37 — Keyboard: a global `keydown` handler, not a view `scope`.**
   Registered with `registerDomEvent(activeDocument, "keydown", handler, { capture: true })` at load,
@@ -1370,8 +1370,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
   - Trade-offs: a deliberate command within 100 ms of a key press is dropped; not a real case.
   - User confirmed: **Yes** (2026-11-04)
 
-- [ ] **ADR-54 — The Workbench keeps focus across a refresh; an IME composition holds the redraw.**
-  Taken during Phase 4 (T4.3), reviewed; not separately confirmed by the user.
+- [x] **ADR-54 — The Workbench keeps focus across a refresh; an IME composition holds the redraw.**
+  Taken during Phase 4 (T4.3), reviewed, then confirmed by the user after the T4.4 live test.
   - `_renderKeepingFocus` wraps every full subject redraw (the owed redraw from `onGuardCleared`
     and the redraw after a subject change). It records the focused `[data-sf-inspector-input]` by
     field name with its selection start, end and direction, draws, then focuses the same-named
@@ -1397,7 +1397,7 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
     field, loses the user's input.
   - Trade-offs: the redraw is not deferred to `focusout`, and no Anvil gesture machinery is
     reused.
-  - User confirmed: **No** (reviewed in Phase 4 only)
+  - User confirmed: **Yes** (2026-11-07)
 
 ## Quality Requirements
 

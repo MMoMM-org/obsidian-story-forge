@@ -6,7 +6,7 @@
 |-------|-------|
 | **Created** | 2026-11-04 |
 | **Current Phase** | Ready |
-| **Last Updated** | 2026-11-06 |
+| **Last Updated** | 2026-11-07 |
 
 ## Documents
 
@@ -30,6 +30,7 @@
 | 2026-11-06 | **Mockups U1–U11 signed off** (user) | Four decisions: P1 a rejected undo/redo gets a notice ("Couldn't undo: an unexpected error occurred. See the developer console for details."); P6 "discard" dropped from the refusal because the Workbench has no discard control, now "Save your edit first (<note name>)"; P8 no keyboard shortcut in the conflict notice, "Redo restores it/them", because Cmd+Shift+Z is the note editor's own redo outside the Anvil and Workbench; P9 failed + vanished in one step appends the vanished-note sentence. All other proposals accepted as shown; the page is binding (CON-8); OQ-3 resolved; `stepLabel.ts` is aligned in T5.1. |
 | 2026-11-06 | **A pinned Workbench now refreshes (T4.3, ADR-51)** | Changes behaviour shipped in specs 004/006: the Workbench's `metadataCache` 'changed' handler used to return early for a pinned subject, so a pinned panel showed stale values until it was unpinned. Now it refreshes on changes to the subject's own file, whether the subject is followed, pinned or drilled, and still ignores every other file. Pinning means "do not follow the active note", not "do not refresh"; an undo of a pinned note must show the restored value (AC-F9.2). |
 | 2026-11-06 | **Phase 4 implementation decisions (T4.2–T4.3)** | Summary of `plan/phase-4.md` "Decisions taken during implementation". Retyping the old value is the tested path for discard (leaving edit mode drops all drafts). Every blocked redraw counts as owed (over-approximate). `isBusy` answers `draft` before `write`. A failed write takes the file's current value as stored (W1); a dirty or error field whose draft the file now holds becomes clean (S1), and `notifyFileChanged` then returns `false` so the caller's redraw is the owed one. The owning view's unload runs `teardown()`. `onGuardCleared` is set in `onOpen` and cleared in `onClose`; a guarded change refreshes `currentCtx` without drawing. **The code diverges from the signed-off mockup U10 rule note "the owed redraw runs when … or the subject changes":** on a subject change the owed redraw is dropped, because the new subject renders anyway, so what the user sees is identical. Adds ADR-54 (the Workbench keeps focus across a refresh; an IME composition holds the redraw). The mockup is not edited. |
+| 2026-11-07 | **ADR-54 confirmed; Phase 4 closed** (user) | The T4.4 live test passed, including a write from outside while typing in a Workbench field: the draft and the caret stayed. The user confirmed ADR-54 and chose to continue with Phase 5. |
 
 ## Context
 
