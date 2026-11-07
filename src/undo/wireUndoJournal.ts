@@ -2,7 +2,8 @@
  * wireUndoJournal — creates the undo journal and connects it to the plugin (spec 009 T2.7, ADR-43).
  *
  * Mirrors the FileClass cache precedent: built in `onload`, released through `register*`.
- * No key handler, buttons or settings UI here; later phases take the returned journal.
+ * Also wires the palette commands and the global Mod+Z handler (T5.4, ADR-37); the buttons and
+ * settings UI take the returned journal.
  */
 import { Notice, type Plugin, type TAbstractFile, type Tasks } from "obsidian";
 // Relative: the bare `inspector/...` alias reads as Node's builtin to import/no-nodejs-modules.
@@ -11,6 +12,7 @@ import { createJournalStore, undoJournalPath } from "undo/journalStore";
 import type { UndoDirection } from "undo/journalTypes";
 import { reportRejectedUndo } from "undo/undoNotice";
 import { createUndoJournal, type OwnedUndoJournal } from "undo/undoJournal";
+import { createUndoKeyHandler, type UndoKeyHost } from "undo/undoKeys";
 
 export interface UndoWiringHost extends Plugin {
 	readonly settings: { readonly keepUndoHistory: boolean };
@@ -38,10 +40,27 @@ function onceShutdown(journal: OwnedUndoJournal, uninstall: () => void): () => P
 		.finally(() => { journal.dispose(); }));
 }
 
-function registerCommands(plugin: Plugin, journal: OwnedUndoJournal): void {
-	const run = (direction: UndoDirection): void => {
+/** ADR-53: a command this soon after a key trigger is the same keystroke reaching a user hotkey. */
+const KEY_COMMAND_GAP_MS = 100;
+
+type Run = (direction: UndoDirection) => void;
+
+/** One undo/redo entry point per trigger; the command one drops a run right after a key one. */
+function createTriggers(journal: OwnedUndoJournal): { fromKey: Run; fromCommand: Run } {
+	let lastKeyTriggerAt = Number.NEGATIVE_INFINITY;
+	const run: Run = (direction) => {
 		journal[direction]().catch((err: unknown) => { reportRejectedUndo(direction, err); });
 	};
+	return {
+		fromKey: (direction) => { lastKeyTriggerAt = Date.now(); run(direction); },
+		fromCommand: (direction) => {
+			if (Date.now() - lastKeyTriggerAt < KEY_COMMAND_GAP_MS) return;
+			run(direction);
+		},
+	};
+}
+
+function registerCommands(plugin: Plugin, run: Run): void {
 	plugin.addCommand({
 		id: "undo-last-change",
 		name: "Undo last change",
@@ -52,6 +71,15 @@ function registerCommands(plugin: Plugin, journal: OwnedUndoJournal): void {
 		name: "Redo last change",
 		callback: () => { run("redo"); },
 	});
+}
+
+/** ADR-37: capture-phase keydown on the main document and on every popout's. */
+function registerUndoKeys(plugin: Plugin, activeHost: () => UndoKeyHost | null, run: Run): void {
+	const handler = createUndoKeyHandler({ activeHost, undo: () => { run("undo"); }, redo: () => { run("redo"); } });
+	plugin.registerDomEvent(activeDocument, "keydown", handler, { capture: true });
+	plugin.registerEvent(plugin.app.workspace.on("window-open", (_w, win: Window) => {
+		plugin.registerDomEvent(win.document, "keydown", handler, { capture: true });
+	}));
 }
 
 function registerVaultEvents(plugin: Plugin, journal: OwnedUndoJournal): void {
@@ -72,8 +100,12 @@ function registerVaultEvents(plugin: Plugin, journal: OwnedUndoJournal): void {
  * Create, install and load the journal. Resolves once the stored history is read, so nothing
  * that toggles persistence (the settings tab, wired after this) can overtake the load.
  * Call after the settings are loaded: `persist` reads `settings.keepUndoHistory`.
+ * `activeHost` names the Anvil or Workbench when it is the active view, for the Mod+Z handler.
  */
-export async function wireUndoJournal(plugin: UndoWiringHost): Promise<OwnedUndoJournal> {
+export async function wireUndoJournal(
+	plugin: UndoWiringHost,
+	activeHost: () => UndoKeyHost | null,
+): Promise<OwnedUndoJournal> {
 	const { app } = plugin;
 	const store = createJournalStore({
 		adapter: app.vault.adapter,
@@ -98,7 +130,9 @@ export async function wireUndoJournal(plugin: UndoWiringHost): Promise<OwnedUndo
 	// On quit the app waits for these tasks, so the last change reaches disk.
 	plugin.registerEvent(app.workspace.on("quit", (tasks: Tasks) => { tasks.addPromise(shutdown()); }));
 	registerVaultEvents(plugin, journal);
-	registerCommands(plugin, journal);
+	const triggers = createTriggers(journal);
+	registerCommands(plugin, triggers.fromCommand);
+	registerUndoKeys(plugin, activeHost, triggers.fromKey);
 	await journal.load().catch(warn("the stored history could not be read"));
 	return journal;
 }

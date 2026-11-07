@@ -62,8 +62,11 @@ export default class StoryForgePlugin extends Plugin {
 		this.register(() => { fileClasses.dispose(); });
 
 		// The undo journal (spec 009, ADR-43): created once, loaded before the settings tab
-		// exists, released on unload. The Workbench and the Anvil receive it below.
-		const journal = await wireUndoJournal(this);
+		// exists, released on unload. The Workbench and the Anvil receive it below. Mod+Z acts
+		// only while one of them is the active view (ADR-37).
+		const journal = await wireUndoJournal(this, () =>
+			this.app.workspace.getActiveViewOfType(AnvilView)
+			?? this.app.workspace.getActiveViewOfType(SidebarView));
 
 		// Construct the shared engine infrastructure injected into SidebarView
 		// and SettingsTab. Registry starts empty; populated in onLayoutReady and

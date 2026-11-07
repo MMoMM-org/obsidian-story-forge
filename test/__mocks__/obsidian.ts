@@ -22,7 +22,7 @@
  * - debounce: controllable test debounce via vi.useFakeTimers().
  */
 
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
 import { parse as yamlParse, stringify as yamlStringify } from "yaml";
 
 // --- Obsidian globals not present in jsdom ---
@@ -315,10 +315,12 @@ export class Component {
 			el: Window | Document | HTMLElement,
 			type: string,
 			listener: (ev: Event) => void,
+			options?: boolean | AddEventListenerOptions,
 		): void => {
-			(el as EventTarget).addEventListener(type, listener as EventListener);
+			// The options reach the DOM as in the real API, so a capture-phase listener is one.
+			(el as EventTarget).addEventListener(type, listener as EventListener, options);
 			this._cleanupFns.push(() => {
-				(el as EventTarget).removeEventListener(type, listener as EventListener);
+				(el as EventTarget).removeEventListener(type, listener as EventListener, options);
 			});
 		},
 	);
@@ -387,6 +389,10 @@ export class Component {
  * "registered via registerEvent" by inspecting _eventRegistrations.
  * onLayoutReady: calls the callback synchronously in the mock (no layout delay).
  */
+/** `Workspace.getActiveViewOfType` as obsidian.d.ts types it, and a vitest Mock. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ActiveViewOfType = (<T>(type: abstract new (...args: any[]) => T) => T | null) & Mock;
+
 export class Workspace {
 	/** Registered event name → callbacks (for test assertions). */
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -459,9 +465,12 @@ export class Workspace {
 
 	detachLeavesOfType = vi.fn((_type: string): void => {});
 
-	getActiveViewOfType = vi.fn(
-		<T extends { file?: TFile | null }>(_type: new (...args: unknown[]) => T): T | null => null,
-	);
+	// Callable with obsidian.d.ts's signature, `<T extends View>(type: Constructor<T>) => T | null`
+	// with `Constructor<T> = abstract new (...args: any[]) => T`, so a view class whose constructor
+	// takes typed arguments (SidebarView) is accepted and the result is typed as that view. `vi.fn`
+	// erases generics, hence the explicit type. The `View` bound is left out: the mock has no `View`
+	// base class, and `npm run typecheck` checks src/ against the real d.ts.
+	getActiveViewOfType: ActiveViewOfType = vi.fn((_type: unknown): unknown => null) as ActiveViewOfType;
 
 	iterateAllLeaves = vi.fn((_cb: (leaf: WorkspaceLeaf) => void): void => {});
 

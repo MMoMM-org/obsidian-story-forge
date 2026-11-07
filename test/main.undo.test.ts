@@ -444,3 +444,154 @@ describe("shutdown settles pending gestures before the save (spec 009 T3.4)", ()
 		plugin._runCleanup();
 	});
 });
+
+describe("global undo keys (spec 009 T5.4, ADR-37, ADR-53)", () => {
+	const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+	const empty = (direction: "undo" | "redo") => ({ kind: "empty" as const, direction });
+
+	/** A plugin whose active view is an Anvil stand-in living in `doc`. */
+	async function pluginWithActiveAnvil(doc: Document = document): Promise<{ plugin: Plugin; app: App }> {
+		const { plugin, app } = await makePlugin();
+		const { AnvilView: Anvil } = await import("anvil/AnvilView");
+		const containerEl = doc.createElement("div");
+		doc.body.appendChild(containerEl);
+		const host = { containerEl, undoKeyPolicy: (): "journal" => "journal" };
+		vi.mocked(app.workspace.getActiveViewOfType).mockImplementation(
+			((type: unknown) => (type === Anvil ? host : null)) as never,
+		);
+		await plugin.onload();
+		vi.mocked(journal().undo).mockResolvedValue(empty("undo"));
+		vi.mocked(journal().redo).mockResolvedValue(empty("redo"));
+		return { plugin, app };
+	}
+
+	const press = (doc: Document, init: KeyboardEventInit = { key: "z", ctrlKey: true }): KeyboardEvent => {
+		const view = doc.defaultView ?? window;
+		const e = new view.KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+		doc.body.dispatchEvent(e);
+		return e;
+	};
+
+	const popout = (): Window => {
+		const frame = document.createElement("iframe");
+		document.body.appendChild(frame);
+		return frame.contentWindow!;
+	};
+
+	afterEach(() => {
+		vi.useRealTimers();
+		document.body.replaceChildren();
+	});
+
+	it("registers the handler capture-phase on activeDocument: Mod+Z there undoes", async () => {
+		const { plugin } = await pluginWithActiveAnvil();
+		expect(plugin.registerDomEvent).toHaveBeenCalledWith(activeDocument, "keydown", expect.any(Function), { capture: true });
+		const e = press(activeDocument);
+		expect(journal().undo).toHaveBeenCalledTimes(1);
+		expect(e.defaultPrevented).toBe(true);
+	});
+
+	it("runs before a listener on the focused element, so the field's own undo never sees the key", async () => {
+		await pluginWithActiveAnvil();
+		const seen: boolean[] = [];
+		document.body.addEventListener("keydown", (e) => { seen.push(e.defaultPrevented); });
+		press(document);
+		expect(seen).toEqual([true]);
+	});
+
+	it("Mod+Shift+Z redoes", async () => {
+		await pluginWithActiveAnvil();
+		press(document, { key: "Z", ctrlKey: true, shiftKey: true });
+		expect(journal().redo).toHaveBeenCalledTimes(1);
+		expect(journal().undo).not.toHaveBeenCalled();
+	});
+
+	it("registers the handler on each popout window's document", async () => {
+		const win = popout();
+		const { plugin, app } = await pluginWithActiveAnvil(win.document);
+		app.workspace._trigger("window-open", {}, win);
+		expect(plugin.registerDomEvent).toHaveBeenCalledWith(win.document, "keydown", expect.any(Function), { capture: true });
+		const e = press(win.document);
+		expect(journal().undo).toHaveBeenCalledTimes(1);
+		expect(e.defaultPrevented).toBe(true);
+	});
+
+	it("removes the handler on unload, from the main document and from popouts", async () => {
+		const win = popout();
+		const { plugin, app } = await pluginWithActiveAnvil(win.document);
+		app.workspace._trigger("window-open", {}, win);
+		plugin._runCleanup();
+		await tick();
+		const undo = vi.mocked(journal().undo);
+		undo.mockClear();
+		expect(press(document).defaultPrevented).toBe(false);
+		expect(press(win.document).defaultPrevented).toBe(false);
+		expect(undo).not.toHaveBeenCalled();
+		expect(app.workspace._eventRegistrations.get("window-open") ?? []).toHaveLength(0);
+	});
+
+	it("ignores the key while neither the Anvil nor the Workbench is the active view", async () => {
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+		const e = press(document);
+		expect(journal().undo).not.toHaveBeenCalled();
+		expect(e.defaultPrevented).toBe(false);
+	});
+
+	it("acts for the Workbench too", async () => {
+		const { plugin, app } = await makePlugin();
+		const { SidebarView: Workbench } = await import("views/SidebarView");
+		const containerEl = document.createElement("div");
+		document.body.appendChild(containerEl);
+		const host = { containerEl, undoKeyPolicy: (): "journal" => "journal" };
+		vi.mocked(app.workspace.getActiveViewOfType).mockImplementation(
+			((type: unknown) => (type === Workbench ? host : null)) as never,
+		);
+		await plugin.onload();
+		vi.mocked(journal().undo).mockResolvedValue(empty("undo"));
+		press(document);
+		expect(journal().undo).toHaveBeenCalledTimes(1);
+	});
+
+	it("a key-triggered undo that rejects shows the unexpected-error notice (P1)", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		await pluginWithActiveAnvil();
+		vi.mocked(journal().undo).mockRejectedValueOnce(new Error("boom"));
+		press(document);
+		await tick();
+		expect(warn).toHaveBeenCalled();
+		expect(Notice._instances.map((n) => n.message)).toEqual([unexpectedErrorNotice("undo")]);
+		warn.mockRestore();
+	});
+
+	it("a command within 100 ms of a key trigger is ignored; one after that runs (ADR-53)", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(1_000_000);
+		const { plugin } = await pluginWithActiveAnvil();
+		press(document);
+		expect(journal().undo).toHaveBeenCalledTimes(1);
+		vi.setSystemTime(1_000_099);
+		plugin._commands.get("story-forge:undo-last-change")?.callback?.();
+		plugin._commands.get("story-forge:redo-last-change")?.callback?.();
+		expect(journal().undo).toHaveBeenCalledTimes(1);
+		expect(journal().redo).not.toHaveBeenCalled();
+		vi.setSystemTime(1_000_100);
+		plugin._commands.get("story-forge:undo-last-change")?.callback?.();
+		expect(journal().undo).toHaveBeenCalledTimes(2);
+	});
+
+	it("without a key trigger the command runs at once", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(0);
+		const { plugin } = await pluginWithActiveAnvil();
+		plugin._commands.get("story-forge:undo-last-change")?.callback?.();
+		expect(journal().undo).toHaveBeenCalledTimes(1);
+	});
+
+	it("a key trigger does not suppress the next key trigger", async () => {
+		await pluginWithActiveAnvil();
+		press(document);
+		press(document);
+		expect(journal().undo).toHaveBeenCalledTimes(2);
+	});
+});
