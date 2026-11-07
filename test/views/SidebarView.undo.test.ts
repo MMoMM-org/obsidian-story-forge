@@ -14,6 +14,7 @@ import type { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { EngineRegistry } from "engines/QueryEngine";
 import { DEBOUNCE_MS, NAVIGATOR_TAB_ID, SIDEBAR_VIEW_TYPE } from "pluginConstants";
+import { unexpectedErrorNotice } from "undo/stepLabel";
 import { SidebarView } from "views/SidebarView";
 import { MARA, SCENE_4, setup, teardownAndCheckUntouched, type Harness } from "../undo/journalHarness";
 
@@ -461,10 +462,11 @@ describe("the header controls (T5.3, ADR-50)", () => {
 		const view = new SidebarView(leaf, new EngineRegistry([]), gate, new NativeScopingEngine(h.app),
 			undefined, undefined, undefined, undefined, h.journal);
 		opened.push(view);
-		vi.spyOn(h.journal, "peek").mockReturnValue({ undo: { label: "status in Mara", count: 1 }, redo: null } as never);
+		await h.write(MARA, "nickname", "Flint");
 		await view.onOpen();
 		expect(undoBtn(view, "undo").hasAttribute("aria-disabled")).toBe(false);
-		expect(undoBtn(view, "undo").title).toBe("Undo: status in Mara");
+		expect(undoBtn(view, "undo").title).toBe("Undo: nickname in Mara Stoneway");
+		expect(undoBtn(view, "redo").getAttribute("aria-disabled")).toBe("true");
 	});
 
 	it("follow the journal on every notification without being rebuilt", async () => {
@@ -500,16 +502,36 @@ describe("the header controls (T5.3, ADR-50)", () => {
 		await settle();
 		expect(undo).not.toHaveBeenCalled();
 		expect(redo).not.toHaveBeenCalled();
+		expect(w.h.notices).toEqual([]);
 	});
 
-	it("never move focus", async () => {
+	// jsdom's click() never moves focus, as a mouse press would; this guards only that an
+	// activation leaves focus in the field (the redraw restores it, U10), not on the control.
+	it("leave the focus in the field where it was when activated", async () => {
 		const w = await open();
 		await save(w.view, "nickname", "Flint");
 		const field = input(w.view, "origin");
 		field.focus();
 		undoBtn(w.view, "undo").click();
 		await settleLong();
+		expect(w.h.fm(MARA).nickname).toBe("Stone"); // the undo really ran
 		expect(document.activeElement?.getAttribute("data-sf-inspector-input")).toBe("origin");
+	});
+
+	it.each(["undo", "redo"] as const)("%s: a rejection shows the unexpected-error notice and warns (P1)", async (direction) => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const w = await open();
+		await save(w.view, "nickname", "Flint");
+		await save(w.view, "origin", "Coast");
+		await w.h.journal.undo();
+		await settle(); // both stacks hold a step: both buttons are enabled
+		Notice._reset();
+		const boom = new Error("boom");
+		vi.spyOn(w.h.journal, direction).mockRejectedValueOnce(boom);
+		undoBtn(w.view, direction).click();
+		await settleLong();
+		expect(Notice._instances.map((n) => n.message)).toEqual([unexpectedErrorNotice(direction)]);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("[StoryForge]"), boom);
 	});
 
 	it("stop following the journal once the view is closed", async () => {

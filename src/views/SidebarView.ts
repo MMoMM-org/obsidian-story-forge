@@ -49,7 +49,8 @@ import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import type { UndoJournal } from "undo/undoJournal";
-import { activateUndoControl, buildWorkbenchUndoControls, syncUndoControls } from "undo/undoControls";
+import { activateUndoControl, buildWorkbenchUndoControls, syncUndoControls, undoDirectionOf } from "undo/undoControls";
+import { reportRejectedUndo } from "undo/undoNotice";
 import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFieldsFromModel, inspectorHeadings } from "../inspector/inspectorFieldsFromModel";
 import { createNavigationController } from "../navigation/navigationController";
@@ -442,7 +443,12 @@ export class SidebarView extends ItemView {
 		const journal = this.undo;
 		if (!journal) return;
 		for (const button of buildWorkbenchUndoControls(icons)) {
-			this.registerDomEvent(button, "click", () => { void activateUndoControl(button, journal); });
+			const direction = undoDirectionOf(button);
+			this.registerDomEvent(button, "click", () => {
+				activateUndoControl(button, journal).catch((err: unknown) => {
+					if (direction !== null) reportRejectedUndo(direction, err);
+				});
+			});
 		}
 	}
 
