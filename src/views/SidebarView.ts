@@ -49,6 +49,7 @@ import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import type { UndoJournal } from "undo/undoJournal";
+import { activateUndoControl, buildWorkbenchUndoControls, syncUndoControls } from "undo/undoControls";
 import { InspectorController } from "../inspector/InspectorController";
 import { inspectorFieldsFromModel, inspectorHeadings } from "../inspector/inspectorFieldsFromModel";
 import { createNavigationController } from "../navigation/navigationController";
@@ -228,6 +229,8 @@ export class SidebarView extends ItemView {
 	// releases this view's probe (set while the view is open).
 	private readonly undo: UndoJournal | null;
 	private _releaseProbe: (() => void) | null = null;
+	// The subscription that keeps the header ↶ ↷ in step with the journal (T5.3).
+	private _unsubscribeUndo: (() => void) | null = null;
 
 	// U10: a refresh never moves focus. While an IME composition runs in the
 	// editor, a redraw waits until it ends instead of replacing the field.
@@ -431,12 +434,38 @@ export class SidebarView extends ItemView {
 			this._releaseProbe = release;
 			this.register(() => { this._disconnectUndo(); });
 		}
+		this._followUndo();
+	}
+
+	/** ↶ ↷ at the start of the header icons (U4); none without a journal. */
+	private _buildUndoControls(icons: HTMLElement): void {
+		const journal = this.undo;
+		if (!journal) return;
+		for (const button of buildWorkbenchUndoControls(icons)) {
+			this.registerDomEvent(button, "click", () => { void activateUndoControl(button, journal); });
+		}
+	}
+
+	/** Keep the controls in step with the journal: once now, then on every change, never a redraw. */
+	private _followUndo(): void {
+		const journal = this.undo;
+		if (!journal || this._unsubscribeUndo) return;
+		const sync = (): void => { syncUndoControls(this.contentEl, journal.peek()); };
+		sync();
+		this._unsubscribeUndo = journal.subscribe(sync);
+	}
+
+	/** Mod+Z in the Workbench (ADR-37): the controller decides between the field's own undo and the journal. */
+	undoKeyPolicy(target: EventTarget | null): "text" | "journal" {
+		return this._inspector?.undoKeyPolicy(target) ?? "journal";
 	}
 
 	/** Release the probe and the owed redraw, so nothing runs for a closed view. */
 	private _disconnectUndo(): void {
 		this._releaseProbe?.();
 		this._releaseProbe = null;
+		this._unsubscribeUndo?.();
+		this._unsubscribeUndo = null;
 		if (this._inspector) this._inspector.onGuardCleared = undefined;
 	}
 
@@ -746,6 +775,7 @@ export class SidebarView extends ItemView {
 		// "Workbench" is a proper noun — not a sentence-case violation
 		vhead.createSpan({ cls: "sf-vhead-name", text: "Workbench" });
 		const icons = vhead.createDiv({ cls: "sf-icons" });
+		this._buildUndoControls(icons);
 
 		// Pin button (aria-pressed)
 		const pinBtn = activeDocument.createElement("button");

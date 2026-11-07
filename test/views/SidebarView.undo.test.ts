@@ -8,7 +8,7 @@
  * @ref docs/XDD/specs/009-undo-journal/plan/phase-4.md — T4.3
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Notice, WorkspaceLeaf, createMockCachedMetadata, type TFile } from "obsidian";
 import type { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
@@ -60,6 +60,17 @@ async function open(): Promise<World> {
 
 const opened: SidebarView[] = [];
 
+// Obsidian's cross-window Node.instanceOf, which the mock does not install
+// (the same stand-in as test/undo/undoKeys.test.ts).
+beforeAll(() => {
+	const proto = Node.prototype as unknown as Record<string, unknown>;
+	proto["instanceOf"] = function (this: Node, type: { name: string }): boolean {
+		const win = (this.ownerDocument?.defaultView ?? window) as unknown as Record<string, new () => unknown>;
+		const ctor = win[type.name];
+		return ctor !== undefined && this instanceof ctor;
+	};
+});
+
 afterEach(async () => {
 	for (const view of opened.splice(0)) await view.onClose();
 	document.body.replaceChildren();
@@ -70,6 +81,10 @@ afterEach(async () => {
 
 async function settle(): Promise<void> {
 	for (let i = 0; i < 5; i++) await Promise.resolve();
+}
+
+async function settleLong(): Promise<void> {
+	for (let i = 0; i < 50; i++) await Promise.resolve();
 }
 
 function click(view: SidebarView, selector: string): void {
@@ -413,5 +428,120 @@ describe("an undo of the subject's field (AC-F9.2)", () => {
 		await settle();
 		expect(w.h.fm(MARA).nickname).toBe("Stone");
 		expect(input(w.view, "nickname").value).toBe("Stone");
+	});
+});
+
+function undoBtn(view: SidebarView, direction: "undo" | "redo"): HTMLButtonElement {
+	return view.contentEl.querySelector<HTMLButtonElement>(`.sf-icons [data-sf-undo="${direction}"]`)!;
+}
+
+describe("the header controls (T5.3, ADR-50)", () => {
+	it("sit at the start of .sf-icons, undo then redo, before pin and edit", async () => {
+		const w = await open();
+		const kids = Array.from(w.view.contentEl.querySelector(".sf-icons")!.children).map((c) => c.classList[0]);
+		expect(kids).toEqual(["sf-undo-btn", "sf-undo-btn", "sf-pin-btn", "sf-edit-btn"]);
+		expect(undoBtn(w.view, "undo").dataset.sfUndo).toBe("undo");
+		expect(undoBtn(w.view, "redo").dataset.sfUndo).toBe("redo");
+	});
+
+	it("are disabled at open when the journal is empty", async () => {
+		const w = await open();
+		expect(undoBtn(w.view, "undo").getAttribute("aria-disabled")).toBe("true");
+		expect(undoBtn(w.view, "undo").title).toBe("Nothing to undo");
+		expect(undoBtn(w.view, "redo").title).toBe("Nothing to redo");
+	});
+
+	it("are synced at open from a journal that already holds a step", async () => {
+		const h = vault();
+		const mara = h.app.vault.getFileByPath(MARA)!;
+		vi.mocked(h.app.workspace.getActiveFile).mockReturnValue(mara);
+		const leaf = new WorkspaceLeaf();
+		leaf.app = h.app;
+		const gate = { evaluate: vi.fn() } as unknown as ConsentGate;
+		const view = new SidebarView(leaf, new EngineRegistry([]), gate, new NativeScopingEngine(h.app),
+			undefined, undefined, undefined, undefined, h.journal);
+		opened.push(view);
+		vi.spyOn(h.journal, "peek").mockReturnValue({ undo: { label: "status in Mara", count: 1 }, redo: null } as never);
+		await view.onOpen();
+		expect(undoBtn(view, "undo").hasAttribute("aria-disabled")).toBe(false);
+		expect(undoBtn(view, "undo").title).toBe("Undo: status in Mara");
+	});
+
+	it("follow the journal on every notification without being rebuilt", async () => {
+		const w = await open();
+		const before = undoBtn(w.view, "undo");
+		await save(w.view, "nickname", "Flint");
+		expect(undoBtn(w.view, "undo")).toBe(before);
+		expect(before.hasAttribute("aria-disabled")).toBe(false);
+		expect(before.title).toMatch(/^Undo: /);
+		await w.h.journal.undo();
+		await settle();
+		expect(before.getAttribute("aria-disabled")).toBe("true");
+		expect(undoBtn(w.view, "redo").hasAttribute("aria-disabled")).toBe(false);
+	});
+
+	it("call the same undo and redo as the journal", async () => {
+		const w = await open();
+		await save(w.view, "nickname", "Flint");
+		undoBtn(w.view, "undo").click();
+		await settleLong();
+		expect(w.h.fm(MARA).nickname).toBe("Stone");
+		undoBtn(w.view, "redo").click();
+		await settleLong();
+		expect(w.h.fm(MARA).nickname).toBe("Flint");
+	});
+
+	it("do nothing, and show no notice, when clicked while disabled", async () => {
+		const w = await open();
+		const undo = vi.spyOn(w.h.journal, "undo");
+		const redo = vi.spyOn(w.h.journal, "redo");
+		undoBtn(w.view, "undo").click();
+		undoBtn(w.view, "redo").click();
+		await settle();
+		expect(undo).not.toHaveBeenCalled();
+		expect(redo).not.toHaveBeenCalled();
+	});
+
+	it("never move focus", async () => {
+		const w = await open();
+		await save(w.view, "nickname", "Flint");
+		const field = input(w.view, "origin");
+		field.focus();
+		undoBtn(w.view, "undo").click();
+		await settleLong();
+		expect(document.activeElement?.getAttribute("data-sf-inspector-input")).toBe("origin");
+	});
+
+	it("stop following the journal once the view is closed", async () => {
+		const w = await open();
+		await save(w.view, "nickname", "Flint");
+		await w.view.onClose();
+		const peek = vi.spyOn(w.h.journal, "peek");
+		await w.h.journal.undo();
+		await settle();
+		expect(peek).not.toHaveBeenCalled();
+	});
+});
+
+describe("the key policy (ADR-37)", () => {
+	it("delegates to the controller: a saved field journals, a field with unsaved text keeps the browser's undo", async () => {
+		const w = await open();
+		expect(w.view.undoKeyPolicy(input(w.view, "nickname"))).toBe("journal");
+		type(w.view, "nickname", "Fl");
+		expect(w.view.undoKeyPolicy(input(w.view, "nickname"))).toBe("text");
+		expect(w.view.undoKeyPolicy(null)).toBe("journal");
+	});
+});
+
+describe("a Workbench without a journal", () => {
+	it("has no undo buttons", async () => {
+		const h = vault();
+		const leaf = new WorkspaceLeaf();
+		leaf.app = h.app;
+		const gate = { evaluate: vi.fn() } as unknown as ConsentGate;
+		const view = new SidebarView(leaf, new EngineRegistry([]), gate, new NativeScopingEngine(h.app));
+		opened.push(view);
+		await view.onOpen();
+		expect(view.contentEl.querySelector("[data-sf-undo]")).toBeNull();
 	});
 });
