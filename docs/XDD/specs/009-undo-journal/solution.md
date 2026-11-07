@@ -1555,8 +1555,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
 
 - **Workbench stale saved value (#30).** `InspectorController.render` refreshes only `clean`
   fields, so a `saved` field is never refreshed; `notifyFileChanged` skips the whole redraw while any field is
-  `dirty`/`saving`/`error`. Fixed in Phase 4 (T4.2, T4.3) by ADR-42; live check pending (walk item 11).
-- **Pinned Workbench ignores changes** to its subject. Fixed in Phase 4 (T4.2, T4.3) by ADR-51; live check pending (walk item 11).
+  `dirty`/`saving`/`error`. Fixed in Phase 4 (T4.2, T4.3) by ADR-42; checked live on 2026-11-07 (T4.4); walk item 11 repeats it in Phase 6.
+- **Pinned Workbench ignores changes** to its subject. Fixed in Phase 4 (T4.2, T4.3) by ADR-51; checked live on 2026-11-07 (T4.4); walk item 11 repeats it in Phase 6.
 - **Kanban renumber is fire-and-forget** (`void deps.renumber`, renderKanban l.434) and
   `AnvilView`'s renumber writes sequentially (l.1101–1105). Fixed by ADR-38.
 - **`InteractionHandler.destroy()` cancels pending flushes** — closing the Anvil within 200 ms of

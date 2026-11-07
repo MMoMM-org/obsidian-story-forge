@@ -119,7 +119,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 - [x] [Phase 1: Live spike](phase-1.md)
 - [x] [Phase 2: Journal core](phase-2.md)
 - [x] [Phase 3: Gestures and pending work](phase-3.md)
-- [ ] [Phase 4: Mockup sign-off and the Workbench fix](phase-4.md)
+- [x] [Phase 4: Mockup sign-off and the Workbench fix](phase-4.md)
 - [ ] [Phase 5: Controls, notices, keyboard and settings](phase-5.md)
 - [ ] [Phase 6: Integration, live walk and drift check](phase-6.md)
 

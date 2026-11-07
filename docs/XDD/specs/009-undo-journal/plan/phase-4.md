@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Mockup sign-off and the Workbench fix"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 4
 ---
@@ -81,7 +81,7 @@ Gets the UI signed off, then fixes the Workbench so it shows what undo did. This
   4. Validate: tests, mutation-checked; `npm run build`.
   5. Success: `[ref: SDD/AC-F9.2, AC-F9.3]`
 
-- [ ] **T4.4 Phase Validation** `[activity: validate]`
+- [x] **T4.4 Phase Validation** `[activity: validate]`
 
   - All gates green. Live check of #30 (walk item 11): a hand edit of a saved Workbench field shows up
     without re-clicking. Drift check against ADR-42/51 and U10.

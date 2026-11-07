@@ -250,3 +250,22 @@ a cheap guard; the live walk in Phase 6 checks the Workbench refusal instead.
   click near the title (pointer cursor) does. Storyline opens the scene on any click on the card.
 
 The scene notes were restored from git afterwards (`processFrontMatter` reformat only).
+
+## Spec 009 Phase 4: Workbench refresh and the undo probe (2026-11-07)
+
+Build at b9d5f25 (docs-only commits since), vault `test/StoryForge/`. Mara Stoneway open in the
+editor, the Workbench on Mara.
+
+| Step | Action | Result |
+|---|---|---|
+| 1 | Workbench: save `nickname` Spark → Spark2, then hand-edit it in the note to Spark3 | The Workbench shows Spark3 without a click (#30 fixed) |
+| 2 | Workbench: unsaved text in `occupation`, then hand-edit `age` in the note to 20 | 20 shows, the `occupation` draft stays. The caret is not in the field, because clicking into the editor moved focus there. The test step was wrong, not the code (see step 2b) |
+| 2b | Workbench: typing in `occupation`; `age` changed on disk from outside (a shell write, no click) | 22 shows, the draft and the caret stay where they were; typing goes on without a click (U10, ADR-54) |
+| 3 | "Undo last change" with the `occupation` draft unsaved | Refused with the provisional notice, nothing written (T4.3 probe) |
+| 4 | Leave edit mode, "Undo last change" | `nickname` back to Spark, with a conflict notice naming `nickname` (the file held Spark3) |
+| 5 | Pin the Workbench on Mara, open another note, "Redo last change" | The pinned Workbench shows the redone value at once (ADR-51) |
+
+**Not a bug:** undo did not touch `age`. The journal records only Story Forge's own writes
+(ADR-44); a hand edit in the note is undone with the editor's own undo.
+
+Mara Stoneway was restored from git afterwards (`processFrontMatter` reformat only).
