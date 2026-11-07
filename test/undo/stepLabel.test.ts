@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Platform } from "obsidian";
-import { formatValue, outcomeNotice, stepLabel, summariseStep, unexpectedErrorNotice } from "../../src/undo/stepLabel";
+import { controlTitle, formatValue, outcomeNotice, stepLabel, summariseStep, unexpectedErrorNotice } from "../../src/undo/stepLabel";
 import type { ConflictReport, FieldChange, Slot, Step, UndoOutcome } from "../../src/undo/journalTypes";
 
 const present = (value: unknown): Slot => ({ present: true, value });
@@ -8,6 +8,8 @@ const ABSENT: Slot = { present: false };
 const MARA = "20 Characters/Mara Stoneway.md";
 const SCENE4 = "30 Scenes/Scene 4.md";
 const SCENE5 = "30 Scenes/Scene 5.md";
+/** Honest default: every note a fixture can name holds exactly one change. */
+const ONE_EACH = { [MARA]: 1, [SCENE4]: 1, [SCENE5]: 1 };
 
 const change = (key: string, before: Slot = present("a"), after: Slot = present("b")): FieldChange => ({ key, before, after });
 const step = (files: Array<[string, FieldChange[]]>): Step => ({
@@ -21,20 +23,33 @@ const conflict = (key: string, path = MARA, written: Slot = present("dead"), fou
 	path, key, expected: present("alive"), found, written,
 });
 const applied = (over: Partial<Extract<UndoOutcome, { kind: "applied" }>> = {}): UndoOutcome => ({
-	kind: "applied", direction: "undo", step: statusStep(), conflicts: [], failedPaths: [], vanishedPaths: [], changeCounts: {}, ...over,
+	kind: "applied", direction: "undo", step: statusStep(), conflicts: [], failedPaths: [], vanishedPaths: [], changeCounts: ONE_EACH, ...over,
 });
 
 const failed = (over: Partial<Extract<UndoOutcome, { kind: "failed" }>> = {}): UndoOutcome => ({
-	kind: "failed", direction: "undo", step: statusStep(), vanishedPaths: [], changeCounts: {}, ...over,
+	kind: "failed", direction: "undo", step: statusStep(), vanishedPaths: [], changeCounts: ONE_EACH, ...over,
 });
 const vanished = (over: Partial<Extract<UndoOutcome, { kind: "vanished" }>> = {}): UndoOutcome => ({
-	kind: "vanished", direction: "undo", paths: [SCENE4], changeCounts: {}, ...over,
+	kind: "vanished", direction: "undo", paths: [SCENE4], changeCounts: ONE_EACH, ...over,
 });
 
 const setMac = (on: boolean): void => {
 	(Platform as { isMacOS: boolean }).isMacOS = on;
 };
 afterEach(() => setMac(false));
+
+describe("controlTitle", () => {
+	it("reads Verb: label when a step is waiting", () => {
+		expect(controlTitle("undo", "status in Mara")).toBe("Undo: status in Mara");
+		expect(controlTitle("redo", "status in Mara")).toBe("Redo: status in Mara");
+	});
+
+	it("reads the same text as the empty notice when nothing is waiting", () => {
+		for (const direction of ["undo", "redo"] as const) {
+			expect(controlTitle(direction, null)).toBe(outcomeNotice({ kind: "empty", direction }));
+		}
+	});
+});
 
 describe("stepLabel", () => {
 	it("names the field and the note for one change", () => {

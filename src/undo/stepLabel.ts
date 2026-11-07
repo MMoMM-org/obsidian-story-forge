@@ -63,6 +63,15 @@ function verb(direction: UndoDirection): string {
 	return direction === "undo" ? "Undo" : "Redo";
 }
 
+function nothingTo(direction: UndoDirection): string {
+	return `Nothing to ${direction}`;
+}
+
+/** The control's tooltip and accessible name: "Undo: <label>", or "Nothing to undo" without a step. */
+export function controlTitle(direction: UndoDirection, label: string | null): string {
+	return label === null ? nothingTo(direction) : `${verb(direction)}: ${label}`;
+}
+
 /** The command that reverses this direction. No key is named: Cmd+Shift+Z is the note editor's own redo (P8). */
 function reverseVerb(direction: UndoDirection): string {
 	return direction === "undo" ? "Redo" : "Undo";
@@ -136,7 +145,7 @@ export function unexpectedErrorNotice(direction: UndoDirection): string {
 export function outcomeNotice(o: UndoOutcome): string {
 	switch (o.kind) {
 		case "empty":
-			return `Nothing to ${o.direction}`;
+			return nothingTo(o.direction);
 		case "refused":
 			return `Save your edit first (${noteName(o.path)})`;
 		case "failed":

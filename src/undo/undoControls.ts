@@ -9,6 +9,7 @@
  */
 import type { UndoDirection, UndoOutcome } from "undo/journalTypes";
 import type { StackPeek } from "undo/undoJournal";
+import { controlTitle } from "undo/stepLabel";
 
 /** What the controls need of the journal. */
 export interface UndoControlsJournal {
@@ -18,16 +19,16 @@ export interface UndoControlsJournal {
 }
 
 const GLYPH: Record<UndoDirection, string> = { undo: "↶", redo: "↷" };
-const VERB: Record<UndoDirection, string> = { undo: "Undo", redo: "Redo" };
 const CONTROL = "[data-sf-undo]";
 
-/** The tooltip, which is also the accessible name: "Undo: <label>" or "Nothing to undo". */
-function textFor(direction: UndoDirection, label: string | null): string {
-	return label === null ? `Nothing to ${direction}` : `${VERB[direction]}: ${label}`;
+function directionOf(el: Element): UndoDirection | null {
+	const value = el.getAttribute("data-sf-undo");
+	return value === "undo" || value === "redo" ? value : null;
 }
 
+/** Tooltip, accessible name and disabled state of one control. */
 function describeControl(el: HTMLElement, direction: UndoDirection, label: string | null): void {
-	const text = textFor(direction, label);
+	const text = controlTitle(direction, label);
 	el.title = text;
 	el.setAttribute("aria-label", text);
 	if (label === null) el.setAttribute("aria-disabled", "true");
@@ -69,11 +70,6 @@ export function syncUndoControls(root: ParentNode, peek: StackPeek): void {
 		const direction = directionOf(el);
 		if (direction !== null) describeControl(el, direction, peek[direction]?.label ?? null);
 	}
-}
-
-function directionOf(el: Element): UndoDirection | null {
-	const value = el.getAttribute("data-sf-undo");
-	return value === "undo" || value === "redo" ? value : null;
 }
 
 /**
