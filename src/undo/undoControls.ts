@@ -37,7 +37,7 @@ function describeControl(el: HTMLElement, direction: UndoDirection, label: strin
 	else el.removeAttribute("aria-disabled");
 }
 
-/** The Anvil pair: `div.sf-undo-group` appended to `head`, after the tab strip and zoom slot. */
+/** The Anvil pair: `div.sf-undo-group` appended to the `.sf-ws-headtools` cluster (`head`), after the zoom slot (zoom slot, then ↶ ↷). */
 export function buildAnvilUndoControls(head: HTMLElement): HTMLElement {
 	const group = head.createDiv({ cls: "sf-undo-group" });
 	for (const direction of ["undo", "redo"] as const) {

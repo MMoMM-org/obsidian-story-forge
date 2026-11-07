@@ -521,6 +521,22 @@ describe("the undo controls in the header", () => {
 		expect([undo.mock.calls.length, redo.mock.calls.length]).toEqual([1, 1]);
 	});
 
+	it("a click whose target comes from a popout window's realm still undoes", async () => {
+		const a = await openAnvil(WALKTHROUGH_1, undefined, maraChanged);
+		const frame = document.body.appendChild(document.createElement("iframe"));
+		const win = frame.contentWindow as unknown as { Node: { prototype: Record<string, unknown> } };
+		win.Node.prototype["instanceOf"] = Node.prototype["instanceOf" as keyof Node];
+		const foreign = frame.contentDocument!.createElement("span");
+		foreign.setAttribute("data-sf-undo", "undo");
+		expect(foreign instanceof HTMLElement).toBe(false);
+		const undo = vi.spyOn(a.h.journal, "undo");
+		(a.view as unknown as { _onClick(t: EventTarget, m: boolean): void })._onClick(foreign, false);
+		await vi.runAllTimersAsync();
+		frame.remove();
+		expect(undo).toHaveBeenCalledTimes(1);
+		expect(a.h.fm(MARA).status).toBe("alive");
+	});
+
 	it("a disabled control calls nothing and shows nothing", async () => {
 		const a = await openAnvil();
 		const undo = vi.spyOn(a.h.journal, "undo");

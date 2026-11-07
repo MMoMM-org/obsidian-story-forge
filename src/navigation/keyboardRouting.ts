@@ -11,11 +11,22 @@
  * those breaks them, so the router stands aside.
  */
 
+/**
+ * True when `target` is an HTMLElement of any window. In a popout the element comes from that
+ * window's realm, so `instanceof HTMLElement` answers false; Obsidian's `instanceOf` does not.
+ * Falls back to `instanceof` where the helper is not installed (unit-test DOMs).
+ */
+export function isHtmlElement(target: EventTarget | null): target is HTMLElement {
+	const node = target as { instanceOf?: (type: typeof HTMLElement) => boolean } | null;
+	if (typeof node?.instanceOf === "function") return node.instanceOf(HTMLElement);
+	return target instanceof HTMLElement;
+}
+
 const FORM_CONTROL_TAGS: ReadonlySet<string> = new Set(["INPUT", "SELECT", "TEXTAREA", "BUTTON"]);
 
 /** True when `target` is an element the browser gives Enter/Space meaning to (including editable text). */
 export function isFormControl(target: EventTarget | null): boolean {
-	if (!(target instanceof HTMLElement)) return false;
+	if (!isHtmlElement(target)) return false;
 	return FORM_CONTROL_TAGS.has(target.tagName) || target.isContentEditable === true;
 }
 

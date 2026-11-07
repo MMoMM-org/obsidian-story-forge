@@ -2844,11 +2844,16 @@ body {
 	margin-inline-end: 9px;
 }
 
-.sf-undo-btn[data-sf-undo="redo"]::after {
+/* On the next sibling, not on the redo button: a disabled redo is dimmed, the separator is not (U4a–c). */
+.sf-undo-btn[data-sf-undo="redo"] + * {
+	position: relative;
+}
+
+.sf-undo-btn[data-sf-undo="redo"] + *::before {
 	content: "";
 	position: absolute;
 	inset-block: 3px;
-	inset-inline-end: -8px;
+	inset-inline-start: -8px;
 	width: 1px;
 	background: var(--background-modifier-border);
 }

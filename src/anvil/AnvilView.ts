@@ -85,7 +85,7 @@ import { buildAnvilTabStrip, isAnvilTab } from "./anvilTabs";
 import { createNavigationController } from "navigation/navigationController";
 import { walkTargetMarkers, type MarkerKindOf } from "navigation/domTargetWalk";
 import { linkContextMenuHandler } from "navigation/linkContextMenu";
-import { isActivationKey } from "navigation/keyboardRouting";
+import { isActivationKey, isHtmlElement } from "navigation/keyboardRouting";
 import { ANVIL_MARKERS, createMarkerKindOf } from "navigation/markerVocabulary";
 import {
 	BUILT_IN_COLLECTIONS,
@@ -1275,7 +1275,7 @@ export class AnvilView extends ItemView {
 	 * stay silent (AC-F4.3).
 	 */
 	private _announce(msg: string): void {
-		if (this._liveEl && !this._closed) this._liveEl.replaceChildren(activeDocument.createTextNode(msg));
+		if (this._liveEl && !this._closed) this._liveEl.replaceChildren(this._liveEl.ownerDocument.createTextNode(msg));
 	}
 
 	/**
@@ -1496,7 +1496,7 @@ export class AnvilView extends ItemView {
 	 * control identity the controller never sees.
 	 */
 	private _onClick(target: EventTarget | null, modifier: boolean): void {
-		if (!(target instanceof HTMLElement)) return;
+		if (!isHtmlElement(target)) return;
 
 		// ADR-50: the undo controls first, before the marker walk.
 		const undoControl = target.closest<HTMLElement>("[data-sf-undo]");
