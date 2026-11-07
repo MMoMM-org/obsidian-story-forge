@@ -87,7 +87,7 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
   4. Validate: tests, mutation-checked.
   5. Success: `[ref: SDD/AC-F6.1, AC-F6.5, AC-F6.6]`
 
-- [ ] **T5.4 Global key handler** `[activity: frontend-logic]` — dropped if T1.1 failed
+- [x] **T5.4 Global key handler** `[activity: frontend-logic]` — dropped if T1.1 failed
 
   1. Prime: `[ref: SDD/ADR-37, ADR-53]`; `[ref: SDD/Example: the key policy]`; the Phase 1 findings
      in `docs/live-testing.md`.
@@ -153,3 +153,6 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
 - **T5.2/T5.3: the P1 notice has one path.** `reportRejectedUndo(direction, err)` in `src/undo/undoNotice.ts` warns and shows `unexpectedErrorNotice`; the palette commands, the Anvil controls and the Workbench buttons all call it. `undoControls.ts` stays DOM-only, `stepLabel.ts` strings-only.
 - **T5.2 review: a repeated live-region message is a real DOM change.** `_announce` replaces the region's text node instead of assigning `textContent`, because assigning the same text to a lone text child updates it in place and a screen reader stays silent on the second "Nothing to undo". Some screen readers may still drop identical text arriving within a very short interval; no DOM change can fix that.
 - **T5.3: the Workbench buttons follow the journal in place.** One sync at open, then one per `subscribe` notification, released on close and on unload; `undoKeyPolicy` delegates to the `InspectorController` and falls back to `journal` without an editor.
+- **T5.4: the key wiring lives in `wireUndoJournal.ts`, not `main.ts`.** The 100 ms guard (ADR-53) must be shared with the palette commands, which that module registers; `main.ts` only passes an `activeHost` closure (Anvil, else Workbench). The guard is exclusive (a command at 99 ms is ignored, at 100 ms it runs) and applies across directions.
+- **T5.4: the host's document is `containerEl.ownerDocument`**, not Obsidian's `.doc` from the SDD example: the same document for an attached view, and standard DOM.
+- **T5.4: known limits, accepted.** (a) The chord is matched on `e.key` as in the SDD example, so on a non-Latin layout (Ctrl+Z reports the local letter) the journal shortcut does nothing and the native undo runs; buttons and commands still work. (b) A popout that was already open when the plugin loaded gets no handler; only `window-open` registers one. (c) A closed popout's listener is released at plugin unload, not at `window-close`; a closed window never receives keys. (d) The guard uses `Date.now()`; a backwards clock jump right after a key trigger can drop palette commands until the next key trigger.
