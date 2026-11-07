@@ -15,7 +15,7 @@
  *
  * Built so far (T3.4): record, stacks, apply, outcomes, `load` from the store, path upkeep
  * (rename, delete, startup prune), the persistence gate with `flushNow`, gesture groups
- * (ADR-38), probes with flushers, and `settle` for the shutdown. Still to come: `clear` (T5.5).
+ * (ADR-38), probes with flushers, `settle` for the shutdown, and `clear` (T5.5).
  *
  * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-46, ADR-48, Complex Logic
  */
@@ -83,6 +83,12 @@ export interface OwnedUndoJournal extends UndoJournal, WriteRecorder {
 	 * the settings toggle, or this save would replace the stored history before it is read.
 	 */
 	setPersistence(on: boolean): Promise<void>;
+	/**
+	 * Empty both stacks, delete the stored file and notify subscribers (ADR-48). Queued like
+	 * undo/redo: an apply in flight finishes first, then its settled stacks are emptied. The
+	 * emptied state is not saved over the deleted file; the next change saves again.
+	 */
+	clear(): Promise<void>;
 	/**
 	 * Finish pending gestures: run the flushers, then wait until no group is open (the
 	 * pre-apply part of undo/redo, queued like them). Writes nothing itself. Shutdown runs
@@ -185,6 +191,12 @@ export function createUndoJournal(deps: UndoJournalDeps): OwnedUndoJournal {
 			if (on) saveNow();
 			return on ? Promise.resolve() : deps.store.remove();
 		},
+		clear: () => enqueue(() => {
+			stacks.undo.length = 0;
+			stacks.redo.length = 0;
+			tell();
+			return deps.store.remove();
+		}),
 		settle: () => enqueue(settlePending),
 		flushNow: () => (persisting() ? deps.store.flushNow() : Promise.resolve()),
 		// Queued, like undo/redo: an apply in flight holds its step and file list, so

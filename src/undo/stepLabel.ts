@@ -141,6 +141,9 @@ export function unexpectedErrorNotice(direction: UndoDirection): string {
 	return `Couldn't ${direction}: an unexpected error occurred. See the developer console for details.`;
 }
 
+/** The notice after "Clear undo history" in the settings (ADR-48, mockup U11). */
+export const HISTORY_CLEARED_NOTICE = "Undo history cleared";
+
 /** The notice text for one undo/redo outcome. */
 export function outcomeNotice(o: UndoOutcome): string {
 	switch (o.kind) {

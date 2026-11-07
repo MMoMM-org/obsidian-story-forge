@@ -109,7 +109,7 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
   4. Validate: tests, mutation-checked.
   5. Success: `[ref: SDD/AC-F5.1–AC-F5.5, AC-F5.8]`
 
-- [ ] **T5.5 Settings: keep history, clear history** `[activity: frontend-ui]` `[parallel: true]`
+- [x] **T5.5 Settings: keep history, clear history** `[activity: frontend-ui]` `[parallel: true]`
 
   1. Prime: `src/settings/SettingsTab.ts`; mockup U11; `[ref: SDD/ADR-48]`.
   2. Test:
@@ -156,3 +156,7 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
 - **T5.4: the key wiring lives in `wireUndoJournal.ts`, not `main.ts`.** The 100 ms guard (ADR-53) must be shared with the palette commands, which that module registers; `main.ts` only passes an `activeHost` closure (Anvil, else Workbench). The guard is exclusive (a command at 99 ms is ignored, at 100 ms it runs) and applies across directions.
 - **T5.4: the host's document is `containerEl.ownerDocument`**, not Obsidian's `.doc` from the SDD example: the same document for an attached view, and standard DOM.
 - **T5.4: known limits, accepted.** (a) The chord is matched on `e.key` as in the SDD example, so on a non-Latin layout (Ctrl+Z reports the local letter) the journal shortcut does nothing and the native undo runs; buttons and commands still work. (b) A popout that was already open when the plugin loaded gets no handler; only `window-open` registers one. (c) A closed popout's listener is released at plugin unload, not at `window-close`; a closed window never receives keys. (d) The guard uses `Date.now()`; a backwards clock jump right after a key trigger can drop palette commands until the next key trigger.
+- **T5.5: `clear()` is queued like undo/redo.** An undo in flight finishes first, then the settled stacks are emptied (the SDD names no ordering; this is the simplest safe one). It notifies once and does not re-save the emptied state over the deleted file; the next change saves again. A gesture group still open at the time commits afterwards as a new step.
+- **T5.5: the notice is shown by the settings tab, not the journal.** `journal.onOutcome`/`notify` are for undo/redo outcomes. The text is `HISTORY_CLEARED_NOTICE` in `stepLabel.ts`; `showHistoryCleared()` is in `undoNotice.ts`. A failed clear shows no notice (the store never rejects today, so this is defensive).
+- **T5.5: the section is rendered after the Views rows** (mockup U11: end of the tab), guarded by the render generation so overlapping renders paint it once. `SettingsTab` takes the journal as an eighth constructor argument, typed `Pick<OwnedUndoJournal, "setPersistence" | "clear">`.
+- **T5.5: the toggle saves the setting first, then calls `setPersistence`.** `main.ts` awaits `wireUndoJournal` (which awaits `load()`) before the tab exists, so the toggle cannot overtake the load.

@@ -10,10 +10,15 @@ import type { ViewImporter } from "import/ViewImporter";
 import { ImportPickerModal } from "import/ImportPickerModal";
 import { BindModal } from "import/BindModal";
 import type { RegisterCommandCallback } from "import/types";
+import type { OwnedUndoJournal } from "undo/undoJournal";
+import { showHistoryCleared } from "undo/undoNotice";
 import type { ConsentDecision } from "consent/ConsentGate";
 
 /** Callback injected from main.ts to remove a view's command palette entry on deletion. */
 export type RemoveCommandCallback = (viewId: string) => void;
+
+/** The part of the undo journal the settings tab drives (spec 009, ADR-48). */
+export type UndoHistoryControl = Pick<OwnedUndoJournal, "setPersistence" | "clear">;
 
 /** Last path segment of a source path, with a trailing `.md` stripped. */
 function basenameNoMd(source: string): string {
@@ -36,6 +41,7 @@ export class SettingsTab extends PluginSettingTab {
 	private readonly importer: ViewImporter;
 	private readonly registerCommand: RegisterCommandCallback;
 	private readonly removeCommand: RemoveCommandCallback;
+	private readonly undo: UndoHistoryControl;
 	/** Store unsubscribe handle — set when tab is open, null when hidden. */
 	private _unsubscribeStore: (() => void) | null = null;
 	/**
@@ -53,6 +59,7 @@ export class SettingsTab extends PluginSettingTab {
 		importer: ViewImporter,
 		registerCommand: RegisterCommandCallback,
 		removeCommand: RemoveCommandCallback,
+		undo: UndoHistoryControl,
 	) {
 		super(app, plugin);
 		this.plugin = plugin;
@@ -62,6 +69,7 @@ export class SettingsTab extends PluginSettingTab {
 		this.importer = importer;
 		this.registerCommand = registerCommand;
 		this.removeCommand = removeCommand;
+		this.undo = undo;
 	}
 
 	display(): void {
@@ -146,6 +154,41 @@ export class SettingsTab extends PluginSettingTab {
 		this._renderScopeSection(containerEl);
 
 		await this._renderViewsSection(gen);
+		// After the Views rows (mockup U11); a superseded render leaves it to the newer one.
+		if (gen === this._displayGen) this._renderUndoSection(containerEl);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Undo history section (spec 009 T5.5, mockup U11, ADR-48)
+	// ---------------------------------------------------------------------------
+
+	private _renderUndoSection(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName("Undo history").setHeading();
+
+		new Setting(containerEl)
+			.setName("Keep undo history across restarts")
+			.setDesc(
+				"Stores the undo history in the plugin folder so you can still undo after restarting Obsidian. " +
+					"It holds copies of field values from your notes and stays on this device. Turning this off deletes the stored history.",
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.keepUndoHistory).onChange(async (value) => {
+					this.plugin.settings.keepUndoHistory = value;
+					await this.plugin.saveSettings();
+					await this.undo.setPersistence(value);
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName("Clear undo history")
+			.setDesc("Empties undo and redo and deletes the stored history. Your notes are not changed.")
+			.addButton((b) =>
+				b.setButtonText("Clear").onClick(() => {
+					this.undo.clear().then(showHistoryCleared, (err: unknown) => {
+						console.warn("[StoryForge] Undo journal: couldn't clear the history.", err);
+					});
+				}),
+			);
 	}
 
 	// ---------------------------------------------------------------------------

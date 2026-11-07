@@ -84,6 +84,9 @@ function makeImporter(): ViewImporter {
 	} as unknown as ViewImporter;
 }
 
+/** The undo journal's settings-facing part; these suites do not touch it. */
+const noUndo = { setPersistence: async () => {}, clear: async () => {} };
+
 const noop: RegisterCommandCallback = () => {};
 
 function makeRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
@@ -115,7 +118,7 @@ function makeTab(
 		settings: {},
 		saveSettings: vi.fn(async () => {}),
 	};
-	return new SettingsTab(app, plugin as never, store, gate, importer, registerCommand, removeCommand);
+	return new SettingsTab(app, plugin as never, store, gate, importer, registerCommand, removeCommand, noUndo);
 }
 
 async function renderTab(tab: SettingsTab): Promise<HTMLElement> {

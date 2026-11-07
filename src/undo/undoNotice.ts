@@ -6,10 +6,15 @@
  */
 import { Notice } from "obsidian";
 import type { UndoDirection } from "undo/journalTypes";
-import { unexpectedErrorNotice } from "undo/stepLabel";
+import { HISTORY_CLEARED_NOTICE, unexpectedErrorNotice } from "undo/stepLabel";
 
 /** Log a rejected undo/redo and show the unexpected-error notice. */
 export function reportRejectedUndo(direction: UndoDirection, err: unknown): void {
 	console.warn(`[StoryForge] Undo journal: ${direction} failed.`, err);
 	new Notice(unexpectedErrorNotice(direction));
+}
+
+/** Tell the user the stored history is gone (ADR-48). */
+export function showHistoryCleared(): void {
+	new Notice(HISTORY_CLEARED_NOTICE);
 }
