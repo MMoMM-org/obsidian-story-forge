@@ -123,7 +123,7 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
   4. Validate: tests, mutation-checked.
   5. Success: `[ref: SDD/AC-F7.4, AC-F7.9, AC-C.1]`
 
-- [ ] **T5.6 README "Undo" section** `[activity: documentation]` `[parallel: true]`
+- [x] **T5.6 README "Undo" section** `[activity: documentation]` `[parallel: true]`
 
   1. Prime: `[ref: SDD/Deployment View; Documentation (Should Have)]`.
   2. Test: the section covers:
@@ -160,3 +160,5 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
 - **T5.5: the notice is shown by the settings tab, not the journal.** `journal.onOutcome`/`notify` are for undo/redo outcomes. The text is `HISTORY_CLEARED_NOTICE` in `stepLabel.ts`; `showHistoryCleared()` is in `undoNotice.ts`. A failed clear shows no notice (the store never rejects today, so this is defensive).
 - **T5.5: the section is rendered after the Views rows** (mockup U11: end of the tab), guarded by the render generation so overlapping renders paint it once. `SettingsTab` takes the journal as an eighth constructor argument, typed `Pick<OwnedUndoJournal, "setPersistence" | "clear">`.
 - **T5.5: the toggle saves the setting first, then calls `setPersistence`.** `main.ts` awaits `wireUndoJournal` (which awaits `load()`) before the tab exists, so the toggle cannot overtake the load.
+- **T5.7 live test: one chrome for the Anvil zoom and undo controls (user decision).** The zoom buttons are `<button>`s, so Obsidian's `button:not(.clickable-icon)` rule overrode `.sf-zoom-btn` and they kept the grey theme button look, unlike the `span` undo tools. The rules are now scoped `.sf-zoom-bar .sf-zoom-btn`. Both clusters show a `--text-normal` glyph, and a disabled undo tool shows `--text-muted` without the 0.55 opacity, which made a disabled ↷ nearly invisible in dark theme. The signed-off mockup shows `--text-muted` glyphs and a faint, dimmed disabled state; the code now diverges from it at the user's request, and the mockup is not edited.
+

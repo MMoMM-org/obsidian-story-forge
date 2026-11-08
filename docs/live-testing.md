@@ -269,3 +269,25 @@ editor, the Workbench on Mara.
 (ADR-44); a hand edit in the note is undone with the editor's own undo.
 
 Mara Stoneway was restored from git afterwards (`processFrontMatter` reformat only).
+
+## Spec 009 Phase 5: controls, notices, keys and settings (2026-11-08)
+
+Build at bfe18d8, vault `test/StoryForge/`, light and dark theme, compared side by side with the
+signed-off `mockups.html` (U1–U11, narrow width for U3).
+
+| Area | Result |
+|---|---|
+| Anvil ↶ ↷, Workbench ↶ ↷, notices, Mod+Z, settings "Undo history" | As signed off |
+| Anvil header, light theme | The zoom buttons (− ⊙ +) kept Obsidian's grey button look with no hover change, while ↶ ↷ had a white background and a grey hover |
+| Anvil header, dark theme | The ↶ glyph was light grey, and a disabled ↷ was almost invisible; the zoom glyphs were full white |
+
+**Fix (0f4a654), user decision:** the zoom and undo controls share one chrome. The background is
+`--background-primary` with a hover background, and the glyph is `--text-normal`. A disabled
+control shows a `--text-muted` glyph with no dimming. The Workbench buttons are unchanged.
+
+**Found, filed:** on the Board, a card can only be dropped onto another card, and nothing shows
+where it will land. Filed as #34 (an insertion line between cards).
+
+The vault notes touched by the test were restored from git (`processFrontMatter` reformat and a
+test `height` value only).
+
