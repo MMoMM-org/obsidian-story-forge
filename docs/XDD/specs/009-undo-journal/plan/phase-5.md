@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Controls, notices, keyboard and settings"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 5
 ---
@@ -137,7 +137,7 @@ Puts the signed-off controls and texts on screen and makes Mod+Z work in the two
   4. Validate: the user reads it.
   5. Success: `[ref: SDD/AC-S.1, AC-S.2]`
 
-- [ ] **T5.7 Phase Validation** `[activity: validate]`
+- [x] **T5.7 Phase Validation** `[activity: validate]`
 
   - All gates green. Compare against the mockups side by side in `test/StoryForge/` (light and dark, narrow
     width for U3). Drift check against ADR-37/49/50/53 and the signed-off mockup.
