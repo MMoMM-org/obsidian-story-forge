@@ -144,6 +144,17 @@ function makeVault(): Vault {
 	vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p: string) => files.get(p) ?? null);
 	vi.mocked(app.vault.read).mockImplementation(async (f: TFile) => bodies.get(f.path) ?? "");
 	vi.mocked(app.vault.cachedRead).mockImplementation(async (f: TFile) => bodies.get(f.path) ?? "");
+	// Body writers really write, so a stray body write during undo shows up in `bodies`.
+	vi.mocked(app.vault.modify).mockImplementation(async (f: TFile, data: string) => void bodies.set(f.path, data));
+	vi.mocked(app.vault.process).mockImplementation(async (f: TFile, fn: (data: string) => string) => {
+		const next = fn(bodies.get(f.path) ?? "");
+		bodies.set(f.path, next);
+		return next;
+	});
+	vi.mocked(app.vault.create).mockImplementation(async (path: string, data: string) => {
+		bodies.set(path, data);
+		return makeFile(path);
+	});
 	vi.mocked(app.vault.getMarkdownFiles).mockReturnValue([...files.values()]);
 	wireMetadata(app, files);
 	const disk = new Map<string, string>();
@@ -230,8 +241,11 @@ async function closeViews(s: Session): Promise<void> {
 
 /** Close the views, unload the plugin and let its shutdown save the history file. */
 async function unload(s: Session): Promise<void> {
-	live.splice(live.indexOf(s), 1);
-	await closeViews(s);
+	try {
+		await closeViews(s);
+	} finally {
+		live.splice(live.indexOf(s), 1);
+	}
 	s.plugin._runCleanup();
 	await settle(10);
 }
