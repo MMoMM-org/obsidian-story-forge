@@ -2725,7 +2725,7 @@ body {
 	border-radius: var(--radius-s);
 }
 
-.sf-zoom-btn {
+.sf-zoom-bar .sf-zoom-btn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -2733,6 +2733,8 @@ body {
 	height: 20px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
+	padding: 0;
+	box-shadow: none;
 	background: var(--background-primary);
 	color: var(--text-normal);
 	cursor: pointer;
@@ -2740,7 +2742,7 @@ body {
 	line-height: 1;
 }
 
-.sf-zoom-btn:hover {
+.sf-zoom-bar .sf-zoom-btn:hover {
 	background: var(--background-modifier-hover);
 }
 
@@ -2752,10 +2754,11 @@ body {
 }
 
 /*
- * Undo / redo controls (spec 009, T5.1, ADR-50, mockups U1-U4). The Anvil group shares the
- * zoom bar's chrome so the two clusters rhyme; the Workbench buttons share the pin button's.
- * Disabled is `aria-disabled="true"` with a muted look, never the `disabled` attribute, so
- * the control stays focusable and its "Nothing to undo" tooltip stays reachable.
+ * Undo / redo controls (spec 009, T5.1, ADR-50, mockups U1-U4). Zoom and undo controls share
+ * one chrome so the two Anvil clusters are identical; the Workbench buttons share the pin
+ * button's. Disabled is `aria-disabled="true"` with a text-muted glyph and no dimming (user
+ * decision 2026-11-08, after live test), never the `disabled` attribute, so the control stays
+ * focusable and its "Nothing to undo" tooltip stays reachable.
  */
 .sf-undo-group {
 	display: flex;
@@ -2776,7 +2779,7 @@ body {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
 	background: var(--background-primary);
-	color: var(--text-muted);
+	color: var(--text-normal);
 	font-size: 13px;
 	line-height: 1;
 	cursor: pointer;
@@ -2789,14 +2792,13 @@ body {
 }
 
 .sf-undo-tool[aria-disabled="true"] {
-	color: var(--text-faint);
-	opacity: 0.55;
+	color: var(--text-muted);
 	cursor: default;
 }
 
 .sf-undo-tool[aria-disabled="true"]:hover {
 	background: var(--background-primary);
-	color: var(--text-faint);
+	color: var(--text-muted);
 }
 
 .sf-undo-tool:focus-visible,
