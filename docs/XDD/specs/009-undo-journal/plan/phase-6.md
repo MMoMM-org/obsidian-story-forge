@@ -30,7 +30,7 @@ phase: 6
 
 Proves the whole feature end to end in the mock and in the real vault, then closes the spec.
 
-- [ ] **T6.1 End-to-end coverage in the mock** `[activity: integration-test]`
+- [x] **T6.1 End-to-end coverage in the mock** `[activity: integration-test]`
 
   1. Prime: `test/undo/writeCoverage.test.ts`, `test/main.undo.test.ts`; the AC list.
   2. Test:
