@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Integration, live walk and drift check"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 6
 ---
@@ -12,7 +12,7 @@ phase: 6
 **GATE**: Read all referenced files before starting this phase.
 
 **Specification References**:
-- `[ref: SDD/Quality Requirements; Live walk list items 1–12]`
+- `[ref: SDD/Quality Requirements; Live walk list items 1–14]`
 - `[ref: SDD/Open Questions; OQ-2]` — Obsidian Sync leaves `undo-journal.json` alone
 - `[ref: SDD/Acceptance Criteria]` — every AC has an automated test or a walk item
 - `[ref: PRD/Success Metrics]`
@@ -48,7 +48,7 @@ Proves the whole feature end to end in the mock and in the real vault, then clos
 - [ ] **T6.2 Live walk** `[activity: manual-test]`
 
   1. Prime: the live walk list; `docs/live-testing.md` format.
-  2. Test: walk items 2–12 in `test/StoryForge/` with the user. Item 1 was done in Phase 1. Item 10
+  2. Test: walk items 2–14 in `test/StoryForge/` with the user. Item 1 was done in Phase 1. Item 10
      needs two devices on Obsidian Sync, or is recorded as not run. Also measure the three performance
      targets with `performance.now()` in a dev build: undo of a 10-file step (≤ 500 ms), recording
      (≤ 2 ms per field), and the keydown handler on another view (≤ 0.1 ms).
@@ -130,7 +130,7 @@ item (SDD, Live walk list). The end-to-end test runs once per write path; its na
 | AC-F8.5 | `test/undo/undoJournal.pending.test.ts` › "applies on the next request once the probe clears"; `test/views/SidebarView.undo.test.ts` › "refuses an undo of the subject while a field holds a draft, and lets it through once saved" |
 | AC-F9.1 | `test/undo/endToEnd.test.ts` › "%s write: one step, undo via command, redo, reload from stored file, undo again; value shows in %s" (all six paths); walk item 2 |
 | AC-F9.2 | `test/views/SidebarView.undo.test.ts` › "shows the restored value for a followed subject", "shows the restored value for a pinned subject"; `test/undo/endToEnd.test.ts` › "%s write: one step, undo via command, redo, reload from stored file, undo again; value shows in %s" (all six paths) |
-| AC-F9.3 | `test/undo/endToEnd.test.ts` › "%s write: one step, undo via command, redo, reload from stored file, undo again; value shows in %s" (Kanban). Codex and the other Story Forge views have no undo-specific test: they re-render on the same `metadataCache` "changed" as any write (spec 007 coverage). Walk item 5 covers the Kanban. |
+| AC-F9.3 | `test/undo/endToEnd.test.ts` › "%s write: one step, undo via command, redo, reload from stored file, undo again; value shows in %s" (Kanban). Walk item 5 covers the Kanban; walk item 13 covers the Codex and the other Story Forge views, which have no undo-specific test. |
 | AC-F9.4 | `test/inspector/InspectorController.refresh.test.ts` › "show the file's value, and a saved field no longer claims a value it doesn't hold"; `test/undo/endToEnd.test.ts` › "%s write: one step, undo via command, redo, reload from stored file, undo again; value shows in %s" (Workbench save); walk item 11 |
 | AC-F9.5 | `test/inspector/InspectorController.refresh.test.ts` › "dirty, saving and error fields keep their text while the others update in place" |
 | AC-F9.6 | `test/inspector/InspectorController.refresh.test.ts` › "a dirty field compares against the file's current value, so restoring the text discards the draft (AC-F9.6)"; `test/views/SidebarView.undo.test.ts` › "after a discard, the fields show the file's current values" |
@@ -138,7 +138,7 @@ item (SDD, Live walk list). The end-to-end test runs once per write path; its na
 | AC-F10.2 | `test/undo/undoJournal.paths.test.ts` › "drops the file's records from both stacks and keeps the other records of a step", "drops a step left with no files"; walk item 7 |
 | AC-F10.3 | `test/undo/undoJournal.apply.test.ts` › "a missing note gives `vanished` for it and the rest applies", "a step whose every note is gone is dropped and gives `vanished`" |
 | AC-F10.4 | `test/undo/undoJournal.apply.test.ts` (every test, through `teardownAndCheckUntouched`: no create, modify, process, delete, trash, rename or remove); `test/undo/endToEnd.test.ts` › "%s write: one step, undo via command, redo, reload from stored file, undo again; value shows in %s" (all six paths) |
-| AC-S.1 | **Gap**: no test and no walk item. `README.md` "Undo" documents it; checked by review only. |
-| AC-S.2 | **Gap**: no test and no walk item. `README.md` "Undo" ("Links go stale") documents it; checked by review only. |
-| AC-S.3 | T6.2: the live walk is recorded in `docs/live-testing.md` (items 2–12; item 1 recorded in Phase 1) |
+| AC-S.1 | Walk item 14 (`README.md` "Undo") |
+| AC-S.2 | Walk item 14 (`README.md` "Undo", "Links go stale") |
+| AC-S.3 | T6.2: the live walk is recorded in `docs/live-testing.md` (items 2–14; item 1 recorded in Phase 1) |
 | AC-C.1 | `test/undo/undoJournal.clear.test.ts` › "empties both stacks", "deletes the stored file"; `test/settings/undoSettings.test.ts` › "the Clear button empties the history and shows 'Undo history cleared'"; walk item 9 |

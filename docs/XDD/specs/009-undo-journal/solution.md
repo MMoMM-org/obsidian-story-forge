@@ -1484,6 +1484,9 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
 10. Obsidian Sync on two devices: the file does not travel (ADR-40).
 11. #30: Workbench saved field updates after a hand edit.
 12. A user hotkey bound to the undo command does not double-undo in the Anvil (see Gotchas).
+13. Codex and the other Story Forge views: after an undo from the Anvil, the Codex tab and an open
+    Codex view show the restored value without a click (AC-F9.3).
+14. README "Undo": the user reads it and confirms it covers AC-S.1 and AC-S.2.
 
 ## Acceptance Criteria
 
