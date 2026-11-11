@@ -351,6 +351,7 @@ function makeRestore(app: App): RestoreFn {
 	return async (file, ops) => {
 		const found: Slot[] = [];
 		await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			found.length = 0; // a repeated callback must not duplicate slots
 			for (const op of ops) {
 				found.push(slotOf(fm, op.key));
 				if (op.target.present) fm[op.key] = op.target.value;

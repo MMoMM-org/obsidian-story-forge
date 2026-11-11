@@ -275,6 +275,22 @@ describe("restore", () => {
 		expect(app.fileManager._getFrontmatter(PATH).o).toBe(value);
 	});
 
+	it("returns one found slot per op when the callback reruns", async () => {
+		const { app, file, handle } = setup({ a: "1", b: "2" });
+		vi.mocked(app.fileManager.processFrontMatter).mockImplementationOnce(
+			async (_file: TFile, fn: (fm: Record<string, unknown>) => void) => {
+				const fm = app.fileManager._getFrontmatter(PATH);
+				fn(fm);
+				fn(fm);
+			},
+		);
+		const found = await handle.restore(file, [
+			{ key: "a", target: present("9") },
+			{ key: "b", target: ABSENT },
+		]);
+		expect(found).toHaveLength(2);
+	});
+
 	it("lets a rejection through to the caller", async () => {
 		const { app, file, handle } = setup({ a: "1" });
 		vi.mocked(app.fileManager.processFrontMatter).mockRejectedValueOnce(new Error("disk"));
