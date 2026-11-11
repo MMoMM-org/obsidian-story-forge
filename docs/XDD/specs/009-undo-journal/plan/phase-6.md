@@ -45,7 +45,7 @@ Proves the whole feature end to end in the mock and in the real vault, then clos
   4. Validate: the full suite and all gates; each new test is mutation-checked.
   5. Success: `[ref: SDD/AC-F1.8, AC-F9.1, AC-F9.3]`; every AC traced
 
-- [ ] **T6.2 Live walk** `[activity: manual-test]`
+- [x] **T6.2 Live walk** `[activity: manual-test]`
 
   1. Prime: the live walk list; `docs/live-testing.md` format.
   2. Test: walk items 2–14 in `test/StoryForge/` with the user. Item 1 was done in Phase 1. Item 10
