@@ -1,6 +1,6 @@
 ---
 title: "Undo journal for Story Forge's own writes"
-status: draft
+status: completed
 version: "1.0"
 ---
 
@@ -121,7 +121,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 - [x] [Phase 3: Gestures and pending work](phase-3.md)
 - [x] [Phase 4: Mockup sign-off and the Workbench fix](phase-4.md)
 - [x] [Phase 5: Controls, notices, keyboard and settings](phase-5.md)
-- [ ] [Phase 6: Integration, live walk and drift check](phase-6.md)
+- [x] [Phase 6: Integration, live walk and drift check](phase-6.md)
 
 Dependencies: 1 → 2 → 3 → 4 → 5 → 6. Phase 1 decides ADR-37. If the spike fails, Phase 5
 drops the key handler (T5.4) and keeps commands and buttons. Phase 2 makes undo usable from the

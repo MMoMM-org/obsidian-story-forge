@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-11-04 |
-| **Current Phase** | Ready |
+| **Current Phase** | Implemented |
 | **Last Updated** | 2026-11-11 |
 
 ## Documents
@@ -13,7 +13,7 @@
 | Document | Status | Notes |
 |----------|--------|-------|
 | requirements.md | completed | 10 must-have features, Gherkin ACs, Storyline comparison |
-| solution.md | completed | ADR-37…ADR-53, mockup states U1–U11 |
+| solution.md | completed | ADR-37…ADR-54, mockup states U1–U11 |
 | plan/ | completed | 6 phases, 30 tasks; validated (plan vs spec, plan vs code) |
 
 **Status values**: `pending` | `in_progress` | `completed` | `skipped`
@@ -37,6 +37,7 @@
 | 2026-11-11 | **Storyline deviations (consolidated)** | From the PRD's Storyline comparison table. Persisted across restarts, on by default, with a setting to switch off (Storyline: memory only). No check against the file's current value: restore anyway, overwritten value goes on redo, and the notice says so. A gesture is one step across several notes (Storyline: one file per entry). File create and delete undo rejected, because Story Forge never creates or deletes notes. Ctrl+Y rejected: no default hotkey. Commands named "Undo / Redo last change" with a broader scope. The tooltip names the change and the button is disabled when empty (Storyline: "Undo (Ctrl+Z)"), on every Anvil tab and in the Workbench. The global capture-phase handler is adopted as in Storyline, with one deviation: a saved field with the caret still in it gets journal undo. See `docs/storyline-analysis.md`. |
 | 2026-11-11 | **Known limits accepted** | Non-Latin layouts: Mod+Z falls through to the native undo. A popout open before the plugin loads gets no key handler. A closed popout's listener is released at unload. A backwards clock jump can drop palette commands until the next key trigger (T5.4). Obsidian Sync behaviour is unverified. A failing `clear()` logs to the console only, with no notice; the store never rejects today. The mockup banner's "Cmd/Ctrl" mention is a harmless pre-sign-off leftover (the mockup is not edited). |
 | 2026-11-11 | **`[]` reads "empty list" in notices** (user) | `null` reads "empty", as the signed-off mockup shows. `[]` reads "empty list"; the mockup does not show it and is not edited. ADR-49 states both. |
+| 2026-11-11 | Implementation complete | All six phases done on `feat/undo-journal` (not yet merged or pushed): journal, writer seam and persistence in `src/undo/`, Anvil and Workbench controls, Mod+Z handler, settings; 3481 tests, including `test/undo/endToEnd.test.ts` for every write path. Drift check: no FAIL, every WARN resolved (e8de593, c3dedce). #30 closed; #17 closes when the branch merges. |
 
 ## Context
 

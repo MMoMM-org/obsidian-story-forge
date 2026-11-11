@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Integration, live walk and drift check"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 6
 ---
@@ -57,7 +57,7 @@ Proves the whole feature end to end in the mock and in the real vault, then clos
   4. Validate: the results go into `docs/live-testing.md`, with an outcome and date per item.
   5. Success: `[ref: SDD/AC-S.3; OQ-2]`; #30 is confirmed fixed, then commented and closed
 
-- [ ] **T6.3 Drift check and close-out** `[activity: validate]`
+- [x] **T6.3 Drift check and close-out** `[activity: validate]`
 
   - Run `tcs-workflow:validate drift 009-undo-journal` across all phases. Resolve each finding:
     acknowledge it, update the implementation, or update the spec. Record the Storyline deviations
