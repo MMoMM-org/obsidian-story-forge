@@ -6,7 +6,7 @@
 |-------|-------|
 | **Created** | 2026-07-27 |
 | **Current Phase** | Ready |
-| **Last Updated** | 2026-11-02 |
+| **Last Updated** | 2026-11-11 |
 
 ## Documents
 
@@ -23,6 +23,7 @@
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
+| 2026-11-11 | **T7.1 blocked at the mockup gate; four Library decisions** (user) | The T7.1 implementer closed the inherited T3.3 dispatch gate (6315f03: `BasesFenceEngine` reads a `kind:"collection"` record's `.base` file, never its path) and stopped before the Library UI, because the signed-off S101 has no per-row Anvil/Workbench toggles while the PRD resolution requires them. A mockup addendum (`mockups-library.html`) is drafted for sign-off before any Library code. Decided: **D1** an imported or from-repo `.base` collection shows in the Anvil Codex by embedding the `.base` through Bases, drawn with the collection's Card; **D2** existing Dataview/DataviewJS views become Collections, listed as imported and migrated with Workbench on and Anvil off, so today's Workbench tabs stay; **D3** a built-in collection's Workbench toggle shows or hides its section in the Workbench Codex tab; **D4** Card preview, drawn in S101, is built in Phase 7. |
 | 2026-11-04 | **Phase 6 closed** (user) | The T6.5 demonstration passed live: a hand-written `fc-character-custom1` with `extends: fc-character` drew its own section with correct controls and two columns, with no plugin code touched, and `schema:gen` left it byte-identical. Also confirmed: `tagline` full width, `type` read-only, the Workbench showing the same fields without `tags`, live refresh on a FileClass edit, and a user Media field on panel and Card. Two walk findings were fixed with the user's sign-off on an ASCII figure. A read-only value in the Anvil now reads as muted text with no box. The Workbench select has its arrow again (`dropdown` class, `background-color`). A declared `fileClass` is now never shown either, which closes OQ-2. The demo files were removed. |
 | 2026-11-02 | **`tags` is never shown, even if a FileClass declares it; a declared `fileClass` stays open** (user) | Extends the T6.3 ruling from the Workbench to both editors, in `877562e`: `buildFieldModel` skips `tags` in every tier. A declared `fileClass` still renders as an editable field. That is recorded as OQ-2 in the SDD and has no owner yet. |
 | 2026-11-02 | **A Workbench `Media` field stays a text box with no wikilink check** | `inspectorFieldsFromModel` gives it the writer's `text` spec, so it edits the stored `[[wikilink]]` as a string and accepts whatever is typed. The preview and picker live in the Anvil. Workbench relation editing stays with #18. |

@@ -1,6 +1,6 @@
 ---
 title: "Phase 7: The Library, import and capability disclosure"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 7
 ---
