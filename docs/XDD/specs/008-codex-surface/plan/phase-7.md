@@ -148,3 +148,16 @@ Closes the gap that started this whole spec: the distribution machinery served f
     the Anvil only, confirm it appears in the Codex and **not** in the Workbench, then remove it and
     confirm nothing dangles. `npm test`, `npm run lint`, `npm run typecheck`,
     `npm run catalog:build` green.
+
+---
+
+## Decisions taken during implementation
+
+- **T7.1 gate — the kind branch lives in `BasesFenceEngine`, not in `SidebarView`'s dispatch**
+  (2026-11-11, `6315f03`). Where an engine's YAML comes from is the engine's question. Dispatch
+  still selects by `engine`, and adding a `kind` branch there would mean two places know the
+  ADR-35 source shape. A `kind:"collection"` record's file is read with `vault.getFileByPath` +
+  `cachedRead` on every render, so a hand-edit shows without re-importing. A missing file throws
+  `Collection file not found: <path>`, which the Workbench shows as its existing engine error. The
+  path never reaches the fence. `kind:"view"` records are unchanged. This replaces the T3.3 header
+  note that said "do not make render() read vault files".
