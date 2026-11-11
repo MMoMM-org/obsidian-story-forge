@@ -291,3 +291,38 @@ where it will land. Filed as #34 (an insertion line between cards).
 The vault notes touched by the test were restored from git (`processFrontMatter` reformat and a
 test `height` value only).
 
+## Spec 009 Phase 6: live walk (2026-11-11)
+
+Build at 9289bb2 (the code is unchanged since 0f4a654), vault `test/StoryForge/`. Walk items from
+the SDD's live walk list; item 1 is recorded under Phase 1.
+
+| Item | Action | Result |
+|---|---|---|
+| 2 | Anvil editor pane (opened by a click on a Board card title): change `status`, Cmd+Z with the caret in the field, then Cmd+Shift+Z | Undo and redo apply; the caret stays in the field. Passed |
+| 3 | Type in an Anvil text field without committing, Cmd+Z | Only the typed text is undone; no journal step, no notice. Passed |
+| 4 | Workbench: save a field, Cmd+Z; then an unsaved Workbench draft on the same note and ↶ in the Anvil | Undone; the Anvil undo is refused with "Save your edit first (<note>)". Passed |
+| 5 | Board drag that renumbers, one Cmd+Z; again with Cmd+Z right after the drop | Every note restored by one step, also within 200 ms of the drop. Passed |
+| 6 | Anvil change, then the same value edited by hand in the YAML, ↶ then ↷ | Conflict notice; redo restores the hand value. Passed |
+| 7 | Change a field, rename the note, ↶; change a field, delete the note, ↶ | The undo follows the rename. After the delete: "Nothing to undo", because the delete drops the note's records and the emptied step (AC-F10.2). That is correct; the test instruction expecting a vanished notice was wrong (that notice is for a note missing at apply time, AC-F10.3, covered by tests). Passed |
+| 8 | Anvil change, quit and restart Obsidian | The ↶ tooltip names the change and ↶ undoes it. A production rebuild (`npm run build`, 2026-11-08) left `undo-journal.json` in place. Passed |
+| 9 | Setting "Keep undo history across restarts" off; restart; on again; change; Clear | The file is gone from the plugin folder and `data.json` holds `"keepUndoHistory": false`; after the restart "Nothing to undo"; Clear shows "Undo history cleared" and disables ↶. Passed |
+| 10 | Obsidian Sync on two devices | **Not run**: no second device. OQ-2 stays open |
+| 11 | #30: save a Workbench field, then hand-edit the same value in the YAML | The Workbench shows the hand value without a click. Passed |
+| 12 | A user hotkey Cmd+Z bound to "Undo last change"; two Anvil changes, one Cmd+Z | Only one change is undone (ADR-53 guard). The hotkey was removed afterwards. Passed |
+| 13 | Codex tab: change a field shown on a character card, ↶; the same for a scene `status` on the Timeline tab | The card, the editor pane, the Workbench and the Timeline show the restored value without a click. Passed |
+| 14 | README "Undo" read by the user | Confirmed (AC-S.1, AC-S.2) |
+| — | Anvil in a popout window: click, Enter and Space on ↶ ↷ | All three work. Passed |
+
+**Performance** (SDD Quality Requirements):
+
+| Target | Live (Obsidian) | Benchmark (real code, mock vault, no disk IO) |
+|---|---|---|
+| Undo of a 10-file step ≤ 500 ms | 3.9 ms for a 1-file step, timed around `processFrontMatter` from the command to the last write. The vault has 6 scenes and the measured drag touched one note, so a 10-file step was not timed live | median 0.39 ms, p95 0.87 ms (20 field writes in 10 notes) |
+| Recording ≤ 2 ms per field | not measured live | overhead median 0.0014 ms; a 16,382-char value median 0.0116 ms, max 0.76 ms |
+| Keydown handler on another view ≤ 0.1 ms | not measured live | median 0.0002 ms (no host), 0.0009 ms (a host that does not contain the target) |
+
+**Found, filed:** on the Timeline tab the editor pane should dock to the right by default (#36).
+
+The vault notes touched by the walk (including the Mara Stoneway rename and delete) were restored
+from git.
+
