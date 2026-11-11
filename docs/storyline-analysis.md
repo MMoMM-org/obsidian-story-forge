@@ -35,7 +35,10 @@ becomes the **owner** of the data through its `*Manager` / `UndoManager` / expor
   This — not the display — is why so much of Storyline is bespoke.
 - **Half the codebase is the "owning" layer** we deliberately do not replicate:
   `*Manager` services, `DocxConverter`, `PdfConverter`, `ScrivenerImporter`,
-  `UndoManager`, `ExportService`, embedded CodeMirror editors.
+  `UndoManager`, `ExportService`, embedded CodeMirror editors. Undo is the exception we adopted:
+  as operational state in the plugin folder (gap-analysis G22, spec 009), not as story data.
+  `UndoManager`'s in-memory snapshot model is not copied; the journal records only Story Forge's
+  own frontmatter writes.
 
 ## 3. Render-engine decoupling
 
@@ -95,8 +98,10 @@ Only the genuinely custom, reusable parts, as a starting point (not 1:1):
 - **`cleanWikilink()` alias handling** (`[[file|display]]`) as a pattern — but via
   `metadataCache`, not our own parser.
 
-**Do not adopt:** the owning layer (`*Manager`, Undo, Export/Import, embedded
-editors). Not because "read-only", but because that layer *is* the lock-in.
+**Do not adopt:** the owning layer (`*Manager`, Export/Import, embedded
+editors). Undo is adopted as operational state in the plugin folder (gap-analysis G22, spec 009);
+`UndoManager`'s in-memory snapshot model is not copied, the journal records only Story Forge's own
+frontmatter writes. Not because "read-only", but because that layer *is* the lock-in.
 
 ## 7. Roadmap (ties to DESIGN §5 phasing)
 

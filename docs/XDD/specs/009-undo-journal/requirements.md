@@ -1,6 +1,6 @@
 ---
 title: "Undo journal — take back Story Forge's own writes"
-status: draft
+status: completed
 version: "1.0"
 ---
 
@@ -240,7 +240,7 @@ The minimum for "every write a view makes can be undone" (epic #16, "Done when")
 
 ### Could Have Features
 
-- **Clear undo history** button in settings, for a writer who wants the stored copies gone without turning the setting off. *(Proposed in this PRD; not in the approved design.)*
+- **Clear undo history** button in settings, for a writer who wants the stored copies gone without turning the setting off. *(Kept at PRD approval; shipped.)*
 
 ### Won't Have (This Phase)
 
@@ -266,7 +266,7 @@ The minimum for "every write a view makes can be undone" (epic #16, "Done when")
 2. A script then sets it to `missing`.
 3. User presses Cmd+Z in the Anvil.
 4. System finds `missing`, not `alive`, restores `dead`, and puts `missing` on the redo stack.
-5. System shows a notice naming the note, the field, both values and the redo shortcut.
+5. System shows a notice naming the note, the field, both values and which command restores the overwritten value.
 6. User presses Cmd+Shift+Z; System writes `missing` back, then shows "Redo: status in Mara Stoneway".
 
 **Business Rules:**
@@ -377,7 +377,7 @@ This is a local, single-user plugin with **no telemetry** (see `PRIVACY.md`). Ad
 | No check against what the file now holds | **Deviate** — restore anyway, put the overwritten value on redo, and say so | Nothing is lost when a script, hand edit or sync moves the field first. |
 | One file per entry, no grouping | **Deviate** — a gesture is one step across several notes | A Kanban drag changes several notes; undoing half of it would be wrong. |
 | Also undoes file create and delete | **Reject** | Story Forge never creates or deletes notes. |
-| A global key handler routes Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z and Ctrl+Y whenever a Storyline view is active and focus is not in a text field | **Deviate** — the view's own key handling, and a saved field with the cursor still in it also undoes | A global handler can swallow editor undo. The saved-field rule avoids the trap where text undo makes a field look edited while the file keeps the new value. |
+| A global key handler routes Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z and Ctrl+Y whenever a Storyline view is active and focus is not in a text field | **Adopt** (global capture-phase handler, ADR-37) **+ deviate** (a saved field with the caret still in it gets journal undo) | The saved-field rule avoids the trap where text undo makes a field look edited while the file keeps the new value. Ctrl+Y is rejected (next row). |
 | Ctrl+Y for redo | **Reject** | Commands carry no default hotkey; the docs explain the shadowing risk. |
 | Commands "Undo last scene change" / "Redo last scene change" | **Adopt** as "Undo / Redo last change" | Same shape; broader scope. |
 | ↶ ↷ buttons in the Board toolbar, tooltip "Undo (Ctrl+Z)" | **Adopt** and extend — on every Anvil tab and in the Workbench; the tooltip names the change; disabled when empty | The button states what it will do. |

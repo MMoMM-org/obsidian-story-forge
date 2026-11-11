@@ -167,12 +167,16 @@ version: "1.0"
 
 - file: src/navigation/keyboardRouting.ts
   relevance: MEDIUM
-  why: "isFormControl — reused for the 'is this an editable text element' half of the key rule."
+  why: "isFormControl is not reused. undoKeys.ts has its own isEditableText, modelled on it, for the
+        'is this an editable text element' half of the key rule. One deliberate difference: undoKeys'
+        element test uses only Obsidian's cross-window instanceOf and returns false without it,
+        while keyboardRouting falls back to instanceof."
 
 - file: test/__mocks__/obsidian.ts
   relevance: CRITICAL
-  why: "processFrontMatter store (l.524), vault.adapter (l.574), Platform (l.1615), debounce with
-        flush instead of run (l.1734). Lacks parseYaml/stringifyYaml, Keymap, Scope."
+  why: "processFrontMatter store (l.524), vault.adapter (l.574), Platform (l.1615), debounce
+        (now with `run`, as `Debouncer`). The mock now has parseYaml/stringifyYaml, Keymap.isModifier,
+        Platform.isMacOS, Debouncer.run and Tasks.addPromise."
 
 - file: node_modules/obsidian/obsidian.d.ts
   relevance: HIGH
@@ -445,7 +449,7 @@ graph LR
 .
 ├── src/
 │   ├── undo/
-│   │   ├── journalTypes.ts     # NEW: Slot, FieldChange, FileChanges, Step, StepSummary, UndoOutcome, persisted schema v1
+│   │   ├── journalTypes.ts     # NEW: Slot, FieldChange, FileChanges, Step, StepSummary, UndoOutcome, JournalGroup, PendingReason, PendingProbe, JournalStore, JournalSnapshot (here, not in undoJournal.ts, to avoid an import cycle)
 │   │   ├── yamlValue.ts        # NEW: normalise (parseYaml∘stringifyYaml), slotOf, slotsEqual, deepEqual, valueSize
 │   │   ├── undoJournal.ts      # NEW: createUndoJournal → OwnedUndoJournal; JournalGroup; stacks; queue; probes; flushers
 │   │   ├── journalStore.ts     # NEW: JournalStore — load/validate, capped serialise, debounced save, flushNow, remove
@@ -488,7 +492,7 @@ test/
 │   ├── stepLabel.test.ts           # NEW
 │   ├── undoKeys.test.ts            # NEW: modifier, host, containment, key policy
 │   ├── undoControls.test.ts        # NEW: enabled/disabled/aria/tooltip/live update
-│   └── writeCoverage.test.ts       # NEW: every write path produces exactly one step
+│   └── writeCoverage.test.ts       # NEW: scans src/ for processFrontMatter calls outside the writer (the one-step-per-write-path check is test/undo/endToEnd.test.ts)
 ├── inspector/frontmatterWriter.journal.test.ts   # NEW: capture, no-op, failure, restore
 ├── inspector/InspectorController.refresh.test.ts # NEW: ADR-42
 ├── settings/undoSettings.test.ts                 # NEW: U11 section, toggle → setPersistence, Clear button and its notice
@@ -633,7 +637,8 @@ export type UndoOutcome =
 export interface ConflictReport { readonly path: string; readonly key: string;
 	readonly expected: Slot; readonly found: Slot; readonly written: Slot; }
 
-// src/undo/undoJournal.ts — NEW
+// src/undo/journalTypes.ts — NEW (these types live here, not in undoJournal.ts, to avoid an import
+// cycle; JournalStore and JournalSnapshot are here too; journalStore.ts parses the file as unknown)
 export type PendingReason = "draft" | "write";
 /** Does this vault path have unsaved text, or a write in flight or pending? */
 export type PendingProbe = (path: string) => PendingReason | null;
@@ -955,8 +960,9 @@ sequenceDiagram
 | Failed and vanished in one step (one note cannot be written, another no longer exists) | Outcome `failed`; step stays on top (reduced to the failed files) | "Couldn't undo the change in Scene 4. It stays on the undo stack; try again. Scene 6 no longer exists; its change was removed from the undo history." |
 | A target note no longer exists | That file's changes dropped; the rest applied; if nothing remains, the step is dropped | "Scene 4 no longer exists; its change was removed from the undo history." |
 | Journal file missing | Empty stacks, silent (first run) | — |
-| Journal file unreadable / invalid JSON / wrong version / bad shape | Empty stacks, `console.warn("[StoryForge] Undo history could not be read; starting empty.", err)`; plugin starts | — |
-| Journal save fails (adapter write rejects) | `console.warn`; stacks stay in memory; next change retries | — |
+| Journal file unreadable (adapter read or JSON parse throws) | Empty stacks, `console.warn("[StoryForge] Undo journal: couldn't read the history file; starting with an empty history.", err)`; plugin starts | — |
+| Journal file parses but is invalid (wrong version / bad shape) | Empty stacks, `console.warn("[StoryForge] Undo journal: the history file is invalid; starting with an empty history.")`; plugin starts | — |
+| Journal save fails (adapter write rejects) | `console.warn("[StoryForge] Undo journal: couldn't save the history file; it stays in memory.", err)`; stacks stay in memory; next change retries | — |
 | A group is never closed | Force-commit after `GROUP_TIMEOUT_MS` (10 s) + `console.warn`; later writes with that group record as their own steps + warn | — |
 | A tracked promise rejects | Counts as settled; whatever was recorded commits | — |
 | Recorder throws | Caught in the writer, `console.warn`; the write result is still `{ok:true}` (the file was written; losing undo must not look like a failed save) | — |
@@ -980,8 +986,8 @@ OUTPUT: UndoOutcome
               IF null → vanished += f.path; CONTINUE
               found = restore(file, targets(f, direction))   — catch → failed += f; CONTINUE
               moved += reoriented(f, found, direction); conflicts += mismatches(found, expected)
-6. STACKS:  src.pop()
-            IF failed ≠ ∅ → src.push(step with files = failed, same id)     (reduced step, F2 AC10)
+6. STACKS:  remove `step` from src by identity (not pop: a step recorded during the apply stays above it)
+            IF failed ≠ ∅ → a reduced step (files = failed, same id) replaces it in place    (F2 AC10)
             IF moved ≠ ∅ → dst.push(step with files = moved); trim dst to 50 (drop oldest)
 7. EMIT:    notify subscribers; schedule save; build message (stepLabel.outcomeNotice)
             return applied | failed (moved = ∅ and failed ≠ ∅) | vanished (moved = failed = ∅)
@@ -1009,8 +1015,8 @@ ALGORITHM: record(path, changes, group)          — called by the writer
   (1 s) and capped (1 MiB).
 - **Documentation (Should Have)**: README "Undo" section: values are restored, not formatting;
   the history copies field values and should be excluded from version control
-  (`.obsidian/plugins/story-forge/undo-journal.json`); it is per device — Obsidian Sync leaves it
-  alone, other sync tools may copy it and that is the user's choice; binding either command to
+  (`.obsidian/plugins/story-forge/undo-journal.json`); it is per device — Obsidian Sync is expected to leave it
+  alone (unverified, see OQ-2), other sync tools may copy it and that is the user's choice; binding either command to
   Cmd/Ctrl+Z globally shadows Obsidian's editor undo/redo, so no default is shipped; a link value
   stored in the history goes stale when its target is renamed.
 - **Dev deployment gotcha**: `npm run dev` copies build output into
@@ -1070,9 +1076,12 @@ state, and the new setting defaults through `normalizeSettings`.
   `margin-left: auto`; `.sf-ws-head` wraps, and the cluster moves to the next row as one unit. This
   is what the signed-off U3b/U3c show (decision P4). Workbench —
   `button.sf-undo-btn[data-sf-undo=undo|redo]`, mirroring `sf-pin-btn`.
-- Tokens: Obsidian CSS variables only (`--text-muted`, `--text-normal` on hover,
-  `--background-modifier-hover` for the hover background, `--text-faint` plus `opacity: 0.55` for
-  disabled, `--interactive-accent` for the focus ring). No new colours.
+- Tokens: Obsidian CSS variables only, no new colours, split per surface. Anvil tools
+  (`.sf-undo-tool`) and the zoom buttons share one chrome: `--text-normal` glyph, disabled
+  `--text-muted` without dimming (user decision 2026-11-08, after the T5.7 live test; this diverges
+  from the signed-off mockup). Workbench buttons keep `--text-muted` (`--text-normal` on hover) and
+  `--text-faint` plus `opacity: 0.55` for disabled. Both use `--background-modifier-hover` for the
+  hover background and `--interactive-accent` for the focus ring.
 - Patterns: disabled = `aria-disabled="true"` + muted look, not the `disabled` attribute, so the
   tooltip stays reachable by pointer and keyboard (ADR-50).
 
@@ -1141,8 +1150,7 @@ stateDiagram-v2
 - **Performance**: see Quality Requirements.
 - **i18n**: English only (CON-10); all strings in `stepLabel.ts`.
 - **Logging/observability**: `console.warn` with the `[StoryForge]` prefix for corrupt file, save
-  failure, group timeout, late group write, recorder exception; `console.debug` (not `log`) for
-  group open/close in development. No telemetry (PRD).
+  failure, group timeout, late group write, recorder exception. No telemetry (PRD).
 
 ### Multi-Component Patterns
 
@@ -1211,8 +1219,10 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
     `"write"` when both exist (the draft is what needs the user). Kanban →
     `"write"` when `_pending` or an in-flight flush exists for `path` (after the flush this is only
     a flush that is still running).
-  - Mock: `test/__mocks__/obsidian.ts` debounce exposes `flush()`; it is renamed to `run()` to
-    match `Debouncer` (no production or test code calls `.flush()` today — verified by grep).
+  - Mock: `test/__mocks__/obsidian.ts` debounce exposed `flush()`; it was renamed to `run()` to
+    match `Debouncer` (no production or test code called `.flush()` — verified by grep). The mock
+    now also has `parseYaml`, `stringifyYaml`, `Keymap.isModifier`, `Platform.isMacOS` and
+    `Tasks.addPromise`.
   - Rationale: undo must know about drafts without knowing which views exist; new surfaces
     (#7, #8) register a probe instead of editing the journal.
   - Trade-offs: a probe that forgets a state silently allows a collision — each probe gets a
@@ -1224,7 +1234,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
   `${configDir}/plugins/${manifest.id}` when `dir` is undefined), read and written through
   `app.vault.adapter`.
   - Assumption: Obsidian Sync syncs only a plugin's known files (`main.js`, `manifest.json`,
-    `styles.css`, `data.json`), so this file stays on the device. Another sync mechanism that
+    `styles.css`, `data.json`), so this file is expected to stay on the device. Unverified: OQ-2 is
+    open, walk item 10 was not run (no second device). Another sync mechanism that
     copies the folder is the user's business; the docs say so. The live walk checks it: record a
     step on device A, let Sync settle, confirm on device B that `undo-journal.json` is absent or
     unchanged and B's ↶ tooltip does not name A's step.
@@ -1366,7 +1377,8 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
   note → `"3 changes in Mara Stoneway"`; several notes → `"4 changes in 3 notes"`. Note name =
   basename without `.md`. Tooltip/notice prefixes "Undo: " / "Redo: ". Values in notices:
   strings in single quotes, lists joined with ", ", absent as "not set", truncated at 40
-  characters with "…". Conflict notices name no keyboard shortcut: they end "Redo restores it" /
+  characters with "…". A `null` value reads "empty" (as the signed-off mockup shows); an empty
+  list `[]` reads "empty list" (user, 2026-11-11; the signed-off mockup does not show it). Conflict notices name no keyboard shortcut: they end "Redo restores it" /
   "Redo restores them" (in a redo notice "Undo restores it" / "Undo restores them"), because
   Cmd+Shift+Z is the note editor's own redo outside the Anvil and Workbench (signed off 2026-11-06,
   P8). Refusal text: "Save your edit first (<note name>)" (no discard control exists, P6).
@@ -1451,7 +1463,9 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
     Workbench (no DOM queries before the active-view check).
   - Undo of a 10-file step completes in ≤ 500 ms on `test/StoryForge/` (sequential
     `processFrontMatter`), measured in the live walk.
-  - The journal file never exceeds 1 MiB; no save happens without a stack change.
+  - The journal file stays within 1,048,576 characters (UTF-16 length), so non-ASCII content can
+    exceed 1 MiB on disk. No save happens without a stack change, with one exception:
+    `setPersistence(true)` saves at once.
 - **Usability**
   - Every outcome produces exactly one Notice; the Anvil live region carries the same text.
   - Controls have accessible names and `aria-disabled`; tooltips name the change.
@@ -1609,6 +1623,9 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
 - **`InteractionHandler.destroy()` cancels pending flushes** — closing the Anvil within 200 ms of
   a drop lost the dragged card's write while its siblings were renumbered. **Fixed here (ADR-52):**
   `destroy()` runs pending flushes instead of cancelling them.
+- **Obsidian Sync and `undo-journal.json` are unverified (OQ-2).** Sync is expected to leave the
+  file on the device, but walk item 10 was not run (no second device), so AC-F7.6 is accepted as
+  unverified and the README says "not expected" rather than "does not".
 - **Non-Latin keyboard layouts (T5.4, accepted).** The chord is matched on `e.key`, which is the
   local letter on such a layout, so Mod+Z falls through to the native undo. The ↶ ↷ controls and
   the palette commands still work.
@@ -1619,11 +1636,12 @@ Decisions ADR-37…ADR-53 were confirmed by the user on 2026-11-04. ADR-54 was t
 
 ### Technical Debt
 
-- **The obsidian mock** lacks `parseYaml`, `stringifyYaml`, `Keymap.isModifier`,
-  `Platform.isMacOS`, and names the debouncer's method `flush` instead of `run`. Each addition
-  follows the d.ts shape (CON-7); `parseYaml`/`stringifyYaml` delegate to the `yaml` package,
-  which may differ from Obsidian's parser in edge cases (dates, large numbers) — the live walk
-  covers real values.
+- **The obsidian mock** (resolved in this spec) lacked `parseYaml`, `stringifyYaml`,
+  `Keymap.isModifier`, `Platform.isMacOS` and `Tasks.addPromise`, and named the debouncer's method
+  `flush` instead of `run`. It now has `parseYaml`, `stringifyYaml`, `Keymap.isModifier`,
+  `Platform.isMacOS`, `Debouncer.run` and `Tasks.addPromise`, each following the d.ts shape (CON-7).
+  Caveat that remains: `parseYaml`/`stringifyYaml` delegate to the `yaml` package, which may parse
+  edge cases (dates, large numbers) differently from Obsidian — the live walk covers real values.
 - **Module-level recorder state** in `frontmatterWriter.ts` (ADR-44) — tests must uninstall; a
   second install throws. `resetWriteRecorderForTests()` (test-only, called by the global
   `test/setup/resetWriteRecorder.ts`) clears it between tests, so a recorder one test leaves behind
