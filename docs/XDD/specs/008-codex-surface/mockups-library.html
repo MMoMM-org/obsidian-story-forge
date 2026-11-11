@@ -1,0 +1,1574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — Library mockups (spec 008 Phase 7, L1–L9 addendum to S101)</title>
+<style>
+  /* ── Copied verbatim from docs/mockups/anvil-workbench-codex.html (lines 8–503). Do not edit here; see the addendum block below. ── */
+  :root{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --link:#8b8bf0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    /* status badges (map: draft→amber, outline→blue, written/final→green) */
+    --st-draft:#e0a34a; --st-outline:#5b8bd0; --st-written:#6ac47a;
+    /* plotline palette (per-tag colours, like StoryLine's dots/lanes) */
+    --pl-dying:#d9a441;   /* The Dying Light  */
+    --pl-oath:#5b8bd0;    /* The Warden's Oath */
+    --pl-shadow:#b06a86;  /* Shadow Trade      */
+    --pl-unres:#7a6a55;   /* unresolved lane   */
+    --pl-none:#6b6b6b;    /* Unassigned        */
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:34px 0 14px;border-bottom:1px solid var(--border);padding-bottom:6px;
+    text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:96ch}
+  .sub code,.legend code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .legend{color:var(--muted);font-size:12.5px;max-width:96ch;margin:0 0 10px}
+  .legend b{color:var(--text)}
+  .banner{border:1px solid var(--border-2);border-left:3px solid var(--accent);background:var(--panel);
+    border-radius:6px;padding:10px 14px;margin:0 0 20px;max-width:96ch;font-size:12.5px;color:var(--muted)}
+  .banner b{color:var(--text)}
+  table.inv{border-collapse:collapse;font-size:12.5px;margin:0 0 8px}
+  table.inv th,table.inv td{border:1px solid var(--border);padding:4px 10px;text-align:left;vertical-align:top}
+  table.inv th{color:var(--faint);font-weight:600}
+  table.inv tr.superseded td,table.inv tr.superseded th{color:var(--faint);text-decoration:line-through}
+  table.inv tr.superseded td:first-child{text-decoration:none}
+  .gallery{display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-start}
+  figure{margin:0}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:40px;max-width:60ch}
+  figcaption b{color:var(--text);font-weight:600}
+  .note{font-size:11px;color:var(--faint);margin-top:7px;max-width:64ch}
+  .note b{color:var(--muted)}
+  .sd{color:var(--st-draft)} .so{color:var(--st-outline)} .sw{color:var(--st-written)}
+
+  /* ---- superseded figure banner ---- */
+  .superseded-banner{
+    border:1px solid var(--border-2);border-left:3px solid var(--st-draft);
+    background:rgba(224,163,74,.07);border-radius:6px;padding:7px 12px;
+    font-size:11.5px;color:var(--st-draft);margin-bottom:8px;max-width:60ch}
+  .superseded-banner b{color:var(--text)}
+  figure.superseded figcaption{opacity:.55}
+  figure.superseded .view{opacity:.40;pointer-events:none;filter:grayscale(.5)}
+
+  /* ---- generic view shell (Obsidian leaf) ---- */
+  .view{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;
+    display:flex;flex-direction:column;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .vhead{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--header);border-bottom:1px solid var(--border)}
+  .tabs{display:flex;gap:2px}
+  .tabs span{font-size:11px;padding:3px 9px;border-radius:6px;color:var(--muted);cursor:pointer}
+  .tabs span.sel{background:var(--accent);color:#fff}
+  .vhead .sp{flex:1}
+  .icons{display:flex;gap:6px}
+  .icons span{width:20px;height:20px;display:grid;place-items:center;border-radius:4px;color:var(--faint);font-size:12px}
+  .icons span.on{color:var(--accent)}
+
+  /* ================= NAVIGATOR (sidebar, next to Context) ================= */
+  .nav{width:290px}
+  .nav .filter{display:flex;align-items:center;gap:6px;margin:8px 10px 6px;padding:5px 9px;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:7px;color:var(--faint);font-size:12px}
+  .nav .filter .sort{margin-left:auto;color:var(--faint)}
+  .nsec{border-top:1px solid var(--border)}
+  .nsec-head{display:flex;align-items:center;gap:6px;padding:6px 11px;cursor:pointer;
+    font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:700}
+  .nsec-head .chev{width:9px;color:var(--faint)}
+  .nsec-head .n{margin-left:auto;color:var(--faint);font-weight:600}
+  .pl{max-height:150px;overflow:auto;padding:0 0 4px}
+  .pl-row{display:flex;align-items:center;gap:9px;padding:3px 12px;font-size:12.5px;cursor:pointer}
+  .pl-row:hover{background:var(--hover)}
+  .pl-row.sel{background:var(--panel-2)}
+  .pl-row .cnt{margin-left:auto;color:var(--faint);font-size:11px}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.25) inset}
+  .dot.dying{background:var(--pl-dying)} .dot.oath{background:var(--pl-oath)}
+  .dot.shadow{background:var(--pl-shadow)} .dot.none{background:var(--pl-none)}
+  .dot.unres{background:transparent;box-shadow:0 0 0 1.5px var(--pl-unres)}
+  .dot.all{background:#8a8a8a}
+  .agrp-head{display:flex;align-items:center;gap:6px;padding:5px 11px;cursor:pointer;
+    font-size:12px;font-weight:700;color:var(--text);border-top:1px solid var(--border)}
+  .agrp-head .chev{width:9px;color:var(--faint)}
+  .agrp-head .n{margin-left:auto;color:var(--faint);font-size:10px;background:var(--panel-2);border-radius:8px;padding:0 7px;font-weight:600}
+  .sc-row{display:grid;grid-template-columns:9px 16px 1fr auto;align-items:center;gap:8px;
+    padding:4px 12px 4px 16px;font-size:12.5px;cursor:pointer}
+  .sc-row:hover{background:var(--hover)}
+  .sc-row .idx{color:var(--faint);font-size:11px;text-align:right}
+  .sc-row .ti{color:var(--link);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sc-row.sel .ti{color:#fff}
+  .sc-row .meta{color:var(--faint);font-size:10.5px;white-space:nowrap}
+  .prog{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--faint)}
+  .bar{flex:1;height:6px;border-radius:4px;background:var(--panel-2);overflow:hidden}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--st-written),var(--accent))}
+
+  /* ================= main-area toolbar ================= */
+  .main{width:720px}
+  .brand{font-weight:700;font-size:13px;color:var(--text);padding-right:6px}
+  .mtabs{display:flex;gap:2px}
+  .mtabs span{font-size:11.5px;padding:3px 8px;border-radius:6px;color:var(--muted);cursor:pointer;display:flex;gap:5px;align-items:center}
+  .mtabs span.sel{color:var(--accent);border-bottom:2px solid var(--accent);border-radius:0}
+  .ctrl{margin-left:auto;display:flex;gap:6px;align-items:center}
+  .seg{display:flex;border:1px solid var(--border-2);border-radius:6px;overflow:hidden}
+  .seg span{font-size:11px;padding:2px 9px;color:var(--muted);cursor:pointer}
+  .seg span.sel{background:var(--accent);color:#fff}
+  .drop{font-size:11px;padding:2px 9px;border:1px solid var(--border-2);border-radius:6px;color:var(--muted)}
+  .mbody{padding:14px 16px 18px;max-height:560px;overflow:auto}
+
+  /* ---- Timeline toolbar row (sf-ws-tlbar): seg + group-by select + zoom slot in one row ---- */
+  .tlbar{
+    display:flex;align-items:center;gap:8px;padding:4px 10px;
+    background:var(--header);border-bottom:1px solid var(--border);
+    font-size:11px}
+  .tlbar .seg{/* inherits */}
+  .tlbar select{
+    font-size:11px;padding:2px 8px;border:1px solid var(--border-2);border-radius:6px;
+    background:var(--panel);color:var(--muted);cursor:pointer}
+  .tlbar select:disabled{opacity:.45;cursor:default}
+  /* zoom bar inside tlbar */
+  .zoombar{display:flex;align-items:center;border:1px solid var(--border-2);border-radius:6px;overflow:hidden;margin-left:auto}
+  .zoombar span{font-size:11px;padding:2px 9px;color:var(--muted);cursor:pointer;border-right:1px solid var(--border-2)}
+  .zoombar span:last-child{border-right:none}
+  .zoombar span.lvl{color:var(--text);min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+
+  /* act divider pill */
+  .actpill{display:inline-block;background:var(--panel-2);color:var(--accent);font-weight:700;
+    font-size:11px;letter-spacing:.04em;padding:4px 12px;border-radius:14px;margin:10px 0 8px}
+
+  /* ---- Timeline: rail mode ---- */
+  .rail{position:relative;padding-left:26px}
+  .rail::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--border-2)}
+  .tl-item{position:relative;margin:0 0 12px}
+  .tl-node{position:absolute;left:-22px;top:14px;width:12px;height:12px;border-radius:50%;border:2px solid var(--panel)}
+  .tl-node.dying{background:var(--pl-dying)} .tl-node.oath{background:var(--pl-oath)} .tl-node.none{background:var(--pl-none)}
+  .tl-when{position:absolute;left:-84px;top:12px;width:52px;text-align:right;color:var(--faint);font-size:10.5px}
+  .rail.withwhen{padding-left:96px}
+  .rail.withwhen::before{left:78px}
+  .rail.withwhen .tl-node{left:64px}
+  .card{background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 13px}
+  .card .ct{font-weight:600;font-size:13.5px;margin:0 0 3px}
+  .card .cm{color:var(--muted);font-size:11.5px;display:flex;gap:12px;flex-wrap:wrap;margin:0 0 6px}
+  .card .cm .pin::before{content:"\1F4CD  ";}
+  .stat{font-size:10.5px;font-weight:600}
+  .words{color:var(--faint);font-size:10.5px;margin-left:6px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+  .chip{font-size:10px;padding:1px 8px;border-radius:9px;background:var(--pill);color:var(--muted)}
+  .chip.pov{color:var(--pill-text);background:#33304a}
+  .fb{background:rgba(224,163,74,.10);color:var(--st-draft);border:1px dashed rgba(224,163,74,.4);
+    font-size:10px;padding:1px 8px;border-radius:9px}
+
+  /* ---- Timeline: swimlane GRID mode (sf-sw-*) ----
+     COLUMNS per group value (one per lane); ROWS per scene.
+     Column 1 = sequence axis (#/storyDay); header row = lane values.
+     Act-divider rows span ALL columns. Multi-plotline scene appears in each column. */
+  .sw-grid{
+    display:grid;
+    /* --sf-sw-cols is set inline per figure to match the dynamic lane count */
+    grid-template-columns:var(--sf-sw-cols);
+    border:1px solid var(--border);border-radius:8px;overflow:hidden;
+    font-size:12px}
+  .sw-corner{
+    background:var(--header);font-weight:700;font-size:11px;color:var(--muted);
+    padding:7px 10px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    position:sticky;left:0;z-index:2}
+  .sw-lanehead{
+    background:var(--header);font-weight:700;font-size:11px;color:var(--text);
+    padding:7px 10px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+  .sw-lanehead.unresolved{color:var(--pl-unres);opacity:.7}
+  .sw-lanehead.neutral{color:var(--pl-none)}
+  .sw-actrow{
+    /* span all columns — set grid-column inline */
+    background:var(--panel-2);color:var(--accent);font-weight:700;font-size:10.5px;
+    letter-spacing:.04em;padding:5px 10px;border-top:1px solid var(--border)}
+  .sw-seq{
+    background:var(--panel);border-right:1px solid var(--border);border-top:1px solid var(--border);
+    padding:6px 8px;display:flex;flex-direction:column;gap:2px;
+    font-size:10.5px;color:var(--faint);position:sticky;left:0;z-index:1}
+  .sw-seq .seqn{font-weight:700;color:var(--muted)}
+  .sw-seq .seqwhen{font-size:9.5px;color:var(--faint)}
+  .sw-cell{
+    border-right:1px solid var(--border);border-top:1px solid var(--border);
+    padding:6px 8px;min-height:52px}
+  .sw-mini{
+    background:var(--panel);border:1px solid var(--border-2);border-radius:6px;
+    padding:6px 8px;position:relative;font-size:11.5px}
+  .sw-mini-dot{
+    width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+  .sw-mini-title{color:var(--link);font-weight:600;font-size:12px;display:block;margin:0 0 3px}
+  .sw-mini-meta{color:var(--faint);font-size:10px;display:flex;gap:6px;align-items:center}
+
+  /* ---- Plotlines: subway map ---- */
+  .subway{position:relative;padding:6px 0}
+  .actbound{position:absolute;top:0;bottom:0;border-left:1px dashed var(--border-2)}
+  .actlabel{position:absolute;top:-2px;font-size:11px;font-weight:700;color:var(--muted)}
+  .lane{position:relative;height:74px}
+  .lane .llabel{position:absolute;left:0;top:8px;width:110px;font-weight:700;font-size:12.5px}
+  .lane .track{position:absolute;left:120px;right:8px;top:15px;height:8px;border-radius:5px;opacity:.9}
+  .lane .station{position:absolute;top:9px;width:20px;height:20px;border-radius:50%;
+    background:var(--panel);border:3px solid #999;transform:translateX(-50%)}
+  .lane .slabel{position:absolute;top:32px;transform:translateX(-50%);text-align:center;white-space:nowrap}
+  .lane .slabel .sn{font-size:10.5px;color:var(--text)}
+  .lane .slabel .tp{display:flex;gap:3px;justify-content:center;margin-top:3px}
+  .lane .slabel .tp b{font-size:8.5px;font-weight:500;color:#111;padding:0 5px;border-radius:7px}
+  .connector{position:absolute;width:3px;border-radius:2px;opacity:.55}
+  .lane.dying .llabel{color:var(--pl-dying)} .lane.dying .track{background:var(--pl-dying)} .lane.dying .station{border-color:var(--pl-dying)}
+  .lane.oath .llabel{color:var(--pl-oath)} .lane.oath .track{background:var(--pl-oath)} .lane.oath .station{border-color:var(--pl-oath)}
+  .lane.shadow .llabel{color:var(--pl-shadow)} .lane.shadow .track{background:var(--pl-shadow)} .lane.shadow .station{border-color:var(--pl-shadow)}
+  .lane.unres .llabel{color:var(--pl-unres)} .lane.unres .track{background:var(--pl-unres);opacity:.4}
+  .lane.unres .station{border-color:var(--pl-unres);border-style:dashed}
+  .flag{font-size:9px;color:var(--pl-unres);margin-left:6px}
+
+  /* empty + trail */
+  .emptybox{padding:46px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+  .emptybox .glyph{font-size:26px;color:var(--faint)}
+  .emptybox .lead{color:var(--text);font-size:13px}
+  .emptybox .hint{font-size:12px;color:var(--faint);max-width:44ch}
+  .scopehint{font-size:11.5px;color:var(--st-draft);padding:6px 14px;border-bottom:1px solid var(--border);background:rgba(224,163,74,.07)}
+  .trail{font-size:11.5px;color:var(--faint);padding:8px 12px}
+  .trail .lnk{color:var(--link)}
+  .arrow{display:flex;align-items:center;color:var(--faint);font-size:24px;align-self:center;padding:0 4px}
+
+  /* ============================================================= */
+  /* ===== M6 interaction affordances — extend, don't fork ======= */
+  /* ============================================================= */
+  .grab{cursor:grab}
+  /* sf-dragging: original card while its ghost follows pointer — dimmed, no grab cursor */
+  .sf-dragging{opacity:.4;cursor:grabbing;border-style:dashed!important}
+  /* Legacy alias used in older figures */
+  .dragging{opacity:.5;border-style:double;border-width:3px;cursor:grabbing}
+  /* sf-drag-ghost: floating clone following pointer — tilted, elevated, semi-opaque.
+     Matches .sf-drag-ghost in styles.css: position:fixed, rotate:2deg, opacity:.85,
+     box-shadow, pointer-events:none, z-index:9999.
+     In the mockup we approximate with absolute positioning inside a relative container. */
+  .drag-ghost-wrap{position:relative;height:0}
+  .sf-drag-ghost{
+    position:absolute;right:-20px;top:-50px;
+    opacity:.85;
+    transform:rotate(2deg);
+    box-shadow:0 8px 24px rgba(0,0,0,.55);
+    border-radius:7px;
+    pointer-events:none;
+    z-index:9;
+    max-width:220px;
+    background:var(--panel);border:1px solid var(--border-2);padding:8px 10px}
+  .sf-drag-ghost .kt{font-weight:600;font-size:12.5px;margin:0 0 3px;color:var(--link)}
+  .sf-drag-ghost .km{color:var(--faint);font-size:10.5px;display:flex;align-items:center;gap:7px}
+  .sf-drag-ghost .kdot{width:8px;height:8px;border-radius:50%;flex:none}
+  /* drop line */
+  .ghost{opacity:.5;border:2px dashed var(--accent);background:rgba(124,108,240,.08)}
+  .drop-line{height:0;border-top:2px solid var(--accent);margin:6px 0;position:relative;border-radius:2px}
+  .drop-line::before{content:"";position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  /* toast / write feedback */
+  .toast{display:flex;align-items:center;gap:7px;font-size:11.5px;padding:6px 14px;
+    border-bottom:1px solid var(--border);background:rgba(106,196,122,.10);color:var(--st-written)}
+  .toast.err{background:rgba(224,163,74,.10);color:var(--st-draft)}
+  /* Kanban board */
+  .kanban{display:flex;gap:12px;align-items:flex-start;overflow-x:auto}
+  .col{flex:1;min-width:150px;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:8px}
+  .col-head{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--faint);padding:2px 2px 6px;border-bottom:1px solid var(--border)}
+  .col-head .n{margin-left:auto;color:var(--faint);font-size:10px;background:var(--panel);border-radius:8px;padding:0 7px}
+  .col.drop-target{outline:2px dashed var(--accent);outline-offset:2px}
+  .kcard{background:var(--panel);border:1px solid var(--border-2);border-radius:7px;padding:8px 10px;position:relative}
+  .kcard .kt{font-weight:600;font-size:12.5px;margin:0 0 3px;color:var(--link)}
+  .kcard .km{color:var(--faint);font-size:10.5px;display:flex;align-items:center;gap:7px}
+  .kcard .kdot{width:8px;height:8px;border-radius:50%;flex:none}
+  .kcard .kbadge{font-size:9.5px;font-weight:700;padding:0 6px;border-radius:8px}
+
+  /* ---- Plotgrid — SCENES as ROWS × PLOTLINES as COLUMNS (sf-pg-*, M3 orientation) ----
+     Row 1 = header (corner + plotline col heads with colour dots).
+     Each subsequent row = one scene (row-header = order+title; cells = plotline membership).
+     Filled cell = status badge + when (interactive: click/Space/Enter toggles). */
+  .pg-table{
+    display:flex;flex-direction:column;
+    border:1px solid var(--border);border-radius:8px;overflow:auto;font-size:12px}
+  .pg-thead,.pg-tbody{display:contents}
+  .pg-tr{display:flex}
+  .pg-th{
+    background:var(--header);font-size:10.5px;font-weight:700;color:var(--muted);
+    padding:7px 10px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    min-width:110px;flex:none}
+  .pg-corner{min-width:160px;text-align:left;color:var(--faint)}
+  .pg-col-head{
+    min-width:130px;flex:1;display:flex;align-items:center;gap:5px;
+    border-left:3px solid var(--border-2)}
+  .pg-col-head.dying{border-left-color:var(--pl-dying)}
+  .pg-col-head.oath{border-left-color:var(--pl-oath)}
+  .pg-col-head.shadow{border-left-color:var(--pl-shadow)}
+  .pg-col-head.unresolved{opacity:.5}
+  .pg-col-dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .pg-col-name{color:var(--link);font-size:10.5px}
+  .pg-row-head{
+    min-width:160px;flex:none;padding:7px 10px;
+    border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:6px;color:var(--link)}
+  .pg-cell{
+    flex:1;min-width:130px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+    min-height:36px;cursor:pointer;padding:5px 8px;position:relative;display:flex;align-items:center}
+  .pg-cell:hover{outline:1.5px solid var(--accent);outline-offset:-1px;z-index:1}
+  .pg-cell.filled{
+    border-left:3px solid currentColor}
+  .pg-cell.filled.dying{color:var(--pl-dying);background:rgba(217,164,65,.14)}
+  .pg-cell.filled.oath{color:var(--pl-oath);background:rgba(91,139,208,.14)}
+  .pg-cell.filled.shadow{color:var(--pl-shadow);background:rgba(176,106,134,.14)}
+  .pg-cell-inner{display:flex;align-items:center;gap:6px;font-size:10.5px}
+  .pg-cell-status{font-size:9.5px;font-weight:700;padding:0 5px;border-radius:7px;
+    background:rgba(255,255,255,.07)}
+  .pg-cell-when{color:var(--faint);font-size:10px}
+  .pg-cell[aria-disabled="true"]{opacity:.3;cursor:default}
+  .pg-cell.hovering{outline:1.5px solid var(--accent);outline-offset:-1px;background:rgba(124,108,240,.10)}
+
+  /* Locations tree (legacy — kept for superseded figures S79/S80) */
+  .tree{font-size:12.5px}
+  .node{display:flex;align-items:center;gap:7px;padding:3px 6px;border-radius:5px;cursor:pointer}
+  .node:hover{background:var(--hover)}
+  .node .chv{width:10px;color:var(--faint);font-size:10px}
+  .node .loc{color:var(--link);text-decoration:underline;text-decoration-color:var(--border-2);text-underline-offset:2px}
+  .node .kind{color:var(--faint);font-size:10px}
+  .node .cnt{margin-left:auto;color:var(--faint);font-size:10px;background:var(--panel-2);border-radius:8px;padding:0 7px}
+  .node.scene .loc{color:var(--text);text-decoration:none}
+  .node.flagged .loc{color:var(--pl-unres);text-decoration-style:dashed}
+  .indent-1{padding-left:22px} .indent-2{padding-left:44px} .indent-3{padding-left:66px}
+  /* zoom controls (legacy .zoom alias; real implementation uses .zoombar above) */
+  .zoom{display:flex;align-items:center;border:1px solid var(--border-2);border-radius:6px;overflow:hidden}
+  .zoom span{font-size:11px;padding:2px 9px;color:var(--muted);cursor:pointer;border-right:1px solid var(--border-2)}
+  .zoom span:last-child{border-right:none}
+  .zoom span.lvl{color:var(--text);min-width:44px;text-align:center}
+
+  /* ================= NEW for the surface taxonomy (S91–S101) ================= */
+  .anvil{width:760px}
+  .wb{width:300px}
+
+  /* --- Codex: category switcher + card selector --- */
+  .cx-cats{display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+    padding:8px 10px;border-bottom:1px solid var(--border);background:var(--panel-2)}
+  .cx-cats span{font-size:11px;padding:3px 9px;border-radius:20px;color:var(--muted);
+    border:1px solid var(--border-2);cursor:pointer;white-space:nowrap}
+  .cx-cats span.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .cx-cats span.usr{border-style:dashed;color:var(--pill-text)}
+  .cx-cats span.add{color:var(--faint);border-style:dashed}
+  .cx-cats .sp{flex:1}
+  .cardsel{position:relative;font-size:11px;color:var(--muted);border:1px solid var(--border-2);
+    border-radius:6px;padding:3px 9px;white-space:nowrap;cursor:pointer}
+  .cardsel b{color:var(--text);font-weight:600}
+  .dd{position:absolute;right:0;top:calc(100% + 4px);z-index:5;min-width:168px;
+    background:var(--panel);border:1px solid var(--border-2);border-radius:6px;
+    box-shadow:0 6px 18px rgba(0,0,0,.5);padding:4px;text-align:left}
+  .dd i{display:block;font-style:normal;font-size:11px;padding:4px 8px;border-radius:4px;
+    color:var(--muted)}
+  .dd i.sel{background:var(--accent);color:#fff}
+  .dd i.usr{color:var(--pill-text)}
+  .dd hr{border:none;border-top:1px solid var(--border);margin:4px 2px}
+  .dd .hd{font-size:9.5px;color:var(--faint);padding:2px 8px;text-transform:uppercase;
+    letter-spacing:.05em}
+
+  /* --- Codex: hero-card grid --- */
+  .cx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px}
+  .cx-grid.one{grid-template-columns:1fr}
+  .hero{background:var(--panel-2);border:1px solid var(--border-2);border-radius:8px;
+    padding:9px;display:flex;gap:9px;cursor:pointer}
+  .hero.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .hero .por{width:44px;height:56px;border-radius:5px;flex:none;
+    background:linear-gradient(150deg,#3a3a48,#2a2a33);border:1px solid var(--border-2);
+    display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--faint)}
+  .hero .hb{min-width:0;display:flex;flex-direction:column;gap:3px}
+  .hero .hn{font-size:12.5px;font-weight:600;color:var(--text);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hero .hf{font-size:10.5px;color:var(--muted)}
+  .hero .hp{display:flex;flex-wrap:wrap;gap:3px;margin-top:1px}
+  .hero .hp i{font-style:normal;font-size:9.5px;padding:1px 6px;border-radius:10px;
+    background:var(--pill);color:var(--pill-text)}
+  .hero .hx{font-size:9.5px;color:var(--faint)}
+  /* table card style */
+  .cx-tab{width:100%;border-collapse:collapse;font-size:11px}
+  .cx-tab th{font-size:9.5px;color:var(--faint);text-align:left;font-weight:600;
+    padding:5px 10px;border-bottom:1px solid var(--border)}
+  .cx-tab td{padding:4px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+
+  /* --- Codex: editor pane --- */
+  .ed{border-top:2px solid var(--border-2);background:var(--header)}
+  .ed-head{display:flex;align-items:center;gap:8px;padding:6px 11px;
+    border-bottom:1px solid var(--border);font-size:11.5px}
+  .ed-head b{color:var(--text)}
+  .ed-head .sp{flex:1}
+  .ed-head .st{font-size:10px;color:var(--faint)}
+  .ed-tools{display:flex;gap:4px}
+  .ed-tools span{font-size:11px;color:var(--muted);border:1px solid var(--border-2);
+    border-radius:4px;padding:1px 6px;cursor:pointer;line-height:1.4}
+  .ed-grid{display:grid;grid-template-columns:96px 1fr 96px 1fr;gap:6px 10px;padding:10px 11px}
+  .ed-grid.narrow{grid-template-columns:88px 1fr}
+  .ed-grid label{font-size:10.5px;color:var(--faint);align-self:center}
+  .ed-f{background:var(--panel-2);border:1px solid var(--border-2);border-radius:4px;
+    padding:2px 7px;font-size:11px;color:var(--text);min-height:20px;display:flex;
+    align-items:center;gap:4px;flex-wrap:wrap}
+  .ed-f.sel-f::after{content:"▾";margin-left:auto;color:var(--faint);font-size:9px}
+  .ed-f .chipx{font-size:9.5px;padding:1px 5px;border-radius:10px;background:var(--pill);
+    color:var(--pill-text);display:flex;gap:4px;align-items:center}
+  .ed-f .chipx s{text-decoration:none;color:var(--faint);cursor:pointer}
+  .ed-f .addx{font-size:9.5px;color:var(--faint);border:1px dashed var(--border-2);
+    border-radius:10px;padding:1px 5px;cursor:pointer}
+  .ed-f.ro{background:transparent;border-style:dashed;color:var(--muted)}
+  .ed-foot{padding:5px 11px 9px;font-size:10px;color:var(--faint)}
+  .span2{grid-column:span 3}
+  .span1{grid-column:span 1}
+  /* side-by-side variant */
+  .cx-split{display:flex;min-height:0}
+  .cx-split .left{width:236px;flex:none;border-right:1px solid var(--border);
+    display:flex;flex-direction:column;gap:9px;padding:11px}
+  .cx-split .right{flex:1;background:var(--header);min-width:0}
+  .cx-split .ed{border-top:none}
+
+  /* --- Workbench body --- */
+  .wb-sec{padding:8px 10px;border-bottom:1px solid var(--border)}
+  .wb-sec h4{margin:0 0 5px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--faint);font-weight:600;display:flex;align-items:center;gap:5px}
+  .wb-sec h4 .cnt{color:var(--faint);font-weight:400}
+  .wb-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11.5px}
+  .wb-row .nm{color:var(--link);cursor:pointer;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis}
+  .wb-row .mt{color:var(--faint);font-size:10px;margin-left:auto;white-space:nowrap}
+  .wb-hero{display:flex;gap:8px;padding:9px 10px;border-bottom:1px solid var(--border);
+    background:var(--panel-2)}
+  .wb-hero .por{width:38px;height:48px;border-radius:5px;flex:none;
+    background:linear-gradient(150deg,#3a3a48,#2a2a33);border:1px solid var(--border-2);
+    display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--faint)}
+  .wb-hero .hn{font-size:12.5px;font-weight:600}
+  .wb-hero .hf{font-size:10.5px;color:var(--muted)}
+  .crumb{font-size:10px;color:var(--faint);padding:5px 10px;border-bottom:1px solid var(--border)}
+  .crumb b{color:var(--muted)}
+
+  /* --- settings mockup --- */
+  .set{width:560px}
+  .set-sec{padding:11px 13px;border-bottom:1px solid var(--border)}
+  .set-sec h4{margin:0 0 2px;font-size:12px;color:var(--text);font-weight:600}
+  .set-sec .d{font-size:10.5px;color:var(--faint);margin-bottom:8px}
+  .set-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11.5px;
+    border-top:1px solid var(--border)}
+  .set-row .cb{width:13px;height:13px;border-radius:3px;border:1px solid var(--border-2);
+    flex:none;display:flex;align-items:center;justify-content:center;font-size:9px}
+  .set-row .cb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .set-row .nm{color:var(--text)}
+  .set-row .tagx{font-size:9.5px;padding:1px 6px;border-radius:10px;background:var(--pill);
+    color:var(--pill-text)}
+  .set-row .tagx.b{background:transparent;border:1px solid var(--border-2);color:var(--faint)}
+  .set-row .sp{flex:1}
+  .set-row .act{font-size:10px;color:var(--faint);cursor:pointer}
+  .set-row .act.rm{color:var(--st-draft)}
+  .set-add{font-size:10.5px;color:var(--accent);cursor:pointer;padding-top:7px;display:inline-block}
+
+  /* --- property missing marker (v5) --- */
+  .miss{background:rgba(214,92,92,.15);border:1px solid rgba(214,92,92,.42);
+    border-radius:4px;padding:1px 6px;display:flex;gap:6px;align-items:center;
+    font-size:10px;color:#e79a9a;cursor:help}
+  .miss b{color:#f2bcbc;font-weight:600}
+  .miss i{font-style:normal;margin-left:auto;opacity:.9;letter-spacing:.02em}
+  .hero .hm{display:flex;flex-direction:column;gap:3px;margin-top:2px}
+  .revtag{font-size:9px;color:var(--st-draft);border:1px solid var(--st-draft);
+    border-radius:10px;padding:0 6px;margin-left:6px;vertical-align:middle;
+    text-transform:uppercase;letter-spacing:.05em}
+
+  /* --- callouts inside figures --- */
+  .q{border:1px solid var(--border-2);border-left:3px solid var(--st-draft);
+    background:rgba(224,163,74,.06);border-radius:5px;padding:6px 10px;margin-top:7px;
+    font-size:10.5px;color:var(--st-draft);max-width:60ch}
+  .q b{color:var(--text)}
+  .ok{border-left-color:var(--st-written);background:rgba(106,196,122,.06);color:var(--st-written)}
+
+  /* --- editor sections driven by the FileClass chain (S102/S103) --- */
+  .ed-sec{grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:9px 0 1px}
+  .ed-sec:first-child{margin-top:0}
+  .ed-sec b{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    font-weight:600}
+  .ed-sec code{font-size:9.5px;color:var(--faint);background:var(--panel-2);
+    padding:1px 5px;border-radius:4px}
+  .ed-sec .ln{flex:1;height:1px;background:var(--border)}
+  .ed-sec.usr b{color:var(--pill-text)}
+  .ed-sec.other b{color:var(--faint)}
+
+  /* --- portrait / image control + width rule (v4) --- */
+  .ed-por{grid-column:1/-1;display:flex;gap:10px;align-items:flex-start;
+    background:var(--panel-2);border:1px solid var(--border-2);border-radius:6px;padding:8px}
+  .ed-por .pv{width:52px;height:66px;border-radius:5px;flex:none;
+    background:linear-gradient(150deg,#3a3a48,#2a2a33);border:1px solid var(--border-2);
+    display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--faint)}
+  .ed-por .pc{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+  .ed-por .pp{font-size:10.5px;color:var(--muted);background:var(--panel);
+    border:1px solid var(--border-2);border-radius:4px;padding:3px 7px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ed-por .pb{display:flex;gap:5px}
+  .ed-por .pb span{font-size:10px;color:var(--muted);border:1px solid var(--border-2);
+    border-radius:4px;padding:2px 8px;cursor:pointer}
+  .ed-por .pb span.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .whint{font-size:9px;color:var(--faint);margin-left:5px;font-weight:400;
+    text-transform:none;letter-spacing:0}
+
+  /* ════════════════════════════════════════════════════════════════════════
+   * ADDENDUM STYLES (L1–L9). Everything above this line is copied verbatim
+   * from docs/mockups/anvil-workbench-codex.html (S91–S104), so L-figures
+   * look like S93/S95/S101. That file is dark-only; this page adds a LIGHT
+   * palette as the default and keeps the original dark values behind
+   * [data-theme="dark"] (page toggle) and .th-dark (a per-figure variant).
+   * New mockup classes use the lb- prefix (Library), scaffolding the mk- prefix.
+   * ════════════════════════════════════════════════════════════════════════ */
+  :root{
+    --bg:#ececec; --panel:#ffffff; --panel-2:#f5f5f6; --header:#fafafa;
+    --border:#e0e0e0; --border-2:#cfcfd4; --hover:#f0f0f2;
+    --text:#222222; --muted:#5c5c5c; --faint:#7d7d7d;
+    --accent:#8a5cf5; --link:#6b45d6;
+    --pill:#efeaff; --pill-text:#5f43b8;
+    --st-draft:#a85f00; --st-outline:#3a69b0; --st-written:#1d8a44;
+    --pl-none:#8a8a8a;
+    --por-a:#e6e3f2; --por-b:#d9d6e8; --shadow:0 3px 12px rgba(0,0,0,.10);
+    --miss-bg:rgba(200,40,40,.08); --miss-bd:rgba(200,40,40,.40); --miss-tx:#b02a2a; --miss-b:#8a1d1d;
+    --mk-proposal:#a85f00; --mk-decision:#c0263a;
+    color-scheme:light;
+  }
+  [data-theme="dark"], .th-dark{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --link:#8b8bf0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    --st-draft:#e0a34a; --st-outline:#5b8bd0; --st-written:#6ac47a;
+    --pl-none:#6b6b6b;
+    --por-a:#3a3a48; --por-b:#2a2a33; --shadow:0 4px 14px rgba(0,0,0,.35);
+    --miss-bg:rgba(214,92,92,.15); --miss-bd:rgba(214,92,92,.42); --miss-tx:#e79a9a; --miss-b:#f2bcbc;
+    --mk-proposal:#e0a34a; --mk-decision:#fb464c;
+    color-scheme:dark;
+  }
+  .th-dark{background:var(--bg);color:var(--text);padding:14px;border-radius:8px}
+  /* re-point the copied hard-coded colours at tokens so both themes work */
+  .view{box-shadow:var(--shadow)}
+  .hero .por,.wb-hero .por{background:linear-gradient(150deg,var(--por-a),var(--por-b))}
+  .dd{box-shadow:var(--shadow)}
+  .miss{background:var(--miss-bg);border-color:var(--miss-bd);color:var(--miss-tx)}
+  .miss b{color:var(--miss-b)}
+
+  /* ---- page scaffolding (from the 009 house format) ---- */
+  .mk-toggle{position:fixed;top:14px;right:18px;display:flex;border:1px solid var(--border-2);
+    border-radius:6px;overflow:hidden;background:var(--panel);z-index:20}
+  .mk-toggle button{border:0;background:transparent;color:var(--muted);padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}
+  .mk-toggle button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  .mk-open{border:1px solid var(--mk-proposal);border-left:4px solid var(--mk-proposal);background:var(--panel);
+    border-radius:6px;padding:12px 16px;margin:0 0 22px;max-width:110ch}
+  .mk-open h3{margin:0 0 6px;font-size:13px;color:var(--mk-proposal);text-transform:uppercase;letter-spacing:.04em}
+  .mk-open ol{margin:0 0 6px;padding-left:22px}
+  .mk-open li{margin:0 0 8px;color:var(--muted);font-size:12.5px}
+  .mk-open li b{color:var(--text)}
+  .mk-open li .rec{display:block;color:var(--text);margin-top:2px}
+  .mk-tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:0 6px;border-radius:9px;vertical-align:middle;margin-left:4px}
+  .mk-tag.prop{color:var(--mk-proposal);border:1px solid var(--mk-proposal)}
+  .mk-tag.dec{color:var(--mk-decision);border:1px solid var(--mk-decision)}
+  .mk-tag.sdd{color:var(--st-written);border:1px solid var(--st-written)}
+  .mk-tag.new{color:var(--accent);border:1px solid var(--accent)}
+  .mk-wrap{overflow-x:auto;max-width:100%}
+  table.inv td code,table.inv td{font-size:12px}
+  .gallery{margin-bottom:6px}
+
+  /* ---- Library rows: settings shell is S101's .view.set; widened for the toggles ---- */
+  .set.lb-wide{width:700px}
+  .set.lb-narrow{width:400px}
+  .lb-ident{padding:10px 13px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}
+  .lb-ident b{color:var(--text);font-size:12.5px}
+  .lb-ident a{color:var(--link);text-decoration:none}
+  .lb-ident .tl{color:var(--faint);margin-top:2px}
+  .set-row{flex-wrap:wrap}
+  .set-row.lb-off .nm{color:var(--faint)}
+  .set-row .act{border:1px solid transparent;border-radius:4px;padding:1px 4px}
+  .set-row .act.open{color:var(--text);border-color:var(--border-2);background:var(--panel-2)}
+  .set-row .act.foc{outline:2px solid var(--accent);outline-offset:1px}
+  .lb-eng{font-size:9.5px;padding:0 6px;border-radius:4px;border:1px solid var(--border-2);color:var(--muted);
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .lb-stat{font-size:9.5px;font-weight:600;padding:0 6px;border-radius:9px}
+  .lb-stat.warn{color:var(--st-draft);border:1px solid var(--st-draft)}
+  .lb-surf{display:flex;gap:10px;align-items:center}
+  .lb-sw{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .lb-sw i{width:22px;height:12px;border-radius:7px;background:var(--border-2);position:relative;flex:none}
+  .lb-sw i::after{content:"";position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--panel)}
+  .lb-sw.on{color:var(--text)}
+  .lb-sw.on i{background:var(--accent)}
+  .lb-sw.on i::after{left:12px;background:#fff}
+  .lb-sw.inert{opacity:.45;cursor:default}
+  .lb-hint{flex-basis:100%;font-size:10px;color:var(--st-draft);padding-left:21px}
+  .lb-hint.f{color:var(--faint)}
+  .lb-break{flex-basis:100%;height:0}
+  .lb-indent{padding-left:21px}
+  .lb-used{font-size:10px;color:var(--faint)}
+  .lb-mig{font-size:10.5px;color:var(--muted);background:var(--panel-2);border:1px solid var(--border-2);
+    border-left:3px solid var(--accent);border-radius:5px;padding:6px 9px;margin:0 0 8px;display:flex;gap:8px;align-items:flex-start}
+  .lb-mig b{color:var(--text)}
+  .lb-mig .x{margin-left:auto;color:var(--faint);cursor:pointer}
+
+  /* configure / preview / confirm panels open under their row */
+  .lb-panel{margin:0 0 6px 21px;padding:9px 11px;background:var(--panel-2);border:1px solid var(--border-2);
+    border-radius:6px;display:grid;grid-template-columns:118px 1fr;gap:7px 10px;font-size:11px}
+  .lb-panel label{color:var(--faint);font-size:10.5px;align-self:center}
+  .lb-panel .full{grid-column:1/-1}
+  .lb-f{background:var(--panel);border:1px solid var(--border-2);border-radius:4px;padding:2px 7px;min-height:21px;
+    display:flex;align-items:center;gap:6px;color:var(--text);flex-wrap:wrap}
+  .lb-f.ro{background:transparent;border-style:dashed;color:var(--muted)}
+  .lb-f code{font-size:10.5px}
+  .lb-f .chipx{font-size:9.5px;padding:1px 6px;border-radius:10px;background:var(--pill);color:var(--pill-text)}
+  .lb-cb{display:inline-flex;gap:5px;align-items:center;color:var(--text)}
+  .lb-cb .cb{width:12px;height:12px;border-radius:3px;border:1px solid var(--border-2);display:inline-flex;
+    align-items:center;justify-content:center;font-size:8px}
+  .lb-cb .cb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .lb-btn{font-size:10.5px;border:1px solid var(--border-2);border-radius:4px;padding:1px 8px;color:var(--text);
+    background:var(--panel);cursor:pointer;white-space:nowrap}
+  .lb-btn.cta{background:var(--accent);border-color:var(--accent);color:#fff}
+  .lb-btn.warn{border-color:var(--st-draft);color:var(--st-draft)}
+  .lb-btn.foc{outline:2px solid var(--accent);outline-offset:1px}
+  .lb-desc{color:var(--faint);font-size:10px}
+  .lb-desc b{color:var(--muted)}
+  .lb-count{color:var(--st-written);font-size:10px}
+  .lb-confirm{margin:0 0 6px 21px;padding:8px 11px;border:1px solid var(--st-draft);border-left:3px solid var(--st-draft);
+    background:var(--panel-2);border-radius:6px;font-size:11px;color:var(--text);display:flex;flex-direction:column;gap:6px}
+  .lb-confirm .bt{display:flex;gap:6px}
+  .lb-prev{margin:0 0 6px 21px;border:1px solid var(--border-2);border-radius:6px;background:var(--panel-2);overflow:hidden}
+  .lb-prev-head{display:flex;align-items:center;gap:8px;padding:5px 9px;border-bottom:1px solid var(--border);font-size:10.5px;color:var(--muted)}
+  .lb-prev-head b{color:var(--text)}
+  .lb-prev-head .sp{flex:1}
+  .lb-prev-body{padding:10px;display:flex;justify-content:flex-start}
+  .lb-prev-body .hero{width:240px;background:var(--panel)}
+  .lb-prev-foot{padding:0 10px 8px;font-size:10px;color:var(--faint)}
+  .lb-src{font-size:10.5px;color:var(--faint)}
+  .lb-embed{position:relative}
+  .lb-embed-tag{position:absolute;right:12px;bottom:4px;font-size:9.5px;color:var(--faint)}
+  .lb-dvout{padding:12px}
+  .lb-dvout table{width:100%;border-collapse:collapse;font-size:11.5px}
+  .lb-dvout th{font-size:10px;color:var(--faint);text-align:left;font-weight:600;padding:4px 8px;border-bottom:1px solid var(--border)}
+  .lb-dvout td{padding:4px 8px;border-bottom:1px solid var(--border)}
+  .lb-dvout td a{color:var(--link);text-decoration:none}
+  .lb-notice{display:inline-block;background:var(--panel);border:1px solid var(--border-2);box-shadow:var(--shadow);
+    border-radius:6px;padding:7px 12px;font-size:11.5px;color:var(--text);max-width:340px}
+  .lb-flow{font-size:11px;color:var(--muted);max-width:64ch;margin-top:6px}
+  .lb-flow code{background:var(--panel-2);padding:0 4px;border-radius:3px}
+  table.lb-rel{border-collapse:collapse;font-size:11.5px;margin-top:8px}
+  table.lb-rel th,table.lb-rel td{border:1px solid var(--border);padding:3px 8px;text-align:left;vertical-align:top}
+  table.lb-rel th{color:var(--faint);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="mk-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-btn="light" aria-pressed="true">Light</button>
+  <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+</div>
+
+<h1>Story Forge — The Library (spec 008, Phase 7) <span style="color:var(--faint);font-weight:400;font-size:14px">· addendum L1–L9 to S91–S104 · draft for sign-off</span></h1>
+
+<p class="sub"><b>Why this page exists.</b> <code>docs/mockups/anvil-workbench-codex.html</code> (S91–S104) is
+signed off and stays untouched. Its <b>S101</b> draws the Library but has <b>no per-row
+Anvil / Workbench toggles</b>, which the PRD now requires (<code>requirements.md</code> F7, last AC, and the
+resolution at ~l.519). Per the repo rule, a gap found before coding is raised as a mockup, not patched in code.
+This addendum is built <b>from S101 as signed off</b>: the settings tab strip <i>Library · Scope · Behaviour</i>,
+<i>configure</i> on collections, <i>preview</i> on cards, <i>+ Browse repo… + Import from vault…</i> under each
+list, built-in = disable only, from repo / imported = disable and remove. Everything below is <b>additive</b>
+to S101.</p>
+
+<div class="banner">
+<b>Decisions already taken by the user (2026-11-11)</b> — drawn as given, tagged <span class="mk-tag dec">D1</span>–<span class="mk-tag dec">D4</span>:
+<br><b>D1</b> — an imported or from-repo <code>.base</code> Collection shows in the Anvil Codex by <b>embedding the
+<code>.base</code> through Bases</b>, drawn with the Card chosen for that collection (our registered Card Bases view),
+with the same pill row and Card dropdown as S93. <b>(L6)</b>
+<br><b>D2</b> — today's Dataview / DataviewJS <b>Views</b> become <b>Collections</b>, listed as <i>imported</i>,
+migrated with <b>Workbench on, Anvil off</b>, so today's Workbench tabs stay (S96). The word "view" leaves the UI.
+<b>(L1, L2, L3c, L7)</b>
+<br><b>D3</b> — for the four built-in collections, the <b>Workbench</b> toggle controls whether that collection's
+<b>section</b> shows in the Workbench Codex tab (S95, follows the note). <b>(L7)</b>
+<br><b>D4</b> — Card <b>preview</b> (named in S101) is built in Phase 7 and gets its own state. <b>(L5)</b>
+</div>
+
+<div class="banner" style="border-left-color:var(--st-written)">
+<b>How to read this file.</b> Light theme is the default; the <b>Dark / Light</b> toggle (top right) switches every
+figure, and <b>L2b</b> is always dark. The figures reuse S91–S104's CSS verbatim (<code>.view</code>,
+<code>.set</code>, <code>.set-row</code>, <code>.cx-cats</code>, <code>.hero</code>, <code>.wb-sec</code>…); new
+pieces use the <code>lb-</code> prefix. Tags: <span class="mk-tag dec">D#</span> = user decision of 2026-11-11;
+<span class="mk-tag sdd">PRD/SDD</span> = fixed by the spec; <span class="mk-tag prop">P#</span> = <b>not specified,
+proposed here</b> — accept the recommended default or change it. Nothing tagged <span class="mk-tag prop">P#</span>
+is decided until you sign it off. <b>Seed data</b> is S91's (<i>Wardens of Moonharbor</i>), plus the S93
+organizations and the S96 skills.
+</div>
+
+<div class="mk-open">
+<h3>Proposals — your answer needed (recommended default in each)</h3>
+<ol>
+  <li id="P1"><b>P1 — The enable checkbox and the two surface toggles (L2, L9).</b> Options: (a) keep all three — the
+    checkbox is the master switch, the toggles say <i>where</i>; (b) drop the checkbox and treat "both toggles off" as
+    disabled.
+    <span class="rec"><b>Recommended: (a).</b> The checkbox is what the PRD's "disable" ACs and the DataviewJS consent
+    gate attach to (<code>enabled</code> in the record). While it is off, the toggles keep their values but are
+    <b>inert</b> (dimmed, <code>aria-disabled</code>), so re-enabling restores where it showed. Toggling both off
+    does <b>not</b> uncheck; the row then says "Shown nowhere" (L9a). (b) would make re-enabling forget the surfaces
+    and would make the consent prompt fire from a surface toggle.</span></li>
+  <li id="P2"><b>P2 — Surface defaults for a new collection (import or from repo).</b>
+    <span class="rec"><b>Recommended: by engine.</b> <b>Bases</b> (<code>.base</code> import, every from-repo
+    collection) → <b>Anvil on, Workbench off</b> — a <code>.base</code> is a grid over many notes, which is the
+    Anvil's job. <b>Dataview / DataviewJS</b> → <b>Workbench on, Anvil off</b>, the same as the migration (D2), since
+    these queries are usually written against the current note. Defaults apply without asking; the new row shows them
+    and either toggle is one click away.</span></li>
+  <li id="P3"><b>P3 — Where Card preview opens and what it samples (L5).</b>
+    <span class="rec"><b>Recommended:</b> <b>inline, under the Card's row</b> (like <i>configure</i>), one preview open
+    at a time, no modal. Sample = the <b>first entry of the first enabled collection that uses this Card</b>; if none
+    uses it, the first entry of the first enabled collection. A <i>Sample from</i> dropdown switches collection, so a
+    mismatch (S104) can be checked before choosing the Card. The preview is <b>read-only and inert</b>: no navigation,
+    no editor. It closes with <i>Close preview</i>, by pressing <i>preview</i> again, or <kbd>Esc</kbd> while focus is
+    inside; focus returns to the <i>preview</i> button. With nothing to sample it says so (L5b) and draws no fake
+    entry.</span></li>
+  <li id="P4"><b>P4 — How the toggles are labelled.</b> Options: text-labelled switches; pressed-state chips; icons
+    (⚒ / 🛠) with tooltips.
+    <span class="rec"><b>Recommended: text-labelled switches, "Anvil" and "Workbench".</b> The two words are the
+    surface names the user already sees on the views; icons need a tooltip, which does not exist on mobile. Each switch
+    is <code>role="switch"</code> with <code>aria-label</code> "Show Characters in the Anvil" /
+    "… in the Workbench".</span></li>
+  <li id="P5"><b>P5 — What the Anvil selects after the shown collection is removed (L8).</b>
+    <span class="rec"><b>Recommended: no new rule</b> — the existing <code>CodexSelectionStore.resolve</code> rule
+    (PRD F3: "the first enabled collection is selected"), i.e. the <b>first collection shown in the Anvil</b>
+    (<i>Characters</i>). Its remembered Card entry (<code>cardByCollection</code>) is deleted with it. A Workbench
+    showing the removed collection's tab falls back to the <i>Codex</i> tab. The same applies when the collection is
+    disabled or its Anvil toggle is turned off.</span></li>
+  <li id="P6"><b>P6 — What a built-in collection's "section" in the Workbench Codex tab contains (L7).</b> S95 draws
+    one <i>Relations</i> section; D3 needs one section per collection.
+    <span class="rec"><b>Recommended:</b> each section lists the <b>entries of that collection linked from the followed
+    note</b>, with the relation name on the right, in Library order. This <b>replaces</b> S95's single
+    <i>Relations</i> section (a recorded deviation from S95, not a silent one). <i>Appears in</i> stays as it is,
+    because scenes are not a Library collection. A section with no linked entries is omitted.</span></li>
+  <li id="P7"><b>P7 — An imported collection in the Workbench.</b>
+    <span class="rec"><b>Recommended:</b> an imported or from-repo collection with Workbench on becomes its
+    <b>own Workbench tab</b> (S96's "a Workbench tab is a Collection shown in the Workbench"); only the four built-ins
+    become sections in the Codex tab (D3). Tab order = Library order, after <i>Codex</i> and <i>Navigator</i>.</span></li>
+  <li id="P8"><b>P8 — A Dataview collection with the Anvil toggle on (L6b).</b> D1 covers <code>.base</code> only.
+    <span class="rec"><b>Recommended:</b> allowed. The Codex body shows Dataview's own output in place of the card grid,
+    and the Card dropdown is replaced by the text "Drawn by Dataview" (Cards draw Bases rows; a Dataview result is not
+    one). Known limit, stated in the docs, not detected: a query that reads the current note shows little in the Anvil,
+    which is why P2 defaults it off.</span></li>
+  <li id="P9"><b>P9 — Which part of a user's <code>.base</code> the Anvil uses (L6).</b> A user's file may hold several
+    views of its own.
+    <span class="rec"><b>Recommended:</b> the file's global <code>filters</code>, <code>formulas</code> and
+    <code>properties</code>, plus the <b>first view's</b> filters and sort; that view's type is replaced by our Card
+    view. Its other views are ignored, never written. The file is read, never patched (ADR-34).</span></li>
+  <li id="P10"><b>P10 — <i>configure</i> for a built-in (L3a).</b>
+    <span class="rec"><b>Recommended:</b> a <b>Tag</b> field and <b>Excluded folders</b> with a "Same as Scope"
+    checkbox (on by default; off reveals a per-collection list), and a live line "3 notes match". The label is not
+    editable for a built-in. The S98 empty state's <i>Change tag</i> opens Library with this panel expanded and focus
+    in the tag field.</span></li>
+  <li id="P11"><b>P11 — Row badges.</b>
+    <span class="rec"><b>Recommended:</b> provenance as S101 (<i>built-in</i>, <i>from repo</i>, <i>imported</i>),
+    replacing today's "Official"/"Imported" chips. An <b>engine badge</b> only on non-built-ins, using product names
+    <i>Bases</i>, <i>Dataview</i>, <i>DataviewJS</i> (today: "bases", "dql", "dataviewjs"). A <b>status pill only when
+    something blocks</b> the entry — "Consent required", "Dataview not installed", "Not available on mobile". Today's
+    "Active" and "Disabled" pills go, because the checkbox already says that.</span></li>
+  <li id="P12"><b>P12 — Today's ⋯ row menu.</b>
+    <span class="rec"><b>Recommended: retired.</b> Its items move into <i>configure</i> (L3c): <i>View source</i> →
+    <b>Open file</b>; <i>Edit (rename &amp; command)</i> → <b>Name</b> and <b>Command</b> fields; <i>Re-review
+    consent</i> → <b>Review consent…</b>; <i>Remove</i> → the row's <b>remove</b>. One place per action.</span></li>
+  <li id="P13"><b>P13 — Telling the user their views moved (L2).</b>
+    <span class="rec"><b>Recommended:</b> one dismissible line at the top of <i>Collections</i>, shown only when the
+    migration moved at least one entry, dismissed for good via <code>dismissedHints</code>. No notice, no
+    modal.</span></li>
+  <li id="P14"><b>P14 — Where the two settings with no obvious tab go (L1).</b>
+    <span class="rec"><b>Recommended:</b> <i>Curated bases folder</i> moves to the <b>Library</b>, under the lists,
+    renamed "Folder for collections from the repo" (it only says where <i>Browse repo…</i> installs files). The
+    capability disclosure (T7.4, PRD F8: "stays reachable from settings") gets a link "What optional plugins add…" at
+    the foot of the Library; its screen is T7.4's own mockup, not drawn here.</span></li>
+  <li id="P15"><b>P15 — S93's <code>+ Collection</code> pill, now that toggles exist.</b>
+    <span class="rec"><b>Recommended:</b> it opens a menu of <b>enabled collections whose Anvil toggle is off</b>;
+    picking one turns that toggle on and selects the pill. The last item is "Manage in settings…". This is a deliberate
+    menu choice, and it changes plugin settings, never a note.</span></li>
+  <li id="P16"><b>P16 — The inline remove confirmation (L8).</b>
+    <span class="rec"><b>Recommended:</b> pressing <i>remove</i> opens a confirmation panel under the row (no modal,
+    no <code>confirm()</code>). <b>Focus lands on Cancel</b>; <kbd>Esc</kbd> cancels. The text names what leaves which
+    surface and says the vault file stays. After removal a notice repeats that, and focus moves to the next row's
+    checkbox (or to <i>+ Browse repo…</i> if it was the last row). Removing a <b>Card</b> in use names the collections
+    that fall back to <i>Hero</i> (the registry already degrades to it).</span></li>
+  <li id="P17"><b>P17 — Narrow width (L2c).</b>
+    <span class="rec"><b>Recommended:</b> below about 520px each row wraps onto two lines. Line 1: checkbox, name,
+    badges. Line 2, indented under the name: the two switches, then <i>configure</i> and <i>remove</i>. Nothing is
+    hidden behind a menu.</span></li>
+  <li id="P18"><b>P18 — The import refusal and the catalog browser are not redrawn here.</b> PRD F7 ACs 7 and 9
+    (refused with a reason; a curated Dataview view installs) run through <i>Import from vault…</i> and <i>Browse
+    repo…</i>.
+    <span class="rec"><b>Recommended:</b> keep today's import modal and its refusal text, with "view" replaced by
+    "collection". If the catalog browser needs more than a list of rows with an <i>Install</i> button, draw it as a
+    follow-up state (L10) before T7.2 codes it.</span></li>
+  <li id="P19"><b>P19 — Hero, the fallback Card (L4).</b> Disabling or removing a Card sends its collections to
+    <i>Hero</i>, so Hero itself must always exist.
+    <span class="rec"><b>Recommended:</b> Hero's checkbox is shown checked and inert, with the accessible description
+    "Hero is the fallback Card and is always available". Table and Compact can be disabled like any built-in. This
+    narrows PRD F7 AC 2 ("a built-in can be disabled") for one entry, so it needs your yes.</span></li>
+</ol>
+</div>
+
+<h2>State inventory (L1–L9)</h2>
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>L</th><th>State</th><th>Surface</th><th>Shows</th><th>Proposals</th></tr>
+<tr><td><b>L1</b></td><td>Settings tab strip — Scope and Behaviour</td><td>Settings</td><td>every existing setting and its new tab, so nothing is lost</td><td>P14</td></tr>
+<tr><td><b>L2</b></td><td>Library › Collections with surface toggles</td><td>Settings</td><td>4 built-ins, <i>Creatures</i> (from repo), <i>Organizations</i> (imported <code>.base</code>), migrated <i>Skills</i> (Dataview) and <i>Relationship web</i> (DataviewJS, consent required); <b>L2b</b> dark; <b>L2c</b> 400px</td><td>P1 P2 P4 P11 P13 P17</td></tr>
+<tr><td><b>L3</b></td><td><i>configure</i> expanded</td><td>Settings</td><td>(a) built-in: tag and excluded folders; (b) imported <code>.base</code>: path, open file, no tag; (c) migrated Dataview: name, command, source, consent</td><td>P10 P12</td></tr>
+<tr><td><b>L4</b></td><td>Library › Cards</td><td>Settings</td><td>no surface toggles; <i>preview</i>; "used by"</td><td>P11</td></tr>
+<tr><td><b>L5</b></td><td>Card preview open</td><td>Settings</td><td>(a) inline preview of <i>Hero</i> on Mara Stoneway; (b) nothing to sample</td><td>P3</td></tr>
+<tr><td><b>L6</b></td><td>Anvil — <i>Organizations</i> (imported <code>.base</code>) selected</td><td>Anvil</td><td>embedded through Bases, drawn as Hero cards (S93 analogue); <b>L6b</b> a Dataview collection in the Anvil</td><td>P8 P9 P15</td></tr>
+<tr><td><b>L7</b></td><td>Workbench — Codex tab following Mara Stoneway</td><td>Workbench</td><td>Characters and Locations sections, Objects off (absent); <b>L7b</b> the migrated <i>Skills</i> tab</td><td>P6 P7</td></tr>
+<tr><td><b>L8</b></td><td>Remove</td><td>Settings → Anvil</td><td>(a) inline confirmation; (b) the Anvil after removing the shown collection; (c) removing a Card in use</td><td>P5 P16</td></tr>
+<tr><td><b>L9</b></td><td>Edge states</td><td>Settings</td><td>(a) enabled, both toggles off; (b) disabled; (c) engine missing — and how checkbox and toggles relate</td><td>P1</td></tr>
+</table>
+</div>
+
+<!-- ═════════════════════════════════ L1 ═════════════════════════════════ -->
+<h2>L1 — Settings tab strip <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· Scope and Behaviour; Library is L2</span></h2>
+<div class="gallery">
+
+<figure>
+<figcaption><b>L1a · Scope.</b> Which notes feed every collection. The plugin header stays above the tab strip on
+every tab (it is left out of L2–L9 to save space).</figcaption>
+<div class="view set">
+  <div class="lb-ident"><b>Story Forge</b> v0.2.0 · Marcus Breiden · <a>Documentation</a>
+    <div class="tl">Curated one-line tagline — replace per plugin</div></div>
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs" role="tablist"><span role="tab" aria-selected="false">Library</span><span class="sel" role="tab" aria-selected="true">Scope</span><span role="tab" aria-selected="false">Behaviour</span></div>
+  </div>
+  <div class="set-sec">
+    <h4>FileClasses folder</h4>
+    <div class="d">Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses</div>
+    <div class="lb-f" style="max-width:260px">00 Meta/FileClasses</div>
+  </div>
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Excluded folders</h4>
+    <div class="d">Comma-separated vault folders left out of every collection and scope view. Default: 00 Meta.
+      A collection can use its own list instead (Library › configure).</div>
+    <div class="lb-f" style="max-width:260px">00 Meta</div>
+  </div>
+</div>
+<p class="note"><b>Unchanged texts</b> from today's <code>_renderScopeSection</code>; only the last sentence of
+<i>Excluded folders</i> is new, because L3a lets a collection override it <span class="mk-tag prop">P10</span>.
+<b>Out of scope, flagged:</b> the header tagline is still the blueprint placeholder (<code>HeaderSection.ts</code> <code>TAGLINE</code>). It is drawn as it is today. <b>There is no global tag:</b> a tag belongs to one collection, so it lives in that collection's <i>configure</i>
+(L3a).</p>
+</figure>
+
+<figure>
+<figcaption><b>L1b · Behaviour.</b> What clicks do, and the undo history (spec 009, U11). Texts are today's,
+word for word.</figcaption>
+<div class="view set">
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs" role="tablist"><span role="tab">Library</span><span role="tab">Scope</span><span class="sel" role="tab" aria-selected="true">Behaviour</span></div>
+  </div>
+  <div class="set-sec">
+    <h4>Link click action</h4>
+    <div class="d">What happens when you click a link to another entity. Modifier-click (ctrl/cmd) inverts this choice.</div>
+    <span class="drop">Inspect the linked note (show it in place) ▾</span>
+  </div>
+  <div class="set-sec">
+    <div style="display:flex;gap:10px;align-items:flex-start"><div style="flex:1">
+      <h4>Open note from card title</h4>
+      <div class="d" style="margin-bottom:0">Clicking a card's title opens the note in a new tab. When off, it shows the
+        note in the editor pane. Modifier-click (ctrl/cmd) inverts this choice.</div></div>
+      <span class="lb-sw on" role="switch" aria-checked="true"><i></i></span></div>
+  </div>
+  <div class="set-sec" style="padding-bottom:4px"><h4 style="text-transform:none">Undo history</h4></div>
+  <div class="set-sec">
+    <div style="display:flex;gap:10px;align-items:flex-start"><div style="flex:1">
+      <h4>Keep undo history across restarts</h4>
+      <div class="d" style="margin-bottom:0">Stores the undo history in the plugin folder so you can still undo after
+        restarting Obsidian. It holds copies of field values from your notes and stays on this device. Turning this off
+        deletes the stored history.</div></div>
+      <span class="lb-sw on" role="switch" aria-checked="true"><i></i></span></div>
+  </div>
+  <div class="set-sec" style="border-bottom:none">
+    <div style="display:flex;gap:10px;align-items:center"><div style="flex:1">
+      <h4>Clear undo history</h4>
+      <div class="d" style="margin-bottom:0">Empties undo and redo and deletes the stored history. Your notes are not changed.</div></div>
+      <span class="lb-btn">Clear</span></div>
+  </div>
+</div>
+<p class="note"><b>Undo history</b> keeps its heading inside the tab, as signed off in 009/U11. The editor dock is
+<b>not</b> here. It is the toggle in the editor pane's header and has no settings row (PRD F5, reworded
+2026-11-02).</p>
+</figure>
+
+<figure style="flex-basis:100%">
+<figcaption><b>L1c · Where every existing setting goes.</b> Read from <code>src/settings/SettingsTab.ts</code> and
+<code>PluginSettings</code> (<code>src/types/index.ts</code>) on 2026-11-11. Nothing is dropped.</figcaption>
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>Today (one long page)</th><th>Today's section</th><th>New tab</th><th>Note</th></tr>
+<tr><td>Plugin header — name, version, author, <i>Documentation</i>, tagline</td><td>top</td><td><b>above the strip</b> (every tab)</td><td><code>HeaderSection</code> unchanged</td></tr>
+<tr><td>Link click action</td><td>top</td><td><b>Behaviour</b></td><td>text unchanged</td></tr>
+<tr><td>Open note from card title</td><td>top</td><td><b>Behaviour</b></td><td>text unchanged</td></tr>
+<tr><td>Curated bases folder</td><td>top</td><td><b>Library</b>, under the lists</td><td>renamed "Folder for collections from the repo" <span class="mk-tag prop">P14</span></td></tr>
+<tr><td>FileClasses folder</td><td>Scope</td><td><b>Scope</b></td><td>unchanged</td></tr>
+<tr><td>Excluded folders</td><td>Scope</td><td><b>Scope</b></td><td>the default; per-collection override in L3a <span class="mk-tag prop">P10</span></td></tr>
+<tr><td><i>Views</i> heading + <i>Import from vault</i> button</td><td>Views</td><td><b>Library › Collections</b></td><td>becomes "+ Import from vault…" under the list (S101) <span class="mk-tag dec">D2</span></td></tr>
+<tr><td><i>Import from repo</i> (disabled, "coming in a future release")</td><td>Views</td><td><b>Library</b></td><td>becomes "+ Browse repo…", now live (T7.2)</td></tr>
+<tr><td>View row: name · Official/Imported chip · engine pill · command pill · status pill · version · enable toggle</td><td>Views</td><td><b>Library › Collections row</b></td><td>name, provenance, engine, blocking status, checkbox, surface toggles <span class="mk-tag prop">P11</span>; command and version move into <i>configure</i></td></tr>
+<tr><td>Row ⋯ menu: View source · Edit (rename &amp; command)… · Re-review consent… · Remove</td><td>Views</td><td><b>Library › configure</b> + row <i>remove</i></td><td><span class="mk-tag prop">P12</span></td></tr>
+<tr><td>Blocked reasons: "Dataview is not installed. Install Dataview to run this view." · DataviewJS disabled · not on mobile</td><td>Views</td><td><b>Library › Collections row</b></td><td>"view" → "collection" (L9c)</td></tr>
+<tr><td>Undo history: Keep undo history across restarts · Clear undo history</td><td>Undo history</td><td><b>Behaviour</b></td><td>unchanged (009 U11)</td></tr>
+<tr><td><code>editorDock</code></td><td>no row (pane header toggle)</td><td>—</td><td>unchanged</td></tr>
+<tr><td><code>cardByCollection</code></td><td>no row (Anvil Card dropdown)</td><td>—</td><td>unchanged; cleared for a removed collection <span class="mk-tag prop">P5</span></td></tr>
+<tr><td><code>dismissedHints</code></td><td>no row</td><td>—</td><td>also holds the migration line <span class="mk-tag prop">P13</span></td></tr>
+<tr><td><i>new:</i> per-collection tag</td><td>—</td><td><b>Library › configure</b></td><td>the Phase 7 item named in <code>_renderScopeSection</code>'s comment</td></tr>
+<tr><td><i>new:</i> capability disclosure (T7.4)</td><td>—</td><td><b>Library</b>, link at the foot</td><td><span class="mk-tag prop">P14</span>; screen drawn by T7.4</td></tr>
+</table>
+</div>
+<p class="note"><b>Tab strip behaviour.</b> <code>role="tablist"</code>, arrow keys move between tabs, Library is the
+default tab. A deep link (S98's <i>Change tag</i>) opens a given tab with a given panel expanded <span class="mk-tag prop">P10</span>.</p>
+</figure>
+
+</div>
+
+<!-- ═════════════════════════════════ L2 ═════════════════════════════════ -->
+<h2>L2 — Library › Collections <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· S101 plus the per-row surface toggles</span></h2>
+<div class="gallery">
+
+<figure>
+<figcaption><b>L2a · Collections, light.</b> The S101 list with two switches beside each row's checkbox. Both
+migrated views are here as <i>imported</i> collections <span class="mk-tag dec">D2</span>.</figcaption>
+<div class="view set lb-wide">
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs" role="tablist"><span class="sel" role="tab" aria-selected="true">Library</span><span role="tab">Scope</span><span role="tab">Behaviour</span></div>
+  </div>
+  <div class="set-sec">
+    <h4>Collections</h4>
+    <div class="d">What the Codex can show. Each is a query over your vault. Choose where each one appears.</div>
+    <div class="lb-mig" role="status"><span><b>Your views are now collections.</b> 2 views moved here as imported
+      collections and still show in the Workbench.</span><span class="x" role="button" aria-label="Dismiss">✕</span></div>
+    <div class="set-row"><span class="cb on" role="checkbox" aria-checked="true" aria-label="Enable Characters">✓</span><span class="nm">Characters</span>
+      <span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on" role="switch" aria-checked="true"><i></i>Anvil</span><span class="lb-sw on" role="switch" aria-checked="true"><i></i>Workbench</span></span>
+      <span class="act" role="button" aria-expanded="false">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Locations</span>
+      <span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span>
+      <span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Objects</span>
+      <span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span>
+      <span class="act">configure</span></div>
+    <div class="set-row lb-off"><span class="cb">&nbsp;</span><span class="nm">Lore</span>
+      <span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on inert" aria-disabled="true"><i></i>Anvil</span><span class="lb-sw inert" aria-disabled="true"><i></i>Workbench</span></span>
+      <span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Creatures</span>
+      <span class="tagx">from repo</span><span class="lb-eng">Bases</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span>
+      <span class="act">configure</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Organizations</span>
+      <span class="tagx">imported</span><span class="lb-eng">Bases</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span>
+      <span class="act">configure</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Skills</span>
+      <span class="tagx">imported</span><span class="lb-eng">Dataview</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span>
+      <span class="act">configure</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Relationship web</span>
+      <span class="tagx">imported</span><span class="lb-eng">DataviewJS</span><span class="lb-stat warn">▲ Consent required</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span>
+      <span class="act">configure</span><span class="act rm">remove</span></div>
+    <span class="set-add">+ Browse repo…&nbsp;&nbsp;+ Import from vault…</span>
+  </div>
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Folder for collections from the repo</h4>
+    <div class="d">Where <i>Browse repo…</i> places the .base files it installs. Default: 00 Meta/Bases</div>
+    <div class="lb-f" style="max-width:240px">00 Meta/Bases</div>
+    <div style="margin-top:9px"><span class="set-add" style="padding-top:0">What optional plugins add…</span></div>
+  </div>
+</div>
+<p class="note"><b>Row order</b> (left to right): checkbox · name · provenance · engine (non-built-in only) · blocking
+status (only if any) · <b>Anvil</b> · <b>Workbench</b> · configure · remove <span class="mk-tag prop">P4</span>
+<span class="mk-tag prop">P11</span>. <b>Lore</b> is unchecked as in S101, so its switches are dimmed but keep their
+values <span class="mk-tag prop">P1</span>. <b>Creatures</b> and <b>Organizations</b> show P2's Bases default
+(Anvil on, Workbench off). <b>Skills</b> and <b>Relationship web</b> show D2's migration default (Workbench on, Anvil
+off). <b>Relationship web</b> is DataviewJS whose source changed since consent. Its Workbench tab shows today's
+consent-required state until <i>Review consent…</i> (L3c) is accepted <span class="mk-tag sdd">PRD F7</span>.
+The Cards list follows on the same tab (L4).
+<br><b>Keyboard and screen reader.</b> Tab order per row: checkbox → Anvil → Workbench → configure → remove. Each
+control's accessible name carries the row name ("Show Organizations in the Anvil"). <i>configure</i> is a disclosure
+button (<code>aria-expanded</code>, <code>aria-controls</code> → its panel). A changed switch is saved at once and
+needs no announcement beyond its own state change.</p>
+</figure>
+
+<figure>
+<figcaption><b>L2b · The same list, dark.</b> The same tokens as S91–S104. Shown here: the eight rows and nothing
+else.</figcaption>
+<div class="th-dark">
+<div class="view set lb-wide">
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs"><span class="sel">Library</span><span>Scope</span><span>Behaviour</span></div>
+  </div>
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Collections</h4>
+    <div class="d">What the Codex can show. Each is a query over your vault. Choose where each one appears.</div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Characters</span><span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span><span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Locations</span><span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span><span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Objects</span><span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span><span class="act">configure</span></div>
+    <div class="set-row lb-off"><span class="cb">&nbsp;</span><span class="nm">Lore</span><span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on inert"><i></i>Anvil</span><span class="lb-sw inert"><i></i>Workbench</span></span><span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Creatures</span><span class="tagx">from repo</span><span class="lb-eng">Bases</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span><span class="act">configure</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Organizations</span><span class="tagx">imported</span><span class="lb-eng">Bases</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span><span class="act">configure</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Skills</span><span class="tagx">imported</span><span class="lb-eng">Dataview</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span><span class="act">configure</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Relationship web</span><span class="tagx">imported</span><span class="lb-eng">DataviewJS</span><span class="lb-stat warn">▲ Consent required</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span><span class="act">configure</span><span class="act rm">remove</span></div>
+    <span class="set-add">+ Browse repo…&nbsp;&nbsp;+ Import from vault…</span>
+  </div>
+</div>
+</div>
+<p class="note">Contrast check for the dark variant: the switch's off track (<code>--border-2</code>) against
+<code>--panel</code> is low on its own, so the state is also carried by the knob position and by
+<code>aria-checked</code>, never by colour alone. The inert switches use opacity plus <code>aria-disabled</code>.</p>
+</figure>
+
+<figure>
+<figcaption><b>L2c · Narrow, about 400px.</b> Each row wraps onto two lines; nothing moves into a menu
+<span class="mk-tag prop">P17</span>.</figcaption>
+<div class="view set lb-narrow">
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs"><span class="sel">Library</span><span>Scope</span><span>Behaviour</span></div>
+  </div>
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Collections</h4>
+    <div class="d">What the Codex can show. Each is a query over your vault. Choose where each one appears.</div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Characters</span><span class="tagx b">built-in</span>
+      <span class="lb-break"></span>
+      <span class="lb-surf lb-indent"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span><span class="sp"></span><span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Objects</span><span class="tagx b">built-in</span>
+      <span class="lb-break"></span>
+      <span class="lb-surf lb-indent"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span><span class="sp"></span><span class="act">configure</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Organizations</span><span class="tagx">imported</span><span class="lb-eng">Bases</span>
+      <span class="lb-break"></span>
+      <span class="lb-surf lb-indent"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span><span class="sp"></span><span class="act">configure</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Relationship web</span><span class="tagx">imported</span><span class="lb-eng">DataviewJS</span><span class="lb-stat warn">▲ Consent required</span>
+      <span class="lb-break"></span>
+      <span class="lb-surf lb-indent"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span><span class="sp"></span><span class="act">configure</span><span class="act rm">remove</span></div>
+    <span class="set-add">+ Browse repo…&nbsp;&nbsp;+ Import from vault…</span>
+  </div>
+</div>
+<p class="note">Four rows shown; the rest wrap the same way. If even the badges overflow line 1, they wrap below the
+name before the switches move. The tab order is the same as at full width. <b>Mobile:</b> Bases surfaces are
+desktop-only (CON-9), so on mobile the Anvil switch stays operable but the Anvil degrades as S98 does. The Library
+itself still works.</p>
+</figure>
+
+</div>
+
+<!-- ═════════════════════════════════ L3 ═════════════════════════════════ -->
+<h2>L3 — <i style="text-transform:none">configure</i> expanded <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· one panel under its row, the same pattern for all three provenances</span></h2>
+<div class="gallery">
+
+<figure>
+<figcaption><b>L3a · A built-in: Characters.</b> Tag and excluded folders, with a live count
+<span class="mk-tag prop">P10</span>.</figcaption>
+<div class="view set lb-wide">
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Collections</h4>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Characters</span><span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span>
+      <span class="act open" aria-expanded="true">configure ▾</span></div>
+    <div class="lb-panel" role="region" aria-label="Configure Characters">
+      <label>Tag</label><div class="lb-f">canon/character</div>
+      <label>Excluded folders</label><div><span class="lb-cb"><span class="cb on">✓</span>Same as Scope (00 Meta)</span></div>
+      <span></span><div class="lb-count">3 notes match: tagged canon/character, outside 00 Meta.</div>
+      <div class="full lb-desc">Selection is by tag; folders only ever exclude (<b>S98</b>, CON-7). A built-in can be
+        disabled but not removed or renamed.</div>
+    </div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Locations</span><span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span><span class="act">configure</span></div>
+  </div>
+</div>
+<p class="note"><b>Unchecking "Same as Scope"</b> replaces the checkbox line with an editable list prefilled with the
+Scope default. Edits save on blur (like today's Scope fields), then the count line refreshes. A tag that matches
+nothing shows "No notes match this tag." in amber, the same cause S98 names in the Codex.
+<br><b>Why there is no Card field here:</b> the Card is chosen in the Anvil's dropdown and remembered per collection
+(S91). One place to choose it.</p>
+</figure>
+
+<figure>
+<figcaption><b>L3b · An imported <code>.base</code>: Organizations.</b> The file is the query, so there is no tag
+field. Path, open file, name.</figcaption>
+<div class="view set lb-wide">
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Collections</h4>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Organizations</span><span class="tagx">imported</span><span class="lb-eng">Bases</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span>
+      <span class="act open" aria-expanded="true">configure ▾</span><span class="act rm">remove</span></div>
+    <div class="lb-panel" role="region" aria-label="Configure Organizations">
+      <label>Name</label><div class="lb-f">Organizations</div>
+      <label>File</label><div style="display:flex;gap:6px;align-items:center"><div class="lb-f ro" style="flex:1"><code>30 Canon/Organizations/Organizations.base</code></div><span class="lb-btn">Open file</span></div>
+      <span></span><div class="lb-count">3 entries · read from the file on every render</div>
+      <div class="full lb-desc">What it shows is decided by the file: edit it in Bases. Story Forge reads it and never
+        changes it (<b>ADR-34</b>). Its filters are used; its own views are not <span class="mk-tag prop">P9</span>.</div>
+    </div>
+  </div>
+</div>
+<p class="note"><b>Name</b> is the pill text (S93) and the Workbench tab label (P7); it defaults to the file's
+basename. <b>Open file</b> opens the <code>.base</code> in a new tab. <b>File missing</b> (moved or deleted outside
+Obsidian): the count line reads "File not found: 30 Canon/Organizations/Organizations.base" in amber, and the
+Anvil shows today's engine error for that pill (phase-7 T7.1 gate decision). A rename inside Obsidian is followed
+like any link.
+<br><b>From repo</b> (<i>Creatures</i>) uses the same panel plus the template's <b>Tag</b> and <b>Excluded
+folders</b> parameters (ADR-35 <code>params</code>). Its file path is shown read-only. The ADR-0003 "this file was
+edited by hand" prompt is T7.3's state and is not drawn here.</p>
+</figure>
+
+<figure>
+<figcaption><b>L3c · A migrated Dataview entry: Skills.</b> Today's ⋯ menu (source, rename and command, consent)
+moves into this panel <span class="mk-tag prop">P12</span>.</figcaption>
+<div class="view set lb-wide">
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Collections</h4>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Skills</span><span class="tagx">imported</span><span class="lb-eng">Dataview</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span>
+      <span class="act open" aria-expanded="true">configure ▾</span><span class="act rm">remove</span></div>
+    <div class="lb-panel" role="region" aria-label="Configure Skills">
+      <label>Name</label><div class="lb-f">Skills</div>
+      <label>Source</label><div style="display:flex;gap:6px;align-items:center"><div class="lb-f ro" style="flex:1"><code>90 Views/Skills.md</code></div><span class="lb-btn">Open file</span></div>
+      <label>Command</label><div style="display:flex;gap:8px;align-items:center"><span class="lb-sw on" role="switch" aria-checked="true"><i></i>Add to command palette</span><div class="lb-f" style="flex:1">Open skills</div></div>
+      <div class="full lb-desc">Runs the first <code>dataview</code> block in the source note. Edit the note to change the
+        query. Migrated from the Views list on 2026-11-11.</div>
+    </div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Relationship web</span><span class="tagx">imported</span><span class="lb-eng">DataviewJS</span><span class="lb-stat warn">▲ Consent required</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span>
+      <span class="act open" aria-expanded="true">configure ▾</span><span class="act rm">remove</span></div>
+    <div class="lb-panel">
+      <label>Name</label><div class="lb-f">Relationship web</div>
+      <label>Source</label><div style="display:flex;gap:6px;align-items:center"><div class="lb-f ro" style="flex:1"><code>90 Views/Relationship web.md</code></div><span class="lb-btn">Open file</span></div>
+      <label>Consent</label><div style="display:flex;gap:8px;align-items:center"><span style="color:var(--st-draft)">The script changed since you approved v2.</span><span class="lb-btn cta">Review consent…</span></div>
+      <label>Command</label><div><span class="lb-sw" role="switch" aria-checked="false"><i></i>Add to command palette</span></div>
+    </div>
+  </div>
+</div>
+<p class="note">Two panels are open together only to show both. Several can be open at once; each <i>configure</i>
+toggles its own. <b>Review consent…</b> opens today's consent modal unchanged, which is the PRD's "the existing
+consent gate applies unchanged" <span class="mk-tag sdd">PRD F7</span>. That modal is an Obsidian <code>Modal</code>
+with its own buttons, not <code>confirm()</code>. The <b>Command</b> name field appears only while the switch is on.
+Its text is what today's BindModal stored as <code>commandLabel</code>. <b>Version</b> (today a <code>v2</code> chip in
+the row) appears only in the consent line.</p>
+</figure>
+
+</div>
+
+<!-- ═════════════════════════════════ L4 / L5 ═════════════════════════════════ -->
+<h2>L4 — Library › Cards &nbsp;·&nbsp; L5 — Card preview <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· Cards are "how": no surface toggles</span></h2>
+<div class="gallery">
+
+<figure>
+<figcaption><b>L4 · Cards.</b> S101's list, plus "used by". A Card has <b>no Anvil / Workbench switches</b>: it is
+chosen per collection, so where it appears follows from that.</figcaption>
+<div class="view set lb-wide">
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs"><span class="sel">Library</span><span>Scope</span><span>Behaviour</span></div>
+  </div>
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Cards</h4>
+    <div class="d">How entries are drawn. Chosen per collection and remembered.</div>
+    <div class="set-row"><span class="cb on" aria-disabled="true" style="opacity:.45" title="Hero is the fallback Card and is always available">✓</span><span class="nm">Hero</span><span class="tagx b">built-in</span>
+      <span class="lb-used">used by Locations, Objects, Creatures, Organizations</span><span class="sp"></span><span class="act" role="button" aria-expanded="false">preview</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Table</span><span class="tagx b">built-in</span>
+      <span class="lb-used">used by Lore</span><span class="sp"></span><span class="act">preview</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Compact</span><span class="tagx b">built-in</span>
+      <span class="sp"></span><span class="act">preview</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Isekai hero</span><span class="tagx">imported</span>
+      <span class="lb-used">used by Characters</span><span class="sp"></span><span class="act">preview</span><span class="act rm">remove</span></div>
+    <div class="set-row lb-off"><span class="cb">&nbsp;</span><span class="nm">Stat block</span><span class="tagx">imported</span>
+      <span class="sp"></span><span class="act">preview</span><span class="act rm">remove</span></div>
+    <span class="set-add">+ Browse repo…&nbsp;&nbsp;+ Import from vault…</span>
+  </div>
+</div>
+<p class="note"><b>"Used by"</b> is new: it reads <code>cardByCollection</code> and says what a disable or a remove
+will affect before the user tries it. Omitted when nothing uses the Card. <b>Disabling</b> a Card removes it from the
+Anvil dropdown; collections that used it draw with <i>Hero</i> (today's registry fallback). <i>Hero</i>, the
+fallback, cannot be disabled, so its checkbox is shown checked and inert <span class="mk-tag prop">P19</span>. Cards carry no engine badge; a Card is a declaration, not a query.
+<i>Dataview</i> collections ignore Cards (P8), so they never appear in "used by".</p>
+</figure>
+
+<figure>
+<figcaption><b>L5a · Preview open — Hero.</b> Inline under the row, drawing a real note read-only
+<span class="mk-tag dec">D4</span> <span class="mk-tag prop">P3</span>.</figcaption>
+<div class="view set lb-wide">
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Cards</h4>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Hero</span><span class="tagx b">built-in</span>
+      <span class="lb-used">used by Locations, Objects, Creatures, Organizations</span><span class="sp"></span><span class="act open" aria-expanded="true">preview ▾</span></div>
+    <div class="lb-prev" role="region" aria-label="Preview of Hero">
+      <div class="lb-prev-head"><b>Preview</b> · Sample from <span class="drop">Locations ▾</span> · first entry
+        <span class="sp"></span><span class="lb-btn foc">Close preview</span></div>
+      <div class="lb-prev-body">
+        <div class="hero"><div class="por">🏠</div><div class="hb">
+          <div class="hn">Moonharbor</div><div class="hf">city · harbour</div>
+          <div class="hp"><i>Wardens of Moonharbor</i></div><div class="hx">9 scenes</div></div></div>
+      </div>
+      <div class="lb-prev-foot">Read-only. Clicks do nothing here. The preview draws the note exactly as the Anvil will.</div>
+    </div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Table</span><span class="tagx b">built-in</span>
+      <span class="lb-used">used by Lore</span><span class="sp"></span><span class="act">preview</span></div>
+  </div>
+</div>
+<p class="note"><b>Sample:</b> the first entry of the first enabled collection that uses this Card (<i>Locations</i>
+for Hero); <i>Sample from</i> lists every enabled collection, so <i>Isekai hero</i> can be tried on Locations and
+show S104's marked fields before anyone picks it. <b>Opening</b> moves focus to <i>Close preview</i>. <b>Closing</b>
+(button, <i>preview</i> again, or <kbd>Esc</kbd> inside the region) returns focus to <i>preview</i>. Opening another
+Card's preview closes this one. No modal, no new leaf, nothing written.</p>
+</figure>
+
+<figure>
+<figcaption><b>L5b · Preview with nothing to sample.</b> No fake entry is drawn.</figcaption>
+<div class="view set" style="width:440px">
+  <div class="set-sec" style="border-bottom:none">
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Stat block</span><span class="tagx">imported</span>
+      <span class="sp"></span><span class="act open">preview ▾</span><span class="act rm">remove</span></div>
+    <div class="lb-prev">
+      <div class="lb-prev-head"><b>Preview</b> · Sample from <span class="drop">Creatures ▾</span><span class="sp"></span><span class="lb-btn">Close preview</span></div>
+      <div class="lb-prev-body" style="color:var(--faint);font-size:11px">Creatures has no entries yet, so there is nothing to preview. Choose another collection above.</div>
+    </div>
+  </div>
+</div>
+<p class="note">With <b>no enabled collection at all</b>, the line reads "Enable a collection to preview this Card."
+and the dropdown is hidden. A <b>disabled</b> Card (<i>Stat block</i> in L4) can still be previewed: that is how a
+user decides whether to enable it.</p>
+</figure>
+
+</div>
+
+<!-- ═════════════════════════════════ L6 ═════════════════════════════════ -->
+<h2>L6 — Anvil with an imported <code style="text-transform:none">.base</code> <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· S93 made real</span></h2>
+<div class="gallery">
+
+<figure>
+<figcaption><b>L6a · Organizations selected, embedded through Bases, drawn as Hero.</b>
+<span class="mk-tag dec">D1</span> The pill row and the Card dropdown are S93's.</figcaption>
+<div class="view anvil">
+  <div class="vhead">
+    <span class="brand">⚒ Anvil</span>
+    <div class="mtabs"><span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span></div>
+    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
+  </div>
+  <div class="cx-cats">
+    <span>Characters</span><span>Locations</span><span>Objects</span>
+    <span class="usr">Creatures</span><span class="usr sel">Organizations</span><span class="add">+ Collection</span>
+    <span class="sp"></span><span class="cardsel">Card: <b>Hero</b> ▾</span>
+  </div>
+  <div class="lb-embed">
+    <div class="cx-grid">
+      <div class="hero"><div class="por">🏛</div><div class="hb">
+        <div class="hn">The Warden's Council</div><div class="hf">faction · active</div>
+        <div class="hp"><i>Moonharbor</i></div><div class="hx">7 scenes</div></div></div>
+      <div class="hero"><div class="por">🏛</div><div class="hb">
+        <div class="hn">Salt Guild</div><div class="hf">faction · active</div>
+        <div class="hp"><i>Moonharbor</i></div><div class="hx">3 scenes</div></div></div>
+      <div class="hero"><div class="por">🏛</div><div class="hb">
+        <div class="hn">The Grey Lanterns</div><div class="hf">order · dissolved</div>
+        <div class="hp"><i>Aerdis</i></div><div class="hx">1 scene</div></div></div>
+    </div>
+  </div>
+  <div class="ed">
+    <div class="ed-head"><span style="color:var(--faint)">Select a card to edit its frontmatter</span></div>
+  </div>
+</div>
+<p class="note"><b>Pills shown</b> = enabled collections with <b>Anvil on</b>, in Library order. <i>Lore</i> is absent
+because it is disabled, <i>Skills</i> and <i>Relationship web</i> because their Anvil switch is off
+<span class="mk-tag sdd">PRD F7</span>. <b>Rendering:</b> the grid is Bases running
+<code>30 Canon/Organizations/Organizations.base</code> through our registered Card view, so the cards are the same
+<code>buildCardWrapper</code> markup as the built-ins. Click, selection, the editor pane and the S91 missing-property
+marking behave the same <span class="mk-tag prop">P9</span>. No source label in the header (S91 settled that).
+<b><code>+ Collection</code></b> opens the menu from <span class="mk-tag prop">P15</span>. With Bases disabled, this
+pill gets S98's degrade path, like every Bases surface.</p>
+</figure>
+
+<figure>
+<figcaption><b>L6b · A Dataview collection with its Anvil switch on.</b> Dataview's own output; no Card dropdown
+<span class="mk-tag prop">P8</span>.</figcaption>
+<div class="view anvil">
+  <div class="vhead">
+    <span class="brand">⚒ Anvil</span>
+    <div class="mtabs"><span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span></div>
+    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
+  </div>
+  <div class="cx-cats">
+    <span>Characters</span><span>Locations</span><span>Objects</span>
+    <span class="usr">Creatures</span><span class="usr">Organizations</span><span class="usr sel">Skills</span><span class="add">+ Collection</span>
+    <span class="sp"></span><span class="lb-src">Drawn by Dataview</span>
+  </div>
+  <div class="lb-dvout">
+    <table>
+      <tr><th>Skill</th><th>Rank</th><th>Holder</th></tr>
+      <tr><td><a>Ember Sight</a></td><td>A</td><td><a>Mara Stoneway</a></td></tr>
+      <tr><td><a>Tidecall</a></td><td>B</td><td><a>Mara Stoneway</a></td></tr>
+      <tr><td><a>Farsight</a></td><td>A</td><td><a>Tobias Ferro</a></td></tr>
+    </table>
+  </div>
+</div>
+<p class="note">Drawn only if P8 is accepted. Links in Dataview's output keep Dataview's behaviour; the editor pane
+does not open, because these are not Card bodies (ADR-28 markers are absent). If P8 is declined, the Anvil switch on
+Dataview rows is replaced by the text "Workbench only".</p>
+</figure>
+
+</div>
+
+<!-- ═════════════════════════════════ L7 ═════════════════════════════════ -->
+<h2>L7 — Workbench <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· Codex tab sections per built-in; imported collections as tabs</span></h2>
+<div class="gallery">
+
+<figure>
+<figcaption><b>L7a · Codex tab following Mara Stoneway.</b> Characters and Locations are on; Objects is off, so
+<i>The Warden's Seal</i> is not listed <span class="mk-tag dec">D3</span> <span class="mk-tag prop">P6</span>.</figcaption>
+<div class="view wb">
+  <div class="vhead">
+    <span class="brand" style="font-size:12px">🛠 Workbench</span>
+    <div class="tabs"><span class="sel">Codex</span><span>Navigator</span><span>Skills</span><span>Relationship web</span></div>
+  </div>
+  <div class="crumb">following · <b>The Salty Gull</b> → Mara Stoneway</div>
+  <div class="wb-hero">
+    <div class="por">👤</div>
+    <div><div class="hn">Mara Stoneway</div>
+      <div class="hf">protagonist · alive</div>
+      <div class="hf" style="color:var(--faint)">harbour warden</div></div>
+  </div>
+  <div class="wb-sec">
+    <h4>Characters <span class="cnt">2</span></h4>
+    <div class="wb-row"><span class="nm">Tobias Ferro</span><span class="mt">ally</span></div>
+    <div class="wb-row"><span class="nm">Elke Stoneway</span><span class="mt">family</span></div>
+  </div>
+  <div class="wb-sec">
+    <h4>Locations <span class="cnt">2</span></h4>
+    <div class="wb-row"><span class="nm">Moonharbor</span><span class="mt">home</span></div>
+    <div class="wb-row"><span class="nm">The Salty Gull</span><span class="mt">frequents</span></div>
+  </div>
+  <div class="wb-sec">
+    <h4>Appears in <span class="cnt">12</span></h4>
+    <div class="wb-row"><span class="nm">The Extinguished Fire</span><span class="mt sd">draft</span></div>
+    <div class="wb-row"><span class="nm">The Salty Gull</span><span class="mt sd">draft</span></div>
+    <div class="wb-row"><span class="nm">The Black Cliffs</span><span class="mt so">outline</span></div>
+    <div class="wb-row" style="color:var(--faint);font-size:10.5px">+ 9 more</div>
+  </div>
+</div>
+<p class="note"><b>Sections</b> = built-in collections with <b>Workbench on</b>, in Library order. Each lists the
+entries of that collection the followed note links to, with the relation key on the right. A section with no linked
+entries is omitted <span class="mk-tag prop">P6</span>. Objects' only link (<i>owns</i> → The Warden's Seal) has
+gone because its switch is off; turning it on brings back an <i>Objects 1</i> section. This replaces S95's single
+<i>Relations</i> section, a deviation to record in the decision log. <i>Appears in</i> is unchanged: scenes are not
+a collection. <b>Tabs</b> after Navigator are the imported collections with Workbench on <span class="mk-tag prop">P7</span>.
+<i>Creatures</i> and <i>Organizations</i> are absent because their Workbench switch is off.</p>
+</figure>
+
+<figure>
+<figcaption><b>L7b · The migrated Skills tab.</b> S96, unchanged for the user; only the source line now says
+"collection" <span class="mk-tag dec">D2</span>.</figcaption>
+<div class="view wb">
+  <div class="vhead">
+    <span class="brand" style="font-size:12px">🛠 Workbench</span>
+    <div class="tabs"><span>Codex</span><span>Navigator</span><span class="sel">Skills</span><span>Relationship web</span></div>
+  </div>
+  <div class="crumb">following · <b>Mara Stoneway</b></div>
+  <div class="wb-sec">
+    <h4>Skills <span class="cnt">3</span></h4>
+    <div class="wb-row"><span class="nm">Ember Sight</span><span class="mt">rank A</span></div>
+    <div class="wb-row"><span class="nm">Tidecall</span><span class="mt">rank B</span></div>
+    <div class="wb-row"><span class="nm">Saltwalking</span><span class="mt">rank C</span></div>
+  </div>
+  <div class="wb-sec">
+    <h4>Affinity</h4>
+    <div class="wb-row"><span style="color:var(--text)">fire</span><span class="mt">level 12</span></div>
+  </div>
+  <div class="wb-sec" style="border-bottom:none">
+    <h4>Source</h4>
+    <div class="wb-row" style="font-size:10.5px;color:var(--faint)">
+      <code>90 Views/Skills.md</code> · Dataview · imported collection</div>
+  </div>
+</div>
+<p class="note">S96 read "Dataview · enabled"; "enabled" is implied by the tab existing, so the line now names the
+provenance instead. The tab's body is whatever the Dataview block renders, as today. <i>Relationship web</i>'s tab
+shows today's consent-required body until consent is reviewed (L3c). <b>Folder name:</b> <code>90 Views/</code> is
+the user's own folder; the word "view" leaves <b>our</b> UI, not their vault.</p>
+</figure>
+
+</div>
+
+<!-- ═════════════════════════════════ L8 ═════════════════════════════════ -->
+<h2>L8 — Remove <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· inline confirmation; nothing dangles; no vault file deleted</span></h2>
+<div class="gallery">
+
+<figure>
+<figcaption><b>L8a · Removing Organizations while the Anvil shows it.</b> The confirmation opens under the row,
+focus on <i>Cancel</i> <span class="mk-tag prop">P16</span>.</figcaption>
+<div class="view set lb-wide">
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Collections</h4>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Creatures</span><span class="tagx">from repo</span><span class="lb-eng">Bases</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span><span class="act">configure</span><span class="act rm">remove</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Organizations</span><span class="tagx">imported</span><span class="lb-eng">Bases</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span><span class="act">configure</span><span class="act rm open" aria-expanded="true">remove ▾</span></div>
+    <div class="lb-confirm" role="group" aria-labelledby="l8a-q">
+      <div id="l8a-q"><b>Remove Organizations from the Library?</b> It leaves the Anvil now, and its Card choice is
+        forgotten. Your file <code>30 Canon/Organizations/Organizations.base</code> stays in your vault. Nothing is
+        deleted.</div>
+      <div class="bt"><span class="lb-btn warn">Remove</span><span class="lb-btn foc">Cancel</span></div>
+    </div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Skills</span><span class="tagx">imported</span><span class="lb-eng">Dataview</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span><span class="act">configure</span><span class="act rm">remove</span></div>
+  </div>
+</div>
+<p class="note"><b>The text is built from the row:</b> it names the surfaces that are on ("It leaves the Anvil
+now" / "the Anvil and the Workbench" / nothing when both are off), the file path, and, for a migrated entry with a
+palette command, "Its command is removed too." <b>Skills' version:</b> "Remove Skills from the Library? It leaves the
+Workbench now, and its command is removed too. Your note <code>90 Views/Skills.md</code> stays in your vault.
+Nothing is deleted." <b>From repo</b> (<i>Creatures</i>) says the same about its installed file. Re-adding it is
+<i>Browse repo…</i> again. <kbd>Esc</kbd> or <i>Cancel</i> closes the panel and returns focus to <i>remove</i>.</p>
+</figure>
+
+<figure>
+<figcaption><b>L8b · The Anvil right after <i>Remove</i>.</b> Selection falls back to the first pill
+(<i>Characters</i>); nothing points at the removed id <span class="mk-tag prop">P5</span>.</figcaption>
+<div class="view anvil">
+  <div class="vhead">
+    <span class="brand">⚒ Anvil</span>
+    <div class="mtabs"><span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span><span>Plotlines</span><span>Board</span></div>
+    <div class="ctrl"><span class="scopehint">Wardens of Moonharbor</span></div>
+  </div>
+  <div class="cx-cats">
+    <span class="sel">Characters</span><span>Locations</span><span>Objects</span>
+    <span class="usr">Creatures</span><span class="add">+ Collection</span>
+    <span class="sp"></span><span class="cardsel">Card: <b>Isekai hero</b> ▾</span>
+  </div>
+  <div class="cx-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="hero"><div class="por">👤</div><div class="hb">
+      <div class="hn">Mara Stoneway</div><div class="hf">Lv 12 · Warden · affinity fire</div>
+      <div class="hp"><i>Ember Sight A</i><i>Tidecall B</i></div><div class="hx">12 scenes</div></div></div>
+    <div class="hero"><div class="por">👤</div><div class="hb">
+      <div class="hn">Tobias Ferro</div><div class="hf">Lv 8 · Signal-keeper · affinity air</div>
+      <div class="hp"><i>Farsight A</i></div><div class="hx">4 scenes</div></div></div>
+  </div>
+  <div class="ed"><div class="ed-head"><span style="color:var(--faint)">Select a card to edit its frontmatter</span></div></div>
+</div>
+<div style="margin-top:10px"><span class="lb-notice" role="status">Removed Organizations from the Library. The file is still in your vault.</span></div>
+<p class="note"><b>Nothing dangles:</b> the Anvil's selection, <code>cardByCollection["organizations"]</code>, an open
+editor pane on an Organizations entry (it closes back to S91's empty pane line) and any Workbench tab for it all go
+in the same store change. Characters keeps <i>its</i> remembered Card (Isekai hero). Removal is <b>not</b> in the
+undo history, which journals frontmatter writes only (spec 009). The way back is to import again. <b>In settings</b>,
+focus moves to the next row's checkbox (<i>Skills</i>).</p>
+</figure>
+
+<figure>
+<figcaption><b>L8c · Removing a Card that a collection uses.</b> The confirmation names the fallback.</figcaption>
+<div class="view set" style="width:520px">
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Cards</h4>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Isekai hero</span><span class="tagx">imported</span>
+      <span class="lb-used">used by Characters</span><span class="sp"></span><span class="act">preview</span><span class="act rm open">remove ▾</span></div>
+    <div class="lb-confirm" role="group">
+      <div><b>Remove Isekai hero from the Library?</b> Characters will be drawn with Hero. Your Card file stays in your
+        vault. Nothing is deleted.</div>
+      <div class="bt"><span class="lb-btn warn">Remove</span><span class="lb-btn foc">Cancel</span></div>
+    </div>
+  </div>
+</div>
+<p class="note">Same panel, same keys as L8a. With no "used by", the middle sentence is left out. Built-in Cards have
+no <i>remove</i>, as for built-in collections <span class="mk-tag sdd">PRD F7</span>.</p>
+</figure>
+
+</div>
+
+<!-- ═════════════════════════════════ L9 ═════════════════════════════════ -->
+<h2>L9 — Edge states <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0">· how the checkbox and the two switches relate</span></h2>
+<div class="gallery">
+
+<figure>
+<figcaption><b>L9 · Three rows that look alike and mean different things.</b> (a) enabled, shown nowhere; (b)
+disabled; (c) enabled, engine missing <span class="mk-tag prop">P1</span>.</figcaption>
+<div class="view set lb-wide">
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Collections</h4>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Creatures</span><span class="tagx">from repo</span><span class="lb-eng">Bases</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw"><i></i>Workbench</span></span><span class="act">configure</span><span class="act rm">remove</span>
+      <span class="lb-hint">(a) Shown nowhere. Turn on Anvil or Workbench to see it.</span></div>
+    <div class="set-row lb-off"><span class="cb">&nbsp;</span><span class="nm">Lore</span><span class="tagx b">built-in</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw on inert" aria-disabled="true"><i></i>Anvil</span><span class="lb-sw inert" aria-disabled="true"><i></i>Workbench</span></span><span class="act">configure</span>
+      <span class="lb-hint f">(b) Disabled. Enable it to choose where it shows; it will return to the Anvil.</span></div>
+    <div class="set-row"><span class="cb on">✓</span><span class="nm">Skills</span><span class="tagx">imported</span><span class="lb-eng">Dataview</span><span class="lb-stat warn">■ Dataview not installed</span><span class="sp"></span>
+      <span class="lb-surf"><span class="lb-sw"><i></i>Anvil</span><span class="lb-sw on"><i></i>Workbench</span></span><span class="act">configure</span><span class="act rm">remove</span>
+      <span class="lb-hint">(c) <a style="color:var(--link)">Install Dataview</a> to run this collection. Until then its Workbench tab says the same.</span></div>
+  </div>
+</div>
+<p class="note">The <i>(a)/(b)/(c)</i> prefixes are mockup labels, not UI text. <b>(a)</b> is allowed. It is how a
+user parks a collection without losing its configuration, and the amber line keeps it from looking broken.
+<b>(b)</b> keeps the remembered switch values visible but dimmed and <code>aria-disabled</code>; clicking one does
+nothing (it does not enable the row). <b>(c)</b> keeps the switches live, because the problem is outside the Library;
+the text is today's blocked reason with "view" → "collection". The same row covers "DataviewJS is disabled in
+Dataview settings." and "Not available on mobile."</p>
+<table class="lb-rel">
+<tr><th>Checkbox</th><th>Anvil</th><th>Workbench</th><th>Anvil pill</th><th>Workbench (built-in: section · imported: tab)</th><th>Row says</th></tr>
+<tr><td>on</td><td>on</td><td>on</td><td>shown</td><td>shown</td><td>—</td></tr>
+<tr><td>on</td><td>on</td><td>off</td><td>shown</td><td>absent</td><td>—</td></tr>
+<tr><td>on</td><td>off</td><td>on</td><td>absent</td><td>shown</td><td>—</td></tr>
+<tr><td>on</td><td>off</td><td>off</td><td>absent</td><td>absent</td><td>"Shown nowhere…" (a)</td></tr>
+<tr><td>off</td><td>any (inert, kept)</td><td>any (inert, kept)</td><td>absent</td><td>absent</td><td>"Disabled…" (b)</td></tr>
+</table>
+<p class="lb-flow"><b>Transitions.</b> Unchecking keeps both switch values. Re-checking restores them, and for an
+unconsented DataviewJS entry first opens today's consent modal (cancel = stays unchecked). A switch change saves at
+once and applies to open Anvils and Workbenches on the next render. If it hides the selected pill or tab, P5's
+fallback applies.</p>
+</figure>
+
+</div>
+
+<!-- ═════════════════════════════════ COMMITMENTS ═════════════════════════════════ -->
+<h2>What this addendum commits us to</h2>
+<p class="sub">If you sign this off (with your answers to P1–P19), the following stop being open:
+<b>(1)</b> every Library collection row carries <b>Anvil</b> and <b>Workbench</b> switches beside its enable
+checkbox; Cards carry none;
+<b>(2)</b> settings split into <b>Library · Scope · Behaviour</b> exactly as L1c lists, with no setting dropped;
+<b>(3)</b> the Views list is gone: its entries are <b>imported collections</b>, migrated Workbench-on / Anvil-off, and
+its ⋯ menu's actions live in <i>configure</i>;
+<b>(4)</b> an imported or from-repo <code>.base</code> appears in the Anvil as a pill, embedded through Bases and drawn
+with the chosen Card;
+<b>(5)</b> a built-in's Workbench switch adds or removes its <b>section</b> in the Workbench Codex tab; an imported
+collection's adds or removes its <b>tab</b>;
+<b>(6)</b> <i>configure</i> is an inline panel: tag and excluded folders for built-ins, file and name for imports,
+name, source, command and consent for Dataview entries;
+<b>(7)</b> Card <i>preview</i> is inline, read-only and samples a real note, never a fake one;
+<b>(8)</b> remove confirms inline, says the vault file stays, and leaves no dangling selection, Card choice, pane or
+tab;
+<b>(9)</b> no step in the Library uses a <code>confirm()</code>/<code>prompt()</code> dialog. The only modal is
+today's DataviewJS consent modal, unchanged.</p>
+
+<h2>Decision table — state → PRD F7 acceptance criterion</h2>
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>#</th><th>PRD F7 acceptance criterion (abridged)</th><th>Drawn in</th></tr>
+<tr><td>1</td><td>Library shows two lists, Collections and Cards, each entry marked built-in / from repo / imported</td><td>L2a, L2b, L2c, L4</td></tr>
+<tr><td>2</td><td>A built-in can be disabled but offers no remove</td><td>L2a (Characters…Lore), L3a, L4 (Hero…Compact), L9b</td></tr>
+<tr><td>3</td><td>An imported or from-repo entry can be disabled and removed</td><td>L2a, L8a, L8c</td></tr>
+<tr><td>4</td><td>Disabling a collection removes its pill from the Codex</td><td>L6a (Lore absent), L9 table</td></tr>
+<tr><td>5</td><td>A <code>.base</code> from the vault can be imported as a Collection</td><td>L2a (Organizations), L3b, L6a</td></tr>
+<tr><td>6</td><td>A Dataview query can be imported as a Collection</td><td>L2a (Skills, Relationship web), L3c, L7b; L6b (P8)</td></tr>
+<tr><td>7</td><td>An unparseable or unresolvable import is refused with a reason; nothing persisted</td><td><b>not drawn</b>: today's import modal <span class="mk-tag prop">P18</span></td></tr>
+<tr><td>8</td><td>DataviewJS keeps the consent gate; Bases and DQL are enable/disable only</td><td>L2a (Relationship web), L3c, L9 transitions</td></tr>
+<tr><td>9</td><td>A curated Dataview view installs from the catalog</td><td><b>not drawn</b>: <i>+ Browse repo…</i> <span class="mk-tag prop">P18</span></td></tr>
+<tr><td>10</td><td>A user Collection bound to the Workbench is a Workbench tab; bound to the Anvil, a Codex collection</td><td>L2a switches, L6a, L6b, L7a, L7b, L9 table</td></tr>
+<tr><td>T7.1</td><td>Removing an entry that is currently displayed leaves no dangling selection</td><td>L8a, L8b</td></tr>
+<tr><td>T7.5</td><td>Manual walk: <code>.base</code> imported, Anvil only → in the Codex, not in the Workbench → removed, nothing dangles</td><td>L2a (Organizations) → L6a → L7a (absent) → L8a → L8b</td></tr>
+</table>
+</div>
+
+<script>
+  (function(){
+    var btns = document.querySelectorAll('[data-theme-btn]');
+    btns.forEach(function(b){
+      b.addEventListener('click', function(){
+        var t = b.getAttribute('data-theme-btn');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+        else document.documentElement.removeAttribute('data-theme');
+        btns.forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      });
+    });
+  })();
+</script>
+</body>
+</html>
