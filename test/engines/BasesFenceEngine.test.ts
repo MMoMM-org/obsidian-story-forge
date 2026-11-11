@@ -214,3 +214,72 @@ describe("BasesFenceEngine", () => {
 		await expect(engine.render(viewWithMissingField, makeCtx(), el)).resolves.not.toThrow();
 	});
 });
+
+// ---------------------------------------------------------------------------
+// T7.1 gate (inherited from T3.3): a kind:"collection" record's `source` is a
+// vault PATH (ADR-35), not YAML. The engine must render the file's contents
+// and never hand the path itself to the YAML renderer.
+// ---------------------------------------------------------------------------
+
+describe("BasesFenceEngine: kind \"collection\" records", () => {
+	const PATH = "00 Meta/Bases/creatures.base";
+	const FILE_YAML = "filters:\n  and:\n    - file.hasTag(\"canon/creature\")\nviews:\n  - type: table\n    name: Creatures\n";
+
+	function makeCollection(overrides?: Partial<ViewRecord>): ViewRecord {
+		return {
+			provenance: "curated",
+			enabled: true,
+			okayed: { version: 1, checksum: "sha256:abc" },
+			source: PATH,
+			engine: "bases",
+			command: false,
+			kind: "collection",
+			surfaces: { anvil: false, workbench: true },
+			...overrides,
+		};
+	}
+
+	function appWithFile(path: string, content: string): App {
+		const app = new App();
+		const file = createMockTFile({ path, basename: "creatures", extension: "base" });
+		vi.mocked(app.vault.getFileByPath).mockImplementation((p: string) => (p === path ? file : null));
+		vi.mocked(app.vault.cachedRead).mockImplementation(async (f) => {
+			if (f !== file) throw new Error("unexpected file");
+			return content;
+		});
+		return app;
+	}
+
+	beforeEach(() => {
+		vi.mocked(renderBaseFence).mockReset();
+		vi.mocked(renderBaseFence).mockResolvedValue(undefined);
+	});
+
+	it("renders the vault file's YAML, not the path stored in source", async () => {
+		const app = appWithFile(PATH, FILE_YAML);
+		const engine = new BasesFenceEngine(app);
+
+		await engine.render(makeCollection(), makeCtx(), makeEl());
+
+		expect(renderBaseFence).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(renderBaseFence).mock.calls[0]?.[1]).toBe(FILE_YAML);
+	});
+
+	it("refuses with a reason naming the path when the file is missing — and never renders the path", async () => {
+		const app = appWithFile("somewhere/else.base", FILE_YAML);
+		const engine = new BasesFenceEngine(app);
+
+		await expect(engine.render(makeCollection(), makeCtx(), makeEl())).rejects.toThrow(PATH);
+		expect(renderBaseFence).not.toHaveBeenCalled();
+	});
+
+	it("a kind \"view\" record still renders source as YAML without touching the vault", async () => {
+		const app = new App();
+		const engine = new BasesFenceEngine(app);
+
+		await engine.render(makeView("filters: {}"), makeCtx(), makeEl());
+
+		expect(vi.mocked(renderBaseFence).mock.calls[0]?.[1]).toBe("filters: {}");
+		expect(app.vault.getFileByPath).not.toHaveBeenCalled();
+	});
+});

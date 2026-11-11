@@ -28,16 +28,10 @@
  *   `record.generated.instanceChecksum` is the checksum of the bytes actually
  *   written, so classify() can detect a hand-edit against what is really on disk.
  *
- * Known gap this leaves open (ADR-35 — not this task's to close): ConsentGate
- * already reads `record.generated` for a collection record and no longer
- * assumes `source` is YAML (src/consent/ConsentGate.ts:124). BasesFenceEngine
- * (src/engines/BasesFenceEngine.ts) has NOT been updated to match — it still
- * treats `record.source` as raw .base YAML, which is only true for
- * kind:"view". Engine dispatch (SidebarView → EngineRegistry.get(view.engine))
- * branches on `engine` only, never on `kind`, so nothing prevents a
- * kind:"collection" record reaching that renderer. Unreachable today (zero
- * catalog entries ship; F7's surface-binding UI does not exist), but must be
- * closed before a collection record is bound to a surface (PRD F7).
+ * The renderer half of ADR-35 (closed in T7.1): BasesFenceEngine branches on
+ * `kind` and reads the vault file for a kind:"collection" record, so the path
+ * stored in `source` never reaches the YAML parser. ConsentGate reads
+ * `record.generated` instead of checksumming `source` (ConsentGate.ts).
  *
  * Why bases entries bypass importToStore (ADR-5):
  *   ViewDefinition.engine is typed "dataview-dql"|"dataviewjs" — "bases" is not
