@@ -35,7 +35,7 @@ finally learns what the optional plugins are for.
 
 Closes the gap that started this whole spec: the distribution machinery served five static files.
 
-- [ ] **T7.1 The Library settings section** `[activity: frontend-ui]`
+- [x] **T7.1 The Library settings section** `[activity: frontend-ui]`
 
   1. Prime: Mockup **S101**; `[ref: SDD/Data Storage Changes]` (`surfaces`).
   2. Test: two lists render, each entry marked built-in / from repo / imported `[ref: PRD/F7 AC]`;
@@ -46,8 +46,8 @@ Closes the gap that started this whole spec: the distribution machinery served f
   3. Implement: Library section in `src/settings/SettingsTab.ts` + `src/library/collectionStore.ts`.
   4. Validate: unit tests; lint (sentence-case UI text); types.
   5. Success:
-     - [ ] Provenance governs what may be removed `[ref: SDD/AC — PRD F7]`
-     - [ ] A `kind:"collection"` record bound to a surface **renders**, rather than feeding a vault
+     - [x] Provenance governs what may be removed `[ref: SDD/AC — PRD F7]`
+     - [x] A `kind:"collection"` record bound to a surface **renders**, rather than feeding a vault
            path to the YAML renderer — see the gate below
 
   > **Split after the Library addendum sign-off (2026-11-12).** `mockups-library.html` (L1–L9,
@@ -63,7 +63,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   > - **T7.1b Settings tabs and the Collections list** *(done: ed38944…b1c34ab; the L3b "File found" line in place of an entry count awaits the user's confirmation)* — L1 (Library | Scope | Behaviour, every
   >   existing setting placed), L2, L3, L8a, L9, P11–P14, P17.
   > - **T7.1c Cards list and preview** *(done)* — L4, L5, L8c, P3.
-  > - **T7.1d Surfaces**, run as three steps: **d1 wiring** (one shared `CollectionStore` from
+  > - **T7.1d Surfaces** *(done: d1 413b6d5…b8e6670, d2 b2338ff…235bdc7, d3 d9e2a4f…250bd64)*, run as three steps: **d1 wiring** (one shared `CollectionStore` from
   >   `main.ts`, `migrate()` at load, the importer emitting `kind:"collection"`, Dataview
   >   collection records rendering, resolution reading a built-in's own tag and excluded folders,
   >   one change signal for record and settings changes); **d2 Anvil** (L6a, L6b, L8b, P5, P8, P9,
