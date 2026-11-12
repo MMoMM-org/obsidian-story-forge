@@ -617,5 +617,21 @@ Closes the gap that started this whole spec: the distribution machinery served f
     says; T7.1b's fallback to Import was only because Browse was disabled.
   - *Cards keep a disabled Browse.* There is no Card catalog, so the Cards list's **+ Browse repo…** stays the disabled
     "Coming in a future release" control.
-  - *Known, not changed.* Installing an update of a catalog entry (the modal's Update) adds a second record for the same
-    `catalogId` rather than replacing the stale one; that is the pre-existing Bases behaviour, mirrored for Dataview.
+  - *Update replaces in place (review fix, both engines).* The modal's **Update** no longer adds a second record for
+    the same `catalogId` (which read as drift and gave a second Workbench tab). `_findInstalled` answers up to date,
+    stale (with the record's id) or none; an update is written to the stale record's own file (`generated.filePath`,
+    else its `source`; a legacy `kind:"view"` Bases record, whose `source` is YAML, is written to the current folder)
+    and saved **under the stale id**, keeping the user's `enabled`, `surfaces`, `command`, `commandName` and
+    `commandLabel`.
+  - *Rollback restores, never deletes what it did not create (review fix).* `_materialise` notes whether the file
+    existed and its previous content. When the record cannot be saved, a file that did not exist is removed and one
+    that did gets its previous content back — so a failed Update keeps the installed file, and a pre-existing
+    `<id>.md` / `<id>.base` with no record is not deleted. (A fresh install still writes over such an unrecorded file
+    when the save succeeds; not changed here.)
+  - *An edited installed file is not overwritten (review fix). Wording for sign-off.* Before an update writes, the file
+    on disk is checked against what the stale record installed: a `.base` by its whole-file checksum
+    (`generated.instanceChecksum`, else `okayed`), a Dataview note by its query block's checksum (`okayed`; prose
+    around the block is **not** tracked, the record holds no whole-note checksum). On a mismatch the install is
+    refused through the existing result, shown inline in the modal like any other refusal:
+    **"Not updated: <path> was edited after it was installed, and updating would overwrite those edits."**
+    Nothing is written. A missing file has nothing to lose and is written fresh. No new UI.

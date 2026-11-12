@@ -132,7 +132,8 @@ function makeVault() {
 	const files = new Map<string, string>();
 	const tfile = (path: string): TFile | null =>
 		files.has(path) ? createMockTFile({ path, name: path.split("/").pop()!, extension: path.split(".").pop()! }) : null;
-	vi.mocked(app.vault.adapter.exists).mockImplementation(async () => false);
+	vi.mocked(app.vault.adapter.exists).mockImplementation(async (p: string) => files.has(p));
+	vi.mocked(app.vault.adapter.read).mockImplementation(async (p: string) => files.get(p)!);
 	vi.mocked(app.vault.adapter.write).mockImplementation(async (p: string, data: string) => { files.set(p, data); });
 	vi.mocked(app.vault.adapter.remove).mockImplementation(async (p: string) => { files.delete(p); });
 	vi.mocked(app.vault.getAbstractFileByPath).mockImplementation(tfile);
@@ -155,10 +156,10 @@ async function dataviewEntry(overrides: Partial<CatalogEntry> = {}): Promise<Cat
 	return { ...index.entries[0]!, ...overrides } as CatalogEntry;
 }
 
-function service(app: App, store: ViewStore, entry: CatalogEntry, consent = vi.fn(async () => null as { version: number; checksum: string } | null)) {
+function service(app: App, store: ViewStore, entry: CatalogEntry, consent = vi.fn(async () => null as { version: number; checksum: string } | null), folder = "00 Meta/Bases") {
 	const gate = { requestConsentForQuery: consent } as unknown as ConsentGate;
 	const svc = new CatalogService({ version: "1", generated: "", entries: [entry] }, {
-		app, gate, store, curatedBasesFolder: "00 Meta/Bases", collectionParams: { tag: "", excludedFolders: [] },
+		app, gate, store, curatedBasesFolder: folder, collectionParams: { tag: "", excludedFolders: [] },
 	});
 	return { svc, consent };
 }
@@ -261,5 +262,103 @@ describe("Browse repo… — a curated Dataview view in the catalog list", () =>
 		expect(buttons()).not.toContain("Update");
 		after.close();
 		document.body.innerHTML = "";
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Update: in place, never losing what the user set or wrote (T7.2 review fixes)
+// ---------------------------------------------------------------------------
+
+const DQL_BODY_V2 = "TABLE status AS Status, storyDay AS Day\nFROM #manuscript/scene\nWHERE contains(pov, this.file.link)\n";
+const DQL_NOTE_V2 = note("sf-view: true\nsf-version: 3\nsf-name: Point of view\n", ["dataview", DQL_BODY_V2]);
+const PATH = "00 Meta/Bases/point-of-view.md";
+
+async function bumpedEntry(): Promise<CatalogEntry> {
+	return (await build({ "point-of-view.md": DQL_NOTE_V2 })).entries[0]!;
+}
+
+/** Install v1, then let the user switch it off and show it in both surfaces. */
+async function installedV1() {
+	const vault = makeVault();
+	const { store, views } = makeStore();
+	const v1 = await dataviewEntry();
+	await service(vault.app, store, v1).svc.install(v1.id);
+	const [id, rec] = Object.entries(views())[0]!;
+	await store.setRecord(id, { ...rec, enabled: false, surfaces: { anvil: true, workbench: true }, commandName: "My scenes" });
+	return { ...vault, store, views, id };
+}
+
+describe("CatalogService — updating an installed Dataview entry", () => {
+	it("replaces the stale record in place, keeping what the user set", async () => {
+		const { app, files, store, views, id } = await installedV1();
+		const v2 = await bumpedEntry();
+		expect(await service(app, store, v2).svc.install(v2.id)).toEqual({ ok: true, path: PATH });
+
+		expect(Object.keys(views())).toEqual([id]);
+		expect(views()[id]).toMatchObject({
+			okayed: { version: 3, checksum: await computeChecksum(DQL_BODY_V2) },
+			enabled: false,
+			surfaces: { anvil: true, workbench: true },
+			commandName: "My scenes",
+			catalogId: "point-of-view",
+		});
+		expect(files.get(PATH)).toBe(DQL_NOTE_V2);
+		expect((await realGate(app, store).evaluate({ ...views()[id]!, enabled: true })).status).toBe("consented");
+	});
+
+	it("updates the installed note where it is, even after the repo folder setting changed", async () => {
+		const { app, files, store, views, id } = await installedV1();
+		const v2 = await bumpedEntry();
+		expect(await service(app, store, v2, undefined, "Elsewhere").svc.install(v2.id)).toEqual({ ok: true, path: PATH });
+		expect(files.get(PATH)).toBe(DQL_NOTE_V2);
+		expect(files.has("Elsewhere/point-of-view.md")).toBe(false);
+		expect(views()[id]!.source).toBe(PATH);
+	});
+
+	it("leaves the installed note as it was when the record cannot be saved", async () => {
+		const { app, files, store, views, id } = await installedV1();
+		const before = structuredClone(views());
+		vi.spyOn(store, "setRecord").mockRejectedValueOnce(new Error("disk full"));
+		const v2 = await bumpedEntry();
+		const result = await service(app, store, v2).svc.install(v2.id);
+		expect(result).toEqual({ ok: false, reason: "persist failed: disk full" });
+		expect(files.get(PATH)).toBe(DQL_NOTE);
+		expect(views()).toEqual(before);
+		expect(views()[id]).toBeDefined();
+	});
+
+	it("removes a note it has just created when the record cannot be saved", async () => {
+		const { app, files } = makeVault();
+		const { store, views } = makeStore();
+		vi.spyOn(store, "setRecord").mockRejectedValueOnce(new Error("disk full"));
+		const entry = await dataviewEntry();
+		expect((await service(app, store, entry).svc.install(entry.id)).ok).toBe(false);
+		expect(files.has(PATH)).toBe(false);
+		expect(views()).toEqual({});
+	});
+
+	it("does not remove a note of the same name that it did not install, when the record cannot be saved", async () => {
+		const { app, files } = makeVault();
+		const { store, views } = makeStore();
+		files.set(PATH, "my own note\n");
+		vi.spyOn(store, "setRecord").mockRejectedValueOnce(new Error("disk full"));
+		const entry = await dataviewEntry();
+		expect((await service(app, store, entry).svc.install(entry.id)).ok).toBe(false);
+		expect(files.get(PATH)).toBe("my own note\n");
+		expect(views()).toEqual({});
+	});
+
+	it("refuses to update a note the user has edited, and changes nothing", async () => {
+		const { app, files, store, views } = await installedV1();
+		const edited = DQL_NOTE.replace("TABLE status AS Status", "TABLE status AS Status, pov AS POV");
+		files.set(PATH, edited);
+		const before = structuredClone(views());
+		const v2 = await bumpedEntry();
+		expect(await service(app, store, v2).svc.install(v2.id)).toEqual({
+			ok: false,
+			reason: `Not updated: ${PATH} was edited after it was installed, and updating would overwrite those edits.`,
+		});
+		expect(files.get(PATH)).toBe(edited);
+		expect(views()).toEqual(before);
 	});
 });

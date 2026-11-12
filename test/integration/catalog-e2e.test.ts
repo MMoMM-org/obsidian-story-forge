@@ -552,7 +552,7 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 		// entry.id paired with okayed.checksum === entry.checksum — NOT on
 		// source equality (see CatalogService._installBasesEntry). A stale
 		// record with the same catalogId but an outdated okayed.checksum must
-		// fall through to a fresh install rather than being reported as an
+		// be updated (in place, since T7.2) rather than being reported as an
 		// already-installed duplicate, which is what makes "Update" work.
 		const oldSource = "# old version\n";
 		const staleRecord: ViewRecord = {
@@ -619,7 +619,8 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 		await vi.waitFor(() => {
 			// A new record must be in the store.
 			const allRecords = Object.values(h.storeRaw());
-			// At minimum: the original stale record + the new one (old stays, new added).
+			// T7.2: the stale record is replaced in place under its own id.
+			expect(Object.keys(h.storeRaw())).toEqual(["existing-id"]);
 			const updatedRec = allRecords.find(
 				(r) => r.okayed?.checksum === newChecksum && r.catalogId === "overview-characters",
 			);

@@ -973,3 +973,87 @@ describe("CatalogService.getEntries()", () => {
 		expect(svc.getEntries()).toHaveLength(0);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Suite — Update of an installed .base: in place, never losing the user's settings or edits
+// (spec 008 T7.2 review fixes)
+// ---------------------------------------------------------------------------
+
+describe("CatalogService — updating an installed .base", () => {
+	const PATH = "00 Meta/Bases/overview-characters.base";
+	const V2_YAML = BASE_YAML.replace("name: Test View", "name: Test View v2");
+
+	/** An app whose adapter keeps files in a map, so writes, reads and removals are observable. */
+	function vaultApp(): { app: App; files: Map<string, string> } {
+		const app = makeApp();
+		const files = new Map<string, string>();
+		vi.mocked(app.vault.adapter.exists).mockImplementation(async (p: string) => files.has(p));
+		vi.mocked(app.vault.adapter.read).mockImplementation(async (p: string) => files.get(p)!);
+		vi.mocked(app.vault.adapter.write).mockImplementation(async (p: string, d: string) => { files.set(p, d); });
+		vi.mocked(app.vault.adapter.remove).mockImplementation(async (p: string) => { files.delete(p); });
+		return { app, files };
+	}
+
+	function svcFor(app: App, store: ViewStore, entry: CatalogEntry): CatalogService {
+		return new CatalogService({ version: "1", generated: "", entries: [entry] }, {
+			app, gate: makeGate(), store, curatedBasesFolder: "00 Meta/Bases", collectionParams: DEFAULT_COLLECTION_PARAMS,
+		});
+	}
+
+	/** v1 installed, then the user turns it off and shows it in both surfaces. */
+	async function installedV1() {
+		const { app, files } = vaultApp();
+		const { store, capturedRecords } = makeStore();
+		await svcFor(app, store, await makeEntry()).install("overview-characters");
+		const [id, rec] = [...capturedRecords.entries()][0]!;
+		await store.setRecord(id, { ...rec, enabled: false, surfaces: { anvil: true, workbench: true } });
+		return { app, files, store, id };
+	}
+
+	it("replaces the stale record under its own id, keeping enabled and surfaces", async () => {
+		const { app, files, store, id } = await installedV1();
+		const v2 = await makeEntry({ source: V2_YAML });
+		expect(await svcFor(app, store, v2).install(v2.id)).toEqual({ ok: true, path: PATH });
+
+		const views = await store.getViews();
+		expect(Object.keys(views)).toEqual([id]);
+		expect(views[id]).toMatchObject({
+			okayed: { checksum: v2.checksum },
+			enabled: false,
+			surfaces: { anvil: true, workbench: true },
+			generated: { instanceChecksum: v2.checksum, sourceChecksum: v2.checksum, filePath: PATH },
+		});
+		expect(files.get(PATH)).toBe(V2_YAML);
+	});
+
+	it("restores the installed file's previous content when the record cannot be saved", async () => {
+		const { app, files, store } = await installedV1();
+		vi.mocked(store.setRecord).mockRejectedValueOnce(new Error("disk full"));
+		const v2 = await makeEntry({ source: V2_YAML });
+		expect(await svcFor(app, store, v2).install(v2.id)).toEqual({ ok: false, reason: "persist failed: disk full" });
+		expect(files.get(PATH)).toBe(BASE_YAML);
+	});
+
+	it("does not remove a .base of the same name it did not install, when the record cannot be saved", async () => {
+		const { app, files } = vaultApp();
+		const { store } = makeStore();
+		files.set(PATH, "views: []\n");
+		vi.mocked(store.setRecord).mockRejectedValueOnce(new Error("disk full"));
+		expect((await svcFor(app, store, await makeEntry()).install("overview-characters")).ok).toBe(false);
+		expect(files.get(PATH)).toBe("views: []\n");
+	});
+
+	it("refuses to update a .base the user has edited, and changes nothing", async () => {
+		const { app, files, store, id } = await installedV1();
+		files.set(PATH, `${BASE_YAML}# mine\n`);
+		const before = structuredClone(await store.getViews());
+		const v2 = await makeEntry({ source: V2_YAML });
+		expect(await svcFor(app, store, v2).install(v2.id)).toEqual({
+			ok: false,
+			reason: `Not updated: ${PATH} was edited after it was installed, and updating would overwrite those edits.`,
+		});
+		expect(files.get(PATH)).toBe(`${BASE_YAML}# mine\n`);
+		expect(await store.getViews()).toEqual(before);
+		expect(before[id]).toBeDefined();
+	});
+});

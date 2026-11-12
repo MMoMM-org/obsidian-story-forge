@@ -996,3 +996,17 @@ describe("ConsentGate.requestConsentForQuery()", () => {
 		expect(await gate.requestConsentForQuery(query)).toBeNull();
 	});
 });
+
+// ---------------------------------------------------------------------------
+// The imported-.base exemption (T7.2) is Bases-only
+// ---------------------------------------------------------------------------
+
+describe("ConsentGate.evaluate() — only a Bases collection is exempt from consent", () => {
+	it("an unapproved DataviewJS collection with no generated block is still not-consented", async () => {
+		const app = makeAppSync("views/my-view.md", DV_JS_CONTENT, 1);
+		const gate = new ConsentGate(app, makeRegistry(), makeDvSettings(true), makeStore(), ...inertConsentGateSeams());
+		const record = makeRecord({ engine: "dataviewjs", kind: "collection", okayed: null, source: "views/my-view.md" });
+		expect(record.generated).toBeUndefined();
+		expect(await gate.evaluate(record)).toEqual({ status: "not-consented" });
+	});
+});

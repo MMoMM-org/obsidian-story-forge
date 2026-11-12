@@ -78,6 +78,8 @@ instance-checksum mismatch.*
 - **The consent gate keeps its real job.** Checksum and consent still guard content we did not author
   — imported views, repo-curated entries, DataviewJS. Their value is undiminished; they simply stop
   policing the user's own settings.
+  An **imported `.base`** is the user's own file, not one we generated: it is exempt from consent
+  and drift and is read as it is on every render (spec 008 T7.2; see the phase-7 decision).
 - **`Codex.base`'s include-by-folder filter is removed**, replaced by tag selection plus generated
   `not: [file.inFolder(…)]` exclusions. Bases supports negation natively
   (`BasesConfigFileFilter.not`, `obsidian.d.ts:600`, since 1.10.0).

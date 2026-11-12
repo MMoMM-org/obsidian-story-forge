@@ -17,8 +17,10 @@
  *                    the two-checksum bookkeeping `classify()`
  *                    (src/library/baseGenerator.ts) needs to tell "clean" apart
  *                    from "a foreign hand edited the file".
- *   If PERSIST fails after MATERIALISE, the orphaned .base file is removed so
- *   no partial state is left. install() NEVER throws — always returns InstallResult.
+ *   If PERSIST fails after MATERIALISE, the write is undone (a new file removed, a
+ *   replaced one restored) so no partial state is left. An Update replaces the
+ *   stale record in place and refuses when the user edited the installed file
+ *   (T7.2). install() NEVER throws — always returns InstallResult.
  *
  * Why the record no longer stores the YAML (ADR-35, closes the double-copy defect):
  *   Storing `record.source` as a second copy of the YAML meant drift detection
@@ -89,6 +91,42 @@ export type InstallResult =
 // Deps interface
 // ---------------------------------------------------------------------------
 
+/** What `_findInstalled` found for an entry. */
+type Lookup =
+	| { state: "none" }
+	| { state: "up-to-date" | "failed"; result: InstallResult }
+	| { state: "stale"; id: string; record: ViewRecord };
+
+/** A file `_materialise` wrote, with its content before (`null`: it did not exist). */
+interface Written {
+	path: string;
+	previous: string | null;
+}
+
+const UP_TO_DATE: InstallResult = { ok: false, reason: "up-to-date: already installed" };
+
+/**
+ * Where a stale record's file is: its `generated.filePath`, else its `source` for a
+ * `kind:"collection"` record (ADR-35: a path). A legacy `kind:"view"` Bases record keeps YAML in
+ * `source`, not a path, so its update is written to `fallback` (the current folder).
+ */
+function installedPath(stale: ViewRecord, fallback: string): string {
+	if (stale.generated !== undefined) return stale.generated.filePath;
+	return stale.kind === "collection" ? stale.source : fallback;
+}
+
+/** An updated record keeps what the user chose on the record it replaces. */
+function keepUserChoices(fresh: ViewRecord, stale: ViewRecord): ViewRecord {
+	return {
+		...fresh,
+		enabled: stale.enabled,
+		surfaces: { ...stale.surfaces },
+		command: stale.command,
+		...(stale.commandName !== undefined ? { commandName: stale.commandName } : {}),
+		...(stale.commandLabel !== undefined ? { commandLabel: stale.commandLabel } : {}),
+	};
+}
+
 export interface CatalogServiceDeps {
 	app: App;
 	gate: ConsentGate;
@@ -136,7 +174,7 @@ export class CatalogService {
 	 * VERIFY → MATERIALISE → PERSIST.
 	 *
 	 * Never throws — always returns InstallResult. If PERSIST fails after
-	 * MATERIALISE, the orphaned .base file is removed to avoid partial state.
+	 * MATERIALISE, the write is undone to avoid partial state.
 	 */
 	async install(id: string): Promise<InstallResult> {
 		const entry = this.index.entries.find((e) => e.id === id);
@@ -165,10 +203,11 @@ export class CatalogService {
 
 	/**
 	 * Install a bases entry atomically:
-	 *   duplicate-check → materialise .base file → persist ViewRecord.
+	 *   duplicate/stale check → (update: edited-file refusal) → materialise → persist.
 	 *
 	 * Atomic guarantee: if store.setRecord throws after the .base file was written,
-	 * the orphaned file is removed (best-effort rollback) so no partial state remains.
+	 * the write is undone (best-effort): a new file is removed, a replaced one gets
+	 * its previous content back.
 	 *
 	 * Duplicate detection matches on rec.catalogId === entry.id — the stable slug,
 	 * mirroring BrowseOfficialModal's own installed-record lookup (which pairs the
@@ -176,8 +215,8 @@ export class CatalogService {
 	 * apart from "update available" — F7). The paired checksum comparison is what
 	 * keeps BrowseOfficialModal's "Update" affordance working: it also calls
 	 * install() on the same entry.id, and a stale record (okayed.checksum !==
-	 * entry.checksum) must fall through to a fresh install rather than being
-	 * reported as an already-installed duplicate. Records persisted before
+	 * entry.checksum) is updated in place under its own id (T7.2) rather than
+	 * being reported as an already-installed duplicate. Records persisted before
 	 * catalogId existed (pre-T4.5) have none; for those we fall back to the
 	 * legacy source === source comparison.
 	 */
@@ -191,21 +230,26 @@ export class CatalogService {
 			};
 		}
 
-		// 2. Duplicate check (see the method docstring and `_findInstalled`).
-		const installed = await this._findInstalled(entry);
-		if (installed !== null) return installed;
+		// 2. Duplicate / stale check (see the method docstring and `_findInstalled`).
+		const found = await this._findInstalled(entry);
+		if (found.state === "up-to-date" || found.state === "failed") return found.result;
+		const stale = found.state === "stale" ? found : null;
+		const path = stale ? installedPath(stale.record, this._targetPath(entry, "base")) : this._targetPath(entry, "base");
+		const edited = stale ? await this._editedRefusal(path, stale.record.generated?.instanceChecksum ?? stale.record.okayed?.checksum, false) : null;
+		if (edited !== null) return edited;
 
 		// 3. MATERIALISE: write the .base YAML file into the vault folder.
-		let writtenPath: string;
+		let written: Written;
 		try {
-			writtenPath = await this._materialise(entry, "base");
+			written = await this._materialise(entry, path);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			return { ok: false, reason: `materialise failed: ${msg}` };
 		}
+		const writtenPath = written.path;
 
-		// 4. PERSIST: write ViewRecord (ADR-35 shape). On failure, remove the
-		// orphaned .base file.
+		// 4. PERSIST: write ViewRecord (ADR-35 shape). On failure, undo the write
+		// (remove a new file, restore a replaced one).
 		//
 		// instanceChecksum is the checksum of the bytes actually written to
 		// writtenPath — NOT a re-read or re-serialisation. _materialise writes
@@ -244,7 +288,7 @@ export class CatalogService {
 			...(entry.description !== undefined ? { description: entry.description } : {}),
 		};
 
-		return this._persist(record, writtenPath);
+		return this._persist(stale, record, written);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -265,20 +309,24 @@ export class CatalogService {
 	private async _installDataviewEntry(entry: DataviewCatalogEntry): Promise<InstallResult> {
 		const mismatch = await this._verifyDataview(entry);
 		if (mismatch !== null) return { ok: false, reason: mismatch };
-		const installed = await this._findInstalled(entry);
-		if (installed !== null) return installed;
+		const found = await this._findInstalled(entry);
+		if (found.state === "up-to-date" || found.state === "failed") return found.result;
+		const stale = found.state === "stale" ? found : null;
+		const path = stale ? installedPath(stale.record, this._targetPath(entry, "md")) : this._targetPath(entry, "md");
+		const edited = stale ? await this._editedRefusal(path, stale.record.okayed?.checksum, true) : null;
+		if (edited !== null) return edited;
 
-		const okayed = await this._dataviewApproval(entry);
+		const okayed = await this._dataviewApproval(entry, path);
 		if (okayed === null) return { ok: false, reason: "consent declined" };
 
-		let writtenPath: string;
+		let written: Written;
 		try {
-			writtenPath = await this._materialise(entry, "md");
+			written = await this._materialise(entry, path);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			return { ok: false, reason: `materialise failed: ${msg}` };
 		}
-		return this._persist(this._dataviewRecord(entry, writtenPath, okayed), writtenPath);
+		return this._persist(stale, this._dataviewRecord(entry, path, okayed), written);
 	}
 
 	/** Fail closed: the note's bytes and its one query block must match what the catalog recorded. */
@@ -296,8 +344,9 @@ export class CatalogService {
 	}
 
 	/** DQL: approved by provenance. DataviewJS: the full consent modal, before any write. */
-	private async _dataviewApproval(entry: DataviewCatalogEntry): Promise<{ version: number; checksum: string } | null> {
+	private async _dataviewApproval(entry: DataviewCatalogEntry, path: string): Promise<{ version: number; checksum: string } | null> {
 		if (entry.engine === "dataview-dql") return { version: entry.version, checksum: entry.queryChecksum };
+		// Safe: _verifyDataview (run first) refused any source without exactly one query block.
 		const query = extractQueryBlocks(entry.source)[0]!;
 		return this.deps.gate.requestConsentForQuery({
 			engine: entry.engine,
@@ -305,7 +354,7 @@ export class CatalogService {
 			...(entry.description !== undefined ? { description: entry.description } : {}),
 			body: query.body,
 			version: entry.version,
-			sourcePath: this._targetPath(entry, "md"),
+			sourcePath: path,
 		});
 	}
 
@@ -330,45 +379,77 @@ export class CatalogService {
 	// ---------------------------------------------------------------------------
 
 	/**
-	 * "up-to-date" when the same catalog entry is already installed at its current checksum.
-	 * Match by catalogId when the record has one (also requiring the stored checksum to match
-	 * `installedChecksum(entry)`, so a stale record falls through to a fresh install instead of
-	 * being reported as a duplicate); fall back to source equality only for pre-T4.5 records that
-	 * predate catalogId. `null` when it is not installed.
+	 * Is `entry` installed? "up-to-date" when a record of it holds its current checksum
+	 * (`installedChecksum`); "stale" (with that record's id) when a record of it holds an older
+	 * one, so Update replaces that record in place; "none" otherwise. Match by catalogId when the
+	 * record has one; fall back to source equality only for pre-T4.5 records that predate it.
 	 */
-	private async _findInstalled(entry: CatalogEntry): Promise<InstallResult | null> {
+	private async _findInstalled(entry: CatalogEntry): Promise<Lookup> {
+		let existing: Record<string, ViewRecord>;
 		try {
-			const existing = await this.deps.store.getViews();
-			const current = installedChecksum(entry);
-			for (const rec of Object.values(existing)) {
-				const isDuplicate =
-					rec.catalogId !== undefined
-						? rec.catalogId === entry.id && rec.okayed?.checksum === current
-						: rec.source === entry.source;
-				if (isDuplicate) return { ok: false, reason: "up-to-date: already installed" };
-			}
-			return null;
+			existing = await this.deps.store.getViews();
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			return { ok: false, reason: `store read failed: ${msg}` };
+			return { state: "failed", result: { ok: false, reason: `store read failed: ${msg}` } };
 		}
+		const current = installedChecksum(entry);
+		for (const [id, rec] of Object.entries(existing)) {
+			if (rec.catalogId === undefined) {
+				if (rec.source === entry.source) return { state: "up-to-date", result: UP_TO_DATE };
+				continue;
+			}
+			if (rec.catalogId !== entry.id) continue;
+			if (rec.okayed?.checksum === current) return { state: "up-to-date", result: UP_TO_DATE };
+			return { state: "stale", id, record: rec };
+		}
+		return { state: "none" };
 	}
 
-	/** Write `record`; on failure remove the file just written, so no partial state is left. */
-	private async _persist(record: ViewRecord, writtenPath: string): Promise<InstallResult> {
+	/**
+	 * Refuse an Update that would overwrite the user's edits: the file at `path` no longer has the
+	 * checksum the stale record installed (`installed`). For a Dataview note that checksum is the
+	 * query block's (`okayed`), so `byQueryBlock` compares the block; prose around it is not
+	 * tracked. A missing file has nothing to lose, and the update proceeds.
+	 */
+	private async _editedRefusal(path: string, installed: string | undefined, byQueryBlock: boolean): Promise<InstallResult | null> {
+		const adapter = this.deps.app.vault.adapter;
+		if (!(await adapter.exists(path))) return null;
+		const content = await adapter.read(path);
+		const blocks = byQueryBlock ? extractQueryBlocks(content) : null;
+		const onDisk = blocks === null
+			? await computeChecksum(content)
+			: blocks.length === 1 ? await computeChecksum(blocks[0]!.body) : null;
+		if (onDisk !== null && onDisk === installed) return null;
+		return { ok: false, reason: `Not updated: ${path} was edited after it was installed, and updating would overwrite those edits.` };
+	}
+
+	/**
+	 * Write `record` — under the stale record's id, keeping what the user set on it (enabled, the
+	 * two surfaces, the command), or under a new id. On failure undo the file write: a file that
+	 * did not exist is removed, one that did gets its previous content back.
+	 */
+	private async _persist(stale: { id: string; record: ViewRecord } | null, record: ViewRecord, written: Written): Promise<InstallResult> {
+		const id = stale?.id ?? crypto.randomUUID();
+		const merged = stale ? keepUserChoices(record, stale.record) : record;
 		try {
-			await this.deps.store.setRecord(crypto.randomUUID(), record);
+			await this.deps.store.setRecord(id, merged);
 		} catch (err) {
-			try {
-				await this.deps.app.vault.adapter.remove(writtenPath);
-			} catch {
-				// Best-effort rollback: log and continue — don't mask the original error.
-				console.debug("[StoryForge] CatalogService: rollback remove failed", writtenPath);
-			}
+			await this._undoWrite(written);
 			const msg = err instanceof Error ? err.message : String(err);
 			return { ok: false, reason: `persist failed: ${msg}` };
 		}
-		return { ok: true, path: writtenPath };
+		return { ok: true, path: written.path };
+	}
+
+	/** Best-effort rollback of `_materialise`; a failure is logged, never masks the original error. */
+	private async _undoWrite(written: Written): Promise<void> {
+		const adapter = this.deps.app.vault.adapter;
+		try {
+			if (written.previous === null) await adapter.remove(written.path);
+			else await adapter.write(written.path, written.previous);
+		} catch {
+			console.debug("[StoryForge] CatalogService: rollback failed", written.path);
+		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -376,28 +457,25 @@ export class CatalogService {
 	// ---------------------------------------------------------------------------
 
 	/**
-	 * Write an entry (`.base` or, T7.2, a Dataview `.md`) into the configured curatedBasesFolder.
+	 * Write an entry (`.base` or, T7.2, a Dataview `.md`) to `filePath`, remembering what was
+	 * there before so `_persist` can undo the write.
 	 *
 	 * Creates the folder via vault.adapter.mkdir when absent. mkdir is a properly
 	 * typed method on the DataAdapter interface (obsidian.d.ts:2099) — no `as
 	 * unknown` cast needed; no fictional-method risk.
 	 *
 	 * Throws on any vault error — the callers (_installBasesEntry, _installDataviewEntry) catch and
-	 * returns { ok:false }.
+	 * return { ok:false }.
 	 */
-	private async _materialise(entry: CatalogEntry, extension: "base" | "md"): Promise<string> {
-		const { app, curatedBasesFolder } = this.deps;
-		const folderPath = normalizePath(curatedBasesFolder);
-		const filePath = this._targetPath(entry, extension);
-
-		const folderExists = await app.vault.adapter.exists(folderPath);
-		if (!folderExists) {
-			await app.vault.adapter.mkdir(folderPath);
+	private async _materialise(entry: CatalogEntry, filePath: string): Promise<Written> {
+		const adapter = this.deps.app.vault.adapter;
+		const folderPath = normalizePath(this.deps.curatedBasesFolder);
+		if (!(await adapter.exists(folderPath))) {
+			await adapter.mkdir(folderPath);
 		}
-
-		await app.vault.adapter.write(filePath, entry.source);
-
-		return filePath;
+		const previous = (await adapter.exists(filePath)) ? await adapter.read(filePath) : null;
+		await adapter.write(filePath, entry.source);
+		return { path: filePath, previous };
 	}
 
 	/** Where `entry` is written: `<curatedBasesFolder>/<id>.<extension>`. */

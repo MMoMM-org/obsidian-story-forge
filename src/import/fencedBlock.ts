@@ -15,11 +15,8 @@
 
 import { TFile } from "obsidian";
 import type { App } from "obsidian";
+// The parser is `import/queryBlocks` (no `obsidian` import, so the Node catalog build shares it).
 import { extractQueryBlocks } from "import/queryBlocks";
-
-// The parser lives in a module with no `obsidian` import, so the catalog build script
-// (scripts/build-catalog.mjs, plain Node) validates curated notes with the same rule (T7.2).
-export { extractQueryBlocks } from "import/queryBlocks";
 
 /**
  * Read the single dataview/dataviewjs fenced block from the note at

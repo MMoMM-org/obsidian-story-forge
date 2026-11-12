@@ -12,7 +12,8 @@
 
 import { parseYaml } from "obsidian";
 import type { App, TFile } from "obsidian";
-import { extractQueryBlocks, readNoteContent } from "import/fencedBlock";
+import { readNoteContent } from "import/fencedBlock";
+import { extractQueryBlocks } from "import/queryBlocks";
 import { validateBasesConfig } from "bases/basesConfig";
 import { computeChecksum } from "consent/checksum";
 import { ImportError } from "import/ViewDefinition";

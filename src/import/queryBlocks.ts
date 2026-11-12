@@ -21,7 +21,7 @@ const QUERY_LANGS = new Set(["dataview", "dataviewjs"]);
  * raw text between the opening and closing fence delimiters, byte-exact.
  *
  * Exported as the single source of truth for the "exactly one query block"
- * rule: both `readFencedBlock` (here) and `ViewImporter.parse` derive their
+ * rule: `readFencedBlock` (import/fencedBlock.ts), `ViewImporter.parse` and the catalog build derive their
  * block count / single-block extraction from this one parser.
  *
  * The parser walks the content line-by-line, tracking the open/close of ANY

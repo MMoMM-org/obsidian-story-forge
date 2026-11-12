@@ -495,7 +495,11 @@ export class ConsentGate {
 	}
 }
 
-/** An imported `.base` collection: Bases, `kind:"collection"`, not rendered from a template. */
+/**
+ * An imported `.base` collection: Bases, `kind:"collection"`, not rendered from a template.
+ * A malformed `generated` block degrades to absent (store/types), so a broken from-repo record also
+ * lands here; low risk, because Bases runs no code — the exemption is engine-gated, never DataviewJS.
+ */
 function isUserBaseCollection(record: ViewRecord): boolean {
 	return record.engine === "bases" && record.kind === "collection" && record.generated === undefined;
 }
