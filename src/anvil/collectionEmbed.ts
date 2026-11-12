@@ -19,6 +19,7 @@ import type { ViewRecord } from "store/types";
 import type { TFile } from "obsidian";
 
 declare const activeDocument: Document;
+declare const activeWindow: Window & { MutationObserver: typeof MutationObserver };
 
 /** The open card's class (cardWrapper.ts `selected`), the one the pane's entry is drawn with. */
 const SELECTED_CLASS = "sf-cx-card--sel";
@@ -59,12 +60,10 @@ export class CollectionEmbed {
 
 	constructor(private readonly deps: CollectionEmbedDeps) {}
 
-	/**
-	 * Draw `request` into `host`. A newer draw, or `teardown`, makes an older one stop quietly.
-	 * The caller tears down what it drew before (the Anvil does in `_render`, as it empties the body).
-	 */
+	/** Draw `request` into `host`, after releasing the previous draw. A newer draw, or `teardown`, makes an older one stop quietly. */
 	async draw(host: HTMLElement, request: EmbedRequest): Promise<void> {
-		const mine = ++this.generation;
+		this.teardown();
+		const mine = this.generation;
 		const live = (): boolean => mine === this.generation;
 		try {
 			await this.drawNow(host, request, live);
@@ -86,16 +85,18 @@ export class CollectionEmbed {
 	private async drawNow(host: HTMLElement, request: EmbedRequest, live: () => boolean): Promise<void> {
 		const record = await this.deps.getRecord(request.collectionId);
 		if (!record) return void host.replaceChildren(div("sf-cx-empty", "This collection no longer exists."));
-		if (!request.activeFile) return void host.replaceChildren(div("sf-cx-empty", "Open a note to draw this collection."));
+		const file = request.activeFile;
+		if (!file) return void host.replaceChildren(div("sf-cx-empty", "Open a note to draw this collection."));
 		const decision = await this.deps.gate.evaluate(record);
 		if (!live()) return;
 		if (decision.status !== "consented") {
 			return void host.replaceChildren(this.blockedBox(decision.status, request.collectionId, record));
 		}
-		await this.render(host, record, request, live);
+		await this.render(host, record, { request, file }, live);
 	}
 
-	private async render(host: HTMLElement, record: ViewRecord, request: EmbedRequest, live: () => boolean): Promise<void> {
+	private async render(host: HTMLElement, record: ViewRecord, at: { request: EmbedRequest; file: TFile }, live: () => boolean): Promise<void> {
+		const { request, file } = at;
 		const engine = this.deps.createEngine(record.engine);
 		if (!engine) return void host.replaceChildren(this.blockedBox("engine-missing", request.collectionId, record));
 		const el = div("sf-cx-embed");
@@ -104,8 +105,15 @@ export class CollectionEmbed {
 		host.replaceChildren(el);
 		this.engine = engine;
 		const options = record.engine === "bases" ? { cardViewType: cardViewType(request.cardId) } : {};
-		await engine.render(record, contextFor(request.activeFile!), el, options);
-		if (!live()) return;
+		try {
+			await engine.render(record, contextFor(file), el, options);
+		} catch (e) {
+			// Overtaken while drawing: the engine made its Component after `teardown` ran. Unload it.
+			if (live()) throw e;
+			engine.teardown();
+			return;
+		}
+		if (!live()) return void engine.teardown();
 		if (record.engine === "bases") this.keepSelectionMarked(el, request.openPath);
 	}
 
@@ -118,7 +126,9 @@ export class CollectionEmbed {
 			}
 		};
 		mark();
-		this.observer = new MutationObserver(mark);
+		this.observer?.disconnect();
+		// The element's own window, so a popout's mutations are observed by its own observer.
+		this.observer = new (el.ownerDocument.defaultView ?? activeWindow).MutationObserver(mark);
 		this.observer.observe(el, { childList: true, subtree: true });
 	}
 

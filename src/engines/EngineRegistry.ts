@@ -18,6 +18,7 @@ import type { App } from "obsidian";
 import type { DataviewApi } from "types/dataview";
 import { EngineRegistry } from "engines/QueryEngine";
 import type { QueryEngine } from "engines/QueryEngine";
+import type { ViewRecord } from "store/types";
 import { DataviewDqlEngine } from "engines/DataviewDqlEngine";
 import { DataviewJsEngine } from "engines/DataviewJsEngine";
 import { BasesFenceEngine } from "engines/BasesFenceEngine";
@@ -63,6 +64,21 @@ export function getDvSettings(app: App): { enableDataviewJs: boolean } {
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 	const enabled: unknown = dv?.api?.settings?.enableDataviewJs;
 	return { enableDataviewJs: enabled === true };
+}
+
+/**
+ * One engine of its own for `kind`, or `undefined` when it is not wired (Dataview absent or too
+ * old; Bases off). For a host that must not share the registry's instances (the Anvil's embed).
+ */
+export function createEngineFor(app: App, kind: ViewRecord["engine"], basesAvailable: boolean): QueryEngine | undefined {
+	switch (kind) {
+		case "bases":
+			return basesAvailable ? new BasesFenceEngine(app) : undefined;
+		case "dataview-dql":
+			return getDataviewApi(app) ? new DataviewDqlEngine(app) : undefined;
+		case "dataviewjs":
+			return getDataviewApi(app) ? new DataviewJsEngine(app) : undefined;
+	}
 }
 
 /**

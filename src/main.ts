@@ -7,7 +7,7 @@ import { SidebarView, activateView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE, ICON, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { WorkspaceLeaf } from "obsidian";
 import { EngineRegistry } from "engines/QueryEngine";
-import { buildEngineRegistry, getDvSettings } from "engines/EngineRegistry";
+import { buildEngineRegistry, createEngineFor, getDvSettings } from "engines/EngineRegistry";
 import { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { createFileClassCache } from "fileclass/fileClassVault";
@@ -187,7 +187,7 @@ export default class StoryForgePlugin extends Plugin {
 						getRecord: async (id) => (await this.store.getViews())[id],
 						gate,
 						// The Anvil draws with engines of its own; the shared ones belong to the Workbench.
-						createEngine: (kind) => buildEngineRegistry(this.app, isBasesAvailable(this)).get(kind),
+						createEngine: (kind) => createEngineFor(this.app, kind, isBasesAvailable(this)),
 						getCardByCollection: () => this.settings.cardByCollection,
 						onCardSelect: (collectionId, cardId) => {
 							// Operational state (CON-2) — never written to a note's frontmatter.

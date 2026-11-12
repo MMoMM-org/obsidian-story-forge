@@ -24,13 +24,14 @@ import {
 import { AnvilView } from "anvil/AnvilView";
 import { buildAnvilCodexOpts } from "anvil/anvilCodexOpts";
 import { CollectionEmbed } from "anvil/collectionEmbed";
+import { BasesFenceEngine } from "engines/BasesFenceEngine";
 import { CardBasesView } from "bases/CardBasesView";
 import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
-import { BasesEntry, BasesQueryResult, QueryController } from "obsidian";
+import { BasesEntry, BasesQueryResult, Component, QueryController } from "obsidian";
 import type { QueryEngine } from "engines/QueryEngine";
 import { ConsentGate } from "consent/ConsentGate";
 import { computeChecksum } from "consent/checksum";
-import { buildEngineRegistry } from "engines/EngineRegistry";
+import { buildEngineRegistry, createEngineFor } from "engines/EngineRegistry";
 import { addableCollections, anvilPills, type LibraryCollection } from "library/collectionStore";
 import { wireLibrary, type LibraryHost, type LibraryWiring } from "library/wireLibrary";
 import { ViewStore } from "store/ViewStore";
@@ -180,7 +181,7 @@ async function makeWorld(opts: WorldOptions = {}): Promise<World> {
 		getRecord: async (id) => (await views.getViews())[id],
 		gate,
 		createEngine: (kind) => {
-			const engine = buildEngineRegistry(app, capability === "enabled").get(kind);
+			const engine = createEngineFor(app, kind, capability === "enabled");
 			if (engine) engines.push({ kind, teardown: vi.spyOn(engine, "teardown") });
 			return engine;
 		},
@@ -525,6 +526,61 @@ describe("an embed draw that has been overtaken", () => {
 		expect(newer.textContent).toBe("drawn");
 	});
 
+	it("unloads the Component a real BasesFenceEngine made after teardown had already run", async () => {
+		const w = await makeWorld({ views: { orgs: await baseRecord() } });
+		const held = slow();
+		// Teardown lands while the engine is still reading the file, before it has a Component.
+		vi.mocked(w.app.vault.cachedRead).mockImplementationOnce(async () => { await held.wait; return BASE_YAML; });
+		const unload = vi.spyOn(Component.prototype, "_unload");
+		const embed = new CollectionEmbed({
+			getRecord: async () => baseRecord(),
+			gate: consented,
+			createEngine: () => new BasesFenceEngine(w.app),
+		});
+		const drawing = embed.draw(document.createElement("div"), request);
+		await settle();
+		embed.teardown();
+		expect(unload).not.toHaveBeenCalled();
+		held.release();
+		await drawing;
+		expect(unload).toHaveBeenCalled();
+	});
+
+	it("unloads the engine whose render fails after teardown had already run", async () => {
+		const held = slow();
+		const teardown = vi.fn();
+		const embed = new CollectionEmbed({
+			getRecord: async () => baseRecord(),
+			gate: consented,
+			createEngine: () => ({ kind: "bases", render: async () => { await held.wait; throw new Error("late failure"); }, teardown }),
+		});
+		const host = document.createElement("div");
+		const drawing = embed.draw(host, request);
+		await settle();
+		embed.teardown();
+		teardown.mockClear();
+		held.release();
+		await drawing;
+		expect(teardown).toHaveBeenCalledTimes(1);
+		expect(host.textContent).not.toContain("late failure");
+	});
+
+	it("releases the previous draw by itself, with no teardown call in between", async () => {
+		const torn: string[] = [];
+		let n = 0;
+		const embed = new CollectionEmbed({
+			getRecord: async () => baseRecord(),
+			gate: consented,
+			createEngine: () => {
+				const id = `engine-${++n}`;
+				return { kind: "bases", render: async () => {}, teardown: () => { torn.push(id); } };
+			},
+		});
+		await embed.draw(document.createElement("div"), request);
+		await embed.draw(document.createElement("div"), request);
+		expect(torn).toEqual(["engine-1"]);
+	});
+
 	it("does not watch or mark anything after teardown arrived while Bases was drawing", async () => {
 		const held = slow();
 		const card = document.createElement("div");
@@ -581,5 +637,21 @@ describe("a name click inside an embedded .base with linkClickAction 'open'", ()
 		expect(openLinkText).toHaveBeenCalledTimes(1);
 		expect(openLinkText).toHaveBeenCalledWith(MARA.path, "", true);
 		expect(revealAndShowFile).not.toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// 9 · an engine of the Anvil's own
+// ---------------------------------------------------------------------------
+
+describe("createEngineFor", () => {
+	it("builds only the engine asked for, and only when it is wired", () => {
+		const app = new App();
+		expect(createEngineFor(app, "bases", true)?.kind).toBe("bases");
+		expect(createEngineFor(app, "bases", false)).toBeUndefined();
+		expect(createEngineFor(app, "dataview-dql", true)).toBeUndefined();
+		wireDataviewApi(app, createMockDataviewApi());
+		expect(createEngineFor(app, "dataview-dql", false)?.kind).toBe("dataview-dql");
+		expect(createEngineFor(app, "dataviewjs", false)?.kind).toBe("dataviewjs");
 	});
 });
