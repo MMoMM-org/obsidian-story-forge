@@ -33,8 +33,10 @@ declare global {
 				title?: string;
 			},
 		): HTMLElementTagNameMap[K];
-		createDiv(opts?: { cls?: string; text?: string }): HTMLDivElement;
-		createSpan(opts?: { cls?: string; text?: string }): HTMLSpanElement;
+		// Same option bag as createEl: the real createDiv/createSpan take Obsidian's DomElementInfo
+		// (obsidian.d.ts), so `attr` and `title` are valid on them too.
+		createDiv(opts?: { cls?: string; text?: string; attr?: Record<string, string>; title?: string }): HTMLDivElement;
+		createSpan(opts?: { cls?: string; text?: string; attr?: Record<string, string>; title?: string }): HTMLSpanElement;
 		appendText(text: string): void;
 		empty(): void;
 		addClass(...classes: string[]): void;
