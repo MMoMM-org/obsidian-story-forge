@@ -3,8 +3,9 @@
  *
  * The REAL plugin loads on a mock vault with the data it saved in memory: a `.base` is imported
  * with the Anvil switch only, shows in the Anvil's Codex, is removed, and nothing dangles.
- * Deep links are checked on the real `SettingsTab`. The Workbench half of T7.5 ("not in the
- * Workbench") belongs to T7.1d3, which gates the Workbench's tabs; it is not asserted here.
+ * The Workbench half of T7.5 (T7.1d3) is asserted on the real `SidebarView` the plugin registers:
+ * the collection is not one of its tabs, and a Workbench-on collection is. Deep links are checked
+ * on the real `SettingsTab`.
  *
  * @ref docs/XDD/specs/008-codex-surface/mockups-library.html — L2a, L6a, L8a, L8b
  */
@@ -14,7 +15,8 @@ import type { AnvilView } from "anvil/AnvilView";
 import { computeChecksum } from "consent/checksum";
 import { SettingsTab } from "settings/SettingsTab";
 import type { ViewRecord } from "store/types";
-import { WORKSPACE_VIEW_TYPE } from "pluginConstants";
+import type { SidebarView } from "views/SidebarView";
+import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 
 vi.mock("bases/BasesAdapter", () => ({
 	registerCodexView: vi.fn(() => true),
@@ -41,12 +43,14 @@ const click = (el: Element | null): void => {
 interface Session {
 	readonly plugin: Plugin;
 	readonly anvil: AnvilView;
+	readonly workbench: SidebarView;
 	readonly saved: { current: { views?: Record<string, ViewRecord>; settings?: { cardByCollection?: Record<string, string> } } };
 }
 
 const live: Session[] = [];
 afterEach(async () => {
 	for (const s of live.splice(0)) {
+		await s.workbench.onClose();
 		await s.anvil.onClose();
 		s.anvil.unload();
 		s.anvil.contentEl.remove();
@@ -77,19 +81,24 @@ async function load(): Promise<Session> {
 	await anvil.onOpen();
 	document.body.appendChild(anvil.contentEl);
 	anvil.setLayout("codex");
-	const session = { plugin, anvil, saved };
+	const sidebar = plugin.registerView.mock.calls.find((c: unknown[]) => c[0] === SIDEBAR_VIEW_TYPE);
+	const workbench = (sidebar![1] as (l: WorkspaceLeaf) => SidebarView)(leaf);
+	await workbench.onOpen();
+	const session = { plugin, anvil, workbench, saved };
 	live.push(session);
 	return session;
 }
 
+const tabLabels = (w: SidebarView): string[] => [...w.contentEl.querySelectorAll(".sf-tab")].map((t) => t.textContent ?? "");
 const labels = (a: AnvilView): string[] => [...a.contentEl.querySelectorAll("[data-sf-collection]")].map((p) => p.textContent ?? "");
 const pill = (a: AnvilView, label: string): HTMLElement =>
 	[...a.contentEl.querySelectorAll<HTMLElement>("[data-sf-collection]")].find((p) => p.textContent === label)!;
 
 describe("a .base imported for the Anvil only", () => {
 	it("appears in the Anvil's Codex, draws through Bases, and leaves nothing behind once removed", async () => {
-		const { plugin, anvil, saved } = await load();
+		const { plugin, anvil, workbench, saved } = await load();
 		expect(labels(anvil)).toEqual(["Characters", "Locations", "Objects", "Lore"]);
+		expect(tabLabels(workbench)).toEqual(["Codex", "Navigator"]);
 
 		// The import: a collection record with the Anvil switch on and the Workbench off (D1, P2).
 		await plugin.store.setRecord("orgs", {
@@ -99,6 +108,8 @@ describe("a .base imported for the Anvil only", () => {
 		});
 		await settle();
 		expect(labels(anvil)).toEqual(["Characters", "Locations", "Objects", "Lore", "Organizations"]);
+		// T7.5: in the Anvil, and NOT in the Workbench.
+		expect(tabLabels(workbench)).toEqual(["Codex", "Navigator"]);
 
 		click(pill(anvil, "Organizations"));
 		await settle();
@@ -111,12 +122,30 @@ describe("a .base imported for the Anvil only", () => {
 		await settle();
 
 		expect(labels(anvil)).toEqual(["Characters", "Locations", "Objects", "Lore"]);
+		expect(tabLabels(workbench)).toEqual(["Codex", "Navigator"]);
 		expect(pill(anvil, "Characters").getAttribute("aria-pressed")).toBe("true");
 		expect(anvil.contentEl.querySelector(".sf-cx-embed")).toBeNull();
 		expect(plugin.settings.cardByCollection).toEqual({});
 		expect(Object.keys(saved.current.views ?? {})).toEqual([]);
 		expect(saved.current.settings?.cardByCollection ?? {}).toEqual({});
 		expect(plugin.library.snapshot().map((c) => c.id)).not.toContain("orgs");
+	});
+});
+
+describe("a .base imported for the Workbench", () => {
+	it("is a Workbench tab beside Codex and Navigator, and leaves with its collection", async () => {
+		const { plugin, workbench } = await load();
+		await plugin.store.setRecord("orgs", {
+			provenance: "imported", enabled: true, okayed: { version: 0, checksum: await computeChecksum(BASE_YAML) },
+			source: BASE_PATH, engine: "bases", command: false, commandName: "Organizations", kind: "collection",
+			surfaces: { anvil: false, workbench: true },
+		});
+		await settle();
+		expect(tabLabels(workbench)).toEqual(["Codex", "Navigator", "Organizations"]);
+
+		await plugin.library.collections.remove("orgs");
+		await settle();
+		expect(tabLabels(workbench)).toEqual(["Codex", "Navigator"]);
 	});
 });
 

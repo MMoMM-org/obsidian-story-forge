@@ -45,9 +45,12 @@ import { resolveFileClassChain } from "fileclass/fileClassReader";
 import type { FileClassCache } from "fileclass/fileClassVault";
 import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
+import { consentBoxShell, consentButton } from "consent/consentBox";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
+import { workbenchTabs } from "library/collectionStore";
+import type { LibraryWiring } from "library/wireLibrary";
 import type { UndoJournal } from "undo/undoJournal";
 import { activateUndoControl, buildWorkbenchUndoControls, syncUndoControls, undoDirectionOf } from "undo/undoControls";
 import { reportRejectedUndo } from "undo/undoNotice";
@@ -254,6 +257,11 @@ export class SidebarView extends ItemView {
 	private _unsubscribeStore: (() => void) | null = null;  // store unsubscribe handle
 	private _tabsGen = 0;                                   // async-load guard
 
+	// T7.1d3: the Library. Present, it decides which collections are tabs (P7); absent, every
+	// non-Card record is one, as before the Library existed.
+	private readonly library: Pick<LibraryWiring, "snapshot" | "onChange"> | null;
+	private _unsubscribeLibrary: (() => void) | null = null;
+
 	// M5: Navigator tab state. Collapse persists per (surface, scope, group) so it
 	// survives the follow re-render; the plotline filter narrows the scene list.
 	private readonly _collapse = new CollapseStore();
@@ -281,6 +289,8 @@ export class SidebarView extends ItemView {
 	 *   a FileClass, so the editor shows the note's own keys.
 	 * @param undo - Spec 009: the plugin's undo journal. While the view is open it
 	 *   asks the editor whether the subject holds a draft or a write (ADR-39).
+	 * @param library - T7.1d3: the Library's snapshot and change signal. The view only reads
+	 *   (the shared `CollectionStore` stays behind `library.collections`; a click never writes).
 	 */
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -292,6 +302,7 @@ export class SidebarView extends ItemView {
 		getExcludedFolders?: () => readonly string[],
 		fileClasses?: FileClassCache,
 		undo?: UndoJournal,
+		library?: Pick<LibraryWiring, "snapshot" | "onChange">,
 	) {
 		super(leaf);
 		this.scoping = new ScopingService(this.app);
@@ -303,6 +314,7 @@ export class SidebarView extends ItemView {
 		this.getExcludedFolders = getExcludedFolders ?? ((): readonly string[] => DEFAULT_EXCLUDED_FOLDERS);
 		this.fileClasses = fileClasses ?? null;
 		this.undo = undo ?? null;
+		this.library = library ?? null;
 		this._debouncedFollow = debounce(
 			(l: WorkspaceLeaf | null) => { this._doFollow(l); },
 			DEBOUNCE_MS,
@@ -353,6 +365,7 @@ export class SidebarView extends ItemView {
 			// Initial populate
 			void this._reloadViews();
 		}
+		this._followLibrary();
 
 		// Defer first resolve to layout-ready (ADR-5)
 		this.app.workspace.onLayoutReady(() => {
@@ -555,6 +568,7 @@ export class SidebarView extends ItemView {
 		// is a safe no-op because Set.delete on a removed entry is harmless.
 		this._unsubscribeStore?.();
 		this._unsubscribeStore = null;
+		this._unfollowLibrary();
 		// ADR-7: teardown the current engine before clearing the DOM
 		this.currentEngine?.teardown();
 		this.currentEngine = null;
@@ -1161,44 +1175,51 @@ export class SidebarView extends ItemView {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * The collection tabs, in order (P7): with a Library, the imported and from-repo collections whose
+	 * effective Workbench switch is on, in Library order, once their record has loaded. Without one,
+	 * every record except a Card.
+	 */
+	private _collectionTabs(): Array<{ id: string; label: string }> {
+		if (!this.library) {
+			return Object.entries(this._views)
+				.filter(([, rec]) => rec.kind !== "card")
+				.map(([id, rec]) => ({ id, label: rec.commandName ?? this._sourceBasename(rec.source) }));
+		}
+		return workbenchTabs(this.library.snapshot())
+			.filter((c) => c.id in this._views)
+			.map((c) => ({ id: c.id, label: c.label }));
+	}
+
+	private _appendTab(strip: AugEl, id: string, label: string): void {
+		const tabEl = strip.createDiv({ cls: "sf-tab" });
+		tabEl.textContent = label;
+		tabEl.setAttribute("role", "tab");
+		tabEl.setAttribute("data-view-id", id);
+		tabEl.title = label;
+	}
+
+	/**
 	 * _renderTabs — idempotent; empties the strip and rebuilds all tabs.
-	 * Views first, Context last. Reconciles stale selectedViewId.
+	 * Codex, Navigator, then the collection tabs (S95, L7a, P7). Falls back to Codex when
+	 * the selected collection no longer has a tab.
 	 */
 	private _renderTabs(): void {
 		if (!this._tabsEl) return;
 		const strip = aug(this._tabsEl);
 		strip.empty();
 
-		// One tab per view
-		for (const [id, rec] of Object.entries(this._views)) {
-			const label = rec.commandName ?? this._sourceBasename(rec.source);
-			const tabEl = strip.createDiv({ cls: "sf-tab" });
-			tabEl.textContent = label;
-			tabEl.setAttribute("role", "tab");
-			tabEl.setAttribute("data-view-id", id);
-			tabEl.title = label;
-		}
+		this._appendTab(strip, CTX_TAB_ID, "Codex");
+		// M5: fixed Navigator tab — a built-in surface, not a store view.
+		this._appendTab(strip, NAVIGATOR_TAB_ID, "Navigator");
+		const collections = this._collectionTabs();
+		for (const { id, label } of collections) this._appendTab(strip, id, label);
 
-		// Context tab
-		const ctxEl = strip.createDiv({ cls: "sf-tab" });
-		ctxEl.textContent = "Context";
-		ctxEl.setAttribute("role", "tab");
-		ctxEl.setAttribute("data-view-id", CTX_TAB_ID);
-		ctxEl.title = "Context";
-
-		// M5: fixed Navigator tab (always last) — a built-in surface, not a store view.
-		const navEl = strip.createDiv({ cls: "sf-tab" });
-		navEl.textContent = "Navigator";
-		navEl.setAttribute("role", "tab");
-		navEl.setAttribute("data-view-id", NAVIGATOR_TAB_ID);
-		navEl.title = "Navigator";
-
-		// Reconcile: if a selected *store* view is gone, fall back to Context. The
-		// built-in Navigator tab is exempt (it is never a member of _views).
+		// Reconcile: a selected collection without a tab falls back to Codex. The built-in
+		// Navigator tab is exempt (it is never a collection).
 		if (
 			this.selectedViewId !== null &&
 			this.selectedViewId !== NAVIGATOR_TAB_ID &&
-			!(this.selectedViewId in this._views)
+			!collections.some((c) => c.id === this.selectedViewId)
 		) {
 			this.selectedViewId = null;
 			this.currentRecord = null;
@@ -1252,7 +1273,8 @@ export class SidebarView extends ItemView {
 	async selectView(viewId: string): Promise<void> {
 		if (!this.store) return;
 		if (!(viewId in this._views)) await this._reloadViews();
-		this._selectTab(viewId);
+		// A collection that has no tab (Workbench off, disabled, a Card) is not shown: Codex is.
+		this._selectTab(this._collectionTabs().some((c) => c.id === viewId) ? viewId : null);
 	}
 
 	/**
@@ -1275,7 +1297,16 @@ export class SidebarView extends ItemView {
 
 		const prevRecord = this.currentRecord;
 		this._views = views;
+		this._refreshTabs(prevRecord);
+	}
 
+	/**
+	 * Re-point `currentRecord`, rebuild the tabs, and redraw the body only when the shown
+	 * collection's render-relevant state changed (or the selection fell back to Codex).
+	 * getViews() returns fresh objects on every call, so an identity check would always fire and
+	 * flash the panel on unrelated imports/removes; value-compare instead (`_renderRelevantEqual`).
+	 */
+	private _refreshTabs(prevRecord: ViewRecord | null): void {
 		// Re-point currentRecord so enable/disable of selected view is reflected live
 		this.currentRecord =
 			this.selectedViewId !== null
@@ -1284,14 +1315,27 @@ export class SidebarView extends ItemView {
 
 		this._renderTabs();
 
-		// Re-render body only when the selected view's render-relevant state changed.
-		// getViews() returns fresh objects on every call, so an identity check would
-		// always fire and flash the panel on unrelated imports/removes. Value-compare
-		// the four fields that affect which engine branch runs (source, engine, enabled,
-		// okayed). Also fires when selection changed (null↔non-null).
 		if (!this._renderRelevantEqual(prevRecord, this.currentRecord)) {
 			this._rerenderBody();
 		}
+	}
+
+	/** T7.1d3: the Library changed (a switch, a checkbox, an import, a removal): rebuild the tabs live. */
+	private _onLibraryChange(): void {
+		this._refreshTabs(this.currentRecord);
+	}
+
+	private _followLibrary(): void {
+		if (!this.library || this._unsubscribeLibrary) return;
+		const off = this.library.onChange(() => { this._onLibraryChange(); });
+		this._unsubscribeLibrary = off;
+		// Released on unload too (ADR-2); a second call is a no-op.
+		this.register(off);
+	}
+
+	private _unfollowLibrary(): void {
+		this._unsubscribeLibrary?.();
+		this._unsubscribeLibrary = null;
 	}
 
 	/**
@@ -1774,7 +1818,7 @@ export class SidebarView extends ItemView {
 	 * Code is NOT executing.
 	 */
 	private _renderConsentRequired(body: AugEl, view: ViewRecord): void {
-		const block = body.createDiv({ cls: "sf-consent-required sf-cta-block" });
+		const block = aug(body.appendChild(consentBoxShell(false)));
 		block.createDiv({ cls: "sf-cta-title", text: "Review & Enable" });
 		block.createDiv({
 			cls: "sf-cta-body",
@@ -1785,19 +1829,11 @@ export class SidebarView extends ItemView {
 			text: "⚠ Review the source and checksum before enabling.",
 		});
 		// Real CTA only when a gate is injected AND a view tab is selected.
-		// Context tab (id null) or pre-M2 construction (no gate) → text-only.
+		// Codex tab (id null) or pre-M2 construction (no gate) → text-only.
 		const gate = this.consentGate;
 		const id = this.selectedViewId;
 		if (gate && id) {
-			const btn = activeDocument.createElement("button");
-			btn.className = "sf-cta-btn sf-btn";
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Enable" reads as a proper action label here
-			btn.textContent = "Review & Enable";
-			// Plain addEventListener (not registerDomEvent): the body is emptied and
-			// rebuilt on every render, so per-render registration would leak (cleanups
-			// only run on unload). This element is GC'd when body.empty() runs.
-			btn.addEventListener("click", () => { void gate.requestConsent(id, view); });
-			block.appendChild(btn);
+			block.appendChild(consentButton("Review & Enable", () => { void gate.requestConsent(id, view); }));
 		}
 	}
 
@@ -1844,7 +1880,7 @@ export class SidebarView extends ItemView {
 	 * Code is NOT executing.
 	 */
 	private _renderReconsentRequired(body: AugEl, view: ViewRecord): void {
-		const banner = body.createDiv({ cls: "sf-reconsent-required sf-warnbanner" });
+		const banner = aug(body.appendChild(consentBoxShell(true)));
 		banner.createDiv({ text: "Query changed since you last enabled this view." });
 		banner.createDiv({
 			cls: "sf-hint",
@@ -1854,12 +1890,7 @@ export class SidebarView extends ItemView {
 		const gate = this.consentGate;
 		const id = this.selectedViewId;
 		if (gate && id) {
-			const btn = activeDocument.createElement("button");
-			btn.className = "sf-cta-btn sf-btn";
-			btn.textContent = "Re-review";
-			// Plain addEventListener (see _renderConsentRequired): GC'd on next body.empty().
-			btn.addEventListener("click", () => { void gate.requestReConsent(id, view); });
-			banner.appendChild(btn);
+			banner.appendChild(consentButton("Re-review", () => { void gate.requestReConsent(id, view); }));
 		}
 	}
 

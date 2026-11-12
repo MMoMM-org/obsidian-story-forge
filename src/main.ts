@@ -146,6 +146,7 @@ export default class StoryForgePlugin extends Plugin {
 				() => this.settings.excludedFolders,
 				fileClasses,
 				journal,
+				this.library,
 			),
 		);
 

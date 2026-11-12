@@ -12,6 +12,7 @@
  */
 import type { ConsentGate } from "consent/ConsentGate";
 import type { QueryEngine } from "engines/QueryEngine";
+import { consentBoxShell, consentButton } from "consent/consentBox";
 import { cardViewType } from "library/collectionBase";
 import { NAVIGATION_HOST_ATTR } from "codex/cardWrapper";
 import type { NoteContext } from "scoping/NoteContext";
@@ -161,17 +162,11 @@ export class CollectionEmbed {
 
 	private consentBox(status: string, id: string, record: ViewRecord): HTMLElement {
 		const drift = status === "drift";
-		const box = div(drift ? "sf-reconsent-required sf-warnbanner" : "sf-consent-required sf-cta-block");
+		const box = consentBoxShell(drift);
 		box.appendChild(div("sf-cta-title", drift ? "Query changed since you last enabled it." : "Review and enable"));
 		box.appendChild(div("sf-cta-body", "The collection is not drawn until you have reviewed it."));
-		const button = activeDocument.createElement("button");
-		button.type = "button";
-		button.className = "sf-cta-btn sf-btn";
-		button.textContent = drift ? "Re-review" : "Review and enable";
-		button.addEventListener("click", () => {
-			void (drift ? this.deps.gate.requestReConsent(id, record) : this.deps.gate.requestConsent(id, record));
-		});
-		box.appendChild(button);
+		const request = drift ? this.deps.gate.requestReConsent : this.deps.gate.requestConsent;
+		box.appendChild(consentButton(drift ? "Re-review" : "Review and enable", () => { void request.call(this.deps.gate, id, record); }));
 		return box;
 	}
 }

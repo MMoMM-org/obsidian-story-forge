@@ -456,8 +456,8 @@ Closes the gap that started this whole spec: the distribution machinery served f
   - *Deep links.* `SettingsTab.openTab("library", {})` for "Manage in settings…" and
     `openTab("library", {configure: id})` for S98's "Change tag", checked on the real tab in the
     end-to-end test.
-  - *Not asserted in d2.* The Workbench half of T7.5 ("not in the Workbench") needs d3: `_renderTabs`
-    still lists every record, so the end-to-end test asserts the Anvil half and the removal only.
+  - *Not asserted in d2 (closed in d3).* The Workbench half of T7.5 ("not in the Workbench") needed the gated tabs;
+    `anvilLibrary.endToEnd.test.ts` asserts it since T7.1d3.
   - *One click, one navigation (review fix).* With `linkClickAction:"open"` a name click in an
     embedded card reached both the Anvil's handler and `CardBasesView`'s own `onEntryClick`
     (`revealAndShowFile`). The embed now carries `data-sf-nav-host` (`NAVIGATION_HOST_ATTR`, in
@@ -465,4 +465,34 @@ Closes the gap that started this whole spec: the distribution machinery served f
     inside one. A standalone `.base` and the Workbench have no such ancestor: unchanged.
   - *Tests.* `test/anvil/anvilLibrary.test.ts` (21) and `anvilLibrary.endToEnd.test.ts` (3), plus the single-navigation test and two `CardBasesView` navigation tests; the
     marker vocabulary pin gained `data-sf-cx-add`.
+
+- **T7.1d3 — Workbench surfaces: choices the mockup and spec do not settle** (2026-11-12).
+  - *The Library dependency.* `SidebarView` takes a tenth constructor argument,
+    `Pick<LibraryWiring, "snapshot" | "onChange">`; `main.ts` passes `this.library`. It does not take the
+    `CollectionStore` itself: the view only reads, and a click never writes (the store stays reachable as
+    `library.collections` for anything that must). Without it the view lists every record that is not a Card, as before.
+  - *The Context tab is the Codex tab (closes a drift from S95).* S95 draws the Workbench's first tab as "Codex" and
+    says it "mostly renames what is already built"; T2.6 renamed the sidebar to Workbench but left the tab as "Context".
+    The label is now "Codex"; the tab id (`__context__`), edit mode, Inspector and undo are unchanged.
+  - *Tab order (S95, L7a, P7).* Codex, Navigator, then the collection tabs in Library order. It was the collection
+    tabs, Context, Navigator.
+  - *Which records are tabs.* `workbenchTabs(library.snapshot())` (imported and from-repo collections, enabled, Workbench
+    on), once the record has loaded. A `kind:"card"` record, a disabled collection and a Workbench-off one have none.
+    A migrated Dataview collection keeps its tab (D2).
+  - *Live rebuild.* The view subscribes to `library.onChange` in `onOpen` and releases it in `onClose` and on unload.
+    A change rebuilds the strip and redraws the body only when the shown collection's render-relevant state moved or the
+    selection fell back (`_renderRelevantEqual` is unchanged: a surface toggle is a tab-strip matter, and a collection
+    that lost its tab leaves `currentRecord` null, which that comparison already counts as a change).
+  - *Fallback (L9, P5).* A shown collection that loses its tab (switch off, checkbox off, removed) selects Codex and
+    redraws. The command palette's `selectView` of a collection that has no tab selects Codex too.
+  - *P9 for Workbench tabs: no Card.* L7 draws no Card for a Workbench tab, so a `.base` tab passes no `cardViewType` to
+    `BasesFenceEngine.render`: it is the file's own first view, unreduced, as before the Library. The Anvil alone draws
+    with the Card.
+  - *Shared consent shell.* `src/consent/consentBox.ts` owns the one class vocabulary (`.sf-cta-block`, `.sf-warnbanner`)
+    and the call-to-action button. The wording stays with each surface: the Workbench says "view" and carries a warning
+    line, the embed says "collection", so a single full renderer would have forced one surface's copy onto the other.
+  - *Changed existing tests (all in `SidebarView.tabs.test.ts`, the intended order change).* "one view: view tab first,
+    then Context, then the fixed Navigator", "two views: both appear before Context (Navigator is last)", "Home moves to
+    first tab" (now starts from the last view tab and lands on Codex) and "End moves to the last tab" (now starts from
+    Codex and lands on the view tab). Each asserted the old order; none was weakened.
 

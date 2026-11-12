@@ -2,7 +2,7 @@
  * Stage-1 tab wiring tests — SidebarView with a fake ViewStore.
  *
  * Tests all "Stage 1 design" behaviours from jolly-soaring-scroll.md:
- *   - Tabs built from store (view-first, Context last, default selection = Context)
+ *   - Tabs built from store (Codex, Navigator, then the views; default selection = Codex)
  *   - Empty store → Context only
  *   - Click selects tab and re-renders body via the correct engine
  *   - Selecting a disabled view shows S16 (.sf-disabled), engine.render NOT called
@@ -226,15 +226,16 @@ describe("SidebarView tabs: basic tab building from store", () => {
 		expect(tabs[1]?.getAttribute("data-view-id")).toBe("__navigator__");
 	});
 
-	it("one view: view tab first, then Context, then the fixed Navigator", async () => {
+	it("one view: Codex first, then the fixed Navigator, then the view tab (S95, P7)", async () => {
 		const store = makeFakeStore({ v1: makeViewRecord({ commandName: "My View" }) });
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 		const tabs = getTabs(view);
 		expect(tabs.length).toBe(3);
-		expect(tabs[0]?.getAttribute("data-view-id")).toBe("v1");
-		expect(tabs[1]?.getAttribute("data-view-id")).toBe("__context__");
-		expect(tabs[2]?.getAttribute("data-view-id")).toBe("__navigator__");
+		expect(tabs[0]?.getAttribute("data-view-id")).toBe("__context__");
+		expect(tabs[0]?.textContent).toBe("Codex");
+		expect(tabs[1]?.getAttribute("data-view-id")).toBe("__navigator__");
+		expect(tabs[2]?.getAttribute("data-view-id")).toBe("v1");
 	});
 
 	it("Context tab is selected by default (aria-selected=true, sf-tab-sel class)", async () => {
@@ -279,7 +280,7 @@ describe("SidebarView tabs: basic tab building from store", () => {
 		expect(() => getTabByViewId(view, "abc123")).not.toThrow();
 	});
 
-	it("two views: both appear before Context (Navigator is last)", async () => {
+	it("two views: both appear after Codex and Navigator", async () => {
 		const store = makeFakeStore({
 			v1: makeViewRecord({ commandName: "View A" }),
 			v2: makeViewRecord({ commandName: "View B" }),
@@ -288,8 +289,9 @@ describe("SidebarView tabs: basic tab building from store", () => {
 		await view.onOpen();
 		const tabs = getTabs(view);
 		expect(tabs.length).toBe(4);
-		expect(tabs[2]?.getAttribute("data-view-id")).toBe("__context__");
-		expect(tabs[3]?.getAttribute("data-view-id")).toBe("__navigator__");
+		expect(tabs[0]?.getAttribute("data-view-id")).toBe("__context__");
+		expect(tabs[1]?.getAttribute("data-view-id")).toBe("__navigator__");
+		expect(tabs.slice(2).map((t) => t.textContent)).toEqual(["View A", "View B"]);
 	});
 });
 
@@ -820,7 +822,7 @@ describe("SidebarView tabs: keyboard roving tabindex", () => {
 		expect(v1Tab.getAttribute("aria-selected")).toBe("true");
 	});
 
-	it("Home moves to first tab", async () => {
+	it("Home moves to first tab (Codex)", async () => {
 		const store = makeFakeStore({
 			v1: makeViewRecord({ commandName: "View A" }),
 			v2: makeViewRecord({ commandName: "View B" }),
@@ -830,16 +832,17 @@ describe("SidebarView tabs: keyboard roving tabindex", () => {
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 
-		// Select Context, then Home
-		const ctxTab = getContextTab(view);
-		fireKey(ctxTab, "Home");
+		// Select the last view tab, then Home: the first tab is Codex.
+		const v2Tab = getTabByViewId(view, "v2");
+		v2Tab.click();
+		await Promise.resolve();
+		fireKey(v2Tab, "Home");
 		await Promise.resolve();
 
-		const v1Tab = getTabByViewId(view, "v1");
-		expect(v1Tab.getAttribute("aria-selected")).toBe("true");
+		expect(getContextTab(view).getAttribute("aria-selected")).toBe("true");
 	});
 
-	it("End moves to the last tab (Navigator)", async () => {
+	it("End moves to the last tab (the last view tab)", async () => {
 		const store = makeFakeStore({
 			v1: makeViewRecord({ commandName: "View A" }),
 		});
@@ -848,15 +851,11 @@ describe("SidebarView tabs: keyboard roving tabindex", () => {
 		view = new SidebarView(leaf, registry, consentGate, nativeEngine, store);
 		await view.onOpen();
 
-		// Select v1, then End → the fixed Navigator tab (now last).
-		const v1Tab = getTabByViewId(view, "v1");
-		v1Tab.click();
-		await Promise.resolve();
-		fireKey(v1Tab, "End");
+		// Select Codex, then End → the view tab (now last, after Navigator).
+		fireKey(getContextTab(view), "End");
 		await Promise.resolve();
 
-		const navTab = getTabByViewId(view, "__navigator__");
-		expect(navTab.getAttribute("aria-selected")).toBe("true");
+		expect(getTabByViewId(view, "v1").getAttribute("aria-selected")).toBe("true");
 	});
 
 	it("ArrowRight from view tab moves to next view tab", async () => {
