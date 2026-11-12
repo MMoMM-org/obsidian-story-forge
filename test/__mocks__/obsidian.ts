@@ -580,6 +580,8 @@ export class App {
 		getMarkdownFiles: vi.fn(() => [] as TFile[]),
 		getFiles: vi.fn(() => [] as TFile[]),
 		getAllLoadedFiles: vi.fn(() => [] as (TFile | TFolder)[]),
+		/** obsidian.d.ts Vault.getAllFolders(includeRoot?): every folder, the root only on request. */
+		getAllFolders: vi.fn((_includeRoot?: boolean) => [] as TFolder[]),
 		getResourcePath: vi.fn((file: TFile): string => `app://vault/${file.path}`),
 		adapter: {
 			read: vi.fn(),
@@ -906,6 +908,78 @@ export class Setting {
 		cb(button);
 		return this;
 	});
+}
+
+/**
+ * SettingGroup (obsidian.d.ts, since 1.11): one box for related rows. Real DOM is
+ * `.setting-group > (.setting-item-heading) + .setting-items`; `listEl` is the rows' parent.
+ * Only the members the plugin uses (`listEl`, `setHeading`, `addSetting`) are modelled.
+ */
+export class SettingGroup {
+	listEl: HTMLElement;
+	_groupEl: HTMLElement;
+	_headingEl: HTMLElement | null = null;
+
+	constructor(containerEl: HTMLElement) {
+		this._groupEl = containerEl.createDiv({ cls: "setting-group" });
+		this.listEl = this._groupEl.createDiv({ cls: "setting-items" });
+	}
+
+	setHeading(text: string | DocumentFragment): this {
+		this._headingEl ??= this._groupEl.createDiv({ cls: "setting-item setting-item-heading" });
+		this._groupEl.insertBefore(this._headingEl, this.listEl);
+		this._headingEl.empty();
+		this._headingEl.createDiv({ cls: "setting-item-name" }).append(text);
+		return this;
+	}
+
+	addSetting(cb: (setting: Setting) => void): this {
+		cb(new Setting(this.listEl));
+		return this;
+	}
+}
+
+/**
+ * AbstractInputSuggest (obsidian.d.ts): a popover of suggestions under an `<input>`.
+ * The mock opens nothing visually; tests drive it through `_byInput` and `_suggest()`.
+ * `selectSuggestion` is the real overridable hook; the base implementation is a no-op here.
+ */
+export abstract class AbstractInputSuggest<T> {
+	/** Test registry: the suggester attached to an input element. */
+	static _byInput = new Map<HTMLElement, AbstractInputSuggest<unknown>>();
+	app: App;
+	limit = 100;
+	private readonly _inputEl: HTMLInputElement | HTMLDivElement;
+	private _onSelect: ((value: T, evt: MouseEvent | KeyboardEvent) => unknown) | null = null;
+
+	constructor(app: App, textInputEl: HTMLInputElement | HTMLDivElement) {
+		this.app = app;
+		this._inputEl = textInputEl;
+		AbstractInputSuggest._byInput.set(textInputEl, this as AbstractInputSuggest<unknown>);
+	}
+
+	open = vi.fn();
+	close = vi.fn();
+	setValue(value: string): void {
+		if (this._inputEl instanceof HTMLInputElement) this._inputEl.value = value;
+	}
+	getValue(): string {
+		return this._inputEl instanceof HTMLInputElement ? this._inputEl.value : (this._inputEl.textContent ?? "");
+	}
+	protected abstract getSuggestions(query: string): T[] | Promise<T[]>;
+	abstract renderSuggestion(value: T, el: HTMLElement): void;
+	selectSuggestion(value: T, evt: MouseEvent | KeyboardEvent): void {
+		this._onSelect?.(value, evt);
+	}
+	onSelect(callback: (value: T, evt: MouseEvent | KeyboardEvent) => unknown): this {
+		this._onSelect = callback;
+		return this;
+	}
+
+	/** Test helper: what the popover would list for the input's current text. */
+	async _suggest(): Promise<T[]> {
+		return this.getSuggestions(this.getValue());
+	}
 }
 
 /**

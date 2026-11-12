@@ -47,17 +47,21 @@ const CLEAR = "Clear undo history";
 const flush = async (): Promise<void> => { await new Promise((r) => setTimeout(r, 0)); };
 
 describe("SettingsTab — Undo history section", () => {
-	it("is a heading at the end of the tab, with the two rows after it", async () => {
+	// T7.1: the heading is the SettingGroup's own, so the two rows sit inside the group it titles.
+	it("is a group heading at the end of the tab, with the two rows inside the group", async () => {
 		const root = await render(makeTab().tab);
 		const names = [...root.querySelectorAll("[data-setting-name]")].map((e) => e.getAttribute("data-setting-name"));
-		expect(names.slice(-3)).toEqual(["Undo history", KEEP, CLEAR]);
-		expect(row(root, "Undo history").classList.contains("setting-heading")).toBe(true);
+		expect(names.slice(-2)).toEqual([KEEP, CLEAR]);
+		const group = row(root, KEEP).closest(".setting-group")!;
+		expect(group.querySelector(".setting-item-heading")?.textContent).toBe("Undo history");
+		expect(group.contains(row(root, CLEAR))).toBe(true);
 	});
 
 	it("renders once when two renders overlap", async () => {
 		const { tab } = makeTab();
 		await Promise.all([tab.displayAsync(), tab.displayAsync()]);
-		expect(tab.containerEl.querySelectorAll('[data-setting-name="Undo history"]')).toHaveLength(1);
+		expect(tab.containerEl.querySelectorAll(".setting-group .setting-item-heading")).toHaveLength(4);
+		expect([...tab.containerEl.querySelectorAll(".setting-item-heading")].filter((h) => h.textContent === "Undo history")).toHaveLength(1);
 	});
 
 	it("explains that the history holds copies of field values, and what off does (U11)", async () => {

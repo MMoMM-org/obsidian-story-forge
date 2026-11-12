@@ -213,14 +213,17 @@ describe("L4 · used by", () => {
 // ---------------------------------------------------------------------------
 
 describe("P19 · the checkbox", () => {
-	it("makes Hero's checkbox checked and inert, and says why", async () => {
+	it("makes Hero's checkbox checked, inert and visibly greyed, and says why", async () => {
 		const w = await open();
 		const box = cb(w.slot, "hero");
+		const WHY = "Hero is the fallback Card and cannot be disabled";
 		expect(box.checked).toBe(true);
 		expect(box.disabled).toBe(true);
+		expect(box.classList.contains("is-greyed")).toBe(true);
+		expect(cb(w.slot, "table").classList.contains("is-greyed")).toBe(false);
 		const why = document.getElementById(box.getAttribute("aria-describedby") ?? "");
-		expect(text(why)).toBe("Hero is the fallback Card and is always available");
-		expect(box.title).toBe("Hero is the fallback Card and is always available");
+		expect(text(why)).toBe(WHY);
+		expect(box.title).toBe(WHY);
 	});
 
 	it("toggles every other Card through setCardEnabled and keeps focus on the checkbox", async () => {

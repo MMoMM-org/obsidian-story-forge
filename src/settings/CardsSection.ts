@@ -34,7 +34,7 @@ interface CardModel {
 	readonly usedBy: readonly LibraryCollection[];
 }
 
-const HERO_WHY = "Hero is the fallback Card and is always available";
+const HERO_WHY = "Hero is the fallback Card and cannot be disabled";
 
 /** "A", "A and B", "A, B and C". */
 function joinNames(names: readonly string[]): string {
@@ -133,6 +133,7 @@ export class CardsSection {
 	private markFallback(row: HTMLElement, box: HTMLInputElement, id: string): void {
 		const noteId = `sf-lb-why-${id}`;
 		box.disabled = true;
+		box.addClass("is-greyed");
 		box.title = HERO_WHY;
 		box.setAttribute("aria-describedby", noteId);
 		row.createSpan({ cls: "sf-lb-sr", text: HERO_WHY, attr: { id: noteId } });

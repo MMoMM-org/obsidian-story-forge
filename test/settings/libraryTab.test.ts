@@ -191,6 +191,7 @@ describe("L1 · the tab strip", () => {
 		expect(header.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 
+	// T7.1: "Undo history" is now a SettingGroup heading, not a Setting row; settingsGroups.test.ts covers it.
 	it("places every pre-existing setting exactly once, under its mapped tab (L1c)", async () => {
 		const { root } = await open();
 		const mapped: Record<string, string[]> = {
@@ -199,7 +200,6 @@ describe("L1 · the tab strip", () => {
 			behaviour: [
 				"Link click action",
 				"Open note from card title",
-				"Undo history",
 				"Keep undo history across restarts",
 				"Clear undo history",
 			],

@@ -39,6 +39,8 @@ import type {
 	Modal,
 	Notice,
 	Setting,
+	SettingGroup,
+	AbstractInputSuggest,
 	PluginSettingTab,
 	ButtonComponent,
 	ToggleComponent,
@@ -71,6 +73,8 @@ import type {
 	Modal as MockModal,
 	Notice as MockNotice,
 	Setting as MockSetting,
+	SettingGroup as MockSettingGroup,
+	AbstractInputSuggest as MockAbstractInputSuggest,
 	PluginSettingTab as MockPluginSettingTab,
 	ButtonComponent as MockButtonComponent,
 	ToggleComponent as MockToggleComponent,
@@ -203,6 +207,9 @@ void _registerBasesViewOnRealPlugin;
 const _modalOk: AssertNoFiction<MockModal, Modal> = true;
 const _noticeOk: AssertNoFiction<MockNoticeAllowlisted, Notice> = true;
 const _settingOk: AssertNoFiction<MockSetting, Setting> = true;
+const _settingGroupOk: AssertNoFiction<MockSettingGroup, SettingGroup> = true;
+// The static test registry `_byInput` is `_`-prefixed and excluded; instances are checked by shape.
+const _inputSuggestOk: AssertNoFiction<MockAbstractInputSuggest<unknown>, AbstractInputSuggest<unknown>> = true;
 const _pluginSettingTabOk: AssertNoFiction<MockPluginSettingTabAllowlisted, PluginSettingTab> = true;
 const _buttonComponentOk: AssertNoFiction<MockButtonComponent, ButtonComponent> = true;
 const _toggleComponentOk: AssertNoFiction<MockToggleComponent, ToggleComponent> = true;

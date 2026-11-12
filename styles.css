@@ -4,8 +4,11 @@
  * `--text-accent`, `--font-small`, `--font-semibold`).
  */
 
+/* No side padding of our own: Obsidian's settings pane already insets its content, and the native
+ * SettingGroup boxes (T7.1) must sit exactly where the core settings do. The custom Collections
+ * and Cards lists share that inset, so they line up with the groups beside them. */
 .sf-settings {
-	padding: 0 16px;
+	padding: 0;
 }
 
 .sf-settings-header {
@@ -1238,6 +1241,13 @@ body {
 .sf-settings button.sf-lb-addbtn:disabled {
 	opacity: 0.45;
 	cursor: not-allowed;
+}
+
+/* P19: Hero's checkbox is inert, and must look it (theme greys, scoped over Obsidian's own rules). */
+.sf-settings input.sf-lb-cb.is-greyed {
+	opacity: 0.4;
+	cursor: not-allowed;
+	accent-color: var(--text-faint);
 }
 
 /* Screen-reader-only text: the reason a control is disabled. */

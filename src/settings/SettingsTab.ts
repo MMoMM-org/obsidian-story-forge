@@ -1,5 +1,6 @@
 import type MyPlugin from "main";
-import { type App, PluginSettingTab, Setting } from "obsidian";
+import { type App, PluginSettingTab, Setting, SettingGroup } from "obsidian";
+import { attachFolderSuggest } from "./suggesters";
 import { normalizeLinkClickAction, normalizeCardTitleOpensNote, normalizeExcludedFolders, normalizeFileClassesFolder } from "types/index";
 
 import { HeaderSection } from "./HeaderSection";
@@ -238,7 +239,8 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private renderCuratedFolder(panel: HTMLElement): void {
-		new Setting(panel)
+		new SettingGroup(panel).setHeading("Collections from the repo").addSetting((setting) => {
+				setting
 			.setName("Folder for collections from the repo")
 			.setDesc("Where Browse repo… places the .base files it installs. Default: 00 Meta/Bases")
 			.addText((text) =>
@@ -251,7 +253,7 @@ export class SettingsTab extends PluginSettingTab {
 						this.plugin.settings.curatedBasesFolder = value.trim().length > 0 ? value.trim() : "00 Meta/Bases";
 						await this.plugin.saveSettings();
 					}),
-			);
+			); });
 	}
 
 	/** One index for the tab's lifetime, built on first use; its events are released with the plugin. */
@@ -268,63 +270,68 @@ export class SettingsTab extends PluginSettingTab {
 	// ---------------------------------------------------------------------------
 
 	private renderBehaviourSection(containerEl: HTMLElement): void {
-		new Setting(containerEl)
-			.setName("Link click action")
-			.setDesc("What happens when you click a link to another entity. Modifier-click (ctrl/cmd) inverts this choice.")
-			.addDropdown((d) =>
-				d
-					.addOption("drill", "Inspect the linked note (show it in place)")
-					.addOption("open", "Open in editor")
-					.setValue(this.plugin.settings.linkClickAction)
-					.onChange(async (value: string) => {
-						this.plugin.settings.linkClickAction = normalizeLinkClickAction(value);
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Open note from card title")
-			.setDesc(
-				"Clicking a card's title opens the note in a new tab. When off, it shows the note in the editor pane. " +
-					"Modifier-click (ctrl/cmd) inverts this choice.",
-			)
-			.addToggle((t) =>
-				t.setValue(this.plugin.settings.cardTitleOpensNote).onChange(async (value) => {
-					this.plugin.settings.cardTitleOpensNote = normalizeCardTitleOpensNote(value);
-					await this.plugin.saveSettings();
-				}),
-			);
-
+		this.renderLinksGroup(containerEl);
 		this._renderUndoSection(containerEl);
 	}
 
+	private renderLinksGroup(containerEl: HTMLElement): void {
+		new SettingGroup(containerEl).setHeading("Links and cards")
+			.addSetting((setting) => {
+				setting
+				.setName("Link click action")
+				.setDesc("What happens when you click a link to another entity. Modifier-click (ctrl/cmd) inverts this choice.")
+				.addDropdown((d) =>
+					d
+						.addOption("drill", "Inspect the linked note (show it in place)")
+						.addOption("open", "Open in editor")
+						.setValue(this.plugin.settings.linkClickAction)
+						.onChange(async (value: string) => {
+							this.plugin.settings.linkClickAction = normalizeLinkClickAction(value);
+							await this.plugin.saveSettings();
+						}),
+				); })
+			.addSetting((setting) => {
+				setting
+				.setName("Open note from card title")
+				.setDesc(
+					"Clicking a card's title opens the note in a new tab. When off, it shows the note in the editor pane. " +
+						"Modifier-click (ctrl/cmd) inverts this choice.",
+				)
+				.addToggle((t) =>
+					t.setValue(this.plugin.settings.cardTitleOpensNote).onChange(async (value) => {
+						this.plugin.settings.cardTitleOpensNote = normalizeCardTitleOpensNote(value);
+						await this.plugin.saveSettings();
+					}),
+				); });
+	}
+
 	private _renderUndoSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName("Undo history").setHeading();
-
-		new Setting(containerEl)
-			.setName("Keep undo history across restarts")
-			.setDesc(
-				"Stores the undo history in the plugin folder so you can still undo after restarting Obsidian. " +
-					"It holds copies of field values from your notes and stays on this device. Turning this off deletes the stored history.",
-			)
-			.addToggle((t) =>
-				t.setValue(this.plugin.settings.keepUndoHistory).onChange(async (value) => {
-					this.plugin.settings.keepUndoHistory = value;
-					await this.plugin.saveSettings();
-					await this.undo.setPersistence(value);
-				}),
-			);
-
-		new Setting(containerEl)
-			.setName("Clear undo history")
-			.setDesc("Empties undo and redo and deletes the stored history. Your notes are not changed.")
-			.addButton((b) =>
-				b.setButtonText("Clear").onClick(() => {
-					this.undo.clear().then(showHistoryCleared, (err: unknown) => {
-						console.warn("[StoryForge] Undo journal: couldn't clear the history.", err);
-					});
-				}),
-			);
+		new SettingGroup(containerEl).setHeading("Undo history")
+			.addSetting((setting) => {
+				setting
+				.setName("Keep undo history across restarts")
+				.setDesc(
+					"Stores the undo history in the plugin folder so you can still undo after restarting Obsidian. " +
+						"It holds copies of field values from your notes and stays on this device. Turning this off deletes the stored history.",
+				)
+				.addToggle((t) =>
+					t.setValue(this.plugin.settings.keepUndoHistory).onChange(async (value) => {
+						this.plugin.settings.keepUndoHistory = value;
+						await this.plugin.saveSettings();
+						await this.undo.setPersistence(value);
+					}),
+				); })
+			.addSetting((setting) => {
+				setting
+				.setName("Clear undo history")
+				.setDesc("Empties undo and redo and deletes the stored history. Your notes are not changed.")
+				.addButton((b) =>
+					b.setButtonText("Clear").onClick(() => {
+						this.undo.clear().then(showHistoryCleared, (err: unknown) => {
+							console.warn("[StoryForge] Undo journal: couldn't clear the history.", err);
+						});
+					}),
+				); });
 	}
 
 	// ---------------------------------------------------------------------------
@@ -333,45 +340,49 @@ export class SettingsTab extends PluginSettingTab {
 	// ---------------------------------------------------------------------------
 
 	private _renderScopeSection(containerEl: HTMLElement): void {
-		new Setting(containerEl)
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClasses' is metadata-menu's proper noun for its fc-*.md files
-			.setName("FileClasses folder")
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClass'/'FileClasses' are metadata-menu's proper noun
-			.setDesc("Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses")
-			.addText((text) =>
-				text
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- '00 Meta/FileClasses' is a vault path placeholder
-					.setPlaceholder("00 Meta/FileClasses")
-					.setValue(normalizeFileClassesFolder(this.plugin.settings.fileClassesFolder))
-					.onChange(async (value) => {
-						// Fall back to the default when the field is cleared or malformed.
-						this.plugin.settings.fileClassesFolder = normalizeFileClassesFolder(value.trim());
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Excluded folders")
-			.setDesc(
-				"Comma-separated vault folders left out of every collection and scope view. Default: 00 Meta. " +
-					"A collection can use its own list instead (Library › configure).",
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("00 Meta")
-					.setValue(normalizeExcludedFolders(this.plugin.settings.excludedFolders).join(", "))
-					.onChange(async (value) => {
-						// An emptied field is a deliberate "exclude nothing" — NOT a
-						// fall back to the default (CON-7: exclusion only, and clearing
-						// the list is a legitimate user choice, not malformed input).
-						const parsed = value
-							.split(",")
-							.map((s) => s.trim())
-							.filter((s) => s.length > 0);
-						// Through the store, so built-ins that follow Scope, the live counts and
-						// the Anvil all hear about it (one change signal).
-						await this.collections.setScope(normalizeExcludedFolders(parsed));
-					}),
-			);
+		new SettingGroup(containerEl).setHeading("Vault folders")
+			.addSetting((setting) => {
+				setting
+				// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClasses' is metadata-menu's proper noun for its fc-*.md files
+				.setName("FileClasses folder")
+				// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClass'/'FileClasses' are metadata-menu's proper noun
+				.setDesc("Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses")
+				.addText((text) => {
+					text
+						// eslint-disable-next-line obsidianmd/ui/sentence-case -- '00 Meta/FileClasses' is a vault path placeholder
+						.setPlaceholder("00 Meta/FileClasses")
+						.setValue(normalizeFileClassesFolder(this.plugin.settings.fileClassesFolder))
+						.onChange(async (value) => {
+							// Fall back to the default when the field is cleared or malformed.
+							this.plugin.settings.fileClassesFolder = normalizeFileClassesFolder(value.trim());
+							await this.plugin.saveSettings();
+						});
+					attachFolderSuggest(this.app, text.inputEl, { list: false });
+				}); })
+			.addSetting((setting) => {
+				setting
+				.setName("Excluded folders")
+				.setDesc(
+					"Comma-separated vault folders left out of every collection and scope view. Default: 00 Meta. " +
+						"A collection can use its own list instead (Library › configure).",
+				)
+				.addText((text) => {
+					text
+						.setPlaceholder("00 Meta")
+						.setValue(normalizeExcludedFolders(this.plugin.settings.excludedFolders).join(", "))
+						.onChange(async (value) => {
+							// An emptied field is a deliberate "exclude nothing" — NOT a
+							// fall back to the default (CON-7: exclusion only, and clearing
+							// the list is a legitimate user choice, not malformed input).
+							const parsed = value
+								.split(",")
+								.map((s) => s.trim())
+								.filter((s) => s.length > 0);
+							// Through the store, so built-ins that follow Scope, the live counts and
+							// the Anvil all hear about it (one change signal).
+							await this.collections.setScope(normalizeExcludedFolders(parsed));
+						});
+					attachFolderSuggest(this.app, text.inputEl, { list: true });
+				}); });
 	}
 }

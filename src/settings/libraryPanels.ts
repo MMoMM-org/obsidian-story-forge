@@ -13,6 +13,7 @@ import { resolveCollection, type IndexedNote } from "codex/collectionResolver";
 import type { CollectionStore, LibraryCollection } from "library/collectionStore";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
+import { attachFolderSuggest, attachTagSuggest } from "./suggesters";
 
 /** A collection row together with what the panel needs beyond the store's view of it. */
 export interface RowModel {
@@ -122,16 +123,18 @@ function renderFolders(panel: HTMLElement, c: LibraryCollection, h: PanelHost): 
 		void h.collections.configureBuiltIn(c.id, patch).then(() => h.done());
 	});
 	if (c.sameAsScope) return;
-	textInput(cell, `Excluded folders for ${c.label}`, c.excludedFolders.join(", "), (v) => {
+	const input = textInput(cell, `Excluded folders for ${c.label}`, c.excludedFolders.join(", "), (v) => {
 		void h.collections.configureBuiltIn(c.id, { excludedFolders: splitFolders(v) }).then(() => h.done());
 	}, `folders:${c.id}`);
+	attachFolderSuggest(h.app, input, { list: true });
 }
 
 function renderBuiltIn(panel: HTMLElement, m: RowModel, h: PanelHost): void {
 	const { c } = m;
-	textInput(field(panel, "Tag"), `Tag for ${c.label}`, c.tag, (v) => {
+	const tag = textInput(field(panel, "Tag"), `Tag for ${c.label}`, c.tag, (v) => {
 		void h.collections.configureBuiltIn(c.id, { tag: v }).then(() => h.done());
 	}, `tag:${c.id}`);
+	attachTagSuggest(h.app, tag, () => h.notes().flatMap((n) => n.tags));
 	renderFolders(panel, c, h);
 	renderCount(panel, countLine(c, h.notes()));
 	panel.createDiv({

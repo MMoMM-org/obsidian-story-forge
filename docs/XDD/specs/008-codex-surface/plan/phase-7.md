@@ -180,6 +180,23 @@ Closes the gap that started this whole spec: the distribution machinery served f
 
 ## Decisions taken during implementation
 
+- **T7.1 live-test fixes (user, 2026-11-12).** Four changes the user asked for after live-testing
+  the settings tab; none alters a setting, label or description text, and the mockups are
+  unchanged (L1, L3a and P19 stay the binding drawings). (A) The tabs group their rows with
+  Obsidian's native `SettingGroup` (minAppVersion 1.12.7 covers its 1.11 floor): Behaviour has
+  "Links and cards" and "Undo history" (the old `setHeading()` row is now the group heading),
+  Scope has one group "Vault folders", Library puts the repo-folder row in "Collections from the
+  repo". The custom Collections and Cards lists keep their markup; `.sf-settings` lost its
+  `0 16px` padding so the groups sit where the core settings do. (B) The built-in Tag field gets
+  a tag suggester (`AbstractInputSuggest`), fed from the same note index the count line uses
+  (`PanelHost.notes()`), not `metadataCache.getTags()`, which is not in `obsidian.d.ts`. (C) Folder
+  suggesters (`Vault.getAllFolders()`) sit on Scope's "FileClasses folder" and "Excluded folders"
+  and the built-in's own excluded-folders field; in a comma list only the segment being typed is
+  completed. Free text stays allowed, and a choice fires the field's own `input`/`change` so the
+  existing save and commit paths run. (D) Hero's checkbox carries `is-greyed` (theme-variable
+  greying), and its tooltip and hidden description read "Hero is the fallback Card and cannot be
+  disabled". The store's own refusal Notice still says "is always available"; it is a different
+  surface and was not asked for.
 - **T7.1 gate — the kind branch lives in `BasesFenceEngine`, not in `SidebarView`'s dispatch**
   (2026-11-11, `6315f03`). Where an engine's YAML comes from is the engine's question. Dispatch
   still selects by `engine`, and adding a `kind` branch there would mean two places know the
