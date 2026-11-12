@@ -68,6 +68,8 @@ function makeHarness(init: { views?: Record<string, ViewRecord>; settings?: Part
 		calls,
 		persistedViews: () => data.views ?? {},
 		persistedSettings: () => normalizeSettings(data.settings),
+		/** What is on disk, before the read-side normaliser repairs it. */
+		rawBuiltIn: (id: string) => data.settings?.builtInCollections?.[id],
 	};
 }
 
@@ -206,6 +208,15 @@ describe("built-in configuration", () => {
 		await h.store.configureBuiltIn("character", { tag: "story/person" });
 		expect((await h.store.collections())[0]?.tag).toBe("story/person");
 		expect(h.persistedSettings().builtInCollections["character"]?.tag).toBe("story/person");
+	});
+
+	it("strips a leading # from a typed tag, so the tag matches the note index's vocabulary", async () => {
+		const h = makeHarness();
+		await h.store.configureBuiltIn("character", { tag: " #story/person " });
+		expect((await h.store.collections())[0]?.tag).toBe("story/person");
+		expect(h.rawBuiltIn("character")?.tag).toBe("story/person");
+		await h.store.configureBuiltIn("character", { tag: "#" });
+		expect((await h.store.collections())[0]?.tag).toBe("canon/character");
 	});
 
 	it("an own excluded-folder list replaces Scope's, and null returns to 'same as Scope'", async () => {

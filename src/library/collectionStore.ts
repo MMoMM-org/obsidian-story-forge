@@ -69,7 +69,7 @@ export interface LibraryCard {
 }
 
 export interface BuiltInConfigPatch {
-	/** Replaces the default tag; blank restores the default. */
+	/** Replaces the default tag; a leading `#` is dropped, blank restores the default. */
 	readonly tag?: string;
 	/** An own list, or `null` for "same as Scope". */
 	readonly excludedFolders?: readonly string[] | null;
@@ -245,7 +245,7 @@ export class CollectionStore {
 	private async configureBuiltInNow(id: string, patch: BuiltInConfigPatch): Promise<Outcome> {
 		if (!isBuiltInId(id)) return REFUSE(`"${id}" is not a built-in collection`);
 		const next: BuiltInCollectionOverride = { ...(await this.builtInOverride(id)) };
-		if (patch.tag !== undefined) setOrDrop(next, "tag", patch.tag.trim() || undefined);
+		if (patch.tag !== undefined) setOrDrop(next, "tag", patch.tag.trim().replace(/^#+/, "").trim() || undefined);
 		if (patch.excludedFolders !== undefined) {
 			setOrDrop(next, "excludedFolders", patch.excludedFolders === null ? undefined : [...patch.excludedFolders]);
 		}
