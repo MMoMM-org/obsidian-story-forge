@@ -60,7 +60,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   >   its `cardByCollection` entry, never a file (P5, P16); Cards with "used by" and Hero not
   >   disablable (P19); selectors for the Anvil pills, the Workbench sections and the Workbench
   >   tabs. Pure, no DOM.
-  > - **T7.1b Settings tabs and the Collections list** — L1 (Library | Scope | Behaviour, every
+  > - **T7.1b Settings tabs and the Collections list** *(done: ed38944…b1c34ab; the L3b "File found" line in place of an entry count awaits the user's confirmation)* — L1 (Library | Scope | Behaviour, every
   >   existing setting placed), L2, L3, L8a, L9, P11–P14, P17.
   > - **T7.1c Cards list and preview** — L4, L5, L8c, P3.
   > - **T7.1d Surfaces** — the Anvil pills from the store, an imported `.base` embedded with its
