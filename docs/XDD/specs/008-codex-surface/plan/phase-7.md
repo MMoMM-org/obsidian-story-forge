@@ -92,7 +92,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   > given — the same "green suite standing in for a working path" failure the 2026-07-31 decision-log
   > entry warns about.*
 
-- [ ] **T7.2 Engine coverage — import a `.base`, ship a curated Dataview view** `[activity: backend-api]`
+- [x] **T7.2 Engine coverage — import a `.base`, ship a curated Dataview view** `[activity: backend-api]`
 
   1. Prime: Read `src/import/ViewDefinition.ts` (`engine: "dataview-dql" | "dataviewjs"`) and
      `scripts/build-catalog.mjs` (*"engine: always `bases`"*) — the two halves of the original G1
@@ -106,7 +106,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
      `.base` through the existing `validateBasesConfig` `[ref: SDD/CON-6]`.
   4. Validate: unit tests; `npm run catalog:build` succeeds with a mixed-engine catalog; lint; types.
   5. Success:
-     - [ ] Catalog and import cover the same engines `[ref: SDD/AC — PRD F7]`
+     - [x] Catalog and import cover the same engines `[ref: SDD/AC — PRD F7]`
 
 - [ ] **T7.3 Generation wired to settings** `[activity: integration]`
 
