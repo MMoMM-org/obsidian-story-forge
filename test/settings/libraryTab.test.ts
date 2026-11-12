@@ -1094,6 +1094,36 @@ describe("editing inside a configure panel", () => {
 		await vi.waitFor(() => expect(rowIds(w.root)).toContain("fresh"));
 	});
 
+	it("a held repaint waits for the click on the button focus moved to, so the click is not lost", async () => {
+		const { w, name } = await typeUnsaved();
+		const openFile = button(q(item(w.root, "organizations"), "[role=region]")!, "Open file")!;
+		name.value = "Organizations"; // abandoned: back to the committed value
+		// A mouse press: focus leaves the field for the button, and the click comes later.
+		name.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: openFile }));
+		await flush();
+		expect(openFile.isConnected).toBe(true); // not repainted out from under the pointer
+		expect(rowIds(w.root)).not.toContain("fresh");
+		await click(openFile);
+		expect(w.app.workspace.openLinkText).toHaveBeenCalledWith("30 Canon/Organizations/Organizations.base", "", true);
+		await vi.waitFor(() => expect(rowIds(w.root)).toContain("fresh"));
+	});
+
+	it("a held repaint runs at once when focus leaves the list, or moves on by keyboard", async () => {
+		const first = await typeUnsaved();
+		first.name.value = "Organizations";
+		first.name.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body }));
+		await vi.waitFor(() => expect(rowIds(first.w.root)).toContain("fresh"));
+
+		const second = await typeUnsaved();
+		const open = button(q(item(second.w.root, "organizations"), "[role=region]")!, "Open file")!;
+		second.name.value = "Organizations";
+		second.name.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: open }));
+		await flush();
+		expect(rowIds(second.w.root)).not.toContain("fresh");
+		open.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: checkbox(second.w.root, "skills") }));
+		await vi.waitFor(() => expect(rowIds(second.w.root)).toContain("fresh"));
+	});
+
 	it("does not hold a repaint for a differing field that no longer has focus", async () => {
 		const w = await open();
 		const panel = await configure(w.root, "organizations");

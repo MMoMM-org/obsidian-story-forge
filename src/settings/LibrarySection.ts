@@ -83,6 +83,8 @@ export class LibrarySection {
 	private pendingFocus: string | null = null;
 	/** A repaint was held back because an input in the list holds an unsaved edit. */
 	private deferred = false;
+	/** Focus left a held field for a control in the list; its click has not arrived yet. */
+	private awaitingClick = false;
 	/** Row order of the last paint: where focus goes after a removal. */
 	private order: string[] = [];
 
@@ -100,12 +102,32 @@ export class LibrarySection {
 	async render(host: HTMLElement): Promise<void> {
 		this.host = host;
 		// A held-back repaint runs once the edit is committed or abandoned.
-		host.addEventListener("focusout", () => {
-			if (!this.deferred) return;
-			this.deferred = false;
-			void this.refresh();
+		host.addEventListener("focusout", (e) => this.onFocusOut(e, host));
+		// Focus moved onto a control in the list: let its click finish before repainting under it.
+		host.addEventListener("click", () => {
+			if (this.awaitingClick) window.setTimeout(() => this.flushDeferred(), 0);
 		});
 		await this.refresh();
+	}
+
+	private onFocusOut(e: FocusEvent, host: HTMLElement): void {
+		if (!this.deferred) return;
+		const to = e.relatedTarget;
+		const staysInside = to instanceof Node && host.contains(to);
+		// A mouse press moves focus to its button first and clicks later; repainting now would
+		// destroy the button before the click lands. A second move inside the list is a keyboard one.
+		if (staysInside && !this.awaitingClick) {
+			this.awaitingClick = true;
+			return;
+		}
+		this.flushDeferred();
+	}
+
+	private flushDeferred(): void {
+		this.awaitingClick = false;
+		if (!this.deferred) return;
+		this.deferred = false;
+		void this.refresh();
 	}
 
 	/** Drop any read still in flight: the tab was hidden, so nothing may paint after this. */
