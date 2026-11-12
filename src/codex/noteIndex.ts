@@ -44,7 +44,7 @@ export interface CodexNoteIndex {
 }
 
 /** Strip Obsidian's leading `#` so index tags match a collection's configured tag. */
-function normalizeTag(tag: string): string {
+export function normalizeTag(tag: string): string {
 	return tag.startsWith("#") ? tag.slice(1) : tag;
 }
 

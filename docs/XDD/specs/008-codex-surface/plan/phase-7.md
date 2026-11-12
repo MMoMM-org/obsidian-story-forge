@@ -526,8 +526,9 @@ Closes the gap that started this whole spec: the distribution machinery served f
     the engine's product name and the provenance with "collection" ("90 Views/Skills.md · Dataview · imported collection").
     The engine and provenance words are `ENGINE_LABEL` (moved from `LibrarySection.ts`) and `PROVENANCE_LABEL`, both in
     `settings/libraryShared.ts`, so the Library list and this row cannot drift. It sits outside the engine's host, so a render
-    never wipes it; it is absent on the Codex tab and in any state that is not a resolved note. A from-repo collection reads
-    "from repo collection".
+    never wipes it; it is absent on the Codex tab and in any state that is not a resolved note. L7b draws only "imported
+    collection"; the row extends it to the other provenances with the same words (`PROVENANCE_LABEL` + " collection"), so a
+    from-repo collection reads "from repo collection". A deliberate extension, not drawn.
   - *Where it is wired.* `NativeScopingEngine` takes the Library's rows (`() => library.snapshot()`) as a third argument and
     hands `PanelDeps.collections` to the renderers; `main.ts` passes it. Without it (an engine built bare, as most panel
     tests do) the character panel keeps its old three groupings, the same optional-dependency convention as the view's

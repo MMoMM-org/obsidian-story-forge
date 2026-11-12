@@ -14,7 +14,8 @@ import { workbenchTabs } from "library/collectionStore";
 import { wireLibrary, type LibraryHost, type LibraryWiring } from "library/wireLibrary";
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort, StoryForgeData, ViewRecord } from "store/types";
-import { DEFAULT_SETTINGS, normalizeSettings } from "types/index";
+import { DEFAULT_FILE_CLASSES_FOLDER, DEFAULT_SETTINGS, normalizeSettings } from "types/index";
+import { createFileClassCache } from "fileclass/fileClassVault";
 import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
@@ -52,6 +53,8 @@ interface Vault {
 	readonly notes: ReadonlyMap<TFile, CachedMetadata>;
 	/** The registered native engine reads the real panel, with the Library's sections. */
 	readonly native: true;
+	/** Give the view the FileClass cache, so edit mode has fields to draw. */
+	readonly fileClasses?: boolean;
 }
 
 interface World {
@@ -110,7 +113,8 @@ async function makeWorld(views: Record<string, ViewRecord> = standardViews(), va
 					return () => { subscribers.count--; off(); };
 				},
 			};
-			const view = new SidebarView(leaf, registry, gate, native, store, () => "drill", undefined, undefined, undefined, counted);
+			const fileClasses = vault?.fileClasses ? createFileClassCache(app, () => DEFAULT_FILE_CLASSES_FOLDER, () => {}) : undefined;
+			const view = new SidebarView(leaf, registry, gate, native, store, () => "drill", undefined, fileClasses, undefined, counted);
 			opened.push(view);
 			await view.onOpen();
 			await settle();
@@ -342,7 +346,8 @@ const HARBOR = note("Moonharbor", "30 Canon/32 Locations");
 const SEAL = note("The Warden's Seal", "30 Canon/33 Objects");
 const OATH = note("The Warden's Oath", "30 Canon/34 Lore");
 const SCENE = note("The Extinguished Fire", "10 Manuscript");
-const FILES = [MARA, TOBIAS, ELKE, HARBOR, SEAL, OATH, SCENE];
+const FC = note("fc-character", DEFAULT_FILE_CLASSES_FOLDER);
+const FILES = [MARA, TOBIAS, ELKE, HARBOR, SEAL, OATH, SCENE, FC];
 
 const cache = (tag: string, links: Array<[string, string]> = []): CachedMetadata =>
 	createMockCachedMetadata({ tags: [{ tag }], frontmatter: {}, frontmatterLinks: links.map(([k, l]) => createMockFrontmatterLink(k, l)) });
@@ -359,6 +364,17 @@ function maraVault(over: Array<[TFile, CachedMetadata]> = []): Vault {
 		...over,
 	]);
 	return { notes, native: true };
+}
+
+/** Mara, in edit mode: her FileClass declares `age`, so the editor has a field to type into. */
+function editableVault(): Vault {
+	const declared = createMockCachedMetadata({ frontmatter: {
+		tagNames: ["canon/character"],
+		fieldsOrder: ["f-age"],
+		fields: [{ id: "f-age", name: "age", type: "Number", options: {} }],
+	} });
+	const base = maraVault([[FC, declared]]);
+	return { ...base, fileClasses: true };
 }
 
 function wireVault(app: App, vault: Vault): void {
@@ -427,6 +443,32 @@ describe("the Codex tab's sections", () => {
 		await w.library.collections.setEnabled("lore", true);
 		await settle();
 		expect(builtInSections(view)).toEqual(["Characters", "Locations", "Objects", "Lore"]);
+	});
+
+	it("redraw around an edit in progress: the typed field survives a switch, and the new sections show once it is saved", async () => {
+		const w = await makeWorld({}, editableVault());
+		const view = await w.open();
+		view.toggleEditMode();
+		const age = (): HTMLInputElement => {
+			const input = view.contentEl.querySelector<HTMLInputElement>('[data-sf-inspector-input="age"]');
+			if (!input) throw new Error("no age field");
+			return input;
+		};
+		const typed = age();
+		typed.value = "41";
+		typed.dispatchEvent(new Event("input", { bubbles: true }));
+
+		await w.library.collections.setSurface("object", "workbench", false);
+		await settle();
+
+		expect(age()).toBe(typed);
+		expect(age().value).toBe("41");
+
+		view.contentEl.querySelector<HTMLElement>('[data-sf-inspector-commit="age"]')?.click();
+		await settle();
+		view.toggleEditMode();
+		await settle();
+		expect(builtInSections(view)).toEqual(["Characters", "Locations", "Lore"]);
 	});
 
 	it("follow the built-in's own tag: a note outside it moves out of the section, not out of the panel", async () => {

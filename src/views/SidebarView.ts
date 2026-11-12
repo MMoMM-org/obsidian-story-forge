@@ -1311,7 +1311,7 @@ export class SidebarView extends ItemView {
 	 * getViews() returns fresh objects on every call, so an identity check would always fire and
 	 * flash the panel on unrelated imports/removes; value-compare instead (`_renderRelevantEqual`).
 	 */
-	private _refreshTabs(prevRecord: ViewRecord | null): void {
+	private _refreshTabs(prevRecord: ViewRecord | null): boolean {
 		// Re-point currentRecord so enable/disable of selected view is reflected live
 		this.currentRecord =
 			this.selectedViewId !== null
@@ -1320,15 +1320,16 @@ export class SidebarView extends ItemView {
 
 		this._renderTabs();
 
-		if (!this._renderRelevantEqual(prevRecord, this.currentRecord)) {
-			this._rerenderBody();
-		}
+		const redraw = !this._renderRelevantEqual(prevRecord, this.currentRecord);
+		if (redraw) this._rerenderBody();
+		return redraw;
 	}
 
 	/** T7.1d3: the Library changed (a switch, a checkbox, an import, a removal): rebuild the tabs live. */
 	private _onLibraryChange(): void {
-		this._refreshTabs(this.currentRecord);
-		this._refreshSections();
+		// A fallback has just redrawn the body from the new snapshot: its sections are already current.
+		if (this._refreshTabs(this.currentRecord)) this._sectionsKey = this._sectionsSignature();
+		else this._refreshSections();
 	}
 
 	/**
@@ -1349,10 +1350,9 @@ export class SidebarView extends ItemView {
 
 	private _followLibrary(): void {
 		if (!this.library || this._unsubscribeLibrary) return;
-		const off = this.library.onChange(() => { this._onLibraryChange(); });
-		this._unsubscribeLibrary = off;
-		// Released on unload too (ADR-2); a second call is a no-op.
-		this.register(off);
+		this._unsubscribeLibrary = this.library.onChange(() => { this._onLibraryChange(); });
+		// One unsubscribe path: `onClose` and an unload both end up in `_unfollowLibrary`, which runs it once (ADR-2).
+		this.register(() => { this._unfollowLibrary(); });
 	}
 
 	private _unfollowLibrary(): void {

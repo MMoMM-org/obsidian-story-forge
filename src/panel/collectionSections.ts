@@ -14,6 +14,7 @@
 
 import { getAllTags, type App, type TFile } from "obsidian";
 import { resolveCollection } from "codex/collectionResolver";
+import { normalizeTag } from "codex/noteIndex";
 import type { LibraryCollection } from "library/collectionStore";
 import { linkRow, section } from "panel/components";
 import type { ResolvedEntity } from "scoping/NoteContext";
@@ -36,8 +37,7 @@ type BuiltInRow = Pick<LibraryCollection, "id" | "label" | "tag" | "excludedFold
 
 function tagsOf(app: App, file: TFile): string[] {
 	const cache = app.metadataCache.getFileCache(file);
-	const tags = cache ? (getAllTags(cache) ?? []) : [];
-	return tags.map((t) => (t.startsWith("#") ? t.slice(1) : t));
+	return cache ? (getAllTags(cache) ?? []).map(normalizeTag) : [];
 }
 
 /** Does `row` hold the one-note index? A misconfigured row (no tag) holds nothing. */
