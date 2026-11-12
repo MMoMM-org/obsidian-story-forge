@@ -229,3 +229,13 @@ export function applyDefaults(
 
   return base;
 }
+
+/**
+ * defaultSurfaces — where a new collection shows before the user chooses (P2).
+ * A Bases grid is the Anvil's job; a Dataview query is usually written against the
+ * current note, so it starts in the Workbench. Applied at record creation (import,
+ * catalog install) and by the legacy-view migration.
+ */
+export function defaultSurfaces(engine: ViewRecord["engine"]): ViewRecord["surfaces"] {
+  return engine === "bases" ? { anvil: true, workbench: false } : { anvil: false, workbench: true };
+}

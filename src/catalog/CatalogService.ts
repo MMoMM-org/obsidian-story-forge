@@ -70,7 +70,7 @@ import type { App } from "obsidian";
 import { computeChecksum } from "consent/checksum";
 import type { CollectionParams } from "library/baseGenerator";
 import type { ViewStore } from "store/ViewStore";
-import type { ViewRecord } from "store/types";
+import { defaultSurfaces, type ViewRecord } from "store/types";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 
@@ -234,7 +234,7 @@ export class CatalogService {
 			command: false,
 			commandName: entry.name,
 			kind: "collection",
-			surfaces: { anvil: false, workbench: false },
+			surfaces: defaultSurfaces("bases"),
 			// catalogId is the stable entry slug — never changes for an existing entry,
 			// survives catalog renames. Used by BrowseOfficialModal for update detection.
 			catalogId: entry.id,

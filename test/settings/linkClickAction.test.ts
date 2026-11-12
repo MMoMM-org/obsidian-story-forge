@@ -337,6 +337,9 @@ describe("linkClickAction value round-trip", () => {
 			cardByCollection: {},
 			dismissedHints: [],
 			keepUndoHistory: true,
+			builtInCollections: {},
+			disabledCards: [],
+			libraryMigratedCount: 0,
 		});
 		// Load it back
 		const result = await loadSettings();
@@ -371,6 +374,9 @@ describe("linkClickAction value round-trip", () => {
 			cardByCollection: {},
 			dismissedHints: [],
 			keepUndoHistory: true,
+			builtInCollections: {},
+			disabledCards: [],
+			libraryMigratedCount: 0,
 		});
 		const result = await loadSettings();
 		expect(result.linkClickAction).toBe("drill");

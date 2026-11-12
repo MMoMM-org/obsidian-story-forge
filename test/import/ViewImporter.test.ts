@@ -461,6 +461,11 @@ describe("ViewImporter.toRecord()", () => {
 		importer = new ViewImporter(app, store);
 	});
 
+	it("gives a new record its engine's default surfaces (P2): Dataview starts in the Workbench", () => {
+		expect(importer.toRecord({ ...sampleDef, engine: "dataviewjs" }).surfaces).toEqual({ anvil: false, workbench: true });
+		expect(importer.toRecord({ ...sampleDef, engine: "dataview-dql" }).surfaces).toEqual({ anvil: false, workbench: true });
+	});
+
 	it("returns a ViewRecord with provenance:'imported'", () => {
 		const rec = importer.toRecord(sampleDef);
 		expect(rec.provenance).toBe("imported");

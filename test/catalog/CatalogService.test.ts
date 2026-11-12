@@ -304,6 +304,25 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 		expect(writtenRecord!.generated?.verify).toBe(true);
 	});
 
+	it("persisted record starts in the Anvil only (P2: a Bases collection's default surfaces)", async () => {
+		const app = makeApp();
+		const { store, capturedRecords } = makeStore();
+		const entry = await makeEntry();
+		const index = await makeCatalogIndex([entry]);
+		const svc = new CatalogService(index, {
+			app,
+			gate: makeGate(),
+			store,
+			curatedBasesFolder: "00 Meta/Bases",
+			collectionParams: DEFAULT_COLLECTION_PARAMS,
+		});
+
+		await svc.install(entry.id);
+
+		const [writtenRecord] = capturedRecords.values();
+		expect(writtenRecord!.surfaces).toEqual({ anvil: true, workbench: false });
+	});
+
 	it("persisted record has provenance:'curated' and enabled:true", async () => {
 		const app = makeApp();
 		const { store, capturedRecords } = makeStore();

@@ -16,7 +16,7 @@ import { computeChecksum } from "consent/checksum";
 import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
 import type { ViewStore } from "store/ViewStore";
-import type { ViewRecord } from "store/types";
+import { defaultSurfaces, type ViewRecord } from "store/types";
 
 export { ImportError } from "import/ViewDefinition";
 export type { ViewDefinition } from "import/ViewDefinition";
@@ -148,7 +148,7 @@ export class ViewImporter {
 			command: def.command,
 			commandName: def.name,
 			kind: "view",
-			surfaces: { anvil: false, workbench: false },
+			surfaces: defaultSurfaces(def.engine),
 		};
 		if (def.description !== undefined) {
 			rec.description = def.description;

@@ -1,0 +1,441 @@
+/**
+ * T7.1a — the Library's collection store (spec 008, Phase 7; mockups-library.html
+ * P1, P2, P5, P10, P13, P16, P19 and the L9 table).
+ *
+ * Every test runs the store against a real `ViewStore` over an in-memory data blob, and
+ * reads the persisted blob back: a green return value with nothing written would pass a
+ * weaker test.
+ */
+
+import { describe, expect, it, vi } from "vitest";
+import { App } from "../__mocks__/obsidian";
+import { ViewStore } from "../../src/store/ViewStore";
+import type { PluginDataPort, StoryForgeData, ViewRecord } from "../../src/store/types";
+import {
+	DEFAULT_SETTINGS,
+	LIBRARY_MIGRATED_HINT_ID,
+	normalizeSettings,
+	type PluginSettings,
+} from "../../src/types/index";
+import {
+	CollectionStore,
+	defaultSurfaces,
+	anvilPills,
+	workbenchSections,
+	workbenchTabs,
+	type LibraryPort,
+} from "../../src/library/collectionStore";
+
+// ---------------------------------------------------------------------------
+// Harness
+// ---------------------------------------------------------------------------
+
+function makeRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
+	return {
+		provenance: "imported",
+		enabled: true,
+		okayed: null,
+		source: "30 Canon/Organizations/Organizations.base",
+		engine: "bases",
+		command: false,
+		kind: "collection",
+		surfaces: { anvil: true, workbench: false },
+		...overrides,
+	};
+}
+
+function makeHarness(init: { views?: Record<string, ViewRecord>; settings?: Partial<PluginSettings> } = {}) {
+	let data: StoryForgeData = structuredClone({ views: init.views ?? {}, settings: { ...DEFAULT_SETTINGS, ...init.settings } });
+	const port: PluginDataPort = {
+		load: async () => structuredClone(data),
+		save: async (d) => { data = structuredClone(d as StoryForgeData); },
+	};
+	const views = new ViewStore(port);
+	const calls: string[] = [];
+	const libraryPort: LibraryPort = {
+		getViews: () => views.getViews(),
+		setRecord: async (id, rec) => { calls.push("setRecord"); await views.setRecord(id, rec); },
+		deleteRecord: async (id) => { calls.push("deleteRecord"); await views.deleteRecord(id); },
+		loadSettings: async () => normalizeSettings((await port.load() as StoryForgeData).settings),
+		saveSettings: async (patch) => {
+			calls.push("saveSettings");
+			const current = normalizeSettings(data.settings);
+			data = { ...data, settings: { ...current, ...patch } };
+		},
+	};
+	return {
+		store: new CollectionStore(libraryPort),
+		calls,
+		persistedViews: () => data.views ?? {},
+		persistedSettings: () => normalizeSettings(data.settings),
+	};
+}
+
+const ids = (list: readonly { id: string }[]): string[] => list.map((c) => c.id);
+
+// ---------------------------------------------------------------------------
+// (a) order
+// ---------------------------------------------------------------------------
+
+describe("collection list", () => {
+	it("is the four built-ins, then user collections in record order (cards and legacy views excluded)", async () => {
+		const h = makeHarness({
+			views: {
+				z: makeRecord({ commandName: "Zeta", provenance: "curated" }),
+				card: makeRecord({ kind: "card", commandName: "Stat block" }),
+				a: makeRecord({ commandName: "Alpha" }),
+				legacy: makeRecord({ kind: "view", engine: "bases", source: "views:" }),
+			},
+		});
+
+		const list = await h.store.collections();
+
+		expect(ids(list)).toEqual(["character", "location", "object", "lore", "z", "a"]);
+		expect(list.map((c) => c.provenance)).toEqual([
+			"built-in", "built-in", "built-in", "built-in", "from-repo", "imported",
+		]);
+		expect(list.slice(4).map((c) => c.label)).toEqual(["Zeta", "Alpha"]);
+	});
+
+	it("names an unnamed record after its file's basename", async () => {
+		const h = makeHarness({ views: { a: makeRecord() } });
+		expect((await h.store.collections())[4]?.label).toBe("Organizations");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (b) checkbox is the master; the toggles are kept (P1, L9)
+// ---------------------------------------------------------------------------
+
+describe("checkbox and surface toggles", () => {
+	it("a surface is effective only when the collection is enabled and the toggle is on", async () => {
+		const h = makeHarness({
+			views: { a: makeRecord({ surfaces: { anvil: true, workbench: false } }) },
+		});
+		const a = (await h.store.collections()).find((c) => c.id === "a");
+		expect(a?.effective).toEqual({ anvil: true, workbench: false });
+
+		await h.store.setEnabled("a", false);
+		const off = (await h.store.collections()).find((c) => c.id === "a");
+		expect(off?.effective).toEqual({ anvil: false, workbench: false });
+	});
+
+	it("keeps the toggle values across a disable/enable cycle, for a record and for a built-in", async () => {
+		const h = makeHarness({ views: { a: makeRecord({ surfaces: { anvil: true, workbench: true } }) } });
+		await h.store.setSurface("a", "workbench", false);
+		await h.store.setSurface("location", "anvil", false);
+
+		await h.store.setEnabled("a", false);
+		await h.store.setEnabled("location", false);
+		expect(h.persistedViews()["a"]?.enabled).toBe(false);
+		expect(h.persistedViews()["a"]?.surfaces).toEqual({ anvil: true, workbench: false });
+		expect(h.persistedSettings().builtInCollections["location"]).toMatchObject({ enabled: false, anvil: false });
+
+		await h.store.setEnabled("a", true);
+		await h.store.setEnabled("location", true);
+		const list = await h.store.collections();
+		expect(list.find((c) => c.id === "a")?.effective).toEqual({ anvil: true, workbench: false });
+		expect(list.find((c) => c.id === "location")?.effective).toEqual({ anvil: false, workbench: true });
+	});
+
+	it("refuses an unknown id and writes nothing", async () => {
+		const h = makeHarness();
+		const result = await h.store.setEnabled("nope", false);
+		expect(result.ok).toBe(false);
+		expect(h.calls).toEqual([]);
+	});
+
+	it("ships the built-ins enabled and shown on both surfaces", async () => {
+		const h = makeHarness();
+		for (const c of await h.store.collections()) {
+			expect(c.enabled).toBe(true);
+			expect(c.effective).toEqual({ anvil: true, workbench: true });
+		}
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (c) engine defaults (P2)
+// ---------------------------------------------------------------------------
+
+describe("defaultSurfaces", () => {
+	it("puts a Bases collection in the Anvil and a Dataview one in the Workbench", () => {
+		expect(defaultSurfaces("bases")).toEqual({ anvil: true, workbench: false });
+		expect(defaultSurfaces("dataview-dql")).toEqual({ anvil: false, workbench: true });
+		expect(defaultSurfaces("dataviewjs")).toEqual({ anvil: false, workbench: true });
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (d) built-in tag / excluded folders (P10)
+// ---------------------------------------------------------------------------
+
+describe("built-in configuration", () => {
+	it("defaults to the shipped tag and 'same as Scope' excluded folders", async () => {
+		const h = makeHarness({ settings: { excludedFolders: ["00 Meta", "Drafts"] } });
+		const character = (await h.store.collections())[0];
+		expect(character).toMatchObject({ tag: "canon/character", sameAsScope: true, excludedFolders: ["00 Meta", "Drafts"] });
+	});
+
+	it("a tag override wins over the default tag, and persists", async () => {
+		const h = makeHarness();
+		await h.store.configureBuiltIn("character", { tag: "story/person" });
+		expect((await h.store.collections())[0]?.tag).toBe("story/person");
+		expect(h.persistedSettings().builtInCollections["character"]?.tag).toBe("story/person");
+	});
+
+	it("an own excluded-folder list replaces Scope's, and null returns to 'same as Scope'", async () => {
+		const h = makeHarness();
+		await h.store.configureBuiltIn("lore", { excludedFolders: ["Drafts"] });
+		expect((await h.store.collections())[3]).toMatchObject({ sameAsScope: false, excludedFolders: ["Drafts"] });
+
+		await h.store.configureBuiltIn("lore", { excludedFolders: null });
+		expect((await h.store.collections())[3]).toMatchObject({ sameAsScope: true, excludedFolders: ["00 Meta"] });
+	});
+
+	it("an empty tag falls back to the default; a non-built-in id is refused", async () => {
+		const h = makeHarness({ views: { a: makeRecord() } });
+		await h.store.configureBuiltIn("object", { tag: "  " });
+		expect((await h.store.collections())[2]?.tag).toBe("canon/object");
+		expect((await h.store.configureBuiltIn("a", { tag: "x" })).ok).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (e) migration (D2, P13)
+// ---------------------------------------------------------------------------
+
+describe("migration of old views", () => {
+	const legacy = (engine: ViewRecord["engine"]): ViewRecord =>
+		makeRecord({ kind: "view", engine, source: "90 Views/Skills.md", surfaces: { anvil: false, workbench: false } });
+
+	it("turns a Dataview view into a collection with Workbench on and Anvil off, and sets the notice once", async () => {
+		const h = makeHarness({ views: { dql: legacy("dataview-dql"), js: legacy("dataviewjs") } });
+
+		const moved = await h.store.migrate();
+
+		expect(moved).toBe(2);
+		expect(h.persistedViews()["dql"]).toMatchObject({ kind: "collection", surfaces: { anvil: false, workbench: true }, provenance: "imported" });
+		expect(h.persistedViews()["js"]?.kind).toBe("collection");
+		expect(h.persistedSettings().libraryMigratedCount).toBe(2);
+		expect(await h.store.migrationNotice()).toEqual({ moved: 2 });
+	});
+
+	it("is idempotent: a second run changes and writes nothing", async () => {
+		const h = makeHarness({ views: { dql: legacy("dataview-dql") } });
+		await h.store.migrate();
+		const viewsAfterFirst = structuredClone(h.persistedViews());
+		const settingsAfterFirst = h.persistedSettings();
+		h.calls.length = 0;
+
+		expect(await h.store.migrate()).toBe(0);
+
+		expect(h.persistedViews()).toEqual(viewsAfterFirst);
+		expect(h.persistedSettings()).toEqual(settingsAfterFirst);
+		expect(h.calls).toEqual([]);
+	});
+
+	it("leaves a Bases view, a collection and a card alone, and sets no notice", async () => {
+		const bases = legacy("bases");
+		const h = makeHarness({ views: { b: bases, c: makeRecord(), k: makeRecord({ kind: "card" }) } });
+		const before = structuredClone(h.persistedViews());
+
+		expect(await h.store.migrate()).toBe(0);
+
+		expect(h.persistedViews()).toEqual(before);
+		expect(await h.store.migrationNotice()).toBeNull();
+	});
+
+	it("keeps a disabled view disabled and migrated views show as imported collections", async () => {
+		const h = makeHarness({ views: { dql: { ...legacy("dataview-dql"), enabled: false } } });
+		await h.store.migrate();
+		const c = (await h.store.collections()).find((x) => x.id === "dql");
+		expect(c).toMatchObject({ enabled: false, provenance: "imported", effective: { anvil: false, workbench: false } });
+		expect(c?.surfaces).toEqual({ anvil: false, workbench: true });
+	});
+
+	it("hides the notice once it is dismissed, for good", async () => {
+		const h = makeHarness({ views: { dql: legacy("dataview-dql") } });
+		await h.store.migrate();
+
+		await h.store.dismissMigrationNotice();
+		await h.store.dismissMigrationNotice();
+
+		expect(await h.store.migrationNotice()).toBeNull();
+		expect(h.persistedSettings().dismissedHints.filter((x) => x === LIBRARY_MIGRATED_HINT_ID)).toHaveLength(1);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (f) remove (P5, P16)
+// ---------------------------------------------------------------------------
+
+describe("remove", () => {
+	it("refuses a built-in", async () => {
+		const h = makeHarness();
+		const result = await h.store.remove("character");
+		expect(result).toEqual({ ok: false, reason: expect.stringContaining("built-in") });
+		expect(ids(await h.store.collections())).toContain("character");
+		expect(h.calls).toEqual([]);
+	});
+
+	it.each(["curated", "imported"] as const)(
+		"drops a %s record and its cardByCollection entry, and deletes no file",
+		async (provenance) => {
+			const app = new App();
+			const deleteSpy = vi.spyOn(app.vault, "delete");
+			const trashSpy = vi.spyOn(app.vault, "trash");
+			const h = makeHarness({
+				views: { gone: makeRecord({ provenance }), kept: makeRecord() },
+				settings: { cardByCollection: { gone: "table", kept: "compact", character: "hero" } },
+			});
+
+			const result = await h.store.remove("gone");
+
+			expect(result.ok).toBe(true);
+			expect(h.persistedViews()["gone"]).toBeUndefined();
+			expect(h.persistedViews()["kept"]).toBeDefined();
+			expect(h.persistedSettings().cardByCollection).toEqual({ kept: "compact", character: "hero" });
+			expect(h.calls).toEqual(["deleteRecord", "saveSettings"]);
+			expect(deleteSpy).not.toHaveBeenCalled();
+			expect(trashSpy).not.toHaveBeenCalled();
+		},
+	);
+
+	it("refuses an unknown id and a card record", async () => {
+		const h = makeHarness({ views: { k: makeRecord({ kind: "card" }) } });
+		expect((await h.store.remove("nope")).ok).toBe(false);
+		expect((await h.store.remove("k")).ok).toBe(false);
+		expect(h.persistedViews()["k"]).toBeDefined();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (g) cards (P19)
+// ---------------------------------------------------------------------------
+
+describe("cards", () => {
+	it("lists the built-in Cards first, then card records, with provenance", async () => {
+		const h = makeHarness({ views: { k: makeRecord({ kind: "card", commandName: "Stat block", enabled: false }), c: makeRecord() } });
+		const cards = await h.store.cards();
+		expect(ids(cards)).toEqual(["hero", "table", "compact", "k"]);
+		expect(cards.map((c) => c.provenance)).toEqual(["built-in", "built-in", "built-in", "imported"]);
+		expect(cards[3]).toMatchObject({ label: "Stat block", enabled: false });
+	});
+
+	it("refuses to disable Hero, even if the persisted settings already list it", async () => {
+		const h = makeHarness({ settings: { disabledCards: ["hero"] } });
+		expect((await h.store.cards())[0]).toMatchObject({ id: "hero", enabled: true, canDisable: false });
+
+		const result = await h.store.setCardEnabled("hero", false);
+
+		expect(result.ok).toBe(false);
+		expect(h.calls).toEqual([]);
+	});
+
+	it("disables and re-enables the other built-in Cards and a card record", async () => {
+		const h = makeHarness({ views: { k: makeRecord({ kind: "card" }) } });
+
+		expect((await h.store.setCardEnabled("table", false)).ok).toBe(true);
+		expect((await h.store.setCardEnabled("k", false)).ok).toBe(true);
+		let cards = await h.store.cards();
+		expect(cards.map((c) => c.enabled)).toEqual([true, false, true, false]);
+		expect(h.persistedSettings().disabledCards).toEqual(["table"]);
+
+		await h.store.setCardEnabled("table", true);
+		cards = await h.store.cards();
+		expect(cards[1]?.enabled).toBe(true);
+		expect(h.persistedSettings().disabledCards).toEqual([]);
+	});
+
+	it("usedBy lists the collections whose chosen Card it is, ignoring Dataview collections", async () => {
+		const h = makeHarness({
+			views: {
+				org: makeRecord({ commandName: "Organizations" }),
+				skills: makeRecord({ engine: "dataview-dql", commandName: "Skills" }),
+			},
+			settings: { cardByCollection: { lore: "table", skills: "table", org: "table", object: "gone-card" } },
+		});
+
+		expect(ids(await h.store.usedBy("table"))).toEqual(["lore", "org"]);
+		expect(ids(await h.store.usedBy("hero"))).toEqual(["character", "location", "object"]);
+		expect(await h.store.usedBy("compact")).toEqual([]);
+	});
+
+	it("removing a card record drops it and the cardByCollection entries that chose it, never a file", async () => {
+		const h = makeHarness({
+			views: { k: makeRecord({ kind: "card" }) },
+			settings: { cardByCollection: { character: "k", lore: "table" } },
+		});
+
+		expect((await h.store.removeCard("hero")).ok).toBe(false);
+		expect((await h.store.removeCard("k")).ok).toBe(true);
+
+		expect(h.persistedViews()["k"]).toBeUndefined();
+		expect(h.persistedSettings().cardByCollection).toEqual({ lore: "table" });
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (h) selectors (L9 table, P6, P7)
+// ---------------------------------------------------------------------------
+
+describe("surface selectors", () => {
+	async function fixture() {
+		const h = makeHarness({
+			views: {
+				anvilOnly: makeRecord({ commandName: "Organizations", surfaces: { anvil: true, workbench: false } }),
+				wbOnly: makeRecord({ engine: "dataview-dql", commandName: "Skills", surfaces: { anvil: false, workbench: true } }),
+				both: makeRecord({ commandName: "Both", surfaces: { anvil: true, workbench: true } }),
+				parked: makeRecord({ commandName: "Parked", surfaces: { anvil: false, workbench: false } }),
+				off: makeRecord({ commandName: "Off", enabled: false, surfaces: { anvil: true, workbench: true } }),
+			},
+		});
+		await h.store.setSurface("object", "workbench", false);
+		await h.store.setEnabled("lore", false);
+		await h.store.setSurface("location", "anvil", false);
+		return h;
+	}
+
+	it("anvilPills returns exactly the enabled collections with Anvil on, in Library order", async () => {
+		const h = await fixture();
+		expect(ids(anvilPills(await h.store.collections()))).toEqual(["character", "object", "anvilOnly", "both"]);
+		expect(ids(await h.store.anvilPills())).toEqual(["character", "object", "anvilOnly", "both"]);
+	});
+
+	it("workbenchSections returns only built-ins with Workbench on", async () => {
+		const h = await fixture();
+		expect(ids(workbenchSections(await h.store.collections()))).toEqual(["character", "location"]);
+		expect(ids(await h.store.workbenchSections())).toEqual(["character", "location"]);
+	});
+
+	it("workbenchTabs returns only imported and from-repo collections with Workbench on", async () => {
+		const h = await fixture();
+		expect(ids(workbenchTabs(await h.store.collections()))).toEqual(["wbOnly", "both"]);
+		expect(ids(await h.store.workbenchTabs())).toEqual(["wbOnly", "both"]);
+	});
+
+	it("an anvil pill is assignable to the Codex tab's collection shape", async () => {
+		const h = await fixture();
+		const pill = (await h.store.anvilPills())[0];
+		expect(pill).toMatchObject({ id: "character", label: "Characters", tag: "canon/character", enabled: true });
+	});
+});
+
+// ---------------------------------------------------------------------------
+// New settings fail closed
+// ---------------------------------------------------------------------------
+
+describe("Library settings normalisation", () => {
+	it("falls back to the shipped defaults for malformed persisted values", () => {
+		const s = normalizeSettings({
+			builtInCollections: { lore: { enabled: "yes", anvil: false, tag: "", excludedFolders: [1], extra: 1 }, bad: 7 },
+			disabledCards: ["table", 3],
+			libraryMigratedCount: -2,
+		});
+		expect(s.builtInCollections).toEqual({ lore: { anvil: false }, bad: {} });
+		expect(s.disabledCards).toEqual([]);
+		expect(s.libraryMigratedCount).toBe(0);
+		expect(normalizeSettings({ builtInCollections: [] }).builtInCollections).toEqual({});
+	});
+});

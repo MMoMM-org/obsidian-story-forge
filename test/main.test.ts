@@ -111,6 +111,9 @@ describe("StoryForgePlugin — settings persistence across reload", () => {
 				cardByCollection: {},
 				dismissedHints: [],
 				keepUndoHistory: true,
+				builtInCollections: {},
+				disabledCards: [],
+				libraryMigratedCount: 0,
 			},
 		};
 		plugin.loadData.mockResolvedValue(stored);
@@ -150,6 +153,9 @@ describe("StoryForgePlugin — clobber guards", () => {
 				cardByCollection: {},
 				dismissedHints: [],
 				keepUndoHistory: true,
+				builtInCollections: {},
+				disabledCards: [],
+				libraryMigratedCount: 0,
 			},
 			views: { "view-1": makeViewRecord() },
 		};
@@ -181,6 +187,9 @@ describe("StoryForgePlugin — clobber guards", () => {
 				cardByCollection: {},
 				dismissedHints: [],
 				keepUndoHistory: true,
+				builtInCollections: {},
+				disabledCards: [],
+				libraryMigratedCount: 0,
 			},
 		};
 		plugin.loadData.mockResolvedValue(existingData);

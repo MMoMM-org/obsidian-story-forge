@@ -56,7 +56,40 @@ export interface PluginSettings {
 	 * copies of frontmatter values; turning this off deletes it.
 	 */
 	keepUndoHistory: boolean;
+	/**
+	 * Per-built-in-collection state of the Library (spec 008 F7, P1/P10), keyed by the
+	 * built-in id (`character`, `location`, …). Operational state (CON-2). Every member is
+	 * optional: an absent id or member means "the shipped default" (enabled, shown on both
+	 * surfaces, default tag, excluded folders same as Scope). The switch values are kept
+	 * while `enabled` is false.
+	 */
+	builtInCollections: Record<string, BuiltInCollectionOverride>;
+	/**
+	 * Ids of built-in Cards the user disabled (F7). Hero is the fallback Card and is never
+	 * honoured here (P19). Default `[]`: every Card is available.
+	 */
+	disabledCards: string[];
+	/**
+	 * How many legacy Dataview views the Library migration moved into collections and has
+	 * not yet announced (D2, P13). The notice shows while this is above zero and
+	 * `LIBRARY_MIGRATED_HINT_ID` is not in `dismissedHints`. Default `0`.
+	 */
+	libraryMigratedCount: number;
 }
+
+/** What the user changed on one built-in collection; absent members mean the default. */
+export interface BuiltInCollectionOverride {
+	enabled?: boolean;
+	anvil?: boolean;
+	workbench?: boolean;
+	/** Replaces the default tag (no leading `#`). */
+	tag?: string;
+	/** Own excluded-folder list; absent means "same as Scope" (P10). */
+	excludedFolders?: string[];
+}
+
+/** `dismissedHints` id for the one-time "your views are now collections" line (P13). */
+export const LIBRARY_MIGRATED_HINT_ID = "library-migrated";
 
 /**
  * Shipped default for `fileClassesFolder`. Exported for tests that build a
@@ -85,6 +118,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	cardByCollection: {},
 	dismissedHints: [],
 	keepUndoHistory: true,
+	builtInCollections: {},
+	disabledCards: [],
+	libraryMigratedCount: 0,
 };
 
 /** Type guard: returns true if `v` is a valid `linkClickAction` value. */
@@ -194,6 +230,39 @@ export function normalizeDismissedHints(v: unknown): string[] {
 	return isDismissedHints(v) ? [...v] : [];
 }
 
+function isRecordObject(v: unknown): v is Record<string, unknown> {
+	return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+function normalizeOverride(v: unknown): BuiltInCollectionOverride {
+	if (!isRecordObject(v)) return {};
+	const out: BuiltInCollectionOverride = {};
+	if (typeof v.enabled === "boolean") out.enabled = v.enabled;
+	if (typeof v.anvil === "boolean") out.anvil = v.anvil;
+	if (typeof v.workbench === "boolean") out.workbench = v.workbench;
+	if (typeof v.tag === "string" && v.tag.length > 0) out.tag = v.tag;
+	if (isExcludedFolders(v.excludedFolders)) out.excludedFolders = [...v.excludedFolders];
+	return out;
+}
+
+/** Normalizer: keeps only well-formed members of each override; anything else is dropped. */
+export function normalizeBuiltInCollections(v: unknown): Record<string, BuiltInCollectionOverride> {
+	if (!isRecordObject(v)) return {};
+	const out: Record<string, BuiltInCollectionOverride> = {};
+	for (const [id, override] of Object.entries(v)) out[id] = normalizeOverride(override);
+	return out;
+}
+
+/** Normalizer: a fresh string array, or `[]` when malformed. */
+export function normalizeDisabledCards(v: unknown): string[] {
+	return Array.isArray(v) && v.every((x) => typeof x === "string") ? [...v] : [];
+}
+
+/** Normalizer: a non-negative integer, or `0`. */
+export function normalizeLibraryMigratedCount(v: unknown): number {
+	return typeof v === "number" && Number.isInteger(v) && v > 0 ? v : 0;
+}
+
 /**
  * Build a `PluginSettings` from a persisted (untyped) `settings` blob, keeping only the
  * fields `PluginSettings` declares — every other own-enumerable key on `raw` (e.g. a
@@ -222,5 +291,8 @@ export function normalizeSettings(raw: unknown): PluginSettings {
 		cardByCollection: normalizeCardByCollection(stored.cardByCollection),
 		dismissedHints: normalizeDismissedHints(stored.dismissedHints),
 		keepUndoHistory: typeof stored.keepUndoHistory === "boolean" ? stored.keepUndoHistory : DEFAULT_SETTINGS.keepUndoHistory,
+		builtInCollections: normalizeBuiltInCollections(stored.builtInCollections),
+		disabledCards: normalizeDisabledCards(stored.disabledCards),
+		libraryMigratedCount: normalizeLibraryMigratedCount(stored.libraryMigratedCount),
 	};
 }

@@ -179,3 +179,27 @@ Closes the gap that started this whole spec: the distribution machinery served f
   `Collection file not found: <path>`, which the Workbench shows as its existing engine error. The
   path never reaches the fence. `kind:"view"` records are unchanged. This replaces the T3.3 header
   note that said "do not make render() read vault files".
+
+- **T7.1a — Collection store: choices the mockup and spec do not settle** (2026-11-12).
+  - *Persistence.* User collections and Cards stay records in `ViewStore`. A built-in's state
+    lives in a new `settings.builtInCollections` (per id: `enabled`, `anvil`, `workbench`, `tag`,
+    `excludedFolders`; every member optional, absent = shipped default). Disabled built-in Cards
+    are `settings.disabledCards`. The migration count is `settings.libraryMigratedCount`; the
+    notice shows while it is above zero and `"library-migrated"` is not in `dismissedHints`
+    (P13). All three fail closed in `normalizeSettings`.
+  - *Built-in defaults.* Enabled, Anvil on, Workbench on (the Workbench Codex tab would be empty
+    otherwise). "Same as Scope" is the absence of an `excludedFolders` override.
+  - *P2 at creation.* `defaultSurfaces(engine)` lives in `store/types.ts`; `CatalogService`
+    (Bases: Anvil on) and `ViewImporter.toRecord` (Dataview: Workbench on) use it, so a new
+    record is born with the engine default rather than both off.
+  - *Migration scope.* Only legacy `kind:"view"` records with a Dataview engine move (D2). A
+    legacy Bases view has YAML in `source`, not a path, and ADR-29's revision records that none
+    exist, so it is left alone. The count accumulates until the notice is dismissed; after
+    that it is not touched.
+  - *Row label.* `commandName`, else the source file's basename (L3b "defaults to the file's
+    basename"); there is no separate name field.
+  - *"Used by".* A collection's chosen Card is its `cardByCollection` entry when that names a
+    known Card, else Hero. A disabled Card still lists its users (that is what disabling
+    affects). Dataview collections are left out (P8).
+  - *Added beyond the brief:* `removeCard` (L8c) and `configureBuiltIn`, because T7.1b/c need
+    them and they are tested.
