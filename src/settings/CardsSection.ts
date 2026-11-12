@@ -65,6 +65,7 @@ export class CardsSection {
 	/** Drop any read still in flight: the tab was hidden, so nothing may paint after this. */
 	suspend(): void {
 		this.gen++;
+		this.pendingFocus = null;
 	}
 
 	async refresh(): Promise<void> {
@@ -162,7 +163,7 @@ export class CardsSection {
 		const options = sampleOptions(this.all);
 		const sample = pickSample(options, m.usedBy, this.sampled.get(id));
 		const host: PreviewHost = { app: this.d.app, notes: this.d.notes, registry: this.registry(), ...(this.d.fileClasses ? { fileClasses: this.d.fileClasses } : {}) };
-		paintPreview(item, { card: m.card, options, sample }, host, {
+		paintPreview(item, { card: m.card, options, sample, anyEnabled: this.all.some((c) => c.enabled) }, host, {
 			onSample: (collectionId) => this.onSample(id, collectionId),
 			onClose: () => this.closePreview(id),
 		});

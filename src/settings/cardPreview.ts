@@ -31,6 +31,8 @@ export interface PreviewModel {
 	readonly card: LibraryCard;
 	readonly options: readonly LibraryCollection[];
 	readonly sample: LibraryCollection | undefined;
+	/** Any collection is enabled, offered or not: tells "enable one" from "the enabled ones ignore Cards". */
+	readonly anyEnabled: boolean;
 }
 
 export interface PreviewActions {
@@ -94,7 +96,9 @@ function paintSamplePicker(head: HTMLElement, m: PreviewModel, act: PreviewActio
 
 function paintBody(body: HTMLElement, m: PreviewModel, host: PreviewHost): void {
 	if (!m.sample) {
-		body.appendText("Enable a collection to preview this Card.");
+		body.appendText(m.anyEnabled
+			? "Only Dataview collections are enabled, and they don't use Cards."
+			: "Enable a collection to preview this Card.");
 		return;
 	}
 	const note = firstEntry(m.sample, host.notes());

@@ -303,7 +303,10 @@ Closes the gap that started this whole spec: the distribution machinery served f
     in Settings (no controller listens there); stripping the markers keeps it that way if one ever does.
   - *Sample from lists enabled, non-Dataview collections.* The mockup says "every enabled
     collection". A Dataview collection ignores Cards (P8) and has no tag to resolve, so offering
-    it could only ever say "no entries". A disabled collection is not offered.
+    it could only ever say "no entries". A disabled collection is not offered. When the only enabled
+    collections are Dataview ones, the preview says "Only Dataview collections are enabled, and
+    they don't use Cards." instead of "Enable a collection to preview this Card.", which would be
+    untrue.
   - *An imported `.base` collection has no tag.* Samples resolve by tag and folder exclusion
     (`resolveCollection`, as the T7.1b count does). A collection with no tag therefore reads as
     "has no entries yet" in L5b, although the Anvil would draw it through Bases. Sampling a

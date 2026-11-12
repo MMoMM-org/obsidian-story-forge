@@ -378,6 +378,7 @@ describe("L5a · the preview", () => {
 		expect(body.querySelector("[role=button]")).toBeNull();
 		expect(body.querySelector(".sf-cx-card")!.hasAttribute("inert")).toBe(true);
 		const title = body.querySelector(".sf-cx-name")!;
+		// These cannot fail today (nothing listens in Settings); they guard against a future delegated click handler.
 		await click(title);
 		await click(body.querySelector(".sf-cx-card"));
 		expect(w.app.vault.process).not.toHaveBeenCalled();
@@ -468,11 +469,23 @@ describe("L5b · nothing to sample", () => {
 	it("says to enable a collection when none is enabled, and hides the dropdown", async () => {
 		const off = { enabled: false };
 		const w = await open({
-			views: { ...seedViews(), creatures: rec({ ...seedViews()["creatures"]!, enabled: false }) },
+			views: { ...seedViews(), creatures: rec({ ...seedViews()["creatures"]!, enabled: false }), skills: rec({ ...seedViews()["skills"]!, enabled: false }) },
 			settings: { builtInCollections: { character: off, location: off, object: off, lore: off } },
 		});
 		const r = await preview(w.slot, "hero");
 		expect(text(r.querySelector(".sf-lb-prev-body"))).toBe("Enable a collection to preview this Card.");
+		expect(r.querySelector("select")).toBeNull();
+		expect(r.querySelector(".sf-cx-card")).toBeNull();
+	});
+
+	it("says the enabled collections are Dataview and use no Cards, when only those are enabled", async () => {
+		const off = { enabled: false };
+		const w = await open({
+			views: { ...seedViews(), creatures: rec({ ...seedViews()["creatures"]!, enabled: false }) },
+			settings: { builtInCollections: { character: off, location: off, object: off, lore: off } },
+		});
+		const r = await preview(w.slot, "hero");
+		expect(text(r.querySelector(".sf-lb-prev-body"))).toBe("Only Dataview collections are enabled, and they don't use Cards.");
 		expect(r.querySelector("select")).toBeNull();
 		expect(r.querySelector(".sf-cx-card")).toBeNull();
 	});
@@ -507,6 +520,18 @@ describe("focus and stale reads", () => {
 		await flush();
 		expect(text(w.slot)).not.toContain("Stale");
 		expect(cardIds(w.slot)).toContain("statblock");
+	});
+
+	it("does not steal focus later with a focus request left over from a read dropped on hide", async () => {
+		const w = await open();
+		const release = await gateNextRead(w);
+		await click(btn(card(w.slot, "hero"), "Preview"));
+		w.tab.hide();
+		release();
+		await flush();
+		cb(w.slot, "table").focus();
+		await click(w.root.querySelector("[role=tab]"));
+		expect(focusKey()).toBe("cb:table");
 	});
 
 	it("does not let an older read overwrite a newer paint", async () => {

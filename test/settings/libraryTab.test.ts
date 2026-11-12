@@ -870,7 +870,7 @@ describe("P14 · the curated folder and the capability link", () => {
 		await expect(click(button(bare.containerEl, "What optional plugins add…"))).resolves.toBeUndefined();
 	});
 
-	it("keeps a marked place for the Cards list between the collections and the folder (filled by T7.1c)", async () => {
+	it("keeps a marked place for the Cards list between the collections and the folder", async () => {
 		const { root } = await open();
 		const slot = q(panelOf(root, "library"), "[data-slot='cards']")!;
 		expect(slot).not.toBeNull();
