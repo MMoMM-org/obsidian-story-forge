@@ -321,6 +321,9 @@ function isDataview(c: CodexCollection): boolean {
 
 /** A collection a query engine draws: the host embeds it, or Bases being off degrades it (S98). */
 function renderEngineBody(grid: HTMLElement, active: CodexCollection, card: CardRenderer, opts: CodexTabOptions): void {
+	// The embed (or its consent/error/off note) is the grid's only child; without this it gets one
+	// ~200px auto-fill track. One full-width column instead.
+	grid.classList.add("sf-cx-grid--embed");
 	if (active.engine === "bases" && (opts.basesCapability ?? "enabled") !== "enabled") {
 		renderBasesOffState(grid, active.label);
 		return;

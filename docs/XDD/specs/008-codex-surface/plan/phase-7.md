@@ -640,3 +640,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
     - **Unreadable file:** fails closed, never throws: **"Not updated: could not read <path>: <message>"** (or
       "Not installed: …" on a fresh install).
     Nothing is written on any refusal. ConsentGate drift is unchanged (it still compares the query block).
+  - *T7.2 live-test fix (embed width).* An engine collection's Bases embed rendered in one ~200px column: the Codex
+    grid is `auto-fill, minmax(200px, 1fr)` and the embed (or its consent, error or Bases-off note) is its only
+    child. `renderEngineBody` now adds `sf-cx-grid--embed` (`grid-template-columns: 1fr`) before any engine state is
+    drawn, whatever Card is chosen. The dock-right split column (236px) is unchanged.

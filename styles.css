@@ -3285,6 +3285,11 @@ body {
 	padding: 12px;
 }
 
+/* An engine's embed is the grid's single child: give it the whole row, not one 200px track. */
+.sf-cx-grid--embed {
+	grid-template-columns: 1fr;
+}
+
 .sf-cx--compact .sf-cx-grid {
 	grid-template-columns: 1fr;
 	gap: 4px;

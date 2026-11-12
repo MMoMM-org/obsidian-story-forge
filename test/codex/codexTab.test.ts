@@ -793,6 +793,41 @@ describe("renderCodexTab: the shared body", () => {
 	});
 });
 
+describe("renderCodexTab: an engine collection's host (T7.2 live-test fix, embed width)", () => {
+	const BASES_COLLECTION = { id: "imported-1", label: "Overview", tag: "", enabled: true, engine: "bases" as const };
+
+	function renderEngine(cardId: string, basesCapability: BasesCapability, renderEmbed?: ReturnType<typeof vi.fn>): HTMLElement {
+		const container = document.createElement("div");
+		renderCodexTab(container, {
+			collections: [BASES_COLLECTION],
+			selection: new CodexSelectionStore(),
+			index: [],
+			excludedFolders: [],
+			tileField: nativeTileField,
+			cardId,
+			basesCapability,
+			...(renderEmbed ? { renderEmbed } : {}),
+		});
+		return container;
+	}
+
+	it.each(["hero", "table", "compact"])("hands the embed a full-width host under the %s Card", (cardId) => {
+		const renderEmbed = vi.fn();
+		renderEngine(cardId, "enabled", renderEmbed);
+
+		const host = renderEmbed.mock.calls[0]![0] as HTMLElement;
+		expect(host.classList.contains("sf-cx-grid--embed")).toBe(true);
+	});
+
+	it("keeps the full-width host when Bases is off and nothing is drawn", () => {
+		const container = renderEngine("hero", "disabled");
+
+		const grid = container.querySelector(".sf-cx-grid")!;
+		expect(grid.classList.contains("sf-cx-grid--embed")).toBe(true);
+		expect(grid.querySelector(".sf-cx-empty--bases-off")).not.toBeNull();
+	});
+});
+
 describe("CodexSelectionStore", () => {
 	it("falls back to the first enabled collection when the pick is disabled", () => {
 		const store = new CodexSelectionStore();
