@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 import { ViewStore } from "../../src/store/ViewStore";
-import type { PluginDataPort, StoryForgeData, ViewRecord } from "../../src/store/types";
+import { defaultSurfaces, type PluginDataPort, type StoryForgeData, type ViewRecord } from "../../src/store/types";
 import {
 	DEFAULT_SETTINGS,
 	LIBRARY_MIGRATED_HINT_ID,
@@ -18,7 +18,6 @@ import {
 } from "../../src/types/index";
 import {
 	CollectionStore,
-	defaultSurfaces,
 	anvilPills,
 	workbenchSections,
 	workbenchTabs,
@@ -43,7 +42,8 @@ function makeRecord(overrides: Partial<ViewRecord> = {}): ViewRecord {
 	};
 }
 
-function makeHarness(init: { views?: Record<string, ViewRecord>; settings?: Partial<PluginSettings> } = {}) {
+function makeHarness(init: { views?: Record<string, ViewRecord>; settings?: Partial<PluginSettings>; failSaveSettingsOnce?: boolean } = {}) {
+	let failNext = init.failSaveSettingsOnce === true;
 	let data: StoryForgeData = structuredClone({ views: init.views ?? {}, settings: { ...DEFAULT_SETTINGS, ...init.settings } });
 	const port: PluginDataPort = {
 		load: async () => structuredClone(data),
@@ -57,6 +57,7 @@ function makeHarness(init: { views?: Record<string, ViewRecord>; settings?: Part
 		deleteRecord: async (id) => { calls.push("deleteRecord"); await views.deleteRecord(id); },
 		loadSettings: async () => normalizeSettings((await port.load() as StoryForgeData).settings),
 		saveSettings: async (patch) => {
+			if (failNext) { failNext = false; throw new Error("disk full"); }
 			calls.push("saveSettings");
 			const current = normalizeSettings(data.settings);
 			data = { ...data, settings: { ...current, ...patch } };
@@ -135,6 +136,30 @@ describe("checkbox and surface toggles", () => {
 		const list = await h.store.collections();
 		expect(list.find((c) => c.id === "a")?.effective).toEqual({ anvil: true, workbench: false });
 		expect(list.find((c) => c.id === "location")?.effective).toEqual({ anvil: false, workbench: true });
+	});
+
+	it("persists two un-awaited toggles in a row, for a record and for a built-in", async () => {
+		const h = makeHarness({ views: { a: makeRecord({ surfaces: { anvil: true, workbench: false } }) } });
+
+		await Promise.all([
+			h.store.setSurface("a", "anvil", false),
+			h.store.setSurface("a", "workbench", true),
+			h.store.setSurface("lore", "anvil", false),
+			h.store.setEnabled("lore", false),
+		]);
+
+		expect(h.persistedViews()["a"]?.surfaces).toEqual({ anvil: false, workbench: true });
+		expect(h.persistedSettings().builtInCollections["lore"]).toMatchObject({ anvil: false, enabled: false });
+	});
+
+	it("keeps the queue alive after a failed write", async () => {
+		const h = makeHarness({ failSaveSettingsOnce: true });
+		const failed = h.store.setEnabled("lore", false);
+		const next = h.store.setEnabled("object", false);
+
+		await expect(failed).rejects.toThrow("disk full");
+		await expect(next).resolves.toEqual({ ok: true });
+		expect(h.persistedSettings().builtInCollections["object"]?.enabled).toBe(false);
 	});
 
 	it("refuses an unknown id and writes nothing", async () => {
@@ -218,6 +243,16 @@ describe("migration of old views", () => {
 		expect(h.persistedViews()["js"]?.kind).toBe("collection");
 		expect(h.persistedSettings().libraryMigratedCount).toBe(2);
 		expect(await h.store.migrationNotice()).toEqual({ moved: 2 });
+	});
+
+	it("cannot lose the notice when saving settings fails: a retry still migrates and announces", async () => {
+		const h = makeHarness({ views: { dql: legacy("dataview-dql") }, failSaveSettingsOnce: true });
+
+		await expect(h.store.migrate()).rejects.toThrow("disk full");
+		expect(h.persistedViews()["dql"]?.kind).toBe("view");
+
+		expect(await h.store.migrate()).toBe(1);
+		expect(await h.store.migrationNotice()).toEqual({ moved: 1 });
 	});
 
 	it("is idempotent: a second run changes and writes nothing", async () => {
@@ -437,9 +472,26 @@ describe("Library settings normalisation", () => {
 			disabledCards: ["table", 3],
 			libraryMigratedCount: -2,
 		});
-		expect(s.builtInCollections).toEqual({ lore: { anvil: false }, bad: {} });
+		expect(s.builtInCollections).toEqual({ lore: { anvil: false } });
 		expect(s.disabledCards).toEqual([]);
 		expect(s.libraryMigratedCount).toBe(0);
 		expect(normalizeSettings({ builtInCollections: [] }).builtInCollections).toEqual({});
+	});
+
+	it("trims a tag, strips a leading #, and drops it when nothing is left", () => {
+		const tags = (tag: string) =>
+			normalizeSettings({ builtInCollections: { lore: { tag } } }).builtInCollections["lore"];
+		expect(tags("   ")).toEqual({});
+		expect(tags("#")).toEqual({});
+		expect(tags("#x")).toEqual({ tag: "x" });
+		expect(tags("  #story/lore ")).toEqual({ tag: "story/lore" });
+	});
+
+	it("keeps only built-in collection ids, including against __proto__", () => {
+		const raw = JSON.parse('{"lore":{"enabled":false},"stale":{"enabled":false},"__proto__":{"enabled":false}}');
+		const out = normalizeSettings({ builtInCollections: raw }).builtInCollections;
+		expect(Object.keys(out)).toEqual(["lore"]);
+		expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
+		expect(Object.prototype.hasOwnProperty.call(out, "__proto__")).toBe(false);
 	});
 });

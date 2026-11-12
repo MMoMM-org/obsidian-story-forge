@@ -16,8 +16,6 @@
 import { BUILT_IN_COLLECTIONS, type CodexCollection } from "codex/codexTab";
 import { BUILT_IN_CARD_IDS, CODEX_CARD_REGISTRY } from "codex/builtinCards";
 import { defaultSurfaces, type ViewRecord } from "store/types";
-
-export { defaultSurfaces };
 import {
 	LIBRARY_MIGRATED_HINT_ID,
 	type BuiltInCollectionOverride,
@@ -200,6 +198,8 @@ const OK: Outcome = { ok: true };
 const isBuiltInId = (id: string): boolean => BUILT_IN_COLLECTIONS.some((c) => c.id === id);
 
 export class CollectionStore {
+	private tail: Promise<void> = Promise.resolve();
+
 	constructor(private readonly port: LibraryPort) {}
 
 	// --- reads ---------------------------------------------------------------
@@ -232,17 +232,17 @@ export class CollectionStore {
 	// --- collection writes ---------------------------------------------------
 
 	/** The checkbox. The surface toggles are not touched (P1). */
-	async setEnabled(id: string, enabled: boolean): Promise<Outcome> {
+	private async setEnabledNow(id: string, enabled: boolean): Promise<Outcome> {
 		return this.patchCollection(id, { enabled }, (rec) => ({ ...rec, enabled }));
 	}
 
 	/** One surface toggle; saved at once, kept while the checkbox is off. */
-	async setSurface(id: string, surface: Surface, on: boolean): Promise<Outcome> {
+	private async setSurfaceNow(id: string, surface: Surface, on: boolean): Promise<Outcome> {
 		return this.patchCollection(id, { [surface]: on }, (rec) => ({ ...rec, surfaces: { ...rec.surfaces, [surface]: on } }));
 	}
 
 	/** P10: a built-in's tag and excluded folders. */
-	async configureBuiltIn(id: string, patch: BuiltInConfigPatch): Promise<Outcome> {
+	private async configureBuiltInNow(id: string, patch: BuiltInConfigPatch): Promise<Outcome> {
 		if (!isBuiltInId(id)) return REFUSE(`"${id}" is not a built-in collection`);
 		const next: BuiltInCollectionOverride = { ...(await this.builtInOverride(id)) };
 		if (patch.tag !== undefined) setOrDrop(next, "tag", patch.tag.trim() || undefined);
@@ -254,7 +254,7 @@ export class CollectionStore {
 	}
 
 	/** P5, P16: drop the record and its Card choice. Never a built-in, never a file. */
-	async remove(id: string): Promise<Outcome> {
+	private async removeNow(id: string): Promise<Outcome> {
 		if (isBuiltInId(id)) return REFUSE("A built-in collection can be disabled, not removed");
 		const rec = (await this.port.getViews())[id];
 		if (rec?.kind !== "collection") return REFUSE(`No collection "${id}"`);
@@ -266,7 +266,7 @@ export class CollectionStore {
 	// --- card writes ---------------------------------------------------------
 
 	/** P19: Hero cannot be disabled. */
-	async setCardEnabled(cardId: string, enabled: boolean): Promise<Outcome> {
+	private async setCardEnabledNow(cardId: string, enabled: boolean): Promise<Outcome> {
 		if (cardId === HERO_ID && !enabled) return REFUSE("Hero is the fallback Card and is always available");
 		const views = await this.port.getViews();
 		const rec = views[cardId];
@@ -281,7 +281,7 @@ export class CollectionStore {
 	}
 
 	/** L8c: drop a card record; collections that chose it fall back to Hero. Never a file. */
-	async removeCard(cardId: string): Promise<Outcome> {
+	private async removeCardNow(cardId: string): Promise<Outcome> {
 		if (BUILT_IN_CARD_IDS.has(cardId)) return REFUSE("A built-in Card can be disabled, not removed");
 		const rec = (await this.port.getViews())[cardId];
 		if (rec?.kind !== "card") return REFUSE(`No card "${cardId}"`);
@@ -300,10 +300,13 @@ export class CollectionStore {
 	 * nothing. A legacy Bases view has no valid collection shape (its source is YAML, not a
 	 * path), so it is left alone.
 	 */
-	async migrate(): Promise<number> {
+	private async migrateNow(): Promise<number> {
 		const legacy = Object.entries(await this.port.getViews()).filter(
 			([, rec]) => rec.kind === "view" && rec.engine !== "bases",
 		);
+		// The count first: if this write fails nothing has moved, so a retry still finds the
+		// legacy records and announces them. Records first would lose the notice for good.
+		if (legacy.length > 0) await this.addToMigrationCount(legacy.length);
 		for (const [id, rec] of legacy) {
 			await this.port.setRecord(id, {
 				...rec,
@@ -313,7 +316,6 @@ export class CollectionStore {
 				surfaces: defaultSurfaces(rec.engine),
 			});
 		}
-		if (legacy.length > 0) await this.addToMigrationCount(legacy.length);
 		return legacy.length;
 	}
 
@@ -324,10 +326,52 @@ export class CollectionStore {
 		return shown ? { moved: s.libraryMigratedCount } : null;
 	}
 
-	async dismissMigrationNotice(): Promise<void> {
+	private async dismissMigrationNoticeNow(): Promise<void> {
 		const { dismissedHints } = await this.port.loadSettings();
 		if (dismissedHints.includes(LIBRARY_MIGRATED_HINT_ID)) return;
 		await this.port.saveSettings({ dismissedHints: [...dismissedHints, LIBRARY_MIGRATED_HINT_ID] });
+	}
+
+	// --- serialised writes -------------------------------------------------
+	// Every write is a read-modify-write on the port, so two un-awaited calls would each
+	// read the same state and the second would erase the first. They run one at a time.
+
+	setEnabled(id: string, enabled: boolean): Promise<Outcome> {
+		return this.serial(() => this.setEnabledNow(id, enabled));
+	}
+
+	setSurface(id: string, surface: Surface, on: boolean): Promise<Outcome> {
+		return this.serial(() => this.setSurfaceNow(id, surface, on));
+	}
+
+	configureBuiltIn(id: string, patch: BuiltInConfigPatch): Promise<Outcome> {
+		return this.serial(() => this.configureBuiltInNow(id, patch));
+	}
+
+	remove(id: string): Promise<Outcome> {
+		return this.serial(() => this.removeNow(id));
+	}
+
+	setCardEnabled(cardId: string, enabled: boolean): Promise<Outcome> {
+		return this.serial(() => this.setCardEnabledNow(cardId, enabled));
+	}
+
+	removeCard(cardId: string): Promise<Outcome> {
+		return this.serial(() => this.removeCardNow(cardId));
+	}
+
+	migrate(): Promise<number> {
+		return this.serial(() => this.migrateNow());
+	}
+
+	dismissMigrationNotice(): Promise<void> {
+		return this.serial(() => this.dismissMigrationNoticeNow());
+	}
+
+	private serial<T>(task: () => Promise<T>): Promise<T> {
+		const run = this.tail.then(task);
+		this.tail = run.then(() => undefined, () => undefined);
+		return run;
 	}
 
 	// --- private -------------------------------------------------------------

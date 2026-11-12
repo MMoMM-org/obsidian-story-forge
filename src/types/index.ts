@@ -1,3 +1,5 @@
+import { BUILT_IN_COLLECTIONS } from "codex/builtinCollections";
+
 export interface PluginSettings {
 	/** ADR-5: link-click action; modifier-click inverts. Default: "drill". */
 	linkClickAction: "drill" | "open";
@@ -240,16 +242,22 @@ function normalizeOverride(v: unknown): BuiltInCollectionOverride {
 	if (typeof v.enabled === "boolean") out.enabled = v.enabled;
 	if (typeof v.anvil === "boolean") out.anvil = v.anvil;
 	if (typeof v.workbench === "boolean") out.workbench = v.workbench;
-	if (typeof v.tag === "string" && v.tag.length > 0) out.tag = v.tag;
+	const tag = typeof v.tag === "string" ? v.tag.trim().replace(/^#+/, "").trim() : "";
+	if (tag.length > 0) out.tag = tag;
 	if (isExcludedFolders(v.excludedFolders)) out.excludedFolders = [...v.excludedFolders];
 	return out;
 }
 
-/** Normalizer: keeps only well-formed members of each override; anything else is dropped. */
+/**
+ * Normalizer: keeps only built-in collection ids (an unknown or stale id, `__proto__`
+ * included, is dropped) and only well-formed members of each override.
+ */
 export function normalizeBuiltInCollections(v: unknown): Record<string, BuiltInCollectionOverride> {
 	if (!isRecordObject(v)) return {};
 	const out: Record<string, BuiltInCollectionOverride> = {};
-	for (const [id, override] of Object.entries(v)) out[id] = normalizeOverride(override);
+	for (const { id } of BUILT_IN_COLLECTIONS) {
+		if (Object.prototype.hasOwnProperty.call(v, id)) out[id] = normalizeOverride(v[id]);
+	}
 	return out;
 }
 
