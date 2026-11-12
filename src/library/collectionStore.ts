@@ -322,7 +322,7 @@ export class CollectionStore {
 
 	/** P19: Hero cannot be disabled. */
 	private async setCardEnabledNow(cardId: string, enabled: boolean): Promise<Outcome> {
-		if (cardId === HERO_ID && !enabled) return REFUSE("Hero is the fallback Card and is always available");
+		if (cardId === HERO_ID && !enabled) return REFUSE("Hero is the fallback Card and cannot be disabled");
 		const views = await this.port.getViews();
 		const rec = views[cardId];
 		if (rec?.kind === "card") {

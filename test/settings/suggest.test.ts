@@ -167,3 +167,25 @@ describe("folder suggester (L1, L3a)", () => {
 		expect(plugin.settings.fileClassesFolder).toBe("Not/There");
 	});
 });
+
+describe("a chosen suggestion is not held as an unsaved edit", () => {
+	it("lets the panel repaint with the committed value after a choice in a focused field", async () => {
+		const { root, collections } = await open();
+		await collections.configureBuiltIn("character", { excludedFolders: ["00 Meta"] });
+		const sel = '[data-collection-id="character"] [aria-label="Excluded folders for Characters"]';
+		const before = input(await configureCharacter(root), '[aria-label="Excluded folders for Characters"]');
+		before.focus();
+		before.value = "00 Meta, Arc";
+		expect(document.activeElement).toBe(before);
+		suggesterOn(before)!.selectSuggestion("Archive", new MouseEvent("click"));
+		await flush();
+		// A repaint from outside (the list follows every store write): it must not be held back.
+		await collections.setScope(["Zed"]);
+		await flush();
+		const after = input(root, sel);
+		expect(after).not.toBe(before);
+		expect(after.value).toBe("00 Meta, Archive");
+		const stored = (await collections.collections()).find((c) => c.id === "character");
+		expect(stored?.excludedFolders).toEqual(["00 Meta", "Archive"]);
+	});
+});

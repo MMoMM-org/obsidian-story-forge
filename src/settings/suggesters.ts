@@ -26,8 +26,10 @@ abstract class FieldSuggest extends AbstractInputSuggest<string> {
 		this.close();
 	}
 
-	/** The field's new text once `value` is chosen. */
-	protected abstract complete(value: string): string;
+	/** The field's new text once `value` is chosen; by default the value as is. */
+	protected complete(value: string): string {
+		return value;
+	}
 }
 
 const matches = (candidate: string, typed: string): boolean => candidate.toLowerCase().includes(typed.toLowerCase());
@@ -42,13 +44,12 @@ class TagSuggest extends FieldSuggest {
 		const typed = query.trim().replace(/^#/, "");
 		return [...new Set(this.tags())].filter((t) => matches(t, typed)).sort();
 	}
-
-	protected complete(value: string): string {
-		return value;
-	}
 }
 
-/** Vault folders filtered by the typed text; in a comma list, only the segment being typed. */
+/**
+ * Vault folders filtered by the typed text. In list mode (a comma-separated field) only the last
+ * segment is matched and completed: the segments before it are kept, joined with ", ".
+ */
 class FolderSuggest extends FieldSuggest {
 	constructor(app: App, field: HTMLInputElement, private readonly list: boolean) {
 		super(app, field);
