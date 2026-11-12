@@ -2,7 +2,7 @@
  * runImportFlow — consent-then-commit import (T-S2.4, F2).
  * installCurated — gate-less 1-click install for curated catalog entries (T4.3).
  *
- * runImportFlow: pick → one consent gate → commit. The bind step was removed
+ * runImportFlow: pick → one consent gate → commit. A `.base` (T7.2) skips the gate. The bind step was removed
  * (F2): clicking outside the (former) bind modal restarted the whole flow, and
  * the sibling markdown-mason plugin has no bind step either. Command binding is
  * now a separate Settings action (Edit), not part of the import flow.
@@ -26,10 +26,23 @@ import type { ConsentGate } from "consent/ConsentGate";
 
 /**
  * Declarative engine kinds that do not require a consent modal on install.
- * Currently: "dataview-dql" only. Add "bases" here when ViewDefinition["engine"]
- * gains that member (bases records are presently only in ViewRecord, not ViewDefinition).
+ * T7.2: "bases" joined when ViewDefinition["engine"] gained it.
  */
-const DECLARATIVE_ENGINES = new Set<ViewDefinition["engine"]>(["dataview-dql"]);
+const DECLARATIVE_ENGINES = new Set<ViewDefinition["engine"]>(["bases", "dataview-dql"]);
+
+/**
+ * The consent tokens a vault import is committed with. A `.base` has no consent modal (PRD F7
+ * AC 8; `_presentConsentModal` reads a fenced block a `.base` does not have): the tokens record
+ * the bytes that were imported, and the gate does not re-check them (ConsentGate, T7.2). Every
+ * Dataview engine keeps today's disclosure (light for DQL, full for DataviewJS).
+ */
+async function importTokens(
+	deps: ImportFlowDeps,
+	def: ViewDefinition,
+): Promise<{ version: number; checksum: string } | null> {
+	if (def.engine === "bases") return { version: def.version, checksum: def.checksum };
+	return deps.gate.requestConsentForDef(def);
+}
 
 /** Dependencies injected into the import flow (all owned by main.ts). */
 export interface ImportFlowDeps {
@@ -52,7 +65,7 @@ export async function runImportFlow(
 	def: ViewDefinition,
 ): Promise<void> {
 	// 1. Consent (no store write). Null = cancel/dismiss/missing source → abort.
-	const tokens = await deps.gate.requestConsentForDef(def);
+	const tokens = await importTokens(deps, def);
 	if (tokens === null) return;
 
 	// 2. Commit — single atomic write with the consent tokens. The tab label

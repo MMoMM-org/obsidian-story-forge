@@ -328,13 +328,17 @@ describe("a .base collection", () => {
 		expect(drawn.classList.contains("sf-cx-card--sel")).toBe(true);
 	});
 
-	it("is judged on the file's contents, not its path: consented, then drift after a hand edit", async () => {
+	// T7.2 reverses d2's "drift after a hand edit": an imported .base is enable/disable only (PRD F7
+	// AC 8) and the user's to edit in Bases (L3b). Drift here had no way out — re-consent reads a
+	// fenced block a .base does not have.
+	it("stays drawable after the user edits the file in Bases: no drift, no consent", async () => {
 		const w = await makeWorld({ views: { orgs: await baseRecord() } });
 		const gate = new ConsentGate(w.app, buildEngineRegistry(w.app, true), { isDvJsEnabled: () => true }, w.views, async () => null, () => ({ tag: "", excludedFolders: [] }));
 		const rec = (await w.views.getViews())["orgs"]!;
 		expect(await gate.evaluate(rec)).toEqual({ status: "consented" });
 		w.bodies.set(BASE_PATH, `${BASE_YAML}# edited\n`);
-		expect(await gate.evaluate(rec)).toEqual({ status: "drift", reason: "checksum" });
+		expect(await gate.evaluate(rec)).toEqual({ status: "consented" });
+		expect(await gate.evaluate({ ...rec, enabled: false })).toEqual({ status: "disabled" });
 	});
 
 	it("shows the engine's error when the file is missing", async () => {

@@ -19,7 +19,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { App } from "../__mocks__/obsidian";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import type { CatalogService, InstallResult } from "catalog/CatalogService";
-import type { CatalogEntry } from "catalog/catalogTypes";
+import type { BasesCatalogEntry, CatalogEntry } from "catalog/catalogTypes";
 import type { ViewRecord } from "store/types";
 import { ViewStore } from "store/ViewStore";
 
@@ -27,7 +27,7 @@ import { ViewStore } from "store/ViewStore";
 // Factories
 // ---------------------------------------------------------------------------
 
-function makeEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
+function makeEntry(overrides: Partial<BasesCatalogEntry> = {}): BasesCatalogEntry {
 	return {
 		id: "overview-characters",
 		name: "Characters overview",
@@ -184,7 +184,7 @@ describe("BrowseOfficialModal — S47 catalog list with provenance + checksum", 
 		modal.open();
 
 		await vi.waitFor(() => {
-			expect(document.body.textContent).toMatch(/no.*view|nothing.*catalog|empty/i);
+			expect(document.body.textContent).toMatch(/no collections yet/i);
 		});
 	});
 });

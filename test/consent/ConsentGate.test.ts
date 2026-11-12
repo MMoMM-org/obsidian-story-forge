@@ -965,3 +965,34 @@ describe("ConsentGate.requestConsent() write path", () => {
 		});
 	});
 });
+
+// ---------------------------------------------------------------------------
+// requestConsentForQuery — consent before the note exists (T7.2, a curated DataviewJS entry)
+// ---------------------------------------------------------------------------
+
+describe("ConsentGate.requestConsentForQuery()", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		vi.restoreAllMocks();
+	});
+
+	const query = { engine: "dataviewjs" as const, name: "Web", body: DV_JS_BODY, version: 4, sourcePath: "00 Meta/Bases/web.md" };
+
+	it("shows the full DataviewJS disclosure for a query not yet in the vault, and returns its tokens on grant", async () => {
+		const present = vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(true);
+		const app = makeAppSync(null, "");
+		const store = makeStore();
+		const gate = new ConsentGate(app, makeRegistry(), makeDvSettings(true), store, ...inertConsentGateSeams());
+
+		expect(await gate.requestConsentForQuery(query)).toEqual({ version: 4, checksum: await computeChecksum(DV_JS_BODY) });
+		expect(present).toHaveBeenCalledTimes(1);
+		expect(app.vault.read).not.toHaveBeenCalled();
+		expect(store.setRecord).not.toHaveBeenCalled();
+	});
+
+	it("returns null when declined", async () => {
+		vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(false);
+		const gate = new ConsentGate(makeAppSync(null, ""), makeRegistry(), makeDvSettings(true), makeStore(), ...inertConsentGateSeams());
+		expect(await gate.requestConsentForQuery(query)).toBeNull();
+	});
+});

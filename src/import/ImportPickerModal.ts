@@ -20,6 +20,13 @@ import type { ViewDefinition } from "import/ViewDefinition";
 import { runImportFlow } from "import/ImportFlow";
 import type { ConsentGate } from "consent/ConsentGate";
 
+/** The engine badge on a picker row (today's lowercase picker badges; T7.2 adds Bases). */
+const PICKER_BADGE: Record<ViewDefinition["engine"], { text: string; cls: string }> = {
+	bases: { text: "bases", cls: "sf-badge-bases" },
+	"dataview-dql": { text: "dql", cls: "sf-badge-dql" },
+	dataviewjs: { text: "dataviewjs", cls: "sf-badge-dvjs" },
+};
+
 /**
  * ImportPickerModal — Modal subclass.
  *
@@ -80,9 +87,10 @@ export class ImportPickerModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 
-		el.createEl("h2", { text: "Import a view" });
+		// P18: today's modal, with "view" replaced by "collection"; T7.2 lists .base files too.
+		el.createEl("h2", { text: "Import a collection" });
 		el.createEl("p", {
-			text: "Notes in your vault marked sf-view: true",
+			text: "Notes in your vault marked sf-view: true, and .base files",
 			cls: "sf-picker-sub",
 		});
 
@@ -93,7 +101,7 @@ export class ImportPickerModal extends Modal {
 		this.searchEl = el.createEl("input", {
 			cls: "sf-picker-search",
 			type: "text",
-			placeholder: "Search views…",
+			placeholder: "Search collections…",
 		});
 		this.searchEl.addEventListener("input", () => this._applyFilter());
 
@@ -145,7 +153,7 @@ export class ImportPickerModal extends Modal {
 
 		if (this.files.length === 0) {
 			this.listEl.createEl("p", {
-				text: "No views to import — add sf-view: true to a vault note to make it available here.",
+				text: "Nothing to import — add sf-view: true to a vault note, or create a .base file, to make it available here.",
 				cls: "sf-picker-empty",
 			});
 			// W3: disable Next → when there is nothing to import
@@ -170,11 +178,8 @@ export class ImportPickerModal extends Modal {
 
 			// Engine badge — only for successfully-parsed candidates.
 			if (def) {
-				const isDvjs = def.engine === "dataviewjs";
-				row.createEl("span", {
-					text: isDvjs ? "dataviewjs" : "dql",
-					cls: `sf-badge ${isDvjs ? "sf-badge-dvjs" : "sf-badge-dql"}`,
-				});
+				const badge = PICKER_BADGE[def.engine];
+				row.createEl("span", { text: badge.text, cls: `sf-badge ${badge.cls}` });
 			}
 
 			row.createEl("div", { text: file.path, cls: "sf-picker-path" });

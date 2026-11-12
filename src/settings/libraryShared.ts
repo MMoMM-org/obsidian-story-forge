@@ -35,23 +35,41 @@ export function focusByKey(host: HTMLElement, key: string | null): void {
 	host.querySelector<HTMLElement>(`[data-focus="${key}"]`)?.focus();
 }
 
-/** "+ Browse repo…" (not yet available) and "+ Import from vault…". `noteId` must be unique in the page. */
-export function paintAddRow(host: HTMLElement, importFromVault: () => void, noteId: string): void {
+/**
+ * "+ Browse repo…" and "+ Import from vault…". With `browseRepo` the Browse button opens the
+ * catalog (T7.2) and is the add row's focus target after a last-row removal (P16); without it the
+ * button is the disabled "coming in a future release" control (the Cards list: no Card catalog
+ * yet). `noteId` must be unique in the page.
+ */
+export function paintAddRow(
+	host: HTMLElement,
+	actions: { importFromVault: () => void; browseRepo?: () => void },
+	noteId: string,
+): void {
 	const add = host.createDiv({ cls: "sf-lb-add" });
 	const browse = add.createEl("button", {
 		cls: "sf-lb-addbtn",
 		// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L2 text; the rule misreads the leading '+' glyph
 		text: "+ Browse repo…",
-		// The visible name stays the accessible name; the reason is a description, not a replacement.
-		attr: { type: "button", title: "Coming in a future release", "aria-describedby": noteId },
+		attr: { type: "button" },
 	});
-	browse.disabled = true;
-	add.createSpan({ cls: "sf-lb-sr", text: "Coming in a future release", attr: { id: noteId } });
+	const { browseRepo } = actions;
+	if (browseRepo) {
+		browse.dataset["focus"] = "add";
+		browse.addEventListener("click", () => browseRepo());
+	} else {
+		// The visible name stays the accessible name; the reason is a description, not a replacement.
+		browse.title = "Coming in a future release";
+		browse.setAttribute("aria-describedby", noteId);
+		browse.disabled = true;
+		add.createSpan({ cls: "sf-lb-sr", text: "Coming in a future release", attr: { id: noteId } });
+	}
 	const imp = add.createEl("button", {
 		cls: "sf-lb-addbtn",
 		// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L2 text; the rule misreads the leading '+' glyph
 		text: "+ Import from vault…",
-		attr: { type: "button", "data-focus": "add" },
+		attr: { type: "button" },
 	});
-	imp.addEventListener("click", () => importFromVault());
+	if (!browseRepo) imp.dataset["focus"] = "add";
+	imp.addEventListener("click", () => actions.importFromVault());
 }

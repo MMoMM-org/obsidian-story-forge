@@ -10,8 +10,10 @@
  * @ref SDD/ADR-9 (store-generated id; source = vault path; no UUID to vault)
  */
 
+import { parseYaml } from "obsidian";
 import type { App, TFile } from "obsidian";
 import { extractQueryBlocks, readNoteContent } from "import/fencedBlock";
+import { validateBasesConfig } from "bases/basesConfig";
 import { computeChecksum } from "consent/checksum";
 import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
@@ -19,6 +21,9 @@ import type { ViewStore } from "store/ViewStore";
 import { defaultSurfaces, type ViewRecord } from "store/types";
 
 export { ImportError } from "import/ViewDefinition";
+
+/** The extension of a Bases file; such a file imports as a Bases collection (T7.2). */
+const BASE_EXTENSION = "base";
 export type { ViewDefinition } from "import/ViewDefinition";
 
 /**
@@ -52,6 +57,7 @@ export class ViewImporter {
 	 * @ref SDD/ADR-6; SDD/Implementation Examples — ViewImporter.parse()
 	 */
 	async parse(file: TFile): Promise<ViewDefinition> {
+		if (file.extension === BASE_EXTENSION) return this._parseBase(file);
 		// 1. Read the note content ONCE and derive the single query block.
 		//    _readBlock reuses the shared extractQueryBlocks (single source of
 		//    truth) to distinguish 0 (NO_QUERY_BLOCK) vs >1 (MULTIPLE_QUERY_BLOCKS).
@@ -191,7 +197,7 @@ export class ViewImporter {
 		const views = await this.store.getViews();
 		for (const rec of Object.values(views)) {
 			if (rec.source === def.sourcePath) {
-				throw new ImportError("DUPLICATE", "View already imported");
+				throw new ImportError("DUPLICATE", "Collection already imported");
 			}
 		}
 
@@ -219,10 +225,11 @@ export class ViewImporter {
 
 	/**
 	 * Return all vault notes whose CachedMetadata has sf-view === true (strict
-	 * boolean), excluding any paths already present in the store.
+	 * boolean), then every `.base` file (T7.2), excluding any paths already
+	 * present in the store.
 	 *
-	 * Uses vault.getMarkdownFiles() + metadataCache.getFileCache — NO vault.read()
-	 * calls. (ADR-6: auto-scan is cache-only.)
+	 * Uses vault.getMarkdownFiles() / getFiles() + metadataCache.getFileCache — NO
+	 * vault.read() calls. (ADR-6: auto-scan is cache-only.)
 	 *
 	 * @ref SDD/ADR-6 — metadataCache-only scan; no vault reads at scan time
 	 */
@@ -233,19 +240,51 @@ export class ViewImporter {
 			Object.values(views).map((r) => r.source),
 		);
 
-		return this.app.vault.getMarkdownFiles().filter((file) => {
+		const notes = this.app.vault.getMarkdownFiles().filter((file) => {
 			// Strict boolean true — exclude absent, false, or non-boolean truthy.
 			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-			if (fm?.["sf-view"] !== true) return false;
-
-			// Exclude already-imported paths.
-			return !importedSources.has(file.path);
+			return fm?.["sf-view"] === true;
 		});
+		const bases = this.app.vault.getFiles().filter((file) => file.extension === BASE_EXTENSION);
+		// Exclude already-imported paths.
+		return [...notes, ...bases].filter((file) => !importedSources.has(file.path));
 	}
 
 	// -------------------------------------------------------------------------
 	// Private helpers
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Parse a vault `.base` file (T7.2). The file is the query: its YAML must parse and pass
+	 * `validateBasesConfig` (CON-6), or the import is refused with the reason. The YAML is read
+	 * here only to validate and checksum it; the record stores the path (ADR-35).
+	 */
+	private async _parseBase(file: TFile): Promise<ViewDefinition> {
+		const content = await readNoteContent(this.app, file.path);
+		if (content === null) throw new ImportError("INVALID_BASE", "This .base file could not be found");
+		const result = validateBasesConfig(this._readYaml(content));
+		if (!result.ok) {
+			throw new ImportError("INVALID_BASE", `This .base file is not a valid Bases file: ${result.error}`);
+		}
+		return {
+			sourcePath: file.path,
+			engine: "bases",
+			version: 0,
+			name: file.basename,
+			command: false,
+			querySource: content,
+			checksum: await computeChecksum(content),
+		};
+	}
+
+	private _readYaml(content: string): unknown {
+		try {
+			return parseYaml(content);
+		} catch (err) {
+			const reason = err instanceof Error ? err.message : String(err);
+			throw new ImportError("INVALID_BASE", `This .base file could not be read: ${reason}`);
+		}
+	}
 
 	/**
 	 * Read the single fenced block from `file`, distinguishing 0-block
@@ -271,7 +310,7 @@ export class ViewImporter {
 		if (blocks.length > 1) {
 			throw new ImportError(
 				"MULTIPLE_QUERY_BLOCKS",
-				"View definitions must contain exactly one query block",
+				"A collection must contain exactly one query block",
 			);
 		}
 		return blocks[0]!;

@@ -34,6 +34,8 @@ export interface LibraryDeps {
 	fileClasses?: FileClassSource;
 	/** The "What optional plugins add…" link. Its screen is T7.4's; until then a no-op. */
 	openCapabilities?: () => void;
+	/** "+ Browse repo…" (T7.2): opens the catalog. Absent, the button stays disabled. */
+	browseRepo?: () => void;
 }
 
 /** L1: the three tabs, in order. */
@@ -94,6 +96,7 @@ export class SettingsTab extends PluginSettingTab {
 			registerCommand,
 			removeCommand,
 			importFromVault,
+			...(library.browseRepo ? { browseRepo: library.browseRepo } : {}),
 		});
 	}
 
@@ -242,7 +245,7 @@ export class SettingsTab extends PluginSettingTab {
 		new SettingGroup(panel).setHeading("Collections from the repo").addSetting((setting) => {
 			setting
 				.setName("Folder for collections from the repo")
-				.setDesc("Where Browse repo… places the .base files it installs. Default: 00 Meta/Bases")
+				.setDesc("Where Browse repo… places the .base files and Dataview notes it installs. Default: 00 Meta/Bases")
 				.addText((text) =>
 					text
 						// eslint-disable-next-line obsidianmd/ui/sentence-case -- '00 Meta/Bases' is a vault path placeholder

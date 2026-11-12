@@ -253,7 +253,7 @@ describe("ViewImporter.parse()", () => {
 
 		await expect(importer.parse(file)).rejects.toMatchObject({
 			code: "MULTIPLE_QUERY_BLOCKS",
-			message: "View definitions must contain exactly one query block",
+			message: "A collection must contain exactly one query block",
 		});
 		await expect(importer.parse(file)).rejects.toBeInstanceOf(ImportError);
 	});
@@ -579,7 +579,7 @@ describe("ViewImporter.importToStore()", () => {
 
 		await expect(importer.importToStore(sampleDef)).rejects.toMatchObject({
 			code: "DUPLICATE",
-			message: "View already imported",
+			message: "Collection already imported",
 		});
 		await expect(importer.importToStore(sampleDef)).rejects.toBeInstanceOf(ImportError);
 		expect(setRecordSpy).not.toHaveBeenCalled();
@@ -659,7 +659,7 @@ describe("ViewImporter.importToStore()", () => {
 			}),
 		).rejects.toMatchObject({
 			code: "DUPLICATE",
-			message: "View already imported",
+			message: "Collection already imported",
 		});
 		expect(setRecordSpy).not.toHaveBeenCalled();
 	});

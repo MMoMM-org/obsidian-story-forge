@@ -306,25 +306,28 @@ export default class StoryForgePlugin extends Plugin {
 			},
 		});
 
-		// T4.5: "Browse official views" command — opens the curated catalog modal.
-		// CatalogService receives the bundled catalog-index.json (static import, no
-		// fetch). The index is built by catalog:build before esbuild bundles main.ts.
-		// `collectionParams` is the T3.4-hoisted placeholder declared above (shared
-		// with ConsentGate's getCurrentParams seam) — see the HAZARD note there.
-		const catalogService = new CatalogService(catalogIndex, {
-			app: this.app,
-			gate,
-			store: this.store,
-			curatedBasesFolder: this._getCuratedBasesFolder(),
-			collectionParams,
-		});
+		// T4.5: the curated catalog modal, opened by the "browse-official" command and, since
+		// T7.2, by the Library's "+ Browse repo…". CatalogService receives the bundled
+		// catalog-index.json (static import, no fetch), built by catalog:build before esbuild
+		// bundles main.ts. It is built per open so an install follows the current "Folder for
+		// collections from the repo" setting (P2). `collectionParams` is the T3.4-hoisted
+		// placeholder declared above (shared with ConsentGate's getCurrentParams seam) — see the
+		// HAZARD note there.
+		const browseRepo = (): void => {
+			const catalogService = new CatalogService(catalogIndex, {
+				app: this.app,
+				gate,
+				store: this.store,
+				curatedBasesFolder: this._getCuratedBasesFolder(),
+				collectionParams,
+			});
+			new BrowseOfficialModal(this.app, catalogService, this.store).open();
+		};
 
 		this.addCommand({
 			id: "browse-official",
-			name: "Browse official views",
-			callback: () => {
-				new BrowseOfficialModal(this.app, catalogService, this.store).open();
-			},
+			name: "Browse collections from the repo",
+			callback: browseRepo,
 		});
 
 		// Populate registry from a freshly-built EngineRegistry.
@@ -369,7 +372,7 @@ export default class StoryForgePlugin extends Plugin {
 			this._removeViewCommand.bind(this),
 			journal,
 			// T7.4 supplies the capabilities screen; until then "What optional plugins add…" is inert.
-			{ fileClasses, collections: this.library.collections, openCapabilities: () => {} },
+			{ fileClasses, collections: this.library.collections, openCapabilities: () => {}, browseRepo },
 		);
 		this.addSettingTab(settingsTab);
 	}

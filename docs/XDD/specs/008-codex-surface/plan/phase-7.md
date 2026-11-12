@@ -559,3 +559,63 @@ Closes the gap that started this whole spec: the distribution machinery served f
     `SidebarView.library.test.ts`, `anvilLibrary.endToEnd.test.ts` and `test/panel/renderers/collectionSections.test.ts`
     (every kind: Library order, switch off, non-member stays).
 
+
+- **T7.2 — Engine coverage: choices the mockup and spec do not settle** (2026-11-12).
+  - *Import a `.base`.* `ViewDefinition.engine` gains `"bases"`. The picker lists `sf-view: true` notes, then
+    every `.base` in the vault (`vault.getFiles()`, no read at scan time) not already a record. `parse()` reads a
+    `.base`, parses it with `parseYaml` and validates it with `validateBasesConfig` (CON-6); either failure is an
+    `ImportError("INVALID_BASE")` whose message is the reason ("This .base file could not be read: …" / "This .base
+    file is not a valid Bases file: …"), shown inline in today's picker, with no write. The definition has
+    `version: 0`, `name` = the file's basename, `command: false`. The record is the d1 shape: `kind:"collection"`,
+    `provenance:"imported"`, `source` = the path, P2 surfaces (Anvil on, Workbench off), `enabled: true`.
+  - *No consent modal for a `.base`, and no drift either — reverses a T7.1d2 bullet.* `runImportFlow` commits a `.base`
+    without the modal (`okayed` records the imported bytes' checksum, bookkeeping only). `ConsentGate.evaluate` now
+    answers `consented` for an imported Bases collection (`engine:"bases"`, `kind:"collection"`, no `generated`)
+    once it is enabled and Bases is available, **whatever the file now contains**. d2 had pinned "drift after a hand
+    edit"; that state had no way out (re-consent reads a fenced block a `.base` does not have, so the modal never
+    opens), and it contradicts PRD F7 AC 8 (Bases is enable/disable) and L3b ("edit it in Bases"). The d2 test is
+    rewritten to the new rule. Generated (from-repo) records keep `classify()`; legacy `kind:"view"` Bases records
+    keep their checksum. **Needs the user's eye.**
+  - *DQL import keeps today's light disclosure.* Vault DQL imports still show the `dql-light` modal at import time
+    (that is "today's import modal", P18), which is what stores the tokens a DQL collection renders with; enabling
+    and disabling afterwards never asks (T7.1b). DataviewJS keeps the full modal.
+  - *Wording (P18).* Picker: "Import a collection", "Notes in your vault marked sf-view: true, and .base files",
+    "Search collections…", "Nothing to import — …, or create a .base file, …". Refusals: "A collection must contain
+    exactly one query block", "Collection already imported". Picker badge for a `.base`: `bases` (the picker's
+    existing lowercase badges).
+  - *The catalog builder.* `catalog/` takes `*.base` and curated `*.md` notes. A note is held to the importer's rules
+    (frontmatter; integer `sf-version`; exactly one `dataview`/`dataviewjs` block; `sf-engine`, when present, agrees);
+    any failure fails the build naming the file. `extractQueryBlocks` moved to `src/import/queryBlocks.ts` (no
+    `obsidian` import) so the Node script uses the same parser; `fencedBlock.ts` re-exports it. A Dataview entry
+    carries `version` and `queryChecksum` (the block body's checksum) on top of the Bases shape; the index stays
+    `version: "1"` (the change is additive). `CatalogEntry` is now a union; `installedChecksum(entry)` is what an
+    installed record's `okayed.checksum` holds when current, so "up to date" / "update available" work for both.
+  - *Where an installed Dataview entry lands.* In the same folder as a `.base`: "Folder for collections from the repo"
+    (`curatedBasesFolder`), as `<id>.md`. P14 calls that folder "where Browse repo… installs files", so one folder
+    for all of them. Its description now reads "Where Browse repo… places the .base files and Dataview notes it
+    installs." The record is `provenance:"curated"` (from repo), `kind:"collection"`, P2 surfaces (Workbench on),
+    `catalogId`, and **no `generated` block**: the note is copied verbatim, not rendered from a template, so ADR-0003's
+    bookkeeping does not apply. `okayed` = `{sf-version, queryChecksum}`, the tokens `ConsentGate` itself computes from
+    the written note, so a DQL entry draws with no modal; a later hand edit reads as drift like any Dataview
+    collection. Install verifies the note's checksum **and** its query checksum (fail closed).
+  - *A curated DataviewJS entry* is accepted by the builder (catalog and import cover the same engines) and asks the full
+    consent **before** its note is written, through the new `ConsentGate.requestConsentForQuery` (same modal, body and
+    version supplied by the caller); a decline writes nothing. The shipped catalog has none.
+  - *The curated view.* `catalog/scenes-with-this-note.md`, "Scenes with this note": scenes tagged `manuscript/scene` that
+    name the open note as `pov`, in `characters`, as `location` or in `plotlines`, with story day, status and point of
+    view, sorted by `storyDay` then name (not `order`, which Longform owns). Selection is by tag (CON-7). A test reads
+    `schema/*.json` and fails if the query uses a field the scene schema does not declare.
+  - *The shipped catalog is Dataview-only.* The user emptied `catalog/` of the M4 `.base` files (ae97054); none was put
+    back. "A mixed-engine catalog" is proven by the builder test over a fixture folder and by running
+    `catalog:build --catalog` over the curated note plus a test-vault `.base`.
+  - *"+ Browse repo…" is live (P18).* It opens the existing catalog modal (`BrowseOfficialModal`, the list with Install,
+    as P18 allows), now titled "Collections from the repo" (empty: "The repo has no collections yet."); the "Safe:
+    declarative query" note shows for DQL too. `main.ts` builds `CatalogService` per open, so an install follows the
+    current folder setting; the `browse-official` command (id unchanged) is renamed "Browse collections from the repo"
+    and shares the callback. `LibraryDeps.browseRepo` carries it; without it the button stays the disabled control.
+  - *P16 restored.* With Browse live, removing the last collection now moves focus to **+ Browse repo…**, as the mockup
+    says; T7.1b's fallback to Import was only because Browse was disabled.
+  - *Cards keep a disabled Browse.* There is no Card catalog, so the Cards list's **+ Browse repo…** stays the disabled
+    "Coming in a future release" control.
+  - *Known, not changed.* Installing an update of a catalog entry (the modal's Update) adds a second record for the same
+    `catalogId` rather than replacing the stale one; that is the pre-existing Bases behaviour, mirrored for Dataview.

@@ -15,9 +15,11 @@
 
 import { TFile } from "obsidian";
 import type { App } from "obsidian";
+import { extractQueryBlocks } from "import/queryBlocks";
 
-/** Language tags this extractor recognises. */
-const QUERY_LANGS = new Set(["dataview", "dataviewjs"]);
+// The parser lives in a module with no `obsidian` import, so the catalog build script
+// (scripts/build-catalog.mjs, plain Node) validates curated notes with the same rule (T7.2).
+export { extractQueryBlocks } from "import/queryBlocks";
 
 /**
  * Read the single dataview/dataviewjs fenced block from the note at
@@ -72,91 +74,4 @@ export async function readNoteContent(
 		return null;
 	}
 	return app.vault.read(abstractFile);
-}
-
-// ---------------------------------------------------------------------------
-// Internal parser
-// ---------------------------------------------------------------------------
-
-/**
- * Extract all TOP-LEVEL fenced blocks whose language tag is "dataview" or
- * "dataviewjs" from `content`. Returns each as {lang, body} where body is the
- * raw text between the opening and closing fence delimiters, byte-exact.
- *
- * Exported as the single source of truth for the "exactly one query block"
- * rule: both `readFencedBlock` (here) and `ViewImporter.parse` derive their
- * block count / single-block extraction from this one parser.
- *
- * The parser walks the content line-by-line, tracking the open/close of ANY
- * ```-fenced block. A fence found while already inside a block is treated as
- * that block's closing fence (or as body text), NOT as a new opening fence.
- * This prevents a ```dataview line that lives inside a non-query block body
- * (e.g. a ```text or ```bash block documenting a query) from being falsely
- * counted as a query block (W-1).
- *
- * Byte-exactness: `content` is split on bare `\n` only, so each element keeps
- * any trailing CR. The body is reconstructed by slicing the original content
- * between recorded byte offsets — no CRLF normalisation.
- */
-export function extractQueryBlocks(
-	content: string,
-): Array<{ lang: string; body: string }> {
-	const blocks: Array<{ lang: string; body: string }> = [];
-
-	// Line records with their absolute start offset in `content` (splitting on
-	// bare \n preserves CR bytes inside each line — byte-exact).
-	const lines = content.split("\n");
-	const lineStart: number[] = [];
-	{
-		let off = 0;
-		for (const line of lines) {
-			lineStart.push(off);
-			off += line.length + 1; // +1 for the \n that split consumed
-		}
-	}
-
-	let i = 0;
-	while (i < lines.length) {
-		const openMatch = lines[i]!.match(/^```([a-zA-Z][a-zA-Z0-9-]*)[ \t\r]*$/);
-		if (!openMatch) {
-			i++;
-			continue;
-		}
-
-		const lang = openMatch[1]!;
-		const isQuery = QUERY_LANGS.has(lang);
-
-		// Body begins at the start of the line AFTER the opening fence.
-		const bodyStartLine = i + 1;
-		// Scan forward to the closing fence, skipping this block's entire body.
-		let j = bodyStartLine;
-		while (j < lines.length && !isClosingFence(lines[j]!)) {
-			j++;
-		}
-
-		if (isQuery) {
-			// Byte-exact body: from the start of the first body line to the
-			// start of the closing fence line (exclusive). Empty when the block
-			// has no body lines. bodyStart/bodyEnd are undefined only past EOF,
-			// in which case there is no body → "".
-			const bodyStart = lineStart[bodyStartLine];
-			const bodyEnd = lineStart[j];
-			const body =
-				bodyStart !== undefined && bodyEnd !== undefined && j > bodyStartLine
-					? content.slice(bodyStart, bodyEnd)
-					: "";
-			blocks.push({ lang, body });
-		}
-
-		// Advance past the closing fence (or to EOF if none), regardless of kind,
-		// so a non-query block body is never re-scanned for opening fences.
-		i = j < lines.length ? j + 1 : j;
-	}
-
-	return blocks;
-}
-
-/** A closing fence is ``` optionally followed by whitespace (and possibly CR). */
-function isClosingFence(line: string): boolean {
-	return /^```[ \t\r]*$/.test(line);
 }

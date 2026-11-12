@@ -9,14 +9,17 @@
 import type { Checksum } from "consent/checksum";
 
 /**
- * Parsed view definition extracted from a vault note.
- * Intermediate form between the raw vault note and a ViewRecord.
+ * Parsed view definition extracted from a vault note or a vault `.base` file.
+ * Intermediate form between the raw vault file and a ViewRecord.
+ *
+ * T7.2: a `.base` imports too (engine "bases"); it has no frontmatter, so `version` is 0, `name`
+ * is the file's basename, `command` is false and `querySource` is the whole YAML.
  */
 export interface ViewDefinition {
 	/** Vault-relative path of the source note (becomes ViewRecord.source). */
 	sourcePath: string;
-	/** Engine inferred from the fenced block language tag. */
-	engine: "dataview-dql" | "dataviewjs";
+	/** Engine: "bases" for a `.base` file, else inferred from the fenced block language tag. */
+	engine: "bases" | "dataview-dql" | "dataviewjs";
 	/** sf-version frontmatter field (integer). */
 	version: number;
 	/** sf-name frontmatter field (becomes ViewRecord.commandName default). */
@@ -44,6 +47,7 @@ export interface ViewDefinition {
  * and by ViewImporter.importToStore() on duplicate source paths.
  *
  * @ref SDD/EARS F3 — "NO_QUERY_BLOCK" / "MULTIPLE_QUERY_BLOCKS"
+ * @ref PRD/F7 AC 7 — "INVALID_BASE": a `.base` whose YAML cannot be read or is not a Bases file
  */
 export class ImportError extends Error {
 	constructor(
@@ -52,6 +56,7 @@ export class ImportError extends Error {
 			| "MULTIPLE_QUERY_BLOCKS"
 			| "INVALID_FRONTMATTER"
 			| "ENGINE_MISMATCH"
+			| "INVALID_BASE"
 			| "DUPLICATE",
 		message: string,
 	) {

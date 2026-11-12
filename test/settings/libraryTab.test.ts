@@ -113,13 +113,14 @@ function makeWorld(opts: WorldOptions = {}) {
 	const registerCommand = vi.fn();
 	const removeCommand = vi.fn();
 	const openCapabilities = vi.fn();
-	const deps: LibraryDeps = { collections, notes: () => opts.notes ?? NOTES, openCapabilities };
+	const browseRepo = vi.fn();
+	const deps: LibraryDeps = { collections, notes: () => opts.notes ?? NOTES, openCapabilities, browseRepo };
 	const noUndo = { setPersistence: async () => {}, clear: async () => {} };
 	const tab = new SettingsTab(
 		app, plugin as never, views, gate as unknown as ConsentGate, importer as unknown as ViewImporter, registerCommand, removeCommand, noUndo, deps,
 	);
 	return {
-		tab, app, plugin, views, collections, gate, importer, registerCommand, removeCommand, openCapabilities,
+		tab, app, plugin, views, collections, gate, importer, registerCommand, removeCommand, openCapabilities, browseRepo,
 		stored: () => data.views ?? {},
 	};
 }
@@ -783,12 +784,12 @@ describe("L8a · remove", () => {
 		for (const fn of [w.app.vault.create, w.app.vault.modify]) expect(fn).not.toHaveBeenCalled();
 	});
 
-	it("removing the last row moves focus to the add controls", async () => {
+	it("removing the last row moves focus to + Browse repo… (P16)", async () => {
 		const w = await open({ views: { only: rec({ commandName: "Only" }) } });
 		await click(button(item(w.root, "only"), "Remove"));
 		await click(button(q(item(w.root, "only"), "[role=group]")!, "Remove"));
 		await vi.waitFor(() => expect(rowIds(w.root)).not.toContain("only"));
-		expect(document.activeElement).toBe(button(w.root, "+ Import from vault…"));
+		expect(document.activeElement).toBe(button(w.root, "+ Browse repo…"));
 	});
 
 	it("a refused removal shows the reason and keeps the row", async () => {
@@ -856,7 +857,7 @@ describe("P14 · the curated folder and the capability link", () => {
 		const w = await open({ settings: { curatedBasesFolder: "Custom/Bases" } });
 		const lib = panelOf(w.root, "library");
 		const row = q(lib, '[data-setting-name="Folder for collections from the repo"]')!;
-		expect(text(row)).toContain("Where Browse repo… places the .base files it installs. Default: 00 Meta/Bases");
+		expect(text(row)).toContain("Where Browse repo… places the .base files and Dataview notes it installs. Default: 00 Meta/Bases");
 		const input = q<HTMLInputElement>(row, "input")!;
 		expect(input.value).toBe("Custom/Bases");
 		expect(q(lib, ".sf-lb-list")!.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -890,17 +891,17 @@ describe("P14 · the curated folder and the capability link", () => {
 		expect(slot.compareDocumentPosition(q(root, '[data-setting-name="Folder for collections from the repo"]')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 
-	it("offers + Import from vault… and a disabled + Browse repo… under the list", async () => {
-		const { root } = await open();
+	it("offers + Import from vault… and a live + Browse repo… that opens the catalog (T7.2, P18)", async () => {
+		const { root, browseRepo } = await open();
 		expect(button(root, "+ Import from vault…")).not.toBeNull();
 		const browse = button(root, "+ Browse repo…")!;
-		expect(browse.disabled).toBe(true);
-		// The visible name is the accessible name; the reason is its description.
-		expect(browse.hasAttribute("aria-label")).toBe(false);
-		const note = browse.getAttribute("aria-describedby");
-		expect(text(document.getElementById(note ?? ""))).toBe("Coming in a future release");
-		expect(browse.title).toBe("Coming in a future release");
+		expect(browse.disabled).toBe(false);
+		expect(browse.hasAttribute("aria-describedby")).toBe(false);
+		expect(browseRepo).not.toHaveBeenCalled();
+		browse.click();
+		expect(browseRepo).toHaveBeenCalledTimes(1);
 	});
+
 });
 
 // ---------------------------------------------------------------------------

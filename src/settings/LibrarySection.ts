@@ -32,6 +32,8 @@ export interface LibrarySectionDeps {
 	readonly removeCommand: (id: string) => void;
 	/** Opens today's import picker. */
 	readonly importFromVault: () => void;
+	/** "+ Browse repo…": opens the catalog (T7.2). Absent, the button is the disabled control. */
+	readonly browseRepo?: () => void;
 }
 
 type Decision = ConsentDecision["status"];
@@ -292,7 +294,7 @@ export class LibrarySection {
 	}
 
 	private paintAdd(host: HTMLElement): void {
-		paintAddRow(host, this.d.importFromVault, "sf-lb-browse-note");
+		paintAddRow(host, { importFromVault: this.d.importFromVault, ...(this.d.browseRepo ? { browseRepo: this.d.browseRepo } : {}) }, "sf-lb-browse-note");
 	}
 
 	// --- L8a: the inline removal confirmation ---------------------------------

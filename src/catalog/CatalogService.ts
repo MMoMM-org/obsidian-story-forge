@@ -39,8 +39,9 @@
  *   the engine or (b) require touching src/import/* in a way that risks T4.3
  *   regressions. Writing directly is the minimal, correct path.
  *
- * The catalog only emits engine:"bases" today. An exhaustive guard ensures a
- * future non-bases CatalogEntry variant fails to compile until handled.
+ * T7.2: the catalog also emits curated Dataview notes (engine "dataview-dql" /
+ * "dataviewjs"), installed by `_installDataviewEntry` into the same folder. An
+ * exhaustive guard ensures a future CatalogEntry variant fails to compile until handled.
  *
  * Out of scope here (see plan/phase-3.md T3.3 / T7.3): `renderBase`'s output
  * shape and wiring `sourceChecksum` to a real template producer — the catalog
@@ -72,7 +73,9 @@ import type { CollectionParams } from "library/baseGenerator";
 import type { ViewStore } from "store/ViewStore";
 import { defaultSurfaces, type ViewRecord } from "store/types";
 import type { ConsentGate } from "consent/ConsentGate";
-import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
+import { installedChecksum } from "catalog/catalogTypes";
+import type { BasesCatalogEntry, CatalogEntry, CatalogIndex, DataviewCatalogEntry } from "catalog/catalogTypes";
+import { extractQueryBlocks } from "import/queryBlocks";
 
 // ---------------------------------------------------------------------------
 // Public result type
@@ -141,14 +144,19 @@ export class CatalogService {
 			return { ok: false, reason: `not-found: no catalog entry with id "${id}"` };
 		}
 
-		if (entry.engine === "bases") {
-			return this._installBasesEntry(entry);
+		switch (entry.engine) {
+			case "bases":
+				return this._installBasesEntry(entry);
+			case "dataview-dql":
+			case "dataviewjs":
+				return this._installDataviewEntry(entry);
+			default: {
+				// Exhaustive guard: a future CatalogEntry variant must be handled here
+				// before it reaches production. This will fail to compile until done.
+				const _exhaustive: never = entry;
+				return { ok: false, reason: `unsupported engine: ${String(_exhaustive)}` };
+			}
 		}
-
-		// Exhaustive guard: a future non-bases CatalogEntry variant must be handled
-		// here before it reaches production. This will fail to compile until done.
-		const _exhaustive: never = entry.engine;
-		return { ok: false, reason: `unsupported engine: ${String(_exhaustive)}` };
 	}
 
 	// ---------------------------------------------------------------------------
@@ -173,7 +181,7 @@ export class CatalogService {
 	 * catalogId existed (pre-T4.5) have none; for those we fall back to the
 	 * legacy source === source comparison.
 	 */
-	private async _installBasesEntry(entry: CatalogEntry): Promise<InstallResult> {
+	private async _installBasesEntry(entry: BasesCatalogEntry): Promise<InstallResult> {
 		// 1. VERIFY checksum before any side effect.
 		const computed = await computeChecksum(entry.source);
 		if (computed !== entry.checksum) {
@@ -183,32 +191,14 @@ export class CatalogService {
 			};
 		}
 
-		// 2. Duplicate check: same catalog entry, at the same checksum, already
-		// installed → up-to-date. Match by catalogId when the record has one
-		// (also requiring the stored checksum to match entry.checksum, so a
-		// stale record falls through to a fresh install instead of being
-		// reported as a duplicate); fall back to source equality only for
-		// pre-T4.5 records that predate catalogId.
-		try {
-			const existing = await this.deps.store.getViews();
-			for (const rec of Object.values(existing)) {
-				const isDuplicate =
-					rec.catalogId !== undefined
-						? rec.catalogId === entry.id && rec.okayed?.checksum === entry.checksum
-						: rec.source === entry.source;
-				if (isDuplicate) {
-					return { ok: false, reason: "up-to-date: already installed" };
-				}
-			}
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : String(err);
-			return { ok: false, reason: `store read failed: ${msg}` };
-		}
+		// 2. Duplicate check (see the method docstring and `_findInstalled`).
+		const installed = await this._findInstalled(entry);
+		if (installed !== null) return installed;
 
 		// 3. MATERIALISE: write the .base YAML file into the vault folder.
 		let writtenPath: string;
 		try {
-			writtenPath = await this._materialise(entry);
+			writtenPath = await this._materialise(entry, "base");
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			return { ok: false, reason: `materialise failed: ${msg}` };
@@ -254,11 +244,121 @@ export class CatalogService {
 			...(entry.description !== undefined ? { description: entry.description } : {}),
 		};
 
+		return this._persist(record, writtenPath);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Private — Dataview install path (T7.2)
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * Install a curated Dataview note: verify → duplicate-check → (DataviewJS: consent) →
+	 * materialise `<folder>/<id>.md` → persist. The note lands in the same folder as a `.base`
+	 * ("Folder for collections from the repo", P14). The record carries no `generated` block:
+	 * the note is copied verbatim and is not a template (ADR-0003 covers `.base` templates).
+	 *
+	 * `okayed` is what ConsentGate computes from the written note (block checksum, sf-version),
+	 * so a DQL entry draws with no modal (PRD F7 AC 8) and an edited note reads as drift like any
+	 * other Dataview collection. DataviewJS asks BEFORE anything is written; a decline writes
+	 * nothing.
+	 */
+	private async _installDataviewEntry(entry: DataviewCatalogEntry): Promise<InstallResult> {
+		const mismatch = await this._verifyDataview(entry);
+		if (mismatch !== null) return { ok: false, reason: mismatch };
+		const installed = await this._findInstalled(entry);
+		if (installed !== null) return installed;
+
+		const okayed = await this._dataviewApproval(entry);
+		if (okayed === null) return { ok: false, reason: "consent declined" };
+
+		let writtenPath: string;
 		try {
-			const newId = crypto.randomUUID();
-			await this.deps.store.setRecord(newId, record);
+			writtenPath = await this._materialise(entry, "md");
 		} catch (err) {
-			// Roll back the orphaned .base file so no partial state is left.
+			const msg = err instanceof Error ? err.message : String(err);
+			return { ok: false, reason: `materialise failed: ${msg}` };
+		}
+		return this._persist(this._dataviewRecord(entry, writtenPath, okayed), writtenPath);
+	}
+
+	/** Fail closed: the note's bytes and its one query block must match what the catalog recorded. */
+	private async _verifyDataview(entry: DataviewCatalogEntry): Promise<string | null> {
+		const computed = await computeChecksum(entry.source);
+		if (computed !== entry.checksum) {
+			return `checksum mismatch: expected ${entry.checksum}, got ${computed}`;
+		}
+		const blocks = extractQueryBlocks(entry.source);
+		const query = blocks.length === 1 ? await computeChecksum(blocks[0]!.body) : null;
+		if (query !== entry.queryChecksum) {
+			return `query checksum mismatch: expected ${entry.queryChecksum}, got ${query ?? "no single query block"}`;
+		}
+		return null;
+	}
+
+	/** DQL: approved by provenance. DataviewJS: the full consent modal, before any write. */
+	private async _dataviewApproval(entry: DataviewCatalogEntry): Promise<{ version: number; checksum: string } | null> {
+		if (entry.engine === "dataview-dql") return { version: entry.version, checksum: entry.queryChecksum };
+		const query = extractQueryBlocks(entry.source)[0]!;
+		return this.deps.gate.requestConsentForQuery({
+			engine: entry.engine,
+			name: entry.name,
+			...(entry.description !== undefined ? { description: entry.description } : {}),
+			body: query.body,
+			version: entry.version,
+			sourcePath: this._targetPath(entry, "md"),
+		});
+	}
+
+	private _dataviewRecord(entry: DataviewCatalogEntry, path: string, okayed: { version: number; checksum: string }): ViewRecord {
+		return {
+			provenance: "curated",
+			enabled: true,
+			okayed,
+			source: path,
+			engine: entry.engine,
+			command: false,
+			commandName: entry.name,
+			kind: "collection",
+			surfaces: defaultSurfaces(entry.engine),
+			catalogId: entry.id,
+			...(entry.description !== undefined ? { description: entry.description } : {}),
+		};
+	}
+
+	// ---------------------------------------------------------------------------
+	// Private — shared by both paths
+	// ---------------------------------------------------------------------------
+
+	/**
+	 * "up-to-date" when the same catalog entry is already installed at its current checksum.
+	 * Match by catalogId when the record has one (also requiring the stored checksum to match
+	 * `installedChecksum(entry)`, so a stale record falls through to a fresh install instead of
+	 * being reported as a duplicate); fall back to source equality only for pre-T4.5 records that
+	 * predate catalogId. `null` when it is not installed.
+	 */
+	private async _findInstalled(entry: CatalogEntry): Promise<InstallResult | null> {
+		try {
+			const existing = await this.deps.store.getViews();
+			const current = installedChecksum(entry);
+			for (const rec of Object.values(existing)) {
+				const isDuplicate =
+					rec.catalogId !== undefined
+						? rec.catalogId === entry.id && rec.okayed?.checksum === current
+						: rec.source === entry.source;
+				if (isDuplicate) return { ok: false, reason: "up-to-date: already installed" };
+			}
+			return null;
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			return { ok: false, reason: `store read failed: ${msg}` };
+		}
+	}
+
+	/** Write `record`; on failure remove the file just written, so no partial state is left. */
+	private async _persist(record: ViewRecord, writtenPath: string): Promise<InstallResult> {
+		try {
+			await this.deps.store.setRecord(crypto.randomUUID(), record);
+		} catch (err) {
 			try {
 				await this.deps.app.vault.adapter.remove(writtenPath);
 			} catch {
@@ -268,7 +368,6 @@ export class CatalogService {
 			const msg = err instanceof Error ? err.message : String(err);
 			return { ok: false, reason: `persist failed: ${msg}` };
 		}
-
 		return { ok: true, path: writtenPath };
 	}
 
@@ -277,19 +376,19 @@ export class CatalogService {
 	// ---------------------------------------------------------------------------
 
 	/**
-	 * Write a .base entry into the configured curatedBasesFolder.
+	 * Write an entry (`.base` or, T7.2, a Dataview `.md`) into the configured curatedBasesFolder.
 	 *
 	 * Creates the folder via vault.adapter.mkdir when absent. mkdir is a properly
 	 * typed method on the DataAdapter interface (obsidian.d.ts:2099) — no `as
 	 * unknown` cast needed; no fictional-method risk.
 	 *
-	 * Throws on any vault error — the caller (_installBasesEntry) catches and
+	 * Throws on any vault error — the callers (_installBasesEntry, _installDataviewEntry) catch and
 	 * returns { ok:false }.
 	 */
-	private async _materialise(entry: CatalogEntry): Promise<string> {
+	private async _materialise(entry: CatalogEntry, extension: "base" | "md"): Promise<string> {
 		const { app, curatedBasesFolder } = this.deps;
 		const folderPath = normalizePath(curatedBasesFolder);
-		const filePath = normalizePath(`${curatedBasesFolder}/${entry.id}.base`);
+		const filePath = this._targetPath(entry, extension);
 
 		const folderExists = await app.vault.adapter.exists(folderPath);
 		if (!folderExists) {
@@ -299,5 +398,10 @@ export class CatalogService {
 		await app.vault.adapter.write(filePath, entry.source);
 
 		return filePath;
+	}
+
+	/** Where `entry` is written: `<curatedBasesFolder>/<id>.<extension>`. */
+	private _targetPath(entry: CatalogEntry, extension: "base" | "md"): string {
+		return normalizePath(`${this.deps.curatedBasesFolder}/${entry.id}.${extension}`);
 	}
 }

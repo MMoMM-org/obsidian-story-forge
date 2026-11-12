@@ -17,7 +17,7 @@
  *      survives catalog renames)
  *   2. rec.commandName === entry.name  (fallback — backward-compatible with
  *      records persisted before catalogId was added)
- *   If a match is found and record.okayed?.checksum !== entry.checksum, the
+ *   If a match is found and record.okayed?.checksum !== installedChecksum(entry), the
  *   row shows an "update available" affordance with an Update button that
  *   reuses CatalogService.install().
  *
@@ -34,6 +34,7 @@
 import { Modal } from "obsidian";
 import type { App } from "obsidian";
 import type { CatalogService } from "catalog/CatalogService";
+import { installedChecksum } from "catalog/catalogTypes";
 import type { CatalogEntry } from "catalog/catalogTypes";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
@@ -77,7 +78,7 @@ export class BrowseOfficialModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 
-		el.createEl("h2", { text: "Browse official views" });
+		el.createEl("h2", { text: "Collections from the repo" });
 		el.createEl("p", {
 			text: "Bundled, offline curated library. No network required.",
 			cls: "sf-picker-sub",
@@ -126,7 +127,7 @@ export class BrowseOfficialModal extends Modal {
 
 		if (entries.length === 0) {
 			listEl.createEl("p", {
-				text: "No views in the catalog.",
+				text: "The repo has no collections yet.",
 				cls: "sf-picker-empty",
 			});
 			return;
@@ -136,7 +137,7 @@ export class BrowseOfficialModal extends Modal {
 		for (const entry of entries) {
 			const installed = this.installedRecords.get(entry.id);
 			const updateAvailable = installed !== undefined
-				&& installed.okayed?.checksum !== entry.checksum;
+				&& installed.okayed?.checksum !== installedChecksum(entry);
 
 			const row = listEl.createEl("div", { cls: "sf-catalog-row" });
 
@@ -230,9 +231,8 @@ export class BrowseOfficialModal extends Modal {
 		const preEl = this.previewEl.createEl("pre", { cls: "sf-catalog-preview-src" });
 		preEl.textContent = entry.source;
 
-		// Bases entries are declarative — safe note.
-		// TODO: add "dataview-dql" when that engine joins CatalogEntry.
-		if (entry.engine === "bases") {
+		// Declarative entries (Bases, Dataview DQL) — safe note. DataviewJS asks at install.
+		if (entry.engine !== "dataviewjs") {
 			this.previewEl.createEl("div", {
 				text: "Safe: declarative query, no code.",
 				cls: "sf-catalog-safe",

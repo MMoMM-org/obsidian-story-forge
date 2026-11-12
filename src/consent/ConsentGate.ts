@@ -43,6 +43,16 @@ export type ConsentDecision =
  * Minimal slice of EngineRegistry used by ConsentGate.
  * The real EngineRegistry satisfies this interface.
  */
+/** What the disclosure modal shows for a query, with the version its tokens carry. */
+export interface ConsentQuery {
+	engine: ViewRecord["engine"];
+	name: string;
+	description?: string;
+	/** The query block's body — what is shown and checksummed. */
+	body: string;
+	version: number;
+}
+
 export interface EngineRegistryLike {
 	get(kind: ViewRecord["engine"]): unknown;
 }
@@ -135,6 +145,13 @@ export class ConsentGate {
 		// 4. DataviewJS off — enableDataviewJs:false in Dataview settings
 		if (record.engine === "dataviewjs" && !this.dvSettings.isDvJsEnabled()) {
 			return { status: "dvjs-off" };
+		}
+
+		// 4b. A user's own .base collection (imported, not generated; T7.2): enable/disable only
+		//     (PRD F7 AC 8). The file is read on every render and is the user's to edit in Bases
+		//     (L3b, ADR-34), so an edit is not drift and there is no consent to ask for.
+		if (isUserBaseCollection(record)) {
+			return { status: "consented" };
 		}
 
 		// 5. Not consented — okayed is null (never consented)
@@ -245,6 +262,19 @@ export class ConsentGate {
 	// ---------------------------------------------------------------------------
 
 	/**
+	 * Consent for a query that is not in the vault yet (T7.2: a curated DataviewJS entry, asked
+	 * BEFORE its note is written, so a decline leaves nothing behind). Same modal and tokens as
+	 * `requestConsentForDef`; the body and version come from the caller instead of a vault read.
+	 * Never writes the store.
+	 */
+	async requestConsentForQuery(
+		query: ConsentQuery & { sourcePath: string },
+	): Promise<{ version: number; checksum: string } | null> {
+		const { sourcePath, ...rest } = query;
+		return this._presentDisclosure({ ...rest, source: sourcePath }, false);
+	}
+
+	/**
 	 * Open the appropriate modal variant, await the user's decision, and if
 	 * "Enable" was clicked: read the fenced block fresh, compute its checksum,
 	 * and write okayed+enabled to the store in a single setRecord call (ADR-4).
@@ -296,31 +326,33 @@ export class ConsentGate {
 		},
 		isDrift: boolean,
 	): Promise<{ version: number; checksum: string } | null> {
-		const variant =
-			fields.engine === "dataviewjs" ? "dataviewjs-full" : "dql-light";
-
 		// Read the fenced block fresh to populate the modal and compute checksum.
 		// If the source is missing, we cannot show the modal — fail-closed.
 		const block = await readFencedBlock(this.app, fields.source);
 		if (block === null) {
 			return null;
 		}
-
-		const checksum = await computeChecksum(block.body);
 		const version = this._readVersion(fields.source);
+		return this._presentDisclosure({ ...fields, body: block.body, version }, isDrift);
+	}
 
+	/** Show the DisclosureModal for `query`; the tokens on grant, null on cancel. Never writes. */
+	private async _presentDisclosure(
+		query: ConsentQuery & { source: string },
+		isDrift: boolean,
+	): Promise<{ version: number; checksum: string } | null> {
+		const variant = query.engine === "dataviewjs" ? "dataviewjs-full" : "dql-light";
+		const checksum = await computeChecksum(query.body);
 		const modal = new DisclosureModal(this.app, variant, {
-			name: fields.name,
-			description: fields.description,
-			sourcePath: fields.source,
-			source: block.body,
+			name: query.name,
+			description: query.description,
+			sourcePath: query.source,
+			source: query.body,
 			checksum,
 			isDrift,
 		});
-
 		const granted = await modal.present();
-
-		return granted ? { version, checksum } : null;
+		return granted ? { version: query.version, checksum } : null;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -461,4 +493,9 @@ export class ConsentGate {
 		const sfVersion: unknown = cache?.frontmatter?.["sf-version"];
 		return typeof sfVersion === "number" ? sfVersion : 0;
 	}
+}
+
+/** An imported `.base` collection: Bases, `kind:"collection"`, not rendered from a template. */
+function isUserBaseCollection(record: ViewRecord): boolean {
+	return record.engine === "bases" && record.kind === "collection" && record.generated === undefined;
 }

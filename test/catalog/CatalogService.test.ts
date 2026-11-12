@@ -32,7 +32,7 @@ import { computeChecksum } from "consent/checksum";
 import { CatalogService } from "catalog/CatalogService";
 import { classify } from "library/baseGenerator";
 import type { CollectionParams } from "library/baseGenerator";
-import type { CatalogIndex, CatalogEntry } from "catalog/catalogTypes";
+import type { BasesCatalogEntry, CatalogIndex, CatalogEntry } from "catalog/catalogTypes";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
 import type { ConsentGate } from "consent/ConsentGate";
@@ -56,7 +56,7 @@ function collectStrings(value: unknown): string[] {
 	return [];
 }
 
-async function makeEntry(overrides: Partial<CatalogEntry> = {}): Promise<CatalogEntry> {
+async function makeEntry(overrides: Partial<BasesCatalogEntry> = {}): Promise<BasesCatalogEntry> {
 	const source = overrides.source ?? BASE_YAML;
 	const checksum = overrides.checksum ?? (await computeChecksum(source));
 	return {

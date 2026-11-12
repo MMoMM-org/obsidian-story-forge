@@ -521,7 +521,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 		vi.spyOn(importer, "parse").mockRejectedValue(
 			new ImportError(
 				"MULTIPLE_QUERY_BLOCKS",
-				"View definitions must contain exactly one query block",
+				"A collection must contain exactly one query block",
 			),
 		);
 
@@ -533,7 +533,7 @@ describe("ImportPickerModal — parse error handling (inline, no close)", () => 
 
 		await vi.waitFor(() => {
 			expect(document.body.textContent).toContain(
-				"View definitions must contain exactly one query block",
+				"A collection must contain exactly one query block",
 			);
 		});
 	});

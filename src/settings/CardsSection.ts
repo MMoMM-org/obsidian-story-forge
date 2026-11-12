@@ -89,7 +89,8 @@ export class CardsSection {
 		this.order = models.map((m) => m.card.id);
 		this.dropVanished();
 		for (const m of models) this.paintItem(host, m);
-		paintAddRow(host, this.d.importFromVault, "sf-lb-browse-note-cards");
+		// No Card catalog yet: Browse stays the disabled control (T7.2 decision).
+		paintAddRow(host, { importFromVault: this.d.importFromVault }, "sf-lb-browse-note-cards");
 		focusByKey(host, this.pendingFocus);
 		this.pendingFocus = null;
 	}

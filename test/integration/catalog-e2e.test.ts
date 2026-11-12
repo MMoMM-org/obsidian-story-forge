@@ -34,7 +34,7 @@ import { DisclosureModal } from "consent/DisclosureModal";
 import { installCurated } from "import/ImportFlow";
 import { computeChecksum } from "consent/checksum";
 import type { CollectionParams } from "library/baseGenerator";
-import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
+import type { BasesCatalogEntry, CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 import type { ViewRecord } from "store/types";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
 import type { ViewImporter } from "import/ViewImporter";
@@ -68,7 +68,7 @@ const BASE_YAML =
 /** Default injected render params — this suite does not exercise renderBase/reconsent. */
 const DEFAULT_COLLECTION_PARAMS: CollectionParams = { tag: "test", excludedFolders: [] };
 
-async function makeEntry(overrides: Partial<CatalogEntry> = {}): Promise<CatalogEntry> {
+async function makeEntry(overrides: Partial<BasesCatalogEntry> = {}): Promise<BasesCatalogEntry> {
 	const source = overrides.source ?? BASE_YAML;
 	const checksum =
 		overrides.checksum ?? (await computeChecksum(source));

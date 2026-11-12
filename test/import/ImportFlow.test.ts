@@ -114,7 +114,7 @@ describe("runImportFlow — consent-then-commit (no bind step)", () => {
 		const gate = makeGate(tokens);
 		const importer = {
 			importToStore: vi.fn(async () => {
-				throw new ImportError("DUPLICATE", "View already imported");
+				throw new ImportError("DUPLICATE", "Collection already imported");
 			}),
 		} as unknown as ViewImporter;
 
@@ -123,7 +123,7 @@ describe("runImportFlow — consent-then-commit (no bind step)", () => {
 		).resolves.toBeUndefined();
 
 		expect(Notice._instances).toHaveLength(1);
-		expect(Notice._instances[0]!.message).toBe("View already imported");
+		expect(Notice._instances[0]!.message).toBe("Collection already imported");
 	});
 
 	it("UNEXPECTED error: plain Error → console.error + generic Notice, returns without throwing", async () => {
@@ -242,7 +242,7 @@ describe("installCurated — T4.3 gate-less declarative flow", () => {
 		const gate = makeGate(null);
 		const importer = {
 			importToStore: vi.fn(async () => {
-				throw new ImportError("DUPLICATE", "View already imported");
+				throw new ImportError("DUPLICATE", "Collection already imported");
 			}),
 		} as unknown as ViewImporter;
 		const def = makeDqlDef();
