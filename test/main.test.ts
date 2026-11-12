@@ -1008,19 +1008,82 @@ describe("StoryForgePlugin — the Library wiring (T7.1d1)", () => {
 		expect(blob.data.settings?.excludedFolders).toEqual(["00 Meta", "Archive"]);
 	});
 
-	it("unsubscribes its own listeners on unload", async () => {
+	it("a slow older read that succeeds after a newer one cannot overwrite it", async () => {
 		const { plugin } = await makePlugin();
+		await plugin.onload();
+		const store = plugin.library.collections;
+		const stale = await store.collections();
+		const read = vi.spyOn(store, "collections");
+		let release: (list: typeof stale) => void = () => {};
+		read.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+
+		await store.setEnabled("character", false); // read #1 starts and is held
+		await store.setEnabled("location", false); // read #2 runs for real and lands
+		await new Promise((r) => setTimeout(r, 0));
+		release(stale); // the old picture arrives last
+		await new Promise((r) => setTimeout(r, 0));
+
+		const rows = plugin.library.snapshot();
+		expect(rows.find((c) => c.id === "location")?.enabled).toBe(false);
+		expect(rows.find((c) => c.id === "character")?.enabled).toBe(false);
+	});
+
+	it("one throwing listener does not stop the next, and is logged", async () => {
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+		const err = vi.spyOn(console, "error").mockImplementation(() => {});
+		plugin.library.onChange(() => { throw new Error("boom"); });
+		const next = vi.fn();
+		plugin.library.onChange(next);
+
+		await plugin.library.collections.setEnabled("character", false);
+		await new Promise((r) => setTimeout(r, 0));
+
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(err).toHaveBeenCalledWith("[StoryForge] library subscriber failed", expect.any(Error));
+		err.mockRestore();
+	});
+
+	it("a failed newer read does not discard an older read that succeeded", async () => {
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const store = plugin.library.collections;
+		const base = await store.collections();
+		const read = vi.spyOn(store, "collections");
+		let release: (list: Awaited<ReturnType<typeof store.collections>>) => void = () => {};
+		read.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+		read.mockImplementationOnce(() => Promise.reject(new Error("disk")));
+
+		await store.setEnabled("character", false); // read #1 starts, held
+		await store.setEnabled("location", false); // read #2 starts and fails
+		await new Promise((r) => setTimeout(r, 0));
+		release(base.map((c) => (c.id === "character" ? { ...c, enabled: false } : c)));
+		await new Promise((r) => setTimeout(r, 0));
+
+		expect(plugin.library.snapshot().find((c) => c.id === "character")?.enabled).toBe(false);
+		warn.mockRestore();
+	});
+
+	it("unload releases the store subscriptions too: no write rebuilds the snapshot afterwards", async () => {
+		const { plugin } = await makePersistentPlugin({ data: {} });
 		await plugin.onload();
 		const spy = vi.fn();
 		plugin.library.onChange(spy);
+		const rebuilds = vi.spyOn(plugin.library.collections, "collections");
 		await plugin.library.collections.setEnabled("character", false);
 		await new Promise((r) => setTimeout(r, 0));
-		expect(spy).toHaveBeenCalledTimes(1); // the listener is live before unload
+		expect(spy).toHaveBeenCalledTimes(1); // live before unload, through the store signal
+		expect(rebuilds).toHaveBeenCalled();
 
 		plugin._runCleanup();
-		await plugin.library.collections.setEnabled("character", true);
+		rebuilds.mockClear();
+		await plugin.library.collections.setEnabled("character", true); // the store's signal
+		await plugin.store.setRecord("late", { ...legacyDataviewView(), kind: "collection" }); // the record signal
 		await new Promise((r) => setTimeout(r, 0));
 
+		expect(rebuilds).not.toHaveBeenCalled();
 		expect(spy).toHaveBeenCalledTimes(1);
 	});
+
 });

@@ -584,6 +584,31 @@ describe("CollectionStore.subscribe", () => {
 		expect(listener).not.toHaveBeenCalled();
 	});
 
+	it("signals once for a dropped record signal even when the write is refused, throws, or changes nothing", async () => {
+		const failing = makeHarness({ views: seed(), failSaveSettingsOnce: true });
+		const listener = vi.fn();
+		failing.store.subscribe(listener);
+		const thrown = failing.store.configureBuiltIn("character", { tag: "x" });
+		failing.store.noteDroppedSignal();
+		await expect(thrown).rejects.toThrow("disk full");
+		expect(listener).toHaveBeenCalledTimes(1);
+
+		const { store } = makeHarness({ views: seed() });
+		await store.migrate(); // nothing legacy is left to move
+		const quiet = vi.fn();
+		store.subscribe(quiet);
+		const refused = store.remove("character");
+		store.noteDroppedSignal();
+		await refused;
+		const nothing = store.migrate();
+		store.noteDroppedSignal();
+		await nothing;
+		expect(quiet).toHaveBeenCalledTimes(2);
+
+		await store.remove("character"); // nothing dropped now: a refused write stays silent
+		expect(quiet).toHaveBeenCalledTimes(2);
+	});
+
 	it("reports a write in flight, so a host can drop the record signal the write itself caused", async () => {
 		const { store } = makeHarness({ views: seed() });
 		expect(store.writing).toBe(false);

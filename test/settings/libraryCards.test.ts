@@ -633,6 +633,23 @@ describe("the Cards list follows a built-in collection change (T7.1d1)", () => {
 		expect(libRefresh).toHaveBeenCalledTimes(1);
 	});
 
+	it("an import that lands while a refused write is running still repaints", async () => {
+		const w = await open();
+		const libRefresh = vi.spyOn((w.tab as unknown as { library: { refresh(): Promise<void> } }).library, "refresh");
+		let open_: () => void = () => {};
+		const gate = new Promise<void>((resolve) => { open_ = resolve; });
+		const real = w.views.getViews.bind(w.views);
+		vi.spyOn(w.views, "getViews").mockImplementationOnce(async () => { await gate; return real(); });
+
+		const refused = w.collections.remove("character"); // a built-in: refused, after it has read
+		await w.views.setRecord("late", rec({ kind: "collection", source: "90 Views/Late.md", commandName: "Late" }));
+		open_();
+		expect((await refused).ok).toBe(false);
+		await flush();
+
+		expect(libRefresh).toHaveBeenCalled();
+	});
+
 	it("stops repainting once the settings tab is hidden", async () => {
 		const w = await open();
 		const libRefresh = vi.spyOn((w.tab as unknown as { library: { refresh(): Promise<void> } }).library, "refresh");

@@ -117,7 +117,10 @@ export class SettingsTab extends PluginSettingTab {
 		const repaint = (): void => { void this.library.refresh(); void this.cards.refresh(); };
 		const offs = [
 			this.collections.subscribe(repaint),
-			this.store.subscribe(() => { if (!this.collections.writing) repaint(); }),
+			this.store.subscribe(() => {
+				if (this.collections.writing) this.collections.noteDroppedSignal();
+				else repaint();
+			}),
 		];
 		return () => { for (const off of offs) off(); };
 	}

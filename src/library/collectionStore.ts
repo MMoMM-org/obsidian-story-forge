@@ -201,6 +201,8 @@ const isBuiltInId = (id: string): boolean => BUILT_IN_COLLECTIONS.some((c) => c.
 export class CollectionStore {
 	private tail: Promise<void> = Promise.resolve();
 	private inFlight = 0;
+	/** A record signal was dropped by a host while a write ran, and nothing has signalled since. */
+	private droppedSignal = false;
 	private readonly listeners = new Set<() => void>();
 
 	constructor(private readonly port: LibraryPort) {}
@@ -222,7 +224,16 @@ export class CollectionStore {
 		return this.inFlight > 0;
 	}
 
+	/**
+	 * A host that drops the record store's signal while `writing` calls this, so the signal is not
+	 * lost when the write turns out to change nothing: the write then signals once anyway.
+	 */
+	noteDroppedSignal(): void {
+		this.droppedSignal = true;
+	}
+
 	private notify(): void {
+		this.droppedSignal = false;
 		for (const listener of [...this.listeners]) {
 			try {
 				listener();
@@ -418,10 +429,16 @@ export class CollectionStore {
 		this.inFlight++;
 		const run = this.tail.then(task).finally(() => { this.inFlight--; });
 		this.tail = run.then(() => undefined, () => undefined);
-		return run.then((result) => {
-			if (changed(result)) this.notify();
-			return result;
-		});
+		return run.then(
+			(result) => {
+				if (changed(result) || this.droppedSignal) this.notify();
+				return result;
+			},
+			(err: unknown) => {
+				if (this.droppedSignal) this.notify();
+				throw err;
+			},
+		);
 	}
 
 	// --- private -------------------------------------------------------------

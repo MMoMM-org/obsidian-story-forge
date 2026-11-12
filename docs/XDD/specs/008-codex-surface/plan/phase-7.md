@@ -389,3 +389,10 @@ Closes the gap that started this whole spec: the distribution machinery served f
     signal. Chosen over reading Scope at call time in the snapshot because the lists in Settings
     read the store, not the snapshot, and would have stayed stale. A built-in with its own list is
     unaffected.
+  - *Review fixes (code review).* (1) `SettingsTab` drops the record signal while a store write
+    runs; it now tells the store (`noteDroppedSignal`), and the store signals once on completion
+    when one was dropped, even if the write was refused, threw or changed nothing. (2) A throwing
+    `library.onChange` listener is logged and does not stop the next. (3) The snapshot keeps the
+    newest read that succeeded: a failed read never discards an older success, and a slow older
+    read cannot overwrite a newer one. (4) `snapshot()` is documented as consumed by d2/d3.
+    (5) The unload test now proves the store and record subscriptions are both released.

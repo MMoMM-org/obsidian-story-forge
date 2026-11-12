@@ -17,7 +17,10 @@ import { createLibraryPort, type SettingsHost } from "./settingsPort";
 export interface LibraryWiring {
 	/** The one store. The settings tab, the Anvil and the Workbench all share it. */
 	readonly collections: CollectionStore;
-	/** Every collection as last read, in Library order. Never stale by more than one read. */
+	/**
+	 * Every collection as last read, in Library order. Never stale by more than one read.
+	 * No production caller yet: T7.1d2 (Anvil pills) and T7.1d3 (Workbench) consume it.
+	 */
 	snapshot(): readonly LibraryCollection[];
 	/** The built-ins only, with their own tag and excluded folders applied (what the Anvil shows today). */
 	builtIns(): readonly LibraryCollection[];
@@ -33,17 +36,27 @@ function warn(what: string): (err: unknown) => void {
 	return (err) => { console.warn(`[StoryForge] Library: ${what}.`, err); };
 }
 
-/** Keeps the snapshot current. Only the newest read may land, so a slow older one cannot undo it. */
+/** Keeps the snapshot current. Only the newest successful read may land, so a slow older one cannot undo it. */
 function createSnapshot(collections: CollectionStore) {
 	let current: readonly LibraryCollection[] = [];
-	let newest = 0;
+	let requested = 0;
+	let applied = 0;
 	const listeners = new Set<() => void>();
 	const refresh = async (): Promise<void> => {
-		const mine = ++newest;
+		const mine = ++requested;
 		const next = await collections.collections();
-		if (mine !== newest) return;
+		// A read that failed never gets here, so it cannot discard an older one that succeeded;
+		// a read that succeeded may not overwrite a newer one that already landed.
+		if (mine < applied) return;
+		applied = mine;
 		current = next;
-		for (const listener of [...listeners]) listener();
+		for (const listener of [...listeners]) {
+			try {
+				listener();
+			} catch (e) {
+				console.error("[StoryForge] library subscriber failed", e);
+			}
+		}
 	};
 	return {
 		read: (): readonly LibraryCollection[] => current,
