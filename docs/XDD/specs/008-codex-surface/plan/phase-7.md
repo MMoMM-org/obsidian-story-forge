@@ -625,13 +625,18 @@ Closes the gap that started this whole spec: the distribution machinery served f
     `commandLabel`.
   - *Rollback restores, never deletes what it did not create (review fix).* `_materialise` notes whether the file
     existed and its previous content. When the record cannot be saved, a file that did not exist is removed and one
-    that did gets its previous content back — so a failed Update keeps the installed file, and a pre-existing
-    `<id>.md` / `<id>.base` with no record is not deleted. (A fresh install still writes over such an unrecorded file
-    when the save succeeds; not changed here.)
-  - *An edited installed file is not overwritten (review fix). Wording for sign-off.* Before an update writes, the file
-    on disk is checked against what the stale record installed: a `.base` by its whole-file checksum
-    (`generated.instanceChecksum`, else `okayed`), a Dataview note by its query block's checksum (`okayed`; prose
-    around the block is **not** tracked, the record holds no whole-note checksum). On a mismatch the install is
-    refused through the existing result, shown inline in the modal like any other refusal:
-    **"Not updated: <path> was edited after it was installed, and updating would overwrite those edits."**
-    Nothing is written. A missing file has nothing to lose and is written fresh. No new UI.
+    that did gets its previous content back, so a failed Update keeps the installed file.
+  - *Two refusals, both through the existing result (shown inline in the modal, no new UI). Wording for sign-off.*
+    - **Update over an edited file:** before an update writes, the file on disk is checked against what the stale
+      record installed — a `.base` by its whole-file checksum (`generated.instanceChecksum`, else `okayed`), a
+      Dataview note by its whole-file checksum in the new optional `ViewRecord.installedSourceChecksum` (set at
+      install to `entry.checksum`, kept by `applyDefaults`), falling back to the query block's checksum (`okayed`)
+      for a record installed before that field existed. Mismatch:
+      **"Not updated: <path> was edited after it was installed, and updating would overwrite those edits."**
+      A missing file has nothing to lose and is written fresh.
+    - **Fresh install onto a file with no record:** refused on both paths, before any DataviewJS consent modal:
+      **"Not installed: <path> already exists. Move, rename or remove it, then install again."** A file with
+      exactly the entry's bytes (`entry.checksum`) is the same install with a lost record and is adopted.
+    - **Unreadable file:** fails closed, never throws: **"Not updated: could not read <path>: <message>"** (or
+      "Not installed: …" on a fresh install).
+    Nothing is written on any refusal. ConsentGate drift is unchanged (it still compares the query block).

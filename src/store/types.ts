@@ -38,6 +38,13 @@ export interface ViewRecord {
    */
   catalogId?: string;
   /**
+   * Checksum of the whole file a catalog install wrote (T7.2, Dataview notes; a `.base` keeps it as
+   * `generated.instanceChecksum`). Update compares the file on disk with it, so an edit anywhere in
+   * the note — prose included — is not overwritten. Absent on older records: the query block is
+   * compared instead.
+   */
+  installedSourceChecksum?: string;
+  /**
    * Palette command display name (optional). Distinct from `commandName`,
    * which is the sidebar tab label.
    */
@@ -221,6 +228,9 @@ export function applyDefaults(
   }
   if (raw?.catalogId !== undefined) {
     base.catalogId = raw.catalogId;
+  }
+  if (typeof raw?.installedSourceChecksum === "string") {
+    base.installedSourceChecksum = raw.installedSourceChecksum;
   }
   const generated = parseGenerated(raw?.generated);
   if (generated !== undefined) {

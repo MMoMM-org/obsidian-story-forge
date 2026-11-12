@@ -22,6 +22,7 @@ import {
   parseOkayed,
   parseSurfaces,
 } from "../../src/store/types";
+import type { ViewRecord } from "../../src/store/types";
 
 // ---------------------------------------------------------------------------
 // parseOkayed
@@ -257,6 +258,16 @@ describe("applyDefaults", () => {
   it("does not add catalogId when absent", () => {
     const result = applyDefaults({});
     expect("catalogId" in result).toBe(false);
+  });
+
+  it("keeps installedSourceChecksum across a save and load (T7.2)", () => {
+    const saved = JSON.parse(JSON.stringify(applyDefaults({ installedSourceChecksum: "sha256:abc" }))) as Partial<ViewRecord>;
+    expect(applyDefaults(saved).installedSourceChecksum).toBe("sha256:abc");
+  });
+
+  it("drops an installedSourceChecksum that is not a string, and adds none when absent", () => {
+    expect("installedSourceChecksum" in applyDefaults({ installedSourceChecksum: 42 as unknown as string })).toBe(false);
+    expect("installedSourceChecksum" in applyDefaults({})).toBe(false);
   });
 
   // -------------------------------------------------------------------------

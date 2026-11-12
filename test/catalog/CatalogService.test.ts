@@ -1034,13 +1034,35 @@ describe("CatalogService — updating an installed .base", () => {
 		expect(files.get(PATH)).toBe(BASE_YAML);
 	});
 
-	it("does not remove a .base of the same name it did not install, when the record cannot be saved", async () => {
+	it("refuses to install over a .base of the same name it did not install, and writes nothing", async () => {
 		const { app, files } = vaultApp();
 		const { store } = makeStore();
 		files.set(PATH, "views: []\n");
-		vi.mocked(store.setRecord).mockRejectedValueOnce(new Error("disk full"));
-		expect((await svcFor(app, store, await makeEntry()).install("overview-characters")).ok).toBe(false);
+		expect(await svcFor(app, store, await makeEntry()).install("overview-characters")).toEqual({
+			ok: false,
+			reason: `Not installed: ${PATH} already exists. Move, rename or remove it, then install again.`,
+		});
+		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
+		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
 		expect(files.get(PATH)).toBe("views: []\n");
+	});
+
+	it("adopts a .base with exactly the entry's bytes whose record was lost", async () => {
+		const { app, files } = vaultApp();
+		const { store, capturedRecords } = makeStore();
+		files.set(PATH, BASE_YAML);
+		expect(await svcFor(app, store, await makeEntry()).install("overview-characters")).toEqual({ ok: true, path: PATH });
+		expect(capturedRecords.size).toBe(1);
+	});
+
+	it("fails closed, without throwing, when the installed .base cannot be read", async () => {
+		const { app, files, store } = await installedV1();
+		const before = structuredClone(await store.getViews());
+		vi.mocked(app.vault.adapter.read).mockRejectedValueOnce(new Error("EACCES"));
+		const v2 = await makeEntry({ source: V2_YAML });
+		expect(await svcFor(app, store, v2).install(v2.id)).toEqual({ ok: false, reason: `Not updated: could not read ${PATH}: EACCES` });
+		expect(files.get(PATH)).toBe(BASE_YAML);
+		expect(await store.getViews()).toEqual(before);
 	});
 
 	it("refuses to update a .base the user has edited, and changes nothing", async () => {

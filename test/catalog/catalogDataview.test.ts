@@ -337,15 +337,83 @@ describe("CatalogService — updating an installed Dataview entry", () => {
 		expect(views()).toEqual({});
 	});
 
-	it("does not remove a note of the same name that it did not install, when the record cannot be saved", async () => {
+	it("refuses to install over a note of the same name it did not install, and writes nothing", async () => {
 		const { app, files } = makeVault();
 		const { store, views } = makeStore();
 		files.set(PATH, "my own note\n");
-		vi.spyOn(store, "setRecord").mockRejectedValueOnce(new Error("disk full"));
 		const entry = await dataviewEntry();
-		expect((await service(app, store, entry).svc.install(entry.id)).ok).toBe(false);
+		expect(await service(app, store, entry).svc.install(entry.id)).toEqual({
+			ok: false,
+			reason: `Not installed: ${PATH} already exists. Move, rename or remove it, then install again.`,
+		});
+		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
 		expect(files.get(PATH)).toBe("my own note\n");
 		expect(views()).toEqual({});
+	});
+
+	it("refuses that before it asks for DataviewJS consent", async () => {
+		const { app, files } = makeVault();
+		const { store } = makeStore();
+		files.set("00 Meta/Bases/web.md", "my own note\n");
+		const entry = (await build({ "web.md": note("sf-version: 3\nsf-name: Web\n", ["dataviewjs", "dv.list([])\n"]) })).entries[0]!;
+		const { svc, consent } = service(app, store, entry, vi.fn(async () => ({ version: 3, checksum: "x" })));
+		expect((await svc.install(entry.id)).ok).toBe(false);
+		expect(consent).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
+	});
+
+	it("adopts a note with exactly the entry's bytes whose record was lost", async () => {
+		const { app, files } = makeVault();
+		const { store, views } = makeStore();
+		files.set(PATH, DQL_NOTE);
+		const entry = await dataviewEntry();
+		expect(await service(app, store, entry).svc.install(entry.id)).toEqual({ ok: true, path: PATH });
+		expect(Object.values(views())).toHaveLength(1);
+		expect(files.get(PATH)).toBe(DQL_NOTE);
+	});
+
+	it("fails closed, without throwing, when the installed note cannot be read", async () => {
+		const { app, files, store, views } = await installedV1();
+		const before = structuredClone(views());
+		vi.mocked(app.vault.adapter.read).mockRejectedValueOnce(new Error("EACCES"));
+		const v2 = await bumpedEntry();
+		expect(await service(app, store, v2).svc.install(v2.id)).toEqual({
+			ok: false,
+			reason: `Not updated: could not read ${PATH}: EACCES`,
+		});
+		expect(files.get(PATH)).toBe(DQL_NOTE);
+		expect(views()).toEqual(before);
+	});
+
+	it("refuses to update a note whose prose the user edited, outside the query block", async () => {
+		const { app, files, store, views, id } = await installedV1();
+		expect(views()[id]!.installedSourceChecksum).toBe(await computeChecksum(DQL_NOTE));
+		const edited = DQL_NOTE.replace("A curated view.", "My notes on this view.");
+		files.set(PATH, edited);
+		const before = structuredClone(views());
+		const v2 = await bumpedEntry();
+		expect(await service(app, store, v2).svc.install(v2.id)).toEqual({
+			ok: false,
+			reason: `Not updated: ${PATH} was edited after it was installed, and updating would overwrite those edits.`,
+		});
+		expect(files.get(PATH)).toBe(edited);
+		expect(views()).toEqual(before);
+	});
+
+	it("records the updated note's whole-file checksum", async () => {
+		const { app, store, views, id } = await installedV1();
+		const v2 = await bumpedEntry();
+		await service(app, store, v2).svc.install(v2.id);
+		expect(views()[id]!.installedSourceChecksum).toBe(v2.checksum);
+	});
+
+	it("falls back to the query block for a record installed before the whole-note checksum existed", async () => {
+		const { app, files, store, views, id } = await installedV1();
+		const { installedSourceChecksum: _dropped, ...legacy } = views()[id]!;
+		await store.setRecord(id, legacy);
+		files.set(PATH, DQL_NOTE.replace("A curated view.", "My notes on this view."));
+		const v2 = await bumpedEntry();
+		expect((await service(app, store, v2).svc.install(v2.id)).ok).toBe(true);
 	});
 
 	it("refuses to update a note the user has edited, and changes nothing", async () => {
@@ -360,5 +428,29 @@ describe("CatalogService — updating an installed Dataview entry", () => {
 		});
 		expect(files.get(PATH)).toBe(edited);
 		expect(views()).toEqual(before);
+	});
+});
+
+describe("Browse repo… — a refused install is shown in the modal", () => {
+	it("shows the reason inline when Install is refused", async () => {
+		const { app, files } = makeVault();
+		const { store } = makeStore();
+		files.set(PATH, "my own note\n");
+		const entry = await dataviewEntry();
+		const modal = new BrowseOfficialModal(app, service(app, store, entry).svc, store);
+		modal.open();
+		const install = await vi.waitFor(() => {
+			const b = [...document.body.querySelectorAll("button")].find((x) => x.textContent === "Install");
+			if (!b) throw new Error("no Install");
+			return b;
+		});
+		install.click();
+		await vi.waitFor(() =>
+			expect(document.body.querySelector(".sf-picker-feedback")?.textContent).toBe(
+				`Not installed: ${PATH} already exists. Move, rename or remove it, then install again.`,
+			),
+		);
+		modal.close();
+		document.body.innerHTML = "";
 	});
 });

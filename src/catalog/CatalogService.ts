@@ -97,6 +97,26 @@ type Lookup =
 	| { state: "up-to-date" | "failed"; result: InstallResult }
 	| { state: "stale"; id: string; record: ViewRecord };
 
+/** What an installed file's checksums were: the whole file, or (older Dataview records) its query block. */
+interface Installed {
+	whole?: string | undefined;
+	queryBlock?: string | undefined;
+}
+
+/** The stale Dataview record's installed checksums. */
+function installedOf(record: ViewRecord): Installed {
+	return record.installedSourceChecksum !== undefined
+		? { whole: record.installedSourceChecksum }
+		: { queryBlock: record.okayed?.checksum };
+}
+
+/** Does `content` still have the checksum it was installed with? */
+async function matchesInstalled(content: string, installed: Installed): Promise<boolean> {
+	if (installed.whole !== undefined) return (await computeChecksum(content)) === installed.whole;
+	const blocks = extractQueryBlocks(content);
+	return blocks.length === 1 && (await computeChecksum(blocks[0]!.body)) === installed.queryBlock;
+}
+
 /** A file `_materialise` wrote, with its content before (`null`: it did not exist). */
 interface Written {
 	path: string;
@@ -235,8 +255,10 @@ export class CatalogService {
 		if (found.state === "up-to-date" || found.state === "failed") return found.result;
 		const stale = found.state === "stale" ? found : null;
 		const path = stale ? installedPath(stale.record, this._targetPath(entry, "base")) : this._targetPath(entry, "base");
-		const edited = stale ? await this._editedRefusal(path, stale.record.generated?.instanceChecksum ?? stale.record.okayed?.checksum, false) : null;
-		if (edited !== null) return edited;
+		const refusal = stale
+			? await this._editedRefusal(path, { whole: stale.record.generated?.instanceChecksum ?? stale.record.okayed?.checksum })
+			: await this._occupiedRefusal(path, entry);
+		if (refusal !== null) return refusal;
 
 		// 3. MATERIALISE: write the .base YAML file into the vault folder.
 		let written: Written;
@@ -313,8 +335,10 @@ export class CatalogService {
 		if (found.state === "up-to-date" || found.state === "failed") return found.result;
 		const stale = found.state === "stale" ? found : null;
 		const path = stale ? installedPath(stale.record, this._targetPath(entry, "md")) : this._targetPath(entry, "md");
-		const edited = stale ? await this._editedRefusal(path, stale.record.okayed?.checksum, true) : null;
-		if (edited !== null) return edited;
+		const refusal = stale
+			? await this._editedRefusal(path, installedOf(stale.record))
+			: await this._occupiedRefusal(path, entry);
+		if (refusal !== null) return refusal;
 
 		const okayed = await this._dataviewApproval(entry, path);
 		if (okayed === null) return { ok: false, reason: "consent declined" };
@@ -370,6 +394,7 @@ export class CatalogService {
 			kind: "collection",
 			surfaces: defaultSurfaces(entry.engine),
 			catalogId: entry.id,
+			installedSourceChecksum: entry.checksum,
 			...(entry.description !== undefined ? { description: entry.description } : {}),
 		};
 	}
@@ -407,20 +432,39 @@ export class CatalogService {
 
 	/**
 	 * Refuse an Update that would overwrite the user's edits: the file at `path` no longer has the
-	 * checksum the stale record installed (`installed`). For a Dataview note that checksum is the
-	 * query block's (`okayed`), so `byQueryBlock` compares the block; prose around it is not
-	 * tracked. A missing file has nothing to lose, and the update proceeds.
+	 * checksum the stale record installed. `installed.whole` is the whole file's checksum; when a
+	 * (pre-`installedSourceChecksum`) Dataview record has none, `installed.queryBlock` is compared
+	 * with the note's query block instead. A missing file has nothing to lose, and the update
+	 * proceeds. An unreadable file fails closed.
 	 */
-	private async _editedRefusal(path: string, installed: string | undefined, byQueryBlock: boolean): Promise<InstallResult | null> {
-		const adapter = this.deps.app.vault.adapter;
-		if (!(await adapter.exists(path))) return null;
-		const content = await adapter.read(path);
-		const blocks = byQueryBlock ? extractQueryBlocks(content) : null;
-		const onDisk = blocks === null
-			? await computeChecksum(content)
-			: blocks.length === 1 ? await computeChecksum(blocks[0]!.body) : null;
-		if (onDisk !== null && onDisk === installed) return null;
+	private async _editedRefusal(path: string, installed: Installed): Promise<InstallResult | null> {
+		const read = await this._readExisting(path, "Not updated");
+		if (typeof read !== "string") return read;
+		if (await matchesInstalled(read, installed)) return null;
 		return { ok: false, reason: `Not updated: ${path} was edited after it was installed, and updating would overwrite those edits.` };
+	}
+
+	/**
+	 * Refuse a fresh install onto a file the catalog did not write (no record of it): it would be
+	 * overwritten. A file with exactly the entry's bytes is the same install with a lost record,
+	 * and is adopted. Checked before any consent modal.
+	 */
+	private async _occupiedRefusal(path: string, entry: CatalogEntry): Promise<InstallResult | null> {
+		const read = await this._readExisting(path, "Not installed");
+		if (typeof read !== "string") return read;
+		if ((await computeChecksum(read)) === entry.checksum) return null;
+		return { ok: false, reason: `Not installed: ${path} already exists. Move, rename or remove it, then install again.` };
+	}
+
+	/** The file's content; `null` when it does not exist; a refusal (`prefix`) when it cannot be read. */
+	private async _readExisting(path: string, prefix: string): Promise<string | InstallResult | null> {
+		const adapter = this.deps.app.vault.adapter;
+		try {
+			return (await adapter.exists(path)) ? await adapter.read(path) : null;
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			return { ok: false, reason: `${prefix}: could not read ${path}: ${msg}` };
+		}
 	}
 
 	/**
