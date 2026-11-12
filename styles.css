@@ -551,6 +551,12 @@ body {
 	color: var(--text-muted);
 }
 
+/* L7b — the Source row of a collection tab: one faint line, the path in code. */
+.sf-source-line {
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
 /* Shared secondary hint text (S11 / S15 / S16). */
 .sf-hint {
 	font-size: 12px;

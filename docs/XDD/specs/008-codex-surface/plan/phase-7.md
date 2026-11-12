@@ -502,23 +502,32 @@ Closes the gap that started this whole spec: the distribution machinery served f
     T6.2b note ("pass `createCardTileField`") has nothing to attach to. A row is `linkRow`'s `data-sf-link` span, so a click
     reaches the same delegated handler and `NavigationController` markers as every other Workbench link (F2: inspect in
     place; modifier opens the note; a click writes nothing).
-  - *P6: what is regrouped.* Only the character panel (the S95 / L7a subject). The Relationships grouping (outgoing links in
-    `significant_other`, `family`, `friends`, `allies`, `enemies`), the Owns grouping (object backlinks via `owner`) and the
-    Related grouping (location backlinks via `inhabitants`, lore backlinks) are replaced by one section per built-in whose
-    Workbench switch is on, in Library order, with a count. Principle: a built-in collection's targets live in its section;
-    everything else is unchanged. Keys: the relation field (`allies`, `family`), `owns` for an owned object (the word L7a
-    draws), the backlink's own field for a location (`inhabitants`) and a lore note. The other kinds' panels (location,
-    object, lore, scene, plotline, book) keep their named sections (Inhabitants, Owner, Related, Characters…): they are not
-    a Relations grouping, and regrouping them is not drawn. **Open for the user:** whether a location, scene or lore panel
-    should also honour the switches.
-  - *What stays where it was.* A link no built-in claims: an unresolved link, or a target outside every collection (tag
-    changed, own excluded folder). The old Relationships / Owns / Related section is drawn for those alone, and only when
-    there are any (P6 omits an empty section; the "No relationships yet." lines are gone in this mode). *Appears in* is
+  - *P6: what is regrouped (every kind's panel, D3).* Each panel hands the links it holds to built-in collections to one
+    section per Workbench-on built-in, in Library order, with a count, and drops its own section for them. Principle: a
+    built-in collection's targets live in its section; everything else is unchanged. Character: Relationships (outgoing
+    `significant_other`, `family`, `friends`, `allies`, `enemies`), Owns (object backlinks via `owner`), Related (location
+    backlinks via `inhabitants`, lore backlinks). Location: Inhabitants and the child-location backlinks (`world`). Object:
+    Owner. Scene: Point of view, Characters, Location. Lore: Related and every Referenced-by backlink a built-in claims.
+    Plotline and book list scenes only, and scenes are not a collection, so they have nothing to regroup. Unchanged: Profile,
+    Facts, *Appears in*, Scenes here, Plotlines, Reading order, and Location's *Within* breadcrumb (a path, not a list).
+  - *Relation keys follow the schema field names.* The right-hand label is the relation or backlink field as the schema names
+    it (`allies`, `family`, `inhabitants`, `owner`, `pov`, `characters`, `location`, `related`, `world`), plus `owns` for an
+    owned object, the word L7a draws. L7a's "ally" and "home" are sample data in the mockup's seed vault, not keys.
+  - *What stays where it was.* A link no built-in claims: an unresolved link, or a target outside every collection (a
+    scene, a changed tag, an own excluded folder). The panel's own section is drawn for those alone, and only when there are
+    any (P6 omits an empty section; the "No relationships yet." style lines are gone in this mode). The same note linked and
+    linking back under one key is listed once. *Appears in* is
     unchanged (scenes are not a collection). A built-in with its switch off, or its checkbox off, still *claims* its notes:
     they are hidden, not demoted to Relationships (L7a: Objects off means absent).
   - *Membership is the store's.* `src/panel/collectionSections.ts` asks `resolveCollection` (the d1 rule) with the built-in's
     own tag, which may be the user's override, and its own excluded folders, against the target's tags. The first built-in
     in Library order that holds a note claims it.
+  - *The Source row (L7b).* A Workbench collection tab ends with a *Source* section of one line: the record's path in `code`,
+    the engine's product name and the provenance with "collection" ("90 Views/Skills.md · Dataview · imported collection").
+    The engine and provenance words are `ENGINE_LABEL` (moved from `LibrarySection.ts`) and `PROVENANCE_LABEL`, both in
+    `settings/libraryShared.ts`, so the Library list and this row cannot drift. It sits outside the engine's host, so a render
+    never wipes it; it is absent on the Codex tab and in any state that is not a resolved note. A from-repo collection reads
+    "from repo collection".
   - *Where it is wired.* `NativeScopingEngine` takes the Library's rows (`() => library.snapshot()`) as a third argument and
     hands `PanelDeps.collections` to the renderers; `main.ts` passes it. Without it (an engine built bare, as most panel
     tests do) the character panel keeps its old three groupings, the same optional-dependency convention as the view's
@@ -527,8 +536,8 @@ Closes the gap that started this whole spec: the distribution machinery served f
   - *Known limit (pre-existing).* A link whose target does not exist is drawn by `unresolvedEl(file.basename)`, and the
     resolver's placeholder has no basename, so the unresolved row's text is empty in the Workbench. Unchanged here, since
     these links stay where they were; worth its own fix.
-  - *Changed existing tests.* None in this step: the sections are drawn only when the Library is wired, so every existing
-    character-panel test (`character.test.ts`, `panelCharacterization`, `panel-pipeline`, `NativeScopingEngine.test.ts`)
-    still asserts the old groupings through a bare engine. The new behaviour is pinned in
-    `SidebarView.library.test.ts` (24 tests, with the tabs) and `anvilLibrary.endToEnd.test.ts` (5).
+  - *Changed existing tests (sections).* None: the sections are drawn only when the Library is wired, so every existing panel
+    test still asserts the old groupings through a bare engine. The new behaviour is pinned in
+    `SidebarView.library.test.ts`, `anvilLibrary.endToEnd.test.ts` and `test/panel/renderers/collectionSections.test.ts`
+    (every kind: Library order, switch off, non-member stays).
 

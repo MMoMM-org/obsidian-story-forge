@@ -8,11 +8,19 @@
  */
 
 import type { LibraryProvenance } from "library/collectionStore";
+import type { ViewRecord } from "store/types";
 
 export const PROVENANCE_LABEL: Record<LibraryProvenance, string> = {
 	"built-in": "built-in",
 	"from-repo": "from repo",
 	imported: "imported",
+};
+
+/** The engine's product name, as the Library's rows and the Workbench's Source row both say it. */
+export const ENGINE_LABEL: Record<ViewRecord["engine"], string> = {
+	bases: "Bases",
+	"dataview-dql": "Dataview",
+	dataviewjs: "DataviewJS",
 };
 
 /** The `data-focus` key of whatever has focus inside `host`, or `null`. */

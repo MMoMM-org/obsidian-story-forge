@@ -18,7 +18,7 @@ import type { CollectionStore, LibraryCollection, Outcome, Surface } from "libra
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
 import { renderPanel, type PanelHost, type RowModel } from "./libraryPanels";
-import { PROVENANCE_LABEL, focusByKey, focusedKey, paintAddRow } from "./libraryShared";
+import { ENGINE_LABEL, PROVENANCE_LABEL, focusByKey, focusedKey, paintAddRow } from "./libraryShared";
 
 export interface LibrarySectionDeps {
 	readonly app: App;
@@ -35,12 +35,6 @@ export interface LibrarySectionDeps {
 }
 
 type Decision = ConsentDecision["status"];
-
-const ENGINE_LABEL: Record<ViewRecord["engine"], string> = {
-	bases: "Bases",
-	"dataview-dql": "Dataview",
-	dataviewjs: "DataviewJS",
-};
 
 /** P11: what blocks an entry, in the words of the old blocked-reason row ("view" became "collection"). */
 interface Block {

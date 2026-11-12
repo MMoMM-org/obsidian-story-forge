@@ -50,6 +50,8 @@ import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { ViewRecord } from "store/types";
 import type { ViewStore } from "store/ViewStore";
 import { workbenchTabs } from "library/collectionStore";
+import { ENGINE_LABEL, PROVENANCE_LABEL } from "settings/libraryShared";
+import { section } from "panel/components";
 import type { LibraryWiring } from "library/wireLibrary";
 import type { UndoJournal } from "undo/undoJournal";
 import { activateUndoControl, buildWorkbenchUndoControls, syncUndoControls, undoDirectionOf } from "undo/undoControls";
@@ -1506,6 +1508,7 @@ export class SidebarView extends ItemView {
 			// its internal body.empty() never clears the surrounding nav chrome.
 			const host = aug(body.createDiv({ cls: "sf-engine-host" }));
 			void this._renderResolved(host, state.ctx);
+			this._renderSourceRow(body);
 			// "Open note" footer (S41) — always available when a subject is shown.
 			this._renderOpenNoteFooter(body);
 		} else if (state.kind === "error") {
@@ -1580,6 +1583,21 @@ export class SidebarView extends ItemView {
 				text: "ⓘ Pinned — not following the active note.",
 			});
 		}
+	}
+
+	/**
+	 * L7b: the shown collection's source, one line: path · engine · provenance. Outside the engine's
+	 * host, so a render never wipes it; none on the Codex tab or when no Library is wired.
+	 */
+	private _renderSourceRow(body: AugEl): void {
+		const id = this.selectedViewId;
+		const row = id === null ? undefined : this.library?.snapshot().find((c) => c.id === id);
+		const record = id === null ? undefined : this._views[id];
+		if (!row?.engine || !record) return;
+		const { bodyEl } = section(body, "Source");
+		const line = aug(bodyEl).createDiv({ cls: "sf-source-line" });
+		line.createEl("code", { text: record.source });
+		line.appendText(` · ${ENGINE_LABEL[row.engine]} · ${PROVENANCE_LABEL[row.provenance]} collection`);
 	}
 
 	/** T4.2: render the "Open note" footer (S41) — opens the current subject. */

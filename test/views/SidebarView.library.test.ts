@@ -168,6 +168,41 @@ describe("the Workbench tabs", () => {
 });
 
 // ---------------------------------------------------------------------------
+// L7b · the Source row
+// ---------------------------------------------------------------------------
+
+describe("a collection tab's Source row", () => {
+	const source = (v: SidebarView): string | null => {
+		const sec = [...v.contentEl.querySelectorAll<HTMLElement>(".sf-section")].find((s) => s.querySelector(".sf-sec-label")?.textContent === "Source");
+		return sec?.querySelector(".sf-source-line")?.textContent ?? null;
+	};
+
+	it("names the path, the engine and the provenance, as L7b draws it", async () => {
+		const view = await (await makeWorld()).open();
+
+		click(tab(view, "Skills"));
+		await settle();
+
+		expect(source(view)).toBe("90 Views/Skills.md · Dataview · imported collection");
+	});
+
+	it("uses the Library's own words for a from-repo .base", async () => {
+		const view = await (await makeWorld()).open();
+
+		click(tab(view, "Creatures"));
+		await settle();
+
+		expect(source(view)).toBe("Creatures.base · Bases · from repo collection");
+	});
+
+	it("is not on the Codex tab", async () => {
+		const view = await (await makeWorld()).open();
+
+		expect(source(view)).toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
 // 3 · a Library write rebuilds the tabs live
 // ---------------------------------------------------------------------------
 
