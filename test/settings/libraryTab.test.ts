@@ -17,6 +17,7 @@ import type { ViewImporter } from "../../src/import/ViewImporter";
 import type { IndexedNote } from "../../src/codex/collectionResolver";
 import { CollectionStore } from "../../src/library/collectionStore";
 import { createLibraryPort } from "../../src/library/settingsPort";
+import { sentenceCaseViolations, visibleStrings } from "../helpers/sentenceCase";
 import { DEFAULT_SETTINGS, LIBRARY_MIGRATED_HINT_ID, type PluginSettings } from "../../src/types/index";
 
 // ---------------------------------------------------------------------------
@@ -256,7 +257,7 @@ describe("L2 · rows and badges", () => {
 		const expected = (await w.collections.collections()).map((c) => c.id);
 		expect(rowIds(w.root)).toEqual(expected);
 		expect(rowIds(w.root)).toEqual(["character", "location", "object", "lore", "creatures", "organizations", "skills", "web"]);
-		expect([...w.root.querySelectorAll(".sf-lb-name")].map(text)).toEqual([
+		expect([...w.root.querySelectorAll("[data-collection-id] .sf-lb-name")].map(text)).toEqual([
 			"Characters", "Locations", "Objects", "Lore", "Creatures", "Organizations", "Skills", "Relationship web",
 		]);
 	});
@@ -869,13 +870,12 @@ describe("P14 · the curated folder and the capability link", () => {
 		await expect(click(button(bare.containerEl, "What optional plugins add…"))).resolves.toBeUndefined();
 	});
 
-	it("leaves a marked place for the Cards list between the collections and the folder (T7.1c)", async () => {
+	it("keeps a marked place for the Cards list between the collections and the folder (filled by T7.1c)", async () => {
 		const { root } = await open();
 		const slot = q(panelOf(root, "library"), "[data-slot='cards']")!;
 		expect(slot).not.toBeNull();
 		expect(q(root, ".sf-lb-list")!.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 		expect(slot.compareDocumentPosition(q(root, '[data-setting-name="Folder for collections from the repo"]')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-		expect(slot.children).toHaveLength(0);
 	});
 
 	it("offers + Import from vault… and a disabled + Browse repo… under the list", async () => {
@@ -953,37 +953,6 @@ describe("L9 · edge states", () => {
 // ---------------------------------------------------------------------------
 // (10) sentence case, over the rendered text (the lint rule covers the source literals)
 // ---------------------------------------------------------------------------
-
-/** Words that are proper nouns or UI terms the mockup writes capitalised mid-sentence. */
-const PROPER = new Set([
-	"Anvil", "Workbench", "Bases", "Dataview", "DataviewJS", "Scope", "Obsidian",
-	"Library", "Browse", "Card", "Codex", "FileClass", "FileClasses", "Meta", "Story", "Forge",
-]);
-
-/** Capitalised words that are not at the start of a sentence and not allowed. */
-function sentenceCaseViolations(raw: string, labels: readonly string[]): string[] {
-	if (raw.trim().startsWith("+")) return [];
-	let s = raw;
-	for (const label of labels) s = s.split(label).join("");
-	const words = s.split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
-	const bad: string[] = [];
-	words.forEach((word, i) => {
-		const atStart = i === 0 || /[.?!:]$/.test(words[i - 1] ?? "");
-		const bare = word.replace(/[^A-Za-z]/g, "");
-		if (atStart || !/^[A-Z][a-z]/.test(bare) || PROPER.has(bare)) return;
-		bad.push(word);
-	});
-	return bad;
-}
-
-/** Own text of every visible element, minus user data (row names, paths, code) and the plugin header. */
-function visibleStrings(root: HTMLElement): string[] {
-	const skip = ".sf-settings-header, .sf-lb-name, .sf-lb-file, code, input";
-	return [...root.querySelectorAll<HTMLElement>("*")]
-		.filter((el) => !el.closest(skip))
-		.map((el) => [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent ?? "").join(" ").trim())
-		.filter((t) => t.length > 0);
-}
 
 describe("sentence case in the rendered text (test 10)", () => {
 	async function everything(): Promise<string[]> {

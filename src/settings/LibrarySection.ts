@@ -18,6 +18,7 @@ import type { CollectionStore, LibraryCollection, Outcome, Surface } from "libra
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
 import { renderPanel, type PanelHost, type RowModel } from "./libraryPanels";
+import { PROVENANCE_LABEL, focusByKey, focusedKey, paintAddRow } from "./libraryShared";
 
 export interface LibrarySectionDeps {
 	readonly app: App;
@@ -39,12 +40,6 @@ const ENGINE_LABEL: Record<ViewRecord["engine"], string> = {
 	bases: "Bases",
 	"dataview-dql": "Dataview",
 	dataviewjs: "DataviewJS",
-};
-
-const PROVENANCE_LABEL: Record<LibraryCollection["provenance"], string> = {
-	"built-in": "built-in",
-	"from-repo": "from repo",
-	imported: "imported",
 };
 
 /** P11: what blocks an entry, in the words of the old blocked-reason row ("view" became "collection"). */
@@ -176,7 +171,7 @@ export class LibrarySection {
 
 	private paint(host: HTMLElement, rows: RowModel[], notice: { moved: number } | null): void {
 		// Whatever has focus now keeps it across the repaint (a panel field tabbed out of, say).
-		this.pendingFocus ??= this.focusedKey(host);
+		this.pendingFocus ??= focusedKey(host);
 		host.empty();
 		this.order = rows.map((r) => r.c.id);
 		if (notice) this.paintNotice(host, notice.moved);
@@ -303,23 +298,7 @@ export class LibrarySection {
 	}
 
 	private paintAdd(host: HTMLElement): void {
-		const add = host.createDiv({ cls: "sf-lb-add" });
-		const browse = add.createEl("button", {
-			cls: "sf-lb-addbtn",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L2 text; the rule misreads the leading '+' glyph
-			text: "+ Browse repo…",
-			// The visible name stays the accessible name; the reason is a description, not a replacement.
-			attr: { type: "button", title: "Coming in a future release", "aria-describedby": "sf-lb-browse-note" },
-		});
-		browse.disabled = true;
-		add.createSpan({ cls: "sf-lb-sr", text: "Coming in a future release", attr: { id: "sf-lb-browse-note" } });
-		const imp = add.createEl("button", {
-			cls: "sf-lb-addbtn",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L2 text; the rule misreads the leading '+' glyph
-			text: "+ Import from vault…",
-			attr: { type: "button", "data-focus": "add" },
-		});
-		imp.addEventListener("click", () => this.d.importFromVault());
+		paintAddRow(host, this.d.importFromVault, "sf-lb-browse-note");
 	}
 
 	// --- L8a: the inline removal confirmation ---------------------------------
@@ -418,11 +397,6 @@ export class LibrarySection {
 		await this.refresh();
 	}
 
-	private focusedKey(host: HTMLElement): string | null {
-		const el = activeDocument.activeElement;
-		return el instanceof HTMLElement && host.contains(el) ? (el.dataset["focus"] ?? null) : null;
-	}
-
 	/** An editable field that has focus and differs from what was last committed. */
 	private hasUnsavedInput(host: HTMLElement): boolean {
 		return [...host.querySelectorAll<HTMLInputElement>("input[data-committed]")].some(
@@ -433,8 +407,7 @@ export class LibrarySection {
 	private applyFocus(host: HTMLElement): void {
 		const key = this.pendingFocus;
 		this.pendingFocus = null;
-		if (key === null) return;
-		host.querySelector<HTMLElement>(`[data-focus="${key}"]`)?.focus();
+		focusByKey(host, key);
 	}
 
 	private panelHost(): PanelHost {

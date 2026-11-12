@@ -358,6 +358,7 @@ export default class StoryForgePlugin extends Plugin {
 			registerCommand,
 			this._removeViewCommand.bind(this),
 			journal,
+			{ fileClasses },
 		));
 	}
 

@@ -4,6 +4,8 @@ import { normalizeLinkClickAction, normalizeCardTitleOpensNote, normalizeExclude
 
 import { HeaderSection } from "./HeaderSection";
 import { LibrarySection } from "./LibrarySection";
+import { CardsSection } from "./CardsSection";
+import type { FileClassSource } from "fileclass/fileClassVault";
 import type { ViewStore } from "store/ViewStore";
 import type { ConsentGate } from "consent/ConsentGate";
 import type { ViewImporter } from "import/ViewImporter";
@@ -27,6 +29,8 @@ export interface LibraryDeps {
 	collections?: CollectionStore;
 	/** The vault's notes with their tags, for the live count in `configure` (P10). */
 	notes?: () => readonly IndexedNote[];
+	/** The plugin's FileClass cache, so a Card preview draws its tile as the Anvil does. */
+	fileClasses?: FileClassSource;
 	/** The "What optional plugins add…" link. Its screen is T7.4's; until then a no-op. */
 	openCapabilities?: () => void;
 }
@@ -46,6 +50,7 @@ export class SettingsTab extends PluginSettingTab {
 	private readonly store: ViewStore;
 	private readonly undo: UndoHistoryControl;
 	private readonly library: LibrarySection;
+	private readonly cards: CardsSection;
 	private readonly openCapabilities: () => void;
 	/** Store unsubscribe handle — set when tab is open, null when hidden. */
 	private _unsubscribeStore: (() => void) | null = null;
@@ -69,16 +74,23 @@ export class SettingsTab extends PluginSettingTab {
 		this.store = store;
 		this.undo = undo;
 		this.openCapabilities = library.openCapabilities ?? (() => {});
+		const collections = library.collections ?? new CollectionStore(createLibraryPort(store, plugin));
+		const notes = library.notes ?? this.defaultNotes();
+		const importFromVault = (): void => { new ImportPickerModal(app, importer, gate).open(); };
+		this.cards = new CardsSection({
+			app, collections, notes, importFromVault,
+			...(library.fileClasses ? { fileClasses: library.fileClasses } : {}),
+		});
 		this.library = new LibrarySection({
 			app,
-			collections: library.collections ?? new CollectionStore(createLibraryPort(store, plugin)),
+			collections,
 			views: store,
 			gate,
-			notes: library.notes ?? this.defaultNotes(),
+			notes,
 			scopeFolders: () => normalizeExcludedFolders(this.plugin.settings.excludedFolders),
 			registerCommand,
 			removeCommand,
-			importFromVault: () => { new ImportPickerModal(app, importer, gate).open(); },
+			importFromVault,
 		});
 	}
 
@@ -90,6 +102,7 @@ export class SettingsTab extends PluginSettingTab {
 		this._unsubscribeStore?.();
 		this._unsubscribeStore = null;
 		this.library.suspend();
+		this.cards.suspend();
 	}
 
 	/**
@@ -109,7 +122,7 @@ export class SettingsTab extends PluginSettingTab {
 	 */
 	async displayAsync(): Promise<void> {
 		// Live-refresh the Library list when a record changes. Subscribe once per open session.
-		this._unsubscribeStore ??= this.store.subscribe(() => { void this.library.refresh(); });
+		this._unsubscribeStore ??= this.store.subscribe(() => { void this.library.refresh(); void this.cards.refresh(); });
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass("sf-settings");
@@ -149,7 +162,7 @@ export class SettingsTab extends PluginSettingTab {
 			this.applySelection(tabs, panels);
 			if (focus) tabs.get(id)?.focus();
 			// Scope may have changed since the list was painted: its counts follow.
-			if (id === "library") void this.library.refresh();
+			if (id === "library") { void this.library.refresh(); void this.cards.refresh(); }
 		};
 		for (const [id, tab] of tabs) {
 			tab.addEventListener("click", () => select(id, false));
@@ -194,13 +207,14 @@ export class SettingsTab extends PluginSettingTab {
 			.setDesc("What the Codex can show. Each is a query over your vault. Choose where each one appears.")
 			.setHeading();
 		const list = panel.createDiv({ cls: "sf-lb-list" });
-		// T7.1c fills this slot with the Cards list (L4, L5). Nothing else draws here.
-		panel.createDiv({ cls: "sf-lb-cards-slot", attr: { "data-slot": "cards" } });
+		const slot = panel.createDiv({ cls: "sf-lb-cards-slot", attr: { "data-slot": "cards" } });
+		new Setting(slot).setName("Cards").setDesc("How entries are drawn. Chosen per collection and remembered.").setHeading();
+		const cardList = slot.createDiv({ cls: "sf-lb-list" });
 		this.renderCuratedFolder(panel);
 		const foot = panel.createDiv({ cls: "sf-lb-foot" });
 		const link = foot.createEl("button", { cls: "sf-lb-link", text: "What optional plugins add…", attr: { type: "button" } });
 		link.addEventListener("click", () => this.openCapabilities());
-		await this.library.render(list);
+		await Promise.all([this.library.render(list), this.cards.render(cardList)]);
 	}
 
 	private renderCuratedFolder(panel: HTMLElement): void {

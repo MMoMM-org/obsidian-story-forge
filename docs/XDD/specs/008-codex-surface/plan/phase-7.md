@@ -62,7 +62,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   >   tabs. Pure, no DOM.
   > - **T7.1b Settings tabs and the Collections list** *(done: ed38944…b1c34ab; the L3b "File found" line in place of an entry count awaits the user's confirmation)* — L1 (Library | Scope | Behaviour, every
   >   existing setting placed), L2, L3, L8a, L9, P11–P14, P17.
-  > - **T7.1c Cards list and preview** — L4, L5, L8c, P3.
+  > - **T7.1c Cards list and preview** *(done)* — L4, L5, L8c, P3.
   > - **T7.1d Surfaces** — the Anvil pills from the store, an imported `.base` embedded with its
   >   Card, Dataview in the Anvil, `+ Collection`, fallback after removal (L6a, L6b, L8b, P5, P8, P9,
   >   P15); the Workbench Codex sections per built-in toggle and a tab per imported collection
@@ -283,3 +283,48 @@ Closes the gap that started this whole spec: the distribution machinery served f
     "exclude nothing", not "follow Scope". The checkbox stays so the way back is one click.
   - *+ Browse repo….* Its accessible name is its visible text. "Coming in a future release" is
     the `title` and an `aria-describedby` description, not a replacement `aria-label`.
+
+- **T7.1c — Cards list and preview: choices the mockup does not settle** (2026-11-12).
+  - *Structure.* `CardsSection` (list, confirmation, focus), `cardPreview` (the preview region) and
+    `libraryShared` (the `data-focus` capture and restore, the provenance labels and the add row,
+    now used by both lists). `LibrarySection` was changed only to use `libraryShared`.
+    `SettingsTab` paints a "Cards" heading and the list into `div[data-slot="cards"]`, and its
+    store subscription, tab selection and `hide()` drive the Cards list as they do the collections.
+  - *Words.* **Preview** and **Remove** are capitalised, as T7.1b did for Configure and Remove:
+    the sentence-case lint rule rejects the lowercase. The Hero checkbox's reason is also its
+    `title`.
+  - *The preview is the real Card.* It calls `buildCardWrapper` with `nativeCardEntry` on the sample
+    note's `metadataCache` frontmatter and `CODEX_CARD_REGISTRY.resolve(id)`, the path
+    `codexTab.renderEntry` uses. `LibraryDeps` gained an optional `fileClasses` (passed from
+    `main.ts`) so the tile follows the FileClass Media field as the Anvil does; without it the
+    tile uses the shipped names.
+  - *Inert.* After building, the card loses its `role`, `tabindex` and `data-sf-card-body`, every
+    `data-sf-link` and `data-sf-card-title` marker, and gets `inert`. A title click does nothing
+    in Settings (no controller listens there); stripping the markers keeps it that way if one ever does.
+  - *Sample from lists enabled, non-Dataview collections.* The mockup says "every enabled
+    collection". A Dataview collection ignores Cards (P8) and has no tag to resolve, so offering
+    it could only ever say "no entries". A disabled collection is not offered.
+  - *An imported `.base` collection has no tag.* Samples resolve by tag and folder exclusion
+    (`resolveCollection`, as the T7.1b count does). A collection with no tag therefore reads as
+    "has no entries yet" in L5b, although the Anvil would draw it through Bases. Sampling a
+    `.base` needs the Bases query and is not attempted.
+  - *Imported Cards draw as Hero.* No imported Card is registered in `CODEX_CARD_REGISTRY` yet, so
+    previewing one resolves to Hero, which is what the Anvil does with it today. Whoever registers
+    imported Cards gets the right preview with no change here.
+  - *Chosen sample.* It is kept per Card across repaints and falls back to the default (first
+    enabled collection using the Card, else the first enabled) when the choice is no longer
+    offered. Removing a Card forgets its preview and sample.
+  - *Focus.* Opening a preview focuses Close preview; closing by button, Preview again or Esc
+    returns to Preview; changing the sample keeps focus on the dropdown. After a removal focus
+    goes to the next row's checkbox, or to **+ Import from vault…** for the last row.
+  - *No held repaint.* The Cards list has no text input, so the "hold a repaint while an input is
+    dirty" half of the LibrarySection pattern does not apply and was not copied.
+  - *Add row.* L4 draws **+ Browse repo…** and **+ Import from vault…** under Cards as well; both
+    are drawn (Browse disabled, as in the collections list) via the shared `paintAddRow`.
+  - *Known gap.* A change to a built-in collection (enable, tag, folders) writes settings, not a
+    record, so it does not notify the store: "used by" and "Sample from" catch up on the next
+    repaint (any Cards action, a record change, or reselecting the Library tab).
+  - *Tests.* The sentence-case checker moved to `test/helpers/sentenceCase.ts` (its mid-sentence
+    allow-list gained "Hero"; its skip list gained `.sf-lb-prev-body`, user data). The T7.1b
+    "marked place for the Cards list" test no longer asserts the slot is empty, and its
+    row-name selector is scoped to `[data-collection-id]`.

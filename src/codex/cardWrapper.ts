@@ -54,7 +54,7 @@ declare const activeDocument: Document;
 export const CARD_BODY_ATTR = "data-sf-card-body";
 
 /** The cross-surface "name" marker, stamped by `buildNameEl` below. */
-const CARD_NAME_ATTR = "data-sf-link";
+export const CARD_NAME_ATTR = "data-sf-link";
 
 /**
  * Marks the title as a Card title, on the same element as `CARD_NAME_ATTR`.

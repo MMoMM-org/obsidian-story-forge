@@ -1334,6 +1334,49 @@ body {
 	color: var(--text-warning);
 }
 
+/* --- Library › Cards (L4, L5a, L5b) --------------------------------------------- */
+.sf-lb-used {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.sf-lb-sp {
+	flex: 1 1 auto;
+}
+
+.sf-lb-prev {
+	margin: 0 0 8px 21px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-small);
+}
+
+.sf-lb-prev-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 11px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-lb-prev-body {
+	padding: 9px 11px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.sf-lb-prev-body .sf-cx-card {
+	font-size: var(--font-ui-small);
+}
+
+.sf-lb-prev-foot {
+	padding: 4px 11px 6px;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
 /* --- Inline removal confirmation (L8a) ------------------------------------------ */
 .sf-lb-confirm {
 	margin: 0 0 8px 21px;
