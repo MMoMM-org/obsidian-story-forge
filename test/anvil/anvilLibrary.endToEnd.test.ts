@@ -10,7 +10,7 @@
  * @ref docs/XDD/specs/008-codex-surface/mockups-library.html — L2a, L6a, L8a, L8b
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { App, MarkdownRenderer, Menu, WorkspaceLeaf, createMockTFile, type TFile } from "obsidian";
+import { App, MarkdownRenderer, Menu, WorkspaceLeaf, createMockCachedMetadata, createMockFrontmatterLink, createMockTFile, type TFile } from "obsidian";
 import type { AnvilView } from "anvil/AnvilView";
 import { computeChecksum } from "consent/checksum";
 import { SettingsTab } from "settings/SettingsTab";
@@ -31,6 +31,7 @@ beforeAll(async () => {
 const BASE_PATH = "30 Canon/Organizations/Organizations.base";
 const BASE_YAML = 'filters: file.hasTag("canon/organization")\nviews:\n  - type: table\n    name: Mine\n';
 const MARA = createMockTFile({ basename: "Mara Stoneway", path: "30 Canon/31 Characters/Mara Stoneway.md" });
+const TOBIAS = createMockTFile({ basename: "Tobias Ferro", path: "30 Canon/31 Characters/Tobias Ferro.md" });
 
 type Plugin = InstanceType<typeof import("main").default>;
 
@@ -67,6 +68,14 @@ async function load(): Promise<Session> {
 	vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p: string) => files.get(p) ?? null);
 	vi.mocked(app.vault.cachedRead).mockResolvedValue(BASE_YAML);
 	app.workspace.getActiveFile = vi.fn(() => MARA);
+	// The Workbench follows Mara, whose ally is a character: the Codex tab's Characters section.
+	const caches = new Map<TFile, ReturnType<typeof createMockCachedMetadata>>([
+		[MARA, createMockCachedMetadata({ tags: [{ tag: "#canon/character" }], frontmatterLinks: [createMockFrontmatterLink("allies.0", "Tobias Ferro")] })],
+		[TOBIAS, createMockCachedMetadata({ tags: [{ tag: "#canon/character" }] })],
+	]);
+	const getCache = vi.mocked(app.metadataCache.getFileCache).getMockImplementation();
+	vi.mocked(app.metadataCache.getFileCache).mockImplementation((f: TFile) => caches.get(f) ?? getCache?.(f) ?? null);
+	vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((l: string) => (l === "Tobias Ferro" ? TOBIAS : null));
 
 	const saved: Session["saved"] = { current: {} };
 	const plugin = new StoryForgePlugin(app) as Plugin;
@@ -90,6 +99,7 @@ async function load(): Promise<Session> {
 }
 
 const tabLabels = (w: SidebarView): string[] => [...w.contentEl.querySelectorAll(".sf-tab")].map((t) => t.textContent ?? "");
+const sectionLabels = (w: SidebarView): string[] => [...w.contentEl.querySelectorAll(".sf-sec-label")].map((t) => t.textContent ?? "");
 const labels = (a: AnvilView): string[] => [...a.contentEl.querySelectorAll("[data-sf-collection]")].map((p) => p.textContent ?? "");
 const pill = (a: AnvilView, label: string): HTMLElement =>
 	[...a.contentEl.querySelectorAll<HTMLElement>("[data-sf-collection]")].find((p) => p.textContent === label)!;
@@ -146,6 +156,18 @@ describe("a .base imported for the Workbench", () => {
 		await plugin.library.collections.remove("orgs");
 		await settle();
 		expect(tabLabels(workbench)).toEqual(["Codex", "Navigator"]);
+	});
+});
+
+describe("the Codex tab's sections in the real plugin", () => {
+	it("are the Library's: a built-in's Workbench switch adds and removes its section", async () => {
+		const { plugin, workbench } = await load();
+		expect(sectionLabels(workbench)).toContain("Characters");
+
+		await plugin.library.collections.setSurface("character", "workbench", false);
+		await settle();
+		expect(sectionLabels(workbench)).not.toContain("Characters");
+		expect(sectionLabels(workbench)).not.toContain("Relationships");
 	});
 });
 

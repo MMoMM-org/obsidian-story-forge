@@ -13,6 +13,10 @@
  *   6. Owns        (object backlinks via owner; collapsed when empty)
  *   7. Related     (location + lore backlinks)
  *
+ * With the Library wired (`deps.collections`, T7.1d3) 4, 6 and 7 become one section per built-in
+ * collection whose Workbench switch is on (P6); only the links no built-in claims keep their old
+ * place, and only when there are some.
+ *
  * @ref mockups.html S32–S35
  * @ref SDD/ADR-9 (conditional fantasy sub-block)
  * @ref SDD/ADR-2 (pure DOM components; deps injected)
@@ -38,6 +42,7 @@ import { kindFields } from "panel/kindFields";
 import { renderFactsSection, tileFieldOf, tileImage } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
+import { renderCollectionSections, type PanelCollections, type SectionCandidate } from "panel/collectionSections";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -85,6 +90,11 @@ export function renderCharacter(
 	renderProfile(el, name, frontmatter, deps, tileField);
 	renderFacts(el, frontmatter, tileField);
 	renderFantasy(el, frontmatter, tileField);
+	if (deps.collections) {
+		renderCollectionLinks(el, ctx, deps.collections);
+		renderAppearsIn(el, backlinks);
+		return;
+	}
 	renderRelationships(el, entities);
 	renderAppearsIn(el, backlinks);
 	renderOwns(el, backlinks);
@@ -180,6 +190,39 @@ function renderFantasy(el: HTMLElement, frontmatter: Record<string, unknown>, ti
 	for (const field of present) {
 		factRow(bodyEl, humanizeFieldLabel(field), stringifyFieldValue(frontmatter[field]));
 	}
+}
+
+const isOwned = (b: ResolvedEntity): boolean => b.kind === "object" && b.field === "owner";
+const isInhabited = (b: ResolvedEntity): boolean => b.kind === "location" && b.field === "inhabitants";
+const isLoreLink = (b: ResolvedEntity): boolean => b.kind === "lore";
+
+/** Every link the old Relationships, Owns and Related groupings drew, with the key each section draws it under. */
+function linkCandidates(ctx: NoteContext): SectionCandidate[] {
+	const relations = new Set(kindFields("character").relations);
+	const outgoing = ctx.entities
+		.filter((e) => !e.unresolved && e.field !== undefined && relations.has(e.field))
+		.map((entity): SectionCandidate => ({ entity, key: humanizeFieldLabel(entity.field ?? "") }));
+	const owned = ctx.backlinks.filter(isOwned).map((entity): SectionCandidate => ({ entity, key: "owns" }));
+	const related = ctx.backlinks
+		.filter((b) => isInhabited(b) || isLoreLink(b))
+		.map((entity): SectionCandidate => ({ entity, key: humanizeFieldLabel(entity.field ?? "related") }));
+	return [...outgoing, ...owned, ...related];
+}
+
+/**
+ * P6: one section per Workbench-on built-in collection. What no built-in claims is drawn as before
+ * (unresolved links, a target outside every collection), and only when there is any.
+ */
+function renderCollectionLinks(el: HTMLElement, ctx: NoteContext, collections: PanelCollections): void {
+	const candidates = linkCandidates(ctx);
+	const unclaimed = new Set(renderCollectionSections(el, candidates, collections).map((c) => c.entity));
+	const claimed = new Set(candidates.map((c) => c.entity).filter((e) => !unclaimed.has(e)));
+	const relations = new Set(kindFields("character").relations);
+	const outgoing = ctx.entities.filter((e) => !claimed.has(e) && e.field !== undefined && relations.has(e.field));
+	if (outgoing.length > 0) renderRelationships(el, outgoing);
+	const backlinks = ctx.backlinks.filter((b) => !claimed.has(b));
+	if (backlinks.some(isOwned)) renderOwns(el, backlinks);
+	if (backlinks.some((b) => isInhabited(b) || isLoreLink(b))) renderRelated(el, backlinks);
 }
 
 function renderRelationships(el: HTMLElement, entities: ResolvedEntity[]): void {

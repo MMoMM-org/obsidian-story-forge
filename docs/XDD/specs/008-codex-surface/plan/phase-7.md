@@ -31,7 +31,7 @@ finally learns what the optional plugins are for.
 
 ## Tasks
 
-> **Note from T6.2b (2026-11-02):** the Workbench's Codex tab must pass `createCardTileField` to `renderCodexTab`. `CodexTabOptions.tileField` is required, so TypeScript catches an omission.
+> **Note from T6.2b (2026-11-02):** the Workbench's Codex tab must pass `createCardTileField` to `renderCodexTab`. `CodexTabOptions.tileField` is required, so TypeScript catches an omission. *(Moot: the Workbench does not host `renderCodexTab`; see the T7.1d3 decisions.)*
 
 Closes the gap that started this whole spec: the distribution machinery served five static files.
 
@@ -71,7 +71,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   >   Card, Dataview in the Anvil, `+ Collection`, fallback after removal (L6a, L6b, L8b, P5, P8, P9,
   >   P15); the Workbench Codex sections per built-in toggle and a tab per imported collection
   >   (L7a, L7b, P6, P7).
-  >   **d1 wiring is done** (see the T7.1d1 decisions). **d2 Anvil is done** (see the T7.1d2 decisions). **Carried over from T7.1a:** a Dataview import still creates `kind:"view"`, so either the
+  >   **d1 wiring is done** (see the T7.1d1 decisions). **d2 Anvil is done** (see the T7.1d2 decisions). **d3 Workbench is done** (see the T7.1d3 decisions). **Carried over from T7.1a:** a Dataview import still creates `kind:"view"`, so either the
   >   importer emits `kind:"collection"` or `migrate()` must not count new imports; `SidebarView`
   >   and the engines must render a migrated Dataview `kind:"collection"` record; collection
   >   resolution must read a built-in's own excluded folders and tag override; `configureBuiltIn`
@@ -495,4 +495,40 @@ Closes the gap that started this whole spec: the distribution machinery served f
     then Context, then the fixed Navigator", "two views: both appear before Context (Navigator is last)", "Home moves to
     first tab" (now starts from the last view tab and lands on Codex) and "End moves to the last tab" (now starts from
     Codex and lands on the view tab). Each asserted the old order; none was weakened.
+  - *The Codex tab's sections are rows, not Cards; `renderCodexTab` and the T6.2b note are moot for the Workbench.*
+    L7a draws each section as `wb-row` lines (name left, relation key right), and S95 says the tab "mostly renames what is
+    already built": the Workbench's Codex tab is the per-kind panel (`NativeScopingEngine` and `src/panel/renderers/*`), which
+    never called `renderCodexTab` (that is the Anvil's card grid). So no tile field is passed anywhere on this surface; the
+    T6.2b note ("pass `createCardTileField`") has nothing to attach to. A row is `linkRow`'s `data-sf-link` span, so a click
+    reaches the same delegated handler and `NavigationController` markers as every other Workbench link (F2: inspect in
+    place; modifier opens the note; a click writes nothing).
+  - *P6: what is regrouped.* Only the character panel (the S95 / L7a subject). The Relationships grouping (outgoing links in
+    `significant_other`, `family`, `friends`, `allies`, `enemies`), the Owns grouping (object backlinks via `owner`) and the
+    Related grouping (location backlinks via `inhabitants`, lore backlinks) are replaced by one section per built-in whose
+    Workbench switch is on, in Library order, with a count. Principle: a built-in collection's targets live in its section;
+    everything else is unchanged. Keys: the relation field (`allies`, `family`), `owns` for an owned object (the word L7a
+    draws), the backlink's own field for a location (`inhabitants`) and a lore note. The other kinds' panels (location,
+    object, lore, scene, plotline, book) keep their named sections (Inhabitants, Owner, Related, Characters…): they are not
+    a Relations grouping, and regrouping them is not drawn. **Open for the user:** whether a location, scene or lore panel
+    should also honour the switches.
+  - *What stays where it was.* A link no built-in claims: an unresolved link, or a target outside every collection (tag
+    changed, own excluded folder). The old Relationships / Owns / Related section is drawn for those alone, and only when
+    there are any (P6 omits an empty section; the "No relationships yet." lines are gone in this mode). *Appears in* is
+    unchanged (scenes are not a collection). A built-in with its switch off, or its checkbox off, still *claims* its notes:
+    they are hidden, not demoted to Relationships (L7a: Objects off means absent).
+  - *Membership is the store's.* `src/panel/collectionSections.ts` asks `resolveCollection` (the d1 rule) with the built-in's
+    own tag, which may be the user's override, and its own excluded folders, against the target's tags. The first built-in
+    in Library order that holds a note claims it.
+  - *Where it is wired.* `NativeScopingEngine` takes the Library's rows (`() => library.snapshot()`) as a third argument and
+    hands `PanelDeps.collections` to the renderers; `main.ts` passes it. Without it (an engine built bare, as most panel
+    tests do) the character panel keeps its old three groupings, the same optional-dependency convention as the view's
+    other seams. The Codex tab redraws through `_onSubjectChanged` (the path that protects an edit in progress) when a
+    built-in's Workbench switch, tag or excluded folders change, and not for any other Library change.
+  - *Known limit (pre-existing).* A link whose target does not exist is drawn by `unresolvedEl(file.basename)`, and the
+    resolver's placeholder has no basename, so the unresolved row's text is empty in the Workbench. Unchanged here, since
+    these links stay where they were; worth its own fix.
+  - *Changed existing tests.* None in this step: the sections are drawn only when the Library is wired, so every existing
+    character-panel test (`character.test.ts`, `panelCharacterization`, `panel-pipeline`, `NativeScopingEngine.test.ts`)
+    still asserts the old groupings through a bare engine. The new behaviour is pinned in
+    `SidebarView.library.test.ts` (24 tests, with the tabs) and `anvilLibrary.endToEnd.test.ts` (5).
 

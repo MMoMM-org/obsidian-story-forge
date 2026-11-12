@@ -7,7 +7,7 @@
  * stale render is visible.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { App, Plugin, WorkspaceLeaf, createMockCachedMetadata, createMockTFile, type TFile } from "obsidian";
+import { App, Plugin, WorkspaceLeaf, createMockCachedMetadata, createMockFrontmatterLink, createMockTFile, type CachedMetadata, type TFile } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import { workbenchTabs } from "library/collectionStore";
@@ -17,7 +17,7 @@ import type { PluginDataPort, StoryForgeData, ViewRecord } from "store/types";
 import { DEFAULT_SETTINGS, normalizeSettings } from "types/index";
 import type { QueryEngine, EngineRegistry } from "engines/QueryEngine";
 import type { ConsentGate } from "consent/ConsentGate";
-import type { NativeScopingEngine } from "engines/NativeScopingEngine";
+import { NativeScopingEngine } from "engines/NativeScopingEngine";
 
 const MARA = createMockTFile({ basename: "Mara Stoneway", path: "30 Canon/31 Characters/Mara Stoneway.md" });
 
@@ -47,6 +47,13 @@ function standardViews(): Record<string, ViewRecord> {
 	};
 }
 
+/** A vault for the Codex sections: Mara and what links to or from her. */
+interface Vault {
+	readonly notes: ReadonlyMap<TFile, CachedMetadata>;
+	/** The registered native engine reads the real panel, with the Library's sections. */
+	readonly native: true;
+}
+
 interface World {
 	readonly app: App;
 	readonly views: ViewStore;
@@ -64,10 +71,11 @@ afterEach(async () => {
 
 const settle = async (): Promise<void> => { for (let i = 0; i < 20; i++) await new Promise<void>((r) => setTimeout(r, 0)); };
 
-async function makeWorld(views: Record<string, ViewRecord> = standardViews()): Promise<World> {
+async function makeWorld(views: Record<string, ViewRecord> = standardViews(), vault?: Vault): Promise<World> {
 	const app = new App();
-	vi.mocked(app.metadataCache.getFileCache).mockImplementation(() =>
-		createMockCachedMetadata({ tags: [{ tag: "#canon/character" }], frontmatter: {} }));
+	vi.mocked(app.metadataCache.getFileCache).mockImplementation((f: TFile) =>
+		vault?.notes.get(f) ?? createMockCachedMetadata({ tags: [{ tag: "#canon/character" }], frontmatter: {} }));
+	if (vault) wireVault(app, vault);
 	app.workspace.getActiveFile = vi.fn(() => MARA);
 	let data: StoryForgeData = { views: structuredClone(views), settings: { ...DEFAULT_SETTINGS } };
 	const port: PluginDataPort = {
@@ -86,7 +94,8 @@ async function makeWorld(views: Record<string, ViewRecord> = standardViews()): P
 	});
 	const registry = { get: (kind: QueryEngine["kind"]) => engine(kind) } as unknown as EngineRegistry;
 	const gate = { evaluate: vi.fn(async () => ({ status: "consented" })) } as unknown as ConsentGate;
-	const native = { kind: "native", teardown: vi.fn(), render: vi.fn(async (_v: unknown, _c: unknown, el: HTMLElement) => { el.textContent = "native"; }) } as unknown as NativeScopingEngine;
+	const stub = { kind: "native", teardown: vi.fn(), render: vi.fn(async (_v: unknown, _c: unknown, el: HTMLElement) => { el.textContent = "native"; }) } as unknown as NativeScopingEngine;
+	const native = vault ? new NativeScopingEngine(app, undefined, () => library.snapshot()) : stub;
 	return {
 		app, views: store, library, subscribers, engineSeen,
 		open: async () => {
@@ -283,5 +292,197 @@ describe("the Library subscription", () => {
 		await w.library.collections.setSurface("orgs", "workbench", true);
 		await settle();
 		expect(view.contentEl.innerHTML).toBe(before);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// 2 · the Codex tab's sections (P6, D3, L7a)
+// ---------------------------------------------------------------------------
+
+const note = (name: string, folder: string): TFile => createMockTFile({ basename: name, path: `${folder}/${name}.md` });
+const CHARACTERS = "30 Canon/31 Characters";
+const TOBIAS = note("Tobias Ferro", CHARACTERS);
+const ELKE = note("Elke Stoneway", CHARACTERS);
+const HARBOR = note("Moonharbor", "30 Canon/32 Locations");
+const SEAL = note("The Warden's Seal", "30 Canon/33 Objects");
+const OATH = note("The Warden's Oath", "30 Canon/34 Lore");
+const SCENE = note("The Extinguished Fire", "10 Manuscript");
+const FILES = [MARA, TOBIAS, ELKE, HARBOR, SEAL, OATH, SCENE];
+
+const cache = (tag: string, links: Array<[string, string]> = []): CachedMetadata =>
+	createMockCachedMetadata({ tags: [{ tag }], frontmatter: {}, frontmatterLinks: links.map(([k, l]) => createMockFrontmatterLink(k, l)) });
+
+function maraVault(over: Array<[TFile, CachedMetadata]> = []): Vault {
+	const notes = new Map<TFile, CachedMetadata>([
+		[MARA, cache("#canon/character", [["allies.0", "Tobias Ferro"], ["family.0", "Elke Stoneway"]])],
+		[TOBIAS, cache("#canon/character")],
+		[ELKE, cache("#canon/character")],
+		[HARBOR, cache("#canon/location", [["inhabitants.0", "Mara Stoneway"]])],
+		[SEAL, cache("#canon/object", [["owner", "Mara Stoneway"]])],
+		[OATH, cache("#canon/lore", [["related.0", "Mara Stoneway"]])],
+		[SCENE, cache("#manuscript/scene", [["pov", "Mara Stoneway"]])],
+		...over,
+	]);
+	return { notes, native: true };
+}
+
+function wireVault(app: App, vault: Vault): void {
+	const byLink = new Map(FILES.map((f) => [f.basename, f]));
+	const byPath = new Map(FILES.map((f) => [f.path, f]));
+	vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((l: string) => byLink.get(l) ?? null);
+	vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p: string) => byPath.get(p) ?? null);
+	vi.mocked(app.vault.getMarkdownFiles).mockReturnValue(FILES);
+	app.metadataCache.resolvedLinks = Object.fromEntries(
+		[HARBOR, SEAL, OATH, SCENE].map((f) => [f.path, { [MARA.path]: 1 }]));
+	void vault;
+}
+
+interface Drawn { readonly label: string; readonly count: string | null; readonly rows: Array<[string, string | null]> }
+const sections = (v: SidebarView): Drawn[] =>
+	[...v.contentEl.querySelectorAll<HTMLElement>(".sf-section")].map((s) => ({
+		label: s.querySelector(".sf-sec-label")?.textContent ?? "",
+		count: s.querySelector(".sf-count")?.textContent ?? null,
+		rows: [...s.querySelectorAll<HTMLElement>(".sf-lrow-lnk")].map((l): [string, string | null] =>
+			[l.textContent ?? "", l.parentElement?.querySelector(".sf-trail")?.textContent ?? null]),
+	}));
+const labelsOf = (v: SidebarView): string[] => sections(v).map((s) => s.label);
+const BUILT_IN_LABELS = ["Characters", "Locations", "Objects", "Lore"];
+const builtInSections = (v: SidebarView): string[] => labelsOf(v).filter((l) => BUILT_IN_LABELS.includes(l));
+
+describe("the Codex tab's sections", () => {
+	it("are the built-ins with Workbench on, in Library order, each listing only the note's links into it", async () => {
+		const view = await (await makeWorld({}, maraVault())).open();
+
+		const byLabel = Object.fromEntries(sections(view).map((s) => [s.label, s]));
+		expect(builtInSections(view)).toEqual(["Characters", "Locations", "Objects", "Lore"]);
+		expect(byLabel["Characters"]).toMatchObject({ count: "2", rows: [["Tobias Ferro", "allies"], ["Elke Stoneway", "family"]] });
+		expect(byLabel["Locations"]?.rows).toEqual([["Moonharbor", "inhabitants"]]);
+		expect(byLabel["Objects"]?.rows).toEqual([["The Warden's Seal", "owns"]]);
+		expect(byLabel["Lore"]?.rows).toEqual([["The Warden's Oath", "related"]]);
+	});
+
+	it("drop the single Relations grouping, and keep Appears in", async () => {
+		const view = await (await makeWorld({}, maraVault())).open();
+
+		expect(labelsOf(view)).not.toContain("Relationships");
+		expect(labelsOf(view)).not.toContain("Relations");
+		expect(labelsOf(view)).not.toContain("Owns");
+		expect(labelsOf(view)).toContain("Appears in");
+	});
+
+	it("leave out a built-in whose Workbench switch is off, and show its links nowhere else", async () => {
+		const w = await makeWorld({}, maraVault());
+		const view = await w.open();
+
+		await w.library.collections.setSurface("object", "workbench", false);
+		await settle();
+
+		expect(builtInSections(view)).toEqual(["Characters", "Locations", "Lore"]);
+		expect(bodyText(view)).not.toContain("The Warden's Seal");
+	});
+
+	it("rebuild live when a switch or a checkbox moves, and bring the section back", async () => {
+		const w = await makeWorld({}, maraVault());
+		const view = await w.open();
+
+		await w.library.collections.setEnabled("lore", false);
+		await settle();
+		expect(builtInSections(view)).toEqual(["Characters", "Locations", "Objects"]);
+
+		await w.library.collections.setEnabled("lore", true);
+		await settle();
+		expect(builtInSections(view)).toEqual(["Characters", "Locations", "Objects", "Lore"]);
+	});
+
+	it("follow the built-in's own tag: a note outside it moves out of the section, not out of the panel", async () => {
+		const w = await makeWorld({}, maraVault([[ELKE, cache("#cast")]]));
+		const view = await w.open();
+
+		await w.library.collections.configureBuiltIn("character", { tag: "cast" });
+		await settle();
+
+		const drawn = sections(view);
+		expect(drawn.find((s) => s.label === "Characters")?.rows).toEqual([["Elke Stoneway", "family"]]);
+		expect(drawn.find((s) => s.label === "Relationships")?.rows.map((r) => r[0])).toEqual(["Tobias Ferro"]);
+	});
+
+	it("follow the built-in's own excluded folders", async () => {
+		const w = await makeWorld({}, maraVault());
+		const view = await w.open();
+
+		await w.library.collections.configureBuiltIn("location", { excludedFolders: ["30 Canon/32 Locations"] });
+		await settle();
+
+		expect(builtInSections(view)).not.toContain("Locations");
+		expect(sections(view).find((s) => s.label === "Related")?.rows).toEqual([["Moonharbor", null]]);
+	});
+
+	it("keep a link that no built-in claims where it is, and omit a section with nothing in it", async () => {
+		const view = await (await makeWorld({}, maraVault([[TOBIAS, cache("#draft")], [ELKE, cache("#draft")]]))).open();
+
+		expect(builtInSections(view)).toEqual(["Locations", "Objects", "Lore"]);
+		expect(sections(view).find((s) => s.label === "Relationships")?.rows.map((r) => r[0])).toEqual(["Elke Stoneway", "Tobias Ferro"]);
+	});
+
+	it("keep an owned object no built-in claims in Owns, as before", async () => {
+		const w = await makeWorld({}, maraVault());
+		const view = await w.open();
+
+		await w.library.collections.configureBuiltIn("object", { excludedFolders: ["30 Canon/33 Objects"] });
+		await settle();
+
+		expect(builtInSections(view)).not.toContain("Objects");
+		expect(sections(view).find((s) => s.label === "Owns")?.rows).toEqual([["The Warden's Seal", null]]);
+	});
+
+	it("keep an unresolved link in Relationships, where it always was", async () => {
+		const view = await (await makeWorld({}, maraVault([[MARA, cache("#canon/character", [["allies.0", "Tobias Ferro"], ["enemies.0", "Nobody Known"]])]]))).open();
+
+		const relationships = [...view.contentEl.querySelectorAll<HTMLElement>(".sf-section")].find((e) => e.querySelector(".sf-sec-label")?.textContent === "Relationships");
+		expect(relationships?.querySelectorAll(".sf-unres")).toHaveLength(1);
+		expect(sections(view).find((s) => s.label === "Characters")?.rows).toEqual([["Tobias Ferro", "allies"]]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// 5 · a row click goes through the NavigationController's markers (F2)
+// ---------------------------------------------------------------------------
+
+describe("a Codex section row", () => {
+	const row = (v: SidebarView, name: string): HTMLElement => {
+		const found = [...v.contentEl.querySelectorAll<HTMLElement>(".sf-section .sf-lrow-lnk")].find((l) => l.textContent === name);
+		if (!found) throw new Error(`no row ${name}`);
+		return found;
+	};
+
+	it("carries the name marker the NavigationController classifies, with the entry's path", async () => {
+		const view = await (await makeWorld({}, maraVault())).open();
+
+		const link = row(view, "Tobias Ferro");
+		expect(link.getAttribute("data-sf-link")).toBe(TOBIAS.path);
+		expect(link.getAttribute("role")).toBe("link");
+		expect(link.getAttribute("tabindex")).toBe("0");
+	});
+
+	it("inspects in place on a bare click: the panel re-subjects and follow is suspended", async () => {
+		const w = await makeWorld({}, maraVault());
+		const view = await w.open();
+
+		click(row(view, "Tobias Ferro"));
+		await settle();
+
+		expect(view.contentEl.querySelector(".sf-trailrow")?.textContent).toBe("from Mara Stoneway › Tobias Ferro");
+		expect(vi.mocked(w.app.workspace.openLinkText)).not.toHaveBeenCalled();
+	});
+
+	it("opens the note on a modifier click, and a click writes nothing", async () => {
+		const w = await makeWorld({}, maraVault());
+		const view = await w.open();
+
+		row(view, "Tobias Ferro").dispatchEvent(new MouseEvent("click", { bubbles: true, metaKey: true }));
+
+		expect(vi.mocked(w.app.workspace.openLinkText)).toHaveBeenCalledWith(TOBIAS.path, expect.any(String), false);
+		expect(vi.mocked(w.app.fileManager.processFrontMatter)).not.toHaveBeenCalled();
+		expect(vi.mocked(w.app.vault.modify)).not.toHaveBeenCalled();
 	});
 });

@@ -20,6 +20,8 @@ import type { FileClassSource } from "fileclass/fileClassVault";
 import { createLinkedImageResolver } from "panel/assetResolver";
 import { resolveTileField } from "panel/tileField";
 import { renderPanel } from "panel/renderPanel";
+import { buildPanelCollections } from "panel/collectionSections";
+import type { LibraryCollection } from "library/collectionStore";
 import type { PanelDeps } from "panel/renderPanel";
 
 export class NativeScopingEngine implements QueryEngine {
@@ -38,8 +40,14 @@ export class NativeScopingEngine implements QueryEngine {
 	/**
 	 * @param fileClasses  the plugin's FileClass cache. Omitted, the panel uses the
 	 *        native field names only.
+	 * @param library  the Library's collections as last read (T7.1d3). Omitted, the panel keeps
+	 *        its own link groupings instead of one section per built-in collection.
 	 */
-	constructor(private readonly app: App, private readonly fileClasses?: FileClassSource) {}
+	constructor(
+		private readonly app: App,
+		private readonly fileClasses?: FileClassSource,
+		private readonly library?: () => readonly LibraryCollection[],
+	) {}
 
 	/**
 	 * Render entity context from NoteContext into `el` using the per-kind renderer.
@@ -95,6 +103,7 @@ export class NativeScopingEngine implements QueryEngine {
 			resolveAsset: createLinkedImageResolver(this.app, ctx.activeFile.path),
 			// FileClass resolution reads metadataCache synchronously: nothing to await.
 			tileField: this._tileField(ctx),
+			collections: this.library ? buildPanelCollections(this.app, this.library()) : undefined,
 		};
 		return deps;
 	}

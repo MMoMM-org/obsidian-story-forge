@@ -16,6 +16,7 @@
  */
 
 import type { NoteContext, EntityKind } from "scoping/NoteContext";
+import type { PanelCollections } from "panel/collectionSections";
 import { renderCharacter } from "panel/renderers/character";
 import { renderLocation } from "panel/renderers/location";
 import { renderObject } from "panel/renderers/object";
@@ -47,6 +48,12 @@ export interface PanelDeps {
 	 * the native `kindFields` name applies (CON-3).
 	 */
 	tileField?: string | null;
+	/**
+	 * The Library's built-in collections (T7.1d3): the character panel groups its links into one
+	 * section per Workbench-on collection (P6). Absent: no Library is wired, and the panel keeps
+	 * its own Relationships, Owns and Related groupings.
+	 */
+	collections?: PanelCollections;
 }
 
 /** The common signature for all per-kind panel renderers. */

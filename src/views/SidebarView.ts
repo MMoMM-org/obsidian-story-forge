@@ -261,6 +261,8 @@ export class SidebarView extends ItemView {
 	// non-Card record is one, as before the Library existed.
 	private readonly library: Pick<LibraryWiring, "snapshot" | "onChange"> | null;
 	private _unsubscribeLibrary: (() => void) | null = null;
+	/** The built-ins' section-relevant state as last drawn, so a change that moves no section redraws nothing. */
+	private _sectionsKey = "";
 
 	// M5: Navigator tab state. Collapse persists per (surface, scope, group) so it
 	// survives the follow re-render; the plotline filter narrows the scene list.
@@ -366,6 +368,7 @@ export class SidebarView extends ItemView {
 			void this._reloadViews();
 		}
 		this._followLibrary();
+		this._sectionsKey = this._sectionsSignature();
 
 		// Defer first resolve to layout-ready (ADR-5)
 		this.app.workspace.onLayoutReady(() => {
@@ -1323,6 +1326,23 @@ export class SidebarView extends ItemView {
 	/** T7.1d3: the Library changed (a switch, a checkbox, an import, a removal): rebuild the tabs live. */
 	private _onLibraryChange(): void {
 		this._refreshTabs(this.currentRecord);
+		this._refreshSections();
+	}
+
+	/**
+	 * The Codex tab's sections (P6) depend on each built-in's Workbench switch, tag and excluded
+	 * folders. Redraw the subject, through the path that protects an edit in progress, when one moved.
+	 */
+	private _refreshSections(): void {
+		const key = this._sectionsSignature();
+		if (key === this._sectionsKey) return;
+		this._sectionsKey = key;
+		if (this.selectedViewId === null && this.subject.file) this._onSubjectChanged(this.subject.file);
+	}
+
+	private _sectionsSignature(): string {
+		const rows = (this.library?.snapshot() ?? []).filter((c) => c.provenance === "built-in");
+		return JSON.stringify(rows.map((c) => [c.id, c.effective.workbench, c.tag, c.excludedFolders]));
 	}
 
 	private _followLibrary(): void {
