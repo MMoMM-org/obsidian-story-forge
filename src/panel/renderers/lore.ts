@@ -25,6 +25,7 @@ import { kindFields } from "panel/kindFields";
 import { renderFactsSection } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
+import { claimLinks, type SectionCandidate } from "panel/collectionSections";
 
 /**
  * Render the lore context panel into `el`.
@@ -36,13 +37,23 @@ import type { PanelDeps } from "panel/renderPanel";
 export function renderLore(
 	ctx: NoteContext,
 	el: HTMLElement,
-	_deps: PanelDeps,
+	deps: PanelDeps,
 ): void {
 	const { frontmatter, entities, backlinks } = ctx;
 
 	renderFacts(el, frontmatter);
-	renderRelated(el, entities);
-	renderReferencedBy(el, backlinks);
+	// T7.1d3: notes a Workbench-on built-in claims are its sections, not Related or Referenced by.
+	const stays = claimLinks(el, linkCandidates(ctx), deps.collections);
+	const quiet = deps.collections !== undefined;
+	renderRelated(el, entities.filter(stays), quiet);
+	renderReferencedBy(el, backlinks.filter(stays), quiet);
+}
+
+/** Related notes (outgoing) and every backlink, each under its own field; scenes and the like are claimed by nobody. */
+function linkCandidates(ctx: NoteContext): SectionCandidate[] {
+	const related = ctx.entities.filter((e) => e.field === "related").map((entity): SectionCandidate => ({ entity, key: "related" }));
+	const referencing = ctx.backlinks.map((entity): SectionCandidate => ({ entity, key: entity.field ?? "related" }));
+	return [...related, ...referencing];
 }
 
 // ---------------------------------------------------------------------------
@@ -53,8 +64,9 @@ function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>): voi
 	renderFactsSection(el, kindFields("lore").facts, frontmatter);
 }
 
-function renderRelated(el: HTMLElement, entities: ResolvedEntity[]): void {
+function renderRelated(el: HTMLElement, entities: ResolvedEntity[], omitWhenEmpty: boolean): void {
 	const related = entities.filter((e) => e.field === "related");
+	if (omitWhenEmpty && related.length === 0) return;
 	const { bodyEl } = section(el, "Related", { count: related.length });
 
 	if (related.length === 0) {
@@ -67,7 +79,8 @@ function renderRelated(el: HTMLElement, entities: ResolvedEntity[]): void {
 	}
 }
 
-function renderReferencedBy(el: HTMLElement, backlinks: ResolvedEntity[]): void {
+function renderReferencedBy(el: HTMLElement, backlinks: ResolvedEntity[], omitWhenEmpty: boolean): void {
+	if (omitWhenEmpty && backlinks.length === 0) return;
 	// ADR-8: include fuzzy:true entries — lore is referenced via body links too
 	const { bodyEl } = section(el, "Referenced by", { count: backlinks.length });
 

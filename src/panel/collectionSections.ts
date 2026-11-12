@@ -58,6 +58,12 @@ export function buildPanelCollections(app: App, rows: readonly BuiltInRow[]): Pa
 	};
 }
 
+/** One row per note and key: a note both linked to and linking back with the same key is listed once. */
+function withRow(rows: SectionCandidate[], next: SectionCandidate): SectionCandidate[] {
+	const same = (c: SectionCandidate): boolean => c.entity.file.path === next.entity.file.path && c.key === next.key;
+	return rows.some(same) ? rows : [...rows, next];
+}
+
 function drawSection(el: HTMLElement, label: string, rows: readonly SectionCandidate[]): void {
 	const { bodyEl } = section(el, label, { count: rows.length });
 	for (const { entity, key } of rows) {
@@ -79,11 +85,28 @@ export function renderCollectionSections(
 	for (const candidate of candidates) {
 		const id = collections.collectionOf(candidate.entity.file);
 		if (id === null) unclaimed.push(candidate);
-		else byCollection.set(id, [...(byCollection.get(id) ?? []), candidate]);
+		else byCollection.set(id, withRow(byCollection.get(id) ?? [], candidate));
 	}
 	for (const { id, label } of collections.sections) {
 		const rows = byCollection.get(id) ?? [];
 		if (rows.length > 0) drawSection(el, label, rows);
 	}
 	return unclaimed;
+}
+
+/**
+ * A panel's one call (T7.1d3): draw the sections for the links it holds to built-in collections and
+ * learn which entities stay in the panel's own sections. Without a Library every entity stays and
+ * nothing is drawn. An unresolved link has no target to belong to, so it always stays.
+ */
+export function claimLinks(
+	el: HTMLElement,
+	candidates: readonly SectionCandidate[],
+	collections: PanelCollections | undefined,
+): (entity: ResolvedEntity) => boolean {
+	if (!collections) return () => true;
+	const real = candidates.filter((c) => !c.entity.unresolved);
+	const unclaimed = new Set(renderCollectionSections(el, real, collections).map((c) => c.entity));
+	const claimed = new Set(real.map((c) => c.entity).filter((e) => !unclaimed.has(e)));
+	return (entity) => !claimed.has(entity);
 }

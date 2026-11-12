@@ -35,6 +35,7 @@ import { kindFields } from "panel/kindFields";
 import { renderFactsSection, tileFieldOf, tileImage } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
+import { claimLinks, type SectionCandidate } from "panel/collectionSections";
 
 /**
  * Render the location context panel into `el`.
@@ -55,9 +56,21 @@ export function renderLocation(
 	renderProfile(el, frontmatter, deps, tileField);
 	renderFacts(el, frontmatter, tileField);
 	renderWithin(el, basename, entities);
-	renderInhabitants(el, entities);
+	// T7.1d3: the people and places a Workbench-on built-in claims are its sections, not these.
+	const stays = claimLinks(el, linkCandidates(ctx), deps.collections);
+	renderInhabitants(el, entities.filter(stays), deps.collections !== undefined);
 	renderScenesHere(el, backlinks);
-	renderLocations(el, backlinks);
+	renderLocations(el, backlinks.filter(stays));
+}
+
+/** The links to built-in collections this panel draws: inhabitants (outgoing) and child locations (backlinks). */
+function linkCandidates(ctx: NoteContext): SectionCandidate[] {
+	const inhabitants = ctx.entities.filter((e) => e.field === "inhabitants");
+	const children = ctx.backlinks.filter((b) => b.kind === "location" && b.field === "world");
+	return [
+		...inhabitants.map((entity): SectionCandidate => ({ entity, key: "inhabitants" })),
+		...children.map((entity): SectionCandidate => ({ entity, key: "world" })),
+	];
 }
 
 // ---------------------------------------------------------------------------
@@ -130,8 +143,9 @@ function renderBreadcrumb(
 	bodyEl.appendChild(crumbEl);
 }
 
-function renderInhabitants(el: HTMLElement, entities: ResolvedEntity[]): void {
+function renderInhabitants(el: HTMLElement, entities: ResolvedEntity[], omitWhenEmpty: boolean): void {
 	const inhabitants = entities.filter((e) => e.field === "inhabitants");
+	if (omitWhenEmpty && inhabitants.length === 0) return;
 	const { bodyEl } = section(el, "Inhabitants", { count: inhabitants.length });
 
 	if (inhabitants.length === 0) {

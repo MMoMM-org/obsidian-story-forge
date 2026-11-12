@@ -28,6 +28,7 @@ import { kindFields } from "panel/kindFields";
 import { renderFactsSection, tileFieldOf, tileImage } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
+import { claimLinks } from "panel/collectionSections";
 
 /**
  * Render the object context panel into `el`.
@@ -46,7 +47,10 @@ export function renderObject(
 	const tileField = tileFieldOf("object", deps);
 	renderProfile(el, frontmatter, deps, tileField);
 	renderFacts(el, frontmatter, tileField);
-	renderOwner(el, entities);
+	// T7.1d3: an owner a Workbench-on built-in claims is drawn in its section, not here.
+	const owner = entities.filter((e) => e.field === "owner").map((entity) => ({ entity, key: "owner" }));
+	const stays = claimLinks(el, owner, deps.collections);
+	renderOwner(el, entities.filter(stays), deps.collections !== undefined);
 	renderAppearsIn(el, backlinks);
 }
 
@@ -75,8 +79,9 @@ function renderFacts(el: HTMLElement, frontmatter: Record<string, unknown>, tile
 	renderFactsSection(el, kindFields("object").facts.filter((f) => f !== tileField), frontmatter);
 }
 
-function renderOwner(el: HTMLElement, entities: ResolvedEntity[]): void {
+function renderOwner(el: HTMLElement, entities: ResolvedEntity[], omitWhenEmpty: boolean): void {
 	const ownerEntities = entities.filter((e) => e.field === "owner");
+	if (omitWhenEmpty && ownerEntities.length === 0) return;
 	const { bodyEl } = section(el, "Owner");
 
 	if (ownerEntities.length === 0) {

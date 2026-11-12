@@ -42,7 +42,7 @@ import { kindFields } from "panel/kindFields";
 import { renderFactsSection, tileFieldOf, tileImage } from "panel/renderers/shared";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
-import { renderCollectionSections, type PanelCollections, type SectionCandidate } from "panel/collectionSections";
+import { claimLinks, type PanelCollections, type SectionCandidate } from "panel/collectionSections";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -214,13 +214,11 @@ function linkCandidates(ctx: NoteContext): SectionCandidate[] {
  * (unresolved links, a target outside every collection), and only when there is any.
  */
 function renderCollectionLinks(el: HTMLElement, ctx: NoteContext, collections: PanelCollections): void {
-	const candidates = linkCandidates(ctx);
-	const unclaimed = new Set(renderCollectionSections(el, candidates, collections).map((c) => c.entity));
-	const claimed = new Set(candidates.map((c) => c.entity).filter((e) => !unclaimed.has(e)));
+	const stays = claimLinks(el, linkCandidates(ctx), collections);
 	const relations = new Set(kindFields("character").relations);
-	const outgoing = ctx.entities.filter((e) => !claimed.has(e) && e.field !== undefined && relations.has(e.field));
+	const outgoing = ctx.entities.filter((e) => stays(e) && e.field !== undefined && relations.has(e.field));
 	if (outgoing.length > 0) renderRelationships(el, outgoing);
-	const backlinks = ctx.backlinks.filter((b) => !claimed.has(b));
+	const backlinks = ctx.backlinks.filter(stays);
 	if (backlinks.some(isOwned)) renderOwns(el, backlinks);
 	if (backlinks.some((b) => isInhabited(b) || isLoreLink(b))) renderRelated(el, backlinks);
 }

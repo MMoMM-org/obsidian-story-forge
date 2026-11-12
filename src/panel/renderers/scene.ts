@@ -33,6 +33,7 @@ import {
 import { kindFields } from "panel/kindFields";
 import type { NoteContext, ResolvedEntity } from "scoping/NoteContext";
 import type { PanelDeps } from "panel/renderPanel";
+import { claimLinks, type SectionCandidate } from "panel/collectionSections";
 
 // ---------------------------------------------------------------------------
 // renderScene
@@ -48,15 +49,18 @@ import type { PanelDeps } from "panel/renderPanel";
 export function renderScene(
 	ctx: NoteContext,
 	el: HTMLElement,
-	_deps: PanelDeps,
+	deps: PanelDeps,
 ): void {
 	const { frontmatter, entities } = ctx;
 
 	renderSubtitle(el, frontmatter);
 	renderFacts(el, frontmatter, entities);
-	renderPointOfView(el, entities);
-	renderCharacters(el, entities);
-	renderLocation(el, entities);
+	// T7.1d3: the cast and the place a Workbench-on built-in claims are its sections, not these.
+	const stays = claimLinks(el, linkCandidates(entities), deps.collections);
+	const quiet = deps.collections !== undefined;
+	renderPointOfView(el, entities.filter(stays), quiet);
+	renderCharacters(el, entities.filter(stays), quiet);
+	renderLocation(el, entities.filter(stays), quiet);
 	renderPlotlines(el, entities);
 	renderReadingOrder(el, entities);
 }
@@ -64,6 +68,13 @@ export function renderScene(
 // ---------------------------------------------------------------------------
 // Section renderers (each under 20 lines, single responsibility)
 // ---------------------------------------------------------------------------
+
+/** The links to built-in collections this panel draws, each under its own field (pov, characters, location). */
+function linkCandidates(entities: ResolvedEntity[]): SectionCandidate[] {
+	return entities
+		.filter((e) => e.field === "pov" || e.field === "characters" || e.field === "location")
+		.map((entity): SectionCandidate => ({ entity, key: entity.field ?? "" }));
+}
 
 function renderSubtitle(el: HTMLElement, frontmatter: Record<string, unknown>): void {
 	const subtitle = frontmatter["subtitle"];
@@ -103,8 +114,9 @@ function renderFacts(
 	}
 }
 
-function renderPointOfView(el: HTMLElement, entities: ResolvedEntity[]): void {
+function renderPointOfView(el: HTMLElement, entities: ResolvedEntity[], omitWhenEmpty: boolean): void {
 	const povEntities = entities.filter((e) => e.field === "pov");
+	if (omitWhenEmpty && povEntities.length === 0) return;
 	const { bodyEl } = section(el, "Point of view");
 
 	if (povEntities.length === 0) {
@@ -121,8 +133,9 @@ function renderPointOfView(el: HTMLElement, entities: ResolvedEntity[]): void {
 	}
 }
 
-function renderCharacters(el: HTMLElement, entities: ResolvedEntity[]): void {
+function renderCharacters(el: HTMLElement, entities: ResolvedEntity[], omitWhenEmpty: boolean): void {
 	const charEntities = entities.filter((e) => e.field === "characters");
+	if (omitWhenEmpty && charEntities.length === 0) return;
 	const { bodyEl } = section(el, "Characters", { count: charEntities.length });
 
 	if (charEntities.length === 0) {
@@ -139,8 +152,9 @@ function renderCharacters(el: HTMLElement, entities: ResolvedEntity[]): void {
 	}
 }
 
-function renderLocation(el: HTMLElement, entities: ResolvedEntity[]): void {
+function renderLocation(el: HTMLElement, entities: ResolvedEntity[], omitWhenEmpty: boolean): void {
 	const locEntities = entities.filter((e) => e.field === "location");
+	if (omitWhenEmpty && locEntities.length === 0) return;
 	const { bodyEl } = section(el, "Location");
 
 	if (locEntities.length === 0) {
