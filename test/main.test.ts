@@ -977,6 +977,37 @@ describe("StoryForgePlugin — the Library wiring (T7.1d1)", () => {
 		expect(spy).toHaveBeenCalled();
 	});
 
+	it("a Scope edit made in Settings reaches built-ins that follow Scope, and not the ones with their own list", async () => {
+		settingsTabArgs.calls.length = 0;
+		const blob = { data: { settings: { excludedFolders: ["00 Meta"], builtInCollections: { lore: { excludedFolders: ["Drafts"] } } } } as unknown as StoryForgeData };
+		const { plugin, app } = await makePersistentPlugin(blob);
+		await plugin.onload();
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		const factory = plugin.registerView.mock.calls.find((c: unknown[]) => c[0] === WORKSPACE_VIEW_TYPE)?.[1] as (l: WorkspaceLeaf) => { getCollections(): { id: string; excludedFolders?: string[] }[] };
+		const view = factory(leaf);
+		const folders = (id: string) => view.getCollections().find((c) => c.id === id)?.excludedFolders;
+		const pills = () => view.getCollections().map((c) => c.id);
+		const before = pills();
+		const changed = vi.fn();
+		plugin.library.onChange(changed);
+		expect(folders("character")).toEqual(["00 Meta"]);
+
+		// The real path: the Scope text field in the settings tab.
+		const tab = plugin.addSettingTab.mock.calls.at(-1)?.[0] as { displayAsync(): Promise<void>; containerEl: HTMLElement };
+		await tab.displayAsync();
+		const field = [...tab.containerEl.querySelectorAll<HTMLInputElement>("input")].find((i) => i.placeholder === "00 Meta");
+		field!.value = "00 Meta, Archive";
+		field!.dispatchEvent(new Event("input", { bubbles: true }));
+		await new Promise((r) => setTimeout(r, 10));
+
+		expect(folders("character")).toEqual(["00 Meta", "Archive"]);
+		expect(folders("lore")).toEqual(["Drafts"]);
+		expect(pills()).toEqual(before);
+		expect(changed).toHaveBeenCalled();
+		expect(blob.data.settings?.excludedFolders).toEqual(["00 Meta", "Archive"]);
+	});
+
 	it("unsubscribes its own listeners on unload", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();

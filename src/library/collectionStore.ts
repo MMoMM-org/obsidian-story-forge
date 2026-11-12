@@ -283,6 +283,15 @@ export class CollectionStore {
 		return OK;
 	}
 
+	/**
+	 * Scope's excluded folders. A built-in with no list of its own follows it, so the change must
+	 * reach everything that shows such a row: it is a store write like any other.
+	 */
+	private async setScopeNow(folders: readonly string[]): Promise<Outcome> {
+		await this.port.saveSettings({ excludedFolders: [...folders] });
+		return OK;
+	}
+
 	/** P5, P16: drop the record and its Card choice. Never a built-in, never a file. */
 	private async removeNow(id: string): Promise<Outcome> {
 		if (isBuiltInId(id)) return REFUSE("A built-in collection can be disabled, not removed");
@@ -378,6 +387,10 @@ export class CollectionStore {
 
 	configureBuiltIn(id: string, patch: BuiltInConfigPatch): Promise<Outcome> {
 		return this.serial(() => this.configureBuiltInNow(id, patch), isOk);
+	}
+
+	setScope(folders: readonly string[]): Promise<Outcome> {
+		return this.serial(() => this.setScopeNow(folders), isOk);
 	}
 
 	remove(id: string): Promise<Outcome> {

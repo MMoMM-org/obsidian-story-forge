@@ -365,8 +365,9 @@ export class SettingsTab extends PluginSettingTab {
 							.split(",")
 							.map((s) => s.trim())
 							.filter((s) => s.length > 0);
-						this.plugin.settings.excludedFolders = normalizeExcludedFolders(parsed);
-						await this.plugin.saveSettings();
+						// Through the store, so built-ins that follow Scope, the live counts and
+						// the Anvil all hear about it (one change signal).
+						await this.collections.setScope(normalizeExcludedFolders(parsed));
 					}),
 			);
 	}

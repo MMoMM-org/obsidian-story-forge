@@ -523,6 +523,7 @@ describe("CollectionStore.subscribe", () => {
 		["setEnabled", (s) => s.setEnabled("mine", false)],
 		["setSurface", (s) => s.setSurface("mine", "workbench", true)],
 		["configureBuiltIn", (s) => s.configureBuiltIn("character", { tag: "canon/person" })],
+		["setScope", (s) => s.setScope(["Archive"])],
 		["remove", (s) => s.remove("mine")],
 		["setCardEnabled", (s) => s.setCardEnabled("card", false)],
 		["removeCard", (s) => s.removeCard("card")],

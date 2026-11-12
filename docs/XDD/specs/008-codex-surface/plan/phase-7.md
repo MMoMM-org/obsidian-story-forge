@@ -380,3 +380,12 @@ Closes the gap that started this whole spec: the distribution machinery served f
   - *Not tested, equivalent.* Removing the `collections.subscribe` unsubscribe in the unload hook
     while keeping the listener clear is not observable; `migrate()` being called again on every
     snapshot is idempotent by design.
+  - *Scope edits are a store write (review fix).* A built-in with no list of its own carries
+    Scope's list in its row, so a Scope edit has to reach the snapshot, the open lists and the
+    Anvil. The Scope field in Settings now calls `CollectionStore.setScope(folders)` instead of
+    writing `plugin.settings` directly: it is serialised, saved through the port, and signals like
+    every other write. The snapshot is rebuilt and `library.onChange` fires, so d2 repaints on it
+    with no extra hook; the Settings live count and Cards "Sample from" repaint from the same
+    signal. Chosen over reading Scope at call time in the snapshot because the lists in Settings
+    read the store, not the snapshot, and would have stayed stale. A built-in with its own list is
+    unaffected.

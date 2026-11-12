@@ -453,6 +453,18 @@ describe("L3a · a built-in", () => {
 		expect(text(q(panel, ".sf-lb-count"))).toBe("3 notes match: tagged canon/character, outside 00 Meta.");
 	});
 
+	it("a Scope edit changes the open panel's live count, with no reselect", async () => {
+		const w = await open();
+		const panel = await configure(w.root, "character");
+		expect(text(q(panel, ".sf-lb-count"))).toContain("3 notes match");
+
+		await w.collections.setScope([]);
+		await new Promise((r) => setTimeout(r, 0));
+
+		const after = q(item(w.root, "character"), ".sf-lb-count");
+		expect(text(after)).toBe("4 notes match: tagged canon/character.");
+	});
+
 	it("says 'No notes match this tag.' in the warning style when nothing matches, and 1 note in the singular", async () => {
 		const w = await open();
 		const lore = await configure(w.root, "lore");
