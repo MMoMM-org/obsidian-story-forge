@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — Catalog browser mockups (spec 008, L10 follow-up to P18)</title>
+<style>
+  /* ════════════════════════════════════════════════════════════════════════
+   * Tokens and page scaffolding copied from mockups-library.html (its addendum
+   * block: light default, dark behind [data-theme="dark"] and .th-dark).
+   * New mockup classes use the ct- prefix (catalog). The md- prefix draws the
+   * Obsidian modal shell.
+   * ════════════════════════════════════════════════════════════════════════ */
+  :root{
+    --bg:#ececec; --panel:#ffffff; --panel-2:#f5f5f6; --header:#fafafa;
+    --border:#e0e0e0; --border-2:#cfcfd4; --hover:#f0f0f2;
+    --text:#222222; --muted:#5c5c5c; --faint:#7d7d7d;
+    --accent:#8a5cf5; --link:#6b45d6;
+    --pill:#efeaff; --pill-text:#5f43b8;
+    --st-draft:#a85f00; --st-outline:#3a69b0; --st-written:#1d8a44;
+    --shadow:0 3px 12px rgba(0,0,0,.10);
+    --miss-bg:rgba(200,40,40,.08); --miss-bd:rgba(200,40,40,.40); --miss-tx:#b02a2a;
+    --ok-bg:rgba(29,138,68,.08); --ok-bd:rgba(29,138,68,.35);
+    --warn-bg:rgba(168,95,0,.08); --warn-bd:rgba(168,95,0,.35);
+    --mk-proposal:#a85f00; --mk-decision:#c0263a;
+    color-scheme:light;
+  }
+  [data-theme="dark"], .th-dark{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --link:#8b8bf0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    --st-draft:#e0a34a; --st-outline:#5b8bd0; --st-written:#6ac47a;
+    --shadow:0 4px 14px rgba(0,0,0,.35);
+    --miss-bg:rgba(214,92,92,.15); --miss-bd:rgba(214,92,92,.42); --miss-tx:#e79a9a;
+    --ok-bg:rgba(106,196,122,.12); --ok-bd:rgba(106,196,122,.38);
+    --warn-bg:rgba(224,163,74,.12); --warn-bd:rgba(224,163,74,.40);
+    --mk-proposal:#e0a34a; --mk-decision:#fb464c;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:34px 0 14px;border-bottom:1px solid var(--border);padding-bottom:6px;
+    text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  h2 .h2s{color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:96ch}
+  code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .banner{border:1px solid var(--border-2);border-left:3px solid var(--accent);background:var(--panel);
+    border-radius:6px;padding:10px 14px;margin:0 0 20px;max-width:110ch;font-size:12.5px;color:var(--muted)}
+  .banner b{color:var(--text)}
+  table.inv{border-collapse:collapse;font-size:12px;margin:0 0 8px}
+  table.inv th,table.inv td{border:1px solid var(--border);padding:4px 10px;text-align:left;vertical-align:top}
+  table.inv th{color:var(--faint);font-weight:600}
+  .gallery{display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-start;margin-bottom:6px}
+  figure{margin:0}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:40px;max-width:76ch}
+  figcaption b{color:var(--text);font-weight:600}
+  .note{font-size:11px;color:var(--faint);margin-top:7px;max-width:76ch}
+  .note b{color:var(--muted)}
+  .th-dark{background:var(--bg);color:var(--text);padding:14px;border-radius:8px}
+
+  .mk-toggle{position:fixed;top:14px;right:18px;display:flex;border:1px solid var(--border-2);
+    border-radius:6px;overflow:hidden;background:var(--panel);z-index:20}
+  .mk-toggle button{border:0;background:transparent;color:var(--muted);padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}
+  .mk-toggle button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  .mk-open{border:1px solid var(--mk-proposal);border-left:4px solid var(--mk-proposal);background:var(--panel);
+    border-radius:6px;padding:12px 16px;margin:0 0 22px;max-width:110ch}
+  .mk-open h3{margin:0 0 6px;font-size:13px;color:var(--mk-proposal);text-transform:uppercase;letter-spacing:.04em}
+  .mk-open ol{margin:0 0 6px;padding-left:22px}
+  .mk-open li{margin:0 0 9px;color:var(--muted);font-size:12.5px}
+  .mk-open li b{color:var(--text)}
+  .mk-open li .rec{display:block;color:var(--text);margin-top:2px}
+  .mk-tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:0 6px;border-radius:9px;vertical-align:middle;margin-left:4px}
+  .mk-tag.prop{color:var(--mk-proposal);border:1px solid var(--mk-proposal)}
+  .mk-tag.sdd{color:var(--st-written);border:1px solid var(--st-written)}
+  .mk-wrap{overflow-x:auto;max-width:100%}
+
+  /* ---- Obsidian modal shell ---- */
+  .md{width:760px;max-width:100%;background:var(--panel);border:1px solid var(--border-2);border-radius:10px;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+  .md.nar{width:400px}
+  .md-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 4px}
+  .md-head .t{font-size:15px;font-weight:600;color:var(--text);margin:0}
+  .md-head .x{margin-left:auto;color:var(--faint);font-size:13px;cursor:pointer}
+  .md-sub{padding:0 16px 10px;font-size:12px;color:var(--muted)}
+  .md-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 16px 10px}
+  .md-search{flex:1 1 200px;min-width:0;padding:5px 9px;border:1px solid var(--border-2);border-radius:5px;
+    background:var(--panel);color:var(--faint);font-size:12.5px}
+  .md-search.typed{color:var(--text)}
+  .md-search.foc{outline:2px solid var(--accent);outline-offset:1px}
+  .seg{display:flex;border:1px solid var(--border-2);border-radius:6px;overflow:hidden;flex:none}
+  .seg span{font-size:11px;padding:3px 9px;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .seg span+span{border-left:1px solid var(--border-2)}
+  .seg span.sel{background:var(--accent);color:#fff}
+  .seg span i{font-style:normal;opacity:.7;margin-left:3px}
+  .md-count{font-size:10.5px;color:var(--faint);padding:0 16px 6px}
+  .md-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
+  .btn{font:inherit;font-size:12px;border:1px solid var(--border-2);border-radius:5px;padding:4px 12px;
+    background:var(--panel);color:var(--text);cursor:pointer;white-space:nowrap}
+  .btn.cta{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.foc{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---- split: list | detail ---- */
+  .ct-split{display:grid;grid-template-columns:300px minmax(0,1fr);border-top:1px solid var(--border);min-height:300px}
+  .ct-split.one{grid-template-columns:minmax(0,1fr)}
+  .ct-list{border-right:1px solid var(--border);max-height:420px;overflow-y:auto;padding:4px 0;background:var(--panel)}
+  .ct-split.one .ct-list{border-right:none}
+  .ct-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;padding:7px 12px 7px 13px;cursor:pointer;
+    border-left:3px solid transparent}
+  .ct-row:hover{background:var(--hover)}
+  .ct-row.sel{background:var(--panel-2);border-left-color:var(--accent)}
+  .ct-row.foc{outline:2px solid var(--accent);outline-offset:-2px}
+  .ct-row.dim{opacity:.4}
+  .ct-name{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ct-line2{grid-column:1/-1;display:flex;gap:6px;align-items:center;min-width:0}
+  .ct-desc1{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .ct-eng{font-size:9.5px;padding:0 6px;border-radius:4px;border:1px solid var(--border-2);color:var(--muted);
+    font-family:ui-monospace,Menlo,Consolas,monospace;flex:none;line-height:16px}
+  .ct-st{font-size:10px;white-space:nowrap;align-self:center}
+  .ct-st.inst{color:var(--st-written)}
+  .ct-st.upd{color:var(--st-draft);border:1px solid var(--st-draft);border-radius:9px;padding:0 6px;font-weight:600}
+  .ct-st.cons{color:var(--faint)}
+
+  .ct-detail{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .ct-back{font-size:11.5px;color:var(--link);cursor:pointer}
+  .ct-dh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ct-dh .t{font-size:14px;font-weight:600;color:var(--text)}
+  .ct-dh .st{margin-left:auto}
+  .ct-ddesc{font-size:12.5px;color:var(--text);margin:0}
+  .ct-lbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:0 0 3px}
+  .ct-dest{font-size:12px;color:var(--text)}
+  .ct-path{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:var(--panel-2);
+    border:1px solid var(--border);border-radius:4px;padding:1px 6px;overflow-wrap:anywhere}
+  .ct-hint{font-size:10.5px;color:var(--faint);margin-top:3px}
+  .ct-q{margin:0;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;color:var(--text);background:var(--panel-2);
+    border:1px solid var(--border);border-radius:6px;padding:8px 10px;white-space:pre-wrap;overflow-wrap:anywhere;
+    max-height:150px;overflow-y:auto}
+  .ct-safe{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:flex-start}
+  .ct-safe::before{content:"✓";color:var(--st-written);font-weight:700}
+  .ct-consent{font-size:11.5px;color:var(--text);background:var(--warn-bg);border:1px solid var(--warn-bd);
+    border-radius:6px;padding:8px 10px}
+  .ct-consent b{color:var(--st-draft)}
+  .ct-act{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .ct-act .aside{font-size:11px;color:var(--faint)}
+  .ct-fb{font-size:11.5px;border-radius:6px;padding:7px 10px;border:1px solid}
+  .ct-fb.ok{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--text)}
+  .ct-fb.ok::before{content:"✓ ";color:var(--st-written);font-weight:700}
+  .ct-fb.err{background:var(--miss-bg);border-color:var(--miss-bd);color:var(--miss-tx)}
+  .ct-fb.neu{background:var(--panel-2);border-color:var(--border-2);color:var(--muted)}
+  .ct-fb .raw{display:block;margin-top:3px;font:10px ui-monospace,Menlo,Consolas,monospace;color:var(--faint);overflow-wrap:anywhere}
+  .ct-det{font-size:11px;color:var(--faint);border-top:1px solid var(--border);padding-top:8px}
+  .ct-det .sum{cursor:pointer;color:var(--muted)}
+  .ct-det dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;margin:6px 0 0}
+  .ct-det dt{color:var(--faint)}
+  .ct-det dd{margin:0;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;overflow-wrap:anywhere}
+  .ct-empty{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
+    color:var(--faint);font-size:12px;padding:30px 20px;gap:4px}
+  .ct-empty b{color:var(--muted);font-weight:600}
+  .ct-crop{width:440px;max-width:100%;background:var(--panel);border:1px solid var(--border-2);border-radius:8px;
+    box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+  .ct-crop .ctx{font-size:10.5px;color:var(--faint)}
+  .was{font-size:10.5px;color:var(--faint);margin:0}
+  .was code{font-size:10px}
+</style>
+</head>
+<body>
+
+<div class="mk-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-btn="light" aria-pressed="true">Light</button>
+  <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+</div>
+
+<h1>Story Forge — Collections from the repo <span style="color:var(--faint);font-weight:400;font-size:14px">· catalog browser L10a–L10i · follow-up to P18 · draft for sign-off</span></h1>
+
+<p class="sub"><b>Why this page exists.</b> <code>mockups-library.html</code> P18 (signed off) says: if the catalog
+browser needs more than a list of rows with an <i>Install</i> button, draw it as L10 before it is coded. T7.2 shipped
+<code>src/catalog/BrowseOfficialModal.ts</code> without that drawing, and its <code>sf-catalog-*</code> classes have no
+rules in <code>styles.css</code>. In Obsidian the modal is a stack of unframed lines, and the note source runs off the
+right edge. Two questions came back: <i>the styling is bad</i>, and <i>what does it look like with more than one
+entry?</i> This page answers both. It is the gate for the restyle. Nothing here changes what install, update or
+refusal <b>do</b>. They stay as T7.2 built them in <code>CatalogService</code>.</p>
+
+<div class="banner" style="border-left-color:var(--st-written)">
+<b>How to read this file.</b> Light theme is the default. The <b>Dark / Light</b> toggle (top right) switches every
+figure, and <b>L10i</b> is always dark. Tokens and scaffolding come from <code>mockups-library.html</code>. Tags:
+<span class="mk-tag sdd">T7.2</span> = shipped behaviour, drawn as it is; <span class="mk-tag prop">Q#</span> =
+<b>proposed here</b>, not decided until you sign it off. <b>Seed catalog</b>: <i>Scenes with this note</i> is the one
+real entry (<code>catalog/scenes-with-this-note.md</code>). The other seven are invented to show how the browser
+scales across Bases, Dataview and DataviewJS. Paths assume the default <i>Folder for collections from the repo</i>,
+<code>00 Meta/Bases</code>.
+</div>
+
+<div class="mk-open">
+<h3>Proposals — your answer needed (recommended default in each)</h3>
+<ol>
+  <li id="Q1"><b>Q1 — Layout: two panes, or expand in place.</b> (a) <b>Two panes</b>: the list on the left, the
+    selected entry's detail on the right (the <code>sf-catalog-split</code> T7.2 already builds). (b)
+    <b>Expand in place</b>: the detail opens under its row, like <i>configure</i> in the Library (L3).
+    <span class="rec"><b>Recommended: (a)</b>. The list stays in view while you compare entries, and a long query
+    never pushes the other rows off screen. Below about 560px the panes stack: the list fills the modal, and choosing
+    a row opens its detail with <i>← All collections</i> to go back (L10h).</span></li>
+  <li id="Q2"><b>Q2 — Finding an entry.</b> (a) search only; (b) <b>search plus an engine filter</b>
+    (<i>All · Bases · Dataview · DataviewJS</i>, each with its count); (c) category group headers (Characters,
+    Scenes…). Option (c) needs a new <code>sf-category</code> field in every catalog note and in
+    <code>build-catalog.mjs</code>.
+    <span class="rec"><b>Recommended: (b)</b>, list in catalog order, no categories. The engine is the one thing a
+    user filters on for trust (code or no code), and we already have it. Search matches the name and the description,
+    like <i>Import a collection</i>. Show the search and the filter only when the catalog has more than 5 entries. With
+    1 to 5 entries (L10a) they are noise.</span></li>
+  <li id="Q3"><b>Q3 — Selection on open.</b> (a) <b>nothing selected</b>, and the detail pane says what to do;
+    (b) the first entry auto-selected (T7.2 today).
+    <span class="rec"><b>Recommended: (a)</b>. Auto-select previews an entry you did not choose and puts its
+    <i>Install</i> one keypress away. It also leaves a selection hidden when a search filters that row out. Focus
+    starts in the search field, or on the first row when there is no search field.</span></li>
+  <li id="Q4"><b>Q4 — Where the action and its feedback live.</b> (a) <b>only in the detail pane</b>: the row shows
+    status text (<i>Installed</i>, <i>Update available</i>, or nothing), and the one <i>Install</i> /
+    <i>Update</i> button and its result sit under the entry you are reading. (b) T7.2 today: a button in every row
+    plus one feedback box at the top of the modal.
+    <span class="rec"><b>Recommended: (a)</b>. You install what you have read, never a row you only glanced at. A
+    refusal appears next to the entry it is about, not above a list where it can belong to any row. And no button is
+    nested inside a clickable row (one control per row is cleaner for keyboard and screen readers). At 400px
+    the button is on the detail screen.</span></li>
+  <li id="Q5"><b>Q5 — The query.</b> (a) <b>the query block only</b> (the <code>dataview</code> /
+    <code>dataviewjs</code> fence body, or the <code>.base</code> YAML), wrapped, at most about 10 lines high with its
+    own scrolling; (b) the whole note, as today; (c) collapsed behind <i>Show query</i>.
+    <span class="rec"><b>Recommended: (a)</b>. The note's frontmatter and prose repeat the name and description shown
+    above it. Wrapping means the page never scrolls sideways. It stays visible rather than collapsed because "Safe:
+    declarative query, no code." should sit next to the thing it vouches for. The whole note is still what gets
+    written, and the destination line says so.</span></li>
+  <li id="Q6"><b>Q6 — Checksum and provenance.</b> Today every row and the preview print <i>official · curated</i>
+    and <code>sha256:3db2497…</code> as primary text.
+    <span class="rec"><b>Recommended:</b> drop both from rows and from the detail header. Everything in this modal is
+    from the repo, so the provenance line says nothing here. The Library already calls it <i>from repo</i> once it is
+    installed. Source file, version and checksum go in a collapsed <i>Details</i> line at the bottom of the detail
+    pane (L10d shows it open). Drop the checksum completely is the alternative: it is for bug reports, not for
+    deciding.</span></li>
+  <li id="Q7"><b>Q7 — Wording changes</b> (everything else on this page uses T7.2's text):
+    <span class="rec"><b>Recommended:</b>
+    (1) Success: <i>Installed successfully.</i> → <i>Installed to 00 Meta/Bases/&lt;file&gt;. It is in Library ›
+    Collections.</i> An update says <i>Updated 00 Meta/Bases/&lt;file&gt;.</i>
+    (2) DataviewJS button: <i>Install</i> → <i>Review and install…</i>, because it opens the consent dialog first (the
+    ellipsis signals a dialog).
+    (3) Engine pills use the Library's product names <i>Bases</i>, <i>Dataview</i>, <i>DataviewJS</i>, not
+    <code>dataview-dql</code>.
+    (4) Detail placeholder: <i>Select a collection to see what it shows and where it goes.</i>
+    (5) No search match: <i>No collections match "&lt;text&gt;".</i></span></li>
+  <li id="Q8"><b>Q8 — Machine-worded refusals.</b> Three refusals already read well (<i>Not updated: … was
+    edited…</i>, <i>Not installed: … already exists…</i>, <i>… could not read …</i>) and stay word for word. The
+    others reach the user as developer strings: <code>checksum mismatch: expected …, got …</code>,
+    <code>consent declined</code>, <code>materialise failed: …</code>, <code>persist failed: …</code>,
+    <code>store read failed: …</code>.
+    <span class="rec"><b>Recommended:</b> one sentence each, in the same <i>Not installed: …</i> form, with the raw
+    reason kept as a faint second line so a bug report still carries it (table under L10f). <i>Consent declined</i>
+    is not an error. Show it as a neutral note: <i>Not installed. You closed the review, so nothing was
+    written.</i></span></li>
+</ol>
+</div>
+
+<h2>State inventory (L10)</h2>
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>L</th><th>State</th><th>Shows</th><th>Proposals</th></tr>
+<tr><td><b>L10a</b></td><td>One entry, nothing selected</td><td>today's single-entry catalog, restyled; no search or filter</td><td>Q1 Q2 Q3 Q6</td></tr>
+<tr><td><b>L10b</b></td><td>Eight entries</td><td>search, engine filter, one-line descriptions, per-row status; nothing selected</td><td>Q2 Q3 Q4</td></tr>
+<tr><td><b>L10c</b></td><td>Dataview entry selected</td><td>description, destination, contained query, safe note, <i>Install</i></td><td>Q4 Q5 Q6</td></tr>
+<tr><td><b>L10d</b></td><td>DataviewJS entry selected</td><td>consent note before install, <i>Review and install…</i>, <i>Details</i> open</td><td>Q6 Q7</td></tr>
+<tr><td><b>L10e</b></td><td>After install; update available</td><td>(a) success in place; (b) an <i>Update available</i> entry selected</td><td>Q7</td></tr>
+<tr><td><b>L10f</b></td><td>Refusals inline</td><td>edited, occupied, unreadable, damaged copy, review closed; wording table</td><td>Q8</td></tr>
+<tr><td><b>L10g</b></td><td>Empty</td><td>(a) empty catalog; (b) no search match</td><td>Q7</td></tr>
+<tr><td><b>L10h</b></td><td>400px</td><td>(a) list screen; (b) detail screen</td><td>Q1</td></tr>
+<tr><td><b>L10i</b></td><td>Dark</td><td>L10c in the dark theme</td><td>—</td></tr>
+</table>
+</div>
+
+<!-- ═════════════════════════════════ L10a ═════════════════════════════════ -->
+<h2>L10a — One entry <span class="h2s">· today's catalog, framed</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L10a · The bundled catalog as it ships: one entry, nothing selected.</b> With 5 entries or fewer
+there is no search or filter <span class="mk-tag prop">Q2</span>. The row has a name, an engine pill set apart from
+the name, and a one-line description. The checksum and <i>official · curated</i> are gone from the row
+<span class="mk-tag prop">Q6</span>. The detail pane waits for a choice <span class="mk-tag prop">Q3</span>.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Bundled, offline curated library. No network required.</div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox" aria-label="Collections from the repo">
+      <div class="ct-row foc" role="option" aria-selected="false">
+        <span class="ct-name">Scenes with this note</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Scenes that name the open note as point of view, a character, the location or a plotline.</span></span>
+      </div>
+    </div>
+    <div class="ct-detail"><div class="ct-empty"><b>Nothing selected</b>Select a collection to see what it shows and where it goes.</div></div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>Row anatomy:</b> line 1 is the name (ellipsized) and the status at the right. Line 2 is the engine
+pill and the description cut to one line. The full description is in the detail pane. <b>Keyboard:</b> the list is a
+<code>listbox</code>. Focus lands on the first row (a focus ring, not a selection). Up and Down move, and selection
+follows focus, so the detail pane updates as you arrow. Tab leaves the list for the detail pane's button, then
+<i>Close</i>. Escape closes the modal (Obsidian default).</p>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ L10b ═════════════════════════════════ -->
+<h2>L10b — Eight entries <span class="h2s">· how the list scales</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L10b · A catalog of eight across three engines.</b> Search and the engine filter appear above the split
+once there are more than 5 entries <span class="mk-tag prop">Q2</span>. Rows show status only: <i>✓ Installed</i>,
+<i>Update available</i>, or nothing when the entry can be installed <span class="mk-tag prop">Q4</span>. The list keeps
+the catalog's order, scrolls on its own, and the modal never scrolls sideways.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x">✕</span></div>
+  <div class="md-sub">Bundled, offline curated library. No network required.</div>
+  <div class="md-tools">
+    <span class="md-search foc" role="searchbox" aria-label="Search collections">Search collections…</span>
+    <span class="seg" role="radiogroup" aria-label="Engine"><span class="sel" role="radio" aria-checked="true">All<i>8</i></span><span role="radio">Bases<i>4</i></span><span role="radio">Dataview<i>2</i></span><span role="radio">DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox">
+      <div class="ct-row"><span class="ct-name">Scenes with this note</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Scenes that name the open note as point of view, a character, the location or a plotline.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Character overview</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Every character with role, status and first appearance.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Locations by region</span><span class="ct-st upd">Update available</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Places grouped by region, with how many scenes are set there.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Open plot threads</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Plotlines not yet resolved, with the last scene that touched them.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Scene status board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Scenes as cards by status: outline, draft, written, final.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Relationship web</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">The open character's allies, rivals and family, two steps out.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Word count by chapter</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">Sums scene word counts per chapter and act, with a total.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Lore glossary</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Lore entries A to Z, each with its one-line summary.</span></span></div>
+    </div>
+    <div class="ct-detail"><div class="ct-empty"><b>Nothing selected</b>Select a collection to see what it shows and where it goes.</div></div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>Filtering:</b> typing narrows the rows by name and description, and the engine filter narrows
+further. A polite live region reads the result count ("3 of 8 collections"). A selected row that the filter hides is
+deselected, so the detail pane never describes an entry you cannot see. <b>Status</b> is text, never colour alone:
+<i>✓ Installed</i> and <i>Update available</i> are read as part of the option's name ("Locations by region, Bases,
+update available"). <b>DataviewJS</b> rows carry no warning in the list. The consent note is in the detail pane
+(L10d), where you act.</p>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ L10c ═════════════════════════════════ -->
+<h2>L10c — An entry selected <span class="h2s">· what it shows, where it goes, the query contained</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L10c · <i>Open plot threads</i> (Dataview) selected.</b> Top to bottom: name, engine and status;
+the description; <b>Installs to</b> with the full target path and the setting that decides it; the <b>query</b>,
+wrapped in a box that scrolls on its own <span class="mk-tag prop">Q5</span>; the T7.2 safe note; the one action
+<span class="mk-tag prop">Q4</span>; <i>Details</i>, collapsed <span class="mk-tag prop">Q6</span>.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x">✕</span></div>
+  <div class="md-sub">Bundled, offline curated library. No network required.</div>
+  <div class="md-tools">
+    <span class="md-search">Search collections…</span>
+    <span class="seg"><span class="sel">All<i>8</i></span><span>Bases<i>4</i></span><span>Dataview<i>2</i></span><span>DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox">
+      <div class="ct-row"><span class="ct-name">Scenes with this note</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Scenes that name the open note as point of view, a character, the location or a plotline.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Character overview</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Every character with role, status and first appearance.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Locations by region</span><span class="ct-st upd">Update available</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Places grouped by region, with how many scenes are set there.</span></span></div>
+      <div class="ct-row sel foc" aria-selected="true"><span class="ct-name">Open plot threads</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Plotlines not yet resolved, with the last scene that touched them.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Scene status board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Scenes as cards by status: outline, draft, written, final.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Relationship web</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">The open character's allies, rivals and family, two steps out.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Word count by chapter</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">Sums scene word counts per chapter and act, with a total.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Lore glossary</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Lore entries A to Z, each with its one-line summary.</span></span></div>
+    </div>
+    <div class="ct-detail" role="region" aria-labelledby="l10c-t">
+      <div class="ct-dh"><span class="t" id="l10c-t">Open plot threads</span><span class="ct-eng">Dataview</span></div>
+      <p class="ct-ddesc">Plotlines not yet resolved, with the last scene that touched them.</p>
+      <div>
+        <div class="ct-lbl">Installs to</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Bases/open-plot-threads.md</span></div>
+        <div class="ct-hint">Set by <i>Folder for collections from the repo</i> in Settings › Library.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Query</div>
+<pre class="ct-q">TABLE WITHOUT ID file.link AS Plotline, status AS Status, max(rows.scene.storyDay) AS "Last story day"
+FROM #story/plotline
+WHERE status != "resolved"
+FLATTEN file.inlinks AS scene
+WHERE contains(scene.tags, "manuscript/scene")
+GROUP BY file.link
+SORT max(rows.scene.storyDay) DESC</pre>
+      </div>
+      <div class="ct-safe">Safe: declarative query, no code.</div>
+      <div class="ct-act"><button class="btn cta">Install</button></div>
+      <div class="ct-det"><span class="sum" role="button" aria-expanded="false">▸ Details</span></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>No sideways scroll anywhere.</b> The query box wraps long lines (<code>white-space: pre-wrap;
+overflow-wrap: anywhere</code>) and caps its height at about 10 lines. Past that it scrolls vertically inside the box.
+The detail column is <code>minmax(0, 1fr)</code>, so a long path wraps instead of widening the modal. <b>Installs
+to</b> names the exact file Install writes: <code>&lt;folder&gt;/&lt;id&gt;.md</code> for a Dataview note,
+<code>&lt;folder&gt;/&lt;id&gt;.base</code> for a Bases entry. The hint is plain text, not a link. <b>Screen
+reader:</b> the detail pane is a region named after the entry. It is not a live region, so arrowing through the list
+does not read every pane aloud.</p>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ L10d ═════════════════════════════════ -->
+<h2>L10d — DataviewJS selected <span class="h2s">· consent is asked before anything is written</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L10d · <i>Relationship web</i> (DataviewJS) selected, <i>Details</i> open.</b> The safe note is replaced
+by an amber consent note. The button says what happens next: <i>Review and install…</i> opens today's DataviewJS
+consent dialog (source, checksum, warning, <i>Cancel</i> as default) <span class="mk-tag sdd">T7.2</span>
+<span class="mk-tag prop">Q7</span>. Nothing is written unless you choose <i>Enable</i> there.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x">✕</span></div>
+  <div class="md-sub">Bundled, offline curated library. No network required.</div>
+  <div class="md-tools">
+    <span class="md-search">Search collections…</span>
+    <span class="seg"><span>All<i>8</i></span><span>Bases<i>4</i></span><span>Dataview<i>2</i></span><span class="sel">DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox">
+      <div class="ct-row sel" aria-selected="true"><span class="ct-name">Relationship web</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">The open character's allies, rivals and family, two steps out.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Word count by chapter</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">Sums scene word counts per chapter and act, with a total.</span></span></div>
+    </div>
+    <div class="ct-detail">
+      <div class="ct-dh"><span class="t">Relationship web</span><span class="ct-eng">DataviewJS</span></div>
+      <p class="ct-ddesc">The open character's allies, rivals and family, two steps out.</p>
+      <div>
+        <div class="ct-lbl">Installs to</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Bases/relationship-web.md</span></div>
+        <div class="ct-hint">Set by <i>Folder for collections from the repo</i> in Settings › Library.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Query</div>
+<pre class="ct-q">const me = dv.current();
+const kinds = ["allies", "rivals", "family"];
+for (const kind of kinds) {
+  const links = me[kind] ?? [];
+  if (links.length === 0) continue;
+  dv.header(4, kind);
+  dv.list(links.map((l) =&gt; {
+    const p = dv.page(l.path);
+    const next = kinds.flatMap((k) =&gt; p?.[k] ?? []);
+    return `${l} → ${next.join(", ")}`;
+  }));
+}</pre>
+      </div>
+      <div class="ct-consent"><b>▲ Runs JavaScript.</b> This collection runs code with full vault access. <i>Review and
+        install…</i> shows you its code first. Nothing is written until you enable it.</div>
+      <div class="ct-act"><button class="btn cta">Review and install…</button></div>
+      <div class="ct-det"><span class="sum" role="button" aria-expanded="true">▾ Details</span>
+        <dl><dt>Source</dt><dd>catalog/relationship-web.md</dd>
+            <dt>Version</dt><dd>1</dd>
+            <dt>Checksum</dt><dd>sha256:9f1c07a4e2…</dd></dl></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>Consent note wording</b> is new and short. It points at the dialog and does not repeat it: the dialog
+keeps today's full warning. <b>Details</b> is a disclosure button (<code>aria-expanded</code>). The checksum is
+cut to 10 hex digits, and the full value is the element's <code>title</code> and can be selected and copied. The
+dialog's <i>Cancel</i> leads to the neutral note in L10f(e). <i>Enable</i> leads to L10e(a).</p>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ L10e ═════════════════════════════════ -->
+<h2>L10e — After install; update available <span class="h2s">· the result appears where you acted</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L10e(a) · <i>Open plot threads</i> just installed.</b> The button is gone, the row and the header say
+<i>✓ Installed</i>, and the success message names the file and where to find it <span class="mk-tag prop">Q7</span>.
+Focus moves to the message, so the keyboard user is not dropped to the top of the page when the button
+disappears.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x">✕</span></div>
+  <div class="md-sub">Bundled, offline curated library. No network required.</div>
+  <div class="md-tools">
+    <span class="md-search">Search collections…</span>
+    <span class="seg"><span class="sel">All<i>8</i></span><span>Bases<i>4</i></span><span>Dataview<i>2</i></span><span>DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox">
+      <div class="ct-row"><span class="ct-name">Scenes with this note</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Scenes that name the open note as point of view, a character, the location or a plotline.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Character overview</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Every character with role, status and first appearance.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Locations by region</span><span class="ct-st upd">Update available</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Places grouped by region, with how many scenes are set there.</span></span></div>
+      <div class="ct-row sel" aria-selected="true"><span class="ct-name">Open plot threads</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Plotlines not yet resolved, with the last scene that touched them.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Scene status board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Scenes as cards by status: outline, draft, written, final.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Relationship web</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">The open character's allies, rivals and family, two steps out.</span></span></div>
+    </div>
+    <div class="ct-detail">
+      <div class="ct-dh"><span class="t">Open plot threads</span><span class="ct-eng">Dataview</span><span class="ct-st inst st">✓ Installed</span></div>
+      <p class="ct-ddesc">Plotlines not yet resolved, with the last scene that touched them.</p>
+      <div>
+        <div class="ct-lbl">Installed at</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Bases/open-plot-threads.md</span></div>
+      </div>
+      <div class="ct-fb ok" role="status" tabindex="-1">Installed to 00 Meta/Bases/open-plot-threads.md. It is in Library › Collections.</div>
+      <p class="was">Today: <code>Installed successfully.</code> at the top of the modal.</p>
+      <div class="ct-det"><span class="sum">▸ Details</span></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>Installed, no action.</b> An installed, current entry has no button (T7.2 draws no button for
+it either), so the <code>up-to-date</code> refusal can't be reached from this UI. The query box is left out once
+installed, because the file in the vault is now the thing to read. Its label changes from <i>Installs to</i> to
+<i>Installed at</i>. The message stays until you select another entry.</p>
+</figure>
+
+<figure>
+<figcaption><b>L10e(b) · <i>Locations by region</i>: update available.</b> The row and the header carry the amber
+<i>Update available</i> pill. The detail pane says what <i>Update</i> replaces. <i>Update</i> runs today's install
+path and refuses when the file was edited (L10f(a)) <span class="mk-tag sdd">T7.2</span>.</figcaption>
+<div class="md" style="width:520px">
+  <div class="ct-split one" style="min-height:0;border-top:none">
+    <div class="ct-detail">
+      <div class="ct-dh"><span class="t">Locations by region</span><span class="ct-eng">Bases</span><span class="ct-st upd st">Update available</span></div>
+      <p class="ct-ddesc">Places grouped by region, with how many scenes are set there.</p>
+      <div>
+        <div class="ct-lbl">Updates</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Bases/locations-by-region.base</span></div>
+        <div class="ct-hint">The repo has a newer version. Update replaces this file with it.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Query (new version)</div>
+<pre class="ct-q">filters:
+  and:
+    - file.inFolder("30 Canon")
+    - type == "location"
+views:
+  - type: table
+    name: Locations by region
+    groupBy:
+      property: region
+    order:
+      - file.name
+      - region
+      - formula.sceneCount</pre>
+      </div>
+      <div class="ct-safe">Safe: declarative query, no code.</div>
+      <div class="ct-act"><button class="btn cta foc">Update</button></div>
+      <div class="ct-det"><span class="sum">▸ Details</span></div>
+    </div>
+  </div>
+</div>
+<p class="note"><b>No diff.</b> Showing what changed between versions is beyond this browser's scope. The query box shows
+the new version only. After a successful update the message reads <i>Updated
+00 Meta/Bases/locations-by-region.base.</i> <span class="mk-tag prop">Q7</span> and the pill becomes <i>✓
+Installed</i>. Crop: the detail pane only, at the same width it has in the modal.</p>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ L10f ═════════════════════════════════ -->
+<h2>L10f — Refusals inline <span class="h2s">· under the button that was pressed; the button stays</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L10f(a) · Update refused: edited file.</b> T7.2's text, word for word <span class="mk-tag sdd">T7.2</span>.
+The row keeps <i>Update available</i>, and <i>Update</i> stays so that it can be tried again after the edits are moved
+aside.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Locations by region · detail pane, bottom</span>
+  <div class="ct-act"><button class="btn cta">Update</button></div>
+  <div class="ct-fb err" role="alert">Not updated: 00 Meta/Bases/locations-by-region.base was edited after it was installed, and updating would overwrite those edits.</div>
+</div>
+</figure>
+
+<figure>
+<figcaption><b>L10f(b) · Install refused: path occupied.</b> T7.2's text <span class="mk-tag sdd">T7.2</span>. A file
+already sits where the entry would go, and it is not this entry's copy.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Lore glossary · detail pane, bottom</span>
+  <div class="ct-act"><button class="btn cta">Install</button></div>
+  <div class="ct-fb err" role="alert">Not installed: 00 Meta/Bases/lore-glossary.base already exists. Move, rename or remove it, then install again.</div>
+</div>
+</figure>
+
+<figure>
+<figcaption><b>L10f(c) · Install refused: unreadable path.</b> T7.2's text <span class="mk-tag sdd">T7.2</span>
+(<code>&lt;prefix&gt;: could not read &lt;path&gt;: &lt;error&gt;</code>). Long errors wrap inside the box.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Lore glossary · detail pane, bottom</span>
+  <div class="ct-act"><button class="btn cta">Install</button></div>
+  <div class="ct-fb err" role="alert">Not installed: could not read 00 Meta/Bases/lore-glossary.base: EACCES: permission denied</div>
+</div>
+</figure>
+
+<figure>
+<figcaption><b>L10f(d) · Install refused: damaged bundled copy.</b> Proposed wording <span class="mk-tag prop">Q8</span>;
+the raw reason stays as a faint second line.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Scene status board · detail pane, bottom</span>
+  <div class="ct-act"><button class="btn cta">Install</button></div>
+  <div class="ct-fb err" role="alert">Not installed: the bundled copy of this collection is damaged, so nothing was written. Reinstalling Story Forge restores it.
+    <span class="raw">checksum mismatch: expected sha256:51ab0e…, got sha256:c47d92…</span></div>
+  <p class="was">Today: only the raw line, in red.</p>
+</div>
+</figure>
+
+<figure>
+<figcaption><b>L10f(e) · DataviewJS review closed.</b> Not an error, so it is neutral grey and polite
+<span class="mk-tag prop">Q8</span>. Focus returns to <i>Review and install…</i>.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Relationship web · detail pane, bottom</span>
+  <div class="ct-act"><button class="btn cta foc">Review and install…</button></div>
+  <div class="ct-fb neu" role="status">Not installed. You closed the review, so nothing was written.</div>
+  <p class="was">Today: <code>consent declined</code>, in red.</p>
+</div>
+</figure>
+</div>
+
+<div class="mk-wrap" style="margin-top:14px">
+<table class="inv">
+<tr><th>Reason from <code>CatalogService</code></th><th>Shown today</th><th>Shown after Q8</th></tr>
+<tr><td>edited after install (update)</td><td colspan="2">unchanged: <i>Not updated: &lt;path&gt; was edited after it was installed, and updating would overwrite those edits.</i></td></tr>
+<tr><td>path occupied</td><td colspan="2">unchanged: <i>Not installed: &lt;path&gt; already exists. Move, rename or remove it, then install again.</i></td></tr>
+<tr><td>could not read</td><td colspan="2">unchanged: <i>Not installed/Not updated: could not read &lt;path&gt;: &lt;error&gt;</i></td></tr>
+<tr><td><code>checksum mismatch</code>, <code>query checksum mismatch</code></td><td>raw</td><td><i>Not installed: the bundled copy of this collection is damaged, so nothing was written. Reinstalling Story Forge restores it.</i> + raw line</td></tr>
+<tr><td><code>materialise failed: …</code></td><td>raw</td><td><i>Not installed: could not write &lt;path&gt;. Nothing was changed.</i> + raw line</td></tr>
+<tr><td><code>persist failed: …</code></td><td>raw</td><td><i>Not installed: could not save it to the Library, so the file was removed again.</i> + raw line (an update restores the previous content instead: <i>Not updated: … so the previous file was restored.</i>)</td></tr>
+<tr><td><code>store read failed: …</code></td><td>raw</td><td><i>Not installed: could not read the Library's records. Nothing was written.</i> + raw line</td></tr>
+<tr><td><code>consent declined</code></td><td>raw, red</td><td>neutral: <i>Not installed. You closed the review, so nothing was written.</i></td></tr>
+<tr><td><code>up-to-date</code>, <code>not-found</code>, <code>unsupported engine</code></td><td colspan="2">not reachable from this UI (no button on a current entry; entries come from the same index). If ever hit: <i>Not installed.</i> + raw line</td></tr>
+</table>
+</div>
+<p class="note"><b>Placement and announcing (all refusals):</b> the message appears directly under the button that
+caused it, in the selected entry's pane. It uses <code>role="alert"</code> for red refusals and
+<code>role="status"</code> for the neutral and success notes. Focus stays on the button. Selecting another entry clears
+the message. The same element replaces T7.2's top-of-modal <code>sf-picker-feedback</code>
+<span class="mk-tag prop">Q4</span>.</p>
+
+<!-- ═════════════════════════════════ L10g ═════════════════════════════════ -->
+<h2>L10g — Empty <span class="h2s">· no catalog, and no match</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L10g(a) · The catalog is empty.</b> T7.2's text <span class="mk-tag sdd">T7.2</span>. One pane, no
+search, no filter, no detail placeholder. Focus is on <i>Close</i>.</figcaption>
+<div class="md" style="width:520px">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x">✕</span></div>
+  <div class="md-sub">Bundled, offline curated library. No network required.</div>
+  <div class="ct-split one" style="min-height:0">
+    <div class="ct-empty" style="padding:34px 20px">The repo has no collections yet.</div>
+  </div>
+  <div class="md-foot"><button class="btn foc">Close</button></div>
+</div>
+</figure>
+
+<figure>
+<figcaption><b>L10g(b) · A search with no match.</b> The list says so <span class="mk-tag prop">Q7</span>, the
+filter counts drop to 0, and the detail pane goes back to its placeholder.</figcaption>
+<div class="md" style="width:620px">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x">✕</span></div>
+  <div class="md-sub">Bundled, offline curated library. No network required.</div>
+  <div class="md-tools">
+    <span class="md-search typed foc">timeline</span>
+    <span class="seg"><span class="sel">All<i>0</i></span><span>Bases<i>0</i></span><span>Dataview<i>0</i></span><span>DataviewJS<i>0</i></span></span>
+  </div>
+  <div class="ct-split" style="grid-template-columns:240px minmax(0,1fr);min-height:180px">
+    <div class="ct-list"><div class="ct-empty">No collections match "timeline".</div></div>
+    <div class="ct-detail"><div class="ct-empty"><b>Nothing selected</b>Select a collection to see what it shows and where it goes.</div></div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ L10h ═════════════════════════════════ -->
+<h2>L10h — 400px <span class="h2s">· the panes stack: list, then detail</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L10h(a) · List screen.</b> Search on its own line, filter wraps below it. Rows are full width, so
+descriptions get more room.</figcaption>
+<div class="md nar">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x">✕</span></div>
+  <div class="md-sub">Bundled, offline curated library. No network required.</div>
+  <div class="md-tools">
+    <span class="md-search" style="flex-basis:100%">Search collections…</span>
+    <span class="seg"><span class="sel">All<i>8</i></span><span>Bases<i>4</i></span><span>Dataview<i>2</i></span><span>DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split one">
+    <div class="ct-list" style="max-height:360px">
+      <div class="ct-row"><span class="ct-name">Scenes with this note</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Scenes that name the open note as point of view, a character, the location or a plotline.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Character overview</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Every character with role, status and first appearance.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Locations by region</span><span class="ct-st upd">Update available</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Places grouped by region, with how many scenes are set there.</span></span></div>
+      <div class="ct-row foc"><span class="ct-name">Open plot threads</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Plotlines not yet resolved, with the last scene that touched them.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Scene status board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Scenes as cards by status: outline, draft, written, final.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Relationship web</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">The open character's allies, rivals and family, two steps out.</span></span></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note">Tap or Enter on a row opens L10h(b). Arrowing does not open it at this width. Selection-follows-focus
+applies only when both panes are visible.</p>
+</figure>
+
+<figure>
+<figcaption><b>L10h(b) · Detail screen.</b> The same content as L10c's pane, full width. <i>← All collections</i>
+returns to the list with focus on the row you came from. The search and filter are kept.</figcaption>
+<div class="md nar">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x">✕</span></div>
+  <div class="ct-split one" style="border-top:none">
+    <div class="ct-detail">
+      <span class="ct-back" role="button">← All collections</span>
+      <div class="ct-dh"><span class="t">Open plot threads</span><span class="ct-eng">Dataview</span></div>
+      <p class="ct-ddesc">Plotlines not yet resolved, with the last scene that touched them.</p>
+      <div>
+        <div class="ct-lbl">Installs to</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Bases/open-plot-threads.md</span></div>
+        <div class="ct-hint">Set by <i>Folder for collections from the repo</i> in Settings › Library.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Query</div>
+<pre class="ct-q">TABLE WITHOUT ID file.link AS Plotline, status AS Status, max(rows.scene.storyDay) AS "Last story day"
+FROM #story/plotline
+WHERE status != "resolved"
+FLATTEN file.inlinks AS scene
+WHERE contains(scene.tags, "manuscript/scene")
+GROUP BY file.link
+SORT max(rows.scene.storyDay) DESC</pre>
+      </div>
+      <div class="ct-safe">Safe: declarative query, no code.</div>
+      <div class="ct-act"><button class="btn cta">Install</button></div>
+      <div class="ct-det"><span class="sum">▸ Details</span></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ L10i ═════════════════════════════════ -->
+<h2>L10i — Dark <span class="h2s">· L10c in the dark theme</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L10i · L10c, dark.</b> The same tokens as the Library's L2b. Status colours keep their meaning, and the
+query box stays distinct from the pane.</figcaption>
+<div class="th-dark">
+<div class="md">
+  <div class="md-head"><p class="t">Collections from the repo</p><span class="x">✕</span></div>
+  <div class="md-sub">Bundled, offline curated library. No network required.</div>
+  <div class="md-tools">
+    <span class="md-search">Search collections…</span>
+    <span class="seg"><span class="sel">All<i>8</i></span><span>Bases<i>4</i></span><span>Dataview<i>2</i></span><span>DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list">
+      <div class="ct-row"><span class="ct-name">Scenes with this note</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Scenes that name the open note as point of view, a character, the location or a plotline.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Character overview</span><span class="ct-st inst">✓ Installed</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Every character with role, status and first appearance.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Locations by region</span><span class="ct-st upd">Update available</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Places grouped by region, with how many scenes are set there.</span></span></div>
+      <div class="ct-row sel foc"><span class="ct-name">Open plot threads</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="ct-desc1">Plotlines not yet resolved, with the last scene that touched them.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Scene status board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Scenes as cards by status: outline, draft, written, final.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Relationship web</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">The open character's allies, rivals and family, two steps out.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Word count by chapter</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="ct-desc1">Sums scene word counts per chapter and act, with a total.</span></span></div>
+      <div class="ct-row"><span class="ct-name">Lore glossary</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="ct-desc1">Lore entries A to Z, each with its one-line summary.</span></span></div>
+    </div>
+    <div class="ct-detail">
+      <div class="ct-dh"><span class="t">Open plot threads</span><span class="ct-eng">Dataview</span></div>
+      <p class="ct-ddesc">Plotlines not yet resolved, with the last scene that touched them.</p>
+      <div>
+        <div class="ct-lbl">Installs to</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Bases/open-plot-threads.md</span></div>
+        <div class="ct-hint">Set by <i>Folder for collections from the repo</i> in Settings › Library.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Query</div>
+<pre class="ct-q">TABLE WITHOUT ID file.link AS Plotline, status AS Status, max(rows.scene.storyDay) AS "Last story day"
+FROM #story/plotline
+WHERE status != "resolved"
+FLATTEN file.inlinks AS scene
+WHERE contains(scene.tags, "manuscript/scene")
+GROUP BY file.link
+SORT max(rows.scene.storyDay) DESC</pre>
+      </div>
+      <div class="ct-safe">Safe: declarative query, no code.</div>
+      <div class="ct-act"><button class="btn cta">Install</button></div>
+      <div class="ct-det"><span class="sum">▸ Details</span></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+</div>
+</figure>
+</div>
+
+<h2>What this commits us to</h2>
+<p class="sub">When signed off, T7.2's restyle builds exactly this. It is a <b>rendering change</b> in
+<code>BrowseOfficialModal</code> plus <code>sf-catalog-*</code> rules in <code>styles.css</code> on Obsidian variables
+(<code>--background-*</code>, <code>--text-*</code>, <code>--interactive-accent</code>), so both themes follow the
+user's theme. <code>CatalogService</code> stays as it is, apart from the refusal wording if Q8 is accepted. The
+import modal (<code>sf-picker-*</code>) is the sibling. This browser reuses its search field, sub-line and footer
+classes so the two look alike. It also uses the Library's engine labels (<code>ENGINE_LABEL</code>) in both. No
+network, categories, diffs, ratings or uninstall here: removing stays in Library › Collections.</p>
+
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>Mockup piece</th><th>Class in code (existing or to add)</th></tr>
+<tr><td>sub-line, search, footer</td><td><code>sf-picker-sub</code>, <code>sf-picker-search</code>, <code>sf-picker-foot</code> (existing, shared with the import modal)</td></tr>
+<tr><td>engine filter</td><td><code>sf-catalog-filter</code> (new)</td></tr>
+<tr><td>two panes / stacked</td><td><code>sf-catalog-split</code> (existing, no rules yet); stacked below about 560px</td></tr>
+<tr><td>list, row, name, status, line 2</td><td><code>sf-catalog-list</code>, <code>sf-catalog-row</code>, <code>sf-catalog-name</code> (existing); <code>sf-catalog-status</code>, <code>sf-catalog-desc</code> (new). <code>sf-catalog-prov</code>, <code>sf-catalog-checksum</code>, <code>sf-catalog-actions</code> leave the row (Q4, Q6)</td></tr>
+<tr><td>detail pane</td><td><code>sf-catalog-preview</code>, <code>-preview-head</code>, <code>-preview-title</code>, <code>-preview-desc</code>, <code>-preview-src</code> (existing); <code>-preview-dest</code>, <code>-preview-details</code> (new); <code>sf-catalog-safe</code> (existing)</td></tr>
+<tr><td>feedback</td><td><code>sf-picker-feedback</code> + <code>sf-catalog-success</code> (existing), moved into the detail pane; neutral variant new</td></tr>
+</table>
+</div>
+
+<script>
+  (function(){
+    var btns = document.querySelectorAll('[data-theme-btn]');
+    btns.forEach(function(b){
+      b.addEventListener('click', function(){
+        var t = b.getAttribute('data-theme-btn');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+        else document.documentElement.removeAttribute('data-theme');
+        btns.forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      });
+    });
+  })();
+</script>
+</body>
+</html>
