@@ -305,7 +305,13 @@ export class CollectionStore {
 			([, rec]) => rec.kind === "view" && rec.engine !== "bases",
 		);
 		for (const [id, rec] of legacy) {
-			await this.port.setRecord(id, { ...rec, kind: "collection", surfaces: defaultSurfaces(rec.engine) });
+			await this.port.setRecord(id, {
+				...rec,
+				kind: "collection",
+				// D2: migrated views are listed as imported, even a curated legacy one.
+				provenance: "imported",
+				surfaces: defaultSurfaces(rec.engine),
+			});
 		}
 		if (legacy.length > 0) await this.addToMigrationCount(legacy.length);
 		return legacy.length;

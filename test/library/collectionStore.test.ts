@@ -7,8 +7,7 @@
  * weaker test.
  */
 
-import { describe, expect, it, vi } from "vitest";
-import { App } from "../__mocks__/obsidian";
+import { describe, expect, it } from "vitest";
 import { ViewStore } from "../../src/store/ViewStore";
 import type { PluginDataPort, StoryForgeData, ViewRecord } from "../../src/store/types";
 import {
@@ -235,6 +234,15 @@ describe("migration of old views", () => {
 		expect(h.calls).toEqual([]);
 	});
 
+	it("lists a migrated curated Dataview view as imported (D2)", async () => {
+		const h = makeHarness({ views: { dql: { ...legacy("dataview-dql"), provenance: "curated" } } });
+
+		await h.store.migrate();
+
+		expect(h.persistedViews()["dql"]?.provenance).toBe("imported");
+		expect((await h.store.collections()).find((c) => c.id === "dql")?.provenance).toBe("imported");
+	});
+
 	it("leaves a Bases view, a collection and a card alone, and sets no notice", async () => {
 		const bases = legacy("bases");
 		const h = makeHarness({ views: { b: bases, c: makeRecord(), k: makeRecord({ kind: "card" }) } });
@@ -280,11 +288,8 @@ describe("remove", () => {
 	});
 
 	it.each(["curated", "imported"] as const)(
-		"drops a %s record and its cardByCollection entry, and deletes no file",
+		"drops only a %s record and its cardByCollection entry",
 		async (provenance) => {
-			const app = new App();
-			const deleteSpy = vi.spyOn(app.vault, "delete");
-			const trashSpy = vi.spyOn(app.vault, "trash");
 			const h = makeHarness({
 				views: { gone: makeRecord({ provenance }), kept: makeRecord() },
 				settings: { cardByCollection: { gone: "table", kept: "compact", character: "hero" } },
@@ -297,8 +302,7 @@ describe("remove", () => {
 			expect(h.persistedViews()["kept"]).toBeDefined();
 			expect(h.persistedSettings().cardByCollection).toEqual({ kept: "compact", character: "hero" });
 			expect(h.calls).toEqual(["deleteRecord", "saveSettings"]);
-			expect(deleteSpy).not.toHaveBeenCalled();
-			expect(trashSpy).not.toHaveBeenCalled();
+			// The store has no vault access: the port calls above are the whole of it (P16).
 		},
 	);
 
