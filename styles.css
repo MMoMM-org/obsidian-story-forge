@@ -958,197 +958,390 @@ body {
 }
 
 /* ===========================================================================
- * Manage Views — mason card rows (spec 003). The settings "Manage Views" list
- * mirrors markdown-mason's Scripts-tab card aesthetic: one bordered card per
- * imported view (mockups.html S28–S31). The standalone mockup used a dark
- * preview palette; here every colour comes from an Obsidian theme token (see
- * the mockup's token-mapping table) so cards render correctly in light AND
- * dark themes. Status is never colour-only — always glyph + word.
+ * Settings — tab strip and the Library (spec 008 T7.1b; mockups-library.html L1, L2, L3,
+ * L8a, L9). Every colour is an Obsidian theme token, so the dark theme (L2b) needs no
+ * second palette. State is never colour-only: switches also move their knob and carry
+ * aria-checked; blocked states carry a glyph and a word.
+ *
+ * Obsidian styles `button:not(.clickable-icon)` (specificity 0,1,1), which beats a bare class
+ * on a <button>. Every button rule below is therefore scoped under `.sf-settings`.
  * =========================================================================== */
 
-/* --- Toolbar (Import from vault / Import from repo) ----------------------- */
-.sf-views-toolbar {
+/* --- Tab strip (L1) -------------------------------------------------------- */
+.sf-settings .sf-tabs {
 	display: flex;
-	gap: 8px;
-	margin-bottom: 14px;
+	gap: 4px;
+	margin-bottom: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.sf-views-toolbar-btn {
-	padding: 4px 11px;
+.sf-settings button.sf-tab {
+	padding: 6px 12px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: transparent;
+	color: var(--text-muted);
+	box-shadow: none;
+	cursor: pointer;
+}
+
+.sf-settings button.sf-tab[aria-selected="true"] {
+	border-bottom-color: var(--interactive-accent);
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+.sf-settings button.sf-tab:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/* --- Collections list ------------------------------------------------------ */
+/* The list is a size container: the narrow layout (P17) follows the settings pane, not the window. */
+.sf-lb-list {
+	container-type: inline-size;
+	margin-bottom: 8px;
+}
+
+.sf-lb-item {
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sf-lb-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 0;
+	min-height: 32px;
+}
+
+.sf-lb-item.is-off .sf-lb-name {
+	color: var(--text-faint);
+}
+
+.sf-lb-name {
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.sf-lb-prov,
+.sf-lb-eng,
+.sf-lb-stat {
+	padding: 0 6px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
-	background: var(--interactive-normal);
-	color: var(--text-normal);
-	font-size: 12px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
 	white-space: nowrap;
-	cursor: pointer;
-	box-shadow: none;
 }
 
-.sf-views-toolbar-btn:disabled {
-	opacity: 0.45;
-	cursor: not-allowed;
-}
-
-/* --- View list + card ----------------------------------------------------- */
-.sf-view-list {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.sf-view-card {
-	position: relative;
-	padding: 11px 12px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
+.sf-lb-prov.is-builtin {
 	background: var(--background-secondary);
 }
 
-/* Primary line: name → chip → kind pill → cmd pill → status → ver → toggle → ⋯.
- * The status pill's margin-left:auto right-aligns everything after the left
- * cluster; chips/pills stay left, status + ver + toggle + ⋯ go right. */
-.sf-view-head {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.sf-view-name {
-	min-width: 0;
-	overflow: hidden;
+.sf-lb-stat {
+	border-radius: 9px;
 	font-weight: var(--font-semibold);
-	color: var(--text-normal);
-	white-space: nowrap;
-	text-overflow: ellipsis;
 }
 
-/* --- Provenance chip (bordered, muted) ------------------------------------ */
-.sf-view-chip {
-	flex: 0 0 auto;
-	padding: 0 7px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	color: var(--text-muted);
-	font-size: 10px;
-	white-space: nowrap;
-}
-
-/* Intentional no-op: "Imported" is the muted default; class kept as a themeable hook + symmetry with .sf-chip-official. */
-.sf-chip-imported {
-	color: var(--text-muted);
-}
-
-.sf-chip-official {
-	color: var(--sf-origin-official);
-	border-color: color-mix(in srgb, var(--sf-origin-official) 45%, transparent);
-}
-
-/* --- Command pill (view bound to a palette command) ----------------------- */
-.sf-view-cmd {
-	display: inline-flex;
-	flex: 0 0 auto;
-	align-items: center;
-	gap: 4px;
-	padding: 1px 8px;
-	border-radius: 10px;
-	background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
-	color: var(--text-accent);
-	font-size: 10px;
-	white-space: nowrap;
-}
-
-/* --- Status pill (glyph + label; margin-left:auto pushes the right cluster) */
-.sf-view-status {
-	display: inline-flex;
-	flex: 0 0 auto;
-	align-items: center;
-	gap: 5px;
-	margin-left: auto;
-	padding: 2px 8px;
-	border-radius: var(--radius-s);
-	background: var(--background-modifier-hover);
-	color: var(--text-muted);
-	font-size: 11px;
-	white-space: nowrap;
-}
-
-.sf-view-status-ic {
-	font-size: 10px;
-	line-height: 1;
-}
-
-.sf-view-status-label {
-	line-height: 1;
-}
-
-/* Status modifiers — theme tokens keep contrast in light AND dark themes. */
-.sf-status-active {
-	color: var(--text-success);
-}
-
-.sf-status-consent {
+.sf-lb-stat.is-warn {
+	border-color: var(--text-warning);
 	color: var(--text-warning);
 }
 
-.sf-status-missing {
-	color: var(--text-error);
+.sf-lb-break {
+	display: none;
 }
 
-/* --- Version tag ---------------------------------------------------------- */
-.sf-view-ver {
-	flex: 0 0 auto;
-	color: var(--text-faint);
-	font-size: 10px;
+.sf-lb-surf {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	margin-left: auto;
 }
 
-/* --- ⋯ overflow-menu button (ghost) --------------------------------------- */
-.sf-view-menu-btn {
-	flex: 0 0 auto;
-	padding: 0 6px;
-	border: none;
+/* The switch: a text-labelled <button role="switch"> (P4). */
+.sf-settings button.sf-lb-sw {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: auto;
+	padding: 0;
+	border: 0;
 	background: transparent;
 	box-shadow: none;
 	color: var(--text-muted);
-	font-size: 16px;
-	line-height: 1;
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
 	cursor: pointer;
 }
 
-.sf-view-menu-btn:hover {
+.sf-settings button.sf-lb-sw.is-on {
 	color: var(--text-normal);
-	background: transparent;
-	box-shadow: none;
 }
 
-.sf-view-menu-btn:focus-visible {
+.sf-lb-sw i {
+	position: relative;
+	flex: none;
+	width: 22px;
+	height: 12px;
+	border-radius: 7px;
+	background: var(--background-modifier-border-hover);
+}
+
+.sf-lb-sw i::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--background-primary);
+}
+
+.sf-lb-sw.is-on i {
+	background: var(--interactive-accent);
+}
+
+.sf-lb-sw.is-on i::after {
+	left: 12px;
+	background: var(--text-on-accent);
+}
+
+.sf-settings button.sf-lb-sw[aria-disabled="true"] {
+	opacity: 0.45;
+	cursor: default;
+}
+
+.sf-settings button.sf-lb-sw:focus-visible,
+.sf-settings button.sf-lb-action:focus-visible,
+.sf-settings button.sf-lb-btn:focus-visible,
+.sf-settings button.sf-lb-link:focus-visible,
+.sf-settings button.sf-lb-addbtn:focus-visible,
+.sf-settings button.sf-lb-x:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }
 
-/* --- Secondary line: description ------------------------------------------ */
-.sf-view-desc {
-	margin-top: 6px;
+/* configure / remove: text actions, not buttons-with-chrome. */
+.sf-settings button.sf-lb-action {
+	height: auto;
+	padding: 0 2px;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-accent);
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+}
+
+.sf-settings button.sf-lb-action.is-remove {
+	color: var(--text-error);
+}
+
+.sf-lb-caret {
+	margin-left: 3px;
+}
+
+.sf-lb-hint {
+	padding: 0 0 6px 21px;
+	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+}
+
+.sf-lb-hint.is-faint {
+	color: var(--text-faint);
+}
+
+.sf-lb-hint a {
+	color: var(--text-accent);
+}
+
+/* --- Narrow (P17, L2c): two lines, nothing hidden behind a menu ------------- */
+@container (max-width: 520px) {
+	.sf-lb-row {
+		flex-wrap: wrap;
+	}
+
+	.sf-lb-break {
+		display: block;
+		flex-basis: 100%;
+		height: 0;
+	}
+
+	.sf-lb-surf {
+		margin-left: 21px;
+	}
+
+	.sf-settings button.sf-lb-action.is-first {
+		margin-left: auto;
+	}
+}
+
+/* --- Migration line (P13) ---------------------------------------------------- */
+.sf-lb-mig {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 8px;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
 }
 
-/* --- Blocked / engine-missing inline recovery (mason blocked pattern) ----- */
-.sf-view-blocked {
+.sf-lb-mig b {
+	color: var(--text-normal);
+}
+
+.sf-settings button.sf-lb-x {
+	height: auto;
+	margin-left: auto;
+	padding: 0 4px;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-faint);
+	cursor: pointer;
+}
+
+/* --- Add controls and the foot of the Library ---------------------------------- */
+.sf-lb-add {
 	display: flex;
-	align-items: center;
-	gap: 10px;
-	margin-top: 8px;
+	flex-wrap: wrap;
+	gap: 14px;
+	padding: 8px 0;
 }
 
-.sf-view-blocked-reason {
-	flex: 1;
-	color: var(--text-error);
-	font-size: 11.5px;
-}
-
-.sf-view-blocked-reason a {
+.sf-settings button.sf-lb-addbtn,
+.sf-settings button.sf-lb-link {
+	height: auto;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
 	color: var(--text-accent);
+	font-size: var(--font-ui-small);
+	cursor: pointer;
+}
+
+.sf-settings button.sf-lb-addbtn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.sf-lb-foot {
+	padding: 4px 0 12px;
+}
+
+/* --- configure panel (L3) ------------------------------------------------------ */
+.sf-lb-panel {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 6px 10px;
+	margin: 0 0 8px 21px;
+	padding: 9px 11px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-small);
+}
+
+.sf-lb-panel label {
+	align-self: center;
+	color: var(--text-faint);
+}
+
+.sf-lb-panel .full {
+	grid-column: 1 / -1;
+}
+
+.sf-lb-cell {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	min-width: 0;
+}
+
+.sf-lb-panel input.sf-lb-input {
+	flex: 1 1 12em;
+	min-width: 0;
+	height: 24px;
+}
+
+.sf-lb-check {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+	color: var(--text-normal);
+}
+
+.sf-lb-file {
+	flex: 1 1 12em;
+	min-width: 0;
+	padding: 2px 7px;
+	overflow-wrap: anywhere;
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+}
+
+.sf-lb-count {
+	color: var(--text-success);
+	font-size: var(--font-ui-smaller);
+}
+
+.sf-lb-count.is-warn {
+	color: var(--text-warning);
+}
+
+.sf-lb-desc {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.sf-lb-consent {
+	flex: 1 1 12em;
+	color: var(--text-warning);
+}
+
+.sf-settings button.sf-lb-btn {
+	height: auto;
+	padding: 1px 8px;
+	font-size: var(--font-ui-smaller);
+}
+
+.sf-settings button.sf-lb-btn.is-warn {
+	border-color: var(--text-warning);
+	color: var(--text-warning);
+}
+
+/* --- Inline removal confirmation (L8a) ------------------------------------------ */
+.sf-lb-confirm {
+	margin: 0 0 8px 21px;
+	padding: 8px 11px;
+	border: 1px solid var(--text-warning);
+	border-left-width: 3px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-small);
+}
+
+.sf-lb-confirm code {
+	font-size: var(--font-ui-smaller);
+}
+
+.sf-lb-bt {
+	display: flex;
+	gap: 6px;
+	margin-top: 6px;
 }
 
 /* ===========================================================================
