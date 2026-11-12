@@ -161,6 +161,11 @@ export function anvilPills(list: readonly LibraryCollection[]): LibraryCollectio
 	return list.filter((c) => c.effective.anvil);
 }
 
+/** P15: the enabled collections whose Anvil switch is off, in Library order: what "+ Collection" offers. */
+export function addableCollections(list: readonly LibraryCollection[]): LibraryCollection[] {
+	return list.filter((c) => c.enabled && !c.surfaces.anvil);
+}
+
 /** Workbench Codex-tab sections (D3, P6): built-ins with Workbench on. */
 export function workbenchSections(list: readonly LibraryCollection[]): LibraryCollection[] {
 	return list.filter((c) => c.provenance === "built-in" && c.effective.workbench);

@@ -159,8 +159,10 @@ export class ConsentGate {
 		//     raw .base YAML directly in record.source — there is no vault file to
 		//     read and no fenced block to parse. Declarative (.base) → no modal;
 		//     checksum guards drift; empty source → fail-closed (not-consented).
+		//     A kind:"collection" record is the exception: its source is the PATH of the
+		//     .base file (ADR-35), so `_basesYaml` reads the file and the gate judges that.
 		if (record.engine === "bases") {
-			return this._evaluateBasesRecord(record.source, record.okayed);
+			return this._evaluateBasesRecord(await this._basesYaml(record), record.okayed);
 		}
 
 		// 6. Not consented — source note missing from vault (returns null → not-consented)
@@ -326,6 +328,17 @@ export class ConsentGate {
 	// ---------------------------------------------------------------------------
 
 	/**
+	 * The `.base` YAML a bases record is judged on. A `kind:"collection"` record stores the vault
+	 * PATH of its file (ADR-35), so the file's contents are read, with `cachedRead`, the same read
+	 * `BasesFenceEngine` renders from: what is checksummed is what runs. `null`: the file is gone.
+	 */
+	private async _basesYaml(record: ViewRecord): Promise<string | null> {
+		if (record.kind !== "collection") return record.source;
+		const file = this.app.vault.getFileByPath(record.source);
+		return file ? this.app.vault.cachedRead(file) : null;
+	}
+
+	/**
 	 * Evaluate consent for a `bases` record. The source is raw .base YAML stored
 	 * directly on the record — no vault file, no fenced block (ADR-5).
 	 *
@@ -333,9 +346,11 @@ export class ConsentGate {
 	 * Drift is checksum-only (no sf-version for bases).
 	 */
 	private async _evaluateBasesRecord(
-		yamlSource: string,
+		yamlSource: string | null,
 		okayed: { version: number; checksum: string },
 	): Promise<ConsentDecision> {
+		// No file to judge: let the engine report it ("Collection file not found: <path>").
+		if (yamlSource === null) return { status: "consented" };
 		if (!yamlSource) {
 			return { status: "not-consented" };
 		}

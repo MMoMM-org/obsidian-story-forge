@@ -116,3 +116,28 @@ export function renderCodexEmptyState(container: HTMLElement, opts: CodexEmptySt
 	container.appendChild(box);
 	return box;
 }
+
+/**
+ * S98's degrade path for a `.base` collection while Bases is off (L6a, "like every Bases surface").
+ * Nothing is embedded; the page says why, and the ADR-36 hint above it already says how to fix it.
+ * Append, not replace (same contract as `renderCodexEmptyState`).
+ */
+export function renderBasesOffState(container: HTMLElement, label: string): HTMLElement {
+	const box = activeDocument.createElement("div");
+	box.className = "sf-cx-empty sf-cx-empty--bases-off";
+	const glyph = activeDocument.createElement("div");
+	glyph.className = "sf-cx-empty-ic";
+	glyph.textContent = "⚒";
+	box.appendChild(glyph);
+	const heading = activeDocument.createElement("b");
+	heading.className = "sf-cx-empty-heading";
+	heading.textContent = `${label} needs Bases`;
+	box.appendChild(heading);
+	const detail = activeDocument.createElement("div");
+	detail.className = "sf-cx-empty-detail";
+	// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'Bases' is Obsidian's proper noun for the core plugin
+	detail.textContent = "This collection is a Bases file, and the core Bases plugin is turned off.";
+	box.appendChild(detail);
+	container.appendChild(box);
+	return box;
+}

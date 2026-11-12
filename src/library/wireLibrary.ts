@@ -19,7 +19,7 @@ export interface LibraryWiring {
 	readonly collections: CollectionStore;
 	/**
 	 * Every collection as last read, in Library order. Never stale by more than one read.
-	 * No production caller yet: T7.1d2 (Anvil pills) and T7.1d3 (Workbench) consume it.
+	 * The Anvil reads its pills from it (T7.1d2, `anvilCodexOpts.ts`); the Workbench will (T7.1d3).
 	 */
 	snapshot(): readonly LibraryCollection[];
 	/** The built-ins only, with their own tag and excluded folders applied (what the Anvil shows today). */

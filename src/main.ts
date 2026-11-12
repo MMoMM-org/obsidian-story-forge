@@ -13,7 +13,7 @@ import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { createFileClassCache } from "fileclass/fileClassVault";
 import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
-import { registerCodexView, getBasesCapability } from "bases/BasesAdapter";
+import { registerCodexView, getBasesCapability, isBasesAvailable } from "bases/BasesAdapter";
 import { AnvilView, type AnvilLayout } from "anvil/AnvilView";
 import { CatalogService } from "catalog/CatalogService";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
@@ -21,6 +21,8 @@ import type { CollectionParams } from "library/baseGenerator";
 import type { CatalogIndex } from "catalog/catalogTypes";
 import { wireUndoJournal } from "undo/wireUndoJournal";
 import { wireLibrary, type LibraryWiring } from "library/wireLibrary";
+import { openLibrarySettings } from "library/openLibrary";
+import { buildAnvilCodexOpts } from "anvil/anvilCodexOpts";
 import catalogIndexRaw from "../dist/catalog-index.json";
 
 // The bundled catalog-index.json is built by `catalog:build` before esbuild
@@ -147,6 +149,10 @@ export default class StoryForgePlugin extends Plugin {
 			),
 		);
 
+		// The settings tab is built last (it needs everything above); the Anvil's "Manage in settings…"
+		// and "Change tag" deep-link into it, and only ever run after onload has finished.
+		let settingsTab: SettingsTab | null = null;
+
 		// Register the main-area AnvilView (M5): Timeline rail + Plotlines list.
 		this.registerView(
 			WORKSPACE_VIEW_TYPE,
@@ -176,10 +182,12 @@ export default class StoryForgePlugin extends Plugin {
 							void this.saveSettings();
 						},
 					},
-					codex: {
-						// T7.1d1: the built-ins with their own tag and excluded folders applied.
-						// T7.1d2 swaps this for the pills the store selects (L6a).
-						getCollections: () => this.library.builtIns(),
+					codex: buildAnvilCodexOpts({
+						library: this.library,
+						getRecord: async (id) => (await this.store.getViews())[id],
+						gate,
+						// The Anvil draws with engines of its own; the shared ones belong to the Workbench.
+						createEngine: (kind) => buildEngineRegistry(this.app, isBasesAvailable(this)).get(kind),
 						getCardByCollection: () => this.settings.cardByCollection,
 						onCardSelect: (collectionId, cardId) => {
 							// Operational state (CON-2) — never written to a note's frontmatter.
@@ -189,17 +197,8 @@ export default class StoryForgePlugin extends Plugin {
 							};
 							void this.saveSettings();
 						},
-						// T4.6, S98 "Change tag": per-collection settings UI doesn't exist yet
-						// (Phase 7's Library owns it — SettingsTab.ts's Scope section comment).
-						// Until then, the closest real anchor is the plugin's own Settings tab.
-						onChangeTag: () => {
-							const setting = (
-								this.app as unknown as { setting?: { open?: () => void; openTabById?: (id: string) => void } }
-							).setting;
-							setting?.open?.();
-							setting?.openTabById?.(this.manifest.id);
-						},
-					},
+						openLibrary: (opts) => { openLibrarySettings(this.app, this.manifest.id, settingsTab, opts); },
+					}),
 					bases: {
 						// T4.6, ADR-36. Reads the cached registration outcome
 						// (registerCodexView, called below) + apiVersion — safe to call before
@@ -359,7 +358,7 @@ export default class StoryForgePlugin extends Plugin {
 			);
 		});
 
-		this.addSettingTab(new SettingsTab(
+		settingsTab = new SettingsTab(
 			this.app,
 			this,
 			this.store,
@@ -370,7 +369,8 @@ export default class StoryForgePlugin extends Plugin {
 			journal,
 			// T7.4 supplies the capabilities screen; until then "What optional plugins add…" is inert.
 			{ fileClasses, collections: this.library.collections, openCapabilities: () => {} },
-		));
+		);
+		this.addSettingTab(settingsTab);
 	}
 
 	// No onunload override: Obsidian releases registered views and the

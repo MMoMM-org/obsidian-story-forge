@@ -3145,6 +3145,38 @@ body {
 	color: var(--text-on-accent);
 }
 
+/* A collection the user added (S93's `.usr`) and the `+ Collection` pill (`.add`, P15): dashed. */
+.sf-cx-pill--usr,
+.sf-cx-pill--add {
+	border-style: dashed;
+}
+
+.sf-cx-pill--add {
+	color: var(--text-faint);
+}
+
+.sf-cx-pill--usr.sf-cx-pill--sel {
+	border-style: solid;
+}
+
+/* "Drawn by Dataview" in place of the Card dropdown (L6b, P8). */
+.sf-cx-src {
+	font-size: 10.5px;
+	color: var(--text-faint);
+}
+
+/* The embedded `.base` or Dataview output (L6a/L6b): fills the grid area, no card chrome of its own. */
+.sf-cx-embed {
+	position: relative;
+	min-width: 0;
+}
+
+.sf-cx-embed table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 11.5px;
+}
+
 /* Pushes the Card selector to the row's right edge (S91/S97's `.sp`). */
 .sf-cx-cats-sp {
 	flex: 1;

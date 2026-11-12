@@ -42,7 +42,7 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-27
  */
 
-import { Component, ItemView, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
+import { Component, ItemView, Menu, Notice, TFile, debounce, type WorkspaceLeaf } from "obsidian";
 import { DEBOUNCE_MS, ICON, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import { resolveWorkspaceScope, resolvePlotlineScope, DEFAULT_EXCLUDED_FOLDERS } from "scoping/workspaceScope";
 import { mapSceneRow } from "workspace/sceneMapper";
@@ -89,6 +89,7 @@ import { isActivationKey, isHtmlElement } from "navigation/keyboardRouting";
 import { ANVIL_MARKERS, createMarkerKindOf } from "navigation/markerVocabulary";
 import {
 	BUILT_IN_COLLECTIONS,
+	CODEX_ADD_ATTR,
 	CODEX_CARD_BODY_ATTR,
 	CODEX_COLLECTION_ATTR,
 	CodexSelectionStore,
@@ -120,6 +121,7 @@ import type { FileClassCache } from "fileclass/fileClassVault";
 import { createLinkedImageResolver } from "panel/assetResolver";
 import { createCardTileField } from "codex/cardTileField";
 import type { BasesCapability } from "bases/basesCapability";
+import { CollectionEmbed, type CollectionEmbedDeps } from "./collectionEmbed";
 
 // Obsidian's popout-window-aware document — the mock polyfills this to
 // globalThis.document in jsdom test environments (see test/__mocks__/obsidian.ts;
@@ -194,8 +196,8 @@ export interface AnvilViewOpts {
 	/** Codex tab concerns: collection list, Card choice, tag settings (T4.1/T4.4/T4.6). */
 	codex?: {
 		/**
-		 * Reads the live Codex collection list (T4.1) — Phase 7's Library replaces the
-		 * shipped defaults with store-backed records and must not require a reopen.
+		 * Reads the live Codex collection list (T4.1): the Library's Anvil pills
+		 * (`anvilPills`, T7.1d2); `subscribe` repaints on a change, so no reopen.
 		 * Defaults to `BUILT_IN_COLLECTIONS`.
 		 */
 		getCollections?: () => readonly CodexCollection[];
@@ -212,11 +214,23 @@ export interface AnvilViewOpts {
 		onCardSelect?: (collectionId: string, cardId: string) => void;
 		/**
 		 * Open Settings so the user can change a collection's tag (T4.6, S98's
-		 * "Change tag"). Defaults to a no-op. Per-collection settings UI does not
-		 * exist yet (deferred to Phase 7's Library) — main.ts's real implementation
-		 * opens Settings at the plugin's own tab, the closest anchor that exists today.
+		 * "Change tag"). Defaults to a no-op. The real implementation deep-links to the Library tab
+		 * with that collection's configure panel open (T7.1d2, `openLibrarySettings`).
 		 */
 		onChangeTag?: (collectionId: string) => void;
+		/**
+		 * Tell the view when the Library changed (T7.1d2), so a write repaints the pills without a
+		 * reopen. Returns the unsubscribe function; the view calls it on close and unload.
+		 */
+		subscribe?: (listener: () => void) => () => void;
+		/** The collections `+ Collection` offers: enabled, Anvil switch off (P15). Defaults to none. */
+		getAddable?: () => readonly CodexCollection[];
+		/** Turn a collection's Anvil switch on. The view selects it afterwards. Defaults to a no-op. */
+		onAddToAnvil?: (collectionId: string) => Promise<void>;
+		/** `+ Collection`'s last item, "Manage in settings…". Defaults to a no-op. */
+		onManage?: () => void;
+		/** What draws a `.base` or Dataview collection (L6a/L6b). Absent: such a pill says it cannot be drawn. */
+		embed?: CollectionEmbedDeps;
 	};
 
 	/** Editor pane concerns: the persisted dock (T5.1, ADR-33). */
@@ -350,6 +364,15 @@ export class AnvilView extends ItemView {
 	private readonly getDismissedHints: () => readonly string[];
 	private readonly onDismissHint: (hintId: string) => void;
 	private readonly onChangeTag: (collectionId: string) => void;
+	private readonly subscribeToLibrary: (listener: () => void) => () => void;
+	private readonly getAddable: () => readonly CodexCollection[];
+	private readonly onAddToAnvil: (collectionId: string) => Promise<void>;
+	private readonly onManage: () => void;
+	/** Draws the shown collection when a query engine owns it (T7.1d2). */
+	private readonly _embed: CollectionEmbed | null;
+	private _offLibrary: (() => void) | null = null;
+	/** The collection the last Codex render showed, to tell when a Library write moved the selection. */
+	private _shownCollectionId: string | null = null;
 	private readonly getEditorDock: () => EditorDock;
 	private readonly onEditorDockChange: (dock: EditorDock) => void;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
@@ -384,6 +407,11 @@ export class AnvilView extends ItemView {
 		this.getDismissedHints = opts?.bases?.getDismissedHints ?? ((): readonly string[] => []);
 		this.onDismissHint = opts?.bases?.onDismissHint ?? ((): void => {});
 		this.onChangeTag = opts?.codex?.onChangeTag ?? ((): void => {});
+		this.subscribeToLibrary = opts?.codex?.subscribe ?? ((): (() => void) => (): void => {});
+		this.getAddable = opts?.codex?.getAddable ?? ((): readonly CodexCollection[] => []);
+		this.onAddToAnvil = opts?.codex?.onAddToAnvil ?? (async (): Promise<void> => {});
+		this.onManage = opts?.codex?.onManage ?? ((): void => {});
+		this._embed = opts?.codex?.embed ? new CollectionEmbed(opts.codex.embed) : null;
 		this.getEditorDock = opts?.editor?.getDock ?? ((): EditorDock => "bottom");
 		this.fileClasses = opts?.editor?.fileClasses;
 		this.onEditorDockChange = opts?.editor?.onDockChange ?? ((): void => {});
@@ -560,10 +588,31 @@ export class AnvilView extends ItemView {
 
 		this._syncToggle();
 		this._render();
+		// A Library write (enable, remove, a switch, an import) repaints the pills in place (T7.1d2).
+		this._offLibrary = this.subscribeToLibrary(() => { this._onLibraryChange(); });
+		this.register(() => { this._releaseLibrary(); });
+	}
+
+	private _releaseLibrary(): void {
+		this._offLibrary?.();
+		this._offLibrary = null;
+	}
+
+	/**
+	 * The Library changed. Repaint the Codex from the new pills; selection falls back by
+	 * `CodexSelectionStore.resolve` (P5). A pane open on an entry of a collection that is no longer
+	 * the shown one closes, as it does when the user switches pill.
+	 */
+	private _onLibraryChange(): void {
+		if (this._closed || this._layout !== "codex") return;
+		if (this._codexSelection.resolve(this.getCollections())?.id !== this._shownCollectionId) this._editor.close();
+		this._render();
 	}
 
 	async onClose(): Promise<void> {
 		this._closed = true;
+		this._releaseLibrary();
+		this._embed?.teardown();
 		this._debouncedRender.cancel();
 		// Belt-and-suspenders: removeChild unloads the zoom child's listeners even if
 		// a re-render didn't run since the last rail render. addChild already ties the
@@ -874,6 +923,8 @@ export class AnvilView extends ItemView {
 		this._draftEl = null;
 		const body = this._bodyEl;
 		body.empty();
+		// What the previous render embedded is gone with the DOM; release its engine.
+		this._embed?.teardown();
 
 		// Tear down prior zoom child (releases DOM listeners, CON-4).
 		if (this._zoomChild !== null) {
@@ -1102,6 +1153,7 @@ export class AnvilView extends ItemView {
 	private _renderCodex(body: HTMLElement, split?: CodexTabSplit): void {
 		const collections = this.getCollections();
 		const active = this._codexSelection.resolve(collections);
+		this._shownCollectionId = active?.id ?? null;
 		const frontmatterFor = (path: string): Record<string, unknown> | null => {
 			const file = this._noteIndex?.fileFor(path) ?? null;
 			if (!file) return null;
@@ -1124,7 +1176,45 @@ export class AnvilView extends ItemView {
 			cardId: active ? this.getCardByCollection()[active.id] : undefined,
 			basesCapability: this.getBasesCapability(),
 			dismissedHints: this.getDismissedHints(),
+			showAdd: true,
+			renderEmbed: (host, collection, card): void => { this._drawEmbed(host, collection, card.id); },
 		});
+	}
+
+	/** L6a/L6b: hand the grid area to the embed. Without one the pill says why nothing is drawn. */
+	private _drawEmbed(host: HTMLElement, collection: CodexCollection, cardId: string): void {
+		if (!this._embed) {
+			host.createDiv({ cls: "sf-cx-empty", text: "This collection cannot be drawn here." });
+			return;
+		}
+		void this._embed.draw(host, {
+			collectionId: collection.id,
+			cardId,
+			activeFile: this.app.workspace.getActiveFile(),
+			openPath: this._editor.path,
+		});
+	}
+
+	/** P15: the enabled collections that are not in the Anvil yet, then a way to the Library. */
+	private _openAddMenu(anchor: HTMLElement): void {
+		const menu = new Menu();
+		const addable = this.getAddable();
+		for (const c of addable) {
+			menu.addItem((item) => item.setTitle(c.label).onClick(() => { void this._addToAnvil(c.id); }));
+		}
+		if (addable.length > 0) menu.addSeparator();
+		menu.addItem((item) => item.setTitle("Manage in settings…").onClick(() => { this.onManage(); }));
+		const rect = anchor.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.left, y: rect.bottom });
+	}
+
+	/** The pick: switch the collection on for the Anvil (a settings write, never a note), then show it. */
+	private async _addToAnvil(collectionId: string): Promise<void> {
+		await this.onAddToAnvil(collectionId);
+		if (this._closed) return;
+		this._codexSelection.select(collectionId);
+		this._editor.close();
+		this._render();
 	}
 
 	/** Timeline layout: rail or swimlane grid (read-only). `body` is `scaledEl`. */
@@ -1341,6 +1431,12 @@ export class AnvilView extends ItemView {
 		const layout = nearest.getAttribute("data-ws-layout");
 		if (layout !== null) {
 			if (isAnvilTab(layout)) this.setLayout(layout);
+			return;
+		}
+
+		// P15: `+ Collection` only opens a menu. Nothing is written until an item is picked.
+		if (nearest.hasAttribute(CODEX_ADD_ATTR)) {
+			this._openAddMenu(nearest);
 			return;
 		}
 

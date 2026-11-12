@@ -40,6 +40,8 @@ describe("MARKER_VOCABULARY", () => {
 			"data-ws-layout": "structuralControl",
 			"data-ws-tlmode": "structuralControl",
 			[CODEX_COLLECTION_ATTR]: "structuralControl",
+			// T7.1d2 (P15): the `+ Collection` pill.
+			"data-sf-cx-add": "structuralControl",
 			"data-sf-card": "structuralControl",
 			"data-sf-section-toggle": "structuralControl",
 			"data-sf-cx-change-tag": "structuralControl",

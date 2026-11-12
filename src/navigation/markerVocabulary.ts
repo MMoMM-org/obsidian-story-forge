@@ -26,7 +26,7 @@
 
 import type { TargetKind } from "./navigationController";
 import type { MarkerKindOf } from "./domTargetWalk";
-import { CODEX_CARD_BODY_ATTR, CODEX_COLLECTION_ATTR } from "codex/codexTab";
+import { CODEX_ADD_ATTR, CODEX_CARD_BODY_ATTR, CODEX_COLLECTION_ATTR } from "codex/codexTab";
 import { CARD_TITLE_ATTR } from "codex/cardWrapper";
 import { CODEX_CARD_SELECT_ATTR } from "codex/cardSelector";
 import { CODEX_CHANGE_TAG_ATTR } from "codex/codexEmptyState";
@@ -43,6 +43,7 @@ export const MARKER_VOCABULARY: Record<string, TargetKind> = {
 	"data-ws-layout": "structuralControl",
 	"data-ws-tlmode": "structuralControl",
 	[CODEX_COLLECTION_ATTR]: "structuralControl",
+	[CODEX_ADD_ATTR]: "structuralControl",
 	[CODEX_CARD_SELECT_ATTR]: "structuralControl",
 	"data-sf-section-toggle": "structuralControl",
 	[CODEX_CHANGE_TAG_ATTR]: "structuralControl",
@@ -83,6 +84,7 @@ export const ANVIL_MARKERS: readonly string[] = [
 	"data-ws-layout",
 	"data-ws-tlmode",
 	CODEX_COLLECTION_ATTR,
+	CODEX_ADD_ATTR,
 	CODEX_CARD_SELECT_ATTR,
 	"data-sf-section-toggle",
 	CODEX_CHANGE_TAG_ATTR,

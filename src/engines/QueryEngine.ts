@@ -14,6 +14,15 @@ import type { ViewRecord } from "store/types";
 // QueryEngine interface
 // ---------------------------------------------------------------------------
 
+/** What a host may ask of an engine beyond the record (spec 008 T7.1d2). Engines ignore what they do not use. */
+export interface EngineRenderOptions {
+	/**
+	 * Bases only: draw a `kind:"collection"` file's first view as this Bases view type (a Card),
+	 * applying only the parts of the file the Anvil uses (`collectionBase.ts`, P9).
+	 */
+	readonly cardViewType?: string;
+}
+
 /**
  * QueryEngine — the M2 render contract.
  *
@@ -34,7 +43,7 @@ export interface QueryEngine {
 	 * @param ctx   The panel subject's NoteContext (from ScopingService).
 	 * @param el    Empty container element owned by SidebarView.
 	 */
-	render(view: ViewRecord | null, ctx: NoteContext, el: HTMLElement): Promise<void>;
+	render(view: ViewRecord | null, ctx: NoteContext, el: HTMLElement, options?: EngineRenderOptions): Promise<void>;
 
 	/**
 	 * Unload the engine's Component and remove any DOM nodes it added to `el`.

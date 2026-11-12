@@ -19,6 +19,13 @@ export interface CodexCollection {
 	 * applies. An empty list is "exclude nothing", not "follow Scope".
 	 */
 	readonly excludedFolders?: readonly string[];
+	/**
+	 * Set for a Library collection that a query engine draws (a `.base` file, a Dataview query).
+	 * Absent: a native tag query, which the Codex draws itself with a Card. (T7.1d2)
+	 */
+	readonly engine?: "bases" | "dataview-dql" | "dataviewjs";
+	/** Where the collection came from (Library rows only). A pill that is not built-in is drawn dashed (S93's `.usr`). */
+	readonly provenance?: "built-in" | "from-repo" | "imported";
 }
 
 /**

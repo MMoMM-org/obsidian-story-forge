@@ -42,7 +42,7 @@ import { nativeCardEntry, type CardEntry, type CardRenderer } from "./cardRegist
 import { buildCardWrapper, CARD_BODY_ATTR } from "./cardWrapper";
 import { CODEX_CARD_REGISTRY } from "./builtinCards";
 import { renderCardSelector } from "./cardSelector";
-import { renderCodexEmptyState } from "./codexEmptyState";
+import { renderBasesOffState, renderCodexEmptyState } from "./codexEmptyState";
 import { renderBasesHint, BASES_DISABLED_HINT_ID } from "./basesHint";
 import type { BasesCapability } from "bases/basesCapability";
 
@@ -59,6 +59,12 @@ declare const activeDocument: Document;
  * the attribute's value (the collection id) to enact the switch.
  */
 export const CODEX_COLLECTION_ATTR = "data-sf-collection";
+
+/**
+ * Marks the `+ Collection` pill (P15). Hosts classify it as `"structuralControl"` and open their
+ * menu; it carries no id, because it names no collection.
+ */
+export const CODEX_ADD_ATTR = "data-sf-cx-add";
 
 /**
  * Marks a card / row body. Hosts classify it as `"cardBody"`; its value is the
@@ -205,6 +211,14 @@ export interface CodexTabOptions {
 	 * owns where the Codex's own chrome sits relative to it.
 	 */
 	readonly split?: CodexTabSplit;
+	/**
+	 * Draw the entries of a collection that a query engine draws (`active.engine` is set) into
+	 * `host`, in place of the native grid (T7.1d2, L6a/L6b). `card` is the Card the collection is
+	 * shown with. A host without it gets a one-line message.
+	 */
+	readonly renderEmbed?: (host: HTMLElement, active: CodexCollection, card: CardRenderer) => void;
+	/** Show the `+ Collection` pill (the Anvil's S93 row). Default: no. */
+	readonly showAdd?: boolean;
 }
 
 /** The host's half of S99's split: where the grid goes, and what sits beside it. */
@@ -245,7 +259,7 @@ export function renderCodexTab(container: HTMLElement, opts: CodexTabOptions): C
 	container.appendChild(root);
 
 	const active = opts.selection.resolve(opts.collections);
-	const cats = renderPills(opts.collections, active);
+	const cats = renderPills(opts.collections, active, opts.showAdd === true);
 	root.appendChild(cats);
 
 	maybeRenderBasesHint(root, opts);
@@ -279,9 +293,11 @@ export function renderCodexTab(container: HTMLElement, opts: CodexTabOptions): C
 	// whether the active collection currently has any notes to show with it.
 	const card = CODEX_CARD_REGISTRY.resolve(opts.cardId);
 	cats.appendChild(el("span", "sf-cx-cats-sp"));
-	cats.appendChild(renderCardSelector(card));
+	// P8: a Dataview result is not a Cards row, so there is no Card to choose.
+	cats.appendChild(isDataview(active) ? message("sf-cx-src", "Drawn by Dataview") : renderCardSelector(card));
 
-	renderBody(grid, active, card, opts);
+	if (active.engine === undefined) renderBody(grid, active, card, opts);
+	else renderEngineBody(grid, active, card, opts);
 	return active;
 }
 
@@ -299,10 +315,25 @@ function maybeRenderBasesHint(root: HTMLElement, opts: CodexTabOptions): void {
 	renderBasesHint(root);
 }
 
-/** The pill row (S91's `.cx-cats`): one pill per ENABLED collection, in order. */
+function isDataview(c: CodexCollection): boolean {
+	return c.engine === "dataview-dql" || c.engine === "dataviewjs";
+}
+
+/** A collection a query engine draws: the host embeds it, or Bases being off degrades it (S98). */
+function renderEngineBody(grid: HTMLElement, active: CodexCollection, card: CardRenderer, opts: CodexTabOptions): void {
+	if (active.engine === "bases" && (opts.basesCapability ?? "enabled") !== "enabled") {
+		renderBasesOffState(grid, active.label);
+		return;
+	}
+	if (opts.renderEmbed) opts.renderEmbed(grid, active, card);
+	else grid.appendChild(message("sf-cx-empty", "This collection is drawn by its own query."));
+}
+
+/** The pill row (S91's `.cx-cats`): one pill per ENABLED collection, in order, then `+ Collection` when asked. */
 function renderPills(
 	collections: readonly CodexCollection[],
 	active: CodexCollection | null,
+	showAdd: boolean,
 ): HTMLElement {
 	const row = el("div", "sf-cx-cats");
 	for (const collection of collections) {
@@ -313,10 +344,23 @@ function renderPills(
 		pill.setAttribute("tabindex", "0");
 		pill.setAttribute("aria-pressed", String(collection.id === active?.id));
 		if (collection.id === active?.id) pill.classList.add("sf-cx-pill--sel");
+		if (collection.provenance !== undefined && collection.provenance !== "built-in") pill.classList.add("sf-cx-pill--usr");
 		pill.textContent = collection.label;
 		row.appendChild(pill);
 	}
+	if (showAdd) row.appendChild(renderAddPill());
 	return row;
+}
+
+function renderAddPill(): HTMLElement {
+	const pill = el("span", "sf-cx-pill sf-cx-pill--add");
+	pill.setAttribute(CODEX_ADD_ATTR, "");
+	pill.setAttribute("role", "button");
+	pill.setAttribute("tabindex", "0");
+	pill.setAttribute("aria-haspopup", "menu");
+	// eslint-disable-next-line obsidianmd/ui/sentence-case -- S93/P15 draw "+ Collection" with a capital C
+	pill.textContent = "+ Collection";
+	return pill;
 }
 
 /** Resolve the active collection and render its entries, or why there are none. */

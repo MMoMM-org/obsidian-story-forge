@@ -16,6 +16,9 @@
  *     the vault file is the single copy). The file is read on every render, so
  *     a hand-edit shows up without re-importing. A missing file is refused with
  *     a reason naming the path. The path itself never reaches the YAML parser.
+ * A host that draws entries with a Card (the Anvil, T7.1d2) passes `options.cardViewType`: the
+ * file is then reduced to its global filters/formulas/properties and its first view, drawn as that
+ * Card's Bases view type (`library/collectionBase.ts`, P9). The user's file is read, never written.
  * The branch lives here, not in SidebarView's dispatch, because "where does
  * this engine's YAML come from" is the engine's question. Dispatch still
  * selects by `engine`, and every other engine reads `source` as a note path.
@@ -25,7 +28,8 @@ import { Component } from "obsidian";
 import type { App } from "obsidian";
 import type { NoteContext } from "scoping/NoteContext";
 import type { ViewRecord } from "store/types";
-import type { QueryEngine } from "engines/QueryEngine";
+import type { EngineRenderOptions, QueryEngine } from "engines/QueryEngine";
+import { toCardBase } from "library/collectionBase";
 import { renderBaseFence } from "bases/basesFence";
 
 export class BasesFenceEngine implements QueryEngine {
@@ -34,8 +38,10 @@ export class BasesFenceEngine implements QueryEngine {
 
 	constructor(private readonly app: App) {}
 
-	async render(view: ViewRecord, ctx: NoteContext, el: HTMLElement): Promise<void> {
-		const yaml = await this._readYaml(view);
+	async render(view: ViewRecord, ctx: NoteContext, el: HTMLElement, options?: EngineRenderOptions): Promise<void> {
+		const raw = await this._readYaml(view);
+		// A host that draws entries with a Card (the Anvil) gets the file reduced to the parts it uses (P9).
+		const yaml = options?.cardViewType ? toCardBase(raw, options.cardViewType) : raw;
 		this.component = new Component();
 		this.component.load(); // load BEFORE the async render (ADR-7)
 
