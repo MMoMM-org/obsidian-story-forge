@@ -208,3 +208,71 @@ Closes the gap that started this whole spec: the distribution machinery served f
     affects). Dataview collections are left out (P8).
   - *Added beyond the brief:* `removeCard` (L8c) and `configureBuiltIn`, because T7.1b/c need
     them and they are tested.
+
+- **T7.1b — Settings tabs and the Collections list: choices the mockup does not settle** (2026-11-12).
+  - *Panels.* All three tab panels are rendered into the page at once and the inactive ones are
+    `hidden`, so a setting exists exactly once in the DOM under its mapped tab and each tab keeps
+    its state. Library is the default; arrow keys, Home and End move between tabs (roving
+    tabindex). `SettingsTab.openTab(tab, {configure})` is the S98 "Change tag" deep link and
+    focuses the tag field; T7.1d only has to call it.
+  - *Structure.* `SettingsTab` keeps the tab strip, Scope, Behaviour and the folder setting.
+    `LibrarySection` owns the list (open panels, the pending removal, which control to refocus
+    after a repaint); `libraryPanels` draws the three configure panels; `settingsPort` is the
+    plugin-side `LibraryPort` (records via `ViewStore`, patches merged into `plugin.settings` and
+    saved through the plugin, read back through `normalizeSettings`). `SettingsTab` takes an
+    optional ninth argument `LibraryDeps` (collection store, note provider, T7.4 hook); omitted,
+    it builds its own, so `main.ts` is untouched.
+  - *Row text.* **Configure** and **Remove** are capitalised, where the mockup draws lowercase
+    `configure` / `remove`: `obsidianmd/ui/sentence-case` rejects the lowercase and the lint gate
+    is binding. `+ Browse repo…` and `+ Import from vault…` keep the mockup text with a scoped
+    `eslint-disable` (the rule misreads the leading `+`).
+  - *Status badge scope (P11).* Platform, engine and DataviewJS-off states are shown for every
+    non-built-in row (labels: "Dataview not installed", "DataviewJS disabled", "Not available on
+    mobile"). "Consent required" is shown for **DataviewJS only**: consent is that engine's gate
+    (PRD F7 AC 8), and an imported `.base` or a DQL entry with no stored consent would otherwise
+    read as blocked on every row. The status is the enabled projection of `ConsentGate.evaluate`,
+    as before, so a disabled row still shows what would block it. The disabled hint (L9b) wins over
+    the blocked hint (L9c); the badge is shown either way.
+  - *Ticking the checkbox* of a DataviewJS row that is `not-consented` or `drift` opens the
+    existing consent / re-consent modal first; cancel leaves it unticked (L9 transitions). Every
+    other row writes `setEnabled` directly.
+  - *Live count (P10).* Built-ins: `resolveCollection` over the injected note index (the Anvil's
+    `createNoteIndex`, created lazily on the tab's own `registerEvent`). "1 note matches" in the
+    singular. Excluded folders are listed after "outside"; an empty list drops the clause.
+  - *Imported `.base` line (L3b) has no entry count.* The mockup draws "3 entries · read from the
+    file on every render". Counting a `.base`'s entries needs Bases' own evaluator, which the
+    plugin does not have, so the line reads "File found · read from the file on every render" and
+    "File not found: <path>" in amber when the file is gone. **This is a divergence from the
+    mockup**, reported to the reviewer rather than papered over with a number.
+  - *From-repo panel.* Shows the template's Tag and Excluded folders (ADR-35 `params`) **read-only**.
+    Editing them regenerates the file, which is T7.3's checksum flow (ADR-0003); T7.1b has no
+    write for generated params.
+  - *Dataview panel.* The "Migrated from the Views list on <date>" sentence is dropped: no
+    migration date is stored. Version appears only in the consent line ("Approved v2." / "The
+    script changed since you approved v2." / "You have not approved this script yet."), with
+    Review consent… opening the first-consent or re-consent modal.
+  - *Deep copy.* The S98/CON-7 references in the built-in panel's description are mockup
+    annotations, not UI text, and are left out.
+  - *Remove.* The confirmation text is built from the row: the surfaces that are effectively on,
+    "its Card choice is forgotten" for a Bases row, "its command is removed too" for a row with a
+    palette command, "file" or "note" by the source extension. Confirm calls `collections.remove`,
+    then `removeCommand`, then a `Notice`. After removal focus moves to the next row's checkbox;
+    for the last row it moves to **+ Import from vault…**, because **+ Browse repo…** is disabled
+    until T7.2 and cannot take focus.
+  - *+ Browse repo….* Still the disabled "coming in a future release" control the old Views
+    section had; the catalog browser is T7.2.
+  - *P14 capability link.* "What optional plugins add…" renders at the foot of the Library and
+    calls `LibraryDeps.openCapabilities`, which is a no-op until T7.4 supplies the screen.
+  - *Cards slot.* `div[data-slot="cards"].sf-lb-cards-slot` sits between the collection list and
+    the folder setting, empty, for T7.1c.
+  - *Old Views tests.* `test/settings/SettingsTab.test.ts` tested the retired card list and the ⋯
+    menu (P12). Each behaviour it covered that survives (status mapping, enable consent flow,
+    command reconcile, store subscription, re-entrancy, remove) is re-covered in
+    `test/settings/libraryTab.test.ts`; the file is removed. The old `.sf-view-*` CSS is removed
+    with it.
+  - *Mock typing.* `obsidian-augment.d.ts` now lets `createDiv`/`createSpan` take `attr` and
+    `title`, as the real `DomElementInfo` does (the runtime mock already supported them).
+  - *Carried to T7.1d (unchanged and now sharper).* The list shows `kind:"collection"` records
+    only. A Dataview import still creates `kind:"view"`, and nothing calls `migrate()` yet, so on
+    this branch an existing or newly imported Dataview view does not appear in Library until
+    T7.1d wires `migrate()` and the importer.
