@@ -54,6 +54,7 @@ export class SettingsTab extends PluginSettingTab {
 	private readonly openCapabilities: () => void;
 	/** Store unsubscribe handle — set when tab is open, null when hidden. */
 	private _unsubscribeStore: (() => void) | null = null;
+	private readonly collections: CollectionStore;
 	/** The selected tab survives a repaint; Library is the default (L1). */
 	private active: SettingsTabId = "library";
 
@@ -75,6 +76,7 @@ export class SettingsTab extends PluginSettingTab {
 		this.undo = undo;
 		this.openCapabilities = library.openCapabilities ?? (() => {});
 		const collections = library.collections ?? new CollectionStore(createLibraryPort(store, plugin));
+		this.collections = collections;
 		const notes = library.notes ?? this.defaultNotes();
 		const importFromVault = (): void => { new ImportPickerModal(app, importer, gate).open(); };
 		this.cards = new CardsSection({
@@ -106,6 +108,21 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	/**
+	 * Repaint both lists when the Library changes. The collection store signals after every write
+	 * of its own (built-in settings included); the view store signals for records written behind
+	 * its back (an import). A store write also moves a record, so that second signal is dropped
+	 * while the write runs: the write's own signal follows it, and reads the finished state.
+	 */
+	private subscribeToChanges(): () => void {
+		const repaint = (): void => { void this.library.refresh(); void this.cards.refresh(); };
+		const offs = [
+			this.collections.subscribe(repaint),
+			this.store.subscribe(() => { if (!this.collections.writing) repaint(); }),
+		];
+		return () => { for (const off of offs) off(); };
+	}
+
+	/**
 	 * Open a tab, optionally with one collection's configure panel expanded and its tag field
 	 * focused (the S98 "Change tag" deep link, P10).
 	 */
@@ -122,7 +139,7 @@ export class SettingsTab extends PluginSettingTab {
 	 */
 	async displayAsync(): Promise<void> {
 		// Live-refresh the Library list when a record changes. Subscribe once per open session.
-		this._unsubscribeStore ??= this.store.subscribe(() => { void this.library.refresh(); void this.cards.refresh(); });
+		this._unsubscribeStore ??= this.subscribeToChanges();
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass("sf-settings");

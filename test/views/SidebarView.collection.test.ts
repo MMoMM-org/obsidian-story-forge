@@ -15,7 +15,11 @@ import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
 import { BasesFenceEngine } from "engines/BasesFenceEngine";
 import { EngineRegistry } from "engines/QueryEngine";
 import type { NoteContext } from "scoping/NoteContext";
-import type { ConsentGate } from "consent/ConsentGate";
+import { ConsentGate } from "consent/ConsentGate";
+import { readFencedBlock } from "import/fencedBlock";
+import { computeChecksum } from "consent/checksum";
+import type { ViewStore } from "store/ViewStore";
+import type { QueryEngine } from "engines/QueryEngine";
 import type { NativeScopingEngine } from "engines/NativeScopingEngine";
 import type { ViewRecord } from "store/types";
 
@@ -105,5 +109,95 @@ describe("SidebarView: a collection bound to the Workbench", () => {
 
 		expect(renderBaseFence).not.toHaveBeenCalled();
 		expect(body.querySelector(".sf-engine-error")).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T7.1d1 — a Dataview collection renders wherever a Dataview view rendered
+// ---------------------------------------------------------------------------
+
+const DV_NOTE = "90 Views/Skills.md";
+
+function dvCollection(engine: "dataview-dql" | "dataviewjs", okayed: ViewRecord["okayed"]): ViewRecord {
+	return {
+		provenance: "imported",
+		enabled: true,
+		okayed,
+		source: DV_NOTE,
+		engine,
+		command: false,
+		commandName: "Skills",
+		kind: "collection",
+		surfaces: { anvil: false, workbench: true },
+	};
+}
+
+function appWithDvNote(lang: string, body: string): App {
+	const app = new App();
+	const file = createMockTFile({ path: DV_NOTE, basename: "Skills", extension: "md" });
+	vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p: string) => (p === DV_NOTE ? file : null));
+	vi.mocked(app.vault.read).mockResolvedValue(`---\nsf-version: 1\n---\n\`\`\`${lang}\n${body}\n\`\`\`\n`);
+	vi.mocked(app.metadataCache.getFileCache).mockReturnValue({ frontmatter: { "sf-version": 1 } });
+	return app;
+}
+
+describe("SidebarView: a Dataview collection bound to the Workbench", () => {
+	let view: SidebarView | null = null;
+	afterEach(async () => {
+		await view?.onClose();
+		view = null;
+		vi.mocked(renderBaseFence).mockClear();
+	});
+
+	async function renderWith(engine: "dataview-dql" | "dataviewjs", body: string, consented: boolean) {
+		const app = appWithDvNote(engine === "dataviewjs" ? "dataviewjs" : "dataview", body);
+		const block = await readFencedBlock(app, DV_NOTE);
+		const okayed = consented ? { version: 1, checksum: await computeChecksum(block?.body ?? "") } : null;
+		const dvEngine: QueryEngine = { kind: engine, render: vi.fn(async () => {}), teardown: vi.fn() };
+		const registry = new EngineRegistry([dvEngine, new BasesFenceEngine(app)]);
+		const gate = new ConsentGate(app, registry, { isDvJsEnabled: () => true }, {} as ViewStore, async () => null, () => ({ tag: "", excludedFolders: [] }));
+		view = new SidebarView(makeLeaf(app), registry, gate, nativeEngine());
+		await view.onOpen();
+		const record = dvCollection(engine, okayed);
+		const internals = view as unknown as {
+			currentRecord: ViewRecord | null;
+			_renderResolved(el: HTMLElement, ctx: NoteContext): Promise<void>;
+		};
+		internals.currentRecord = record;
+		const el = view.contentEl.querySelector(".sf-body") as HTMLElement;
+		await internals._renderResolved(el, makeCtx());
+		return { el, dvEngine, record };
+	}
+
+	it.each([
+		["dataview-dql", "TABLE name FROM #canon/skill"],
+		["dataviewjs", "dv.list([])"],
+	] as const)("%s: renders through its Dataview engine, once consented, and never through the Bases fence", async (engine, body) => {
+		const { el, dvEngine, record } = await renderWith(engine, body, true);
+
+		expect(dvEngine.render).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(dvEngine.render).mock.calls[0]?.[0]).toBe(record);
+		expect(renderBaseFence).not.toHaveBeenCalled();
+		expect(el.querySelector(".sf-engine-error")).toBeNull();
+	});
+
+	it("dataviewjs without consent is held at the consent card, exactly as a view was", async () => {
+		const { el, dvEngine } = await renderWith("dataviewjs", "dv.list([])", false);
+
+		expect(dvEngine.render).not.toHaveBeenCalled();
+		expect(el.querySelector(".sf-consent-required")).not.toBeNull();
+	});
+
+	it("a changed script drifts to re-consent for a collection too", async () => {
+		const { el, dvEngine, record } = await renderWith("dataviewjs", "dv.list([])", true);
+		vi.mocked(dvEngine.render).mockClear();
+		const app = (view as unknown as { app: App }).app;
+		vi.mocked(app.vault.read).mockResolvedValue("---\nsf-version: 1\n---\n```dataviewjs\ndv.list([1])\n```\n");
+		const internals = view as unknown as { currentRecord: ViewRecord | null; _renderResolved(el: HTMLElement, ctx: NoteContext): Promise<void> };
+		internals.currentRecord = record;
+		await internals._renderResolved(el, makeCtx());
+
+		expect(dvEngine.render).not.toHaveBeenCalled();
+		expect(el.querySelector(".sf-reconsent-required")).not.toBeNull();
 	});
 });

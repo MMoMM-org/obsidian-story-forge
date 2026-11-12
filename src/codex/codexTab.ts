@@ -139,7 +139,7 @@ export interface CodexTabOptions {
 	readonly selection: CodexSelectionStore;
 	/** The current note index (path + normalized tags) — see `noteIndex.ts`. */
 	readonly index: readonly IndexedNote[];
-	/** Folders excluded from every collection (CON-7: exclusion only). */
+	/** Folders excluded from every collection that has no list of its own (CON-7: exclusion only). */
 	readonly excludedFolders: readonly string[];
 	/**
 	 * Frontmatter for a resolved note path — Cards read entries built from this
@@ -329,7 +329,7 @@ function renderBody(
 	const resolution = resolveCollection(
 		active.id,
 		{ [active.id]: { tag: active.tag } },
-		{ excludedFolders: opts.excludedFolders },
+		{ excludedFolders: active.excludedFolders ?? opts.excludedFolders },
 		opts.index,
 	);
 

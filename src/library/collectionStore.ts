@@ -195,12 +195,42 @@ export function collectionsUsingCard(
 
 const REFUSE = (reason: string): Outcome => ({ ok: false, reason });
 const OK: Outcome = { ok: true };
+const isOk = (o: Outcome): boolean => o.ok;
 const isBuiltInId = (id: string): boolean => BUILT_IN_COLLECTIONS.some((c) => c.id === id);
 
 export class CollectionStore {
 	private tail: Promise<void> = Promise.resolve();
+	private inFlight = 0;
+	private readonly listeners = new Set<() => void>();
 
 	constructor(private readonly port: LibraryPort) {}
+
+	/**
+	 * The one change signal (T7.1d1): fires after every write that changed something, once the
+	 * change can be read back. Returns the unsubscribe function.
+	 */
+	subscribe(listener: () => void): () => void {
+		this.listeners.add(listener);
+		return () => { this.listeners.delete(listener); };
+	}
+
+	/**
+	 * True from the moment a write is requested until it has run. A host that also listens to `ViewStore` can drop that
+	 * store's signal while this is set: the write's own signal follows and covers it.
+	 */
+	get writing(): boolean {
+		return this.inFlight > 0;
+	}
+
+	private notify(): void {
+		for (const listener of [...this.listeners]) {
+			try {
+				listener();
+			} catch (e) {
+				console.error("[StoryForge] collection subscriber failed", e);
+			}
+		}
+	}
 
 	// --- reads ---------------------------------------------------------------
 
@@ -326,10 +356,12 @@ export class CollectionStore {
 		return shown ? { moved: s.libraryMigratedCount } : null;
 	}
 
-	private async dismissMigrationNoticeNow(): Promise<void> {
+	/** True when the hint was newly recorded; false when it already was. */
+	private async dismissMigrationNoticeNow(): Promise<boolean> {
 		const { dismissedHints } = await this.port.loadSettings();
-		if (dismissedHints.includes(LIBRARY_MIGRATED_HINT_ID)) return;
+		if (dismissedHints.includes(LIBRARY_MIGRATED_HINT_ID)) return false;
 		await this.port.saveSettings({ dismissedHints: [...dismissedHints, LIBRARY_MIGRATED_HINT_ID] });
+		return true;
 	}
 
 	// --- serialised writes -------------------------------------------------
@@ -337,41 +369,46 @@ export class CollectionStore {
 	// read the same state and the second would erase the first. They run one at a time.
 
 	setEnabled(id: string, enabled: boolean): Promise<Outcome> {
-		return this.serial(() => this.setEnabledNow(id, enabled));
+		return this.serial(() => this.setEnabledNow(id, enabled), isOk);
 	}
 
 	setSurface(id: string, surface: Surface, on: boolean): Promise<Outcome> {
-		return this.serial(() => this.setSurfaceNow(id, surface, on));
+		return this.serial(() => this.setSurfaceNow(id, surface, on), isOk);
 	}
 
 	configureBuiltIn(id: string, patch: BuiltInConfigPatch): Promise<Outcome> {
-		return this.serial(() => this.configureBuiltInNow(id, patch));
+		return this.serial(() => this.configureBuiltInNow(id, patch), isOk);
 	}
 
 	remove(id: string): Promise<Outcome> {
-		return this.serial(() => this.removeNow(id));
+		return this.serial(() => this.removeNow(id), isOk);
 	}
 
 	setCardEnabled(cardId: string, enabled: boolean): Promise<Outcome> {
-		return this.serial(() => this.setCardEnabledNow(cardId, enabled));
+		return this.serial(() => this.setCardEnabledNow(cardId, enabled), isOk);
 	}
 
 	removeCard(cardId: string): Promise<Outcome> {
-		return this.serial(() => this.removeCardNow(cardId));
+		return this.serial(() => this.removeCardNow(cardId), isOk);
 	}
 
 	migrate(): Promise<number> {
-		return this.serial(() => this.migrateNow());
+		return this.serial(() => this.migrateNow(), (moved) => moved > 0);
 	}
 
 	dismissMigrationNotice(): Promise<void> {
-		return this.serial(() => this.dismissMigrationNoticeNow());
+		return this.serial(() => this.dismissMigrationNoticeNow(), Boolean).then(() => undefined);
 	}
 
-	private serial<T>(task: () => Promise<T>): Promise<T> {
-		const run = this.tail.then(task);
+	/** Runs `task` after the earlier writes; signals the listeners when `changed(result)` holds. */
+	private serial<T>(task: () => Promise<T>, changed: (result: T) => boolean): Promise<T> {
+		this.inFlight++;
+		const run = this.tail.then(task).finally(() => { this.inFlight--; });
 		this.tail = run.then(() => undefined, () => undefined);
-		return run;
+		return run.then((result) => {
+			if (changed(result)) this.notify();
+			return result;
+		});
 	}
 
 	// --- private -------------------------------------------------------------

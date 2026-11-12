@@ -132,6 +132,7 @@ export class ViewImporter {
 	/**
 	 * Convert a ViewDefinition into a new (not yet consented) ViewRecord.
 	 *
+	 * - kind: "collection" (T7.1d1) — an import is born a Library collection; migrate() is for legacy records only
 	 * - provenance: "imported"
 	 * - enabled: false (ADR-5 safe default)
 	 * - okayed: null (not yet consented; ADR-9)
@@ -147,7 +148,7 @@ export class ViewImporter {
 			engine: def.engine,
 			command: def.command,
 			commandName: def.name,
-			kind: "view",
+			kind: "collection",
 			surfaces: defaultSurfaces(def.engine),
 		};
 		if (def.description !== undefined) {

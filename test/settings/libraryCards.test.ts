@@ -584,6 +584,69 @@ describe("focus and stale reads", () => {
 });
 
 // ---------------------------------------------------------------------------
+// T7.1d1 — one change signal: a built-in change reaches the open Cards list
+// ---------------------------------------------------------------------------
+
+describe("the Cards list follows a built-in collection change (T7.1d1)", () => {
+	it("a tag change made from the Collections list shows in the open preview, with no reselect", async () => {
+		const w = await open();
+		const r = await preview(w.slot, "hero");
+		await sampleFrom(r, "character");
+		expect(text(region(w.slot, "hero")!.querySelector(".sf-cx-name"))).toBe("Mara");
+
+		await w.collections.configureBuiltIn("character", { tag: "canon/nobody" });
+		await flush();
+
+		expect(text(region(w.slot, "hero")!.querySelector(".sf-lb-prev-body"))).toContain("Characters has no entries yet");
+	});
+
+	it("disabling a built-in drops it from Sample from, with no reselect", async () => {
+		const w = await open();
+		const r = await preview(w.slot, "hero");
+		expect([...select(r).options].map((o) => o.value)).toContain("lore");
+
+		await w.collections.setEnabled("lore", false);
+		await flush();
+
+		expect([...select(region(w.slot, "hero")!).options].map((o) => o.value)).not.toContain("lore");
+	});
+
+	it("a change in the Library repaints each list once, even though a record change signals twice", async () => {
+		const w = await open();
+		const cardsRefresh = vi.spyOn((w.tab as unknown as { cards: { refresh(): Promise<void> } }).cards, "refresh");
+		const libRefresh = vi.spyOn((w.tab as unknown as { library: { refresh(): Promise<void> } }).library, "refresh");
+
+		await w.collections.setEnabled("creatures", false);
+		await flush();
+
+		expect(libRefresh).toHaveBeenCalledTimes(1);
+		expect(cardsRefresh).toHaveBeenCalledTimes(1);
+	});
+
+	it("an import that bypasses the store (a plain record write) still repaints", async () => {
+		const w = await open();
+		const libRefresh = vi.spyOn((w.tab as unknown as { library: { refresh(): Promise<void> } }).library, "refresh");
+
+		await w.views.setRecord("late", rec({ kind: "collection", engine: "dataview-dql", source: "90 Views/Late.md", commandName: "Late", surfaces: { anvil: false, workbench: true } }));
+		await flush();
+
+		expect(libRefresh).toHaveBeenCalledTimes(1);
+	});
+
+	it("stops repainting once the settings tab is hidden", async () => {
+		const w = await open();
+		const libRefresh = vi.spyOn((w.tab as unknown as { library: { refresh(): Promise<void> } }).library, "refresh");
+		w.tab.hide();
+
+		await w.collections.setEnabled("lore", false);
+		await w.views.setRecord("late", rec({ kind: "collection", source: "90 Views/Late.md" }));
+		await flush();
+
+		expect(libRefresh).not.toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
 // (8) sentence case, over the rendered text
 // ---------------------------------------------------------------------------
 

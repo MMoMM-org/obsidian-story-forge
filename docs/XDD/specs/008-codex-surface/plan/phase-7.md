@@ -71,7 +71,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   >   Card, Dataview in the Anvil, `+ Collection`, fallback after removal (L6a, L6b, L8b, P5, P8, P9,
   >   P15); the Workbench Codex sections per built-in toggle and a tab per imported collection
   >   (L7a, L7b, P6, P7).
-  >   **Carried over from T7.1a:** a Dataview import still creates `kind:"view"`, so either the
+  >   **d1 wiring is done** (see the T7.1d1 decisions). **Carried over from T7.1a:** a Dataview import still creates `kind:"view"`, so either the
   >   importer emits `kind:"collection"` or `migrate()` must not count new imports; `SidebarView`
   >   and the engines must render a migrated Dataview `kind:"collection"` record; collection
   >   resolution must read a built-in's own excluded folders and tag override; `configureBuiltIn`
@@ -328,10 +328,55 @@ Closes the gap that started this whole spec: the distribution machinery served f
     dirty" half of the LibrarySection pattern does not apply and was not copied.
   - *Add row.* L4 draws **+ Browse repo…** and **+ Import from vault…** under Cards as well; both
     are drawn (Browse disabled, as in the collections list) via the shared `paintAddRow`.
-  - *Known gap.* A change to a built-in collection (enable, tag, folders) writes settings, not a
+  - *Known gap (closed in T7.1d1).* A change to a built-in collection (enable, tag, folders) writes settings, not a
     record, so it does not notify the store: "used by" and "Sample from" catch up on the next
     repaint (any Cards action, a record change, or reselecting the Library tab).
   - *Tests.* The sentence-case checker moved to `test/helpers/sentenceCase.ts` (its mid-sentence
     allow-list gained "Hero"; its skip list gained `.sf-lb-prev-body`, user data). The T7.1b
     "marked place for the Cards list" test no longer asserts the slot is empty, and its
     row-name selector is scoped to `[data-collection-id]`.
+
+- **T7.1d1 — Library wiring: choices the mockup and spec do not settle** (2026-11-12).
+  - *Where it lives.* `src/library/wireLibrary.ts` (mirrors `wireUndoJournal`). `main.ts` calls
+    it right after `loadSettings()` and keeps the result as `plugin.library`
+    (`collections`, `snapshot()`, `builtIns()`, `onChange()`). `migrate()` runs inside it, once per
+    load, before any view factory can run. A failed migrate is a `console.warn`, not a failed load.
+  - *One store.* `SettingsTab` receives `plugin.library.collections` (`LibraryDeps.collections`);
+    `openCapabilities` is passed as an explicit no-op for T7.4. `SidebarView` is **not** given the
+    store yet (d3 adds the parameter); the Anvil gets `codex.getCollections`.
+  - *Synchronous snapshot.* The Codex hosts read their list while rendering, and the store is
+    async, so `wireLibrary` keeps the last `collections()` result. It is rebuilt after every
+    `CollectionStore` signal and every `ViewStore` record signal (an import writes a record without
+    going through the store); only the newest read may land. `onChange` fires after the rebuild.
+    A repaint-on-change in the Anvil is **not** wired; d2 calls `library.onChange`.
+  - *The Anvil still shows the built-ins only.* `getCollections` returns `builtIns()`, the
+    built-in rows with their tag and own excluded folders applied. Their `enabled` flag is the
+    checkbox, as before; `effective.anvil` belongs to d2.
+  - *Per-collection excluded folders.* `CodexCollection` gained an optional `excludedFolders`;
+    `renderCodexTab` resolves with it when present and with the host's Scope list when absent. An
+    empty own list means "exclude nothing", not "follow Scope". `LibraryCollection` already
+    carries Scope's list for "same as Scope", so a store row is correct as it stands. The tag
+    override needed no change (`CodexCollection.tag`). `resolveCollection` is untouched.
+  - *Importer.* `ViewImporter.toRecord` emits `kind:"collection"`. `migrate()` therefore never counts
+    a new import (test: import, then `migrate()` returns 0 and no notice).
+  - *Dataview collections render with no dispatch change.* Dispatch selects by `engine`, the
+    consent gate branches on `record.generated` and the record's engine only, and only
+    `BasesFenceEngine` reads `kind`. So SidebarView, `EngineRegistry`, palette commands
+    (`_registerViewCommand` / `_restoreViewCommands` are kind-agnostic) and consent needed no
+    change; the new SidebarView tests pin it (DQL, DataviewJS with consent, without consent,
+    drift) and that the Bases fence is not touched.
+  - *Workbench tab gating is deferred to d3.* `_renderTabs` still lists every record in the store,
+    whatever its kind or surface, exactly as before, so a migrated view keeps its tab (D2). That
+    includes `kind:"card"` records and a Bases collection with Workbench off, which d3 must filter
+    with `workbenchTabs()` / `effective.workbench`.
+  - *The change signal.* `CollectionStore.subscribe` fires once after a write that changed
+    something: refused writes, a `migrate()` that moved nothing and a dismiss that was already
+    recorded do not fire. A throwing listener is logged and does not stop the others. The store also
+    exposes `writing` (true from the request until the write has run). `SettingsTab` subscribes to
+    both signals and drops the `ViewStore` one while `writing`: a store write moves a record, so
+    that signal would repaint a second time; the store's own signal follows and reads the finished
+    state. An import (a record written outside the store) still repaints. Both subscriptions end
+    in `hide()`. This closes the T7.1c "known gap".
+  - *Not tested, equivalent.* Removing the `collections.subscribe` unsubscribe in the unload hook
+    while keeping the listener clear is not observable; `migrate()` being called again on every
+    snapshot is idempotent by design.

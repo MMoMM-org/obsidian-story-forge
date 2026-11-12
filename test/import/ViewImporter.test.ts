@@ -15,6 +15,8 @@ import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
 import { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
+import { CollectionStore } from "library/collectionStore";
+import { DEFAULT_SETTINGS, normalizeSettings, type PluginSettings } from "types/index";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -871,5 +873,52 @@ describe("ViewImporter.scanVault()", () => {
 		await importer.scanVault();
 
 		expect(app.vault.read).not.toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T7.1d1 — an import is born a collection, so migrate() never counts it
+// ---------------------------------------------------------------------------
+
+describe("ViewImporter: imports create collections (T7.1d1)", () => {
+	const def = (engine: ViewDefinition["engine"], sourcePath: string): ViewDefinition => ({
+		sourcePath,
+		engine,
+		version: 1,
+		name: "Skills",
+		command: false,
+		querySource: engine === "dataviewjs" ? "dv.list([])\n" : "TABLE name FROM #canon",
+		checksum: "sha256:abc123" as `sha256:${string}`,
+	});
+
+	function makeLibrary(store: ViewStore): CollectionStore {
+		let settings: PluginSettings = { ...DEFAULT_SETTINGS };
+		return new CollectionStore({
+			getViews: () => store.getViews(),
+			setRecord: (id, rec) => store.setRecord(id, rec),
+			deleteRecord: (id) => store.deleteRecord(id),
+			loadSettings: async () => normalizeSettings(settings),
+			saveSettings: async (patch) => { settings = { ...settings, ...patch }; },
+		});
+	}
+
+	it.each(["dataview-dql", "dataviewjs"] as const)("a %s import is kind:'collection' with the engine's default surfaces", async (engine) => {
+		const store = makeStore();
+		const id = await new ViewImporter(new App(), store).importToStore(def(engine, `views/${engine}.md`));
+		const rec = (await store.getViews())[id]!;
+		expect(rec.kind).toBe("collection");
+		expect(rec.surfaces).toEqual({ anvil: false, workbench: true });
+		expect(rec.provenance).toBe("imported");
+	});
+
+	it("a later migrate() finds nothing to move, and the Library lists the import", async () => {
+		const store = makeStore();
+		const importer = new ViewImporter(new App(), store);
+		await importer.importToStore(def("dataview-dql", "views/a.md"));
+		await importer.importToStore(def("dataviewjs", "views/b.md"));
+		const library = makeLibrary(store);
+		expect(await library.migrate()).toBe(0);
+		expect(await library.migrationNotice()).toBeNull();
+		expect((await library.collections()).filter((c) => c.provenance === "imported")).toHaveLength(2);
 	});
 });

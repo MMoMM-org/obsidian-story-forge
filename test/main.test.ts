@@ -22,6 +22,19 @@ vi.mock("bases/BasesAdapter", () => ({
 	isBasesAvailable: vi.fn(() => false),
 }));
 
+// Capture what main.ts hands the settings tab (the ninth constructor argument is LibraryDeps).
+const settingsTabArgs = vi.hoisted(() => ({ calls: [] as unknown[][] }));
+vi.mock("settings/SettingsTab", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("settings/SettingsTab")>();
+	class CapturingSettingsTab extends actual.SettingsTab {
+		constructor(...args: ConstructorParameters<typeof actual.SettingsTab>) {
+			super(...args);
+			settingsTabArgs.calls.push(args);
+		}
+	}
+	return { ...actual, SettingsTab: CapturingSettingsTab };
+});
+
 // Dynamically import main after test setup so the mock is in place
 async function makePlugin(): Promise<{
 	plugin: InstanceType<typeof import("main").default>;
@@ -829,5 +842,154 @@ describe("StoryForgePlugin M5 — AnvilView registration + open commands", () =>
 			expect.objectContaining({ type: WORKSPACE_VIEW_TYPE, state: { layout: "plotlines" } }),
 		);
 		expect(app.workspace.revealLeaf).toHaveBeenCalledWith(wsLeaf);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T7.1d1 — one shared CollectionStore; migrate() once at load
+// ---------------------------------------------------------------------------
+
+describe("StoryForgePlugin — the Library wiring (T7.1d1)", () => {
+	function legacyDataviewView() {
+		return {
+			provenance: "curated" as const,
+			enabled: true,
+			okayed: null,
+			source: "90 Views/Skills.md",
+			engine: "dataview-dql" as const,
+			command: false,
+			commandName: "Skills",
+			kind: "view" as const,
+			surfaces: { anvil: false, workbench: false },
+		};
+	}
+
+	/** Unload like Obsidian does, and let the undo journal's background shutdown release its recorder. */
+	async function unload(plugin: { _runCleanup(): void }): Promise<void> {
+		plugin._runCleanup();
+		await new Promise((r) => setTimeout(r, 0));
+	}
+
+	/** A plugin whose data.json is a real, persisting blob — what survives between loads. */
+	async function makePersistentPlugin(blob: { data: StoryForgeData }) {
+		const made = await makePlugin();
+		made.plugin.loadData.mockImplementation(async () => structuredClone(blob.data));
+		made.plugin.saveData.mockImplementation(async (d: unknown) => { blob.data = structuredClone(d as StoryForgeData); });
+		return made;
+	}
+
+	it("migrates a legacy Dataview view at load: collection, Workbench on, Anvil off, imported", async () => {
+		const blob = { data: { views: { skills: legacyDataviewView() } } as StoryForgeData };
+		const { plugin } = await makePersistentPlugin(blob);
+
+		await plugin.onload();
+
+		const rec = (await plugin.store.getViews())["skills"];
+		expect(rec).toMatchObject({ kind: "collection", provenance: "imported", surfaces: { anvil: false, workbench: true } });
+		const row = (await plugin.library.collections.collections()).find((c) => c.id === "skills");
+		expect(row).toMatchObject({ provenance: "imported", effective: { anvil: false, workbench: true } });
+		expect(await plugin.library.collections.migrationNotice()).toEqual({ moved: 1 });
+	});
+
+	it("a second load leaves the migration count unchanged", async () => {
+		const blob = { data: { views: { skills: legacyDataviewView() } } as StoryForgeData };
+		const first = await makePersistentPlugin(blob);
+		await first.plugin.onload();
+		await unload(first.plugin);
+		const afterFirst = blob.data.settings?.libraryMigratedCount;
+		expect(afterFirst).toBe(1);
+
+		const second = await makePersistentPlugin(blob);
+		await second.plugin.onload();
+
+		expect(blob.data.settings?.libraryMigratedCount).toBe(1);
+		expect(await second.plugin.library.collections.migrationNotice()).toEqual({ moved: 1 });
+	});
+
+	it("a dismissed notice stays dismissed across a load", async () => {
+		const blob = { data: { views: { skills: legacyDataviewView() } } as StoryForgeData };
+		const first = await makePersistentPlugin(blob);
+		await first.plugin.onload();
+		await first.plugin.library.collections.dismissMigrationNotice();
+		await unload(first.plugin);
+
+		const second = await makePersistentPlugin(blob);
+		await second.plugin.onload();
+
+		expect(await second.plugin.library.collections.migrationNotice()).toBeNull();
+	});
+
+	it("loading with nothing to migrate writes nothing", async () => {
+		const blob = { data: {} as StoryForgeData };
+		const { plugin } = await makePersistentPlugin(blob);
+		await plugin.onload();
+		expect(plugin.saveData).not.toHaveBeenCalled();
+	});
+
+	it("the settings tab gets the very store the plugin shares with its views", async () => {
+		settingsTabArgs.calls.length = 0;
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+
+		const deps = settingsTabArgs.calls.at(-1)?.[8] as { collections?: unknown; openCapabilities?: unknown };
+		expect(deps.collections).toBe(plugin.library.collections);
+		expect(typeof deps.openCapabilities).toBe("function");
+	});
+
+	it("the Anvil reads built-ins with the Library's own tag and folders, live", async () => {
+		const blob = { data: { settings: { builtInCollections: { character: { tag: "canon/person", excludedFolders: ["Drafts"] } } } } as unknown as StoryForgeData };
+		const { plugin, app } = await makePersistentPlugin(blob);
+		await plugin.onload();
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		const factory = plugin.registerView.mock.calls.find((c: unknown[]) => c[0] === WORKSPACE_VIEW_TYPE)?.[1] as (l: WorkspaceLeaf) => { getCollections(): { id: string; tag: string; excludedFolders?: string[] }[] };
+		const view = factory(leaf);
+
+		expect(view.getCollections().find((c) => c.id === "character")).toMatchObject({ tag: "canon/person", excludedFolders: ["Drafts"] });
+
+		await plugin.library.collections.configureBuiltIn("character", { tag: "canon/hero" });
+		await new Promise((r) => setTimeout(r, 0)); // the snapshot is rebuilt right after the signal
+		expect(view.getCollections().find((c) => c.id === "character")?.tag).toBe("canon/hero");
+	});
+
+	it("the Anvil still shows only the built-ins (the pills change in d2), even with a migrated view in the Library", async () => {
+		const blob = { data: { views: { skills: legacyDataviewView() } } as StoryForgeData };
+		const { plugin, app } = await makePersistentPlugin(blob);
+		await plugin.onload();
+		const leaf = new WorkspaceLeaf();
+		leaf.app = app;
+		const factory = plugin.registerView.mock.calls.find((c: unknown[]) => c[0] === WORKSPACE_VIEW_TYPE)?.[1] as (l: WorkspaceLeaf) => { getCollections(): { id: string }[] };
+
+		expect(factory(leaf).getCollections().map((c) => c.id)).toEqual(["character", "location", "object", "lore"]);
+		expect(plugin.library.snapshot().map((c) => c.id)).toContain("skills");
+	});
+
+	it("a record written behind the store's back (an import) reaches the snapshot and its listeners", async () => {
+		const { plugin } = await makePersistentPlugin({ data: {} });
+		await plugin.onload();
+		const spy = vi.fn();
+		plugin.library.onChange(spy);
+
+		await plugin.store.setRecord("late", { ...legacyDataviewView(), kind: "collection" });
+		await new Promise((r) => setTimeout(r, 0));
+
+		expect(plugin.library.snapshot().map((c) => c.id)).toContain("late");
+		expect(spy).toHaveBeenCalled();
+	});
+
+	it("unsubscribes its own listeners on unload", async () => {
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+		const spy = vi.fn();
+		plugin.library.onChange(spy);
+		await plugin.library.collections.setEnabled("character", false);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(spy).toHaveBeenCalledTimes(1); // the listener is live before unload
+
+		plugin._runCleanup();
+		await plugin.library.collections.setEnabled("character", true);
+		await new Promise((r) => setTimeout(r, 0));
+
+		expect(spy).toHaveBeenCalledTimes(1);
 	});
 });

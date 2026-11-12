@@ -7,7 +7,7 @@
  * weaker test.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ViewStore } from "../../src/store/ViewStore";
 import { defaultSurfaces, type PluginDataPort, type StoryForgeData, type ViewRecord } from "../../src/store/types";
 import {
@@ -504,5 +504,91 @@ describe("Library settings normalisation", () => {
 		expect(Object.keys(out)).toEqual(["lore"]);
 		expect(Object.getPrototypeOf(out)).toBe(Object.prototype);
 		expect(Object.prototype.hasOwnProperty.call(out, "__proto__")).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (z) one change signal (T7.1d1)
+// ---------------------------------------------------------------------------
+
+describe("CollectionStore.subscribe", () => {
+	const legacy = (): ViewRecord => makeRecord({ kind: "view", engine: "dataview-dql", surfaces: { anvil: false, workbench: false } });
+	const seed = () => ({
+		mine: makeRecord(),
+		card: makeRecord({ kind: "card", source: "00 Meta/Cards/Isekai.md" }),
+		legacy: legacy(),
+	});
+
+	const writes: ReadonlyArray<[string, (s: CollectionStore) => Promise<unknown>]> = [
+		["setEnabled", (s) => s.setEnabled("mine", false)],
+		["setSurface", (s) => s.setSurface("mine", "workbench", true)],
+		["configureBuiltIn", (s) => s.configureBuiltIn("character", { tag: "canon/person" })],
+		["remove", (s) => s.remove("mine")],
+		["setCardEnabled", (s) => s.setCardEnabled("card", false)],
+		["removeCard", (s) => s.removeCard("card")],
+		["migrate", (s) => s.migrate()],
+		["dismissMigrationNotice", (s) => s.dismissMigrationNotice()],
+	];
+
+	it.each(writes)("fires exactly once after %s", async (_name, write) => {
+		const { store } = makeHarness({ views: seed() });
+		const listener = vi.fn();
+		store.subscribe(listener);
+		await write(store);
+		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
+	it("fires only after the write is readable", async () => {
+		const { store } = makeHarness({ views: seed() });
+		const seen: boolean[] = [];
+		store.subscribe(() => { void store.collections().then((l) => seen.push(l.find((c) => c.id === "mine")?.enabled === false)); });
+		await store.setEnabled("mine", false);
+		await Promise.resolve();
+		await new Promise((r) => setTimeout(r, 0));
+		expect(seen).toEqual([true]);
+	});
+
+	it("does not fire for a refused write, or a migrate that moved nothing", async () => {
+		const { store } = makeHarness({ views: { mine: makeRecord() } });
+		const listener = vi.fn();
+		store.subscribe(listener);
+		expect((await store.remove("character")).ok).toBe(false);
+		expect((await store.setCardEnabled("hero", false)).ok).toBe(false);
+		expect(await store.migrate()).toBe(0);
+		expect(listener).not.toHaveBeenCalled();
+	});
+
+	it("stops firing after unsubscribe, and one bad listener does not hide the signal from the next", async () => {
+		const { store } = makeHarness({ views: seed() });
+		const first = vi.fn();
+		const unsubscribe = store.subscribe(first);
+		const err = vi.spyOn(console, "error").mockImplementation(() => {});
+		store.subscribe(() => { throw new Error("boom"); });
+		const last = vi.fn();
+		store.subscribe(last);
+		await store.setEnabled("mine", false);
+		unsubscribe();
+		await store.setEnabled("mine", true);
+		expect(first).toHaveBeenCalledTimes(1);
+		expect(last).toHaveBeenCalledTimes(2);
+		err.mockRestore();
+	});
+
+	it("does not fire when the notice was already dismissed", async () => {
+		const { store } = makeHarness({ views: seed() });
+		await store.dismissMigrationNotice();
+		const listener = vi.fn();
+		store.subscribe(listener);
+		await store.dismissMigrationNotice();
+		expect(listener).not.toHaveBeenCalled();
+	});
+
+	it("reports a write in flight, so a host can drop the record signal the write itself caused", async () => {
+		const { store } = makeHarness({ views: seed() });
+		expect(store.writing).toBe(false);
+		const p = store.setEnabled("mine", false);
+		expect(store.writing).toBe(true);
+		await p;
+		expect(store.writing).toBe(false);
 	});
 });

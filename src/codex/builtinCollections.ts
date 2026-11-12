@@ -14,6 +14,11 @@ export interface CodexCollection {
 	readonly tag: string;
 	/** A disabled collection has no pill at all (PRD/F7) — it is not merely dimmed. */
 	readonly enabled: boolean;
+	/**
+	 * Folders excluded from THIS collection (Library, T7.1d1). Absent: the host's Scope list
+	 * applies. An empty list is "exclude nothing", not "follow Scope".
+	 */
+	readonly excludedFolders?: readonly string[];
 }
 
 /**

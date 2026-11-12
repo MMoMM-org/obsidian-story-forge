@@ -33,6 +33,8 @@ import {
 	type CodexCollection,
 } from "codex/codexTab";
 import { createNoteIndex } from "codex/noteIndex";
+import { buildCollections } from "library/collectionStore";
+import { DEFAULT_SETTINGS, type PluginSettings } from "types/index";
 import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
 import { nativeTileField } from "codex/cardTileField";
 import type { CardRenderer } from "codex/cardRegistry";
@@ -275,6 +277,54 @@ describe("Codex tab: collection pills [PRD/F3, PRD/F7]", () => {
 
 		expect(bodyOf(view).querySelector("[data-sf-cx-misconfigured]")).not.toBeNull();
 		expect(cardPaths(view)).toEqual([]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// T7.1d1 — a built-in resolves by its OWN tag and excluded folders
+// ---------------------------------------------------------------------------
+
+describe("Codex tab: a built-in collection's own config (Library, T7.1d1)", () => {
+	let app: App;
+	beforeEach(() => {
+		app = new App();
+		seedVault(app);
+	});
+
+	/** The built-in rows exactly as the Library store hands them to the Anvil. */
+	const rows = (builtInCollections: PluginSettings["builtInCollections"], excludedFolders: string[] = ["00 Meta"]): readonly CodexCollection[] =>
+		buildCollections({}, { ...DEFAULT_SETTINGS, builtInCollections, excludedFolders });
+
+	it("resolves by the tag override, not the shipped tag", async () => {
+		const view = await openCodex(app, { collections: rows({ character: { tag: "canon/location" } }) });
+
+		expect(selectedPill(view)?.getAttribute("data-sf-collection")).toBe("character");
+		expect(cardPaths(view)).toEqual([harbor.path]);
+	});
+
+	it("excludes its own folders, and not the ones Scope excludes", async () => {
+		const view = await openCodex(app, { collections: rows({ character: { excludedFolders: ["30 Canon/31 Characters"] } }) });
+
+		// Scope's "00 Meta" no longer applies to this collection, so the template shows; Mara and Tobias do not.
+		expect(cardPaths(view)).toEqual([template.path]);
+	});
+
+	it("follows Scope when it has no list of its own", async () => {
+		const view = await openCodex(app, { collections: rows({}, ["30 Canon/31 Characters"]) });
+
+		expect(cardPaths(view)).toEqual([template.path]);
+	});
+
+	it("an empty own list excludes nothing, rather than falling back to Scope", async () => {
+		const view = await openCodex(app, { collections: rows({ character: { excludedFolders: [] } }) });
+
+		expect(cardPaths(view).sort()).toEqual([mara.path, template.path, tobias.path].sort());
+	});
+
+	it("a collection with no list of its own (a plain CodexCollection) still uses the host's Scope list", async () => {
+		const view = await openCodex(app);
+
+		expect(cardPaths(view)).not.toContain(template.path);
 	});
 });
 

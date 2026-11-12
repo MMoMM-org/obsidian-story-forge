@@ -20,6 +20,7 @@ import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import type { CollectionParams } from "library/baseGenerator";
 import type { CatalogIndex } from "catalog/catalogTypes";
 import { wireUndoJournal } from "undo/wireUndoJournal";
+import { wireLibrary, type LibraryWiring } from "library/wireLibrary";
 import catalogIndexRaw from "../dist/catalog-index.json";
 
 // The bundled catalog-index.json is built by `catalog:build` before esbuild
@@ -36,6 +37,8 @@ function basenameNoMd(source: string): string {
 export default class StoryForgePlugin extends Plugin {
 	settings: PluginSettings = DEFAULT_SETTINGS;
 	store!: ViewStore;
+	/** The one shared Library: collection store, change signal and a synchronous snapshot (T7.1d1). */
+	library!: LibraryWiring;
 
 	/** Tracks which view-ids have a registered command-palette entry. */
 	readonly _commandIds: Set<string> = new Set();
@@ -50,6 +53,10 @@ export default class StoryForgePlugin extends Plugin {
 		this.store = new ViewStore(port);
 
 		await this.loadSettings();
+
+		// The Library (T7.1d1): one CollectionStore for the settings tab and both hosts.
+		// `migrate()` runs here, once, after the data is loaded and before any view renders.
+		this.library = await wireLibrary(this, this.store);
 
 		// The one FileClass cache (T6.4): every consumer below reads through it, so
 		// a scan is shared and a FileClass change reaches all of them at once.
@@ -170,6 +177,9 @@ export default class StoryForgePlugin extends Plugin {
 						},
 					},
 					codex: {
+						// T7.1d1: the built-ins with their own tag and excluded folders applied.
+						// T7.1d2 swaps this for the pills the store selects (L6a).
+						getCollections: () => this.library.builtIns(),
 						getCardByCollection: () => this.settings.cardByCollection,
 						onCardSelect: (collectionId, cardId) => {
 							// Operational state (CON-2) — never written to a note's frontmatter.
@@ -358,7 +368,8 @@ export default class StoryForgePlugin extends Plugin {
 			registerCommand,
 			this._removeViewCommand.bind(this),
 			journal,
-			{ fileClasses },
+			// T7.4 supplies the capabilities screen; until then "What optional plugins add…" is inert.
+			{ fileClasses, collections: this.library.collections, openCapabilities: () => {} },
 		));
 	}
 
