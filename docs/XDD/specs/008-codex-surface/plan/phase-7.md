@@ -50,6 +50,24 @@ Closes the gap that started this whole spec: the distribution machinery served f
      - [ ] A `kind:"collection"` record bound to a surface **renders**, rather than feeding a vault
            path to the YAML renderer — see the gate below
 
+  > **Split after the Library addendum sign-off (2026-11-12).** `mockups-library.html` (L1–L9,
+  > P1–P19, accepted as recommended) replaces S101 as the binding picture for this task. It is too
+  > large for one dispatch, so it runs as four sub-tasks in order; each is reviewed on its own.
+  > - **T7.1a Collection store** — `src/library/collectionStore.ts`: built-ins and user collections
+  >   as one ordered list; checkbox master with kept surface values (P1); engine-based defaults
+  >   (P2); built-in tag/excluded-folder config (P10); migration of old views to collections with
+  >   Workbench on, Anvil off, and a once-only notice flag (D2, P13); remove drops the record and
+  >   its `cardByCollection` entry, never a file (P5, P16); Cards with "used by" and Hero not
+  >   disablable (P19); selectors for the Anvil pills, the Workbench sections and the Workbench
+  >   tabs. Pure, no DOM.
+  > - **T7.1b Settings tabs and the Collections list** — L1 (Library | Scope | Behaviour, every
+  >   existing setting placed), L2, L3, L8a, L9, P11–P14, P17.
+  > - **T7.1c Cards list and preview** — L4, L5, L8c, P3.
+  > - **T7.1d Surfaces** — the Anvil pills from the store, an imported `.base` embedded with its
+  >   Card, Dataview in the Anvil, `+ Collection`, fallback after removal (L6a, L6b, L8b, P5, P8, P9,
+  >   P15); the Workbench Codex sections per built-in toggle and a tab per imported collection
+  >   (L7a, L7b, P6, P7).
+
   > **GATE — inherited from Phase 3 (T3.3, assigned here 2026-08-02).** This is the task that first
   > makes a `kind:"collection"` record reachable by a surface, and it must not ship until the
   > dispatch gap is closed. **`src/engines/BasesFenceEngine.ts:27` reads `record.source` as raw
