@@ -63,7 +63,11 @@ Closes the gap that started this whole spec: the distribution machinery served f
   > - **T7.1b Settings tabs and the Collections list** *(done: ed38944…b1c34ab; the L3b "File found" line in place of an entry count awaits the user's confirmation)* — L1 (Library | Scope | Behaviour, every
   >   existing setting placed), L2, L3, L8a, L9, P11–P14, P17.
   > - **T7.1c Cards list and preview** *(done)* — L4, L5, L8c, P3.
-  > - **T7.1d Surfaces** — the Anvil pills from the store, an imported `.base` embedded with its
+  > - **T7.1d Surfaces**, run as three steps: **d1 wiring** (one shared `CollectionStore` from
+  >   `main.ts`, `migrate()` at load, the importer emitting `kind:"collection"`, Dataview
+  >   collection records rendering, resolution reading a built-in's own tag and excluded folders,
+  >   one change signal for record and settings changes); **d2 Anvil** (L6a, L6b, L8b, P5, P8, P9,
+  >   P15); **d3 Workbench** (L7a, L7b, P6, P7). Scope — the Anvil pills from the store, an imported `.base` embedded with its
   >   Card, Dataview in the Anvil, `+ Collection`, fallback after removal (L6a, L6b, L8b, P5, P8, P9,
   >   P15); the Workbench Codex sections per built-in toggle and a tab per imported collection
   >   (L7a, L7b, P6, P7).
