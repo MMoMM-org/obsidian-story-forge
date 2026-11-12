@@ -266,9 +266,11 @@ export class LibrarySection {
 			cls: "sf-lb-addbtn",
 			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L2 text; the rule misreads the leading '+' glyph
 			text: "+ Browse repo…",
-			attr: { type: "button", title: "Coming in a future release", "aria-label": "Coming in a future release" },
+			// The visible name stays the accessible name; the reason is a description, not a replacement.
+			attr: { type: "button", title: "Coming in a future release", "aria-describedby": "sf-lb-browse-note" },
 		});
 		browse.disabled = true;
+		add.createSpan({ cls: "sf-lb-sr", text: "Coming in a future release", attr: { id: "sf-lb-browse-note" } });
 		const imp = add.createEl("button", {
 			cls: "sf-lb-addbtn",
 			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L2 text; the rule misreads the leading '+' glyph

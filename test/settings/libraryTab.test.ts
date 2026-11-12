@@ -627,6 +627,46 @@ describe("L3c · a migrated Dataview entry", () => {
 	});
 });
 
+describe("L3 · behaviour carried over from the old Views menu", () => {
+	it("ticking a disabled, already-consented row re-enables it without opening a modal", async () => {
+		const w = await open({ views: { skills: { ...seedViews()["skills"]!, enabled: false } } });
+		await click(checkbox(w.root, "skills"));
+		await vi.waitFor(() => expect(w.stored()["skills"]?.enabled).toBe(true));
+		expect(w.gate.requestConsent).not.toHaveBeenCalled();
+		expect(w.gate.requestReConsent).not.toHaveBeenCalled();
+	});
+
+	it("Review consent… is reachable for a consented DataviewJS entry and re-reviews it", async () => {
+		const w = await open();
+		const panel = await configure(w.root, "web");
+		await click(button(panel, "Review consent…"));
+		expect(w.gate.requestReConsent).toHaveBeenCalledWith("web", expect.anything());
+		expect(w.gate.requestConsent).not.toHaveBeenCalled();
+	});
+
+	it("a blank name falls back to the source file's basename; an unchanged field writes nothing", async () => {
+		const w = await open();
+		const panel = await configure(w.root, "skills");
+		const spy = vi.spyOn(w.views, "setRecord");
+		const name = q<HTMLInputElement>(panel, "input[aria-label='Name']")!;
+		name.value = "  ";
+		name.dispatchEvent(new Event("change", { bubbles: true }));
+		await vi.waitFor(() => expect(w.stored()["skills"]?.commandName).toBeUndefined());
+		await vi.waitFor(() => expect(text(q(item(w.root, "skills"), ".sf-lb-name"))).toBe("Skills"));
+		spy.mockClear();
+		await w.tab.displayAsync();
+		expect(spy).not.toHaveBeenCalled();
+	});
+
+	it("a stale palette entry is cleared even when the record says there is no command", async () => {
+		const w = await open({ views: { skills: { ...seedViews()["skills"]!, command: false } } });
+		const panel = await configure(w.root, "skills");
+		await click(q(panel, "[role=switch]"));
+		await vi.waitFor(() => expect(w.removeCommand).toHaveBeenCalledWith("skills"));
+		expect(w.removeCommand.mock.invocationCallOrder[0]).toBeLessThan(w.registerCommand.mock.invocationCallOrder[0]!);
+	});
+});
+
 describe("L3 · the live count", () => {
 	it("is taken from the injected note index and follows the tag", async () => {
 		const w = await open({ notes: [{ path: "a.md", tags: ["canon/lore"] }, { path: "b.md", tags: ["canon/lore"] }] });
@@ -842,7 +882,11 @@ describe("P14 · the curated folder and the capability link", () => {
 		expect(button(root, "+ Import from vault…")).not.toBeNull();
 		const browse = button(root, "+ Browse repo…")!;
 		expect(browse.disabled).toBe(true);
-		expect(browse.getAttribute("aria-label")).toBe("Coming in a future release");
+		// The visible name is the accessible name; the reason is its description.
+		expect(browse.hasAttribute("aria-label")).toBe(false);
+		const note = browse.getAttribute("aria-describedby");
+		expect(text(document.getElementById(note ?? ""))).toBe("Coming in a future release");
+		expect(browse.title).toBe("Coming in a future release");
 	});
 });
 
@@ -902,6 +946,81 @@ describe("L9 · edge states", () => {
 		const { root } = await open({ views: {} });
 		expect(rowIds(root)).toEqual(["character", "location", "object", "lore"]);
 		expect(button(root, "+ Import from vault…")).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (10) sentence case, over the rendered text (the lint rule covers the source literals)
+// ---------------------------------------------------------------------------
+
+/** Words that are proper nouns or UI terms the mockup writes capitalised mid-sentence. */
+const PROPER = new Set([
+	"Anvil", "Workbench", "Bases", "Dataview", "DataviewJS", "Scope", "Obsidian",
+	"Library", "Browse", "Card", "Codex", "FileClass", "FileClasses", "Meta", "Story", "Forge",
+]);
+
+/** Capitalised words that are not at the start of a sentence and not allowed. */
+function sentenceCaseViolations(raw: string, labels: readonly string[]): string[] {
+	if (raw.trim().startsWith("+")) return [];
+	let s = raw;
+	for (const label of labels) s = s.split(label).join("");
+	const words = s.split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
+	const bad: string[] = [];
+	words.forEach((word, i) => {
+		const atStart = i === 0 || /[.?!:]$/.test(words[i - 1] ?? "");
+		const bare = word.replace(/[^A-Za-z]/g, "");
+		if (atStart || !/^[A-Z][a-z]/.test(bare) || PROPER.has(bare)) return;
+		bad.push(word);
+	});
+	return bad;
+}
+
+/** Own text of every visible element, minus user data (row names, paths, code) and the plugin header. */
+function visibleStrings(root: HTMLElement): string[] {
+	const skip = ".sf-settings-header, .sf-lb-name, .sf-lb-file, code, input";
+	return [...root.querySelectorAll<HTMLElement>("*")]
+		.filter((el) => !el.closest(skip))
+		.map((el) => [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent ?? "").join(" ").trim())
+		.filter((t) => t.length > 0);
+}
+
+describe("sentence case in the rendered text (test 10)", () => {
+	async function everything(): Promise<string[]> {
+		const w = await open({
+			settings: { libraryMigratedCount: 2, builtInCollections: { lore: { enabled: false, anvil: true, workbench: false } } },
+			decisions: { "90 Views/Relationship web.md": "drift", "90 Views/Skills.md": "engine-missing" },
+		});
+		w.app.vault.getFileByPath.mockReturnValue(null);
+		for (const id of ["character", "creatures", "organizations", "skills", "web"]) await configure(w.root, id);
+		await click(button(item(w.root, "organizations"), "Remove"));
+		await w.collections.setSurface("creatures", "anvil", false);
+		await w.collections.setSurface("creatures", "workbench", false);
+		await w.tab.displayAsync();
+		return visibleStrings(w.root);
+	}
+
+	it("covers all three panels, the badges, hints, panels and the confirmation", async () => {
+		const strings = await everything();
+		for (const expected of [
+			"Folder for collections from the repo", "FileClasses folder", "Link click action", "Keep undo history across restarts",
+			"built-in", "from repo", "Bases", "Disabled. Enable it to choose where it shows; it will return to the Anvil.",
+			"Shown nowhere. Turn on Anvil or Workbench to see it.", "Open file", "Review consent…",
+		]) {
+			expect(strings.some((t) => t.includes(expected)), expected).toBe(true);
+		}
+	});
+
+	it("has no mid-sentence capital outside the mockup's proper nouns", async () => {
+		const strings = await everything();
+		const labels = ["Relationship web", "Organizations", "Creatures", "Characters", "Skills", "Locations", "Objects", "Lore"];
+		const offenders = strings.flatMap((t) => sentenceCaseViolations(t, labels).map((w) => `${w} in "${t}"`));
+		expect(offenders).toEqual([]);
+	});
+
+	it("the checker itself flags a capitalised label (guards the guard)", () => {
+		expect(sentenceCaseViolations("Open Note from card title", [])).toEqual(["Note"]);
+		expect(sentenceCaseViolations("Shown nowhere. Turn on Anvil or Workbench.", [])).toEqual([]);
+		expect(sentenceCaseViolations("▲ Consent required", [])).toEqual([]);
 	});
 });
 

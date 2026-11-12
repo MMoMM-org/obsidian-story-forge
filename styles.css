@@ -1234,6 +1234,17 @@ body {
 	cursor: not-allowed;
 }
 
+/* Screen-reader-only text: the reason a control is disabled. */
+.sf-lb-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	opacity: 0;
+	pointer-events: none;
+	white-space: nowrap;
+}
+
 .sf-lb-foot {
 	padding: 4px 0 12px;
 }
