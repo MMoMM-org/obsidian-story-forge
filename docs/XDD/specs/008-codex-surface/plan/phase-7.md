@@ -276,3 +276,10 @@ Closes the gap that started this whole spec: the distribution machinery served f
     only. A Dataview import still creates `kind:"view"`, and nothing calls `migrate()` yet, so on
     this branch an existing or newly imported Dataview view does not appear in Library until
     T7.1d wires `migrate()` and the importer.
+  - *L3a "Same as Scope" keeps its checkbox.* The mockup note says unchecking "replaces the
+    checkbox line with an editable list". The code keeps the checkbox and adds the list under it.
+    **Divergence, recorded after review:** with the checkbox gone there would be no control to
+    go back to "same as Scope" short of emptying the list by hand, and an emptied list means
+    "exclude nothing", not "follow Scope". The checkbox stays so the way back is one click.
+  - *+ Browse repo….* Its accessible name is its visible text. "Coming in a future release" is
+    the `title` and an `aria-describedby` description, not a replacement `aria-label`.
