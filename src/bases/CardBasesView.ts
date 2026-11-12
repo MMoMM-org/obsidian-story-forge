@@ -45,7 +45,7 @@
 import type { App, BasesEntry, QueryController } from "obsidian";
 import { BasesView, TFile } from "obsidian";
 import { basesCardEntry, type CardEntry, type CardRegistry, type CardRenderer } from "codex/cardRegistry";
-import { buildCardWrapper, CARD_BODY_ATTR } from "codex/cardWrapper";
+import { buildCardWrapper, CARD_BODY_ATTR, NAVIGATION_HOST_ATTR } from "codex/cardWrapper";
 import { createLinkedImageResolver } from "panel/assetResolver";
 import { createCardTileField } from "codex/cardTileField";
 import type { FileClassCache } from "fileclass/fileClassVault";
@@ -257,7 +257,9 @@ export class CardBasesView extends BasesView {
 		});
 		const outcome = controller.handle(markers, modifier);
 
-		if (outcome.action === "openNote") {
+		// Inside the Anvil's embed the click also reaches the Anvil's own handler, which does the
+		// navigating; opening here too would be a second navigation (and a second leaf).
+		if (outcome.action === "openNote" && this.containerEl.closest(`[${NAVIGATION_HOST_ATTR}]`) === null) {
 			const path = this._openPath(nearest);
 			if (path) this.deps.onEntryClick(path);
 		}

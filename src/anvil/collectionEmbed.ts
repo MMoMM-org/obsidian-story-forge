@@ -13,6 +13,7 @@
 import type { ConsentGate } from "consent/ConsentGate";
 import type { QueryEngine } from "engines/QueryEngine";
 import { cardViewType } from "library/collectionBase";
+import { NAVIGATION_HOST_ATTR } from "codex/cardWrapper";
 import type { NoteContext } from "scoping/NoteContext";
 import type { ViewRecord } from "store/types";
 import type { TFile } from "obsidian";
@@ -98,6 +99,8 @@ export class CollectionEmbed {
 		const engine = this.deps.createEngine(record.engine);
 		if (!engine) return void host.replaceChildren(this.blockedBox("engine-missing", request.collectionId, record));
 		const el = div("sf-cx-embed");
+		// The Anvil's own click handler navigates; a Card view drawn in here must not (ADR-28).
+		el.setAttribute(NAVIGATION_HOST_ATTR, "");
 		host.replaceChildren(el);
 		this.engine = engine;
 		const options = record.engine === "bases" ? { cardViewType: cardViewType(request.cardId) } : {};

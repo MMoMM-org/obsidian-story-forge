@@ -24,6 +24,9 @@ import {
 import { AnvilView } from "anvil/AnvilView";
 import { buildAnvilCodexOpts } from "anvil/anvilCodexOpts";
 import { CollectionEmbed } from "anvil/collectionEmbed";
+import { CardBasesView } from "bases/CardBasesView";
+import { CODEX_CARD_REGISTRY } from "codex/builtinCards";
+import { BasesEntry, BasesQueryResult, QueryController } from "obsidian";
 import type { QueryEngine } from "engines/QueryEngine";
 import { ConsentGate } from "consent/ConsentGate";
 import { computeChecksum } from "consent/checksum";
@@ -114,7 +117,7 @@ interface World {
 	readonly subscribers: { count: number };
 	/** Every engine the Anvil created, with how many times its `teardown` ran. */
 	readonly engines: Array<{ kind: string; teardown: { mock: { calls: unknown[][] } } }>;
-	open(): Promise<AnvilView>;
+	open(linkClickAction?: "drill" | "open"): Promise<AnvilView>;
 }
 
 const opened: AnvilView[] = [];
@@ -187,12 +190,13 @@ async function makeWorld(opts: WorldOptions = {}): Promise<World> {
 	});
 	return {
 		app, views, library, host, bodies, dv, manage, changeTag, subscribers, engines,
-		open: async () => {
+		open: async (linkClickAction = "drill") => {
 			const leaf = new WorkspaceLeaf();
 			leaf.app = app;
 			const view = new AnvilView(leaf, {
 				codex: { ...codex, onChangeTag: changeTag as (id: string) => void },
 				bases: { getCapability: () => capability },
+				settings: { getLinkClickAction: () => linkClickAction },
 			});
 			opened.push(view);
 			await view.onOpen();
@@ -541,5 +545,41 @@ describe("an embed draw that has been overtaken", () => {
 		held.release();
 		await drawing;
 		expect(card.classList.contains("sf-cx-card--sel")).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// 8 · one click, one navigation (PRD F2, ADR-28)
+// ---------------------------------------------------------------------------
+
+describe("a name click inside an embedded .base with linkClickAction 'open'", () => {
+	it("opens the note once through the Anvil and never through the Bases view's own opener", async () => {
+		const w = await makeWorld({ views: { orgs: await baseRecord() } });
+		vi.mocked(w.app.vault.getAbstractFileByPath).mockImplementation((p: string) => (p === MARA.path ? MARA : null));
+		const openLinkText = vi.fn(async () => {});
+		w.app.workspace.openLinkText = openLinkText;
+		const view = await w.open("open");
+		click(pill(view, "Organizations"));
+		await settle();
+
+		// Bases is not running here: draw the real Card view into the container the embed made for it.
+		const revealAndShowFile = vi.fn();
+		const container = document.createElement("div");
+		body(view).querySelector(".sf-cx-embed")!.appendChild(container);
+		const cards = new CardBasesView("story-forge-hero", new QueryController(), container, {
+			app: w.app, registry: CODEX_CARD_REGISTRY, cardId: "hero", onEntryClick: revealAndShowFile, getLinkClickAction: () => "open",
+		});
+		const entry = new BasesEntry();
+		entry.file = MARA;
+		entry.getValue.mockImplementation(() => null);
+		const result = new BasesQueryResult();
+		result.data = [entry];
+		cards.data = result;
+		cards.onDataUpdated();
+		click(container.querySelector(`[data-sf-link="${MARA.path}"]`));
+
+		expect(openLinkText).toHaveBeenCalledTimes(1);
+		expect(openLinkText).toHaveBeenCalledWith(MARA.path, "", true);
+		expect(revealAndShowFile).not.toHaveBeenCalled();
 	});
 });

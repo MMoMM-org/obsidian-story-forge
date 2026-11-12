@@ -414,10 +414,146 @@ Closes the gap that started this whole spec: the distribution machinery served f
     `name`, `filters`, `sort`, `order`, `groupBy` and `limit`; its `type` becomes the Card's
     Bases view type. A file that is not YAML, or not a mapping, throws a message the Anvil shows.
     The Workbench passes no option, so its embed is unchanged until d3.
-  - *Card to Bases view type.* Only `hero`, `table` and `compact` have a registered Bases view
-    type (`story-forge-hero|table|compact`). Any other Card id (an imported Card) is drawn as Hero
-    in the embed while the dropdown shows the chosen name. A limit, not a decision: closing it needs a
-    registered view type per imported Card, which T4.5 did not build.
+  - *DEVIATION from "drawn with its Card" (imported Cards).* Only `hero`, `table` and `compact`
+    have a registered Bases view type (`story-forge-hero|table|compact`, T4.5's `registerCardViews`).
+    An imported Card (`kind:"card"`) has none, so in a `.base` embed it is drawn as Hero while the
+    dropdown shows its name. Reason: Bases draws an embedded file's views by registered view type,
+    and a type can only be registered at load. What would close it: T4.5 registering one view type
+    per imported Card (id derived from the Card id, re-registered when Cards change), or the embed
+    drawing the Bases rows through the native Card registry instead of through Bases. Needs the
+    user's decision; not built in d2.
+  - *The consent gate judges contents (the known defect).* For `engine:"bases"` and
+    `kind:"collection"` the gate reads the file with `vault.cachedRead`, the same read the engine renders
+    from, and checksums that. A missing file is `consented`, so the engine reports "Collection file not
+    found: <path>" (nothing exists to run, and `okayed:null` still returns `not-consented` first). A
+    `generated` record still takes its own branch. `kind:"view"` is unchanged.
+  - *Engine instances of the Anvil's own.* The registry's engines are singletons holding one
+    `Component`; a Workbench `teardown()` would unload what the Anvil drew. `createEngine` builds a
+    fresh engine per draw (`buildEngineRegistry(...).get(kind)`); the shared registry still serves the
+    gate's "is the engine wired" check.
+  - *States the mockup does not draw.* The embed reuses the Workbench's own classes and wording for
+    S11/S12/S16/S17 (not consented, drift, Dataview missing, DataviewJS off, mobile, disabled) in
+    place of the grid, and "Open a note to draw this collection." when the Anvil follows no note (the
+    engines scope to a note; `NoteContext` needs a `TFile`). The engine error shows the message itself
+    ("Collection file not found: <path>") in the hint line; the Workbench's generic text is unchanged.
+    **Bases off** draws S98's box (`renderBasesOffState`: "<label> needs Bases" and one line) above
+    which the existing ADR-36 hint shows; it has no `Change tag` button, because a `.base` collection has
+    no tag. The mockup says only "S98's degrade path"; this copy is new and needs the user's eye.
+  - *Selection of the open card.* `CardBasesView` cannot know the editor pane's path (view types
+    are registered once), so the embed marks `.sf-cx-card--sel` itself and re-marks it from a
+    `MutationObserver` whenever Bases redraws. Click, pane and S91 missing-property marking are the
+    built-in ones: the cards are `buildCardWrapper` markup and bubble to the Anvil's own handler.
+  - *`+ Collection` (P15).* A `span` pill with `data-sf-cx-add`, classified `structuralControl`;
+    the click opens an Obsidian `Menu` and writes nothing. Items: `addableCollections(snapshot)`
+    (enabled, Anvil switch off, Library order), a separator, then "Manage in settings…". A pick calls
+    `setSurface(id, "anvil", true)` (a refusal shows a Notice), selects the id at once and re-renders;
+    the pill itself arrives with the store's signal. The pill is drawn only when the host asks
+    (`showAdd`): the Anvil does, the Workbench's pills (d3) do not.
+  - *Fallback (L8b, P5).* No new rule: `CodexSelectionStore.resolve` already falls to the first enabled
+    pill, and the tests drive it with real store writes (remove, disable, Anvil switch off). A Library
+    write that moves the shown collection also closes an open editor pane, as switching a pill does.
+    `cardByCollection` of a removed collection was already dropped by the store (test pins it).
+  - *Deep links.* `SettingsTab.openTab("library", {})` for "Manage in settings…" and
+    `openTab("library", {configure: id})` for S98's "Change tag", checked on the real tab in the
+    end-to-end test.
+  - *Not asserted in d2.* The Workbench half of T7.5 ("not in the Workbench") needs d3: `_renderTabs`
+    still lists every record, so the end-to-end test asserts the Anvil half and the removal only.
+  - *One click, one navigation (review fix).* With `linkClickAction:"open"` a name click in an
+    embedded card reached both the Anvil's handler and `CardBasesView`'s own `onEntryClick`
+    (`revealAndShowFile`). The embed now carries `data-sf-nav-host` (`NAVIGATION_HOST_ATTR`, in
+    `cardWrapper.ts`) and `CardBasesView._onCardClick` skips `onEntryClick` when its container sits
+    inside one. A standalone `.base` and the Workbench have no such ancestor: unchanged.
+  - *Tests.* The sentence-case checker moved to `test/helpers/sentenceCase.ts` (its mid-sentence
+    allow-list gained "Hero"; its skip list gained `.sf-lb-prev-body`, user data). The T7.1b
+    "marked place for the Cards list" test no longer asserts the slot is empty, and its
+    row-name selector is scoped to `[data-collection-id]`.
+
+- **T7.1d1 — Library wiring: choices the mockup and spec do not settle** (2026-11-12).
+  - *Where it lives.* `src/library/wireLibrary.ts` (mirrors `wireUndoJournal`). `main.ts` calls
+    it right after `loadSettings()` and keeps the result as `plugin.library`
+    (`collections`, `snapshot()`, `builtIns()`, `onChange()`). `migrate()` runs inside it, once per
+    load, before any view factory can run. A failed migrate is a `console.warn`, not a failed load.
+  - *One store.* `SettingsTab` receives `plugin.library.collections` (`LibraryDeps.collections`);
+    `openCapabilities` is passed as an explicit no-op for T7.4. `SidebarView` is **not** given the
+    store yet (d3 adds the parameter); the Anvil gets `codex.getCollections`.
+  - *Synchronous snapshot.* The Codex hosts read their list while rendering, and the store is
+    async, so `wireLibrary` keeps the last `collections()` result. It is rebuilt after every
+    `CollectionStore` signal and every `ViewStore` record signal (an import writes a record without
+    going through the store); only the newest read may land. `onChange` fires after the rebuild.
+    A repaint-on-change in the Anvil is **not** wired; d2 calls `library.onChange`.
+  - *The Anvil still shows the built-ins only.* `getCollections` returns `builtIns()`, the
+    built-in rows with their tag and own excluded folders applied. Their `enabled` flag is the
+    checkbox, as before; `effective.anvil` belongs to d2.
+  - *Per-collection excluded folders.* `CodexCollection` gained an optional `excludedFolders`;
+    `renderCodexTab` resolves with it when present and with the host's Scope list when absent. An
+    empty own list means "exclude nothing", not "follow Scope". `LibraryCollection` already
+    carries Scope's list for "same as Scope", so a store row is correct as it stands. The tag
+    override needed no change (`CodexCollection.tag`). `resolveCollection` is untouched.
+  - *Importer.* `ViewImporter.toRecord` emits `kind:"collection"`. `migrate()` therefore never counts
+    a new import (test: import, then `migrate()` returns 0 and no notice).
+  - *Dataview collections render with no dispatch change.* Dispatch selects by `engine`, the
+    consent gate branches on `record.generated` and the record's engine only, and only
+    `BasesFenceEngine` reads `kind`. So SidebarView, `EngineRegistry`, palette commands
+    (`_registerViewCommand` / `_restoreViewCommands` are kind-agnostic) and consent needed no
+    change; the new SidebarView tests pin it (DQL, DataviewJS with consent, without consent,
+    drift) and that the Bases fence is not touched.
+  - *Workbench tab gating is deferred to d3.* `_renderTabs` still lists every record in the store,
+    whatever its kind or surface, exactly as before, so a migrated view keeps its tab (D2). That
+    includes `kind:"card"` records and a Bases collection with Workbench off, which d3 must filter
+    with `workbenchTabs()` / `effective.workbench`.
+  - *The change signal.* `CollectionStore.subscribe` fires once after a write that changed
+    something: refused writes, a `migrate()` that moved nothing and a dismiss that was already
+    recorded do not fire. A throwing listener is logged and does not stop the others. The store also
+    exposes `writing` (true from the request until the write has run). `SettingsTab` subscribes to
+    both signals and drops the `ViewStore` one while `writing`: a store write moves a record, so
+    that signal would repaint a second time; the store's own signal follows and reads the finished
+    state. An import (a record written outside the store) still repaints. Both subscriptions end
+    in `hide()`. This closes the T7.1c "known gap".
+  - *Not tested, equivalent.* Removing the `collections.subscribe` unsubscribe in the unload hook
+    while keeping the listener clear is not observable; `migrate()` being called again on every
+    snapshot is idempotent by design.
+  - *Scope edits are a store write (review fix).* A built-in with no list of its own carries
+    Scope's list in its row, so a Scope edit has to reach the snapshot, the open lists and the
+    Anvil. The Scope field in Settings now calls `CollectionStore.setScope(folders)` instead of
+    writing `plugin.settings` directly: it is serialised, saved through the port, and signals like
+    every other write. The snapshot is rebuilt and `library.onChange` fires, so d2 repaints on it
+    with no extra hook; the Settings live count and Cards "Sample from" repaint from the same
+    signal. Chosen over reading Scope at call time in the snapshot because the lists in Settings
+    read the store, not the snapshot, and would have stayed stale. A built-in with its own list is
+    unaffected.
+  - *Review fixes (code review).* (1) `SettingsTab` drops the record signal while a store write
+    runs; it now tells the store (`noteDroppedSignal`), and the store signals once on completion
+    when one was dropped, even if the write was refused, threw or changed nothing. (2) A throwing
+    `library.onChange` listener is logged and does not stop the next. (3) The snapshot keeps the
+    newest read that succeeded: a failed read never discards an older success, and a slow older
+    read cannot overwrite a newer one. (4) `snapshot()` is documented as consumed by d2/d3.
+    (5) The unload test now proves the store and record subscriptions are both released.
+
+- **T7.1d2 — Anvil surfaces: choices the mockup and spec do not settle** (2026-11-12).
+  - *Where it lives.* `src/anvil/anvilCodexOpts.ts` builds the Anvil's whole `codex` seam from the
+    Library; `main.ts` only passes it what it owns, and the tests build the Anvil from the same
+    function. `src/anvil/collectionEmbed.ts` draws a collection a query engine owns;
+    `src/library/collectionBase.ts` is the P9 reduction; `src/library/openLibrary.ts` is the one
+    place that reaches Obsidian's untyped `app.setting` (the cast moved out of `main.ts`, not new).
+  - *Pills.* `getCollections` is `anvilPills(library.snapshot())`. The `LibraryCollection` row
+    is the `CodexCollection`: `CodexCollection` gained optional `engine` and `provenance`, so a
+    pill is drawn dashed when it is not built-in (S93's `.usr`) and the tab knows which collections
+    a query engine draws. `AnvilView` gained `codex.subscribe` (repaint on `library.onChange`,
+    released on close and on unload), `getAddable`, `onAddToAnvil`, `onManage` and `embed`.
+  - *P9: where the reduction lives.* In `BasesFenceEngine`, selected by a new optional fourth
+    argument of `QueryEngine.render` (`EngineRenderOptions.cardViewType`), because the engine already
+    owns "where the YAML comes from". Kept: `filters`, `formulas`, `properties`; the first view's
+    `name`, `filters`, `sort`, `order`, `groupBy` and `limit`; its `type` becomes the Card's
+    Bases view type. A file that is not YAML, or not a mapping, throws a message the Anvil shows.
+    The Workbench passes no option, so its embed is unchanged until d3.
+  - *DEVIATION from "drawn with its Card" (imported Cards).* Only `hero`, `table` and `compact`
+    have a registered Bases view type (`story-forge-hero|table|compact`, T4.5's `registerCardViews`).
+    An imported Card (`kind:"card"`) has none, so in a `.base` embed it is drawn as Hero while the
+    dropdown shows its name. Reason: Bases draws an embedded file's views by registered view type,
+    and a type can only be registered at load. What would close it: T4.5 registering one view type
+    per imported Card (id derived from the Card id, re-registered when Cards change), or the embed
+    drawing the Bases rows through the native Card registry instead of through Bases. Needs the
+    user's decision; not built in d2.
   - *The consent gate judges contents (the known defect).* For `engine:"bases"` and
     `kind:"collection"` the gate reads the file with `vault.cachedRead`, the same read the engine renders
     from, and checksums that. A missing file is `consented`, so the engine reports "Collection file not
@@ -458,5 +594,5 @@ Closes the gap that started this whole spec: the distribution machinery served f
     `.base` also runs `CardBasesView`'s own `onEntryClick` (`revealAndShowFile`, the Workbench), so it
     targets a second leaf (ADR-28). The Bases view types are registered once for all hosts; fixing
     it needs a per-embed switch there. Drill (the default) is unaffected.
-  - *Tests.* `test/anvil/anvilLibrary.test.ts` (21) and `anvilLibrary.endToEnd.test.ts` (3); the
+  - *Tests.* `test/anvil/anvilLibrary.test.ts` (21) and `anvilLibrary.endToEnd.test.ts` (3), plus the single-navigation test and two `CardBasesView` navigation tests; the
     marker vocabulary pin gained `data-sf-cx-add`.

@@ -137,6 +137,29 @@ describe("CardBasesView — F2 target-kind routing (ADR-28 closure)", () => {
 // Name-over-card-body precedence — real walkTargetMarkers, real rendered DOM
 // ---------------------------------------------------------------------------
 
+describe("CardBasesView — inside a host that navigates for itself (the Anvil's embed)", () => {
+	function nameClick(host: boolean): ReturnType<typeof vi.fn> {
+		const { view, container, onEntryClick } = makeView({ getLinkClickAction: (): LinkClickAction => "open" });
+		const wrap = document.createElement("div");
+		if (host) wrap.setAttribute("data-sf-nav-host", "");
+		wrap.appendChild(container);
+		document.body.appendChild(wrap);
+		view.data = makeResult([makeEntry("Characters/Mara.md")]);
+		view.onDataUpdated();
+		container.querySelector('[data-sf-link="Characters/Mara.md"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		document.body.removeChild(wrap);
+		return onEntryClick;
+	}
+
+	it("does not open the note itself: the host's handler does", () => {
+		expect(nameClick(true)).not.toHaveBeenCalled();
+	});
+
+	it("a standalone .base still opens it through onEntryClick", () => {
+		expect(nameClick(false)).toHaveBeenCalledWith("Characters/Mara.md");
+	});
+});
+
 describe("CardBasesView — name wins over its surrounding card body (ADR-28 proximity)", () => {
 	/**
 	 * Under the default "drill" setting, a plain click on `name` and a plain

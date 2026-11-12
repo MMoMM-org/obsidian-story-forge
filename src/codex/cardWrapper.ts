@@ -53,6 +53,13 @@ declare const activeDocument: Document;
  */
 export const CARD_BODY_ATTR = "data-sf-card-body";
 
+/**
+ * Marks a container whose host (the Anvil's `.base` embed) already enacts navigation from its own
+ * click handler. A `CardBasesView` drawn inside one must not also open the note itself, or one
+ * click would navigate twice (PRD F2, ADR-28). A standalone `.base` and the Workbench carry none.
+ */
+export const NAVIGATION_HOST_ATTR = "data-sf-nav-host";
+
 /** The cross-surface "name" marker, stamped by `buildNameEl` below. */
 export const CARD_NAME_ATTR = "data-sf-link";
 
