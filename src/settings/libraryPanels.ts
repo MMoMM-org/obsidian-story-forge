@@ -56,15 +56,23 @@ function textInput(
 	const input = cell.createEl("input", { cls: "sf-lb-input", attr: { type: "text", "aria-label": ariaLabel } });
 	input.value = value;
 	if (focusKey) input.dataset["focus"] = focusKey;
-	if (onCommit === null) input.readOnly = true;
-	else input.addEventListener("change", () => onCommit(input.value));
+	if (onCommit === null) {
+		input.readOnly = true;
+		return input;
+	}
+	// The last committed value: a repaint is held back while the field differs from it.
+	input.dataset["committed"] = value;
+	input.addEventListener("change", () => {
+		input.dataset["committed"] = input.value;
+		onCommit(input.value);
+	});
 	return input;
 }
 
-function toggleButton(cell: HTMLElement, label: string, on: boolean, onToggle: () => void): HTMLButtonElement {
+function toggleButton(cell: HTMLElement, label: string, on: boolean, focusKey: string, onToggle: () => void): HTMLButtonElement {
 	const sw = cell.createEl("button", {
 		cls: on ? "sf-lb-sw is-on" : "sf-lb-sw",
-		attr: { type: "button", role: "switch", "aria-checked": String(on) },
+		attr: { type: "button", role: "switch", "aria-checked": String(on), "data-focus": focusKey },
 	});
 	sw.createEl("i");
 	sw.appendText(label);
@@ -72,8 +80,12 @@ function toggleButton(cell: HTMLElement, label: string, on: boolean, onToggle: (
 	return sw;
 }
 
-function actionButton(cell: HTMLElement, label: string, onClick: () => void, cta = false): void {
-	const b = cell.createEl("button", { cls: cta ? "sf-lb-btn mod-cta" : "sf-lb-btn", text: label, attr: { type: "button" } });
+function actionButton(cell: HTMLElement, label: string, focusKey: string, onClick: () => void, cta = false): void {
+	const b = cell.createEl("button", {
+		cls: cta ? "sf-lb-btn mod-cta" : "sf-lb-btn",
+		text: label,
+		attr: { type: "button", "data-focus": focusKey },
+	});
 	b.addEventListener("click", onClick);
 }
 
@@ -102,7 +114,7 @@ function renderCount(panel: HTMLElement, line: { text: string; warn: boolean }):
 function renderFolders(panel: HTMLElement, c: LibraryCollection, h: PanelHost): void {
 	const cell = field(panel, "Excluded folders");
 	const same = cell.createEl("label", { cls: "sf-lb-check" });
-	const box = same.createEl("input", { attr: { type: "checkbox" } });
+	const box = same.createEl("input", { attr: { type: "checkbox", "data-focus": `same:${c.id}` } });
 	box.checked = c.sameAsScope;
 	same.appendText(`Same as Scope (${h.scopeFolders().join(", ") || "none"})`);
 	box.addEventListener("change", () => {
@@ -112,7 +124,7 @@ function renderFolders(panel: HTMLElement, c: LibraryCollection, h: PanelHost): 
 	if (c.sameAsScope) return;
 	textInput(cell, `Excluded folders for ${c.label}`, c.excludedFolders.join(", "), (v) => {
 		void h.collections.configureBuiltIn(c.id, { excludedFolders: splitFolders(v) }).then(() => h.done());
-	});
+	}, `folders:${c.id}`);
 }
 
 function renderBuiltIn(panel: HTMLElement, m: RowModel, h: PanelHost): void {
@@ -147,7 +159,7 @@ function renderFile(panel: HTMLElement, m: RowModel, h: PanelHost, label: string
 	const cell = field(panel, label);
 	cell.addClass("sf-lb-filecell");
 	cell.createDiv({ cls: "sf-lb-file", text: source });
-	actionButton(cell, "Open file", () => { void h.app.workspace.openLinkText(source, "", true); });
+	actionButton(cell, "Open file", `open:${m.c.id}`, () => { void h.app.workspace.openLinkText(source, "", true); });
 }
 
 /** The generated template's parameters, shown read-only: changing them regenerates the file (T7.3). */
@@ -186,9 +198,9 @@ async function setCommand(m: RowModel, h: PanelHost, on: boolean, label?: string
 
 function renderCommand(panel: HTMLElement, m: RowModel, h: PanelHost, record: ViewRecord): void {
 	const cell = field(panel, "Command");
-	toggleButton(cell, "Add to command palette", record.command, () => { void setCommand(m, h, !record.command); });
+	toggleButton(cell, "Add to command palette", record.command, `cmd:${m.c.id}`, () => { void setCommand(m, h, !record.command); });
 	if (!record.command) return;
-	textInput(cell, "Command name", record.commandLabel ?? m.c.label, (v) => { void setCommand(m, h, true, v.trim() || m.c.label); });
+	textInput(cell, "Command name", record.commandLabel ?? m.c.label, (v) => { void setCommand(m, h, true, v.trim() || m.c.label); }, `cmdname:${m.c.id}`);
 }
 
 function consentLine(record: ViewRecord, decision: ConsentDecision["status"] | undefined): string {
@@ -200,7 +212,7 @@ function consentLine(record: ViewRecord, decision: ConsentDecision["status"] | u
 function renderConsent(panel: HTMLElement, m: RowModel, h: PanelHost, record: ViewRecord): void {
 	const cell = field(panel, "Consent");
 	cell.createSpan({ cls: "sf-lb-consent", text: consentLine(record, m.decision) });
-	actionButton(cell, "Review consent…", () => {
+	actionButton(cell, "Review consent…", `consent:${m.c.id}`, () => {
 		const ask = record.okayed === null ? h.gate.requestConsent(m.c.id, record) : h.gate.requestReConsent(m.c.id, record);
 		void ask.then(() => h.done()).catch((err: unknown) => console.error("[StoryForge] consent review failed", err));
 	}, true);
@@ -232,7 +244,7 @@ export function renderPanel(parent: HTMLElement, m: RowModel, h: PanelHost, pane
 		renderBuiltIn(panel, m, h);
 		return panel;
 	}
-	textInput(field(panel, "Name"), "Name", m.c.label, (v) => { void rename(m, h, v); });
+	textInput(field(panel, "Name"), "Name", m.c.label, (v) => { void rename(m, h, v); }, `name:${m.c.id}`);
 	if (record.engine === "bases") renderBases(panel, m, h, record);
 	else renderDataview(panel, m, h, record);
 	return panel;

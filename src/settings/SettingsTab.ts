@@ -89,6 +89,7 @@ export class SettingsTab extends PluginSettingTab {
 	hide(): void {
 		this._unsubscribeStore?.();
 		this._unsubscribeStore = null;
+		this.library.suspend();
 	}
 
 	/**
@@ -127,26 +128,25 @@ export class SettingsTab extends PluginSettingTab {
 	private renderStrip(root: HTMLElement): Record<SettingsTabId, HTMLElement> {
 		const strip = root.createDiv({ cls: "sf-tabs", attr: { role: "tablist", "aria-label": "Settings sections" } });
 		const tabs = new Map<SettingsTabId, HTMLElement>();
-		const panels = {} as Record<SettingsTabId, HTMLElement>;
-		for (const { id, label } of SETTINGS_TABS) {
-			const tab = strip.createEl("button", {
+		const makePanel = (id: SettingsTabId, label: string): HTMLElement => {
+			tabs.set(id, strip.createEl("button", {
 				cls: "sf-tab",
 				text: label,
 				attr: { type: "button", role: "tab", id: `sf-tab-${id}`, "aria-controls": `sf-tabpanel-${id}` },
-			});
-			tabs.set(id, tab);
-			panels[id] = root.createDiv({
+			}));
+			return root.createDiv({
 				cls: "sf-tabpanel",
 				attr: { role: "tabpanel", id: `sf-tabpanel-${id}`, "aria-labelledby": `sf-tab-${id}`, "data-tab": id },
 			});
-		}
+		};
+		const panels: Record<SettingsTabId, HTMLElement> = {
+			library: makePanel("library", "Library"),
+			scope: makePanel("scope", "Scope"),
+			behaviour: makePanel("behaviour", "Behaviour"),
+		};
 		const select = (id: SettingsTabId, focus: boolean): void => {
 			this.active = id;
-			for (const [key, tab] of tabs) {
-				tab.setAttribute("aria-selected", String(key === id));
-				tab.setAttribute("tabindex", key === id ? "0" : "-1");
-				panels[key].hidden = key !== id;
-			}
+			this.applySelection(tabs, panels);
 			if (focus) tabs.get(id)?.focus();
 			// Scope may have changed since the list was painted: its counts follow.
 			if (id === "library") void this.library.refresh();
@@ -164,7 +164,7 @@ export class SettingsTab extends PluginSettingTab {
 		return panels;
 	}
 
-	/** Initial selection, painted without moving focus or repainting the list. */
+	/** Paint the selection: aria-selected, the roving tabindex and which panel is visible. */
 	private applySelection(tabs: Map<SettingsTabId, HTMLElement>, panels: Record<SettingsTabId, HTMLElement>): void {
 		for (const [key, tab] of tabs) {
 			tab.setAttribute("aria-selected", String(key === this.active));

@@ -628,10 +628,10 @@ describe("L3c · a migrated Dataview entry", () => {
 });
 
 describe("L3 · behaviour carried over from the old Views menu", () => {
-	it("ticking a disabled, already-consented row re-enables it without opening a modal", async () => {
-		const w = await open({ views: { skills: { ...seedViews()["skills"]!, enabled: false } } });
-		await click(checkbox(w.root, "skills"));
-		await vi.waitFor(() => expect(w.stored()["skills"]?.enabled).toBe(true));
+	it("ticking a disabled, already-consented DataviewJS row re-enables it without opening a modal", async () => {
+		const w = await open({ views: { web: { ...seedViews()["web"]!, enabled: false } } });
+		await click(checkbox(w.root, "web"));
+		await vi.waitFor(() => expect(w.stored()["web"]?.enabled).toBe(true));
 		expect(w.gate.requestConsent).not.toHaveBeenCalled();
 		expect(w.gate.requestReConsent).not.toHaveBeenCalled();
 	});
@@ -785,6 +785,7 @@ describe("L8a · remove", () => {
 		await click(button(q(item(w.root, "organizations"), "[role=group]")!, "Remove"));
 		expect(Notice._instances.map((n) => n.message)).toContain("No collection \"organizations\"");
 		expect(w.removeCommand).not.toHaveBeenCalled();
+		await vi.waitFor(() => expect(document.activeElement).toBe(button(item(w.root, "organizations"), "Remove")));
 	});
 });
 
@@ -1027,6 +1028,95 @@ describe("sentence case in the rendered text (test 10)", () => {
 // ---------------------------------------------------------------------------
 // Preserved behaviour of the old Views section
 // ---------------------------------------------------------------------------
+
+describe("editing inside a configure panel", () => {
+	it("keeps focus on a live control after a field is committed and focus moves on", async () => {
+		const w = await open();
+		const panel = await configure(w.root, "character");
+		const tag = q<HTMLInputElement>(panel, "input[aria-label='Tag for Characters']")!;
+		tag.focus();
+		tag.value = "canon/location";
+		tag.dispatchEvent(new Event("change", { bubbles: true }));
+		q<HTMLInputElement>(panel, "input[type=checkbox]")!.focus(); // the Tab that caused the change
+		await vi.waitFor(() => expect(w.plugin.settings.builtInCollections["character"]?.tag).toBe("canon/location"));
+		await flush();
+		const active = document.activeElement as HTMLElement;
+		expect(active).not.toBe(document.body);
+		expect(active.isConnected).toBe(true);
+		expect(item(w.root, "character").contains(active)).toBe(true);
+		expect(active.dataset["focus"]).toBe("same:character");
+	});
+
+	it("keeps focus in the field itself when nothing else took it", async () => {
+		const w = await open();
+		const panel = await configure(w.root, "character");
+		const tag = q<HTMLInputElement>(panel, "input[aria-label='Tag for Characters']")!;
+		tag.focus();
+		tag.value = "canon/location";
+		tag.dispatchEvent(new Event("change", { bubbles: true }));
+		await vi.waitFor(() => expect(w.plugin.settings.builtInCollections["character"]?.tag).toBe("canon/location"));
+		await flush();
+		expect((document.activeElement as HTMLElement).dataset["focus"]).toBe("tag:character");
+	});
+
+	/** Focus a name field, type without committing, then let another source repaint the list. */
+	async function typeUnsaved(): Promise<{ w: World & { root: HTMLElement }; name: HTMLInputElement }> {
+		const w = await open();
+		const panel = await configure(w.root, "organizations");
+		const name = q<HTMLInputElement>(panel, "input[aria-label='Name']")!;
+		name.focus();
+		name.value = "Gui";
+		await w.views.setRecord("fresh", rec({ commandName: "Fresh", source: "f.base" }));
+		await flush();
+		return { w, name };
+	}
+
+	it("holds a repaint back while a field has an unsaved edit, instead of wiping it", async () => {
+		const { w, name } = await typeUnsaved();
+		expect(name.isConnected).toBe(true);
+		expect(name.value).toBe("Gui");
+		expect(document.activeElement).toBe(name);
+		expect(rowIds(w.root)).not.toContain("fresh");
+	});
+
+	it("runs the held-back repaint once the edit is committed", async () => {
+		const { w, name } = await typeUnsaved();
+		name.value = "Guilds";
+		name.dispatchEvent(new Event("change", { bubbles: true }));
+		await vi.waitFor(() => expect(rowIds(w.root)).toContain("fresh"));
+		expect(text(q(item(w.root, "organizations"), ".sf-lb-name"))).toBe("Guilds");
+	});
+
+	it("runs the held-back repaint when the edit is abandoned and focus leaves", async () => {
+		const { w, name } = await typeUnsaved();
+		name.value = "Organizations"; // back to the committed value
+		name.blur();
+		await vi.waitFor(() => expect(rowIds(w.root)).toContain("fresh"));
+	});
+
+	it("does not hold a repaint for a differing field that no longer has focus", async () => {
+		const w = await open();
+		const panel = await configure(w.root, "organizations");
+		const name = q<HTMLInputElement>(panel, "input[aria-label='Name']")!;
+		name.value = "Gui"; // never focused, never committed
+		await w.views.setRecord("fresh", rec({ commandName: "Fresh", source: "f.base" }));
+		await vi.waitFor(() => expect(rowIds(w.root)).toContain("fresh"));
+	});
+
+	it("a pending read does not paint after the tab is hidden", async () => {
+		const w = makeWorld();
+		let release: () => void = () => {};
+		const slow = new Promise<void>((r) => { release = r; });
+		w.gate.evaluate.mockImplementationOnce(async () => { await slow; return { status: "consented" }; });
+		const pending = w.tab.displayAsync();
+		await flush();
+		w.tab.hide();
+		release();
+		await pending;
+		await flush();
+		expect(rowIds(w.tab.containerEl)).toHaveLength(0);
+	});
+});
 
 describe("a stale or partial settings object", () => {
 	it("still renders every row: the Library reads settings through the normaliser", async () => {

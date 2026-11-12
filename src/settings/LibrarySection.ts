@@ -81,6 +81,8 @@ export class LibrarySection {
 	private readonly open = new Set<string>();
 	private confirming: string | null = null;
 	private pendingFocus: string | null = null;
+	/** A repaint was held back because an input in the list holds an unsaved edit. */
+	private deferred = false;
 	/** Row order of the last paint: where focus goes after a removal. */
 	private order: string[] = [];
 
@@ -97,7 +99,18 @@ export class LibrarySection {
 	/** Paint into `host` and remember it, so later writes can repaint the same place. */
 	async render(host: HTMLElement): Promise<void> {
 		this.host = host;
+		// A held-back repaint runs once the edit is committed or abandoned.
+		host.addEventListener("focusout", () => {
+			if (!this.deferred) return;
+			this.deferred = false;
+			void this.refresh();
+		});
 		await this.refresh();
+	}
+
+	/** Drop any read still in flight: the tab was hidden, so nothing may paint after this. */
+	suspend(): void {
+		this.gen++;
 	}
 
 	async refresh(): Promise<void> {
@@ -112,6 +125,11 @@ export class LibrarySection {
 		const rows = await Promise.all(list.map((c) => this.modelOf(c, views[c.id])));
 		// A newer paint superseded this one while it was reading: do not paint stale rows.
 		if (gen !== this.gen) return;
+		// A half-typed value is not data the stores know yet: repainting would wipe it.
+		if (this.hasUnsavedInput(host)) {
+			this.deferred = true;
+			return;
+		}
 		this.paint(host, rows, notice);
 	}
 
@@ -135,6 +153,8 @@ export class LibrarySection {
 	// --- paint ---------------------------------------------------------------
 
 	private paint(host: HTMLElement, rows: RowModel[], notice: { moved: number } | null): void {
+		// Whatever has focus now keeps it across the repaint (a panel field tabbed out of, say).
+		this.pendingFocus ??= this.focusedKey(host);
 		host.empty();
 		this.order = rows.map((r) => r.c.id);
 		if (notice) this.paintNotice(host, notice.moved);
@@ -364,14 +384,28 @@ export class LibrarySection {
 			this.d.removeCommand(id);
 			new Notice(`Removed ${m.c.label} from the Library. The file is still in your vault.`);
 		}
-		await this.after(outcome, next ? `cb:${next}` : "add");
+		// A refusal leaves the row where it was: focus goes back to its Remove button.
+		const focus = !outcome.ok ? `remove:${id}` : next ? `cb:${next}` : "add";
+		await this.after(outcome, focus);
 	}
 
 	/** Surface a refusal, remember what to refocus, and repaint. */
-	private async after(outcome: Outcome | null, focus: string): Promise<void> {
+	private async after(outcome: Outcome | null, focus: string | null): Promise<void> {
 		if (outcome && !outcome.ok) new Notice(outcome.reason);
 		this.pendingFocus = focus;
 		await this.refresh();
+	}
+
+	private focusedKey(host: HTMLElement): string | null {
+		const el = activeDocument.activeElement;
+		return el instanceof HTMLElement && host.contains(el) ? (el.dataset["focus"] ?? null) : null;
+	}
+
+	/** An editable field that has focus and differs from what was last committed. */
+	private hasUnsavedInput(host: HTMLElement): boolean {
+		return [...host.querySelectorAll<HTMLInputElement>("input[data-committed]")].some(
+			(input) => input === activeDocument.activeElement && input.value !== input.dataset["committed"],
+		);
 	}
 
 	private applyFocus(host: HTMLElement): void {
@@ -391,7 +425,7 @@ export class LibrarySection {
 			scopeFolders: this.d.scopeFolders,
 			registerCommand: this.d.registerCommand,
 			removeCommand: this.d.removeCommand,
-			done: (focus) => this.after(null, focus ?? ""),
+			done: (focus) => this.after(null, focus ?? null),
 		};
 	}
 }
