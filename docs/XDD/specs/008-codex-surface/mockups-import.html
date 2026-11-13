@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — Import modal mockups (spec 008, L11 sibling of L10)</title>
+<style>
+  /* ════════════════════════════════════════════════════════════════════════
+   * Tokens, scaffolding and ct-/md- patterns copied from mockups-catalog.html (L10,
+   * signed off) so the import modal and the catalog browser are siblings.
+   * New mockup classes use the ct- prefix (catalog). The md- prefix draws the
+   * Obsidian modal shell.
+   * ════════════════════════════════════════════════════════════════════════ */
+  :root{
+    --bg:#ececec; --panel:#ffffff; --panel-2:#f5f5f6; --header:#fafafa;
+    --border:#e0e0e0; --border-2:#cfcfd4; --hover:#f0f0f2;
+    --text:#222222; --muted:#5c5c5c; --faint:#7d7d7d;
+    --accent:#8a5cf5; --link:#6b45d6;
+    --pill:#efeaff; --pill-text:#5f43b8;
+    --st-draft:#a85f00; --st-outline:#3a69b0; --st-written:#1d8a44;
+    --shadow:0 3px 12px rgba(0,0,0,.10);
+    --miss-bg:rgba(200,40,40,.08); --miss-bd:rgba(200,40,40,.40); --miss-tx:#b02a2a;
+    --ok-bg:rgba(29,138,68,.08); --ok-bd:rgba(29,138,68,.35);
+    --warn-bg:rgba(168,95,0,.08); --warn-bd:rgba(168,95,0,.35);
+    --mk-proposal:#a85f00; --mk-decision:#c0263a;
+    color-scheme:light;
+  }
+  [data-theme="dark"], .th-dark{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --link:#8b8bf0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    --st-draft:#e0a34a; --st-outline:#5b8bd0; --st-written:#6ac47a;
+    --shadow:0 4px 14px rgba(0,0,0,.35);
+    --miss-bg:rgba(214,92,92,.15); --miss-bd:rgba(214,92,92,.42); --miss-tx:#e79a9a;
+    --ok-bg:rgba(106,196,122,.12); --ok-bd:rgba(106,196,122,.38);
+    --warn-bg:rgba(224,163,74,.12); --warn-bd:rgba(224,163,74,.40);
+    --mk-proposal:#e0a34a; --mk-decision:#fb464c;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:34px 0 14px;border-bottom:1px solid var(--border);padding-bottom:6px;
+    text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  h2 .h2s{color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:96ch}
+  code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .banner{border:1px solid var(--border-2);border-left:3px solid var(--accent);background:var(--panel);
+    border-radius:6px;padding:10px 14px;margin:0 0 20px;max-width:110ch;font-size:12.5px;color:var(--muted)}
+  .banner b{color:var(--text)}
+  table.inv{border-collapse:collapse;font-size:12px;margin:0 0 8px}
+  table.inv th,table.inv td{border:1px solid var(--border);padding:4px 10px;text-align:left;vertical-align:top}
+  table.inv th{color:var(--faint);font-weight:600}
+  .gallery{display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-start;margin-bottom:6px}
+  figure{margin:0}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:40px;max-width:76ch}
+  figcaption b{color:var(--text);font-weight:600}
+  .note{font-size:11px;color:var(--faint);margin-top:7px;max-width:76ch}
+  .note b{color:var(--muted)}
+  .th-dark{background:var(--bg);color:var(--text);padding:14px;border-radius:8px}
+
+  .mk-toggle{position:fixed;top:14px;right:18px;display:flex;border:1px solid var(--border-2);
+    border-radius:6px;overflow:hidden;background:var(--panel);z-index:20}
+  .mk-toggle button{border:0;background:transparent;color:var(--muted);padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}
+  .mk-toggle button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  .mk-open{border:1px solid var(--mk-proposal);border-left:4px solid var(--mk-proposal);background:var(--panel);
+    border-radius:6px;padding:12px 16px;margin:0 0 22px;max-width:110ch}
+  .mk-open h3{margin:0 0 6px;font-size:13px;color:var(--mk-proposal);text-transform:uppercase;letter-spacing:.04em}
+  .mk-open ol{margin:0 0 6px;padding-left:22px}
+  .mk-open li{margin:0 0 9px;color:var(--muted);font-size:12.5px}
+  .mk-open li b{color:var(--text)}
+  .mk-open li .rec{display:block;color:var(--text);margin-top:2px}
+  .mk-tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:0 6px;border-radius:9px;vertical-align:middle;margin-left:4px}
+  .mk-tag.prop{color:var(--mk-proposal);border:1px solid var(--mk-proposal)}
+  .mk-tag.sdd{color:var(--st-written);border:1px solid var(--st-written)}
+  .mk-wrap{overflow-x:auto;max-width:100%}
+
+  /* ---- Obsidian modal shell ---- */
+  .md{width:760px;max-width:100%;background:var(--panel);border:1px solid var(--border-2);border-radius:10px;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+  .md.nar{width:400px}
+  .md-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 4px}
+  .md-head .t{font-size:15px;font-weight:600;color:var(--text);margin:0}
+  .md-head .x{margin-left:auto;color:var(--faint);font-size:13px;cursor:pointer}
+  .md-sub{padding:0 16px 10px;font-size:12px;color:var(--muted)}
+  .md-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 16px 10px}
+  .md-search{flex:1 1 200px;min-width:0;padding:5px 9px;border:1px solid var(--border-2);border-radius:5px;
+    background:var(--panel);color:var(--faint);font-size:12.5px}
+  .md-search.typed{color:var(--text)}
+  .md-search.foc{outline:2px solid var(--accent);outline-offset:1px}
+  .seg{display:flex;border:1px solid var(--border-2);border-radius:6px;overflow:hidden;flex:none}
+  .seg span{font-size:11px;padding:3px 9px;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .seg span+span{border-left:1px solid var(--border-2)}
+  .seg span.sel{background:var(--accent);color:#fff}
+  .seg span i{font-style:normal;opacity:.7;margin-left:3px}
+  .md-count{font-size:10.5px;color:var(--faint);padding:0 16px 6px}
+  .md-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
+  .btn{font:inherit;font-size:12px;border:1px solid var(--border-2);border-radius:5px;padding:4px 12px;
+    background:var(--panel);color:var(--text);cursor:pointer;white-space:nowrap}
+  .btn.cta{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.foc{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---- split: list | detail ---- */
+  .ct-split{display:grid;grid-template-columns:300px minmax(0,1fr);border-top:1px solid var(--border);min-height:300px}
+  .ct-split.one{grid-template-columns:minmax(0,1fr)}
+  .ct-list{border-right:1px solid var(--border);max-height:420px;overflow-y:auto;padding:4px 0;background:var(--panel)}
+  .ct-split.one .ct-list{border-right:none}
+  .ct-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;padding:7px 12px 7px 13px;cursor:pointer;
+    border-left:3px solid transparent}
+  .ct-row:hover{background:var(--hover)}
+  .ct-row.sel{background:var(--panel-2);border-left-color:var(--accent)}
+  .ct-row.foc{outline:2px solid var(--accent);outline-offset:-2px}
+  .ct-row.dim{opacity:.4}
+  .ct-name{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ct-line2{grid-column:1/-1;display:flex;gap:6px;align-items:center;min-width:0}
+  .ct-desc1{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .ct-eng{font-size:9.5px;padding:0 6px;border-radius:4px;border:1px solid var(--border-2);color:var(--muted);
+    font-family:ui-monospace,Menlo,Consolas,monospace;flex:none;line-height:16px}
+  .ct-st{font-size:10px;white-space:nowrap;align-self:center}
+  .ct-st.inst{color:var(--st-written)}
+  .ct-st.upd{color:var(--st-draft);border:1px solid var(--st-draft);border-radius:9px;padding:0 6px;font-weight:600}
+  .ct-st.cons{color:var(--faint)}
+
+  .ct-detail{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .ct-back{font-size:11.5px;color:var(--link);cursor:pointer}
+  .ct-dh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ct-dh .t{font-size:14px;font-weight:600;color:var(--text)}
+  .ct-dh .st{margin-left:auto}
+  .ct-ddesc{font-size:12.5px;color:var(--text);margin:0}
+  .ct-lbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:0 0 3px}
+  .ct-dest{font-size:12px;color:var(--text)}
+  .ct-path{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:var(--panel-2);
+    border:1px solid var(--border);border-radius:4px;padding:1px 6px;overflow-wrap:anywhere}
+  .ct-hint{font-size:10.5px;color:var(--faint);margin-top:3px}
+  .ct-q{margin:0;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;color:var(--text);background:var(--panel-2);
+    border:1px solid var(--border);border-radius:6px;padding:8px 10px;white-space:pre-wrap;overflow-wrap:anywhere;
+    max-height:150px;overflow-y:auto}
+  .ct-safe{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:flex-start}
+  .ct-safe::before{content:"✓";color:var(--st-written);font-weight:700}
+  .ct-consent{font-size:11.5px;color:var(--text);background:var(--warn-bg);border:1px solid var(--warn-bd);
+    border-radius:6px;padding:8px 10px}
+  .ct-consent b{color:var(--st-draft)}
+  .ct-act{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .ct-act .aside{font-size:11px;color:var(--faint)}
+  .ct-fb{font-size:11.5px;border-radius:6px;padding:7px 10px;border:1px solid}
+  .ct-fb.ok{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--text)}
+  .ct-fb.ok::before{content:"✓ ";color:var(--st-written);font-weight:700}
+  .ct-fb.err{background:var(--miss-bg);border-color:var(--miss-bd);color:var(--miss-tx)}
+  .ct-fb.neu{background:var(--panel-2);border-color:var(--border-2);color:var(--muted)}
+  .ct-fb .raw{display:block;margin-top:3px;font:10px ui-monospace,Menlo,Consolas,monospace;color:var(--faint);overflow-wrap:anywhere}
+  .ct-det{font-size:11px;color:var(--faint);border-top:1px solid var(--border);padding-top:8px}
+  .ct-det .sum{cursor:pointer;color:var(--muted)}
+  .ct-det dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;margin:6px 0 0}
+  .ct-det dt{color:var(--faint)}
+  .ct-det dd{margin:0;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;overflow-wrap:anywhere}
+  .ct-empty{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
+    color:var(--faint);font-size:12px;padding:30px 20px;gap:4px}
+  .ct-empty b{color:var(--muted);font-weight:600}
+  .ct-crop{width:440px;max-width:100%;background:var(--panel);border:1px solid var(--border-2);border-radius:8px;
+    box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+  .ct-crop .ctx{font-size:10.5px;color:var(--faint)}
+  .was{font-size:10.5px;color:var(--faint);margin:0}
+  .was code{font-size:10px}
+  /* ---- L11 additions (im- prefix): only what the import modal needs beyond L10 ---- */
+  .ct-st.bad{color:var(--miss-tx);border:1px solid var(--miss-bd);border-radius:9px;padding:0 6px;font-weight:600}
+  .im-path1{font-size:10.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .im-surf{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text)}
+  .im-surf span{display:inline-flex;gap:5px;align-items:center}
+  .im-surf .on::before{content:"●";color:var(--accent);font-size:9px}
+  .im-surf .off{color:var(--faint)}
+  .im-surf .off::before{content:"○";font-size:9px}
+  .im-fix{font-size:11px;color:var(--text);margin-top:4px}
+</style>
+</head>
+<body>
+
+<div class="mk-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-btn="light" aria-pressed="true">Light</button>
+  <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+</div>
+
+<h1>Story Forge — Import a collection <span style="color:var(--faint);font-weight:400;font-size:14px">· import modal L11a–L11i · sibling of L10 · draft for sign-off</span></h1>
+
+<p class="sub"><b>Why this page exists.</b> <i>+ Import from vault…</i> opens <code>src/import/ImportPickerModal.ts</code>.
+It is hard to read and use: one column of rows that stack name, description, badge and path; an auto-selected first
+row; <i>Next →</i> in the footer; refusals only after <i>Next →</i>; and a modal that closes on success without saying
+anything. L10 (<code>mockups-catalog.html</code>, signed off with Q1–Q8 as recommended) is the catalog sibling. This
+page redraws the import modal in the same shell, so the two read as one family. What an import <b>does</b> stays as
+<code>ViewImporter</code> and <code>ImportFlow</code> do it, except where an <span class="mk-tag prop">R#</span> says
+otherwise.</p>
+
+<div class="banner" style="border-left-color:var(--st-written)">
+<b>How to read this file.</b> Light theme is the default. The <b>Dark / Light</b> toggle switches every figure, and
+<b>L11i</b> is always dark. Tokens, the modal shell and the <code>ct-</code> row, pill and detail patterns are copied
+from <code>mockups-catalog.html</code>. Tags: <span class="mk-tag sdd">L10 Q#</span> = inherited from the signed-off
+L10 decision, not asked again; <span class="mk-tag sdd">P2</span> / <span class="mk-tag sdd">today</span> /
+<span class="mk-tag sdd">ImportFlow</span> = shipped behaviour or text, drawn as it is; <span class="mk-tag prop">R#</span>
+= <b>proposed here</b>, not decided until you sign it off. <b>Seed files</b> are invented vault paths in the test
+vault's folder layout.
+<br><b>Inherited from L10 without asking again:</b> two panes, stacked below about 560px (Q1); search plus engine
+filter only above 5 entries (Q2); nothing selected on open (Q3); one action and its feedback in the detail pane (Q4);
+the query wrapped and contained (Q5); engine labels <i>Bases</i>, <i>Dataview</i>, <i>DataviewJS</i> (Q7);
+the neutral note for a closed review (Q8). L10's Q6 (checksum and provenance) has no counterpart: the import modal
+shows no checksum, and everything here becomes <i>imported</i>.
+</div>
+
+<div class="mk-open">
+<h3>Proposals — your answer needed (recommended default in each)</h3>
+<ol>
+  <li id="R1"><b>R1 — The action and the consent step.</b> (a) <b>One button in the detail pane</b>: <i>Import</i>
+    for Bases and Dataview, which saves at once; <i>Review and import…</i> for DataviewJS, which opens today's full
+    disclosure first. The light DQL confirmation dialog is no longer shown for imports. (b) Same buttons, but Dataview
+    keeps the light dialog as <i>Review and import…</i>. (c) Keep today's <i>Next →</i> in the footer, then a
+    separate consent step for both Dataview engines.
+    <span class="rec"><b>Recommended: (a)</b>. It matches L10 word for word ("Install" ↔ "Import"). The pane already
+    shows the DQL query and "Safe: declarative query, no code.", so the light dialog repeated it. PRD F7 AC 8 already
+    says "Bases and DQL are enable/disable only". DataviewJS keeps its full gate unchanged. This drops a consent
+    dialog that ships today (<code>ImportFlow.importTokens</code> would compute DQL tokens the way it does for a
+    <code>.base</code>), so it needs a decision-log entry.</span></li>
+  <li id="R2"><b>R2 — Files that can't be imported.</b> (a) <b>List them with a <i>Can't import</i> status, and show
+    the reason and a fix as soon as the file is selected</b>; (b) hide them; (c) today: a plain row, and the reason only
+    after <i>Next →</i>.
+    <span class="rec"><b>Recommended: (a)</b>. The scan already parses every candidate when the modal opens
+    (<code>_loadFiles</code>), so the reason is known before you click. Hiding them leaves you wondering why your note
+    is missing. Read and write failures that only happen at import time still appear under the button
+    (L11f(f), (g)).</span></li>
+  <li id="R3"><b>R3 — What a row's second line shows.</b> (a) <b>engine pill and vault path</b>; (b) engine pill and
+    description, as in L10.
+    <span class="rec"><b>Recommended: (a)</b>, sorted by path. These are your own files: the path is how you know
+    them, it tells two notes with the same name apart, and a <code>.base</code> has no description at all. The
+    description moves to the detail pane. No folder headers.</span></li>
+  <li id="R4"><b>R4 — After a successful import.</b> (a) <b>The modal stays open</b>: the row and header turn
+    <i>✓ Imported</i>, the button goes, and a success line names where it shows. (b) Today: the modal closes and
+    nothing confirms. (c) Close with a Notice.
+    <span class="rec"><b>Recommended: (a)</b>, as in L10e. You can import several files in one visit, and the result is
+    stated where you acted. Reopening the modal drops imported files, as today.</span></li>
+  <li id="R5"><b>R5 — "Where it goes".</b> (a) <b>A read-only <i>Shows in</i> line</b> with the P2 default (Bases:
+    Anvil on, Workbench off; Dataview and DataviewJS: Workbench on, Anvil off) and "Change this per collection in
+    Library › Collections."; (b) the two switches in the import pane, so you choose before importing.
+    <span class="rec"><b>Recommended: (a)</b>. The switches have one home, the Library row (L2). A second copy here
+    would be a second place to set the same fact, and the default is right for most files.</span></li>
+  <li id="R6"><b>R6 — Refusal wording.</b> Today's messages state the rule but not the fix, and two arrive as a Notice
+    after the picker has closed.
+    <span class="rec"><b>Recommended:</b> keep each of today's sentences word for word and add one fix line under it
+    (L11f, table below). Two messages change: the duplicate becomes inline <i>Not imported: &lt;path&gt; is already in
+    Library › Collections.</i> instead of the Notice "Collection already imported", and a closed DataviewJS review
+    shows the neutral <i>Not imported. You closed the review, so nothing was saved.</i> Success says <i>Imported
+    &lt;name&gt;. It is in Library › Collections and shows in the &lt;Anvil | Workbench&gt;.</i></span></li>
+</ol>
+</div>
+
+<h2>State inventory (L11)</h2>
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>L</th><th>State</th><th>Shows</th><th>Proposals</th></tr>
+<tr><td><b>L11a</b></td><td>Three candidates, nothing selected</td><td>no search or filter; path on line 2; <i>Close</i> only</td><td>R1 R3</td></tr>
+<tr><td><b>L11b</b></td><td>Ten candidates</td><td>search, engine filter, three <i>Can't import</i> rows</td><td>R2 R3</td></tr>
+<tr><td><b>L11c</b></td><td><code>.base</code> selected</td><td>source path, engine, <i>Shows in</i> Anvil on / Workbench off, contained YAML preview, <i>Import</i></td><td>R1 R5</td></tr>
+<tr><td><b>L11d</b></td><td>Dataview note selected</td><td>description, Workbench on, query block, <i>Import</i> without the light dialog</td><td>R1 R5</td></tr>
+<tr><td><b>L11e</b></td><td>DataviewJS note selected</td><td>consent note, <i>Review and import…</i></td><td>R1</td></tr>
+<tr><td><b>L11f</b></td><td>Refusals and result inline</td><td>invalid <code>.base</code>, no block, several blocks, engine mismatch, frontmatter, unreadable or missing, duplicate, review closed, success</td><td>R2 R4 R6</td></tr>
+<tr><td><b>L11g</b></td><td>Nothing importable</td><td>(a) empty vault; (b) no search match</td><td>—</td></tr>
+<tr><td><b>L11h</b></td><td>400px</td><td>(a) list screen; (b) DataviewJS detail screen</td><td>—</td></tr>
+<tr><td><b>L11i</b></td><td>Dark</td><td>L11c in the dark theme</td><td>—</td></tr>
+</table>
+</div>
+
+<h2>L11a — A few candidates <span class="h2s">· nothing selected</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L11a · Three importable files, nothing selected.</b> The same shell as L10a: two panes, a placeholder, no search or filter with 5 or fewer candidates <span class="mk-tag sdd">L10 Q2</span> <span class="mk-tag sdd">L10 Q3</span>. Line 2 of each row is the engine pill and the vault path, because that is how you recognise your own file <span class="mk-tag prop">R3</span>. The footer's <i>Cancel</i> / <i>Next →</i> becomes <i>Close</i>. The action moves into the detail pane <span class="mk-tag prop">R1</span>.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Notes in your vault marked sf-view: true, and .base files</div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox" aria-label="Importable collections">
+      <div class="ct-row foc" role="option" aria-selected="false"><span class="ct-name">Scenes at this location</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">00 Meta/Views/scenes-at-this-location.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Family tree</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/family-tree.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Characters by faction</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/31 Characters/characters-by-faction.base</span></span></div>
+    </div>
+    <div class="ct-detail"><div class="ct-empty"><b>Nothing selected</b>Select a collection to see what it shows and where it goes.</div></div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>Keyboard</b> as in L10a: the list is a <code>listbox</code>, Up and Down move, selection follows focus, Tab goes to the detail pane's button, then <i>Close</i>. Escape closes. <b>Today</b> the first file is auto-selected and rows put name, description, badge and path on four lines; the description now lives in the detail pane.</p>
+</figure>
+</div>
+<h2>L11b — Ten candidates <span class="h2s">· search, engine filter, files that can't be imported</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L11b · Ten files across three engines.</b> Search and the engine filter appear above 5 candidates <span class="mk-tag sdd">L10 Q2</span>. Sorted by path, so files from one folder sit together. Three files fail to parse when the modal opens. They are listed with <i>Can't import</i> instead of failing only after <i>Next →</i> <span class="mk-tag prop">R2</span>.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Notes in your vault marked sf-view: true, and .base files</div>
+  <div class="md-tools">
+    <span class="md-search foc" role="searchbox" aria-label="Search collections">Search collections…</span>
+    <span class="seg" role="radiogroup" aria-label="Engine"><span class="sel" role="radio" aria-checked="true">All<i>10</i></span><span role="radio" aria-checked="false">Bases<i>4</i></span><span role="radio" aria-checked="false">Dataview<i>2</i></span><span role="radio" aria-checked="false">DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox" aria-label="Importable collections">
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Scenes at this location</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">00 Meta/Views/scenes-at-this-location.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Family tree</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/family-tree.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">pacing-chart</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/pacing-chart.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">timeline-gaps</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/timeline-gaps.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Word heatmap</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/word-heatmap.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Open questions</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">10 Notes/open-questions.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Draft board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">20 Manuscript/draft-board.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Characters by faction</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/31 Characters/characters-by-faction.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Ship registry</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/33 Objects/ship-registry.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Broken test</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/Broken test.base</span></span></div>
+    </div>
+    <div class="ct-detail"><div class="ct-empty"><b>Nothing selected</b>Select a collection to see what it shows and where it goes.</div></div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>Search</b> matches the name, the description and the path. <b>Filter counts</b>: a note whose query block can't be read has no engine, so <i>pacing-chart</i> and <i>timeline-gaps</i> count only in <i>All</i> (10 = 4 + 2 + 2 + 2 without an engine). <i>Broken test</i> is a <code>.base</code>, so it is Bases even though it is invalid. <b>Names</b>: a parsed file shows its <code>sf-name</code> or its first Bases view name; a failed one shows its file name, as today. <b>Status</b> is text read with the option ("pacing-chart, can't import").</p>
+</figure>
+</div>
+<h2>L11c — A .base selected <span class="h2s">· path, where it shows, contained preview</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L11c · <i>Characters by faction</i> (Bases) selected.</b> Top to bottom: name and engine; <b>Source file</b>, which stays where it is; <b>Shows in</b>: Anvil on, Workbench off, the Bases default <span class="mk-tag sdd">P2</span> as read-only text <span class="mk-tag prop">R5</span>; the <b>preview</b> of the YAML, wrapped and contained <span class="mk-tag sdd">L10 Q5</span>; the safe note; <i>Import</i> <span class="mk-tag prop">R1</span>.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Notes in your vault marked sf-view: true, and .base files</div>
+  <div class="md-tools">
+    <span class="md-search" role="searchbox" aria-label="Search collections">Search collections…</span>
+    <span class="seg" role="radiogroup" aria-label="Engine"><span class="sel" role="radio" aria-checked="true">All<i>10</i></span><span role="radio" aria-checked="false">Bases<i>4</i></span><span role="radio" aria-checked="false">Dataview<i>2</i></span><span role="radio" aria-checked="false">DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox" aria-label="Importable collections">
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Scenes at this location</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">00 Meta/Views/scenes-at-this-location.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Family tree</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/family-tree.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">pacing-chart</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/pacing-chart.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">timeline-gaps</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/timeline-gaps.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Word heatmap</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/word-heatmap.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Open questions</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">10 Notes/open-questions.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Draft board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">20 Manuscript/draft-board.base</span></span></div>
+      <div class="ct-row sel foc" role="option" aria-selected="true"><span class="ct-name">Characters by faction</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/31 Characters/characters-by-faction.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Ship registry</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/33 Objects/ship-registry.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Broken test</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/Broken test.base</span></span></div>
+    </div>
+    <div class="ct-detail" role="region" aria-labelledby="d-cbf">
+      <div class="ct-dh"><span class="t" id="d-cbf">Characters by faction</span><span class="ct-eng">Bases</span></div>
+      <div>
+        <div class="ct-lbl">Source file</div>
+        <div class="ct-dest"><span class="ct-path">30 Canon/31 Characters/characters-by-faction.base</span></div>
+        <div class="ct-hint">Stays where it is. The Library links to it, so editing the file changes the collection.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Shows in</div>
+        <div class="im-surf"><span class="on">Anvil on</span><span class="off">Workbench off</span></div>
+        <div class="ct-hint">Change this per collection in Library › Collections.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Preview</div>
+<pre class="ct-q">filters:
+  and:
+    - file.inFolder(&quot;30 Canon/31 Characters&quot;)
+    - type == &quot;character&quot;
+views:
+  - type: cards
+    name: Characters by faction
+    groupBy:
+      property: faction
+    order:
+      - file.name
+      - role
+      - status
+      - firstAppearance</pre>
+      </div>
+      <div class="ct-safe">Safe: declarative query, no code.</div>
+      <div class="ct-act"><button class="btn cta">Import</button></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>Where it goes</b> differs from L10: an import copies nothing. The Library records the path, so the line says <i>Source file</i> and "Stays where it is" instead of L10's <i>Installs to</i>. A <code>.base</code> has no description field, so there is no description line. The detail column is <code>minmax(0, 1fr)</code> and the preview wraps, so nothing scrolls sideways.</p>
+</figure>
+</div>
+<h2>L11d — A Dataview note selected <span class="h2s">· Workbench on by default</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L11d · <i>Scenes at this location</i> (Dataview) selected.</b> The description is the note's <code>sf-description</code>. <b>Shows in</b> is the Dataview default, Workbench on and Anvil off <span class="mk-tag sdd">P2</span>. The preview is the query block only <span class="mk-tag sdd">L10 Q5</span>. <i>Import</i> saves it at once: the light DQL confirmation dialog is dropped, because this pane already shows the query and the safe note <span class="mk-tag prop">R1</span>.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Notes in your vault marked sf-view: true, and .base files</div>
+  <div class="md-tools">
+    <span class="md-search" role="searchbox" aria-label="Search collections">Search collections…</span>
+    <span class="seg" role="radiogroup" aria-label="Engine"><span class="sel" role="radio" aria-checked="true">All<i>10</i></span><span role="radio" aria-checked="false">Bases<i>4</i></span><span role="radio" aria-checked="false">Dataview<i>2</i></span><span role="radio" aria-checked="false">DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox" aria-label="Importable collections">
+      <div class="ct-row sel foc" role="option" aria-selected="true"><span class="ct-name">Scenes at this location</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">00 Meta/Views/scenes-at-this-location.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Family tree</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/family-tree.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">pacing-chart</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/pacing-chart.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">timeline-gaps</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/timeline-gaps.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Word heatmap</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/word-heatmap.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Open questions</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">10 Notes/open-questions.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Draft board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">20 Manuscript/draft-board.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Characters by faction</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/31 Characters/characters-by-faction.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Ship registry</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/33 Objects/ship-registry.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Broken test</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/Broken test.base</span></span></div>
+    </div>
+    <div class="ct-detail" role="region" aria-labelledby="d-sal">
+      <div class="ct-dh"><span class="t" id="d-sal">Scenes at this location</span><span class="ct-eng">Dataview</span></div>
+      <p class="ct-ddesc">Scenes set at the open location, in story order.</p>
+      <div>
+        <div class="ct-lbl">Source file</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Views/scenes-at-this-location.md</span></div>
+        <div class="ct-hint">Stays where it is. The Library links to it, so editing the file changes the collection.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Shows in</div>
+        <div class="im-surf"><span class="off">Anvil off</span><span class="on">Workbench on</span></div>
+        <div class="ct-hint">Change this per collection in Library › Collections.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Query</div>
+<pre class="ct-q">TABLE WITHOUT ID file.link AS Scene, storyDay AS &quot;Story day&quot;, pov AS POV, status AS Status
+FROM #manuscript/scene
+WHERE contains(location, this.file.link)
+SORT storyDay ASC, file.name ASC</pre>
+      </div>
+      <div class="ct-safe">Safe: declarative query, no code.</div>
+      <div class="ct-act"><button class="btn cta">Import</button></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>Today</b> <i>Next →</i> opens the light disclosure (<i>Query</i> + <code>dql</code> badge + "DQL is declarative and read-only…" + <i>Enable</i>). Under R1(a) that dialog is no longer shown for imports. This matches PRD F7 AC 8 ("Bases and DQL are enable/disable only") and L10, where a Dataview entry installs with one click.</p>
+</figure>
+</div>
+<h2>L11e — A DataviewJS note selected <span class="h2s">· consent before anything is saved</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L11e · <i>Family tree</i> (DataviewJS) selected.</b> The same amber note as L10d, with "import" for "install". <i>Review and import…</i> opens today's full DataviewJS disclosure (source, SHA-256 checksum, warning, <i>Cancel</i> as default) <span class="mk-tag sdd">ImportFlow</span> <span class="mk-tag prop">R1</span>. Nothing is saved unless you choose <i>Enable</i>.</figcaption>
+<div class="md">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Notes in your vault marked sf-view: true, and .base files</div>
+  <div class="md-tools">
+    <span class="md-search" role="searchbox" aria-label="Search collections">Search collections…</span>
+    <span class="seg" role="radiogroup" aria-label="Engine"><span role="radio" aria-checked="false">All<i>10</i></span><span role="radio" aria-checked="false">Bases<i>4</i></span><span role="radio" aria-checked="false">Dataview<i>2</i></span><span class="sel" role="radio" aria-checked="true">DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox" aria-label="Importable collections">
+      <div class="ct-row sel" role="option" aria-selected="true"><span class="ct-name">Family tree</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/family-tree.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Word heatmap</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/word-heatmap.md</span></span></div>
+    </div>
+    <div class="ct-detail" role="region" aria-labelledby="d-fam">
+      <div class="ct-dh"><span class="t" id="d-fam">Family tree</span><span class="ct-eng">DataviewJS</span></div>
+      <p class="ct-ddesc">Parents, grandparents and children of the open character.</p>
+      <div>
+        <div class="ct-lbl">Source file</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Views/family-tree.md</span></div>
+        <div class="ct-hint">Stays where it is. The Library links to it, so editing the file changes the collection.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Shows in</div>
+        <div class="im-surf"><span class="off">Anvil off</span><span class="on">Workbench on</span></div>
+        <div class="ct-hint">Change this per collection in Library › Collections.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Query</div>
+<pre class="ct-q">const me = dv.current();
+const up = (p) =&gt; [p?.mother, p?.father].filter(Boolean).map((l) =&gt; dv.page(l.path));
+dv.header(4, &quot;Parents&quot;);
+dv.list(up(me).map((p) =&gt; p.file.link));
+dv.header(4, &quot;Grandparents&quot;);
+dv.list(up(me).flatMap(up).map((p) =&gt; p.file.link));
+dv.header(4, &quot;Children&quot;);
+dv.list(dv.pages(&quot;#story/character&quot;)
+  .where((p) =&gt; [p.mother, p.father].some((l) =&gt; l?.path === me.file.path))
+  .map((p) =&gt; p.file.link));</pre>
+      </div>
+      <div class="ct-consent"><b>▲ Runs JavaScript.</b> This collection runs code with full vault access. <i>Review and import…</i> shows you its code first. Nothing is saved until you enable it.</div>
+      <div class="ct-act"><button class="btn cta">Review and import…</button></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note"><b>Cancel in the dialog</b> returns here with the neutral note from L11f(h). <b>Enable</b> leads to the success state of L11f(i). The modal stays open in both cases, unlike today, where the picker has already closed.</p>
+</figure>
+</div>
+<h2>L11f — Refusals inline <span class="h2s">· parse refusals on selection; write refusals under the button</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L11f(a) · A .base that is not valid.</b> Today's text <span class="mk-tag sdd">today</span>, plus a fix hint <span class="mk-tag prop">R6</span>. Shown as soon as the file is selected, because the scan already parsed it <span class="mk-tag prop">R2</span>.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Broken test · detail pane</span>
+      <div class="ct-dh"><span class="t">Broken test</span><span class="ct-eng">Bases</span><span class="ct-st bad st">Can't import</span></div>
+      <div>
+        <div class="ct-lbl">Source file</div>
+        <div class="ct-dest"><span class="ct-path">30 Canon/Broken test.base</span></div>
+        <div class="ct-hint">Stays where it is. The Library links to it, so editing the file changes the collection.</div>
+      </div>
+      <div class="ct-fb err" role="note">This .base file is not a valid Bases file: Invalid BasesConfigFile: must have at least one of views, filters, or formulas<div class="im-fix">Add a <code>views:</code> list, <code>filters:</code> or <code>formulas:</code>, or open it in Bases to check it.</div></div>
+      <div class="ct-act"><span class="aside">Fix the file, then open this window again.</span></div>
+</div>
+</figure>
+<figure>
+<figcaption><b>L11f(b) · No query block.</b> Today's text plus a fix hint <span class="mk-tag prop">R6</span>.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">timeline-gaps · detail pane</span>
+      <div class="ct-dh"><span class="t">timeline-gaps</span><span class="ct-st bad st">Can't import</span></div>
+      <div>
+        <div class="ct-lbl">Source file</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Views/timeline-gaps.md</span></div>
+        <div class="ct-hint">Stays where it is. The Library links to it, so editing the file changes the collection.</div>
+      </div>
+      <div class="ct-fb err" role="note">No query block found<div class="im-fix">Add one <code>```dataview</code> or <code>```dataviewjs</code> block to the note.</div></div>
+      <div class="ct-act"><span class="aside">Fix the file, then open this window again.</span></div>
+</div>
+</figure>
+<figure>
+<figcaption><b>L11f(c) · More than one query block.</b> Today's text plus a fix hint <span class="mk-tag prop">R6</span>.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">characters-in-this-scene · detail pane</span>
+      <div class="ct-dh"><span class="t">characters-in-this-scene</span><span class="ct-st bad st">Can't import</span></div>
+      <div>
+        <div class="ct-lbl">Source file</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Views/characters-in-this-scene.md</span></div>
+        <div class="ct-hint">Stays where it is. The Library links to it, so editing the file changes the collection.</div>
+      </div>
+      <div class="ct-fb err" role="note">A collection must contain exactly one query block<div class="im-fix">Keep one block, or split the note into one note per query.</div></div>
+</div>
+</figure>
+<figure>
+<figcaption><b>L11f(d) · Engine mismatch.</b> Today's text plus a fix hint <span class="mk-tag prop">R6</span>.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">pacing-chart · detail pane</span>
+      <div class="ct-dh"><span class="t">pacing-chart</span><span class="ct-st bad st">Can't import</span></div>
+      <div>
+        <div class="ct-lbl">Source file</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Views/pacing-chart.md</span></div>
+        <div class="ct-hint">Stays where it is. The Library links to it, so editing the file changes the collection.</div>
+      </div>
+      <div class="ct-fb err" role="note">sf-engine &quot;dataview-dql&quot; contradicts the fenced block language &quot;dataviewjs&quot;<div class="im-fix">Make <code>sf-engine</code> match the block, or remove <code>sf-engine</code>: the block's language decides.</div></div>
+      <div class="ct-act"><span class="aside">Fix the file, then open this window again.</span></div>
+</div>
+</figure>
+<figure>
+<figcaption><b>L11f(e) · Invalid frontmatter.</b> Both of today's texts plus a fix hint <span class="mk-tag prop">R6</span>.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Two notes · detail pane, message only</span>
+  <div class="ct-fb err" role="note">sf-version must be an integer<div class="im-fix">Use a whole number, like <code>sf-version: 1</code>.</div></div>
+  <div class="ct-fb err" role="note">sf-name must be a non-empty string<div class="im-fix">Give it a name, or remove <code>sf-name</code> to use the file name.</div></div>
+</div>
+</figure>
+<figure>
+<figcaption><b>L11f(f) · A file that can't be read or was moved.</b> Today's texts. These can only happen after the scan, so they appear when you press <i>Import</i>, under the button. The button stays.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Draft board · detail pane, bottom</span>
+  <div class="ct-act"><button class="btn cta">Import</button></div>
+  <div class="ct-fb err" role="alert">This .base file could not be read: EACCES: permission denied</div>
+  <div class="ct-fb err" role="alert">This .base file could not be found</div>
+</div>
+</figure>
+<figure>
+<figcaption><b>L11f(g) · Already in the Library.</b> The scan hides imported paths, so this is a race (imported from another window meanwhile). Today it is a Notice saying "Collection already imported" after the picker closed. Proposed: inline <span class="mk-tag prop">R6</span>.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Open questions · detail pane, bottom</span>
+  <div class="ct-act"><button class="btn cta">Import</button></div>
+  <div class="ct-fb err" role="alert">Not imported: 10 Notes/open-questions.md is already in Library › Collections.</div>
+  <p class="was">Today: Notice <code>Collection already imported</code>.</p>
+</div>
+</figure>
+<figure>
+<figcaption><b>L11f(h) · DataviewJS review closed.</b> Neutral, as in L10f(e) <span class="mk-tag prop">R6</span>. Focus returns to the button.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Family tree · detail pane, bottom</span>
+  <div class="ct-act"><button class="btn cta foc">Review and import…</button></div>
+  <div class="ct-fb neu" role="status">Not imported. You closed the review, so nothing was saved.</div>
+  <p class="was">Today: the picker has closed; nothing is shown.</p>
+</div>
+</figure>
+<figure>
+<figcaption><b>L11f(i) · Success, for comparison.</b> The modal stays open, the row and header say <i>✓ Imported</i>, and the message names where it shows <span class="mk-tag prop">R4</span>.</figcaption>
+<div class="ct-crop">
+  <span class="ctx">Characters by faction · detail pane, bottom</span>
+  <div class="ct-fb ok" role="status" tabindex="-1">Imported Characters by faction. It is in Library › Collections and shows in the Anvil.</div>
+  <p class="was">Today: the picker closes; nothing confirms the import.</p>
+</div>
+</figure>
+</div>
+<div class="mk-wrap" style="margin-top:14px">
+<table class="inv">
+<tr><th>Code (<code>ImportError</code>)</th><th>Text today (kept)</th><th>When</th><th>Fix line added (R6)</th></tr>
+<tr><td><code>INVALID_BASE</code></td><td>This .base file is not a valid Bases file: &lt;reason&gt;</td><td>on selection</td><td>Add a <code>views:</code> list, <code>filters:</code> or <code>formulas:</code>, or open it in Bases to check it.</td></tr>
+<tr><td><code>INVALID_BASE</code></td><td>This .base file could not be read: &lt;error&gt; · This .base file could not be found</td><td>on <i>Import</i></td><td>none (the error is the fix)</td></tr>
+<tr><td><code>NO_QUERY_BLOCK</code></td><td>No query block found</td><td>on selection</td><td>Add one <code>```dataview</code> or <code>```dataviewjs</code> block to the note.</td></tr>
+<tr><td><code>MULTIPLE_QUERY_BLOCKS</code></td><td>A collection must contain exactly one query block</td><td>on selection</td><td>Keep one block, or split the note into one note per query.</td></tr>
+<tr><td><code>ENGINE_MISMATCH</code></td><td>sf-engine "&lt;x&gt;" contradicts the fenced block language "&lt;y&gt;"</td><td>on selection</td><td>Make <code>sf-engine</code> match the block, or remove <code>sf-engine</code>: the block's language decides.</td></tr>
+<tr><td><code>INVALID_FRONTMATTER</code></td><td>sf-version must be an integer · sf-name must be a non-empty string</td><td>on selection</td><td>Use a whole number, like <code>sf-version: 1</code>. · Give it a name, or remove <code>sf-name</code> to use the file name.</td></tr>
+<tr><td><code>DUPLICATE</code></td><td>Collection already imported (Notice)</td><td>on <i>Import</i> (race)</td><td>replaced: <i>Not imported: &lt;path&gt; is already in Library › Collections.</i>, inline</td></tr>
+<tr><td>review closed</td><td>nothing (picker already closed)</td><td>after the DataviewJS dialog</td><td>new neutral note: <i>Not imported. You closed the review, so nothing was saved.</i></td></tr>
+<tr><td>anything else</td><td>Import failed: unexpected error</td><td>on <i>Import</i></td><td>kept, inline instead of a Notice</td></tr>
+</table>
+</div>
+<p class="note"><b>Placement and announcing.</b> Parse refusals belong to the file, so they sit in its detail pane as
+soon as it is selected, with <code>role="note"</code>: they are read with the pane, not interrupting. Import-time
+refusals appear under the button with <code>role="alert"</code>; the success and neutral lines use
+<code>role="status"</code>. Focus stays on the button, except after success, where it moves to the message (the button
+is gone). Selecting another file clears an import-time message. The <code>sf-picker-error</code> box at the top of the
+modal goes away.</p>
+
+<h2>L11g — Nothing importable <span class="h2s">· empty vault, and no search match</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L11g(a) · Nothing to import.</b> Today's text <span class="mk-tag sdd">today</span>. One pane, no search or filter; focus on <i>Close</i>.</figcaption>
+<div class="md" style="width:520px">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Notes in your vault marked sf-view: true, and .base files</div>
+  <div class="ct-split one" style="min-height:0">
+    <div class="ct-empty" style="padding:34px 24px">Nothing to import — add sf-view: true to a vault note, or create a .base file, to make it available here.</div>
+  </div>
+  <div class="md-foot"><button class="btn foc">Close</button></div>
+</div>
+<p class="note">Files already in the Library are not listed (the scan excludes them), so a vault where everything is imported also lands here.</p>
+</figure>
+<figure>
+<figcaption><b>L11g(b) · No search match.</b> L10g(b)'s text and behaviour <span class="mk-tag sdd">L10 Q7</span>.</figcaption>
+<div class="md" style="width:620px">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Notes in your vault marked sf-view: true, and .base files</div>
+  <div class="md-tools">
+    <span class="md-search typed foc" role="searchbox" aria-label="Search collections">relationship</span>
+    <span class="seg" role="radiogroup" aria-label="Engine"><span class="sel" role="radio" aria-checked="true">All<i>0</i></span><span role="radio" aria-checked="false">Bases<i>0</i></span><span role="radio" aria-checked="false">Dataview<i>0</i></span><span role="radio" aria-checked="false">DataviewJS<i>0</i></span></span>
+  </div>
+  <div class="ct-split" style="grid-template-columns:240px minmax(0,1fr);min-height:180px">
+    <div class="ct-list" role="listbox" aria-label="Importable collections">
+      <div class="ct-empty">No collections match "relationship".</div>
+    </div>
+    <div class="ct-detail"><div class="ct-empty"><b>Nothing selected</b>Select a collection to see what it shows and where it goes.</div></div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+</figure>
+</div>
+<h2>L11h — 400px <span class="h2s">· list screen, then detail screen</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L11h(a) · List screen.</b> As L10h(a). The path on line 2 is cut at the end; the full path is on the detail screen.</figcaption>
+<div class="md nar">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Notes in your vault marked sf-view: true, and .base files</div>
+  <div class="md-tools">
+    <span class="md-search" role="searchbox" aria-label="Search collections" style="flex-basis:100%">Search collections…</span>
+    <span class="seg" role="radiogroup" aria-label="Engine"><span class="sel" role="radio" aria-checked="true">All<i>10</i></span><span role="radio" aria-checked="false">Bases<i>4</i></span><span role="radio" aria-checked="false">Dataview<i>2</i></span><span role="radio" aria-checked="false">DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split one">
+    <div class="ct-list" role="listbox" aria-label="Importable collections" style="max-height:360px">
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Scenes at this location</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">00 Meta/Views/scenes-at-this-location.md</span></span></div>
+      <div class="ct-row foc" role="option" aria-selected="false"><span class="ct-name">Family tree</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/family-tree.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">pacing-chart</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/pacing-chart.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">timeline-gaps</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/timeline-gaps.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Word heatmap</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/word-heatmap.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Open questions</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">10 Notes/open-questions.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Draft board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">20 Manuscript/draft-board.base</span></span></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+<p class="note">Tap or Enter opens L11h(b). Arrowing does not open it at this width.</p>
+</figure>
+<figure>
+<figcaption><b>L11h(b) · Detail screen, DataviewJS.</b> <i>← All collections</i> returns to the row you came from.</figcaption>
+<div class="md nar">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="ct-split one" style="border-top:none">
+    <div class="ct-detail" role="region" aria-labelledby="d-fam">
+      <span class="ct-back" role="button">← All collections</span>
+      <div class="ct-dh"><span class="t" id="d-fam">Family tree</span><span class="ct-eng">DataviewJS</span></div>
+      <p class="ct-ddesc">Parents, grandparents and children of the open character.</p>
+      <div>
+        <div class="ct-lbl">Source file</div>
+        <div class="ct-dest"><span class="ct-path">00 Meta/Views/family-tree.md</span></div>
+        <div class="ct-hint">Stays where it is. The Library links to it, so editing the file changes the collection.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Shows in</div>
+        <div class="im-surf"><span class="off">Anvil off</span><span class="on">Workbench on</span></div>
+        <div class="ct-hint">Change this per collection in Library › Collections.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Query</div>
+<pre class="ct-q">const me = dv.current();
+const up = (p) =&gt; [p?.mother, p?.father].filter(Boolean).map((l) =&gt; dv.page(l.path));
+dv.header(4, &quot;Parents&quot;);
+dv.list(up(me).map((p) =&gt; p.file.link));
+dv.header(4, &quot;Grandparents&quot;);
+dv.list(up(me).flatMap(up).map((p) =&gt; p.file.link));
+dv.header(4, &quot;Children&quot;);
+dv.list(dv.pages(&quot;#story/character&quot;)
+  .where((p) =&gt; [p.mother, p.father].some((l) =&gt; l?.path === me.file.path))
+  .map((p) =&gt; p.file.link));</pre>
+      </div>
+      <div class="ct-consent"><b>▲ Runs JavaScript.</b> This collection runs code with full vault access. <i>Review and import…</i> shows you its code first. Nothing is saved until you enable it.</div>
+      <div class="ct-act"><button class="btn cta">Review and import…</button></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+</figure>
+</div>
+<h2>L11i — Dark <span class="h2s">· L11c in the dark theme</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L11i · L11c, dark.</b> The same tokens as L10i. <i>Can't import</i> keeps its red outline and its text.</figcaption>
+<div class="th-dark">
+<div class="md">
+  <div class="md-head"><p class="t">Import a collection</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Notes in your vault marked sf-view: true, and .base files</div>
+  <div class="md-tools">
+    <span class="md-search" role="searchbox" aria-label="Search collections">Search collections…</span>
+    <span class="seg" role="radiogroup" aria-label="Engine"><span class="sel" role="radio" aria-checked="true">All<i>10</i></span><span role="radio" aria-checked="false">Bases<i>4</i></span><span role="radio" aria-checked="false">Dataview<i>2</i></span><span role="radio" aria-checked="false">DataviewJS<i>2</i></span></span>
+  </div>
+  <div class="ct-split">
+    <div class="ct-list" role="listbox" aria-label="Importable collections">
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Scenes at this location</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">00 Meta/Views/scenes-at-this-location.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Family tree</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/family-tree.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">pacing-chart</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/pacing-chart.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">timeline-gaps</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="im-path1">00 Meta/Views/timeline-gaps.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Word heatmap</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">DataviewJS</span><span class="im-path1">00 Meta/Views/word-heatmap.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Open questions</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Dataview</span><span class="im-path1">10 Notes/open-questions.md</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Draft board</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">20 Manuscript/draft-board.base</span></span></div>
+      <div class="ct-row sel foc" role="option" aria-selected="true"><span class="ct-name">Characters by faction</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/31 Characters/characters-by-faction.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Ship registry</span><span></span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/33 Objects/ship-registry.base</span></span></div>
+      <div class="ct-row" role="option" aria-selected="false"><span class="ct-name">Broken test</span><span class="ct-st bad">Can't import</span>
+        <span class="ct-line2"><span class="ct-eng">Bases</span><span class="im-path1">30 Canon/Broken test.base</span></span></div>
+    </div>
+    <div class="ct-detail" role="region" aria-labelledby="d-cbf">
+      <div class="ct-dh"><span class="t" id="d-cbf">Characters by faction</span><span class="ct-eng">Bases</span></div>
+      <div>
+        <div class="ct-lbl">Source file</div>
+        <div class="ct-dest"><span class="ct-path">30 Canon/31 Characters/characters-by-faction.base</span></div>
+        <div class="ct-hint">Stays where it is. The Library links to it, so editing the file changes the collection.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Shows in</div>
+        <div class="im-surf"><span class="on">Anvil on</span><span class="off">Workbench off</span></div>
+        <div class="ct-hint">Change this per collection in Library › Collections.</div>
+      </div>
+      <div>
+        <div class="ct-lbl">Preview</div>
+<pre class="ct-q">filters:
+  and:
+    - file.inFolder(&quot;30 Canon/31 Characters&quot;)
+    - type == &quot;character&quot;
+views:
+  - type: cards
+    name: Characters by faction
+    groupBy:
+      property: faction
+    order:
+      - file.name
+      - role
+      - status
+      - firstAppearance</pre>
+      </div>
+      <div class="ct-safe">Safe: declarative query, no code.</div>
+      <div class="ct-act"><button class="btn cta">Import</button></div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Close</button></div>
+</div>
+</div>
+</figure>
+</div>
+<h2>What this commits us to</h2>
+<p class="sub">When signed off, the import modal is restyled to this: a rendering change in
+<code>ImportPickerModal</code> on the same CSS as L10's browser (<code>sf-catalog-split</code>, rows, pills, detail,
+feedback), so the two modals share one set of rules on Obsidian variables. Behaviour changes only where proposed:
+the DQL light dialog leaves the import path (R1), the modal stays open after an import (R4), and the duplicate and
+closed-review messages move inline (R6). <code>ViewImporter.parse</code>, <code>scanVault</code> and the DataviewJS
+disclosure stay as they are. Not in scope: editing the file from here, choosing surfaces here (R5), folder headers,
+or importing several files with one click.</p>
+
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>Mockup piece</th><th>Class in code</th></tr>
+<tr><td>title, sub-line, search, footer</td><td><code>sf-picker-sub</code>, <code>sf-picker-search</code>, <code>sf-picker-foot</code> (existing)</td></tr>
+<tr><td>engine filter, split, list, row, name, status, pill</td><td>L10's <code>sf-catalog-filter</code>, <code>-split</code>, <code>-list</code>, <code>-row</code>, <code>-name</code>, <code>-status</code> and <code>sf-badge</code> rules, shared. <code>sf-picker-list</code>, <code>-row</code>, <code>-name</code> retire</td></tr>
+<tr><td>row line 2 path</td><td><code>sf-picker-path</code> (existing), now one line with ellipsis</td></tr>
+<tr><td>detail pane, <i>Shows in</i></td><td>L10's <code>sf-catalog-preview*</code>; <code>sf-import-surfaces</code> (new)</td></tr>
+<tr><td>refusal, fix line, success, neutral</td><td>L10's feedback rules in the detail pane; <code>sf-import-fix</code> (new). <code>sf-picker-error</code> retires</td></tr>
+</table>
+</div>
+
+<script>
+  (function(){
+    var btns = document.querySelectorAll('[data-theme-btn]');
+    btns.forEach(function(b){
+      b.addEventListener('click', function(){
+        var t = b.getAttribute('data-theme-btn');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+        else document.documentElement.removeAttribute('data-theme');
+        btns.forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      });
+    });
+  })();
+</script>
+</body>
+</html>
