@@ -43,13 +43,6 @@ export interface ViewDefinition {
 }
 
 /**
- * Error thrown by ViewImporter.parse() on invalid view-definition notes,
- * and by ViewImporter.importToStore() on duplicate source paths.
- *
- * @ref SDD/EARS F3 — "NO_QUERY_BLOCK" / "MULTIPLE_QUERY_BLOCKS"
- * @ref PRD/F7 AC 7 — "INVALID_BASE": a `.base` whose YAML cannot be read or is not a Bases file
- */
-/**
  * Which case of a code a refusal is, where one code covers several (L11f, A3): the import modal
  * picks its fix line by this, never by matching the message text.
  * - INVALID_BASE: `base-not-found`, `base-unreadable` (YAML that does not parse), `base-invalid`
@@ -58,6 +51,13 @@ export interface ViewDefinition {
  */
 export type ImportErrorDetail = "base-not-found" | "base-unreadable" | "base-invalid" | "sf-version" | "sf-name";
 
+/**
+ * Error thrown by ViewImporter.parse() on invalid view-definition notes,
+ * and by ViewImporter.importToStore() on duplicate source paths.
+ *
+ * @ref SDD/EARS F3 — "NO_QUERY_BLOCK" / "MULTIPLE_QUERY_BLOCKS"
+ * @ref PRD/F7 AC 7 — "INVALID_BASE": a `.base` whose YAML cannot be read or is not a Bases file
+ */
 export class ImportError extends Error {
 	constructor(
 		public readonly code:
