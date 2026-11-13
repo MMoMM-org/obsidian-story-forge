@@ -125,7 +125,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
       last plugin-shipped query that required `30 Canon`, is gone. `Canon.base` / `Manuscript.base`
       remain as test-vault tooling deployed by `schema:gen`; no plugin code reads them.
 
-- [ ] **T7.4 Capability disclosure** `[activity: frontend-ui]`
+- [x] **T7.4 Capability disclosure** `[activity: frontend-ui]`
 
   1. Prime: `[ref: PRD/F8]`; `[ref: ADR-36]`. This also discharges the G14/#19 obligation to
      document what each add-on adds.
