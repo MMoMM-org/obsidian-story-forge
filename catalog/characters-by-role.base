@@ -1,0 +1,28 @@
+filters:
+  and:
+    - file.hasTag("canon/character")
+    - not:
+        - file.inFolder("00 Meta")
+properties:
+  file.name:
+    displayName: Name
+  role:
+    displayName: Role
+  status:
+    displayName: Status
+  occupation:
+    displayName: Occupation
+views:
+  - type: table
+    name: Characters by role
+    groupBy:
+      property: role
+      direction: ASC
+    order:
+      - file.name
+      - role
+      - status
+      - occupation
+    sort:
+      - property: file.name
+        direction: ASC

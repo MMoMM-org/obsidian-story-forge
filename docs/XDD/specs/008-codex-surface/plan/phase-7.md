@@ -108,52 +108,22 @@ Closes the gap that started this whole spec: the distribution machinery served f
   5. Success:
      - [x] Catalog and import cover the same engines `[ref: SDD/AC — PRD F7]`
 
-- [ ] **T7.3 Generation wired to settings** `[activity: integration]`
+- [ ] **T7.3 Curated `.base` installs verbatim; `Codex.base` retired** `[activity: integration]`
 
-  > **This task now owns the templating half of `baseGenerator`** (reassigned from T1.4,
-  > 2026-07-30). T1.4 shipped `renderBase(params)` — no template input — so:
-  > **(a)** giving `renderBase` its template input is T7.3's;
-  > **(b)** producing a `sourceChecksum` is T7.3's — **nothing in `src/` computes one today**;
-  > **(c)** consequently `classify()`'s **`reconsent` branch is inert until (b) lands**: it is
-  > covered by unit tests over synthetic checksums, but no runtime path can reach it, so "upstream
-  > changed" cannot currently be detected. Do not treat the existing tests as evidence that the
-  > branch works end-to-end.
-  >
-  > **GATE — inherited from T3.3, assigned here 2026-11-02.** Curated entries are copied verbatim, so
-  > `generated.params` does not describe the bytes on disk. When real settings-backed values replace
-  > the `collectionParams` placeholder in `main.ts`, **reconcile `generated.params` on installed
-  > records**. Otherwise every unedited curated file classifies `regenerate` and its curated content
-  > is replaced by `renderBase` output. Add a test for it. Hand-edited files are already safe: they
-  > classify `ask` (`7cf6440`), and the ask prompt is this phase's to build.
-  >
-  > **Second, separate defect — the renderer is not yet a replacement for the shipped artifact.**
-  > Today `renderBase` emits only `filters` plus a single `{type: CODEX_VIEW_ID, name: "Codex"}`
-  > view. The real shipped `infra/Bases/Codex.base` carries a `properties:` block **and five views**,
-  > each with a `category:` discriminant (character, location, object, lore, scene); the curated
-  > `test/StoryForge/00 Meta/Bases/overview-characters.base` carries **four `displayName` mappings**. Step 3 below tasks
-  > this with **replacing** the shipped `Codex.base` — doing that with today's renderer would
-  > **silently delete** the five categorised views and the property display names, turning a working
-  > five-category Codex into a single unnamed view. The renderer must reproduce them (or the
-  > template must carry them) **before** anything overwrites the shipped file.
+  > **Reduced per the README decision row of 2026-11-13 ("T7.3 reduced").** The original task
+  > (settings-driven regeneration of generated `.base` artifacts: template input for `renderBase`, a
+  > `sourceChecksum`, the `ask` prompt, the verify switch, replacing the shipped `Codex.base`) is
+  > **deferred, not built**; ADR-0003 regeneration returns only if a settings-driven artifact is wanted.
+  > What T7.3 does instead: remove `Codex.base` (infra, schema:gen deploy, test vault), stop writing a
+  > `generated` block with placeholder params on a curated `.base` install, and ship one curated
+  > `.base` so the path is proven live. See the T7.3 bullet under the decisions below.
 
-  1. Prime: `[ref: ADR-0003 §Decision]`; T1.4's `classify` and renderer; **read
-     `infra/Bases/Codex.base` and `test/StoryForge/00 Meta/Bases/overview-characters.base` first** and enumerate what the
-     replacement must preserve.
-  2. Test: changing a tag or an excluded folder **regenerates the artifact and updates its instance
-     checksum silently** `[ref: PRD/F3 AC]`; hand-editing the artifact then changing nothing yields
-     **ask** `[ref: SDD/AC — Edge Cases]`; hand-editing **and** changing a setting also yields **ask**,
-     never an overwrite; switching verification off means we **neither verify nor
-     regenerate** `[ref: SDD/AC — Edge Cases]`; the generated `.base` contains a tag filter and a
-     `not:` exclusion and **no `file.inFolder` include** `[ref: SDD/Known Technical Issues]`; a
-     regenerated `Codex.base` **still carries its `properties:` block and all five categorised
-     views** — assert against the shipped file, so a regression that drops them fails the test
-     rather than the vault; `reconsent` is reachable from a real changed template, not only from a
-     synthetic checksum.
-  3. Implement: template input for `renderBase` + `sourceChecksum`; settings-change → regenerate;
-     replace the shipped `Codex.base` include filter **without losing its views or properties**.
-  4. Validate: unit tests; a live check that the regenerated file opens in Bases; lint; types.
-  5. Success:
-     - [ ] The vault layout is no longer compulsory `[ref: PRD/Problem Statement 6]`
+  - Success:
+    - [x] The vault layout is no longer compulsory `[ref: PRD/Problem Statement 6]` — every
+      collection the plugin draws is selected by tag (the native built-ins since T7.1, the shipped
+      curated `.base`, which only *excludes* `00 Meta`), and the folder-include `Codex.base`, the
+      last plugin-shipped query that required `30 Canon`, is gone. `Canon.base` / `Manuscript.base`
+      remain as test-vault tooling deployed by `schema:gen`; no plugin code reads them.
 
 - [ ] **T7.4 Capability disclosure** `[activity: frontend-ui]`
 
@@ -724,3 +694,43 @@ Closes the gap that started this whole spec: the distribution machinery served f
     are keyed on a new `ImportError.detail` (`base-not-found`, `base-unreadable`, `base-invalid`, `sf-version`,
     `sf-name`), never on the message text; the sentences are unchanged. The import modal's candidates are a
     discriminated union (importable with its definition, or failed with its refusal).
+
+- **T7.3 — Reduced: curated `.base` verbatim, `Codex.base` retired** (2026-11-13, per the README decision row).
+  - *Codex.base removed.* `infra/Bases/Codex.base`, its deployed copy `test/StoryForge/00 Meta/Bases/Codex.base`
+    and `test/bases/codexBase.test.ts` (which only asserted that file's five views and its deploy) are deleted.
+    `schema:gen` copies everything under `infra/`, so there was no per-file copy step to remove; a new
+    `schemaGenHandwritten` test pins that it deploys `Canon.base` and `Manuscript.base` and no `Codex.base`.
+    `docs/views-and-integration.md` no longer describes `Codex.base` as current. Historical specs (005, the 008
+    PRD/SDD, gap analysis) keep their references as history.
+  - *Curated `.base` record.* `CatalogService` writes `provenance:"curated"` (from repo), `kind:"collection"`,
+    engine bases, P2 surfaces (Anvil on), `okayed = {version: 1, checksum}` and `installedSourceChecksum`, both
+    the checksum of the bytes written, and **no `generated` block**. Update compares the file on disk with
+    `installedSourceChecksum` (then `generated.instanceChecksum`, then `okayed`, for older records), replaces the
+    record in place and refuses an edited file with the T7.2 wording. A record installed before T7.3 keeps
+    `generated`, still evaluates through `_evaluateGeneratedCollection`/`classify`, and still updates at its
+    `generated.filePath`; the updated record drops `generated` (it is now a verbatim install).
+  - *Consent.* `isUserBaseCollection` (Bases, `kind:"collection"`, no `generated`) now covers a from-repo `.base`
+    as well as an imported one: consent-free, enable/disable only (PRD F7 AC 8; Bases runs no code). Doc comment
+    and test (a) make that explicit.
+  - *Removed as dead code.* (1) `renderBase` with its helpers `buildFilters`, `hasTagExpr`, `inFolderExpr`,
+    `FilterExpr` and the `yaml`/`CODEX_VIEW_ID` imports in `baseGenerator.ts`: no `src/` caller; its tests in
+    `baseGenerator.test.ts` went with it. (2) `CatalogServiceDeps.collectionParams` and the shared
+    `collectionParams` placeholder in `main.ts` with its HAZARD notes: nothing writes `generated.params` any more.
+    (3) The T3.3 `classify()` suite in `CatalogService.test.ts`, which classified the `generated` block a curated
+    install no longer writes (`classify` itself stays covered in `baseGenerator.test.ts`).
+  - *Kept, because legacy `generated` evaluation uses them.* `classify`, `sameParams`, `CollectionParams`,
+    `GeneratedArtifact`, ConsentGate's `_evaluateGeneratedCollection` and its two seams. `main.ts` now passes
+    them inline (`getCurrentSourceChecksum` → null, `legacyGeneratedParams` = empty), documented as legacy-only;
+    with those values `classify` never answers `reconsent` or `regenerate`. The read-only Tag / Excluded folders
+    lines in a from-repo panel (`renderParams`) still show for a legacy record and draw nothing for a new one.
+  - *The shipped curated `.base`.* `catalog/characters-by-role.base`, "Characters by role": `file.hasTag("canon/character")`
+    and `not: file.inFolder("00 Meta")`, a table grouped by `role` with Name, Role, Status and Occupation,
+    sorted by name. The catalog is now mixed (bases + dataview-dql). A test reads `schema/*.json` and fails if a
+    shipped `.base` names a property the selected schema does not declare, selects by a non-schema tag, or tests a
+    folder outside a `not:`.
+  - *Tests changed.* `CatalogService.test.ts`: the "persisted record carries a generated block" test now asserts
+    no `generated` and the written-bytes checksums; the update test asserts `installedSourceChecksum`; the T3.3
+    up-to-date test's legacy record uses literal empty params. `catalog-e2e.test.ts`: the install asserts no
+    `generated`; the harness comment about matching params is gone. `buildCatalog.test.ts` / `catalogOverviews`
+    count `00 Meta/Bases` from disk and needed no change. No test asserted the catalog is Dataview-only.
+

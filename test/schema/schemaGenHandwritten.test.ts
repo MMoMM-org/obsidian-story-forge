@@ -7,7 +7,7 @@
 
 import { execFileSync } from "node:child_process";
 import {
-	mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync,
+	existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -38,5 +38,17 @@ describe("schema-gen and a hand-written FileClass", () => {
 		expect(readFileSync(path.join(dir, "fc-character.md"), "utf8")).not.toBe(""); // the run did generate
 		expect(readFileSync(mine, "utf8")).toBe(before.bytes);
 		expect(statSync(mine).mtimeMs).toBe(before.mtime);
+	});
+});
+
+describe("schema-gen and the Bases infra (T7.3: Codex.base retired)", () => {
+	it("deploys Canon.base and Manuscript.base, and no Codex.base", () => {
+		const vault = path.join(work, "vault");
+		mkdirSync(vault, { recursive: true });
+		gen(vault);
+		const bases = path.join(vault, "00 Meta/Bases");
+		expect(readFileSync(path.join(bases, "Canon.base"), "utf8")).not.toBe("");
+		expect(readFileSync(path.join(bases, "Manuscript.base"), "utf8")).not.toBe("");
+		expect(existsSync(path.join(bases, "Codex.base"))).toBe(false);
 	});
 });

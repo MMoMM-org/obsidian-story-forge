@@ -22,6 +22,7 @@ import { CatalogService } from "catalog/CatalogService";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import type { CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 import { extractQueryBlocks } from "import/queryBlocks";
+import { validateBasesConfig } from "bases/basesConfig";
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort, StoryForgeData, ViewRecord } from "store/types";
 
@@ -94,12 +95,83 @@ describe("buildCatalog — a mixed-engine catalog", () => {
 	});
 });
 
+function shipped(): Record<string, string> {
+	return Object.fromEntries(readdirSync(join(REPO_ROOT, "catalog")).map((f) => [f, readFileSync(join(REPO_ROOT, "catalog", f), "utf8")]));
+}
+
+function readSchemas(): Array<{ tag: string; fields: Array<{ name: string }> }> {
+	return readdirSync(join(REPO_ROOT, "schema"))
+		.filter((f) => f.endsWith(".json"))
+		.map((f) => JSON.parse(readFileSync(join(REPO_ROOT, "schema", f), "utf8")) as { tag: string; fields: Array<{ name: string }> });
+}
+
+/** Every filter expression in a .base: the tags it selects, and whether any folder test is outside a `not:`. */
+function filterTerms(config: unknown): { tags: string[]; includesFolder: boolean } {
+	const tags: string[] = [];
+	let includesFolder = false;
+	const walk = (node: unknown, negated: boolean): void => {
+		if (typeof node === "string") {
+			for (const m of node.matchAll(/file\.hasTag\("([^"]+)"\)/g)) tags.push(m[1]!);
+			if (/file\.inFolder\(/.test(node) && !negated) includesFolder = true;
+		} else if (Array.isArray(node)) {
+			for (const n of node) walk(n, negated);
+		} else if (node !== null && typeof node === "object") {
+			for (const [k, v] of Object.entries(node)) walk(v, negated || k === "not");
+		}
+	};
+	const c = config as { filters?: unknown; views?: Array<{ filters?: unknown }> };
+	walk(c.filters, false);
+	for (const v of c.views ?? []) walk(v.filters, false);
+	return { tags, includesFolder };
+}
+
+/** Every property a .base names: `properties:` keys, view `order`, `groupBy`, `sort`. */
+function propertiesNamed(config: unknown): string[] {
+	const c = config as {
+		properties?: Record<string, unknown>;
+		views?: Array<{ order?: string[]; groupBy?: { property?: string }; sort?: Array<{ property?: string }> }>;
+	};
+	const names = Object.keys(c.properties ?? {});
+	for (const v of c.views ?? []) {
+		names.push(...(v.order ?? []));
+		if (v.groupBy?.property) names.push(v.groupBy.property);
+		for (const s of v.sort ?? []) if (s.property) names.push(s.property);
+	}
+	return names.map((n) => n.replace(/^note\./, ""));
+}
+
 describe("the shipped catalog/", () => {
 	it("builds, and holds a curated Dataview view", async () => {
 		const index = await build(Object.fromEntries(
 			readdirSync(join(REPO_ROOT, "catalog")).map((f) => [f, readFileSync(join(REPO_ROOT, "catalog", f), "utf8")]),
 		));
 		expect(index.entries.some((e) => e.engine === "dataview-dql")).toBe(true);
+	});
+
+	it("is mixed: it also holds a curated .base (T7.3)", async () => {
+		const index = await build(shipped());
+		expect(new Set(index.entries.map((e) => e.engine))).toEqual(new Set(["bases", "dataview-dql"]));
+	});
+
+	it("ships .base files that validate, select by tag, only exclude folders, and name only schema fields", async () => {
+		const index = await build(shipped());
+		const schemas = readSchemas();
+		const bases = index.entries.filter((e) => e.engine === "bases");
+		expect(bases.length).toBeGreaterThan(0);
+		for (const entry of bases) {
+			const config = parseYaml(entry.source) as unknown;
+			expect(validateBasesConfig(config).ok, `${entry.id} validates`).toBe(true);
+			const { tags, includesFolder } = filterTerms(config);
+			expect(includesFolder, `${entry.id} selects by folder`).toBe(false);
+			const selected = schemas.filter((s) => tags.includes(s.tag));
+			expect(selected.length, `${entry.id} selects by a schema tag`).toBeGreaterThan(0);
+			const declared = new Set(selected.flatMap((s) => s.fields.map((f) => f.name)));
+			const used = propertiesNamed(config);
+			expect(used.length).toBeGreaterThan(0);
+			for (const name of used) {
+				if (!name.startsWith("file.")) expect(declared, `${entry.id} uses ${name}`).toContain(name);
+			}
+		}
 	});
 
 	it("queries only fields the schema of the tag it reads declares", async () => {
@@ -159,7 +231,7 @@ async function dataviewEntry(overrides: Partial<CatalogEntry> = {}): Promise<Cat
 function service(app: App, store: ViewStore, entry: CatalogEntry, consent = vi.fn(async () => null as { version: number; checksum: string } | null), folder = "00 Meta/Bases") {
 	const gate = { requestConsentForQuery: consent } as unknown as ConsentGate;
 	const svc = new CatalogService({ version: "1", generated: "", entries: [entry] }, {
-		app, gate, store, curatedBasesFolder: folder, collectionParams: { tag: "", excludedFolders: [] },
+		app, gate, store, curatedBasesFolder: folder,
 	});
 	return { svc, consent };
 }

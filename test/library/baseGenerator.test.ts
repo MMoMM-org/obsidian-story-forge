@@ -1,15 +1,7 @@
 /**
- * baseGenerator.test.ts — T1.4 template render + classify().
+ * baseGenerator.test.ts — T1.4 classify() (renderBase removed in T7.3, unused).
  *
  * Covers:
- *  - renderBase: whole-file YAML render from CollectionParams (tag +
- *    excludedFolders), never a patch (ADR-34). Output is a structurally
- *    valid BasesConfigFile per the existing validateBasesConfig
- *    (src/bases/basesConfig.ts), which checks views/filters/formulas
- *    presence and shape but does not inspect filters' internals — so
- *    filter-expression correctness (tag substitution, not: exclusions,
- *    space-quoting) is asserted directly against the parsed YAML, not
- *    inferred from validateBasesConfig passing.
  *  - classify: the five-row traced table from
  *    [ref: SDD/Implementation Examples — classifying a generated artifact]
  *    and ADR-0003 §Decision point 5.
@@ -20,10 +12,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parse as parseYaml } from "yaml";
-import { validateBasesConfig } from "bases/basesConfig";
 import {
-	renderBase,
 	classify,
 	type CollectionParams,
 	type GeneratedArtifact,
@@ -47,100 +36,6 @@ const getMockArtifact = (overrides?: Partial<GeneratedArtifact>): GeneratedArtif
 	verify: true,
 	...overrides,
 });
-
-// ---------------------------------------------------------------------------
-// renderBase — whole-file render
-// ---------------------------------------------------------------------------
-
-describe("renderBase", () => {
-	it("substitutes the tag into the filter expression", () => {
-		const yamlText = renderBase(getMockParams({ tag: "story/location", excludedFolders: [] }));
-		const parsed = parseYaml(yamlText) as { filters?: unknown };
-
-		expect(parsed.filters).toBe('file.hasTag("story/location")');
-	});
-
-	it("substitutes excluded folders into a not: block", () => {
-		const yamlText = renderBase(
-			getMockParams({ tag: "story/character", excludedFolders: ["00 Meta", "10 Templates"] }),
-		);
-		const parsed = parseYaml(yamlText) as {
-			filters: { and: [string, { not: string[] }] };
-		};
-
-		expect(parsed.filters.and[0]).toBe('file.hasTag("story/character")');
-		expect(parsed.filters.and[1].not).toEqual([
-			'file.inFolder("00 Meta")',
-			'file.inFolder("10 Templates")',
-		]);
-	});
-
-	it("quotes a folder name containing a space correctly", () => {
-		const yamlText = renderBase(
-			getMockParams({ tag: "story/character", excludedFolders: ["00 Meta Folder"] }),
-		);
-		const parsed = parseYaml(yamlText) as {
-			filters: { and: [string, { not: string[] }] };
-		};
-
-		// The query-language literal must survive a YAML round-trip byte-exact —
-		// the space must not truncate or split the expression.
-		expect(parsed.filters.and[1].not).toEqual(['file.inFolder("00 Meta Folder")']);
-	});
-
-	it("produces no not: block for an empty exclusion list (not an empty one)", () => {
-		const yamlText = renderBase(getMockParams({ excludedFolders: [] }));
-
-		expect(yamlText).not.toContain("not:");
-		const parsed = parseYaml(yamlText) as { filters?: unknown };
-		// filters is the bare tag expression — not wrapped in an `and:` with an
-		// empty/absent not-block.
-		expect(parsed.filters).toBe('file.hasTag("story/character")');
-	});
-
-	it("produces a structurally valid BasesConfigFile (validateBasesConfig) with the tag-only filter shape intact", () => {
-		const yamlText = renderBase(getMockParams({ excludedFolders: [] }));
-		const parsed = parseYaml(yamlText) as { filters?: unknown };
-		const result = validateBasesConfig(parsed);
-
-		// validateBasesConfig only checks presence/array-ness of views/filters/
-		// formulas — it does not inspect filters' internal shape. Filter
-		// correctness is asserted directly here so the test name doesn't
-		// overclaim what the round-trip alone proves.
-		expect(result.ok).toBe(true);
-		expect(parsed.filters).toBe('file.hasTag("story/character")');
-	});
-
-	it("produces a structurally valid BasesConfigFile (validateBasesConfig) with the and/not filter shape intact for multiple excluded folders", () => {
-		const yamlText = renderBase(
-			getMockParams({ excludedFolders: ["00 Meta", "10 Templates", "Story Bible"] }),
-		);
-		const parsed = parseYaml(yamlText) as {
-			filters: { and: [string, { not: string[] }] };
-		};
-		const result = validateBasesConfig(parsed);
-
-		expect(result.ok).toBe(true);
-		expect(parsed.filters.and[0]).toBe('file.hasTag("story/character")');
-		expect(parsed.filters.and[1].not).toEqual([
-			'file.inFolder("00 Meta")',
-			'file.inFolder("10 Templates")',
-			'file.inFolder("Story Bible")',
-		]);
-	});
-
-	it("includes at least one Bases view so the artifact is independently openable", () => {
-		const yamlText = renderBase(getMockParams());
-		const parsed = parseYaml(yamlText) as { views?: unknown[] };
-
-		expect(Array.isArray(parsed.views)).toBe(true);
-		expect(parsed.views?.length).toBeGreaterThan(0);
-	});
-});
-
-// ---------------------------------------------------------------------------
-// classify — the five-row traced table (ADR-0003 §Decision)
-// ---------------------------------------------------------------------------
 
 describe("classify", () => {
 	it("row 1 — nothing happened: source/params/file all match → clean, no prompt", () => {

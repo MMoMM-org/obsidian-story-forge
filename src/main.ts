@@ -89,36 +89,14 @@ export default class StoryForgePlugin extends Plugin {
 			isDvJsEnabled: (): boolean => getDvSettings(this.app).enableDataviewJs,
 		};
 
-		// PLACEHOLDER (T3.4, hoisted up from its former T3.3 construction site
-		// below CatalogService): `excludedFolders` now exists on PluginSettings
-		// (T3.5), but this placeholder is DELIBERATELY left as-is rather than
-		// swapped for a settings-backed value. Reasons: (1) no collection record
-		// can exist yet — catalog/ ships zero entries, so there is nothing to
-		// reconcile against; (2) `collectionParams` must stay ONE shared value
-		// between this construction site and CatalogService's (below) — reading
-		// install-time and classify-time params from different sources would
-		// desync and produce a spurious `regenerate` the moment they diverge.
-		// T7.3 (real template wiring) is where a real collection first exists,
-		// so it is the right place to wire this for real. Until then every
-		// generated collection is recorded/compared against an empty tag and an
-		// empty exclusion list. Shared by ConsentGate's getCurrentParams seam
-		// (below) and CatalogService's collectionParams dep (see the HAZARD
-		// note at its construction site).
-		//
-		// HAZARD (see CatalogService.ts class docstring): when T7.3 swaps this
-		// placeholder for real settings-backed values, it must also reconcile
-		// `generated.params` on already-installed records — otherwise
-		// classify() flips every unedited curated file to "regenerate" and
-		// its curated content is replaced by `renderBase` output.
-		const collectionParams: CollectionParams = { tag: "", excludedFolders: [] };
-
-		// PLACEHOLDER (T3.4): no real template producer is wired yet (T7.3) — a
-		// generated collection's upstream checksum cannot be looked up, so
-		// this always reports "unknown" (null). ConsentGate treats that as
-		// "cannot tell, do not nag" rather than manufacturing drift; the
-		// classify() `reconsent` branch stays inert until T7.3 wires a real
-		// lookup.
+		// The two seams below only serve records installed before T7.3, which still carry a
+		// `generated` block (ConsentGate._evaluateGeneratedCollection → classify). T7.3
+		// (reduced, 2026-11-13) dropped settings-driven regeneration: no upstream template
+		// checksum exists (null = "cannot tell, do not nag") and the params are the empty
+		// ones those records were installed with, so classify() never answers `reconsent`
+		// or `regenerate` for them. New curated `.base` installs have no `generated` block.
 		const getCurrentSourceChecksum = async (): Promise<string | null> => null;
+		const legacyGeneratedParams: CollectionParams = { tag: "", excludedFolders: [] };
 
 		const gate = new ConsentGate(
 			this.app,
@@ -126,7 +104,7 @@ export default class StoryForgePlugin extends Plugin {
 			dvSettings,
 			this.store,
 			getCurrentSourceChecksum,
-			() => collectionParams,
+			() => legacyGeneratedParams,
 		);
 		const importer = new ViewImporter(this.app, this.store);
 
@@ -310,16 +288,13 @@ export default class StoryForgePlugin extends Plugin {
 		// T7.2, by the Library's "+ Browse repo…". CatalogService receives the bundled
 		// catalog-index.json (static import, no fetch), built by catalog:build before esbuild
 		// bundles main.ts. It is built per open so an install follows the current "Folder for
-		// collections from the repo" setting (P2). `collectionParams` is the T3.4-hoisted
-		// placeholder declared above (shared with ConsentGate's getCurrentParams seam) — see the
-		// HAZARD note there.
+		// collections from the repo" setting (P2). Curated files are installed verbatim (T7.3).
 		const browseRepo = (): void => {
 			const catalogService = new CatalogService(catalogIndex, {
 				app: this.app,
 				gate,
 				store: this.store,
 				curatedBasesFolder: this._getCuratedBasesFolder(),
-				collectionParams,
 			});
 			new BrowseOfficialModal(this.app, catalogService, this.store).open();
 		};

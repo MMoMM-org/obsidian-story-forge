@@ -33,7 +33,6 @@ import { ConsentGate } from "consent/ConsentGate";
 import { DisclosureModal } from "consent/DisclosureModal";
 import { installCurated } from "import/ImportFlow";
 import { computeChecksum } from "consent/checksum";
-import type { CollectionParams } from "library/baseGenerator";
 import type { BasesCatalogEntry, CatalogEntry, CatalogIndex } from "catalog/catalogTypes";
 import type { ViewRecord } from "store/types";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
@@ -65,8 +64,6 @@ const requestUrlSpy = vi.fn(() => {
 const BASE_YAML =
 	'filters: file.hasTag("test")\nviews:\n  - type: table\n    name: Test View\n';
 
-/** Default injected render params — this suite does not exercise renderBase/reconsent. */
-const DEFAULT_COLLECTION_PARAMS: CollectionParams = { tag: "test", excludedFolders: [] };
 
 async function makeEntry(overrides: Partial<BasesCatalogEntry> = {}): Promise<BasesCatalogEntry> {
 	const source = overrides.source ?? BASE_YAML;
@@ -206,21 +203,15 @@ async function mountHarness(
 	const vault = makeVault(false);
 	const { store, raw: storeRaw } = makeStoreHarness(initialRecords);
 
-	// getCurrentSourceChecksum stays "unknown" (null) — no real template
-	// producer is wired at this layer (T7.3), and the `??` fallback in
-	// ConsentGate compares the record's own stored sourceChecksum to itself,
-	// which is "same" regardless. getCurrentParams DOES need to match what
-	// CatalogService actually recorded in `generated.params` below
-	// (DEFAULT_COLLECTION_PARAMS) — otherwise classify() takes the
-	// `regenerate` branch instead of `clean`, and this harness would silently
-	// stop exercising the "nothing changed" case it exists to test.
+	// The two classify() seams only matter for records installed before T7.3 (with a
+	// `generated` block); a curated install no longer writes one, so they are inert here.
 	const gate = new ConsentGate(
 		vault.app,
 		makeBasesRegistry(),
 		makeDvSettings(),
 		store,
 		async () => null,
-		() => DEFAULT_COLLECTION_PARAMS,
+		() => ({ tag: "", excludedFolders: [] }),
 	);
 
 	const index: CatalogIndex = {
@@ -234,7 +225,6 @@ async function mountHarness(
 		gate,
 		store,
 		curatedBasesFolder: "00 Meta/Bases",
-		collectionParams: DEFAULT_COLLECTION_PARAMS,
 	});
 
 	const modal = new BrowseOfficialModal(vault.app, service, store);
@@ -295,7 +285,8 @@ describe("E2E T6.3.1 — install: .base written, engine:'bases' record persisted
 			expect(rec.source).not.toBe(BASE_YAML);
 			expect(rec.source).toContain("overview-characters.base");
 			expect(rec.kind).toBe("collection");
-			expect(rec.generated?.filePath).toBe(rec.source);
+			expect(rec.generated).toBeUndefined();
+			expect(rec.installedSourceChecksum).toBe(rec.okayed?.checksum);
 			expect(rec.provenance).toBe("curated");
 			expect(rec.enabled).toBe(true);
 			expect(rec.catalogId).toBe("overview-characters");

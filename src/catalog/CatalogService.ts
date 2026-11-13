@@ -13,10 +13,12 @@
  *                    the single copy of the YAML.
  *   3. PERSIST     — store.setRecord with engine:"bases", kind:"collection",
  *                    source:<vault path — NOT the YAML>, provenance:"curated",
- *                    okayed:{checksum}, and a `generated` block (ADR-35) carrying
- *                    the two-checksum bookkeeping `classify()`
- *                    (src/library/baseGenerator.ts) needs to tell "clean" apart
- *                    from "a foreign hand edited the file".
+ *                    okayed:{checksum} and installedSourceChecksum, both over the
+ *                    bytes written. Since T7.3 (reduced) there is no `generated`
+ *                    block: a curated `.base` is installed verbatim and nothing
+ *                    regenerates it from settings; it changes only by Update or
+ *                    by the user in Bases. Records installed earlier still carry
+ *                    `generated` and keep working (ConsentGate, `installedPath`).
  *   If PERSIST fails after MATERIALISE, the write is undone (a new file removed, a
  *   replaced one restored) so no partial state is left. An Update replaces the
  *   stale record in place and refuses when the user edited the installed file
@@ -27,13 +29,13 @@
  *   (ConsentGate._evaluateBasesRecord) checksummed the STORE's copy while
  *   the removed Open Codex command opened the VAULT file — editing the rendered file was invisible.
  *   The vault file is now the single artifact; `record.source` is its path, and
- *   `record.generated.instanceChecksum` is the checksum of the bytes actually
- *   written, so classify() can detect a hand-edit against what is really on disk.
+ *   `record.installedSourceChecksum` is the checksum of the bytes actually
+ *   written, so Update can detect a hand-edit against what is really on disk.
  *
  * The renderer half of ADR-35 (closed in T7.1): BasesFenceEngine branches on
  * `kind` and reads the vault file for a kind:"collection" record, so the path
- * stored in `source` never reaches the YAML parser. ConsentGate reads
- * `record.generated` instead of checksumming `source` (ConsentGate.ts).
+ * stored in `source` never reaches the YAML parser. ConsentGate does not gate a
+ * `.base` collection (Bases runs no code; ConsentGate.ts).
  *
  * Why bases entries bypass importToStore (ADR-5):
  *   ViewDefinition.engine is typed "dataview-dql"|"dataviewjs" — "bases" is not
@@ -45,22 +47,6 @@
  * "dataviewjs"), installed by `_installDataviewEntry` into the same folder. An
  * exhaustive guard ensures a future CatalogEntry variant fails to compile until handled.
  *
- * Out of scope here (see plan/phase-3.md T3.3 / T7.3): `renderBase`'s output
- * shape and wiring `sourceChecksum` to a real template producer — the catalog
- * entry's own checksum is stored honestly instead, and `classify()`'s
- * `reconsent` branch stays inert until T7.3.
- *
- * HAZARD this leaves open (see the constructor's `collectionParams` deps and
- * main.ts's placeholder): curated entries are written VERBATIM by
- * `_materialise` — `renderBase` is never invoked to produce them — so
- * `generated.params` on a curated record does NOT describe the bytes on disk.
- * It is bookkeeping for a future render, not a description of the past write.
- * Once the injected params change, an unedited curated file classifies
- * "regenerate" and its curated content would be replaced by `renderBase`
- * output. T7.3 owns this: reconcile already-installed records'
- * `generated.params` when it wires real settings-backed values. A hand-edited
- * file is safe either way — it classifies "ask" (see `classify()`).
- *
  * @ref PRD/AC-F4.5 (fail-closed on mismatch)
  * @ref PRD/AC-F4.6 (surfaced via existing view surfaces)
  * @ref PRD/AC-F4.7 (offline — zero network on any path, CON-9)
@@ -71,7 +57,6 @@
 import { normalizePath } from "obsidian";
 import type { App } from "obsidian";
 import { computeChecksum } from "consent/checksum";
-import type { CollectionParams } from "library/baseGenerator";
 import type { ViewStore } from "store/ViewStore";
 import { defaultSurfaces, type ViewRecord } from "store/types";
 import type { ConsentGate } from "consent/ConsentGate";
@@ -217,14 +202,6 @@ export interface CatalogServiceDeps {
 	store: ViewStore;
 	/** Vault folder where curated .base files are materialised. Default "00 Meta/Bases". */
 	curatedBasesFolder: string;
-	/**
-	 * The params a freshly-installed collection is recorded as rendered with
-	 * (ADR-0003 `generated.params`). NOT read from settings here — `excludedFolders`
-	 * does not exist on `PluginSettings` yet (T3.5 adds it); the construction site
-	 * injects a placeholder until then. CatalogService does not call `renderBase`
-	 * with these — it only stores them for `classify()` to compare against later.
-	 */
-	collectionParams: CollectionParams;
 }
 
 // ---------------------------------------------------------------------------
@@ -328,7 +305,9 @@ export class CatalogService {
 		const stale = found.state === "stale" ? found : null;
 		const path = stale ? installedPath(stale.record, this._targetPath(entry, "base")) : this._targetPath(entry, "base");
 		const refusal = stale
-			? await this._editedRefusal(path, { whole: stale.record.generated?.instanceChecksum ?? stale.record.okayed?.checksum })
+			? await this._editedRefusal(path, {
+				whole: stale.record.installedSourceChecksum ?? stale.record.generated?.instanceChecksum ?? stale.record.okayed?.checksum,
+			})
 			: await this._occupiedRefusal(path, entry);
 		if (refusal !== null) return refusal;
 
@@ -345,12 +324,10 @@ export class CatalogService {
 		// 4. PERSIST: write ViewRecord (ADR-35 shape). On failure, undo the write
 		// (remove a new file, restore a replaced one).
 		//
-		// instanceChecksum is the checksum of the bytes actually written to
-		// writtenPath — NOT a re-read or re-serialisation. _materialise writes
-		// entry.source verbatim, and `computed` (from VERIFY, above) is already
-		// computeChecksum(entry.source) — the same bytes — so it doubles as the
-		// checksum of what landed on disk.
-		const instanceChecksum = computed;
+		// T7.3 (reduced): the file is installed verbatim and nothing regenerates it, so the
+		// record carries no `generated` block. `computed` (from VERIFY) is the checksum of
+		// entry.source — the bytes `_materialise` wrote — so it is both the consent token and
+		// the whole-file checksum Update compares the file on disk with.
 		const record: ViewRecord = {
 			provenance: "curated",
 			enabled: true,
@@ -366,19 +343,7 @@ export class CatalogService {
 			// catalogId is the stable entry slug — never changes for an existing entry,
 			// survives catalog renames. Used by BrowseOfficialModal for update detection.
 			catalogId: entry.id,
-			generated: {
-				// The catalog entry's own checksum — honest until T7.3 wires a real
-				// template producer; the `reconsent` classify() branch stays inert
-				// until then (see class docstring).
-				sourceChecksum: entry.checksum,
-				params: {
-					tag: this.deps.collectionParams.tag,
-					excludedFolders: [...this.deps.collectionParams.excludedFolders],
-				},
-				instanceChecksum,
-				filePath: writtenPath,
-				verify: true,
-			},
+			installedSourceChecksum: computed,
 			...(entry.description !== undefined ? { description: entry.description } : {}),
 		};
 

@@ -147,7 +147,7 @@ export class ConsentGate {
 			return { status: "dvjs-off" };
 		}
 
-		// 4b. A user's own .base collection (imported, not generated; T7.2): enable/disable only
+		// 4b. A .base collection with no `generated` block (imported, T7.2, or from repo, T7.3): enable/disable only
 		//     (PRD F7 AC 8). The file is read on every render and is the user's to edit in Bases
 		//     (L3b, ADR-34), so an edit is not drift and there is no consent to ask for.
 		if (isUserBaseCollection(record)) {
@@ -496,7 +496,10 @@ export class ConsentGate {
 }
 
 /**
- * An imported `.base` collection: Bases, `kind:"collection"`, not rendered from a template.
+ * A `.base` collection the gate does not police: Bases, `kind:"collection"`, no `generated`
+ * block — an imported `.base` (T7.2) and, since T7.3, a curated one installed from the repo
+ * (installed verbatim, no `generated`). Both are enable/disable only (PRD F7 AC 8). Records
+ * installed before T7.3 keep `generated` and take `_evaluateGeneratedCollection` instead.
  * A malformed `generated` block degrades to absent (store/types), so a broken from-repo record also
  * lands here; low risk, because Bases runs no code — the exemption is engine-gated, never DataviewJS.
  */

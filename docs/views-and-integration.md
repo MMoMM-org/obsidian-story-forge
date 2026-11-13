@@ -96,8 +96,9 @@ value building block — e.g. "in the Codex on a character, see where they appea
 | **Card** | *how* an entry is drawn — Hero, Table, Compact, or the user's own. | the header dropdown; chosen **per collection and remembered** |
 
 The word **"view"** is retired from the UI — it meant five different things.
-`Codex.base` already carries `type: story-forge-codex` per entry: the base supplies the
-**query**, our registered view type supplies the **Card**.
+A user `.base` supplies the **query**, our registered view type supplies the **Card**.
+(The shipped `Codex.base` that did this for the built-ins was retired in spec 008 T7.3: since
+T7.1 the Anvil draws the built-in collections natively, by tag.)
 
 Selecting a card opens an **editor pane in the lower half**, dockable to the right or
 fullscreen, closable — every dock showing the full field set. That pane is where entity

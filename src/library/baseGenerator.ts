@@ -1,5 +1,5 @@
 /**
- * baseGenerator — template render + classify() for generated `.base` collections.
+ * baseGenerator — classify() for generated `.base` collections installed before T7.3.
  *
  * ADR-0003 (`docs/XDD/adr/0003-generated-bases-two-checksums.md`): our own
  * generated defaults are NOT consented imports. A generated artifact is
@@ -7,29 +7,19 @@
  * folders) — checksumming it against a single "did the user edit it" gate
  * asks the user to re-consent to their own input on every settings change.
  *
- * Two responsibilities live here:
- *  - `renderBase` — whole-file template render (ADR-34: never regex-patch a
- *    resolved `.base`; always re-render from the template so the result is
- *    deterministic and diffable).
- *  - `classify` — the three-way comparison (source checksum / params /
- *    instance checksum) that tells the caller whether a stored
- *    `GeneratedArtifact` is clean, needs silent regeneration, needs to ask
- *    the user, or needs re-consent.
+ * `classify` — the three-way comparison (source checksum / params / instance
+ * checksum) that tells the caller whether a stored `GeneratedArtifact` is clean,
+ * needs silent regeneration, needs to ask the user, or needs re-consent.
  *
- * CON-6 firewall: `BasesConfigFile` typings are sanctioned only in
- * `src/bases/basesConfig.ts`. This module builds a plain, untyped YAML
- * document that is *structurally* a valid BasesConfigFile (verified by
- * round-tripping through `validateBasesConfig` in tests) without importing
- * the type itself.
+ * T7.3 (reduced, 2026-11-13): settings-driven regeneration is deferred, so the
+ * template renderer (`renderBase`) was removed — nothing called it. Curated `.base`
+ * files install verbatim with no `generated` block; `classify` stays only because
+ * records installed before T7.3 still carry one and ConsentGate evaluates them.
  *
  * @ref SDD/Implementation Examples — "classifying a generated artifact"
  * @ref SDD/Application Data Models — GeneratedArtifact
  * @ref ADR-0003 §Decision — the two-checksum classification table
- * @ref ADR-34 — templates rendered whole, never patched
  */
-
-import { stringify as stringifyYaml } from "yaml";
-import { CODEX_VIEW_ID } from "pluginConstants";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -125,69 +115,4 @@ function sameParams(a: CollectionParams, b: CollectionParams): boolean {
 	const sortedA = [...a.excludedFolders].sort();
 	const sortedB = [...b.excludedFolders].sort();
 	return sortedA.every((folder, i) => folder === sortedB[i]);
-}
-
-// ---------------------------------------------------------------------------
-// renderBase — whole-file template render (ADR-34)
-// ---------------------------------------------------------------------------
-
-/**
- * Render a complete `.base` YAML document from `CollectionParams`.
- *
- * Never a patch (ADR-34): this always produces the whole file from scratch —
- * there is no code path here that edits an existing `.base` in place.
- *
- * - Selection is by tag (CON-7); folders may only exclude.
- * - An empty `excludedFolders` list produces a bare tag filter with no
- *   `not:` block, rather than an empty one.
- * - Folder names are substituted as plain values into the object graph, so
- *   the YAML serializer (not string concatenation) is responsible for
- *   correct quoting/escaping — including names containing spaces.
- */
-export function renderBase(params: CollectionParams): string {
-	const config = {
-		filters: buildFilters(params),
-		views: [
-			{
-				type: CODEX_VIEW_ID,
-				name: "Codex",
-			},
-		],
-	};
-
-	return stringifyYaml(config);
-}
-
-/**
- * The two shapes `buildFilters` can produce: a bare tag expression, or that
- * expression `and`-ed with a `not:` block over the folder exclusions.
- */
-type FilterExpr = string | { and: [string, { not: string[] }] };
-
-/**
- * Build the `filters` member: a bare tag expression, or — when there are
- * folders to exclude — that expression `and`-ed with a `not:` block over the
- * per-folder exclusions.
- *
- * @ref ADR-0003 Consequences — "replaced by tag selection plus generated
- *   `not: [file.inFolder(…)]` exclusions"
- */
-function buildFilters(params: CollectionParams): FilterExpr {
-	const tagExpr = hasTagExpr(params.tag);
-
-	if (params.excludedFolders.length === 0) {
-		return tagExpr;
-	}
-
-	return {
-		and: [tagExpr, { not: params.excludedFolders.map(inFolderExpr) }],
-	};
-}
-
-function hasTagExpr(tag: string): string {
-	return `file.hasTag("${tag}")`;
-}
-
-function inFolderExpr(folder: string): string {
-	return `file.inFolder("${folder}")`;
 }

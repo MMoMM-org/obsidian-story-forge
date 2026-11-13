@@ -3,13 +3,13 @@
  *
  * Tests the fail-closed checksum verify, materialise (.base → vault), persist
  * (store.setRecord with engine:"bases", kind:"collection", source:<vault path>,
- * generated:<GeneratedArtifact>), and sidebar re-render.
+ * okayed + installedSourceChecksum over the written bytes), and sidebar re-render.
  *
  * T3.3 closes the double-copy defect (SDD/Known Technical Issues): the YAML no
  * longer lives twice (vault file + record.source). The persisted record's
  * `source` is the vault path; the raw YAML body appears nowhere on the record.
- * `generated` carries the ADR-35 two-checksum bookkeeping that `classify()`
- * (src/library/baseGenerator.ts) reads to detect a hand-edited file.
+ * T7.3 (reduced): a curated `.base` installs verbatim with no `generated` block;
+ * `installedSourceChecksum` is what Update checks a hand-edit against.
  *
  * Design:
  *   - CatalogService receives the CatalogIndex via constructor injection — no
@@ -30,8 +30,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App } from "obsidian";
 import { computeChecksum } from "consent/checksum";
 import { CatalogService } from "catalog/CatalogService";
-import { classify } from "library/baseGenerator";
-import type { CollectionParams } from "library/baseGenerator";
 import type { BasesCatalogEntry, CatalogIndex, CatalogEntry } from "catalog/catalogTypes";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
@@ -42,9 +40,6 @@ import type { ConsentGate } from "consent/ConsentGate";
 // ---------------------------------------------------------------------------
 
 const BASE_YAML = "filters: file.hasTag(\"test\")\nviews:\n  - type: table\n    name: Test View\n";
-
-/** Default injected render params — T3.3 does not exercise renderBase/reconsent. */
-const DEFAULT_COLLECTION_PARAMS: CollectionParams = { tag: "test", excludedFolders: [] };
 
 /** All leaf string values in an object graph — used to prove no field carries the raw YAML. */
 function collectStrings(value: unknown): string[] {
@@ -137,7 +132,6 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 			gate,
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
@@ -164,7 +158,6 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
@@ -190,7 +183,6 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
@@ -213,7 +205,6 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -236,7 +227,6 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -258,7 +248,6 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -267,41 +256,30 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 		expect(writtenRecord!.kind).toBe("collection");
 	});
 
-	it("persisted record carries a generated block: filePath, instanceChecksum, sourceChecksum, params, verify:true", async () => {
+	it("persisted record carries no generated block; okayed and installedSourceChecksum are the written bytes (T7.3)", async () => {
 		const app = makeApp();
 		const { store, capturedRecords } = makeStore();
 
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
 		const index = await makeCatalogIndex([entry]);
-		const collectionParams: CollectionParams = { tag: "characters", excludedFolders: ["00 Meta"] };
 
 		const svc = new CatalogService(index, {
 			app,
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams,
 		});
 
 		await svc.install(entry.id);
 
-		// Derive the expectation from the bytes the mock actually received — not
-		// from BASE_YAML — so this test enforces "instanceChecksum matches what
-		// was written" locally instead of relying on _materialise writing
-		// entry.source verbatim (that invariant is checked elsewhere).
-		const [writtenPath, writtenContent] = vi.mocked(app.vault.adapter.write).mock.calls[0]!;
-		const expectedInstanceChecksum = await computeChecksum(writtenContent);
+		// Derive the expectation from the bytes the mock actually received.
+		const [, writtenContent] = vi.mocked(app.vault.adapter.write).mock.calls[0]!;
+		const written = await computeChecksum(writtenContent);
 		const [writtenRecord] = capturedRecords.values();
 
-		expect(writtenRecord!.generated).toBeDefined();
-		expect(writtenRecord!.generated?.filePath).toBe(writtenPath);
-		expect(writtenRecord!.generated?.instanceChecksum).toBe(expectedInstanceChecksum);
-		expect(writtenRecord!.generated?.sourceChecksum).toBe(entry.checksum);
-		expect(writtenRecord!.generated?.params).toEqual({
-			tag: "characters",
-			excludedFolders: ["00 Meta"],
-		});
-		expect(writtenRecord!.generated?.verify).toBe(true);
+		expect(writtenRecord!.generated).toBeUndefined();
+		expect(writtenRecord!.okayed).toEqual({ version: 1, checksum: written });
+		expect(writtenRecord!.installedSourceChecksum).toBe(written);
 	});
 
 	it("persisted record starts in the Anvil only (P2: a Bases collection's default surfaces)", async () => {
@@ -314,7 +292,6 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -335,7 +312,6 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -357,7 +333,6 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -382,7 +357,6 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -407,7 +381,6 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -438,7 +411,6 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		// Must NOT throw.
@@ -465,7 +437,6 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -492,7 +463,6 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		// Double failure: persist + rollback both fail — must still not throw.
@@ -515,7 +485,6 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
@@ -533,7 +502,6 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install("does-not-exist");
@@ -567,7 +535,6 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
@@ -584,8 +551,8 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 		const app = makeApp();
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
 
-		// Pre-populate the store with a record in the post-T3.3 shape: source is a
-		// vault path, kind is "collection", and generated carries the bookkeeping.
+		// Pre-populate the store with a record in the T3.3–T7.2 shape: source is a
+		// vault path, kind is "collection", and generated carries the (legacy) bookkeeping.
 		const existingRecord: ViewRecord = {
 			provenance: "curated",
 			enabled: true,
@@ -598,7 +565,7 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			catalogId: "overview-characters",
 			generated: {
 				sourceChecksum: entry.checksum,
-				params: { tag: DEFAULT_COLLECTION_PARAMS.tag, excludedFolders: [...DEFAULT_COLLECTION_PARAMS.excludedFolders] },
+				params: { tag: "", excludedFolders: [] },
 				instanceChecksum: entry.checksum,
 				filePath: "00 Meta/Bases/overview-characters.base",
 				verify: true,
@@ -612,7 +579,6 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = await svc.install(entry.id);
@@ -640,7 +606,6 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -665,7 +630,6 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -686,7 +650,6 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -706,7 +669,6 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -732,7 +694,6 @@ describe("CatalogService — persistence and sidebar re-render (AC-F4.6)", () =>
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -758,7 +719,6 @@ describe("CatalogService — persistence and sidebar re-render (AC-F4.6)", () =>
 			gate: makeGate(),
 			store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await svc.install(entry.id);
@@ -787,7 +747,6 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await expect(svc.install(entry.id)).resolves.toMatchObject({ ok: true });
@@ -804,129 +763,10 @@ describe("CatalogService — offline: no fetch/requestUrl on any path (AC-F4.7)"
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		await expect(svc.install(entry.id)).resolves.toMatchObject({ ok: false });
 		expect(fetch).not.toHaveBeenCalled();
-	});
-});
-
-// ---------------------------------------------------------------------------
-// Suite 8 — Installed record classifies correctly via baseGenerator.classify (T3.3)
-//
-// This is the defect's headline fix: previously drift was computed over the
-// store's own YAML copy, so a hand-edit to the vault file was invisible
-// (ConsentGate would silently report "consented" forever). Now classify()
-// reads the record's `generated` block — sourceChecksum/params/instanceChecksum
-// — against the CURRENT catalog entry and the CURRENT file-on-disk checksum.
-// ---------------------------------------------------------------------------
-
-describe("CatalogService — installed record classifies correctly (T3.3, SDD/Known Technical Issues)", () => {
-	it("an unedited installed file classifies 'clean'", async () => {
-		const app = makeApp();
-		const { store, capturedRecords } = makeStore();
-		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
-		const index = await makeCatalogIndex([entry]);
-		const collectionParams: CollectionParams = { tag: "characters", excludedFolders: [] };
-
-		const svc = new CatalogService(index, {
-			app,
-			gate: makeGate(),
-			store,
-			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams,
-		});
-
-		await svc.install(entry.id);
-		const [rec] = capturedRecords.values();
-
-		// Nothing touched the file since install — its checksum is still BASE_YAML's.
-		const fileChecksum = await computeChecksum(BASE_YAML);
-		const state = classify(rec!.generated!, entry.checksum, collectionParams, fileChecksum);
-
-		expect(state).toBe("clean");
-	});
-
-	it("editing the vault file after install classifies 'ask' — previously (the defect) this was invisible", async () => {
-		const app = makeApp();
-		const { store, capturedRecords } = makeStore();
-		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
-		const index = await makeCatalogIndex([entry]);
-		const collectionParams: CollectionParams = { tag: "characters", excludedFolders: [] };
-
-		const svc = new CatalogService(index, {
-			app,
-			gate: makeGate(),
-			store,
-			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams,
-		});
-
-		await svc.install(entry.id);
-		const [rec] = capturedRecords.values();
-
-		// Simulate a foreign hand editing the materialised .base file in the vault.
-		const editedContent = BASE_YAML + "\n# hand-edited by the user\n";
-		const fileChecksum = await computeChecksum(editedContent);
-		const state = classify(rec!.generated!, entry.checksum, collectionParams, fileChecksum);
-
-		expect(state).toBe("ask");
-	});
-
-	it("a missing file (fileChecksum: null) classifies 'regenerate'", async () => {
-		const app = makeApp();
-		const { store, capturedRecords } = makeStore();
-		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
-		const index = await makeCatalogIndex([entry]);
-		const collectionParams: CollectionParams = { tag: "characters", excludedFolders: [] };
-
-		const svc = new CatalogService(index, {
-			app,
-			gate: makeGate(),
-			store,
-			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams,
-		});
-
-		await svc.install(entry.id);
-		const [rec] = capturedRecords.values();
-
-		const state = classify(rec!.generated!, entry.checksum, collectionParams, null);
-
-		expect(state).toBe("regenerate");
-	});
-
-	it("a hand edit outranks a params change — ask wins over regenerate", async () => {
-		const app = makeApp();
-		const { store, capturedRecords } = makeStore();
-		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
-		const index = await makeCatalogIndex([entry]);
-		const installParams: CollectionParams = { tag: "characters", excludedFolders: [] };
-
-		const svc = new CatalogService(index, {
-			app,
-			gate: makeGate(),
-			store,
-			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: installParams,
-		});
-
-		await svc.install(entry.id);
-		const [rec] = capturedRecords.values();
-
-		// A foreign hand edited the vault file after install...
-		const editedContent = BASE_YAML + "\n# hand-edited by the user\n";
-		const fileChecksum = await computeChecksum(editedContent);
-
-		// ...and, independently, the caller now passes DIFFERENT collectionParams
-		// than the record was installed with.
-		const currentParams: CollectionParams = { tag: "characters", excludedFolders: ["00 Meta"] };
-
-		const state = classify(rec!.generated!, entry.checksum, currentParams, fileChecksum);
-
-		// The hand edit is checked first, so the file is never overwritten silently.
-		expect(state).toBe("ask");
 	});
 });
 
@@ -948,7 +788,6 @@ describe("CatalogService.getEntries()", () => {
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		const result = svc.getEntries();
@@ -967,7 +806,6 @@ describe("CatalogService.getEntries()", () => {
 			gate: makeGate(),
 			store: makeStore().store,
 			curatedBasesFolder: "00 Meta/Bases",
-			collectionParams: DEFAULT_COLLECTION_PARAMS,
 		});
 
 		expect(svc.getEntries()).toHaveLength(0);
@@ -996,7 +834,7 @@ describe("CatalogService — updating an installed .base", () => {
 
 	function svcFor(app: App, store: ViewStore, entry: CatalogEntry): CatalogService {
 		return new CatalogService({ version: "1", generated: "", entries: [entry] }, {
-			app, gate: makeGate(), store, curatedBasesFolder: "00 Meta/Bases", collectionParams: DEFAULT_COLLECTION_PARAMS,
+			app, gate: makeGate(), store, curatedBasesFolder: "00 Meta/Bases",
 		});
 	}
 
@@ -1021,7 +859,7 @@ describe("CatalogService — updating an installed .base", () => {
 			okayed: { checksum: v2.checksum },
 			enabled: false,
 			surfaces: { anvil: true, workbench: true },
-			generated: { instanceChecksum: v2.checksum, sourceChecksum: v2.checksum, filePath: PATH },
+			installedSourceChecksum: v2.checksum,
 		});
 		expect(files.get(PATH)).toBe(V2_YAML);
 	});
