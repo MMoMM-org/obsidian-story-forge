@@ -68,4 +68,27 @@ describe("filterEntries", () => {
 	it("keeps the caller's own item objects", () => {
 		expect(filterEntries(ITEMS, "web", "all").shown[0]).toBe(ITEMS[3]);
 	});
+
+	// L11 (mockups-import.html): the import modal's rows carry a vault path, and a note whose
+	// query block can't be read has no engine.
+	it("matches the path when the item has one", () => {
+		const files = [
+			{ name: "Draft board", path: "20 Manuscript/draft-board.base", engine: "bases" as const },
+			{ name: "Skills", path: "90 Views/skills.md", engine: "dataview-dql" as const },
+		];
+		expect(filterEntries(files, "manuscript", "all").shown.map((f) => f.name)).toEqual(["Draft board"]);
+	});
+
+	it("counts an item with no engine in 'all' only, and no engine filter shows it", () => {
+		const files: Array<{ name: string; path: string; engine?: Engine }> = [
+			{ name: "pacing-chart", path: "00 Meta/Views/pacing-chart.md" },
+			{ name: "Broken test", path: "30 Canon/Broken test.base", engine: "bases" },
+		];
+		const all = filterEntries(files, "", "all");
+		expect(all.shown).toHaveLength(2);
+		expect(all.counts).toEqual({ all: 2, bases: 1 });
+		expect(filterEntries(files, "", "bases").shown.map((f) => f.name)).toEqual(["Broken test"]);
+		expect(filterEntries(files, "", "dataview-dql").shown).toEqual([]);
+	});
 });
+

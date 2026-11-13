@@ -2,7 +2,9 @@
  * runImportFlow — consent-then-commit import (T-S2.4, F2).
  * installCurated — gate-less 1-click install for curated catalog entries (T4.3).
  *
- * runImportFlow: pick → one consent gate → commit. A `.base` (T7.2) skips the gate. The bind step was removed
+ * runImportFlow: pick → (DataviewJS only: one consent gate) → commit, and report the outcome to the
+ * import modal, which shows it inline (L11, R1/R4/R6). A `.base` (T7.2) and a Dataview (DQL) note
+ * (L11 R1) skip the gate. The bind step was removed
  * (F2): clicking outside the (former) bind modal restarted the whole flow, and
  * the sibling markdown-mason plugin has no bind step either. Command binding is
  * now a separate Settings action (Edit), not part of the import flow.
@@ -31,18 +33,32 @@ import type { ConsentGate } from "consent/ConsentGate";
 const DECLARATIVE_ENGINES = new Set<ViewDefinition["engine"]>(["bases", "dataview-dql"]);
 
 /**
- * The consent tokens a vault import is committed with. A `.base` has no consent modal (PRD F7
- * AC 8; `_presentConsentModal` reads a fenced block a `.base` does not have): the tokens record
- * the bytes that were imported, and the gate does not re-check them (ConsentGate, T7.2). Every
- * Dataview engine keeps today's disclosure (light for DQL, full for DataviewJS).
+ * The consent tokens a vault import is committed with. Declarative engines get no dialog (PRD F7
+ * AC 8: Bases and DQL are enable/disable only):
+ * - a `.base`: the tokens record the bytes that were imported, and the gate does not re-check
+ *   them (ConsentGate, T7.2);
+ * - a Dataview (DQL) note (L11 R1, which retires the light DQL dialog on import): `{ sf-version,
+ *   checksum of the query block }`, exactly what ConsentGate computes from the note itself, so the
+ *   collection draws without asking and a later edit reads as drift.
+ * DataviewJS keeps the full disclosure; `null` means the user closed it.
  */
 async function importTokens(
 	deps: ImportFlowDeps,
 	def: ViewDefinition,
 ): Promise<{ version: number; checksum: string } | null> {
-	if (def.engine === "bases") return { version: def.version, checksum: def.checksum };
+	if (DECLARATIVE_ENGINES.has(def.engine)) return { version: def.version, checksum: def.checksum };
 	return deps.gate.requestConsentForDef(def);
 }
+
+/**
+ * What an import came to, for the modal to word (L11f): saved under `id`; `declined` (the
+ * DataviewJS review was closed, nothing saved); or `failed` with the error (an `ImportError` such
+ * as a late DUPLICATE, or anything unexpected, which is logged here).
+ */
+export type ImportOutcome =
+	| { status: "imported"; id: string }
+	| { status: "declined" }
+	| { status: "failed"; error: unknown };
 
 /** Dependencies injected into the import flow (all owned by main.ts). */
 export interface ImportFlowDeps {
@@ -52,40 +68,31 @@ export interface ImportFlowDeps {
 }
 
 /**
- * Run the consent-then-commit import flow for a parsed view definition.
+ * Run the import flow for a parsed view definition and report its outcome. Never throws.
  *
  * Steps (nothing committed until step 2):
- *   1. Consent — requestConsentForDef; null (cancel / missing source) aborts.
- *   2. Commit — importToStore with the consent tokens + def.name label, once.
- *
- * A late DUPLICATE (race) from importToStore surfaces a Notice and returns.
+ *   1. Tokens — computed for Bases and DQL; DataviewJS asks (requestConsentForDef). Null
+ *      (cancel / missing source) is `declined`.
+ *   2. Commit — importToStore with the tokens + def.name label, once. A late DUPLICATE (race)
+ *      or any other failure is `failed`; the modal shows it inline (L11f), not as a Notice.
  */
 export async function runImportFlow(
 	deps: ImportFlowDeps,
 	def: ViewDefinition,
-): Promise<void> {
-	// 1. Consent (no store write). Null = cancel/dismiss/missing source → abort.
+): Promise<ImportOutcome> {
 	const tokens = await importTokens(deps, def);
-	if (tokens === null) return;
-
-	// 2. Commit — single atomic write with the consent tokens. The tab label
-	// defaults to the view's sf-name; command binding happens later via Settings.
+	if (tokens === null) return { status: "declined" };
 	try {
-		await deps.importer.importToStore(def, {
+		const id = await deps.importer.importToStore(def, {
 			okayed: tokens,
 			enabled: true,
 			commandName: def.name,
 		});
+		return { status: "imported", id };
 	} catch (err) {
-		if (err instanceof ImportError) {
-			// e.g. a late DUPLICATE race: surface the message, commit nothing.
-			new Notice(err.message);
-			return;
-		}
-		// Unexpected: log the real error, show a generic message (mirrors picker).
-		console.error(err);
-		new Notice("Import failed: unexpected error");
-		return;
+		// Unexpected (not an ImportError): log the real error; the modal shows a generic message.
+		if (!(err instanceof ImportError)) console.error(err);
+		return { status: "failed", error: err };
 	}
 }
 

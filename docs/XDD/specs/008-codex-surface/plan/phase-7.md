@@ -678,3 +678,40 @@ Closes the gap that started this whole spec: the distribution machinery served f
     (L11) can reuse them.
   - *Test double.* The Obsidian mock's `Modal` gains `modalEl` (an `obsidian.d.ts` member; `contentEl` now sits inside
     it), and the test-side type augment's `cls` is `string | string[]`, as `obsidian.d.ts` declares it.
+
+- **T7.2 follow-up: L11 import modal** (2026-11-13). `ImportPickerModal` rebuilt to the signed-off
+  `mockups-import.html` L11a–L11i with R1–R6 as recommended, the sibling of L10. Both modals now stand on one
+  list | detail controller, `src/catalog/browserList.ts` (`BrowserList`): two panes stacking below about 560px on
+  the content box, search and engine filter above 5 items, nothing selected on open, roving tabindex, Enter / Space,
+  Up / Down, "← All collections", the detail frame and the feedback line. `BrowseOfficialModal` was moved onto it
+  with no change in behaviour (its tests are unchanged). Each modal keeps its own rows, detail body, in-flight `Set`
+  and `closed` flag. `filterEntries` now also searches a `path` and accepts an item with no engine (counted in
+  "All" only; no engine filter shows it).
+  - *Behaviour change (R1): Dataview (DQL) imports without a dialog.* "Next →" is gone; the detail pane has one
+    button. **Import** (Bases and Dataview) saves at once; the light DQL disclosure no longer opens on import.
+    `ImportFlow.importTokens` computes DQL tokens the way it does for a `.base`: `{ sf-version, checksum of the query
+    block }`, which is exactly what `ConsentGate` computes from the note, so the collection draws without asking
+    (tested end to end) and a later edit reads as drift. **Review and import…** (DataviewJS) opens today's full
+    disclosure first; closing it is the neutral note "Not imported. You closed the review, so nothing was saved."
+  - *`runImportFlow` reports instead of notifying.* It returns `{ imported, id } | { declined } | { failed, error }`
+    and raises no Notice; the modal shows the result inline (R4, R6). "Collection already imported" (a Notice) is now
+    "Not imported: <path> is already in Library › Collections." under the button; "Import failed: unexpected error"
+    moves inline too. `installCurated` is unchanged. Import re-parses the file first (as "Next →" did), so a file
+    changed since the scan is refused with its current reason.
+  - *R2/R6.* Every candidate is parsed when the modal opens; one that fails is listed as "Can't import" (by file
+    name; a `.base` keeps its Bases pill, a note whose block can't be read has none) and shows today's sentence with
+    `role="note"` plus the L11f fix line as soon as it is selected, and "Fix the file, then open this window again."
+    where the button would be. The wording table is `src/import/importMessages.ts`.
+  - *R4/R5.* After an import the modal stays open; the row and header say "✓ Imported", the button, preview and safe
+    note go (as L10's installed state), and the line reads "Imported <name>. It is in Library › Collections and shows
+    in the <Anvil | Workbench>." "Shows in" is read-only text from `defaultSurfaces` (P2).
+  - *Choices the mockup does not settle.*
+    - Rows are sorted by path (R3's rule). The L11b figure lists the `00 Meta/Views` files out of alphabetical order;
+      the rule text was followed, not the figure.
+    - The engine pill is L10's `sf-catalog-engine` (the class map names `sf-badge`), so both modals share one pill
+      rule; the picker's lowercase badges (`dql`, `dataviewjs`) are gone.
+    - "Fix the file, then open this window again." shows for every parse refusal (the L11f(c) crop leaves it out).
+    - A scan-time parse failure that is not an `ImportError` reads "Import failed: unexpected error", with no fix line.
+    - Should both surfaces ever default on, the success line names "the Anvil and the Workbench"; P2 never does.
+  - *CSS.* New: `sf-catalog-status.is-bad`, `sf-import-surfaces`, `sf-import-fix`, `sf-catalog-aside`;
+    `sf-picker-path` is one line with an ellipsis. Retired: `sf-picker-list`, `-row`, `-name`, `-error`.

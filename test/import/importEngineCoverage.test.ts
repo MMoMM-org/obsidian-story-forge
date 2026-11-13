@@ -3,8 +3,9 @@
  * the Library shows — a vault `.base`, a Dataview query and a DataviewJS script.
  *
  * Driven end to end through the user's path: "+ Import from vault…" opens `ImportPickerModal`, the
- * user presses Next, and the record lands (or does not) in a real `ViewStore`. Only the consent
- * modal is stubbed — the Bases half must never reach it, the DataviewJS half always must.
+ * user selects a file and presses Import (L11, R1), and the record lands (or does not) in a real
+ * `ViewStore`. Only the consent modal is stubbed — Bases and Dataview must never reach it (R1),
+ * DataviewJS always must.
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
@@ -72,24 +73,26 @@ function makeConsent(answer: { version: number; checksum: string } | null) {
 	return { requestConsentForDef: vi.fn(async (_def: ViewDefinition) => answer) };
 }
 
-function button(label: string): HTMLButtonElement | undefined {
-	return [...document.body.querySelectorAll("button")].find((b) => b.textContent?.trim() === label);
-}
-
-async function pickAndConfirm(app: App, importer: ViewImporter, consent: ReturnType<typeof makeConsent>, rowName: string): Promise<HTMLElement> {
+/** Open the picker and select the row named `rowName` (L11: nothing is selected on open). */
+async function pick(app: App, importer: ViewImporter, consent: ReturnType<typeof makeConsent>, rowName: string): Promise<HTMLElement> {
 	const modal = new ImportPickerModal(app, importer, consent as unknown as ConsentGate);
 	modal.open();
-	document.body.appendChild(modal.contentEl);
 	const row = await vi.waitFor(() => {
-		const found = [...modal.contentEl.querySelectorAll<HTMLElement>(".sf-picker-row")].find(
-			(r) => r.querySelector(".sf-picker-name")?.textContent === rowName,
+		const found = [...modal.contentEl.querySelectorAll<HTMLElement>(".sf-catalog-row")].find(
+			(r) => r.querySelector(".sf-catalog-name")?.textContent === rowName,
 		);
 		if (!found) throw new Error(`row ${rowName} not listed`);
 		return found;
 	});
 	row.click();
-	button("Next →")!.click();
 	return modal.contentEl;
+}
+
+/** Select the row and press its one action (Import, or Review and import… for DataviewJS). */
+async function pickAndConfirm(app: App, importer: ViewImporter, consent: ReturnType<typeof makeConsent>, rowName: string): Promise<HTMLElement> {
+	const el = await pick(app, importer, consent, rowName);
+	el.querySelector<HTMLButtonElement>(".sf-catalog-act button")!.click();
+	return el;
 }
 
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
@@ -104,7 +107,7 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("importing a .base from the vault", () => {
-	it("lists the .base in the picker and, on Next, stores it as an imported Bases collection for the Anvil", async () => {
+	it("lists the .base in the picker and, on Import, stores it as an imported Bases collection for the Anvil", async () => {
 		const { app } = makeVault({ [ORGS_BASE]: { content: ORGS_YAML } });
 		const { store, views } = makeStore();
 		const consent = makeConsent(null);
@@ -150,14 +153,12 @@ describe("an import whose query cannot be parsed", () => {
 		const { app } = makeVault({ [ORGS_BASE]: { content: yaml } });
 		const { store, save } = makeStore();
 		const consent = makeConsent(null);
-		const el = await pickAndConfirm(app, new ViewImporter(app, store), consent, "Organizations");
+		// R2: the reason shows as soon as the file is selected; there is no button to press.
+		const el = await pick(app, new ViewImporter(app, store), consent, "Organizations");
 
-		const error = await vi.waitFor(() => {
-			const e = el.querySelector(".sf-picker-error");
-			if (!e || e.classList.contains("sf-hidden")) throw new Error("no refusal shown");
-			return e;
-		});
-		expect(error.textContent).toMatch(reason);
+		const error = el.querySelector(".sf-picker-feedback .sf-catalog-feedback-text");
+		expect(error?.textContent).toMatch(reason);
+		expect(el.querySelector(".sf-catalog-act button")).toBeNull();
 		await settle();
 		expect(save).not.toHaveBeenCalled();
 		expect(consent.requestConsentForDef).not.toHaveBeenCalled();
@@ -168,10 +169,10 @@ describe("an import whose query cannot be parsed", () => {
 		note.content += "\n```dataview\nTABLE file.name\n```\n";
 		const { app } = makeVault({ "90 Views/Skills.md": note });
 		const { store, save } = makeStore();
-		const el = await pickAndConfirm(app, new ViewImporter(app, store), makeConsent(null), "Skills");
-		await vi.waitFor(() => {
-			if (el.querySelector(".sf-picker-error")?.textContent !== "A collection must contain exactly one query block") throw new Error("no refusal");
-		});
+		const el = await pick(app, new ViewImporter(app, store), makeConsent(null), "Skills");
+		expect(el.querySelector(".sf-picker-feedback .sf-catalog-feedback-text")?.textContent)
+			.toBe("A collection must contain exactly one query block");
+		await settle();
 		expect(save).not.toHaveBeenCalled();
 	});
 });
@@ -181,11 +182,13 @@ describe("an import whose query cannot be parsed", () => {
 // ---------------------------------------------------------------------------
 
 describe("importing a Dataview query", () => {
-	it("stores a DQL note as an imported Dataview collection for the Workbench", async () => {
+	it("stores a DQL note as an imported Dataview collection for the Workbench, with no disclosure (R1)", async () => {
 		const { app } = makeVault({ "90 Views/Skills.md": viewNote("dataview", "LIST FROM #canon/skill\n") });
 		const { store, views } = makeStore();
+		// The tokens ConsentGate itself computes for this note: its sf-version and its block's checksum.
 		const tokens = { version: 1, checksum: await computeChecksum("LIST FROM #canon/skill\n") };
-		await pickAndConfirm(app, new ViewImporter(app, store), makeConsent(tokens), "Skills");
+		const consent = makeConsent(null);
+		await pickAndConfirm(app, new ViewImporter(app, store), consent, "Skills");
 		const record = await vi.waitFor(() => {
 			const r = Object.values(views())[0];
 			if (!r) throw new Error("nothing stored yet");
@@ -195,6 +198,22 @@ describe("importing a Dataview query", () => {
 			kind: "collection", provenance: "imported", engine: "dataview-dql", source: "90 Views/Skills.md",
 			okayed: tokens, enabled: true, surfaces: { anvil: false, workbench: true },
 		});
+		expect(consent.requestConsentForDef).not.toHaveBeenCalled();
+	});
+
+	it("an imported DQL note draws with no consent modal (its tokens are the gate's own)", async () => {
+		const { app } = makeVault({ "90 Views/Skills.md": viewNote("dataview", "LIST FROM #canon/skill\n") });
+		const { store, views } = makeStore();
+		await pickAndConfirm(app, new ViewImporter(app, store), makeConsent(null), "Skills");
+		const record = await vi.waitFor(() => {
+			const r = Object.values(views())[0];
+			if (!r) throw new Error("nothing stored yet");
+			return r;
+		});
+		const gate = new ConsentGate(
+			app, { get: () => ({}) }, { isDvJsEnabled: () => true }, store, async () => null, () => ({ tag: "", excludedFolders: [] }),
+		);
+		expect((await gate.evaluate(record)).status).toBe("consented");
 	});
 });
 
@@ -207,8 +226,10 @@ describe("consent by engine", () => {
 		const { app } = makeVault({ "90 Views/Skills.md": viewNote("dataviewjs", "dv.list([])\n") });
 		const { store, save } = makeStore();
 		const consent = makeConsent(null);
-		await pickAndConfirm(app, new ViewImporter(app, store), consent, "Skills");
+		const el = await pickAndConfirm(app, new ViewImporter(app, store), consent, "Skills");
 		await vi.waitFor(() => expect(consent.requestConsentForDef).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() => expect(el.querySelector(".sf-picker-feedback")?.textContent)
+			.toBe("Not imported. You closed the review, so nothing was saved."));
 		expect(vi.mocked(consent.requestConsentForDef).mock.calls[0]![0]).toMatchObject({ engine: "dataviewjs" });
 		await settle();
 		expect(save).not.toHaveBeenCalled();

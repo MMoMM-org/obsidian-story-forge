@@ -2,10 +2,9 @@
  * BrowseOfficialModal — the catalog browser ("Collections from the repo"), built to the signed-off
  * mockup `docs/XDD/specs/008-codex-surface/mockups-catalog.html` L10a–L10i (proposals Q1–Q8).
  *
- * Two panes (Q1): a listbox of entries on the left and the selected entry's detail on the right.
- * Below about 560px the panes stack: the list fills the modal, choosing a row opens its detail with
- * "← All collections" to go back (CSS container query on `.sf-catalog`; `is-detail` on the split).
- * Nothing is selected on open (Q3). Rows carry status text only; the one Install / Update button
+ * The list | detail browser itself — two panes stacking below about 560px (Q1), search and engine
+ * filter above 5 entries (Q2), nothing selected on open (Q3), keyboard and "← All collections" —
+ * is `BrowserList`, shared with the vault import modal (L11). Rows carry status text only; the one Install / Update button
  * and its feedback live in the detail pane (Q4). The detail shows the query block only, contained
  * (Q5); source, version and checksum sit in a collapsed Details line (Q6). Search and an engine
  * filter appear above 5 entries (Q2).
@@ -19,7 +18,7 @@
  * when that record's `okayed.checksum` equals `installedChecksum(entry)`, else "Update available".
  *
  * DOM safety: no innerHTML — every write is createEl / textContent. Popout-safe: Obsidian element
- * helpers and `activeDocument` only.
+ * helpers only.
  *
  * @ref PRD/AC-F4.2, AC-F7.1, AC-F7.2, AC-F7.3
  * @ref Mockups S47, S48, S49, S57; mockups-catalog.html L10a–L10i
@@ -27,41 +26,22 @@
 
 import { Modal } from "obsidian";
 import type { App } from "obsidian";
+import { BrowserList, renderFeedback, renderLabelled } from "catalog/browserList";
+import type { Feedback } from "catalog/browserList";
 import { describeRefusal, installedPath } from "catalog/CatalogService";
 import type { CatalogService, InstallResult } from "catalog/CatalogService";
 import { installedChecksum } from "catalog/catalogTypes";
 import type { CatalogEntry } from "catalog/catalogTypes";
-import { FILTERS, STATUS_TEXT, filterEntries, queryOf, shortChecksum } from "catalog/catalogView";
-import type { CatalogEngine, EngineFilter, Status } from "catalog/catalogView";
+import { STATUS_TEXT, queryOf, shortChecksum } from "catalog/catalogView";
+import type { Status } from "catalog/catalogView";
 import { ENGINE_LABEL } from "settings/libraryShared";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
-
-/** Search and the engine filter show only above this many entries (Q2). */
-const SEARCH_THRESHOLD = 5;
-/**
- * The widest content box that stacks the panes (Q1). The CSS rule is
- * `@container (max-width: 559px)` on `.sf-catalog`, whose query measures the content box.
- */
-const STACK_MAX_WIDTH = 559;
 
 const STATUS_CLS: Record<Status, string[]> = {
 	none: ["sf-catalog-status"],
 	installed: ["sf-catalog-status", "is-installed"],
 	update: ["sf-catalog-status", "is-update"],
-};
-
-/** The message under the action, after an install attempt. */
-interface Feedback {
-	text: string;
-	raw?: string;
-	tone: "success" | "error" | "neutral";
-}
-
-const FEEDBACK_CLS: Record<Feedback["tone"], string[]> = {
-	success: ["sf-picker-feedback", "sf-catalog-success"],
-	error: ["sf-picker-feedback"],
-	neutral: ["sf-picker-feedback", "sf-catalog-neutral"],
 };
 
 /** The detail pane's one action (Q4, Q7). DataviewJS opens the consent dialog first, hence the ellipsis. */
@@ -79,17 +59,7 @@ export class BrowseOfficialModal extends Modal {
 	private installedRecords = new Map<string, ViewRecord>();
 	/** Entries installed or updated while the modal is open, with the path written. */
 	private installedNow = new Map<string, string>();
-
-	private splitEl: HTMLElement | null = null;
-	private listEl: HTMLElement | null = null;
-	private detailEl: HTMLElement | null = null;
-	private searchEl: HTMLInputElement | null = null;
-	private liveEl: HTMLElement | null = null;
-	private noMatchEl: HTMLElement | null = null;
-	private rowEls = new Map<string, HTMLElement>();
-	private filterEls = new Map<EngineFilter<CatalogEngine>, HTMLButtonElement>();
-	private filter: EngineFilter<CatalogEngine> = "all";
-	private selected: CatalogEntry | null = null;
+	private list: BrowserList<CatalogEntry> | null = null;
 	/** Entries whose install has not settled yet: their button stays disabled across re-renders. */
 	private inFlight = new Set<string>();
 	/** Set by onClose: a render still awaiting the store must not draw into a closed modal. */
@@ -112,11 +82,7 @@ export class BrowseOfficialModal extends Modal {
 	onClose(): void {
 		this.closed = true;
 		this.contentEl.empty();
-		this.rowEls.clear();
-		this.filterEls.clear();
-		this.splitEl = this.listEl = this.detailEl = this.liveEl = this.noMatchEl = null;
-		this.searchEl = null;
-		this.selected = null;
+		this.list = null;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -133,14 +99,24 @@ export class BrowseOfficialModal extends Modal {
 		if (this.closed) return;
 
 		const entries = this.service.getEntries();
-		if (entries.length > SEARCH_THRESHOLD) this._renderTools(el);
-		this.splitEl = el.createDiv({ cls: "sf-catalog-split" });
-		if (entries.length === 0) this._renderEmpty(this.splitEl);
-		else this._renderPanes(this.splitEl, entries);
+		if (entries.length === 0) this._renderEmpty(el);
+		else this._mountList(el, entries);
 
 		const close = el.createDiv({ cls: "sf-picker-foot" }).createEl("button", { text: "Close", attr: { type: "button" } });
 		close.addEventListener("click", () => this.close());
-		this._focusStart(close);
+		if (this.list) this.list.focusStart(close);
+		else close.focus();
+	}
+
+	private _mountList(el: HTMLElement, entries: CatalogEntry[]): void {
+		this.list = new BrowserList(el, entries, {
+			keyOf: (entry) => entry.id,
+			listLabel: "Collections from the repo",
+			titleIdPrefix: "sf-catalog-title",
+			renderRow: (row, entry) => this._renderRow(row, entry),
+			renderDetail: (pane, entry, titleId, feedback) => this._renderDetail(pane, entry, titleId, feedback),
+		});
+		this.list.mount();
 	}
 
 	/**
@@ -178,106 +154,21 @@ export class BrowseOfficialModal extends Modal {
 		return rec ? installedPath(rec, target) : target;
 	}
 
-	private _focusStart(close: HTMLElement): void {
-		const first = this.listEl?.querySelector<HTMLElement>(".sf-catalog-row");
-		(this.searchEl ?? first ?? close).focus();
-	}
-
-	/** Do the panes stack? Measured on `.sf-catalog`'s content box, as its `@container` rule is. */
-	private _isStacked(): boolean {
-		const el = this.contentEl;
-		if (el.clientWidth === 0) return false; // Not laid out (or not in a window): treat as wide.
-		const style = activeWindow.getComputedStyle(el);
-		const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
-		return el.clientWidth - padding <= STACK_MAX_WIDTH;
+	private _renderEmpty(el: HTMLElement): void {
+		el.createDiv({ cls: "sf-catalog-split is-single" })
+			.createEl("p", { text: "The repo has no collections yet.", cls: "sf-picker-empty sf-catalog-empty" });
 	}
 
 	// ---------------------------------------------------------------------------
-	// Search + engine filter (Q2)
+	// Row (left pane)
 	// ---------------------------------------------------------------------------
 
-	private _renderTools(el: HTMLElement): void {
-		const tools = el.createDiv({ cls: "sf-catalog-tools" });
-		this.searchEl = tools.createEl("input", {
-			cls: "sf-picker-search",
-			type: "search",
-			placeholder: "Search collections…",
-			attr: { "aria-label": "Search collections" },
-		});
-		this.searchEl.addEventListener("input", () => this._applyFilter());
-		const group = tools.createDiv({ cls: "sf-catalog-filter", attr: { role: "radiogroup", "aria-label": "Engine" } });
-		for (const f of FILTERS) {
-			const btn = group.createEl("button", { attr: { type: "button", role: "radio", "aria-checked": String(f.key === this.filter) } });
-			btn.createSpan({ cls: "sf-catalog-filter-label", text: f.label });
-			btn.createSpan({ cls: "sf-catalog-filter-count" });
-			btn.addEventListener("click", () => this._setFilter(f.key));
-			this.filterEls.set(f.key, btn);
-		}
-		this.liveEl = el.createDiv({ cls: "sf-lb-sr sf-catalog-live", attr: { "aria-live": "polite" } });
-	}
-
-	private _setFilter(key: EngineFilter<CatalogEngine>): void {
-		this.filter = key;
-		for (const [k, btn] of this.filterEls) btn.setAttribute("aria-checked", String(k === key));
-		this._applyFilter();
-	}
-
-	private _applyFilter(): void {
-		const raw = this.searchEl?.value.trim() ?? "";
-		const entries = this.service.getEntries();
-		const { shown, counts } = filterEntries(entries, raw, this.filter);
-		for (const e of entries) this.rowEls.get(e.id)?.toggleClass("sf-hidden", !shown.includes(e));
-		for (const f of FILTERS) {
-			const count = this.filterEls.get(f.key)?.querySelector(".sf-catalog-filter-count");
-			if (count) count.textContent = String(counts[f.key] ?? 0);
-		}
-		if (this.liveEl) this.liveEl.textContent = `${shown.length} of ${entries.length} collections`;
-		this._renderNoMatch(shown.length === 0, raw);
-		if (this.selected && !shown.includes(this.selected)) this._deselect();
-		this._updateTabStops();
-	}
-
-	private _renderNoMatch(none: boolean, raw: string): void {
-		if (!this.noMatchEl) return;
-		this.noMatchEl.toggleClass("sf-hidden", !none);
-		const label = FILTERS.find((f) => f.key === this.filter)?.label ?? "";
-		this.noMatchEl.textContent = raw.length > 0 ? `No collections match "${raw}".` : `No ${label} collections.`;
-	}
-
-	// ---------------------------------------------------------------------------
-	// List (left pane)
-	// ---------------------------------------------------------------------------
-
-	private _renderEmpty(split: HTMLElement): void {
-		split.addClass("is-single");
-		split.createEl("p", { text: "The repo has no collections yet.", cls: "sf-picker-empty sf-catalog-empty" });
-	}
-
-	private _renderPanes(split: HTMLElement, entries: CatalogEntry[]): void {
-		this.listEl = split.createDiv({
-			cls: "sf-catalog-list",
-			attr: { role: "listbox", "aria-label": "Collections from the repo" },
-		});
-		for (const entry of entries) this._renderRow(this.listEl, entry);
-		this.noMatchEl = this.listEl.createEl("p", { cls: "sf-picker-empty sf-catalog-nomatch sf-hidden" });
-		this.detailEl = split.createDiv({ cls: "sf-catalog-preview" });
-		this._renderPlaceholder();
-		this._applyFilter();
-	}
-
-	private _renderRow(listEl: HTMLElement, entry: CatalogEntry): void {
-		const row = listEl.createDiv({
-			cls: "sf-catalog-row",
-			attr: { role: "option", "aria-selected": "false", tabindex: "-1" },
-		});
+	private _renderRow(row: HTMLElement, entry: CatalogEntry): void {
 		row.createSpan({ cls: "sf-catalog-name", text: entry.name });
 		this._renderStatus(row, entry);
 		const line2 = row.createSpan({ cls: "sf-catalog-line2" });
 		line2.createSpan({ cls: "sf-catalog-engine", text: ENGINE_LABEL[entry.engine] });
 		line2.createSpan({ cls: "sf-catalog-desc", text: entry.description ?? "" });
-		row.addEventListener("click", () => this._choose(entry));
-		row.addEventListener("keydown", (e) => this._onRowKey(e, entry));
-		this.rowEls.set(entry.id, row);
 	}
 
 	private _renderStatus(host: HTMLElement, entry: CatalogEntry): void {
@@ -285,109 +176,16 @@ export class BrowseOfficialModal extends Modal {
 		host.createSpan({ cls: STATUS_CLS[status], text: STATUS_TEXT[status] });
 	}
 
-	private _refreshRowStatus(entry: CatalogEntry): void {
-		const old = this.rowEls.get(entry.id)?.querySelector(".sf-catalog-status");
-		if (!old) return;
-		const status = this._status(entry);
-		old.className = STATUS_CLS[status].join(" ");
-		old.textContent = STATUS_TEXT[status];
-	}
-
-	private _onRowKey(e: KeyboardEvent, entry: CatalogEntry): void {
-		if (e.key === "Enter" || e.key === " ") {
-			e.preventDefault();
-			this._choose(entry);
-		} else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-			e.preventDefault();
-			this._moveFocus(entry, e.key === "ArrowDown" ? 1 : -1);
-		}
-	}
-
-	/** Move focus to the next / previous visible row; selection follows focus when both panes show. */
-	private _moveFocus(from: CatalogEntry, step: 1 | -1): void {
-		const visible = this.service.getEntries().filter((e) => !this.rowEls.get(e.id)?.classList.contains("sf-hidden"));
-		const next = visible[visible.indexOf(from) + step];
-		if (!next) return;
-		if (!this._isStacked()) this._select(next);
-		this._updateTabStops(next);
-		this.rowEls.get(next.id)?.focus();
-	}
-
-	/** Roving tabindex: one row in the Tab order — the selected one, else the given or first visible row. */
-	private _updateTabStops(focusTarget?: CatalogEntry): void {
-		const visible = this.service.getEntries().filter((e) => !this.rowEls.get(e.id)?.classList.contains("sf-hidden"));
-		const stop = focusTarget ?? (this.selected && visible.includes(this.selected) ? this.selected : visible[0]);
-		for (const [id, row] of this.rowEls) row.tabIndex = id === stop?.id ? 0 : -1;
-	}
-
-	// ---------------------------------------------------------------------------
-	// Selection
-	// ---------------------------------------------------------------------------
-
-	/** A click, Enter or Space: select, and on the stacked layout open the detail screen. */
-	private _choose(entry: CatalogEntry): void {
-		this._select(entry);
-		this.splitEl?.addClass("is-detail");
-		this.contentEl.addClass("is-detail");
-	}
-
-	private _select(entry: CatalogEntry): void {
-		this.selected = entry;
-		for (const [id, row] of this.rowEls) {
-			row.setAttribute("aria-selected", String(id === entry.id));
-			row.toggleClass("is-selected", id === entry.id);
-		}
-		this._updateTabStops();
-		this._renderDetail(entry, null);
-	}
-
-	private _deselect(): void {
-		this.selected = null;
-		for (const row of this.rowEls.values()) {
-			row.setAttribute("aria-selected", "false");
-			row.removeClass("is-selected");
-		}
-		this._back(false);
-		this._renderPlaceholder();
-	}
-
-	/** "← All collections": back to the list, focus on the row you came from (L10h). */
-	private _back(focusRow: boolean): void {
-		this.splitEl?.removeClass("is-detail");
-		this.contentEl.removeClass("is-detail");
-		if (focusRow && this.selected) this.rowEls.get(this.selected.id)?.focus();
-	}
-
 	// ---------------------------------------------------------------------------
 	// Detail (right pane)
 	// ---------------------------------------------------------------------------
 
-	private _renderPlaceholder(): void {
-		const pane = this.detailEl;
-		if (!pane) return;
-		pane.empty();
-		pane.removeAttribute("role");
-		pane.removeAttribute("aria-labelledby");
-		const empty = pane.createDiv({ cls: "sf-catalog-placeholder" });
-		empty.createEl("b", { text: "Nothing selected" });
-		empty.createSpan({ text: "Select a collection to see what it shows and where it goes." });
-	}
-
-	private _renderDetail(entry: CatalogEntry, feedback: Feedback | null): void {
-		const pane = this.detailEl;
-		if (!pane) return;
-		pane.empty();
-		const titleId = `sf-catalog-title-${entry.id}`;
-		pane.setAttribute("role", "region");
-		pane.setAttribute("aria-labelledby", titleId);
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L10 text; the rule misreads the leading glyph
-		const back = pane.createEl("button", { cls: "sf-catalog-back", text: "← All collections", attr: { type: "button" } });
-		back.addEventListener("click", () => this._back(true));
+	private _renderDetail(pane: HTMLElement, entry: CatalogEntry, titleId: string, feedback: Feedback | null): void {
 		this._renderHead(pane, entry, titleId);
 		const status = this._status(entry);
 		this._renderDest(pane, entry, status);
 		if (status !== "installed") this._renderBody(pane, entry, status);
-		if (feedback) this._renderFeedback(pane, feedback);
+		if (feedback) renderFeedback(pane, feedback);
 		this._renderDetails(pane, entry);
 	}
 
@@ -400,9 +198,8 @@ export class BrowseOfficialModal extends Modal {
 	}
 
 	private _renderDest(pane: HTMLElement, entry: CatalogEntry, status: Status): void {
-		const dest = pane.createDiv({ cls: "sf-catalog-preview-dest" });
 		const label = status === "installed" ? "Installed at" : status === "update" ? "Updates" : "Installs to";
-		dest.createDiv({ cls: "sf-catalog-label", text: label });
+		const dest = renderLabelled(pane, label, "sf-catalog-preview-dest");
 		dest.createDiv().createSpan({ cls: "sf-catalog-path", text: this._pathOf(entry) });
 		if (status === "update") {
 			dest.createDiv({ cls: "sf-catalog-hint", text: "The repo has a newer version. Update replaces this file with it." });
@@ -416,9 +213,8 @@ export class BrowseOfficialModal extends Modal {
 
 	/** Query, safe / consent note, and the one action (not drawn for an installed, current entry). */
 	private _renderBody(pane: HTMLElement, entry: CatalogEntry, status: Status): void {
-		const q = pane.createDiv();
-		q.createDiv({ cls: "sf-catalog-label", text: status === "update" ? "Query (new version)" : "Query" });
-		q.createEl("pre", { cls: "sf-catalog-preview-src", text: queryOf(entry) });
+		renderLabelled(pane, status === "update" ? "Query (new version)" : "Query")
+			.createEl("pre", { cls: "sf-catalog-preview-src", text: queryOf(entry) });
 		if (entry.engine === "dataviewjs") {
 			const note = pane.createDiv({ cls: "sf-catalog-consent" });
 			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L10 text; the rule misreads the leading glyph
@@ -433,15 +229,6 @@ export class BrowseOfficialModal extends Modal {
 			.createEl("button", { cls: "mod-cta", text: actionLabel(entry, status), attr: { type: "button" } });
 		btn.disabled = this.inFlight.has(entry.id);
 		btn.addEventListener("click", () => void this._doInstall(entry));
-	}
-
-	private _renderFeedback(pane: HTMLElement, fb: Feedback): void {
-		const el = pane.createDiv({
-			cls: FEEDBACK_CLS[fb.tone],
-			attr: { role: fb.tone === "error" ? "alert" : "status", tabindex: "-1" },
-		});
-		el.createSpan({ cls: "sf-catalog-feedback-text", text: fb.text });
-		if (fb.raw !== undefined) el.createSpan({ cls: "sf-catalog-raw", text: fb.raw });
 	}
 
 	private _renderDetails(pane: HTMLElement, entry: CatalogEntry): void {
@@ -490,29 +277,30 @@ export class BrowseOfficialModal extends Modal {
 		}
 		if (result.ok) {
 			this.installedNow.set(entry.id, result.path ?? path);
-			this._refreshRowStatus(entry);
+			this.list?.repaintRow(entry);
 		}
 		// The user moved on to another entry: its pane is not this result's place (the row still updated).
-		if (this.selected?.id === entry.id) this._showResult(entry, result, update, path);
+		if (this.list?.isSelected(entry)) this._showResult(entry, result, update, path);
 	}
 
 	/** Disable the action button now, when `entry` is the one on show. */
 	private _disableAction(entry: CatalogEntry): void {
-		if (this.selected?.id !== entry.id) return;
-		const btn = this.detailEl?.querySelector<HTMLButtonElement>(".sf-catalog-act button");
+		if (!this.list?.isSelected(entry)) return;
+		const btn = this.list.pane?.querySelector<HTMLButtonElement>(".sf-catalog-act button");
 		if (btn) btn.disabled = true;
 	}
 
 	private _showResult(entry: CatalogEntry, result: InstallResult, update: boolean, path: string): void {
+		const list = this.list!;
 		if (result.ok) {
 			const written = result.path ?? path;
 			const text = update ? `Updated ${written}.` : `Installed to ${written}. It is in Library › Collections.`;
-			this._renderDetail(entry, { text, tone: "success" });
-			this.detailEl?.querySelector<HTMLElement>(".sf-picker-feedback")?.focus();
+			list.showDetail(entry, { text, tone: "success" });
+			list.pane?.querySelector<HTMLElement>(".sf-picker-feedback")?.focus();
 			return;
 		}
 		const note = describeRefusal(result.reason, path, update);
-		this._renderDetail(entry, { text: note.text, ...(note.raw !== undefined ? { raw: note.raw } : {}), tone: note.tone });
-		this.detailEl?.querySelector<HTMLButtonElement>(".sf-catalog-act button")?.focus();
+		list.showDetail(entry, { text: note.text, ...(note.raw !== undefined ? { raw: note.raw } : {}), tone: note.tone });
+		list.pane?.querySelector<HTMLButtonElement>(".sf-catalog-act button")?.focus();
 	}
 }

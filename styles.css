@@ -819,22 +819,14 @@ body {
 }
 
 /* ===========================================================================
- * Import picker modal (S19) — vault notes flagged sf-view: true.
+ * Import modal (L11) and catalog browser (L10) — shared picker pieces.
+ * The list | detail rules are the sf-catalog-* section below; the import modal reuses them.
  * =========================================================================== */
 
 .sf-picker-sub {
 	margin: 0 0 4px 0;
 	font-size: 12px;
 	color: var(--text-muted);
-}
-
-.sf-picker-error {
-	padding: 8px 10px;
-	border: 1px solid var(--background-modifier-error-border, var(--background-modifier-border));
-	border-radius: var(--radius-s);
-	background: var(--background-modifier-error);
-	color: var(--text-error);
-	font-size: 12px;
 }
 
 /* BrowseOfficialModal feedback (in the detail pane, L10f) — error by default;
@@ -864,39 +856,15 @@ body {
 	font-size: 12.5px;
 }
 
-.sf-picker-list {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	margin-top: 2px;
-}
-
-.sf-picker-row {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	padding: 7px 8px;
-	border: 1px solid transparent;
-	border-radius: var(--radius-s);
-	cursor: pointer;
-}
-
-.sf-picker-row:hover,
-.sf-picker-row.is-selected {
-	border-color: var(--background-modifier-border);
-	background: var(--background-modifier-hover);
-}
-
-.sf-picker-name {
-	font-size: 12.5px;
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
-}
-
+/* A vault path on a row's second line (import modal, L11 R3): one line, cut at the end. */
 .sf-picker-path {
-	font-size: 10px;
+	overflow: hidden;
+	min-width: 0;
 	color: var(--text-faint);
-	word-break: break-all;
+	font-family: var(--font-monospace);
+	font-size: 10.5px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .sf-picker-empty {
@@ -1094,6 +1062,15 @@ body {
 	font-weight: var(--font-semibold);
 }
 
+/* "Can't import" (L11 R2): a red outline, the text says it too. */
+.sf-catalog-status.is-bad {
+	padding: 0 6px;
+	border: 1px solid color-mix(in srgb, var(--text-error) 45%, transparent);
+	border-radius: 9px;
+	color: var(--text-error);
+	font-weight: var(--font-semibold);
+}
+
 .sf-catalog-nomatch {
 	padding: 30px 20px;
 	color: var(--text-faint);
@@ -1257,6 +1234,53 @@ body {
 	border-color: var(--background-modifier-border);
 	background: var(--background-secondary);
 	color: var(--text-muted);
+}
+
+/* L11 R6: how to fix a refusal, under its sentence, in body colour. */
+.sf-import-fix {
+	margin-top: 4px;
+	color: var(--text-normal);
+	font-size: 11px;
+}
+
+.sf-import-fix code {
+	font-size: 10.5px;
+}
+
+/* "Fix the file, then open this window again." where a button would be (L11f). */
+.sf-catalog-aside {
+	color: var(--text-faint);
+	font-size: 11px;
+}
+
+/* L11 R5: "Shows in", read-only — the switches live in Library › Collections. */
+.sf-import-surfaces {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	color: var(--text-normal);
+	font-size: 12px;
+}
+
+.sf-import-surfaces span {
+	display: inline-flex;
+	gap: 5px;
+	align-items: center;
+}
+
+.sf-import-surfaces .is-on::before {
+	color: var(--interactive-accent);
+	font-size: 9px;
+	content: "●";
+}
+
+.sf-import-surfaces .is-off {
+	color: var(--text-faint);
+}
+
+.sf-import-surfaces .is-off::before {
+	font-size: 9px;
+	content: "○";
 }
 
 .sf-catalog-raw {

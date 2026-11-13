@@ -10,11 +10,16 @@ import { extractQueryBlocks } from "import/queryBlocks";
 import { ENGINE_LABEL } from "settings/libraryShared";
 import type { CatalogEntry } from "catalog/catalogTypes";
 
-/** What a list row filters on. Callers' own fields ride along untouched. */
+/**
+ * What a list row filters on. Callers' own fields ride along untouched. `path` (a vault file, L11)
+ * is searched when present; an item with no `engine` (a note whose query can't be read) counts only
+ * in "all" and no engine filter shows it.
+ */
 export interface Filterable<E extends string> {
 	name: string;
-	description?: string;
-	engine: E;
+	description?: string | undefined;
+	path?: string;
+	engine?: E | undefined;
 }
 
 /** "all", or one engine. */
@@ -30,28 +35,28 @@ export interface FilterResult<T, E extends string> {
 	counts: EngineCounts<E>;
 }
 
-/** Does `item` match `query` (already trimmed and lowercased) by name or description? */
+/** Does `item` match `query` (already trimmed and lowercased) by name, description or path? */
 function matches(item: Filterable<string>, query: string): boolean {
-	return `${item.name} ${item.description ?? ""}`.toLowerCase().includes(query);
+	return `${item.name} ${item.description ?? ""} ${item.path ?? ""}`.toLowerCase().includes(query);
 }
 
 /**
- * Filter `items` by a search `query` (name or description; case-insensitive; surrounding spaces
- * ignored) and an `engine` filter. Counts describe the search alone, so the filter's numbers say
+ * Filter `items` by a search `query` (name, description or path; case-insensitive; surrounding
+ * spaces ignored) and an `engine` filter. Counts describe the search alone, so the filter's numbers say
  * how many rows each choice would show.
  */
 export function filterEntries<T extends Filterable<string>>(
 	items: readonly T[],
 	query: string,
-	engine: EngineFilter<T["engine"]>,
-): FilterResult<T, T["engine"]> {
+	engine: EngineFilter<NonNullable<T["engine"]>>,
+): FilterResult<T, NonNullable<T["engine"]>> {
 	const q = query.trim().toLowerCase();
 	const found = items.filter((item) => matches(item, q));
 	const byEngine = new Map<string, number>();
-	for (const item of found) byEngine.set(item.engine, (byEngine.get(item.engine) ?? 0) + 1);
+	for (const { engine: e } of found) if (e !== undefined) byEngine.set(e, (byEngine.get(e) ?? 0) + 1);
 	const shown = engine === "all" ? found : found.filter((item) => item.engine === engine);
 	// Every key came from an item's `engine`, so the record is keyed by T["engine"].
-	const perEngine = Object.fromEntries(byEngine) as Partial<Record<T["engine"], number>>;
+	const perEngine = Object.fromEntries(byEngine) as Partial<Record<NonNullable<T["engine"]>, number>>;
 	return { shown, counts: { ...perEngine, all: found.length } };
 }
 

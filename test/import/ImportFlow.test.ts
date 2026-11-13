@@ -84,14 +84,15 @@ describe("runImportFlow — consent-then-commit (no bind step)", () => {
 		app = new App();
 	});
 
-	it("HAPPY PATH: consent grants tokens → commits once with tokens + def.name label", async () => {
+	it("HAPPY PATH: DataviewJS consent grants tokens → commits once with tokens + def.name label", async () => {
 		const tokens = { version: 1, checksum: "sha256:abc" };
 		const gate = makeGate(tokens);
 		const importer = makeImporter("id-42");
 		const def = makeDef({ name: "Characters in Scene" });
 
-		await runImportFlow({ app, importer, gate }, def);
+		const outcome = await runImportFlow({ app, importer, gate }, def);
 
+		expect(outcome).toEqual({ status: "imported", id: "id-42" });
 		expect(importer.importToStore).toHaveBeenCalledTimes(1);
 		expect(importer.importToStore).toHaveBeenCalledWith(def, {
 			okayed: tokens,
@@ -100,49 +101,63 @@ describe("runImportFlow — consent-then-commit (no bind step)", () => {
 		});
 	});
 
-	it("CONSENT CANCEL: consent → null commits NOTHING", async () => {
+	// L11 R1: Dataview (DQL) imports like a .base — no disclosure dialog, tokens from the parsed def.
+	it("DQL: saves at once with no consent modal, tokens = { sf-version, block checksum }", async () => {
+		const gate = makeGate(null);
+		const importer = makeImporter("id-dql");
+		const def = makeDqlDef({ version: 4 });
+
+		const outcome = await runImportFlow({ app, importer, gate }, def);
+
+		expect(outcome).toEqual({ status: "imported", id: "id-dql" });
+		expect(gate.requestConsentForDef).not.toHaveBeenCalled();
+		expect(importer.importToStore).toHaveBeenCalledWith(def, {
+			okayed: { version: 4, checksum: def.checksum },
+			enabled: true,
+			commandName: def.name,
+		});
+	});
+
+	it("CONSENT CANCEL: DataviewJS consent → null commits NOTHING and reports 'declined'", async () => {
 		const gate = makeGate(null);
 		const importer = makeImporter();
 
-		await runImportFlow({ app, importer, gate }, makeDef());
+		const outcome = await runImportFlow({ app, importer, gate }, makeDef());
 
+		expect(outcome).toEqual({ status: "declined" });
 		expect(importer.importToStore).not.toHaveBeenCalled();
 	});
 
-	it("DUPLICATE race: importToStore throws ImportError → Notice, returns without throwing", async () => {
-		const tokens = { version: 1, checksum: "sha256:abc" };
-		const gate = makeGate(tokens);
+	it("DUPLICATE race: importToStore throws ImportError → 'failed' with that error, no Notice", async () => {
+		const gate = makeGate({ version: 1, checksum: "sha256:abc" });
+		const duplicate = new ImportError("DUPLICATE", "Collection already imported");
 		const importer = {
 			importToStore: vi.fn(async () => {
-				throw new ImportError("DUPLICATE", "Collection already imported");
+				throw duplicate;
 			}),
 		} as unknown as ViewImporter;
 
-		await expect(
-			runImportFlow({ app, importer, gate }, makeDef()),
-		).resolves.toBeUndefined();
+		const outcome = await runImportFlow({ app, importer, gate }, makeDef());
 
-		expect(Notice._instances).toHaveLength(1);
-		expect(Notice._instances[0]!.message).toBe("Collection already imported");
+		expect(outcome).toEqual({ status: "failed", error: duplicate });
+		expect(Notice._instances).toHaveLength(0);
 	});
 
-	it("UNEXPECTED error: plain Error → console.error + generic Notice, returns without throwing", async () => {
-		const tokens = { version: 1, checksum: "sha256:abc" };
-		const gate = makeGate(tokens);
+	it("UNEXPECTED error: plain Error → console.error + 'failed', resolves without throwing, no Notice", async () => {
+		const gate = makeGate({ version: 1, checksum: "sha256:abc" });
+		const boom = new Error("disk full");
 		const importer = {
 			importToStore: vi.fn(async () => {
-				throw new Error("disk full");
+				throw boom;
 			}),
 		} as unknown as ViewImporter;
 		// The catch branch logs the real error; suppress it for this test only.
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await expect(
-			runImportFlow({ app, importer, gate }, makeDef()),
-		).resolves.toBeUndefined();
+		const outcome = await runImportFlow({ app, importer, gate }, makeDef());
 
-		expect(Notice._instances).toHaveLength(1);
-		expect(Notice._instances[0]!.message).toBe("Import failed: unexpected error");
+		expect(outcome).toEqual({ status: "failed", error: boom });
+		expect(Notice._instances).toHaveLength(0);
 		expect(errorSpy).toHaveBeenCalledTimes(1);
 	});
 });

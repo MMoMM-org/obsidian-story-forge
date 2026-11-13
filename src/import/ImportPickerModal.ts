@@ -1,61 +1,73 @@
 /**
- * ImportPickerModal — vault view-definition picker (S19).
+ * ImportPickerModal — "Import a collection" from the vault, built to the signed-off mockup
+ * `docs/XDD/specs/008-codex-surface/mockups-import.html` L11a–L11i (proposals R1–R6), the sibling
+ * of the L10 catalog browser.
  *
- * Scans the vault for unimported sf-view:true notes via ViewImporter.scanVault(),
- * lets the user select one, then PARSES it (S19: parse errors stay shown inline
- * without closing). On a successful parse the picker closes and hands the parsed
- * definition to runImportFlow, which owns the consent → commit sequence (F2: no
- * bind step). The picker itself performs NO store write.
+ * The list | detail browser (two panes stacking below about 560px, search and engine filter above
+ * 5 files, nothing selected on open, keyboard, "← All collections") is `BrowserList`, shared with
+ * `BrowseOfficialModal`. This modal decides:
+ * - Rows (R3): name, engine pill and vault path, sorted by path. Every candidate is parsed when the
+ *   modal opens; one that fails is still listed, as "Can't import" (R2), and its reason plus a fix
+ *   line show as soon as it is selected (R6).
+ * - Detail: source file (it stays where it is), a read-only "Shows in" with the P2 default (R5),
+ *   the query or `.base` preview, and one action (R1): "Import" for Bases and Dataview, which saves
+ *   at once; "Review and import…" for DataviewJS, which opens today's full disclosure first.
+ * - Import re-parses the file (it may have changed since the scan), then runs `runImportFlow`. The
+ *   result is shown inline and the modal stays open (R4): "✓ Imported" and a success line, or a
+ *   refusal under the button (R6).
+ *
+ * The picker performs no store write itself; `runImportFlow` commits through ViewImporter.
  *
  * @ref SDD/Runtime View — Flow C (import leg)
- * @ref SDD/Cross-Cutting Concepts — User Interface S19
- * @ref PRD/AC-F3.1, AC-F3.3, AC-F3.4
+ * @ref PRD/AC-F3.1, AC-F3.3, AC-F3.4, F7 AC 8
+ * @ref mockups-import.html L11a–L11i, R1–R6
  */
 
 import { Modal } from "obsidian";
 import type { App, TFile } from "obsidian";
-import type { ViewImporter } from "import/ViewImporter";
+import { BrowserList, renderFeedback, renderLabelled } from "catalog/browserList";
+import type { Feedback } from "catalog/browserList";
+import type { CatalogEngine } from "catalog/catalogView";
+import type { ConsentGate } from "consent/ConsentGate";
+import { runImportFlow } from "import/ImportFlow";
+import type { ImportOutcome } from "import/ImportFlow";
+import { CLOSED_REVIEW, refusalFor, successText } from "import/importMessages";
 import { ImportError } from "import/ViewDefinition";
 import type { ViewDefinition } from "import/ViewDefinition";
-import { runImportFlow } from "import/ImportFlow";
-import type { ConsentGate } from "consent/ConsentGate";
+import type { ViewImporter } from "import/ViewImporter";
+import { ENGINE_LABEL } from "settings/libraryShared";
+import { defaultSurfaces } from "store/types";
 
-/** The engine badge on a picker row (today's lowercase picker badges; T7.2 adds Bases). */
-const PICKER_BADGE: Record<ViewDefinition["engine"], { text: string; cls: string }> = {
-	bases: { text: "bases", cls: "sf-badge-bases" },
-	"dataview-dql": { text: "dql", cls: "sf-badge-dql" },
-	dataviewjs: { text: "dataviewjs", cls: "sf-badge-dvjs" },
-};
+/** A file the scan offered, with what parsing it gave. */
+interface Candidate {
+	file: TFile;
+	path: string;
+	/** sf-name / the `.base` name; the file name when it could not be parsed. */
+	name: string;
+	description?: string | undefined;
+	/** Unknown for a note whose query can't be read (it counts only in "All"). */
+	engine?: CatalogEngine | undefined;
+	/** What the scan parsed (its preview), or null when the file can't be imported. */
+	def: ViewDefinition | null;
+	/** The parse refusal, when the file can't be imported (R2). */
+	problem: Feedback | null;
+}
 
-/**
- * ImportPickerModal — Modal subclass.
- *
- * Constructor dependencies (injected, not grabbed from globals):
- *   - app: App (passed to super)
- *   - importer: ViewImporter (stateless service; the flow commits via it)
- *   - gate: ConsentGate (the flow's first, no-write consent step)
- *
- * On a successful parse the picker closes and delegates to runImportFlow — the
- * picker no longer imports/commits itself (that is deferred to the flow's end).
- */
+const BASE_EXTENSION = "base";
+
+/** What the action does (R1): DataviewJS asks first, hence the ellipsis. */
+function actionLabel(engine: CatalogEngine): string {
+	return engine === "dataviewjs" ? "Review and import…" : "Import";
+}
+
 export class ImportPickerModal extends Modal {
-	private selectedFile: TFile | null = null;
-	private errorEl: HTMLElement | null = null;
-	private searchEl: HTMLInputElement | null = null;
-	private listEl: HTMLElement | null = null;
-	private nextBtnEl: HTMLElement | null = null;
-	private files: TFile[] = [];
-	/**
-	 * Per-candidate parsed metadata, keyed by TFile. A candidate whose parse
-	 * threw is absent from this map and rendered as a plain (name+path) row.
-	 */
-	private meta = new Map<TFile, ViewDefinition>();
-	/** Row elements keyed by TFile, used by the search filter. */
-	private rowEls = new Map<TFile, HTMLElement>();
-	/** Lowercased search text used to match a row (name + description). */
-	private rowSearchText = new Map<TFile, string>();
-	/** True once onClose() fires — guards async tail after scanVault resolves. */
-	private _closed = false;
+	private list: BrowserList<Candidate> | null = null;
+	/** Candidates imported while the modal is open (R4). */
+	private imported = new Set<string>();
+	/** Candidates whose import has not settled: their button stays disabled across re-renders. */
+	private inFlight = new Set<string>();
+	/** Set by onClose: a scan still in flight must not draw into a closed modal (W2). */
+	private closed = false;
 
 	constructor(
 		app: App,
@@ -66,209 +78,208 @@ export class ImportPickerModal extends Modal {
 	}
 
 	onOpen(): void {
-		this._render();
+		this.closed = false;
+		this.modalEl.addClass("sf-catalog-modal");
+		void this._render();
 	}
 
 	onClose(): void {
-		this._closed = true;
+		this.closed = true;
 		this.contentEl.empty();
-		// Null out refs so any in-flight _loadFiles tail sees a closed state
-		this.listEl = null;
-		this.errorEl = null;
-		this.searchEl = null;
-		this.nextBtnEl = null;
+		this.list = null;
 	}
 
 	// ---------------------------------------------------------------------------
-	// Private rendering
+	// Frame
 	// ---------------------------------------------------------------------------
 
-	private _render(): void {
+	private async _render(): Promise<void> {
 		const el = this.contentEl;
 		el.empty();
-
-		// P18: today's modal, with "view" replaced by "collection"; T7.2 lists .base files too.
+		el.addClass("sf-catalog");
 		el.createEl("h2", { text: "Import a collection" });
-		el.createEl("p", {
-			text: "Notes in your vault marked sf-view: true, and .base files",
-			cls: "sf-picker-sub",
-		});
+		el.createEl("p", { text: "Notes in your vault marked sf-view: true, and .base files", cls: "sf-picker-sub" });
+		const candidates = await this._scan();
+		if (this.closed || candidates === null) return;
 
-		// Error display area (hidden until an error occurs)
-		this.errorEl = el.createEl("div", { cls: "sf-picker-error sf-hidden" });
+		if (candidates.length === 0) this._renderEmpty(el);
+		else this._mountList(el, candidates);
 
-		// Search box (S19): filters the list by view name + description.
-		this.searchEl = el.createEl("input", {
-			cls: "sf-picker-search",
-			type: "text",
-			placeholder: "Search collections…",
-		});
-		this.searchEl.addEventListener("input", () => this._applyFilter());
-
-		// File list (populated asynchronously)
-		this.listEl = el.createEl("div", { cls: "sf-picker-list" });
-
-		// Footer buttons
-		const footEl = el.createEl("div", { cls: "sf-picker-foot" });
-		const cancelBtn = footEl.createEl("button", { text: "Cancel" });
-		const nextBtn = footEl.createEl("button", { text: "Next →" });
-
-		this.nextBtnEl = nextBtn;
-
-		cancelBtn.addEventListener("click", () => this.close());
-		nextBtn.addEventListener("click", () => void this._onConfirm());
-
-		// Load files asynchronously
-		void this._loadFiles();
+		const close = el.createDiv({ cls: "sf-picker-foot" }).createEl("button", { text: "Close", attr: { type: "button" } });
+		close.addEventListener("click", () => this.close());
+		if (this.list) this.list.focusStart(close);
+		else close.focus();
 	}
 
-	private async _loadFiles(): Promise<void> {
-		this.files = await this.importer.scanVault();
-		// Guard: modal may have been closed while scan was in-flight
-		if (this._closed) return;
-
-		// S19: enrich each candidate with parsed metadata (engine + description).
-		// A candidate whose parse throws is tolerated — it still gets a plain row
-		// (name + path only) and must NOT abort the whole list.
-		this.meta.clear();
-		for (const file of this.files) {
-			try {
-				const def = await this.importer.parse(file);
-				if (this._closed) return;
-				this.meta.set(file, def);
-			} catch (err) {
-				// Non-fatal per candidate: log and fall back to a plain row.
-				console.debug("Story Forge: could not parse view candidate", file.path, err);
-			}
+	/** Scan and parse every candidate (R2), sorted by path (R3). Null when the modal closed meanwhile. */
+	private async _scan(): Promise<Candidate[] | null> {
+		const files = await this.importer.scanVault();
+		const out: Candidate[] = [];
+		for (const file of files) {
+			if (this.closed) return null;
+			out.push(await this._candidate(file));
 		}
-		if (this._closed) return;
-		this._renderFileList();
+		return out.sort((a, b) => a.path.localeCompare(b.path));
 	}
 
-	private _renderFileList(): void {
-		if (!this.listEl) return;
-		this.listEl.empty();
-		this.rowEls.clear();
-		this.rowSearchText.clear();
+	private async _candidate(file: TFile): Promise<Candidate> {
+		try {
+			const def = await this.importer.parse(file);
+			return { file, path: file.path, name: def.name, description: def.description, engine: def.engine, def, problem: null };
+		} catch (err) {
+			console.debug("Story Forge: could not parse view candidate", file.path, err);
+			const engine = file.extension === BASE_EXTENSION ? "bases" : undefined;
+			return { file, path: file.path, name: file.basename, engine, def: null, problem: { ...refusalFor(err, file.path), role: "note" } };
+		}
+	}
 
-		if (this.files.length === 0) {
-			this.listEl.createEl("p", {
-				text: "Nothing to import — add sf-view: true to a vault note, or create a .base file, to make it available here.",
-				cls: "sf-picker-empty",
-			});
-			// W3: disable Next → when there is nothing to import
-			if (this.nextBtnEl) {
-				(this.nextBtnEl as HTMLButtonElement).disabled = true;
-			}
+	private _renderEmpty(el: HTMLElement): void {
+		el.createDiv({ cls: "sf-catalog-split is-single" }).createEl("p", {
+			text: "Nothing to import — add sf-view: true to a vault note, or create a .base file, to make it available here.",
+			cls: "sf-picker-empty sf-catalog-empty",
+		});
+	}
+
+	private _mountList(el: HTMLElement, candidates: Candidate[]): void {
+		this.list = new BrowserList(el, candidates, {
+			keyOf: (c) => c.path,
+			listLabel: "Importable collections",
+			titleIdPrefix: "sf-import-title",
+			renderRow: (row, c) => this._renderRow(row, c),
+			renderDetail: (pane, c, titleId, feedback) => this._renderDetail(pane, c, titleId, feedback),
+		});
+		this.list.mount();
+	}
+
+	// ---------------------------------------------------------------------------
+	// Row (R2, R3)
+	// ---------------------------------------------------------------------------
+
+	private _renderRow(row: HTMLElement, c: Candidate): void {
+		row.createSpan({ cls: "sf-catalog-name", text: c.name });
+		this._renderStatus(row, c);
+		const line2 = row.createSpan({ cls: "sf-catalog-line2" });
+		if (c.engine !== undefined) line2.createSpan({ cls: "sf-catalog-engine", text: ENGINE_LABEL[c.engine] });
+		line2.createSpan({ cls: "sf-picker-path", text: c.path });
+	}
+
+	private _renderStatus(host: HTMLElement, c: Candidate): void {
+		if (c.problem) host.createSpan({ cls: ["sf-catalog-status", "is-bad"], text: "Can't import" });
+		else if (this.imported.has(c.path)) host.createSpan({ cls: ["sf-catalog-status", "is-installed"], text: "✓ Imported" });
+		else host.createSpan({ cls: "sf-catalog-status" });
+	}
+
+	// ---------------------------------------------------------------------------
+	// Detail (R1, R2, R5)
+	// ---------------------------------------------------------------------------
+
+	private _renderDetail(pane: HTMLElement, c: Candidate, titleId: string, feedback: Feedback | null): void {
+		const head = pane.createDiv({ cls: "sf-catalog-preview-head" });
+		head.createSpan({ cls: "sf-catalog-preview-title", text: c.name, attr: { id: titleId } });
+		if (c.engine !== undefined) head.createSpan({ cls: "sf-catalog-engine", text: ENGINE_LABEL[c.engine] });
+		if (c.problem || this.imported.has(c.path)) this._renderStatus(head, c);
+		if (c.description) pane.createEl("p", { cls: "sf-catalog-preview-desc", text: c.description });
+
+		const source = renderLabelled(pane, "Source file", "sf-catalog-preview-dest");
+		source.createDiv().createSpan({ cls: "sf-catalog-path", text: c.path });
+		source.createDiv({ cls: "sf-catalog-hint", text: "Stays where it is. The Library links to it, so editing the file changes the collection." });
+
+		if (c.problem) {
+			renderFeedback(pane, c.problem);
+			pane.createDiv({ cls: "sf-catalog-act" }).createSpan({ cls: "sf-catalog-aside", text: "Fix the file, then open this window again." });
 			return;
 		}
-
-		let isFirst = true;
-		for (const file of this.files) {
-			const def = this.meta.get(file);
-			const name = def?.name || file.basename;
-
-			const row = this.listEl.createEl("div", { cls: "sf-picker-row" });
-			row.createEl("div", { text: name, cls: "sf-picker-name" });
-
-			// Description (only when non-empty).
-			if (def?.description) {
-				row.createEl("div", { text: def.description, cls: "sf-picker-sub" });
-			}
-
-			// Engine badge — only for successfully-parsed candidates.
-			if (def) {
-				const badge = PICKER_BADGE[def.engine];
-				row.createEl("span", { text: badge.text, cls: `sf-badge ${badge.cls}` });
-			}
-
-			row.createEl("div", { text: file.path, cls: "sf-picker-path" });
-
-			// Index the row for filtering (name + description, lowercased).
-			this.rowEls.set(file, row);
-			this.rowSearchText.set(
-				file,
-				`${name} ${def?.description ?? ""}`.toLowerCase(),
-			);
-
-			row.addEventListener("click", () => {
-				this.selectedFile = file;
-				// Highlight selected
-				for (const el of Array.from(this.listEl!.querySelectorAll(".sf-picker-row"))) {
-					el.classList.remove("is-selected");
-				}
-				row.classList.add("is-selected");
-			});
-
-			// S2: auto-select the first file using a boolean instead of O(n) indexOf
-			if (isFirst) {
-				this.selectedFile = file;
-				row.classList.add("is-selected");
-				isFirst = false;
-			}
-		}
-
-		// Re-apply any active filter after a rebuild.
-		this._applyFilter();
+		this._renderShowsIn(pane, c.engine!);
+		if (!this.imported.has(c.path)) this._renderBody(pane, c);
+		if (feedback) renderFeedback(pane, feedback);
 	}
+
+	/** R5: the P2 default, read-only; the switches live in Library › Collections. */
+	private _renderShowsIn(pane: HTMLElement, engine: CatalogEngine): void {
+		const block = renderLabelled(pane, "Shows in");
+		const surfaces = defaultSurfaces(engine);
+		const row = block.createDiv({ cls: "sf-import-surfaces" });
+		row.createSpan({ cls: surfaces.anvil ? "is-on" : "is-off", text: surfaces.anvil ? "Anvil on" : "Anvil off" });
+		row.createSpan({ cls: surfaces.workbench ? "is-on" : "is-off", text: surfaces.workbench ? "Workbench on" : "Workbench off" });
+		block.createDiv({ cls: "sf-catalog-hint", text: "Change this per collection in Library › Collections." });
+	}
+
+	/** The preview, the safe / consent note and the one action (not drawn once imported). */
+	private _renderBody(pane: HTMLElement, c: Candidate): void {
+		const engine = c.engine!;
+		renderLabelled(pane, engine === "bases" ? "Preview" : "Query")
+			.createEl("pre", { cls: "sf-catalog-preview-src", text: (c.def?.querySource ?? "").trimEnd() });
+		if (engine === "dataviewjs") {
+			const note = pane.createDiv({ cls: "sf-catalog-consent" });
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L11 text; the rule misreads the leading glyph
+			note.createEl("strong", { text: "▲ Runs JavaScript." });
+			note.appendText(" This collection runs code with full vault access. ");
+			note.createEl("em", { text: actionLabel(engine) });
+			note.appendText(" shows you its code first. Nothing is saved until you enable it.");
+		} else {
+			pane.createDiv({ cls: "sf-catalog-safe", text: "Safe: declarative query, no code." });
+		}
+		const btn = pane.createDiv({ cls: "sf-catalog-act" })
+			.createEl("button", { cls: "mod-cta", text: actionLabel(engine), attr: { type: "button" } });
+		btn.disabled = this.inFlight.has(c.path);
+		btn.addEventListener("click", () => void this._doImport(c));
+	}
+
+	// ---------------------------------------------------------------------------
+	// Import (R1, R4, R6)
+	// ---------------------------------------------------------------------------
 
 	/**
-	 * S19: filter rows case-insensitively by view name + description substring.
-	 * Non-matching rows are hidden via `.sf-hidden`; clearing the box restores
-	 * all rows. Selection is left as-is even if the selected row is hidden.
+	 * Import `c` once. While it runs its button stays disabled, however often its pane is redrawn
+	 * (re-selecting it rebuilds the button), so it imports once.
 	 */
-	private _applyFilter(): void {
-		const query = (this.searchEl?.value ?? "").trim().toLowerCase();
-		for (const [file, row] of this.rowEls) {
-			const haystack = this.rowSearchText.get(file) ?? "";
-			const matches = query === "" || haystack.includes(query);
-			row.classList.toggle("sf-hidden", !matches);
+	private async _doImport(c: Candidate): Promise<void> {
+		if (this.inFlight.has(c.path)) return;
+		this.inFlight.add(c.path);
+		this._disableAction(c);
+		let result: { outcome: ImportOutcome; def: ViewDefinition | null };
+		try {
+			result = await this._runImport(c);
+		} finally {
+			this.inFlight.delete(c.path);
 		}
+		if (result.outcome.status === "imported") {
+			this.imported.add(c.path);
+			this.list?.repaintRow(c);
+		}
+		// The user moved on to another file: its pane is not this result's place (the row still updated).
+		if (this.list?.isSelected(c)) this._showOutcome(c, result.outcome, result.def);
 	}
 
-	private _showError(message: string): void {
-		if (!this.errorEl) return;
-		this.errorEl.textContent = message;
-		this.errorEl.classList.remove("sf-hidden");
-	}
-
-	private _clearError(): void {
-		if (!this.errorEl) return;
-		this.errorEl.textContent = "";
-		this.errorEl.classList.add("sf-hidden");
-	}
-
-	private async _onConfirm(): Promise<void> {
-		if (this._closed) return;
-		if (!this.selectedFile) return;
-		this._clearError();
-
+	/** Re-parse the file (it may have changed since the scan), then run the flow. Never throws. */
+	private async _runImport(c: Candidate): Promise<{ outcome: ImportOutcome; def: ViewDefinition | null }> {
 		let def: ViewDefinition;
 		try {
-			def = await this.importer.parse(this.selectedFile);
+			def = await this.importer.parse(c.file);
 		} catch (err) {
-			// S19: parse errors stay shown inline; the modal does NOT close and the
-			// import flow is NOT started.
-			if (err instanceof ImportError) {
-				this._showError(err.message);
-			} else {
-				// W1: log the real error before showing the user-facing message
-				console.error(err);
-				this._showError("Import failed: unexpected error");
-			}
+			if (!(err instanceof ImportError)) console.error(err);
+			return { outcome: { status: "failed", error: err }, def: null };
+		}
+		return { outcome: await runImportFlow({ app: this.app, importer: this.importer, gate: this.gate }, def), def };
+	}
+
+	private _disableAction(c: Candidate): void {
+		if (!this.list?.isSelected(c)) return;
+		const btn = this.list.pane?.querySelector<HTMLButtonElement>(".sf-catalog-act button");
+		if (btn) btn.disabled = true;
+	}
+
+	private _showOutcome(c: Candidate, outcome: ImportOutcome, def: ViewDefinition | null): void {
+		const list = this.list!;
+		if (outcome.status === "imported") {
+			list.showDetail(c, { text: successText(def ?? { ...c.def!, name: c.name }), tone: "success" });
+			list.pane?.querySelector<HTMLElement>(".sf-picker-feedback")?.focus();
 			return;
 		}
-
-		// Success: close the picker and hand the parsed def to the flow
-		// (consent → commit; F2: no bind step). The picker commits nothing.
-		this.close();
-		void runImportFlow(
-			{
-				app: this.app,
-				importer: this.importer,
-				gate: this.gate,
-			},
-			def,
-		);
+		const fb: Feedback = outcome.status === "declined"
+			? { text: CLOSED_REVIEW, tone: "neutral" }
+			: refusalFor(outcome.error, c.path);
+		list.showDetail(c, fb);
+		list.pane?.querySelector<HTMLButtonElement>(".sf-catalog-act button")?.focus();
 	}
 }
