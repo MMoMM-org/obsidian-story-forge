@@ -64,6 +64,11 @@ export interface FileClassCache extends FileClassSource {
 export interface OwnedFileClassCache extends FileClassCache {
 	/** Cancel a change still pending and drop every subscriber. For the owner's unload. */
 	dispose(): void;
+	/**
+	 * How many FileClass files the folder holds (subfolders included). The capability screen's
+	 * metadata-menu row (T7.4, S6): Story Forge reads the files, it never detects the plugin.
+	 */
+	count(): number;
 }
 
 interface DeclaredClass {
@@ -115,6 +120,7 @@ export function createFileClassCache(
 		lookup: { getFileClassFrontmatter: (name) => lookUp(app, current(), name) },
 		nameFor: (file: TFile): string | undefined =>
 			declaredName(app.metadataCache.getFileCache(file)?.frontmatter) ?? claimedName(app, file, classesIn(app, current())),
+		count: (): number => classesIn(app, current()).length,
 		subscribe: (listener) => {
 			listeners.add(listener);
 			return () => { listeners.delete(listener); };

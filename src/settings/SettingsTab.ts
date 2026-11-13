@@ -32,7 +32,7 @@ export interface LibraryDeps {
 	notes?: () => readonly IndexedNote[];
 	/** The plugin's FileClass cache, so a Card preview draws its tile as the Anvil does. */
 	fileClasses?: FileClassSource;
-	/** The "What optional plugins add…" link. Its screen is T7.4's; until then a no-op. */
+	/** The "What optional plugins add…" link: opens the capability screen (T7.4). */
 	openCapabilities?: () => void;
 	/** "+ Browse repo…" (T7.2): opens the catalog. Absent, the button stays disabled. */
 	browseRepo?: () => void;
@@ -96,6 +96,8 @@ export class SettingsTab extends PluginSettingTab {
 			registerCommand,
 			removeCommand,
 			importFromVault,
+			// T7.4 S5: a Dataview row's cause links to the same capability screen as the footer.
+			openCapabilities: () => this.openCapabilities(),
 			...(library.browseRepo ? { browseRepo: library.browseRepo } : {}),
 		});
 	}

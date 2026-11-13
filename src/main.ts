@@ -11,6 +11,7 @@ import { buildEngineRegistry, createEngineFor, getDvSettings } from "engines/Eng
 import { ConsentGate } from "consent/ConsentGate";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
 import { createFileClassCache } from "fileclass/fileClassVault";
+import { wireCapabilities } from "library/capabilitiesWiring";
 import { ViewImporter } from "import/ViewImporter";
 import type { RegisterCommandCallback } from "import/types";
 import { registerCodexView, getBasesCapability, isBasesAvailable } from "bases/BasesAdapter";
@@ -70,6 +71,17 @@ export default class StoryForgePlugin extends Plugin {
 		// A change still pending must not reach a view that unload has already torn down.
 		this.register(() => { fileClasses.dispose(); });
 
+		// T7.4 (PRD F8, ADR-36): the capability screen — once on the first Anvil or Workbench
+		// open, and from the Library's "What optional plugins add…".
+		const capabilities = wireCapabilities({
+			app: this.app,
+			getBasesCapability: () => getBasesCapability(this),
+			countFileClasses: () => fileClasses.count(),
+			getFileClassesFolder: () => this.settings.fileClassesFolder,
+			getDismissedHints: () => this.settings.dismissedHints,
+			dismissHint: (id) => { this._dismissHint(id); },
+		});
+
 		// The undo journal (spec 009, ADR-43): created once, loaded before the settings tab
 		// exists, released on unload. The Workbench and the Anvil receive it below. Mod+Z acts
 		// only while one of them is the active view (ADR-37).
@@ -125,6 +137,7 @@ export default class StoryForgePlugin extends Plugin {
 				fileClasses,
 				journal,
 				this.library,
+				capabilities.onViewOpened,
 			),
 		);
 
@@ -143,6 +156,7 @@ export default class StoryForgePlugin extends Plugin {
 				// opened, revealed or re-targeted (PRD/F2).
 				const view: AnvilView = new AnvilView(leaf, {
 					drill: (file) => { view.inspect(file); },
+					onOpened: capabilities.onViewOpened,
 					undo: journal,
 					settings: {
 						getLinkClickAction: () => this.settings.linkClickAction,
@@ -185,16 +199,7 @@ export default class StoryForgePlugin extends Plugin {
 						// the Codex actually renders, by which point onload has completed.
 						getCapability: () => getBasesCapability(this),
 						getDismissedHints: () => this.settings.dismissedHints,
-						onDismissHint: (hintId) => {
-							// Idempotent: a hint already dismissed is not appended again.
-							// Operational state (CON-2) — never written to a note's frontmatter.
-							if (this.settings.dismissedHints.includes(hintId)) return;
-							this.settings = {
-								...this.settings,
-								dismissedHints: [...this.settings.dismissedHints, hintId],
-							};
-							void this.saveSettings();
-						},
+						onDismissHint: (hintId) => { this._dismissHint(hintId); },
 					},
 				});
 				return view;
@@ -346,8 +351,8 @@ export default class StoryForgePlugin extends Plugin {
 			registerCommand,
 			this._removeViewCommand.bind(this),
 			journal,
-			// T7.4 supplies the capabilities screen; until then "What optional plugins add…" is inert.
-			{ fileClasses, collections: this.library.collections, openCapabilities: () => {}, browseRepo },
+			// T7.4: "What optional plugins add…" opens the capability screen (Close only).
+			{ fileClasses, collections: this.library.collections, openCapabilities: capabilities.openFromSettings, browseRepo },
 		);
 		this.addSettingTab(settingsTab);
 	}
@@ -360,6 +365,16 @@ export default class StoryForgePlugin extends Plugin {
 	// ---------------------------------------------------------------------------
 	// Settings helpers
 	// ---------------------------------------------------------------------------
+
+	/**
+	 * Record a dismissed hint (the Bases hint, the capability screen). Idempotent: a hint already
+	 * dismissed is not appended again. Operational state (CON-2) — never written to a note.
+	 */
+	private _dismissHint(hintId: string): void {
+		if (this.settings.dismissedHints.includes(hintId)) return;
+		this.settings = { ...this.settings, dismissedHints: [...this.settings.dismissedHints, hintId] };
+		void this.saveSettings();
+	}
 
 	/**
 	 * Return the configured curated bases folder, falling back to the default

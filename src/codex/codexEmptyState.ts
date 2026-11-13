@@ -24,8 +24,7 @@
  * callback, the same discipline the collection pills and Card selector
  * follow: this module stays App-free and the host resolves what "open
  * Settings" means. `What are FileClasses?` is a plain external link — no host
- * action needed, so no marker; mirrors the "Install Dataview" link in
- * `SettingsTab.ts`.
+ * action needed, so no marker.
  *
  * @ref docs/mockups/anvil-workbench-codex.html — S98
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F3

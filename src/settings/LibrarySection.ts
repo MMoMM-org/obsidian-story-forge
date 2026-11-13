@@ -34,6 +34,8 @@ export interface LibrarySectionDeps {
 	readonly importFromVault: () => void;
 	/** "+ Browse repo…": opens the catalog (T7.2). Absent, the button is the disabled control. */
 	readonly browseRepo?: () => void;
+	/** "What optional plugins add…" in a Dataview row's cause (T7.4 S5). Absent: the link does nothing. */
+	readonly openCapabilities?: () => void;
 }
 
 type Decision = ConsentDecision["status"];
@@ -48,7 +50,8 @@ interface Block {
 function blockOf(record: ViewRecord | undefined, decision: Decision | undefined): Block | null {
 	if (!record || !decision) return null;
 	switch (decision) {
-		case "engine-missing": return { badge: "■ Dataview not installed", warn: true, hint: null };
+		// T7.4 S5 (L12e(b)): a cause in neutral grey, not a warning; the hint links the capability screen.
+		case "engine-missing": return { badge: "○ Needs Dataview", warn: false, hint: null };
 		case "dvjs-off": return { badge: "○ DataviewJS disabled", warn: false, hint: "DataviewJS is disabled in Dataview settings." };
 		case "platform-restricted": return { badge: "○ Not available on mobile", warn: false, hint: "Not available on mobile." };
 		case "drift":
@@ -273,7 +276,7 @@ export class LibrarySection {
 			return;
 		}
 		const block = blockOf(m.record, m.decision);
-		if (m.decision === "engine-missing") return this.paintInstallHint(item);
+		if (m.decision === "engine-missing") return this.paintNeedsDataview(item);
 		if (block?.hint) {
 			item.createDiv({ cls: "sf-lb-hint", text: block.hint });
 			return;
@@ -283,14 +286,15 @@ export class LibrarySection {
 		}
 	}
 
-	private paintInstallHint(item: HTMLElement): void {
-		const hint = item.createDiv({ cls: "sf-lb-hint" });
-		hint.createEl("a", {
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'Dataview' is a proper product name
-			text: "Install Dataview",
-			href: "https://obsidian.md/plugins?id=dataview",
-		});
-		hint.appendText(" to run this collection. Until then its Workbench tab says the same.");
+	/**
+	 * T7.4 S5 (PRD F8 AC 5: the capability list is the only mention of a community plugin): the
+	 * cause, and a button to the capability screen. No outbound link and no install wording.
+	 */
+	private paintNeedsDataview(item: HTMLElement): void {
+		const hint = item.createDiv({ cls: "sf-lb-hint is-faint" });
+		hint.appendText("Needs Dataview, which is not active. ");
+		const link = hint.createEl("button", { cls: "sf-lb-link", text: "What optional plugins add…", attr: { type: "button" } });
+		link.addEventListener("click", () => this.d.openCapabilities?.());
 	}
 
 	private paintAdd(host: HTMLElement): void {

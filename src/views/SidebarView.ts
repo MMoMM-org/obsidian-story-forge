@@ -307,6 +307,8 @@ export class SidebarView extends ItemView {
 		fileClasses?: FileClassCache,
 		undo?: UndoJournal,
 		library?: Pick<LibraryWiring, "snapshot" | "onChange">,
+		/** T7.4 S1: called once at the end of `onOpen` — the host's capability-screen trigger. */
+		private readonly onOpened?: () => void,
 	) {
 		super(leaf);
 		this.scoping = new ScopingService(this.app);
@@ -409,6 +411,7 @@ export class SidebarView extends ItemView {
 				this._resolveAndRender(seedFile);
 			}
 		});
+		this.onOpened?.();
 	}
 
 	/** Redraw the current subject, unless the editor holds an edit a redraw would lose. */
@@ -1829,25 +1832,19 @@ export class SidebarView extends ItemView {
 					text: "The full grid needs the core Bases plugin, which is not available on mobile. Falling back to a read-only list from metadata.",
 				});
 			} else {
-				// Desktop: warn + point the user at enabling Bases (ADR-8: no internalPlugins).
+				// Desktop: the cause, no action (T7.4 S2). The "Enable Bases" button that was here went:
+				// it was a second suggestion besides the Anvil's one hint (ADR-36), and it reached the
+				// non-public app.setting.
 				empty.createDiv({ cls: "sf-empty-lead", text: "⚙ Bases is off — showing a simple list" });
 				empty.createDiv({
 					text: "The full grid needs the core Bases plugin (Obsidian 1.12.7+). Sorting, filtering, and columns are unavailable. Falling back to a read-only list from metadata.",
 				});
-				// "Enable Bases" affordance: opens Obsidian settings so the user can toggle
-				// core Bases themselves. app.setting is not part of the public obsidian.d.ts
-				// API — accessed via optional chaining so it degrades silently on older
-				// Obsidian versions or mocked environments (ADR-8: no internalPlugins).
-				// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Enable Bases" is an action label for a proper noun
-				const btn = empty.createEl("button", { cls: "sf-btn", text: "Enable Bases" });
-				// ADR-2 exception: element is GC'd on body.empty(); per-render registerDomEvent would leak.
-				btn.addEventListener("click", () => {
-					(this.app as unknown as { setting?: { open?: () => void } }).setting?.open?.();
-				});
 			}
 		} else {
-			empty.createDiv({ cls: "sf-empty-lead", text: "Dataview not installed" });
-			empty.createDiv({ text: "This view requires the Dataview community plugin." });
+			// T7.4 S5: the cause, never an install (PRD F8 AC 5). Story Forge sees loaded plugins only,
+			// so it says "not active", not "not installed".
+			empty.createDiv({ cls: "sf-empty-lead", text: "Needs Dataview" });
+			empty.createDiv({ text: "This collection needs Dataview, which is not active." });
 		}
 	}
 

@@ -4572,3 +4572,188 @@ body {
 	color: var(--text-error);
 	font-size: 10.5px;
 }
+
+/* ===========================================================================
+ * Capability screen — "What optional plugins add" (CapabilitiesModal, T7.4).
+ * mockups-capabilities.html L12a–g: one row per optional plugin, kind pill, a
+ * neutral live status (absence is grey, never a warning), what it adds and
+ * what is lost without it side by side, stacking at phone width (L12f).
+ * Obsidian variables only, so light and dark follow the user's theme (L12g).
+ * =========================================================================== */
+
+.modal.sf-cap-modal {
+	--dialog-width: 620px;
+}
+
+.sf-cap {
+	container-type: inline-size;
+}
+
+.sf-cap > h2 {
+	margin: 0 0 6px 0;
+	font-size: 15px;
+}
+
+.sf-cap-body {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	max-height: 62vh;
+	overflow-y: auto;
+	padding: 4px 0 12px;
+}
+
+.sf-cap-intro {
+	margin: 0;
+	color: var(--text-normal);
+	font-size: 12px;
+}
+
+.sf-cap-grp {
+	margin: 4px 0 -4px;
+	color: var(--text-faint);
+	font-size: 10px;
+	font-weight: var(--font-bold);
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+}
+
+.sf-cap-grp span {
+	font-weight: var(--font-normal);
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+.sf-cap-row {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+}
+
+.sf-cap-head {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.sf-cap-name {
+	color: var(--text-normal);
+	font-size: 13px;
+	font-weight: var(--font-semibold);
+}
+
+.sf-cap-kind {
+	padding: 0 6px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 9px;
+	color: var(--text-muted);
+	font-size: 9.5px;
+	line-height: 16px;
+}
+
+.sf-cap-kind.is-core {
+	border-color: var(--interactive-accent);
+	color: var(--text-accent);
+}
+
+/* Status: plain information. "Off" / "Not active" stay grey (ADR-36: no nag). */
+.sf-cap-status {
+	margin-left: auto;
+	color: var(--text-muted);
+	font-size: 10.5px;
+	white-space: nowrap;
+}
+
+.sf-cap-status.is-on {
+	color: var(--color-green);
+}
+
+.sf-cap-status.is-on::before {
+	content: "✓ ";
+}
+
+.sf-cap-status.is-off::before {
+	content: "○ ";
+}
+
+.sf-cap-cols {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+}
+
+.sf-cap-cols h5 {
+	margin: 0 0 2px 0;
+	color: var(--text-faint);
+	font-size: 10.5px;
+	font-weight: var(--font-semibold);
+}
+
+.sf-cap-cols ul {
+	margin: 0;
+	padding-left: 16px;
+	color: var(--text-normal);
+	font-size: 11.5px;
+}
+
+.sf-cap-cols li {
+	margin: 0 0 2px 0;
+}
+
+.sf-cap-cols code {
+	font-size: 10.5px;
+}
+
+.sf-cap-sub {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding-top: 5px;
+	border-top: 1px dashed var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: 11px;
+}
+
+.sf-cap-sub b {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+.sf-cap-how {
+	color: var(--text-faint);
+	font-size: 11px;
+}
+
+.sf-cap-how em {
+	color: var(--text-muted);
+}
+
+.sf-cap .sf-picker-foot {
+	align-items: center;
+	padding-top: 10px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.sf-cap-later {
+	margin-right: auto;
+	color: var(--text-faint);
+	font-size: 11px;
+}
+
+/* L12f: at phone width the two columns stack and the status goes under the name. */
+@container (max-width: 480px) {
+	.sf-cap-cols {
+		grid-template-columns: 1fr;
+	}
+
+	.sf-cap-status {
+		flex-basis: 100%;
+		margin-left: 0;
+		white-space: normal;
+	}
+}

@@ -6,8 +6,8 @@
  * COMMUNITY plugin (Dataview, metadata-menu) is never routed through this
  * module at all — there is no capability input here for one, by
  * construction, matching ADR-36's "core may be suggested once; community
- * never" (community disclosure lives in `SettingsTab.ts`'s Views list only,
- * per F8 — never a nag).
+ * never" (community plugins appear only in the capability screen,
+ * `library/CapabilitiesModal.ts`, T7.4 — never a nag).
  *
  * Dismissal is permanent: the host persists `BASES_DISABLED_HINT_ID` into
  * `PluginSettings.dismissedHints` (CON-2, data.json — operational state,
@@ -46,8 +46,8 @@ export function renderBasesHint(container: HTMLElement): HTMLElement {
 	box.setAttribute("role", "status");
 
 	const text = activeDocument.createElement("span");
-	// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'Bases' is Obsidian's proper noun for the core plugin
-	text.textContent = "Enabling the core Bases plugin adds more Card options.";
+	// T7.4 S2 (mockups-capabilities.html L12d): what is lost is whole collections, not options.
+	text.textContent = "The core Bases plugin is off. Turn it on to draw .base collections and to use Story Forge Cards in your own .base files.";
 	box.appendChild(text);
 
 	const dismiss = activeDocument.createElement("button");

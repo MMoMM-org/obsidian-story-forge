@@ -636,6 +636,32 @@ describe("Codex tab: ADR-36 Bases hint [PRD/F4 AC]", () => {
 		expect(hint(view)).not.toBeNull();
 	});
 
+	// T7.4 S2: the reworded hint (mockups-capabilities.html L12d).
+	it("says what Bases being off costs, in the signed-off words", async () => {
+		const view = await openCodex(app, { basesCapability: "disabled" });
+		expect(hint(view)!.querySelector("span")?.textContent).toBe(
+			"The core Bases plugin is off. Turn it on to draw .base collections and to use Story Forge Cards in your own .base files.",
+		);
+	});
+
+	// T7.4, PRD F8 AC: with every optional plugin absent, no screen is empty, broken or blocked (L12c(b)).
+	it("with Bases off and no Dataview, the built-in collections still draw their entries", async () => {
+		const view = await openCodex(app, { basesCapability: "disabled" });
+		const grid = bodyOf(view).querySelector(".sf-cx-grid")!;
+		expect(grid.textContent).toContain("Mara");
+		expect(grid.querySelector(".sf-cx-empty")).toBeNull();
+		expect(bodyOf(view).textContent).not.toMatch(/install/i);
+	});
+
+	// T7.4 S1: the first-run trigger is the host's; the Anvil only says it opened.
+	it("tells the host it opened (the capability screen's first-run trigger)", async () => {
+		const onOpened = vi.fn();
+		const view = new AnvilView(makeLeaf(app), { onOpened });
+		expect(onOpened).not.toHaveBeenCalled();
+		await view.onOpen();
+		expect(onOpened).toHaveBeenCalledTimes(1);
+	});
+
 	it("shows no hint when Bases is enabled", async () => {
 		const view = await openCodex(app, { basesCapability: "enabled" });
 		expect(hint(view)).toBeNull();

@@ -517,3 +517,25 @@ describe("createFileClassCache — a FileClass in a subfolder", () => {
 		expect(cacheOver(app).lookup.getFileClassFrontmatter("fc-character")).toMatchObject({ icon: "top" });
 	});
 });
+
+// T7.4 (PRD F8, mockups-capabilities.html S3/S6): the capability screen's metadata-menu row reads
+// how many FileClasses the configured folder holds, through this one cache — no plugin detection.
+describe("createFileClassCache — count", () => {
+	it("counts the FileClass files in the folder, subfolders included, and nothing outside it", () => {
+		const app = new App();
+		const nested = createMockTFile({ basename: "fc-nested", path: `${FOLDER}/Fantasy/fc-nested.md` });
+		const outside = createMockTFile({ basename: "Mara", path: "30 Canon/Mara.md" });
+		seed(app, [...SHIPPED, { file: nested, frontmatter: {} }, { file: outside, frontmatter: {} }]);
+		expect(cacheOver(app).count()).toBe(SHIPPED.filter((n) => n.file.path.startsWith(`${FOLDER}/`)).length + 1);
+	});
+
+	it("is 0 for an empty or missing folder, and follows the folder setting", () => {
+		const app = new App();
+		seed(app, SHIPPED);
+		let folder = "Nowhere";
+		const cache = cacheOver(app, () => folder);
+		expect(cache.count()).toBe(0);
+		folder = FOLDER;
+		expect(cache.count()).toBeGreaterThan(0);
+	});
+});

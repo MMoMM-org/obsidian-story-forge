@@ -278,7 +278,7 @@ describe("L2 · rows and badges", () => {
 		const w = await open({ decisions: { "90 Views/Relationship web.md": "drift", "90 Views/Skills.md": "engine-missing" } });
 		const stat = (id: string): string | null => { const e = q(item(w.root, id), ".sf-lb-stat"); return e ? text(e) : null; };
 		expect(stat("web")).toBe("▲ Consent required");
-		expect(stat("skills")).toBe("■ Dataview not installed");
+		expect(stat("skills")).toBe("○ Needs Dataview");
 		expect(["character", "creatures", "organizations"].map(stat)).toEqual([null, null, null]);
 		expect(w.root.textContent).not.toMatch(/\bActive\b/);
 		expect(w.root.querySelectorAll(".sf-lb-stat")).toHaveLength(2);
@@ -928,13 +928,22 @@ describe("L9 · edge states", () => {
 		expect(text(q(item(w.root, "lore"), ".sf-lb-hint"))).toBe("Disabled. Enable it to choose where it shows.");
 	});
 
-	it("(c) engine missing: badge, install link, and the switches stay live", async () => {
+	// T7.4 S5 (mockups-capabilities.html L12e(b)): the cause and the capability screen, never an install.
+	it("(c) engine missing: a neutral badge, the cause with a link to the capability screen, and the switches stay live", async () => {
 		const w = await open({ decisions: { "90 Views/Skills.md": "engine-missing" } });
+		const stat = q(item(w.root, "skills"), ".sf-lb-stat")!;
+		expect(text(stat)).toBe("○ Needs Dataview");
+		expect(stat.classList.contains("is-warn")).toBe(false);
 		const hint = q(item(w.root, "skills"), ".sf-lb-hint")!;
-		expect(text(hint)).toBe("Install Dataview to run this collection. Until then its Workbench tab says the same.");
-		const link = q<HTMLAnchorElement>(hint, "a")!;
-		expect(text(link)).toBe("Install Dataview");
-		expect(link.getAttribute("href")).toBe("https://obsidian.md/plugins?id=dataview");
+		expect(hint.classList.contains("is-faint")).toBe(true);
+		expect(text(hint)).toBe("Needs Dataview, which is not active. What optional plugins add…");
+		expect(hint.querySelectorAll("a")).toHaveLength(0);
+		expect(text(hint)).not.toMatch(/install/i);
+		const link = q<HTMLButtonElement>(hint, "button")!;
+		expect(text(link)).toBe("What optional plugins add…");
+		expect(w.openCapabilities).not.toHaveBeenCalled();
+		await click(link);
+		expect(w.openCapabilities).toHaveBeenCalledTimes(1);
 		expect(switchOf(w.root, "skills", "Workbench").getAttribute("aria-disabled")).not.toBe("true");
 		await click(switchOf(w.root, "skills", "Anvil"));
 		await vi.waitFor(() => expect(w.stored()["skills"]?.surfaces.anvil).toBe(true));
@@ -953,7 +962,7 @@ describe("L9 · edge states", () => {
 		});
 		expect(item(w.root, "skills").querySelectorAll(".sf-lb-hint")).toHaveLength(1);
 		expect(text(q(item(w.root, "skills"), ".sf-lb-hint"))).toContain("Disabled.");
-		expect(text(q(item(w.root, "skills"), ".sf-lb-stat"))).toBe("■ Dataview not installed");
+		expect(text(q(item(w.root, "skills"), ".sf-lb-stat"))).toBe("○ Needs Dataview");
 	});
 
 	it("an empty library shows only the built-ins and the add controls", async () => {

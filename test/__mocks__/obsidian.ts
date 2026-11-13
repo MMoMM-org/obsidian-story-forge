@@ -430,6 +430,8 @@ export class Workspace {
 	 * stored callbacks with _flushLayoutReady().
 	 */
 	_deferLayoutReady = false;
+	/** obsidian.d.ts `Workspace.layoutReady`: true once the layout has loaded. Tests may set it false. */
+	layoutReady = true;
 	/** Callbacks captured while _deferLayoutReady is true. */
 	_layoutReadyCbs: Array<() => void> = [];
 

@@ -137,7 +137,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   3. Implement: `src/library/capabilityReport.ts` + the first-run screen.
   4. Validate: unit tests across availability combinations; lint; types.
   5. Success:
-     - [ ] Core is suggestible, community is never nagged `[ref: SDD/AC — PRD F4]`
+     - [x] Core is suggestible, community is never nagged `[ref: SDD/AC — PRD F4]`
 
 - [ ] **T7.5 Phase Validation** `[activity: validate]`
 
@@ -734,3 +734,32 @@ Closes the gap that started this whole spec: the distribution machinery served f
     `generated`; the harness comment about matching params is gone. `buildCatalog.test.ts` / `catalogOverviews`
     count `00 Meta/Bases` from disk and needed no change. No test asserted the catalog is Dataview-only.
 
+- **T7.4 — Capability disclosure** (2026-11-13). Built to the signed-off `mockups-capabilities.html` L12a–g with
+  S1–S6 as recommended. `src/library/capabilityReport.ts` (pure: availability facts → three rows: Bases core;
+  Dataview and metadata-menu community; each with its kind, live status, what it adds, what is lost without it and,
+  core only, where it lives); `CapabilitiesModal` draws them; `capabilitiesTrigger` decides the first run;
+  `capabilitiesWiring` gathers the facts from the detections that already exist (`getBasesCapability`,
+  `getDataviewApi`, `getDvSettings`, and a new `count()` on the FileClass cache) — no new plugin detection.
+  - *S1, first run.* The Anvil and the Workbench call an injected `onOpened` at the end of `onOpen`; the trigger opens
+    the screen when `workspace.layoutReady` is true (a view restored while Obsidian loads its layout does not count —
+    "not at plugin load"), the new `dismissedHints` id `capabilities` is absent, and it has not opened this session
+    (the two views opening together do not stack it). Any close — Got it, ✕, Escape — goes through `onClose` and
+    records the id (`main._dismissHint`, now shared with the Bases hint). "After install or upgrade" is read as one
+    constant id: a new install, and a vault upgrading to this version, see it once; it does not come back on later
+    upgrades. From the Library link (P14, and the new Dataview-row link) the same modal has only Close and records
+    nothing.
+  - *S2.* The Anvil hint keeps its place, its id and its dismissal, with the new text. The Workbench's "Enable Bases"
+    button is gone (it used the non-public `app.setting`); its cause text and the mobile branch are unchanged. The
+    per-collection "needs Bases" state is unchanged.
+  - *S5.* The Library row: badge "○ Needs Dataview" in neutral grey (was the amber "■ Dataview not installed", as
+    L12e(b) draws) and the faint hint "Needs Dataview, which is not active. What optional plugins add…", whose link is
+    a button opening the screen. No outbound link remains. The Workbench text is "This collection needs Dataview, which
+    is not active."; its lead, not drawn in the mockup, is "Needs Dataview" (was "Dataview not installed", which the
+    code cannot know — S3).
+  - *Choices the mockup does not settle.* The Dataview JavaScript line shows only while Dataview is active (its
+    setting cannot be read otherwise; L12a draws none for "Not active"), with "On" when queries are on. One FileClass
+    reads "1 FileClass in <folder>". The count includes subfolders of the FileClasses folder, as the cache reads them.
+    The title is the modal's own `h2`, like L10/L11.
+  - *Tests that changed because the behaviour did.* Three test files' `bases/BasesAdapter` mocks gained
+    `getBasesCapability` (the screen reads it when the first view opens); the spec-009 end-to-end undo test seeds the
+    screen as already dismissed, since its first-run modal takes focus and that test asserts focus.

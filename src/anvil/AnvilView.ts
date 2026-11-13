@@ -164,6 +164,12 @@ const DEFER_FALLBACK_MS = 1500;
  */
 export interface AnvilViewOpts {
 	/**
+	 * Called once at the end of `onOpen` (T7.4 S1): the host's first-run trigger for the capability
+	 * screen. The Anvil does not decide whether that opens anything.
+	 */
+	onOpened?: () => void;
+
+	/**
 	 * The Anvil's "inspect" (ADR-28). Defaults to a deliberate no-op: the host
 	 * wires it. `main.ts` injects `view.inspect(file)` — the editor pane, in this
 	 * view, opening no other leaf (PRD/F2) — at the construction site (T5.1), so
@@ -376,9 +382,12 @@ export class AnvilView extends ItemView {
 	private readonly getEditorDock: () => EditorDock;
 	private readonly onEditorDockChange: (dock: EditorDock) => void;
 	private readonly _debouncedRender: ReturnType<typeof debounce<[], void>>;
+	/** T7.4 S1: the host's "a view opened" call (the capability screen's first-run trigger). */
+	private readonly _onOpened: (() => void) | undefined;
 
 	constructor(leaf: WorkspaceLeaf, opts?: AnvilViewOpts) {
 		super(leaf);
+		this._onOpened = opts?.onOpened;
 		this._undo = opts?.undo;
 		this.getLinkClickAction = opts?.settings?.getLinkClickAction ?? ((): "drill" => "drill");
 		this.getCardTitleOpensNote = opts?.settings?.getCardTitleOpensNote ?? ((): boolean => true);
@@ -591,6 +600,7 @@ export class AnvilView extends ItemView {
 		// A Library write (enable, remove, a switch, an import) repaints the pills in place (T7.1d2).
 		this._offLibrary = this.subscribeToLibrary(() => { this._onLibraryChange(); });
 		this.register(() => { this._releaseLibrary(); });
+		this._onOpened?.();
 	}
 
 	private _releaseLibrary(): void {

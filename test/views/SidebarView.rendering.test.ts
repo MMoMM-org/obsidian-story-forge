@@ -619,14 +619,14 @@ describe("SidebarView: _renderEngineMissing bases branch (S46 degrade)", () => {
 	});
 
 	// -----------------------------------------------------------------------
-	// Desktop: Enable Bases button is present
+	// T7.4 S2: the Enable Bases button is gone (a second suggestion, and it used the
+	// non-public app.setting); the cause text stays.
 	// -----------------------------------------------------------------------
 
-	it("S46 bases-off desktop: renders an 'Enable Bases' button", () => {
+	it("S2 bases-off desktop: no 'Enable Bases' button, and no button at all", () => {
 		const body = renderBasesMissing();
-		const btn = body.querySelector("button");
-		expect(btn).not.toBeNull();
-		expect(btn?.textContent).toContain("Enable Bases");
+		expect(body.querySelector("button")).toBeNull();
+		expect(body.textContent).not.toContain("Enable Bases");
 	});
 
 	// -----------------------------------------------------------------------
@@ -651,26 +651,18 @@ describe("SidebarView: _renderEngineMissing bases branch (S46 degrade)", () => {
 	// Regression: dataview branches are unchanged
 	// -----------------------------------------------------------------------
 
-	it("S46 regression: dataview-dql branch still renders 'Dataview not installed' lead", () => {
+	// T7.4 S5: the Dataview state states the cause, never an install (PRD F8 AC 5).
+	it.each(["dataview-dql", "dataviewjs"])("S5 %s branch: 'Needs Dataview' and the signed-off sentence, no prompt", (kind) => {
 		const body = getBody(view);
 		body.innerHTML = "";
 		const privateView = view as unknown as {
 			_renderEngineMissing(body: HTMLElement, kind: string): void;
 		};
-		privateView._renderEngineMissing(body as HTMLElement, "dataview-dql");
-		const lead = body.querySelector(".sf-empty-lead");
-		expect(lead?.textContent).toBe("Dataview not installed");
-	});
-
-	it("S46 regression: dataviewjs branch still renders 'Dataview not installed' lead", () => {
-		const body = getBody(view);
-		body.innerHTML = "";
-		const privateView = view as unknown as {
-			_renderEngineMissing(body: HTMLElement, kind: string): void;
-		};
-		privateView._renderEngineMissing(body as HTMLElement, "dataviewjs");
-		const lead = body.querySelector(".sf-empty-lead");
-		expect(lead?.textContent).toBe("Dataview not installed");
+		privateView._renderEngineMissing(body as HTMLElement, kind);
+		expect(body.querySelector(".sf-empty-lead")?.textContent).toBe("Needs Dataview");
+		expect(body.textContent).toContain("This collection needs Dataview, which is not active.");
+		expect(body.textContent).not.toMatch(/install|requires the Dataview community plugin/i);
+		expect(body.querySelectorAll("a, button")).toHaveLength(0);
 	});
 
 	it("S46 regression: dataview branch does NOT show 'Bases is off'", () => {
@@ -683,24 +675,13 @@ describe("SidebarView: _renderEngineMissing bases branch (S46 degrade)", () => {
 		expect(body.textContent).not.toContain("Bases is off");
 	});
 
-	// -----------------------------------------------------------------------
-	// Enable Bases button click handler
-	// -----------------------------------------------------------------------
-
-	it("S46 bases-off desktop: clicking 'Enable Bases' calls app.setting.open()", () => {
-		const open = vi.fn();
-		(app as unknown as { setting?: { open?: () => void } }).setting = { open };
-		const body = renderBasesMissing();
-		const btn = body.querySelector("button") as HTMLButtonElement;
-		btn.click();
-		expect(open).toHaveBeenCalledTimes(1);
-	});
-
-	it("S46 bases-off desktop: clicking 'Enable Bases' does not throw when setting is absent", () => {
-		// Ensure app.setting is absent to exercise the optional-chaining guard
-		delete (app as unknown as { setting?: unknown }).setting;
-		const body = renderBasesMissing();
-		const btn = body.querySelector("button") as HTMLButtonElement;
-		expect(() => { btn.click(); }).not.toThrow();
+	// T7.4 S1: the Workbench tells the host it opened (the capability screen's first-run trigger).
+	it("calls onOpened once when the panel opens", async () => {
+		const onOpened = vi.fn();
+		const withHook = new SidebarView(makeOwnLeaf(app), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, onOpened);
+		expect(onOpened).not.toHaveBeenCalled();
+		await withHook.onOpen();
+		expect(onOpened).toHaveBeenCalledTimes(1);
+		await withHook.onClose();
 	});
 });

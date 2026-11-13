@@ -20,6 +20,8 @@ import { EngineRegistry } from "engines/QueryEngine";
 vi.mock("bases/BasesAdapter", () => ({
 	registerCodexView: vi.fn(() => false),
 	isBasesAvailable: vi.fn(() => false),
+	// T7.4: the capability screen reads it when the first view opens.
+	getBasesCapability: vi.fn(() => "disabled"),
 }));
 
 // Capture what main.ts hands the settings tab (the ninth constructor argument is LibraryDeps).

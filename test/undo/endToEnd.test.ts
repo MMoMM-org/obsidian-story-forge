@@ -26,10 +26,13 @@ import {
 import type { AnvilView } from "anvil/AnvilView";
 import { DEBOUNCE_MS, SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { SidebarView } from "views/SidebarView";
+import { CAPABILITIES_HINT_ID } from "library/capabilitiesTrigger";
 
 vi.mock("bases/BasesAdapter", () => ({
 	registerCodexView: vi.fn(() => false),
 	isBasesAvailable: vi.fn(() => false),
+	// T7.4: the capability screen reads it when the first view opens.
+	getBasesCapability: vi.fn(() => "disabled"),
 }));
 
 // ---------------------------------------------------------------------------
@@ -204,6 +207,9 @@ async function activateNote(v: Vault, file: TFile): Promise<void> {
 async function loadPlugin(v: Vault): Promise<Session> {
 	const { default: StoryForgePlugin } = await import("main");
 	const plugin = new StoryForgePlugin(v.app) as Plugin;
+	// T7.4: this vault has already seen the capability screen, so its first-run modal (which takes
+	// focus) does not open over the undo flow under test.
+	plugin.loadData.mockResolvedValue({ settings: { dismissedHints: [CAPABILITIES_HINT_ID] } });
 	await plugin.onload();
 
 	const anvilLeaf = new WorkspaceLeaf();
