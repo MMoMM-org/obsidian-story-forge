@@ -108,7 +108,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   5. Success:
      - [x] Catalog and import cover the same engines `[ref: SDD/AC — PRD F7]`
 
-- [ ] **T7.3 Curated `.base` installs verbatim; `Codex.base` retired** `[activity: integration]`
+- [x] **T7.3 Curated `.base` installs verbatim; `Codex.base` retired** `[activity: integration]`
 
   > **Reduced per the README decision row of 2026-11-13 ("T7.3 reduced").** The original task
   > (settings-driven regeneration of generated `.base` artifacts: template input for `renderBase`, a
