@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — Capability disclosure mockups (spec 008, T7.4, L12)</title>
+<style>
+  /* ════════════════════════════════════════════════════════════════════════
+   * Tokens, scaffolding and ct-/md- patterns copied from mockups-catalog.html (L10,
+   * signed off) so the capability screen matches the catalog and import modals.
+   * New mockup classes use the ct- prefix (catalog). The md- prefix draws the
+   * Obsidian modal shell.
+   * ════════════════════════════════════════════════════════════════════════ */
+  :root{
+    --bg:#ececec; --panel:#ffffff; --panel-2:#f5f5f6; --header:#fafafa;
+    --border:#e0e0e0; --border-2:#cfcfd4; --hover:#f0f0f2;
+    --text:#222222; --muted:#5c5c5c; --faint:#7d7d7d;
+    --accent:#8a5cf5; --link:#6b45d6;
+    --pill:#efeaff; --pill-text:#5f43b8;
+    --st-draft:#a85f00; --st-outline:#3a69b0; --st-written:#1d8a44;
+    --shadow:0 3px 12px rgba(0,0,0,.10);
+    --miss-bg:rgba(200,40,40,.08); --miss-bd:rgba(200,40,40,.40); --miss-tx:#b02a2a;
+    --ok-bg:rgba(29,138,68,.08); --ok-bd:rgba(29,138,68,.35);
+    --warn-bg:rgba(168,95,0,.08); --warn-bd:rgba(168,95,0,.35);
+    --mk-proposal:#a85f00; --mk-decision:#c0263a;
+    color-scheme:light;
+  }
+  [data-theme="dark"], .th-dark{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --link:#8b8bf0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    --st-draft:#e0a34a; --st-outline:#5b8bd0; --st-written:#6ac47a;
+    --shadow:0 4px 14px rgba(0,0,0,.35);
+    --miss-bg:rgba(214,92,92,.15); --miss-bd:rgba(214,92,92,.42); --miss-tx:#e79a9a;
+    --ok-bg:rgba(106,196,122,.12); --ok-bd:rgba(106,196,122,.38);
+    --warn-bg:rgba(224,163,74,.12); --warn-bd:rgba(224,163,74,.40);
+    --mk-proposal:#e0a34a; --mk-decision:#fb464c;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:34px 0 14px;border-bottom:1px solid var(--border);padding-bottom:6px;
+    text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  h2 .h2s{color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:96ch}
+  code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .banner{border:1px solid var(--border-2);border-left:3px solid var(--accent);background:var(--panel);
+    border-radius:6px;padding:10px 14px;margin:0 0 20px;max-width:110ch;font-size:12.5px;color:var(--muted)}
+  .banner b{color:var(--text)}
+  table.inv{border-collapse:collapse;font-size:12px;margin:0 0 8px}
+  table.inv th,table.inv td{border:1px solid var(--border);padding:4px 10px;text-align:left;vertical-align:top}
+  table.inv th{color:var(--faint);font-weight:600}
+  .gallery{display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-start;margin-bottom:6px}
+  figure{margin:0}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:40px;max-width:76ch}
+  figcaption b{color:var(--text);font-weight:600}
+  .note{font-size:11px;color:var(--faint);margin-top:7px;max-width:76ch}
+  .note b{color:var(--muted)}
+  .th-dark{background:var(--bg);color:var(--text);padding:14px;border-radius:8px}
+
+  .mk-toggle{position:fixed;top:14px;right:18px;display:flex;border:1px solid var(--border-2);
+    border-radius:6px;overflow:hidden;background:var(--panel);z-index:20}
+  .mk-toggle button{border:0;background:transparent;color:var(--muted);padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}
+  .mk-toggle button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  .mk-open{border:1px solid var(--mk-proposal);border-left:4px solid var(--mk-proposal);background:var(--panel);
+    border-radius:6px;padding:12px 16px;margin:0 0 22px;max-width:110ch}
+  .mk-open h3{margin:0 0 6px;font-size:13px;color:var(--mk-proposal);text-transform:uppercase;letter-spacing:.04em}
+  .mk-open ol{margin:0 0 6px;padding-left:22px}
+  .mk-open li{margin:0 0 9px;color:var(--muted);font-size:12.5px}
+  .mk-open li b{color:var(--text)}
+  .mk-open li .rec{display:block;color:var(--text);margin-top:2px}
+  .mk-tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:0 6px;border-radius:9px;vertical-align:middle;margin-left:4px}
+  .mk-tag.prop{color:var(--mk-proposal);border:1px solid var(--mk-proposal)}
+  .mk-tag.sdd{color:var(--st-written);border:1px solid var(--st-written)}
+  .mk-wrap{overflow-x:auto;max-width:100%}
+
+  /* ---- Obsidian modal shell ---- */
+  .md{width:760px;max-width:100%;background:var(--panel);border:1px solid var(--border-2);border-radius:10px;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+  .md.nar{width:400px}
+  .md-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 4px}
+  .md-head .t{font-size:15px;font-weight:600;color:var(--text);margin:0}
+  .md-head .x{margin-left:auto;color:var(--faint);font-size:13px;cursor:pointer}
+  .md-sub{padding:0 16px 10px;font-size:12px;color:var(--muted)}
+  .md-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 16px 10px}
+  .md-search{flex:1 1 200px;min-width:0;padding:5px 9px;border:1px solid var(--border-2);border-radius:5px;
+    background:var(--panel);color:var(--faint);font-size:12.5px}
+  .md-search.typed{color:var(--text)}
+  .md-search.foc{outline:2px solid var(--accent);outline-offset:1px}
+  .seg{display:flex;border:1px solid var(--border-2);border-radius:6px;overflow:hidden;flex:none}
+  .seg span{font-size:11px;padding:3px 9px;color:var(--muted);cursor:pointer;white-space:nowrap}
+  .seg span+span{border-left:1px solid var(--border-2)}
+  .seg span.sel{background:var(--accent);color:#fff}
+  .seg span i{font-style:normal;opacity:.7;margin-left:3px}
+  .md-count{font-size:10.5px;color:var(--faint);padding:0 16px 6px}
+  .md-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
+  .btn{font:inherit;font-size:12px;border:1px solid var(--border-2);border-radius:5px;padding:4px 12px;
+    background:var(--panel);color:var(--text);cursor:pointer;white-space:nowrap}
+  .btn.cta{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.foc{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ---- split: list | detail ---- */
+  .ct-split{display:grid;grid-template-columns:300px minmax(0,1fr);border-top:1px solid var(--border);min-height:300px}
+  .ct-split.one{grid-template-columns:minmax(0,1fr)}
+  .ct-list{border-right:1px solid var(--border);max-height:420px;overflow-y:auto;padding:4px 0;background:var(--panel)}
+  .ct-split.one .ct-list{border-right:none}
+  .ct-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;padding:7px 12px 7px 13px;cursor:pointer;
+    border-left:3px solid transparent}
+  .ct-row:hover{background:var(--hover)}
+  .ct-row.sel{background:var(--panel-2);border-left-color:var(--accent)}
+  .ct-row.foc{outline:2px solid var(--accent);outline-offset:-2px}
+  .ct-row.dim{opacity:.4}
+  .ct-name{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ct-line2{grid-column:1/-1;display:flex;gap:6px;align-items:center;min-width:0}
+  .ct-desc1{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .ct-eng{font-size:9.5px;padding:0 6px;border-radius:4px;border:1px solid var(--border-2);color:var(--muted);
+    font-family:ui-monospace,Menlo,Consolas,monospace;flex:none;line-height:16px}
+  .ct-st{font-size:10px;white-space:nowrap;align-self:center}
+  .ct-st.inst{color:var(--st-written)}
+  .ct-st.upd{color:var(--st-draft);border:1px solid var(--st-draft);border-radius:9px;padding:0 6px;font-weight:600}
+  .ct-st.cons{color:var(--faint)}
+
+  .ct-detail{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .ct-back{font-size:11.5px;color:var(--link);cursor:pointer}
+  .ct-dh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ct-dh .t{font-size:14px;font-weight:600;color:var(--text)}
+  .ct-dh .st{margin-left:auto}
+  .ct-ddesc{font-size:12.5px;color:var(--text);margin:0}
+  .ct-lbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:0 0 3px}
+  .ct-dest{font-size:12px;color:var(--text)}
+  .ct-path{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:var(--panel-2);
+    border:1px solid var(--border);border-radius:4px;padding:1px 6px;overflow-wrap:anywhere}
+  .ct-hint{font-size:10.5px;color:var(--faint);margin-top:3px}
+  .ct-q{margin:0;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;color:var(--text);background:var(--panel-2);
+    border:1px solid var(--border);border-radius:6px;padding:8px 10px;white-space:pre-wrap;overflow-wrap:anywhere;
+    max-height:150px;overflow-y:auto}
+  .ct-safe{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:flex-start}
+  .ct-safe::before{content:"✓";color:var(--st-written);font-weight:700}
+  .ct-consent{font-size:11.5px;color:var(--text);background:var(--warn-bg);border:1px solid var(--warn-bd);
+    border-radius:6px;padding:8px 10px}
+  .ct-consent b{color:var(--st-draft)}
+  .ct-act{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .ct-act .aside{font-size:11px;color:var(--faint)}
+  .ct-fb{font-size:11.5px;border-radius:6px;padding:7px 10px;border:1px solid}
+  .ct-fb.ok{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--text)}
+  .ct-fb.ok::before{content:"✓ ";color:var(--st-written);font-weight:700}
+  .ct-fb.err{background:var(--miss-bg);border-color:var(--miss-bd);color:var(--miss-tx)}
+  .ct-fb.neu{background:var(--panel-2);border-color:var(--border-2);color:var(--muted)}
+  .ct-fb .raw{display:block;margin-top:3px;font:10px ui-monospace,Menlo,Consolas,monospace;color:var(--faint);overflow-wrap:anywhere}
+  .ct-det{font-size:11px;color:var(--faint);border-top:1px solid var(--border);padding-top:8px}
+  .ct-det .sum{cursor:pointer;color:var(--muted)}
+  .ct-det dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;margin:6px 0 0}
+  .ct-det dt{color:var(--faint)}
+  .ct-det dd{margin:0;color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10.5px;overflow-wrap:anywhere}
+  .ct-empty{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;
+    color:var(--faint);font-size:12px;padding:30px 20px;gap:4px}
+  .ct-empty b{color:var(--muted);font-weight:600}
+  .ct-crop{width:440px;max-width:100%;background:var(--panel);border:1px solid var(--border-2);border-radius:8px;
+    box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+  .ct-crop .ctx{font-size:10.5px;color:var(--faint)}
+  .was{font-size:10.5px;color:var(--faint);margin:0}
+  .was code{font-size:10px}
+  /* ---- L12 additions (cp- prefix): capability rows, the Anvil crop, the settings crop ---- */
+  .md.cp{width:620px}
+  .cp-body{padding:4px 16px 12px;display:flex;flex-direction:column;gap:12px;max-height:620px;overflow-y:auto}
+  .cp-grp{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:4px 0 -4px}
+  .cp-grp span{text-transform:none;letter-spacing:0;font-weight:400}
+  .cp-row{border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--panel)}
+  .cp-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .cp-h .n{font-size:13px;font-weight:600;color:var(--text)}
+  .cp-kind{font-size:9.5px;padding:0 6px;border-radius:9px;border:1px solid var(--border-2);color:var(--muted);line-height:16px}
+  .cp-kind.core{border-color:var(--accent);color:var(--link)}
+  .cp-st{margin-left:auto;font-size:10.5px;white-space:nowrap;color:var(--muted)}
+  .cp-st.on{color:var(--st-written)}
+  .cp-st.on::before{content:"✓ "}
+  .cp-st.off::before{content:"○ "}
+  .cp-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .cp-cols h5{margin:0 0 2px;font-size:10.5px;color:var(--faint);font-weight:600}
+  .cp-cols ul{margin:0;padding-left:16px;font-size:11.5px;color:var(--text)}
+  .cp-cols li{margin:0 0 2px}
+  .cp-sub{font-size:11px;color:var(--muted);border-top:1px dashed var(--border);padding-top:5px;display:flex;gap:8px;flex-wrap:wrap}
+  .cp-sub b{color:var(--text);font-weight:600}
+  .cp-how{font-size:11px;color:var(--faint)}
+  .cp-how i{color:var(--muted)}
+  .cp-intro{font-size:12px;color:var(--text);margin:0}
+  .cp-later{font-size:11px;color:var(--faint);margin-right:auto;align-self:center}
+  .md.nar .cp-cols{grid-template-columns:1fr}
+  .md.nar .cp-body{max-height:none}
+  /* Obsidian leaf header, from mockups-library.html */
+  .view{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+  .vhead{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--header);border-bottom:1px solid var(--border)}
+  .brand{font-weight:700;font-size:13px;color:var(--text);padding-right:6px}
+  .tabs{display:flex;gap:2px}
+  .tabs span{font-size:11px;padding:3px 9px;border-radius:6px;color:var(--muted)}
+  .tabs span.sel{background:var(--accent);color:#fff}
+  /* Anvil crop */
+  .an{width:620px;max-width:100%}
+  .an-cats{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--border)}
+  .an-pill{font-size:11px;padding:2px 10px;border-radius:12px;background:var(--panel-2);color:var(--muted);border:1px solid var(--border)}
+  .an-pill.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .an-pill.usr{border-style:dashed}
+  .an-hint{display:flex;gap:8px;align-items:flex-start;margin:8px 12px 0;padding:6px 10px;border:1px solid var(--border-2);
+    border-left:3px solid var(--accent);border-radius:6px;background:var(--panel-2);font-size:11.5px;color:var(--text)}
+  .an-hint .x{margin-left:auto;color:var(--faint);cursor:pointer}
+  .an-grid{padding:12px;min-height:150px;display:flex;gap:10px;flex-wrap:wrap}
+  .an-card{width:150px;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--panel-2);font-size:11px;color:var(--muted)}
+  .an-card b{display:block;color:var(--link);font-size:12px}
+  .an-off{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3px;color:var(--faint);font-size:11.5px;padding:20px}
+  .an-off .ic{font-size:18px}
+  .an-off b{color:var(--muted)}
+  /* settings crop */
+  .st{width:560px;max-width:100%;background:var(--panel);border:1px solid var(--border-2);border-radius:8px;box-shadow:var(--shadow);overflow:hidden}
+  .st-sec{padding:10px 14px;border-bottom:1px solid var(--border)}
+  .st-sec h4{margin:0 0 2px;font-size:12px;font-weight:600}
+  .st-sec .d{font-size:10.5px;color:var(--faint);margin-bottom:6px}
+  .st-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11.5px;padding:4px 0}
+  .st-row .tag{font-size:9.5px;padding:1px 6px;border-radius:10px;background:var(--pill);color:var(--pill-text)}
+  .st-row .warn{font-size:9.5px;font-weight:600;padding:0 6px;border-radius:9px;color:var(--st-draft);border:1px solid var(--st-draft)}
+  .st-row .neu{font-size:9.5px;font-weight:600;padding:0 6px;border-radius:9px;color:var(--muted);border:1px solid var(--border-2)}
+  .st-hint{flex-basis:100%;font-size:10px;color:var(--st-draft);padding-left:2px}
+  .st-hint.f{color:var(--faint)}
+  .st-hint a,.st-link{color:var(--link);text-decoration:none;cursor:pointer}
+  .st-foot{padding:10px 14px;font-size:11px}
+  .st-link.foc{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+  .strike{text-decoration:line-through;color:var(--faint)}
+</style>
+</head>
+<body>
+<!--
+  CODE EVIDENCE — which optional plugins Story Forge actually touches (grep of src/, 2026-11-13).
+
+  1. Bases (CORE)
+     - Detection: src/bases/basesCapability.ts basesCapability(apiVersion, registrationSucceeded)
+       -> "enabled" | "disabled" | "absent"; wired by src/bases/BasesAdapter.ts getBasesCapability()
+       (public apiVersion + cached registerBasesView outcome; never app.internalPlugins).
+       "absent" = Obsidian < 1.10.0 (BASES_CORE_MIN_VERSION); unreachable because manifest.json
+       minAppVersion is 1.12.7.
+     - Adds: registerCodexView() registers "story-forge-codex" plus the Card view types
+       story-forge-hero / -table / -compact (src/pluginConstants.ts) so Cards are view types inside
+       the user's own .base files; BasesFenceEngine (src/engines/EngineRegistry.ts createEngineFor,
+       buildEngineRegistry) draws .base collections; src/anvil/collectionEmbed.ts embeds them in the Anvil.
+     - Without: src/codex/codexTab.ts renderEngineBody -> renderBasesOffState
+       (src/codex/codexEmptyState.ts, class sf-cx-empty--bases-off: "<label> needs Bases" /
+       "This collection is a Bases file, and the core Bases plugin is turned off.");
+       src/views/SidebarView.ts _renderEngineMissing("bases"): "Bases is off — showing a simple list",
+       read-only list from metadata, plus an "Enable Bases" button calling app.setting.open() (non-public API).
+       Built-in collections are drawn by codexTab itself (renderEngineBody is only for engine collections).
+     - Hint: src/codex/basesHint.ts renderBasesHint ("Enabling the core Bases plugin adds more Card
+       options.", dismiss id BASES_DISABLED_HINT_ID = "bases-disabled" in PluginSettings.dismissedHints),
+       rendered by codexTab.ts maybeRenderBasesHint only when capability === "disabled".
+
+  2. Dataview (COMMUNITY), incl. its "Enable JavaScript queries" setting
+     - Detection: src/engines/EngineRegistry.ts getDataviewApi(): app.plugins.plugins["dataview"]?.api
+       with version.satisfies(">=0.5.31"); late join on "dataview:api-ready" (src/main.ts ~l.329).
+       app.plugins.plugins holds LOADED plugins only, so "installed but disabled" and "not installed"
+       look the same from here.
+     - DataviewJS setting: getDvSettings() -> enableDataviewJs; ConsentGate status "dvjs-off";
+       src/settings/LibrarySection.ts blockOf: "○ DataviewJS disabled" / "DataviewJS is disabled in Dataview settings."
+     - Adds: DataviewDqlEngine + DataviewJsEngine (buildEngineRegistry) -> Dataview / DataviewJS collections
+       (imports, migrated views, catalog entries such as catalog/scenes-with-this-note.md).
+     - Without: LibrarySection.ts blockOf "engine-missing" -> "■ Dataview not installed" and
+       paintInstallHint(): link "Install Dataview" -> https://obsidian.md/plugins?id=dataview (see S5);
+       SidebarView.ts: "Dataview not installed" / "This view requires the Dataview community plugin."
+
+  3. metadata-menu (COMMUNITY) — never detected; only its FILE FORMAT is read
+     - src/fileclass/fileClassVault.ts: "Nothing here requires metadata-menu to be installed (CON-3) —
+       a FileClass is plain frontmatter in a folder"; src/fileclass/fileClassReader.ts, fileClassTypes.ts;
+       FileClasses folder setting in src/settings/SettingsTab.ts (Scope tab, default 00 Meta/FileClasses);
+       generated defaults in src/editor/generatedFileClasses.ts (schema:gen).
+     - Without FileClasses: src/editor/fieldModel.ts tier-2 fallback, section label "Properties"
+       (TIER2_LABEL); PRD F3: "a vault without FileClasses is a supported configuration".
+
+  NOT USED by any code in src/ (so not listed on the screen): Properties (core; Story Forge writes
+  frontmatter itself via processFrontMatter), Calendarium, Longform, meta-bind, Templater, QuickAdd.
+  Settings link: src/settings/SettingsTab.ts renderLibraryTab -> button.sf-lb-link "What optional plugins add…"
+  -> openCapabilities, inert until T7.4 (src/main.ts ~l.349).
+-->
+
+<div class="mk-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-btn="light" aria-pressed="true">Light</button>
+  <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+</div>
+
+<h1>Story Forge — What optional plugins add <span style="color:var(--faint);font-weight:400;font-size:14px">· capability disclosure L12a–L12g · T7.4 · draft for sign-off</span></h1>
+
+<p class="sub"><b>Why this page exists.</b> PRD F8 asks for a one-time screen that lists each optional plugin,
+marks it <b>core</b> or <b>community</b>, and says concretely what is lost without it. After dismissal it must stay
+reachable from settings, through the Library link "What optional plugins add…" (<code>mockups-library.html</code>
+P14, already in <code>SettingsTab.ts</code> but inert). ADR-36 sets the line: a <b>core</b> plugin may be suggested
+once and dismissibly, and a <b>community</b> plugin is listed and never nagged. This page draws that screen, the one
+core hint, and the settings entry point.</p>
+
+<div class="banner" style="border-left-color:var(--st-written)">
+<b>How to read this file.</b> Same tokens and modal shell as <code>mockups-catalog.html</code> (L10) and
+<code>mockups-import.html</code> (L11). Light is the default, the toggle switches every figure, and <b>L12g</b> is
+always dark. Tags: <span class="mk-tag sdd">F8</span> / <span class="mk-tag sdd">ADR-36</span> /
+<span class="mk-tag sdd">today</span> = fixed by the spec or already shipped; <span class="mk-tag prop">S#</span> =
+<b>proposed here</b>. <b>The plugin list is the code's list, not a wish list.</b> Story Forge touches exactly three
+optional plugins: <b>Bases</b> (core), <b>Dataview</b> (community, with its JavaScript setting) and
+<b>metadata-menu</b> (community, and only its file format). Properties, Calendarium, Longform and meta-bind are not
+used by any code, so they are not on the screen. The evidence for every row is an HTML comment at the top of this
+file.
+</div>
+
+<div class="mk-open">
+<h3>Proposals — your answer needed (recommended default in each)</h3>
+<ol>
+  <li id="S1"><b>S1 — Modal or tab, and when it first appears.</b> (a) <b>A modal</b>, the same one from both
+    entry points; (b) a workspace tab (an <code>ItemView</code>); (c) a settings section only.
+    <span class="rec"><b>Recommended: (a)</b>. It is read once and closed, so it should not take a place in the
+    workspace layout or be restored on the next launch. It appears the first time the Anvil or the Workbench opens
+    after install or upgrade, not at plugin load, so it never interrupts Obsidian starting up. Closing it in any
+    way (<i>Got it</i>, ✕ or Escape) dismisses it for good. A new id in <code>dismissedHints</code>
+    (operational state in <code>data.json</code>) records that.</span></li>
+  <li id="S2"><b>S2 — Where the core hint lives, and what it says.</b> The hint already exists
+    (<code>basesHint.ts</code>): it shows only when Bases is off, in the Anvil's Codex tab, above the pills.
+    <span class="rec"><b>Recommended:</b> keep it in that one place, keep it once and dismissible, and reword it
+    from "Enabling the core Bases plugin adds more Card options." to <i>The core Bases plugin is off. Turn it on to
+    draw .base collections and to use Story Forge Cards in your own .base files.</i> The old text undersells it:
+    what is lost is whole collections, not options. The per-collection <i>"&lt;name&gt; needs Bases"</i> empty state
+    stays. It states a cause where something is missing, which is not a suggestion. The Workbench's legacy
+    <i>Enable Bases</i> button (<code>SidebarView.ts</code>) goes, because it is a second suggestion and uses the
+    non-public <code>app.setting</code> (see S4). Its cause text stays.</span></li>
+  <li id="S3"><b>S3 — Live status on each row.</b> (a) <b>Show it, read when the screen opens</b>; (b) no status,
+    a static list.
+    <span class="rec"><b>Recommended: (a)</b>, with only states the code can actually tell apart. Bases:
+    <i>On</i> / <i>Off</i> (and <i>Not in this Obsidian version</i>, unreachable on 1.12.7+). Dataview:
+    <i>Active</i> / <i>Not active</i>. Story Forge sees loaded plugins only, so "disabled" and "not installed" look
+    the same, and the screen does not pretend otherwise. Its JavaScript setting is shown on a second line.
+    metadata-menu: the FileClass files found, since Story Forge reads those and never checks the plugin. Absence is
+    drawn in neutral grey, never amber or red. The status is information, not a warning.</span></li>
+  <li id="S4"><b>S4 — An "Open settings" action on core rows.</b> (a) <b>No button</b>: the row names the place,
+    <i>Settings › Core plugins › Bases</i>; (b) a button that opens Obsidian's settings.
+    <span class="rec"><b>Recommended: (a)</b>. Opening settings needs <code>app.setting</code>, which is not in
+    <code>obsidian.d.ts</code>. The repo has learned to treat <code>as unknown as</code> on <code>app</code> as a
+    red flag, and it cannot open the Core plugins page anyway. Community rows get no action of any kind, under
+    either option <span class="mk-tag sdd">F8</span>.</span></li>
+  <li id="S5"><b>S5 — The "Install Dataview" link that ships today.</b> The Library row of a Dataview collection
+    says <i><u>Install Dataview</u> to run this collection…</i> and links to the community directory (signed off in
+    L9c, built in <code>LibrarySection.paintInstallHint</code>). That is a prompt toward a third-party install, and
+    PRD F8 AC 5 says the capability list is the <i>only</i> mention.
+    <span class="rec"><b>Recommended:</b> replace it with the cause and a link to this screen: <i>Needs Dataview,
+    which is not active. <u>What optional plugins add…</u></i>. In the Workbench, <i>This view requires the Dataview
+    community plugin.</i> becomes <i>This collection needs Dataview, which is not active.</i> This changes a
+    signed-off L9c state, so it needs your yes and a decision-log entry (L12e).</span></li>
+  <li id="S6"><b>S6 — Whether metadata-menu is on the list at all.</b> Story Forge never detects it. It reads the
+    FileClass files that metadata-menu writes.
+    <span class="rec"><b>Recommended: list it</b>, honestly worded: what it adds is a form for editing FileClasses,
+    and Story Forge works the same without it. Leaving it out would hide the one community plugin whose format the
+    editor depends on, which is the question gap-analysis G14 asks to answer.</span></li>
+</ol>
+</div>
+
+<h2>State inventory (L12)</h2>
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>L</th><th>State</th><th>Shows</th><th>Proposals</th></tr>
+<tr><td><b>L12a</b></td><td>First run</td><td>modal; Bases on, Dataview not active, 9 FileClasses; <i>Got it</i></td><td>S1 S3 S6</td></tr>
+<tr><td><b>L12b</b></td><td>Opened from settings</td><td>mixed: Bases off, Dataview active with JavaScript off, FileClasses found; <i>Close</i></td><td>S3 S4</td></tr>
+<tr><td><b>L12c</b></td><td>Everything absent</td><td>the screen, and the Anvil still working with built-ins</td><td>S3</td></tr>
+<tr><td><b>L12d</b></td><td>Core hint</td><td>(a) Bases off, hint above the pills and a <code>.base</code> collection's cause state; (b) after dismissal</td><td>S2</td></tr>
+<tr><td><b>L12e</b></td><td>Library footer link</td><td>the P14 link, and a Dataview row before and after S5</td><td>S5</td></tr>
+<tr><td><b>L12f</b></td><td>400px</td><td>L12b at phone width</td><td>—</td></tr>
+<tr><td><b>L12g</b></td><td>Dark</td><td>L12b in the dark theme</td><td>—</td></tr>
+</table>
+</div>
+
+<h2>L12a — First run <span class="h2s">· a modal, once</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L12a · The first time the Anvil or Workbench opens.</b> A modal <span class="mk-tag prop">S1</span>. One intro sentence, then one row per plugin: name, <i>core</i> or <i>community</i>, live status <span class="mk-tag prop">S3</span>, <i>What it adds</i> and <i>Without it</i> side by side <span class="mk-tag sdd">F8</span>. Only the core row says where to turn it on, as text <span class="mk-tag prop">S4</span>. Community rows have no action at all <span class="mk-tag sdd">ADR-36</span>. Here: Bases on, Dataview not active, the seed vault's 9 FileClasses <span class="mk-tag prop">S6</span>.</figcaption>
+<div class="md cp" role="dialog" aria-labelledby="cp-t" aria-describedby="cp-i">
+  <div class="md-head"><p class="t" id="cp-t">What optional plugins add</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="cp-body">
+    <p class="cp-intro" id="cp-i">Story Forge works without any of these. Each row says what it adds and what you have without it.</p>
+    <div class="cp-grp">Core plugin <span>· ships with Obsidian</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-b">
+      <div class="cp-h"><span class="n" id="cp-b">Bases</span><span class="cp-kind core">core</span><span class="cp-st on">On</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Draws <code>.base</code> collections (imported or from the repo) in the Anvil and the Workbench, with the Card you chose.</li>
+          <li>Adds Story Forge Hero, Table and Compact as view types in your own <code>.base</code> files.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li><code>.base</code> collections show "&lt;name&gt; needs Bases" instead of their entries.</li>
+          <li>Bases views in the Workbench fall back to a read-only list, without sorting, filtering or columns.</li>
+          <li>The four built-in collections, the Workbench and the field editor work the same.</li></ul></div>
+      </div>
+      <div class="cp-how">Ships with Obsidian. Turn it on in <i>Settings › Core plugins › Bases</i>.</div>
+    </div>
+    <div class="cp-grp">Community plugins <span>· installed separately, never required</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-d">
+      <div class="cp-h"><span class="n" id="cp-d">Dataview</span><span class="cp-kind">community</span><span class="cp-st off">Not active</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Runs Dataview and DataviewJS collections: the notes you imported, your migrated views, and Dataview entries from the repo.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Those collections do not run. Their Library row and Workbench tab say they need Dataview.</li>
+          <li>You can still import and install them. They run once Dataview is active.</li>
+          <li>Built-in and <code>.base</code> collections are not affected.</li></ul></div>
+      </div>
+    </div>
+    <div class="cp-row" role="group" aria-labelledby="cp-m">
+      <div class="cp-h"><span class="n" id="cp-m">metadata-menu</span><span class="cp-kind">community</span><span class="cp-st">9 FileClasses in 00 Meta/FileClasses</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>A form for editing FileClasses (<code>fc-*.md</code>): which fields a kind of note has, their types, options and order.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Nothing changes in Story Forge. It reads FileClass files itself and ships its own for the eight story types. You edit them as plain notes.</li>
+          <li>With no FileClasses at all, the editor lists every property under "Properties", without sections or option lists.</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><span class="cp-later">Open this again from Settings › Library › What optional plugins add…</span><button class="btn cta foc">Got it</button></div>
+</div>
+<p class="note"><b>Dismissal:</b> <i>Got it</i>, ✕ and Escape all close it for good, and the footer says where to find it again. <b>Focus</b> starts on <i>Got it</i>. The body is plain text and scrolls inside the modal when it is taller than the window. <b>Screen reader:</b> a <code>dialog</code> named by its title and described by the intro; each row is a group named by the plugin, and its status is plain text ("Dataview, community, not active"). <b>Tone:</b> no adjectives, no "unlock", no "get more". Each line says what draws or doesn't.</p>
+</figure>
+</div>
+<h2>L12b — Opened from settings <span class="h2s">· mixed availability</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L12b · From <i>Settings › Library › What optional plugins add…</i></b> (L12e). The same modal; the footer has only <i>Close</i>. Here Bases is off, Dataview is active with JavaScript queries off (second line), and FileClasses are found <span class="mk-tag prop">S3</span>.</figcaption>
+<div class="md cp" role="dialog" aria-labelledby="cp-t" aria-describedby="cp-i">
+  <div class="md-head"><p class="t" id="cp-t">What optional plugins add</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="cp-body">
+    <p class="cp-intro" id="cp-i">Story Forge works without any of these. Each row says what it adds and what you have without it.</p>
+    <div class="cp-grp">Core plugin <span>· ships with Obsidian</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-b">
+      <div class="cp-h"><span class="n" id="cp-b">Bases</span><span class="cp-kind core">core</span><span class="cp-st off">Off</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Draws <code>.base</code> collections (imported or from the repo) in the Anvil and the Workbench, with the Card you chose.</li>
+          <li>Adds Story Forge Hero, Table and Compact as view types in your own <code>.base</code> files.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li><code>.base</code> collections show "&lt;name&gt; needs Bases" instead of their entries.</li>
+          <li>Bases views in the Workbench fall back to a read-only list, without sorting, filtering or columns.</li>
+          <li>The four built-in collections, the Workbench and the field editor work the same.</li></ul></div>
+      </div>
+      <div class="cp-how">Ships with Obsidian. Turn it on in <i>Settings › Core plugins › Bases</i>.</div>
+    </div>
+    <div class="cp-grp">Community plugins <span>· installed separately, never required</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-d">
+      <div class="cp-h"><span class="n" id="cp-d">Dataview</span><span class="cp-kind">community</span><span class="cp-st on">Active</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Runs Dataview and DataviewJS collections: the notes you imported, your migrated views, and Dataview entries from the repo.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Those collections do not run. Their Library row and Workbench tab say they need Dataview.</li>
+          <li>You can still import and install them. They run once Dataview is active.</li>
+          <li>Built-in and <code>.base</code> collections are not affected.</li></ul></div>
+      </div>
+      <div class="cp-sub"><span>JavaScript queries (DataviewJS): <b>Off</b> in Dataview settings.</span><span>Without them, DataviewJS collections show "DataviewJS disabled" and do not run.</span></div>
+    </div>
+    <div class="cp-row" role="group" aria-labelledby="cp-m">
+      <div class="cp-h"><span class="n" id="cp-m">metadata-menu</span><span class="cp-kind">community</span><span class="cp-st">9 FileClasses in 00 Meta/FileClasses</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>A form for editing FileClasses (<code>fc-*.md</code>): which fields a kind of note has, their types, options and order.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Nothing changes in Story Forge. It reads FileClass files itself and ships its own for the eight story types. You edit them as plain notes.</li>
+          <li>With no FileClasses at all, the editor lists every property under "Properties", without sections or option lists.</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn foc">Close</button></div>
+</div>
+<p class="note"><b>Status is read when the modal opens.</b> Turning Bases on in another window does not update an open modal. Reopening shows the new state. Off and not active are neutral grey, never warnings.</p>
+</figure>
+</div>
+<h2>L12c — Everything absent <span class="h2s">· nothing is empty, broken or blocked</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L12c(a) · Bases off, Dataview not active, no FileClasses.</b> The screen reads the same. Only the statuses change <span class="mk-tag sdd">F8</span>.</figcaption>
+<div class="md cp" role="dialog" aria-labelledby="cp-t" aria-describedby="cp-i">
+  <div class="md-head"><p class="t" id="cp-t">What optional plugins add</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="cp-body">
+    <p class="cp-intro" id="cp-i">Story Forge works without any of these. Each row says what it adds and what you have without it.</p>
+    <div class="cp-grp">Core plugin <span>· ships with Obsidian</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-b">
+      <div class="cp-h"><span class="n" id="cp-b">Bases</span><span class="cp-kind core">core</span><span class="cp-st off">Off</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Draws <code>.base</code> collections (imported or from the repo) in the Anvil and the Workbench, with the Card you chose.</li>
+          <li>Adds Story Forge Hero, Table and Compact as view types in your own <code>.base</code> files.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li><code>.base</code> collections show "&lt;name&gt; needs Bases" instead of their entries.</li>
+          <li>Bases views in the Workbench fall back to a read-only list, without sorting, filtering or columns.</li>
+          <li>The four built-in collections, the Workbench and the field editor work the same.</li></ul></div>
+      </div>
+      <div class="cp-how">Ships with Obsidian. Turn it on in <i>Settings › Core plugins › Bases</i>.</div>
+    </div>
+    <div class="cp-grp">Community plugins <span>· installed separately, never required</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-d">
+      <div class="cp-h"><span class="n" id="cp-d">Dataview</span><span class="cp-kind">community</span><span class="cp-st off">Not active</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Runs Dataview and DataviewJS collections: the notes you imported, your migrated views, and Dataview entries from the repo.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Those collections do not run. Their Library row and Workbench tab say they need Dataview.</li>
+          <li>You can still import and install them. They run once Dataview is active.</li>
+          <li>Built-in and <code>.base</code> collections are not affected.</li></ul></div>
+      </div>
+    </div>
+    <div class="cp-row" role="group" aria-labelledby="cp-m">
+      <div class="cp-h"><span class="n" id="cp-m">metadata-menu</span><span class="cp-kind">community</span><span class="cp-st off">No FileClasses in 00 Meta/FileClasses</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>A form for editing FileClasses (<code>fc-*.md</code>): which fields a kind of note has, their types, options and order.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Nothing changes in Story Forge. It reads FileClass files itself and ships its own for the eight story types. You edit them as plain notes.</li>
+          <li>With no FileClasses at all, the editor lists every property under "Properties", without sections or option lists.</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn foc">Close</button></div>
+</div>
+</figure>
+<figure>
+<figcaption><b>L12c(b) · The Anvil in the same vault.</b> The built-in collections draw with their Cards, because they don't use Bases. The one core hint is shown until dismissed <span class="mk-tag prop">S2</span>. Imported <code>.base</code> and Dataview collections show their cause state when selected (L12d). The Workbench and the field editor work, and the editor uses its "Properties" fallback.</figcaption>
+<div class="view an">
+  <div class="vhead"><span class="brand">Anvil</span><div class="tabs"><span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span></div></div>
+  <div class="an-hint" role="status"><span>The core Bases plugin is off. Turn it on to draw .base collections and to use Story Forge Cards in your own .base files.</span><span class="x" role="button" aria-label="Dismiss">✕</span></div>
+  <div class="an-cats"><span class="an-pill sel">Characters</span><span class="an-pill">Locations</span><span class="an-pill">Objects</span><span class="an-pill">Lore</span><span class="an-pill usr">Organizations</span><span class="an-pill usr">Skills</span></div>
+  <div class="an-grid"><div class="an-card"><b>Mara Stoneway</b>Warden · protagonist</div><div class="an-card"><b>Ilsa Venn</b>Harbourmaster · ally</div><div class="an-card"><b>Corin Ashdown</b>Smuggler · rival</div></div>
+</div>
+<p class="note">Every surface that has nothing to draw says why, in a sentence, with no install prompt. No screen is blank and no command is disabled because a plugin is missing.</p>
+</figure>
+</div>
+<h2>L12d — The core hint <span class="h2s">· Anvil Codex tab, once, dismissible</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L12d(a) · Bases off, an imported <code>.base</code> collection selected.</b> The hint sits above the pills, where <code>codexTab.ts</code> already puts it, with the proposed wording <span class="mk-tag prop">S2</span>. Below, the shipped <code>sf-cx-empty--bases-off</code> state names the cause for this collection <span class="mk-tag sdd">today</span>.</figcaption>
+<div class="view an">
+  <div class="vhead"><span class="brand">Anvil</span><div class="tabs"><span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span></div></div>
+  <div class="an-hint" role="status"><span>The core Bases plugin is off. Turn it on to draw .base collections and to use Story Forge Cards in your own .base files.</span><span class="x" role="button" aria-label="Dismiss">✕</span></div>
+  <div class="an-cats"><span class="an-pill">Characters</span><span class="an-pill">Locations</span><span class="an-pill">Objects</span><span class="an-pill">Lore</span><span class="an-pill sel usr">Organizations</span><span class="an-pill usr">Skills</span></div>
+  <div class="an-grid"><div class="an-off" role="note"><span class="ic">⚒</span><b>Organizations needs Bases</b><span>This collection is a Bases file, and the core Bases plugin is turned off.</span></div></div>
+</div>
+<p class="note"><b>Today's wording</b>: "Enabling the core Bases plugin adds more Card options." <b>Shown only when</b> Bases is <i>disabled</i>: never when it is on, never on an Obsidian without Bases, and never for a community plugin (there is no input for one, by construction). The ✕ is a button named "Dismiss", and the hint is a <code>status</code>, so it is announced once.</p>
+</figure>
+<figure>
+<figcaption><b>L12d(b) · After ✕.</b> The hint is gone for good (<code>dismissedHints</code>: <code>bases-disabled</code>) <span class="mk-tag sdd">today</span>. The collection's own cause state stays, because it explains this collection, not a suggestion. The Workbench gets no hint of its own, and its <i>Enable Bases</i> button goes <span class="mk-tag prop">S2</span>.</figcaption>
+<div class="view an">
+  <div class="vhead"><span class="brand">Anvil</span><div class="tabs"><span class="sel">Codex</span><span>Timeline</span><span>Plotgrid</span></div></div>
+  <div class="an-cats"><span class="an-pill">Characters</span><span class="an-pill">Locations</span><span class="an-pill">Objects</span><span class="an-pill">Lore</span><span class="an-pill sel usr">Organizations</span><span class="an-pill usr">Skills</span></div>
+  <div class="an-grid"><div class="an-off" role="note"><span class="ic">⚒</span><b>Organizations needs Bases</b><span>This collection is a Bases file, and the core Bases plugin is turned off.</span></div></div>
+</div>
+<p class="note">Focus moves to the selected pill after dismissal, so it does not fall to the document.</p>
+</figure>
+</div>
+<h2>L12e — The Library footer link <span class="h2s">· P14, and the Dataview row</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L12e(a) · Today.</b> The P14 link at the foot of the Library <span class="mk-tag sdd">P14</span>, focused. It opens L12b. The Dataview row above it links to the community directory, which F8 AC 5 does not allow <span class="mk-tag prop">S5</span>.</figcaption>
+<div class="st">
+  <div class="vhead"><span class="brand">Story Forge</span><div class="tabs"><span class="sel">Library</span><span>Scope</span><span>Behaviour</span></div></div>
+  <div class="st-sec"><h4>Collections</h4><div class="d">What the Codex can show. Each is a query over your vault. Choose where each one appears.</div>
+    <div class="st-row"><span>Skills</span><span class="tag">imported</span><span class="neu">Dataview</span><span class="warn">■ Dataview not installed</span><span class="st-hint"><a>Install Dataview</a> to run this collection. Until then its Workbench tab says the same.</span></div></div>
+  <div class="st-sec"><h4>Folder for collections from the repo</h4><div class="d">Where Browse repo… places the .base files and Dataview notes it installs. Default: 00 Meta/Bases</div></div>
+  <div class="st-foot"><span class="st-link foc" role="button">What optional plugins add…</span></div>
+</div>
+</figure>
+<figure>
+<figcaption><b>L12e(b) · Proposed.</b> The row states the cause in neutral grey and points at the same screen as the footer link. There is no outbound link and no install wording <span class="mk-tag prop">S5</span>.</figcaption>
+<div class="st">
+  <div class="vhead"><span class="brand">Story Forge</span><div class="tabs"><span class="sel">Library</span><span>Scope</span><span>Behaviour</span></div></div>
+  <div class="st-sec"><h4>Collections</h4><div class="d">What the Codex can show. Each is a query over your vault. Choose where each one appears.</div>
+    <div class="st-row"><span>Skills</span><span class="tag">imported</span><span class="neu">Dataview</span><span class="neu">○ Needs Dataview</span><span class="st-hint f">Needs Dataview, which is not active. <a>What optional plugins add…</a></span></div></div>
+  <div class="st-sec"><h4>Folder for collections from the repo</h4><div class="d">Where Browse repo… places the .base files and Dataview notes it installs. Default: 00 Meta/Bases</div></div>
+  <div class="st-foot"><span class="st-link" role="button">What optional plugins add…</span></div>
+</div>
+<p class="note">The Workbench tab of the same collection says <i>This collection needs Dataview, which is not active.</i> Both links to the screen are buttons that open the modal, not URLs.</p>
+</figure>
+</div>
+<h2>L12f — 400px <span class="h2s">· columns stack</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L12f · L12b at phone width.</b> <i>What it adds</i> and <i>Without it</i> stack. Status moves under the name when it doesn't fit. The modal body scrolls, and nothing scrolls sideways.</figcaption>
+<div class="md cp nar" role="dialog" aria-labelledby="cp-t" aria-describedby="cp-i">
+  <div class="md-head"><p class="t" id="cp-t">What optional plugins add</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="cp-body">
+    <p class="cp-intro" id="cp-i">Story Forge works without any of these. Each row says what it adds and what you have without it.</p>
+    <div class="cp-grp">Core plugin <span>· ships with Obsidian</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-b">
+      <div class="cp-h"><span class="n" id="cp-b">Bases</span><span class="cp-kind core">core</span><span class="cp-st off">Off</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Draws <code>.base</code> collections (imported or from the repo) in the Anvil and the Workbench, with the Card you chose.</li>
+          <li>Adds Story Forge Hero, Table and Compact as view types in your own <code>.base</code> files.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li><code>.base</code> collections show "&lt;name&gt; needs Bases" instead of their entries.</li>
+          <li>Bases views in the Workbench fall back to a read-only list, without sorting, filtering or columns.</li>
+          <li>The four built-in collections, the Workbench and the field editor work the same.</li></ul></div>
+      </div>
+      <div class="cp-how">Ships with Obsidian. Turn it on in <i>Settings › Core plugins › Bases</i>.</div>
+    </div>
+    <div class="cp-grp">Community plugins <span>· installed separately, never required</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-d">
+      <div class="cp-h"><span class="n" id="cp-d">Dataview</span><span class="cp-kind">community</span><span class="cp-st on">Active</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Runs Dataview and DataviewJS collections: the notes you imported, your migrated views, and Dataview entries from the repo.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Those collections do not run. Their Library row and Workbench tab say they need Dataview.</li>
+          <li>You can still import and install them. They run once Dataview is active.</li>
+          <li>Built-in and <code>.base</code> collections are not affected.</li></ul></div>
+      </div>
+      <div class="cp-sub"><span>JavaScript queries (DataviewJS): <b>Off</b> in Dataview settings.</span><span>Without them, DataviewJS collections show "DataviewJS disabled" and do not run.</span></div>
+    </div>
+    <div class="cp-row" role="group" aria-labelledby="cp-m">
+      <div class="cp-h"><span class="n" id="cp-m">metadata-menu</span><span class="cp-kind">community</span><span class="cp-st">9 FileClasses in 00 Meta/FileClasses</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>A form for editing FileClasses (<code>fc-*.md</code>): which fields a kind of note has, their types, options and order.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Nothing changes in Story Forge. It reads FileClass files itself and ships its own for the eight story types. You edit them as plain notes.</li>
+          <li>With no FileClasses at all, the editor lists every property under "Properties", without sections or option lists.</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn foc">Close</button></div>
+</div>
+</figure>
+</div>
+<h2>L12g — Dark <span class="h2s">· L12b in the dark theme</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>L12g · L12b, dark.</b> The same tokens as L10i and L11i. The <i>core</i> pill keeps the accent outline, <i>community</i> stays neutral.</figcaption>
+<div class="th-dark">
+<div class="md cp" role="dialog" aria-labelledby="cp-t" aria-describedby="cp-i">
+  <div class="md-head"><p class="t" id="cp-t">What optional plugins add</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="cp-body">
+    <p class="cp-intro" id="cp-i">Story Forge works without any of these. Each row says what it adds and what you have without it.</p>
+    <div class="cp-grp">Core plugin <span>· ships with Obsidian</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-b">
+      <div class="cp-h"><span class="n" id="cp-b">Bases</span><span class="cp-kind core">core</span><span class="cp-st off">Off</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Draws <code>.base</code> collections (imported or from the repo) in the Anvil and the Workbench, with the Card you chose.</li>
+          <li>Adds Story Forge Hero, Table and Compact as view types in your own <code>.base</code> files.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li><code>.base</code> collections show "&lt;name&gt; needs Bases" instead of their entries.</li>
+          <li>Bases views in the Workbench fall back to a read-only list, without sorting, filtering or columns.</li>
+          <li>The four built-in collections, the Workbench and the field editor work the same.</li></ul></div>
+      </div>
+      <div class="cp-how">Ships with Obsidian. Turn it on in <i>Settings › Core plugins › Bases</i>.</div>
+    </div>
+    <div class="cp-grp">Community plugins <span>· installed separately, never required</span></div>
+    <div class="cp-row" role="group" aria-labelledby="cp-d">
+      <div class="cp-h"><span class="n" id="cp-d">Dataview</span><span class="cp-kind">community</span><span class="cp-st on">Active</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>Runs Dataview and DataviewJS collections: the notes you imported, your migrated views, and Dataview entries from the repo.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Those collections do not run. Their Library row and Workbench tab say they need Dataview.</li>
+          <li>You can still import and install them. They run once Dataview is active.</li>
+          <li>Built-in and <code>.base</code> collections are not affected.</li></ul></div>
+      </div>
+      <div class="cp-sub"><span>JavaScript queries (DataviewJS): <b>Off</b> in Dataview settings.</span><span>Without them, DataviewJS collections show "DataviewJS disabled" and do not run.</span></div>
+    </div>
+    <div class="cp-row" role="group" aria-labelledby="cp-m">
+      <div class="cp-h"><span class="n" id="cp-m">metadata-menu</span><span class="cp-kind">community</span><span class="cp-st">9 FileClasses in 00 Meta/FileClasses</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>A form for editing FileClasses (<code>fc-*.md</code>): which fields a kind of note has, their types, options and order.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Nothing changes in Story Forge. It reads FileClass files itself and ships its own for the eight story types. You edit them as plain notes.</li>
+          <li>With no FileClasses at all, the editor lists every property under "Properties", without sections or option lists.</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn foc">Close</button></div>
+</div>
+</div>
+</figure>
+</div>
+
+
+<h2>What this commits us to</h2>
+<p class="sub">When signed off, T7.4 builds one modal (<code>CapabilitiesModal</code>) fed by the detections that already
+exist: <code>getBasesCapability</code>, <code>getDataviewApi</code>, <code>getDvSettings</code> and the FileClass
+cache. No new plugin detection, and no <code>app.plugins</code> read beyond the two sanctioned casts in
+<code>EngineRegistry.ts</code>. <code>openCapabilities</code> in <code>main.ts</code> opens it, and the first-run
+check uses a new <code>dismissedHints</code> id. If S2 and S5 are accepted: the hint text changes, the Workbench
+<i>Enable Bases</i> button and the Library <i>Install Dataview</i> link go, and their cause texts stay. Not in scope:
+detecting further plugins, install buttons, version checks or links to plugin pages.</p>
+<script>
+  (function(){
+    var btns = document.querySelectorAll('[data-theme-btn]');
+    btns.forEach(function(b){
+      b.addEventListener('click', function(){
+        var t = b.getAttribute('data-theme-btn');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+        else document.documentElement.removeAttribute('data-theme');
+        btns.forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      });
+    });
+  })();
+</script>
+</body>
+</html>
