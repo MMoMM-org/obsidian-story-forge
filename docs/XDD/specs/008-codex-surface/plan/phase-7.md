@@ -644,3 +644,25 @@ Closes the gap that started this whole spec: the distribution machinery served f
     grid is `auto-fill, minmax(200px, 1fr)` and the embed (or its consent, error or Bases-off note) is its only
     child. `renderEngineBody` now adds `sf-cx-grid--embed` (`grid-template-columns: 1fr`) before any engine state is
     drawn, whatever Card is chosen. The dock-right split column (236px) is unchanged.
+- **T7.2 follow-up: L10 catalog browser** (2026-11-13). `BrowseOfficialModal` rebuilt to the signed-off
+  `mockups-catalog.html` L10a–L10i with Q1–Q8 as recommended; `sf-catalog-*` rules added to `styles.css` on
+  Obsidian variables (the classes had none, which is why the live modal read as unframed lines). Install, update,
+  checksums, consent and the refusals themselves are unchanged; this is presentation and wording only.
+  - *Where the wording lives.* `CatalogService.install()` still returns its raw reasons (its own tests unchanged).
+    The new `describeRefusal(reason, path, update)` in `CatalogService.ts` maps them to the Q8 sentences, with the raw
+    reason as the faint second line; the raw prefixes are one `RAW` table that both the returns and the mapping use.
+    The three signed-off refusals pass through word for word. `targetPath(entry)` (public) is the "Installs to" path;
+    an installed or stale entry shows its record's file (`installedPath`, now exported) as "Installed at" / "Updates".
+  - *Choices the mockup does not settle.* **Needs the user's eye** on the first two.
+    - An **update** of a DataviewJS entry: the button reads **Update** (Q7's "Review and install…" is drawn for an
+      install), and the consent note keeps its L10d text, which names *Review and install…*. No such entry ships.
+    - On an update, the reworded Q8 sentences start **"Not updated: …"** (and the closed review reads "Not updated.
+      You closed the review…"), following the T7.2 refusals' own install/update prefix; the table gives only the
+      "Not installed" forms except for *persist failed*.
+    - An engine filter with no rows and an empty search reads "No <engine> collections." (only the search no-match
+      text is drawn). The **Version** row in Details is left out for a Bases entry (a `.base` has no `sf-version`).
+    - Stacking uses a container query on the modal content (`max-width: 559px`); selection-follows-focus checks the
+      same width in code. The engine filter is a `radiogroup` of Tab-reachable buttons, not an arrow-key roving group.
+      The Install button is disabled while its install runs. Esc is Obsidian's own modal close; nothing was added.
+  - *Test double.* The Obsidian mock's `Modal` gains `modalEl` (an `obsidian.d.ts` member; `contentEl` now sits inside
+    it), and the test-side type augment's `cls` is `string | string[]`, as `obsidian.d.ts` declares it.

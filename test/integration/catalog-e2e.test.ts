@@ -166,9 +166,16 @@ function findButton(root: ParentNode, label: string): HTMLButtonElement | null {
 	return null;
 }
 
+/**
+ * Wait for the catalog modal's action button. The L10 browser opens with nothing selected (Q3)
+ * and draws the one Install / Update button in the detail pane (Q4), so select the first row the
+ * way a user would before looking for it.
+ */
 async function waitForButton(label: string): Promise<HTMLButtonElement> {
 	return vi.waitFor(
 		() => {
+			const row = document.body.querySelector<HTMLElement>(".sf-catalog-row");
+			if (row && row.getAttribute("aria-selected") !== "true") row.click();
 			const btn = findButton(document.body, label);
 			if (!btn) throw new Error(`Button "${label}" not found`);
 			return btn;
@@ -530,9 +537,7 @@ describe("E2E T6.3.4 — update-available → Update: new .base written, store r
 		const h = await mountHarness([entry], { "existing-id": staleRecord });
 		h.modal.open();
 
-		await vi.waitFor(() => {
-			expect(findButton(document.body, "Update")).not.toBeNull();
-		});
+		expect(await waitForButton("Update")).not.toBeNull();
 	});
 
 	it("clicking Update writes a new .base file via the real install path", async () => {

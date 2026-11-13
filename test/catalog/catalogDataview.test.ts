@@ -240,6 +240,16 @@ describe("CatalogService — installing a curated Dataview view", () => {
 	});
 });
 
+/** Select the catalog modal's first row (L10, Q3: nothing is selected on open). */
+async function selectFirstRow(): Promise<void> {
+	const row = await vi.waitFor(() => {
+		const r = document.body.querySelector<HTMLElement>(".sf-catalog-row");
+		if (!r) throw new Error("no row");
+		return r;
+	});
+	row.click();
+}
+
 describe("Browse repo… — a curated Dataview view in the catalog list", () => {
 	const buttons = (): string[] => [...document.body.querySelectorAll("button")].map((b) => b.textContent ?? "");
 
@@ -251,16 +261,38 @@ describe("Browse repo… — a curated Dataview view in the catalog list", () =>
 
 		const before = new BrowseOfficialModal(app, svc, store);
 		before.open();
-		await vi.waitFor(() => expect(buttons()).toContain("Install"));
+		await selectFirstRow();
+		expect(buttons()).toContain("Install");
 		before.close();
 		document.body.innerHTML = "";
 
 		await svc.install(entry.id);
 		const after = new BrowseOfficialModal(app, svc, store);
 		after.open();
-		await vi.waitFor(() => expect(document.body.querySelector(".sf-catalog-installed-label")?.textContent).toBe("Installed"));
+		await vi.waitFor(() => expect(document.body.querySelector(".sf-catalog-row .sf-catalog-status")?.textContent).toBe("✓ Installed"));
+		await selectFirstRow();
 		expect(buttons()).not.toContain("Update");
+		expect(buttons()).not.toContain("Install");
 		after.close();
+		document.body.innerHTML = "";
+	});
+
+	it("shows as 'Installs to' the file Install then writes, and says so after installing (L10c, L10e)", async () => {
+		const { app, files } = makeVault();
+		const { store } = makeStore();
+		const entry = await dataviewEntry();
+		const modal = new BrowseOfficialModal(app, service(app, store, entry, undefined, "My Folder").svc, store);
+		modal.open();
+		await selectFirstRow();
+		expect(document.body.querySelector(".sf-catalog-path")?.textContent).toBe("My Folder/point-of-view.md");
+		[...document.body.querySelectorAll("button")].find((b) => b.textContent === "Install")!.click();
+		await vi.waitFor(() =>
+			expect(document.body.querySelector(".sf-picker-feedback")?.textContent).toBe(
+				"Installed to My Folder/point-of-view.md. It is in Library › Collections.",
+			),
+		);
+		expect(files.has("My Folder/point-of-view.md")).toBe(true);
+		modal.close();
 		document.body.innerHTML = "";
 	});
 });
@@ -439,6 +471,7 @@ describe("Browse repo… — a refused install is shown in the modal", () => {
 		const entry = await dataviewEntry();
 		const modal = new BrowseOfficialModal(app, service(app, store, entry).svc, store);
 		modal.open();
+		await selectFirstRow();
 		const install = await vi.waitFor(() => {
 			const b = [...document.body.querySelectorAll("button")].find((x) => x.textContent === "Install");
 			if (!b) throw new Error("no Install");

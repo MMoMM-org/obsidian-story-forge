@@ -125,12 +125,68 @@ interface Written {
 
 const UP_TO_DATE: InstallResult = { ok: false, reason: "up-to-date: already installed" };
 
+// ---------------------------------------------------------------------------
+// Refusal wording (mockups-catalog.html L10f, Q8)
+// ---------------------------------------------------------------------------
+
+/**
+ * The machine reasons `install()` returns, by their leading text. `describeRefusal` maps each to
+ * the sentence the catalog browser shows; the raw reason stays in the result (and is shown as a
+ * faint second line) so a bug report still carries it.
+ */
+const RAW = {
+	checksum: "checksum mismatch",
+	queryChecksum: "query checksum mismatch",
+	materialise: "materialise failed",
+	persist: "persist failed",
+	storeRead: "store read failed",
+	consentDeclined: "consent declined",
+} as const;
+
+/** What the catalog browser shows for a refused install: a sentence, and the raw reason when it was reworded. */
+export interface RefusalNote {
+	text: string;
+	raw?: string;
+	/** "neutral" for a closed DataviewJS review: not an error, nothing was written. */
+	tone: "error" | "neutral";
+}
+
+/** The sentence for each reworded reason; `p` is "Not installed" or "Not updated". */
+function rewordRaw(reason: string, p: string, path: string, update: boolean): string {
+	if (reason.startsWith(RAW.checksum) || reason.startsWith(RAW.queryChecksum)) {
+		return `${p}: the bundled copy of this collection is damaged, so nothing was written. Reinstalling Story Forge restores it.`;
+	}
+	if (reason.startsWith(RAW.materialise)) return `${p}: could not write ${path}. Nothing was changed.`;
+	if (reason.startsWith(RAW.persist)) {
+		return update
+			? `${p}: could not save it to the Library, so the previous file was restored.`
+			: `${p}: could not save it to the Library, so the file was removed again.`;
+	}
+	if (reason.startsWith(RAW.storeRead)) return `${p}: could not read the Library's records. Nothing was written.`;
+	return `${p}.`;
+}
+
+/**
+ * Word a refused `install()` for the user (Q8). The three T7.2 refusals that already read well
+ * ("Not updated: … was edited…", "Not installed: … already exists…", "…: could not read …") pass
+ * through word for word. Every other reason gets one sentence plus its raw text. `path` is the
+ * file the install was going to write; `update` picks "Not updated" over "Not installed".
+ */
+export function describeRefusal(reason: string, path: string, update: boolean): RefusalNote {
+	const p = update ? "Not updated" : "Not installed";
+	if (reason.startsWith("Not installed") || reason.startsWith("Not updated")) return { text: reason, tone: "error" };
+	if (reason === RAW.consentDeclined) {
+		return { text: `${p}. You closed the review, so nothing was written.`, tone: "neutral" };
+	}
+	return { text: rewordRaw(reason, p, path, update), raw: reason, tone: "error" };
+}
+
 /**
  * Where a stale record's file is: its `generated.filePath`, else its `source` for a
  * `kind:"collection"` record (ADR-35: a path). A legacy `kind:"view"` Bases record keeps YAML in
  * `source`, not a path, so its update is written to `fallback` (the current folder).
  */
-function installedPath(stale: ViewRecord, fallback: string): string {
+export function installedPath(stale: ViewRecord, fallback: string): string {
 	if (stale.generated !== undefined) return stale.generated.filePath;
 	return stale.kind === "collection" ? stale.source : fallback;
 }
@@ -185,6 +241,14 @@ export class CatalogService {
 	/** Return all entries from the injected index. */
 	getEntries(): CatalogEntry[] {
 		return this.index.entries;
+	}
+
+	/**
+	 * Where a fresh install of `entry` writes: `<Folder for collections from the repo>/<id>.base`
+	 * for a Bases entry, `<id>.md` for a Dataview note. The catalog browser shows it as "Installs to".
+	 */
+	targetPath(entry: CatalogEntry): string {
+		return this._targetPath(entry, entry.engine === "bases" ? "base" : "md");
 	}
 
 	/**
@@ -246,7 +310,7 @@ export class CatalogService {
 		if (computed !== entry.checksum) {
 			return {
 				ok: false,
-				reason: `checksum mismatch: expected ${entry.checksum}, got ${computed}`,
+				reason: `${RAW.checksum}: expected ${entry.checksum}, got ${computed}`,
 			};
 		}
 
@@ -266,7 +330,7 @@ export class CatalogService {
 			written = await this._materialise(entry, path);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			return { ok: false, reason: `materialise failed: ${msg}` };
+			return { ok: false, reason: `${RAW.materialise}: ${msg}` };
 		}
 		const writtenPath = written.path;
 
@@ -341,14 +405,14 @@ export class CatalogService {
 		if (refusal !== null) return refusal;
 
 		const okayed = await this._dataviewApproval(entry, path);
-		if (okayed === null) return { ok: false, reason: "consent declined" };
+		if (okayed === null) return { ok: false, reason: RAW.consentDeclined };
 
 		let written: Written;
 		try {
 			written = await this._materialise(entry, path);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			return { ok: false, reason: `materialise failed: ${msg}` };
+			return { ok: false, reason: `${RAW.materialise}: ${msg}` };
 		}
 		return this._persist(stale, this._dataviewRecord(entry, path, okayed), written);
 	}
@@ -357,12 +421,12 @@ export class CatalogService {
 	private async _verifyDataview(entry: DataviewCatalogEntry): Promise<string | null> {
 		const computed = await computeChecksum(entry.source);
 		if (computed !== entry.checksum) {
-			return `checksum mismatch: expected ${entry.checksum}, got ${computed}`;
+			return `${RAW.checksum}: expected ${entry.checksum}, got ${computed}`;
 		}
 		const blocks = extractQueryBlocks(entry.source);
 		const query = blocks.length === 1 ? await computeChecksum(blocks[0]!.body) : null;
 		if (query !== entry.queryChecksum) {
-			return `query checksum mismatch: expected ${entry.queryChecksum}, got ${query ?? "no single query block"}`;
+			return `${RAW.queryChecksum}: expected ${entry.queryChecksum}, got ${query ?? "no single query block"}`;
 		}
 		return null;
 	}
@@ -415,7 +479,7 @@ export class CatalogService {
 			existing = await this.deps.store.getViews();
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			return { state: "failed", result: { ok: false, reason: `store read failed: ${msg}` } };
+			return { state: "failed", result: { ok: false, reason: `${RAW.storeRead}: ${msg}` } };
 		}
 		const current = installedChecksum(entry);
 		for (const [id, rec] of Object.entries(existing)) {
@@ -480,7 +544,7 @@ export class CatalogService {
 		} catch (err) {
 			await this._undoWrite(written);
 			const msg = err instanceof Error ? err.message : String(err);
-			return { ok: false, reason: `persist failed: ${msg}` };
+			return { ok: false, reason: `${RAW.persist}: ${msg}` };
 		}
 		return { ok: true, path: written.path };
 	}

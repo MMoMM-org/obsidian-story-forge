@@ -794,23 +794,29 @@ export class Plugin extends Component {
 
 export class Modal {
 	app: App;
+	/** obsidian.d.ts `Modal.modalEl`: the dialog box; `contentEl` sits inside it, as in a vault. */
+	modalEl: HTMLElement;
 	contentEl: HTMLElement;
 	constructor(app: App) {
 		this.app = app;
+		this.modalEl = document.createElement("div");
+		this.modalEl.className = "modal";
 		this.contentEl = augmentEl(document.createElement("div"));
+		this.contentEl.className = "modal-content";
+		this.modalEl.appendChild(this.contentEl);
 	}
 	open = vi.fn(() => {
-		// Mirror real Obsidian: mount contentEl into document.body so tests can
+		// Mirror real Obsidian: mount the modal into document.body so tests can
 		// query the DOM to find buttons / text content.
-		document.body.appendChild(this.contentEl);
+		document.body.appendChild(this.modalEl);
 		this.onOpen();
 	});
 	close = vi.fn(() => {
 		this.onClose();
-		// Remove contentEl from body on close (mirrors real Obsidian teardown).
-		if (this.contentEl.parentNode) {
-			this.contentEl.parentNode.removeChild(this.contentEl);
-		}
+		// Detach on close (mirrors real Obsidian teardown). A test may have
+		// mounted contentEl on its own; detach that too.
+		this.modalEl.remove();
+		if (this.contentEl.parentNode !== this.modalEl) this.contentEl.remove();
 	});
 	onOpen(): void {}
 	onClose(): void {}
@@ -835,7 +841,7 @@ export abstract class FuzzySuggestModal<T> extends Modal {
 	}
 	override open = vi.fn(() => {
 		FuzzySuggestModal._opened.push(this);
-		document.body.appendChild(this.contentEl);
+		document.body.appendChild(this.modalEl);
 		this.onOpen();
 	});
 	/** Test hook: what picking `item` in the chooser does. */
