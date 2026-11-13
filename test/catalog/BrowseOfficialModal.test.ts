@@ -100,13 +100,14 @@ function makeCatalogService(
 	overrides: Partial<{
 		entries: CatalogEntry[];
 		installResult: InstallResult;
+		install: (id: string) => Promise<InstallResult>;
 	}> = {},
 ): CatalogService {
 	const entries = overrides.entries ?? [makeEntry()];
 	const installResult = overrides.installResult ?? { ok: true };
 	return {
 		getEntries: vi.fn(() => entries),
-		install: vi.fn(async (_id: string) => installResult),
+		install: vi.fn(overrides.install ?? (async (_id: string) => installResult)),
 		targetPath: vi.fn((entry: CatalogEntry) => fakeTarget(entry)),
 	} as unknown as CatalogService;
 }
@@ -135,18 +136,35 @@ async function waitForButton(label: string): Promise<HTMLButtonElement> {
 /** Open the modal and wait for its async render (the list is drawn after the store read). */
 async function openModal(
 	entries: CatalogEntry[],
-	opts: { installed?: Record<string, ViewRecord>; installResult?: InstallResult } = {},
+	opts: {
+		installed?: Record<string, ViewRecord>;
+		installResult?: InstallResult;
+		install?: (id: string) => Promise<InstallResult>;
+		/** Stub the modal content's width before it renders (the stacked layout is below ~560px). */
+		width?: number;
+	} = {},
 ): Promise<{ service: CatalogService; modal: BrowseOfficialModal }> {
 	const service = makeCatalogService({
 		entries,
 		...(opts.installResult ? { installResult: opts.installResult } : {}),
+		...(opts.install ? { install: opts.install } : {}),
 	});
 	const modal = new BrowseOfficialModal(new App(), service, makeStore(opts.installed ?? {}));
+	if (opts.width !== undefined) {
+		Object.defineProperty(modal.contentEl, "clientWidth", { value: opts.width, configurable: true });
+	}
 	modal.open();
 	await vi.waitFor(() => {
 		if (!document.body.querySelector(".sf-picker-foot")) throw new Error("not rendered");
 	});
 	return { service, modal };
+}
+
+/** A promise the test resolves by hand: an install still in flight. */
+function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
+	let resolve!: (v: T) => void;
+	const promise = new Promise<T>((r) => { resolve = r; });
+	return { promise, resolve };
 }
 
 function rows(): HTMLElement[] {
@@ -795,5 +813,125 @@ describe("BrowseOfficialModal — L10 catalog browser", () => {
 	it("widens the modal through its modalEl class", async () => {
 		const { modal } = await openModal([makeEntry()]);
 		expect(modal.modalEl.classList.contains("sf-catalog-modal")).toBe(true);
+	});
+
+	it("L10d: a DataviewJS update reads 'Review and update…', and the consent note names that button", async () => {
+		const entry = makeDvEntry({ engine: "dataviewjs" });
+		await openModal([entry], {
+			installed: {
+				"rec-1": makeCuratedRecord({ catalogId: entry.id, engine: "dataviewjs", okayed: { version: 1, checksum: "sha256:old" } }),
+			},
+		});
+		rows()[0]!.click();
+		expect(actionButtons().map((b) => b.textContent)).toEqual(["Review and update…"]);
+		expect(detail().querySelector(".sf-catalog-consent")?.textContent).toBe(
+			"▲ Runs JavaScript. This collection runs code with full vault access. "
+			+ "Review and update… shows you its code first. Nothing is written until you enable it.",
+		);
+	});
+
+	it("an up-to-date refusal gets its own sentence, with the raw reason", async () => {
+		await openModal([makeEntry()], { installResult: { ok: false, reason: "up-to-date: already installed" } });
+		rows()[0]!.click();
+		findButton(detail(), "Install")!.click();
+		await vi.waitFor(() => {
+			expect(detail().querySelector(".sf-picker-feedback")).not.toBeNull();
+		});
+		expect(feedback().querySelector(".sf-catalog-feedback-text")?.textContent)
+			.toBe("Not installed: this collection is already installed and up to date.");
+		expect(feedback().querySelector(".sf-catalog-raw")?.textContent).toBe("up-to-date: already installed");
+	});
+
+	// In flight: an install that has not resolved yet.
+	it("an install that finishes after you moved to another entry marks its row, and leaves the other pane alone", async () => {
+		const pending = deferred<InstallResult>();
+		await openModal([makeEntry({ id: "a", name: "A" }), makeEntry({ id: "b", name: "B" })], {
+			install: () => pending.promise,
+		});
+		rowNamed("A").click();
+		findButton(detail(), "Install")!.click();
+		rowNamed("B").click();
+		pending.resolve({ ok: true, path: "Dest Folder/a.base" });
+		await vi.waitFor(() => {
+			expect(rowNamed("A").querySelector(".sf-catalog-status")?.textContent).toBe("✓ Installed");
+		});
+		expect(detail().querySelector(".sf-catalog-preview-title")?.textContent).toBe("B");
+		expect(detail().querySelector(".sf-picker-feedback")).toBeNull();
+		expect(actionButtons().map((b) => [b.textContent, b.disabled])).toEqual([["Install", false]]);
+	});
+
+	it("re-selecting an entry whose install is in flight keeps its button disabled, and installs once", async () => {
+		const pending = deferred<InstallResult>();
+		const { service } = await openModal([makeEntry({ id: "a", name: "A" }), makeEntry({ id: "b", name: "B" })], {
+			install: () => pending.promise,
+		});
+		rowNamed("A").click();
+		findButton(detail(), "Install")!.click();
+		expect(actionButtons()[0]!.disabled).toBe(true);
+		rowNamed("B").click();
+		rowNamed("A").click();
+		const again = actionButtons()[0]!;
+		expect(again.disabled).toBe(true);
+		again.click();
+		again.dispatchEvent(new MouseEvent("click"));
+		expect(service.install).toHaveBeenCalledTimes(1);
+
+		pending.resolve({ ok: false, reason: "materialise failed: disk full" });
+		await vi.waitFor(() => {
+			expect(detail().querySelector(".sf-picker-feedback")).not.toBeNull();
+		});
+		// Settled: the button is usable again (a refusal keeps it, L10f).
+		expect(actionButtons()[0]!.disabled).toBe(false);
+	});
+
+	// Stacked (below ~560px, L10h).
+	it("stacked: Down moves focus and the tab stop without selecting or changing the detail pane", async () => {
+		await openModal([makeEntry({ id: "a", name: "A" }), makeEntry({ id: "b", name: "B" })], { width: 400 });
+		const [a, b] = rows();
+		a!.focus();
+		a!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+		expect(activeDocument.activeElement).toBe(b);
+		expect(b!.tabIndex).toBe(0);
+		expect(a!.tabIndex).toBe(-1);
+		expect(rows().map((r) => r.getAttribute("aria-selected"))).toEqual(["false", "false"]);
+		expect(detail().textContent).toContain(PLACEHOLDER);
+		expect(document.body.querySelector(".sf-catalog-split")!.classList.contains("is-detail")).toBe(false);
+	});
+
+	it("stacked: Enter selects and opens the detail screen", async () => {
+		await openModal([makeEntry({ id: "a", name: "A" }), makeEntry({ id: "b", name: "B" })], { width: 400 });
+		const b = rows()[1]!;
+		b.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+		expect(b.getAttribute("aria-selected")).toBe("true");
+		expect(document.body.querySelector(".sf-catalog-split")!.classList.contains("is-detail")).toBe(true);
+		expect(detail().querySelector(".sf-catalog-preview-title")?.textContent).toBe("B");
+	});
+
+	it("measures the content box: padding does not count toward the stacking width", async () => {
+		// 600px wide with 30px padding a side is a 540px content box: stacked, so Down does not select.
+		const style = { paddingLeft: "30px", paddingRight: "30px" };
+		const spy = vi.spyOn(activeWindow, "getComputedStyle").mockImplementation(
+			(el: Element) => (el.classList.contains("sf-catalog") ? style : { paddingLeft: "0px", paddingRight: "0px" }) as unknown as CSSStyleDeclaration,
+		);
+		try {
+			await openModal([makeEntry({ id: "a", name: "A" }), makeEntry({ id: "b", name: "B" })], { width: 600 });
+			rows()[0]!.focus();
+			rows()[0]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+			expect(rows()[1]!.getAttribute("aria-selected")).toBe("false");
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	it("a render that finishes after the modal closed draws nothing", async () => {
+		const views = deferred<Record<string, ViewRecord>>();
+		const store = makeStore();
+		vi.spyOn(store, "getViews").mockImplementation(() => views.promise);
+		const modal = new BrowseOfficialModal(new App(), makeCatalogService(), store);
+		modal.open();
+		modal.close();
+		views.resolve({});
+		await new Promise((r) => setTimeout(r, 0));
+		expect(modal.contentEl.childElementCount).toBe(0);
 	});
 });

@@ -653,16 +653,28 @@ Closes the gap that started this whole spec: the distribution machinery served f
     reason as the faint second line; the raw prefixes are one `RAW` table that both the returns and the mapping use.
     The three signed-off refusals pass through word for word. `targetPath(entry)` (public) is the "Installs to" path;
     an installed or stale entry shows its record's file (`installedPath`, now exported) as "Installed at" / "Updates".
-  - *Choices the mockup does not settle.* **Needs the user's eye** on the first two.
-    - An **update** of a DataviewJS entry: the button reads **Update** (Q7's "Review and install…" is drawn for an
-      install), and the consent note keeps its L10d text, which names *Review and install…*. No such entry ships.
+  - *DataviewJS update (coordinator's decision, undrawn case).* The button reads **"Review and update…"** (it opens
+    the consent dialog, as Q7's "Review and install…" does for an install), and the consent note names that button on
+    an update; an install keeps "Review and install…". No such entry ships.
+  - *Choices the mockup does not settle.* **Needs the user's eye** on the first.
     - On an update, the reworded Q8 sentences start **"Not updated: …"** (and the closed review reads "Not updated.
       You closed the review…"), following the T7.2 refusals' own install/update prefix; the table gives only the
       "Not installed" forms except for *persist failed*.
+    - `up-to-date: already installed` (not reachable from this UI: a current entry has no button) gets its own
+      sentence, "Not installed: this collection is already installed and up to date.", plus the raw line, instead of
+      the bare "Not installed." fallback. `REFUSED_PREFIX` is the one source for "Not installed" / "Not updated", used
+      by the refusals that produce it and by `describeRefusal`'s pass-through.
     - An engine filter with no rows and an empty search reads "No <engine> collections." (only the search no-match
       text is drawn). The **Version** row in Details is left out for a Bases entry (a `.base` has no `sf-version`).
-    - Stacking uses a container query on the modal content (`max-width: 559px`); selection-follows-focus checks the
-      same width in code. The engine filter is a `radiogroup` of Tab-reachable buttons, not an arrow-key roving group.
-      The Install button is disabled while its install runs. Esc is Obsidian's own modal close; nothing was added.
+    - Stacking uses a container query on the modal content (`max-width: 559px`); selection-follows-focus measures the
+      same content box in code (`clientWidth` minus padding, `<= 559`), so the two agree. The engine filter is a `radiogroup` of Tab-reachable buttons, not an arrow-key roving group.
+      The Install button is disabled while its install runs, including after the pane is redrawn (re-selecting the
+      entry); the modal tracks in-flight ids and installs once. A result that arrives after you moved to another entry
+      updates its row only. A render still awaiting the store after the modal closed draws nothing. Esc is Obsidian's
+      own modal close; nothing was added.
+  - *Shared list logic.* `src/catalog/catalogView.ts` holds the pure parts: `filterEntries(items, query, engine)`
+    (generic over any item with a name, optional description and engine; returns the matches and per-engine
+    search counts), `FILTERS`, `STATUS_TEXT`, `queryOf` and `shortChecksum`, so the vault import modal's restyle
+    (L11) can reuse them.
   - *Test double.* The Obsidian mock's `Modal` gains `modalEl` (an `obsidian.d.ts` member; `contentEl` now sits inside
     it), and the test-side type augment's `cls` is `string | string[]`, as `obsidian.d.ts` declares it.

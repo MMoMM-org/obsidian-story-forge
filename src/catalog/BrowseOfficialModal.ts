@@ -31,38 +31,24 @@ import { describeRefusal, installedPath } from "catalog/CatalogService";
 import type { CatalogService, InstallResult } from "catalog/CatalogService";
 import { installedChecksum } from "catalog/catalogTypes";
 import type { CatalogEntry } from "catalog/catalogTypes";
-import { extractQueryBlocks } from "import/queryBlocks";
+import { FILTERS, STATUS_TEXT, filterEntries, queryOf, shortChecksum } from "catalog/catalogView";
+import type { CatalogEngine, EngineFilter, Status } from "catalog/catalogView";
 import { ENGINE_LABEL } from "settings/libraryShared";
 import type { ViewStore } from "store/ViewStore";
 import type { ViewRecord } from "store/types";
 
 /** Search and the engine filter show only above this many entries (Q2). */
 const SEARCH_THRESHOLD = 5;
-/** Below this content width the panes stack (Q1); matches the CSS container query. */
-const STACK_WIDTH = 560;
-/** Hex digits of the checksum shown in Details; the full value is the element's title. */
-const CHECKSUM_DIGITS = 10;
+/**
+ * The widest content box that stacks the panes (Q1). The CSS rule is
+ * `@container (max-width: 559px)` on `.sf-catalog`, whose query measures the content box.
+ */
+const STACK_MAX_WIDTH = 559;
 
-type Status = "none" | "installed" | "update";
-type EngineFilter = "all" | CatalogEntry["engine"];
-
-const FILTERS: Array<{ key: EngineFilter; label: string }> = [
-	{ key: "all", label: "All" },
-	{ key: "bases", label: ENGINE_LABEL.bases },
-	{ key: "dataview-dql", label: ENGINE_LABEL["dataview-dql"] },
-	{ key: "dataviewjs", label: ENGINE_LABEL.dataviewjs },
-];
-
-const STATUS_TEXT: Record<Status, string> = { none: "", installed: "✓ Installed", update: "Update available" };
 const STATUS_CLS: Record<Status, string[]> = {
 	none: ["sf-catalog-status"],
 	installed: ["sf-catalog-status", "is-installed"],
 	update: ["sf-catalog-status", "is-update"],
-};
-const FEEDBACK_CLS: Record<Feedback["tone"], string[]> = {
-	success: ["sf-picker-feedback", "sf-catalog-success"],
-	error: ["sf-picker-feedback"],
-	neutral: ["sf-picker-feedback", "sf-catalog-neutral"],
 };
 
 /** The message under the action, after an install attempt. */
@@ -72,17 +58,16 @@ interface Feedback {
 	tone: "success" | "error" | "neutral";
 }
 
-/** The query block a user reads: a Bases entry's YAML, a Dataview note's one fenced block body. */
-function queryOf(entry: CatalogEntry): string {
-	if (entry.engine === "bases") return entry.source.trimEnd();
-	const blocks = extractQueryBlocks(entry.source);
-	return (blocks.length === 1 ? blocks[0]!.body : entry.source).trimEnd();
-}
+const FEEDBACK_CLS: Record<Feedback["tone"], string[]> = {
+	success: ["sf-picker-feedback", "sf-catalog-success"],
+	error: ["sf-picker-feedback"],
+	neutral: ["sf-picker-feedback", "sf-catalog-neutral"],
+};
 
-function shortChecksum(checksum: string): string {
-	const [algo, hex] = checksum.includes(":") ? checksum.split(":", 2) : ["", checksum];
-	const head = (hex ?? "").slice(0, CHECKSUM_DIGITS);
-	return `${algo ? `${algo}:` : ""}${head}…`;
+/** The detail pane's one action (Q4, Q7). DataviewJS opens the consent dialog first, hence the ellipsis. */
+function actionLabel(entry: CatalogEntry, status: Status): string {
+	if (entry.engine === "dataviewjs") return status === "update" ? "Review and update…" : "Review and install…";
+	return status === "update" ? "Update" : "Install";
 }
 
 // ---------------------------------------------------------------------------
@@ -102,9 +87,13 @@ export class BrowseOfficialModal extends Modal {
 	private liveEl: HTMLElement | null = null;
 	private noMatchEl: HTMLElement | null = null;
 	private rowEls = new Map<string, HTMLElement>();
-	private filterEls = new Map<EngineFilter, HTMLButtonElement>();
-	private filter: EngineFilter = "all";
+	private filterEls = new Map<EngineFilter<CatalogEngine>, HTMLButtonElement>();
+	private filter: EngineFilter<CatalogEngine> = "all";
 	private selected: CatalogEntry | null = null;
+	/** Entries whose install has not settled yet: their button stays disabled across re-renders. */
+	private inFlight = new Set<string>();
+	/** Set by onClose: a render still awaiting the store must not draw into a closed modal. */
+	private closed = false;
 
 	constructor(
 		app: App,
@@ -115,11 +104,13 @@ export class BrowseOfficialModal extends Modal {
 	}
 
 	onOpen(): void {
+		this.closed = false;
 		this.modalEl.addClass("sf-catalog-modal");
 		void this._render();
 	}
 
 	onClose(): void {
+		this.closed = true;
 		this.contentEl.empty();
 		this.rowEls.clear();
 		this.filterEls.clear();
@@ -139,6 +130,7 @@ export class BrowseOfficialModal extends Modal {
 		el.createEl("h2", { text: "Collections from the repo" });
 		el.createEl("p", { text: "Bundled, offline curated library. No network required.", cls: "sf-picker-sub" });
 		await this._loadInstalled();
+		if (this.closed) return;
 
 		const entries = this.service.getEntries();
 		if (entries.length > SEARCH_THRESHOLD) this._renderTools(el);
@@ -191,9 +183,13 @@ export class BrowseOfficialModal extends Modal {
 		(this.searchEl ?? first ?? close).focus();
 	}
 
+	/** Do the panes stack? Measured on `.sf-catalog`'s content box, as its `@container` rule is. */
 	private _isStacked(): boolean {
-		const w = this.contentEl.clientWidth;
-		return w > 0 && w < STACK_WIDTH;
+		const el = this.contentEl;
+		if (el.clientWidth === 0) return false; // Not laid out (or not in a window): treat as wide.
+		const style = activeWindow.getComputedStyle(el);
+		const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+		return el.clientWidth - padding <= STACK_MAX_WIDTH;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -220,27 +216,20 @@ export class BrowseOfficialModal extends Modal {
 		this.liveEl = el.createDiv({ cls: "sf-lb-sr sf-catalog-live", attr: { "aria-live": "polite" } });
 	}
 
-	private _setFilter(key: EngineFilter): void {
+	private _setFilter(key: EngineFilter<CatalogEngine>): void {
 		this.filter = key;
 		for (const [k, btn] of this.filterEls) btn.setAttribute("aria-checked", String(k === key));
 		this._applyFilter();
 	}
 
-	private _matchesSearch(entry: CatalogEntry, query: string): boolean {
-		return `${entry.name} ${entry.description ?? ""}`.toLowerCase().includes(query);
-	}
-
 	private _applyFilter(): void {
 		const raw = this.searchEl?.value.trim() ?? "";
-		const query = raw.toLowerCase();
 		const entries = this.service.getEntries();
-		const found = entries.filter((e) => this._matchesSearch(e, query));
-		const shown = found.filter((e) => this.filter === "all" || e.engine === this.filter);
+		const { shown, counts } = filterEntries(entries, raw, this.filter);
 		for (const e of entries) this.rowEls.get(e.id)?.toggleClass("sf-hidden", !shown.includes(e));
 		for (const f of FILTERS) {
-			const n = f.key === "all" ? found.length : found.filter((e) => e.engine === f.key).length;
 			const count = this.filterEls.get(f.key)?.querySelector(".sf-catalog-filter-count");
-			if (count) count.textContent = String(n);
+			if (count) count.textContent = String(counts[f.key] ?? 0);
 		}
 		if (this.liveEl) this.liveEl.textContent = `${shown.length} of ${entries.length} collections`;
 		this._renderNoMatch(shown.length === 0, raw);
@@ -291,9 +280,9 @@ export class BrowseOfficialModal extends Modal {
 		this.rowEls.set(entry.id, row);
 	}
 
-	private _renderStatus(host: HTMLElement, entry: CatalogEntry): HTMLElement {
+	private _renderStatus(host: HTMLElement, entry: CatalogEntry): void {
 		const status = this._status(entry);
-		return host.createSpan({ cls: STATUS_CLS[status], text: STATUS_TEXT[status] });
+		host.createSpan({ cls: STATUS_CLS[status], text: STATUS_TEXT[status] });
 	}
 
 	private _refreshRowStatus(entry: CatalogEntry): void {
@@ -435,25 +424,24 @@ export class BrowseOfficialModal extends Modal {
 			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L10 text; the rule misreads the leading glyph
 			note.createEl("strong", { text: "▲ Runs JavaScript." });
 			note.appendText(" This collection runs code with full vault access. ");
-			note.createEl("em", { text: "Review and install…" });
+			note.createEl("em", { text: actionLabel(entry, status) });
 			note.appendText(" shows you its code first. Nothing is written until you enable it.");
 		} else {
 			pane.createDiv({ cls: "sf-catalog-safe", text: "Safe: declarative query, no code." });
 		}
-		const label = status === "update" ? "Update" : entry.engine === "dataviewjs" ? "Review and install…" : "Install";
 		const btn = pane.createDiv({ cls: "sf-catalog-act" })
-			.createEl("button", { cls: "mod-cta", text: label, attr: { type: "button" } });
-		btn.addEventListener("click", () => void this._doInstall(entry, btn));
+			.createEl("button", { cls: "mod-cta", text: actionLabel(entry, status), attr: { type: "button" } });
+		btn.disabled = this.inFlight.has(entry.id);
+		btn.addEventListener("click", () => void this._doInstall(entry));
 	}
 
-	private _renderFeedback(pane: HTMLElement, fb: Feedback): HTMLElement {
+	private _renderFeedback(pane: HTMLElement, fb: Feedback): void {
 		const el = pane.createDiv({
 			cls: FEEDBACK_CLS[fb.tone],
 			attr: { role: fb.tone === "error" ? "alert" : "status", tabindex: "-1" },
 		});
 		el.createSpan({ cls: "sf-catalog-feedback-text", text: fb.text });
 		if (fb.raw !== undefined) el.createSpan({ cls: "sf-catalog-raw", text: fb.raw });
-		return el;
 	}
 
 	private _renderDetails(pane: HTMLElement, entry: CatalogEntry): void {
@@ -484,17 +472,35 @@ export class BrowseOfficialModal extends Modal {
 	// Install / update
 	// ---------------------------------------------------------------------------
 
-	private async _doInstall(entry: CatalogEntry, btn: HTMLButtonElement): Promise<void> {
+	/**
+	 * Run one install of `entry`. While it is in flight the entry's button is disabled, however
+	 * often its pane is redrawn (re-selecting it rebuilds the button), so it installs once.
+	 */
+	private async _doInstall(entry: CatalogEntry): Promise<void> {
+		if (this.inFlight.has(entry.id)) return;
 		const update = this._status(entry) === "update";
 		const path = this._pathOf(entry);
-		btn.disabled = true;
-		const result = await this.service.install(entry.id);
+		this.inFlight.add(entry.id);
+		this._disableAction(entry);
+		let result: InstallResult;
+		try {
+			result = await this.service.install(entry.id);
+		} finally {
+			this.inFlight.delete(entry.id);
+		}
 		if (result.ok) {
 			this.installedNow.set(entry.id, result.path ?? path);
 			this._refreshRowStatus(entry);
 		}
 		// The user moved on to another entry: its pane is not this result's place (the row still updated).
 		if (this.selected?.id === entry.id) this._showResult(entry, result, update, path);
+	}
+
+	/** Disable the action button now, when `entry` is the one on show. */
+	private _disableAction(entry: CatalogEntry): void {
+		if (this.selected?.id !== entry.id) return;
+		const btn = this.detailEl?.querySelector<HTMLButtonElement>(".sf-catalog-act button");
+		if (btn) btn.disabled = true;
 	}
 
 	private _showResult(entry: CatalogEntry, result: InstallResult, update: boolean, path: string): void {

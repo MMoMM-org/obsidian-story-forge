@@ -123,8 +123,6 @@ interface Written {
 	previous: string | null;
 }
 
-const UP_TO_DATE: InstallResult = { ok: false, reason: "up-to-date: already installed" };
-
 // ---------------------------------------------------------------------------
 // Refusal wording (mockups-catalog.html L10f, Q8)
 // ---------------------------------------------------------------------------
@@ -135,6 +133,7 @@ const UP_TO_DATE: InstallResult = { ok: false, reason: "up-to-date: already inst
  * faint second line) so a bug report still carries it.
  */
 const RAW = {
+	upToDate: "up-to-date",
 	checksum: "checksum mismatch",
 	queryChecksum: "query checksum mismatch",
 	materialise: "materialise failed",
@@ -142,6 +141,14 @@ const RAW = {
 	storeRead: "store read failed",
 	consentDeclined: "consent declined",
 } as const;
+
+/**
+ * How a refusal that already reads as a sentence begins. `_editedRefusal`, `_occupiedRefusal` and
+ * `_readExisting` produce them; `describeRefusal` passes anything starting with one through as is.
+ */
+const REFUSED_PREFIX = { install: "Not installed", update: "Not updated" } as const;
+
+const UP_TO_DATE: InstallResult = { ok: false, reason: `${RAW.upToDate}: already installed` };
 
 /** What the catalog browser shows for a refused install: a sentence, and the raw reason when it was reworded. */
 export interface RefusalNote {
@@ -151,7 +158,7 @@ export interface RefusalNote {
 	tone: "error" | "neutral";
 }
 
-/** The sentence for each reworded reason; `p` is "Not installed" or "Not updated". */
+/** The sentence for each reworded reason; `p` is one of `REFUSED_PREFIX`. */
 function rewordRaw(reason: string, p: string, path: string, update: boolean): string {
 	if (reason.startsWith(RAW.checksum) || reason.startsWith(RAW.queryChecksum)) {
 		return `${p}: the bundled copy of this collection is damaged, so nothing was written. Reinstalling Story Forge restores it.`;
@@ -163,6 +170,7 @@ function rewordRaw(reason: string, p: string, path: string, update: boolean): st
 			: `${p}: could not save it to the Library, so the file was removed again.`;
 	}
 	if (reason.startsWith(RAW.storeRead)) return `${p}: could not read the Library's records. Nothing was written.`;
+	if (reason.startsWith(RAW.upToDate)) return `${p}: this collection is already installed and up to date.`;
 	return `${p}.`;
 }
 
@@ -173,8 +181,8 @@ function rewordRaw(reason: string, p: string, path: string, update: boolean): st
  * file the install was going to write; `update` picks "Not updated" over "Not installed".
  */
 export function describeRefusal(reason: string, path: string, update: boolean): RefusalNote {
-	const p = update ? "Not updated" : "Not installed";
-	if (reason.startsWith("Not installed") || reason.startsWith("Not updated")) return { text: reason, tone: "error" };
+	const p = update ? REFUSED_PREFIX.update : REFUSED_PREFIX.install;
+	if (reason.startsWith(REFUSED_PREFIX.install) || reason.startsWith(REFUSED_PREFIX.update)) return { text: reason, tone: "error" };
 	if (reason === RAW.consentDeclined) {
 		return { text: `${p}. You closed the review, so nothing was written.`, tone: "neutral" };
 	}
@@ -502,10 +510,10 @@ export class CatalogService {
 	 * proceeds. An unreadable file fails closed.
 	 */
 	private async _editedRefusal(path: string, installed: Installed): Promise<InstallResult | null> {
-		const read = await this._readExisting(path, "Not updated");
+		const read = await this._readExisting(path, REFUSED_PREFIX.update);
 		if (typeof read !== "string") return read;
 		if (await matchesInstalled(read, installed)) return null;
-		return { ok: false, reason: `Not updated: ${path} was edited after it was installed, and updating would overwrite those edits.` };
+		return { ok: false, reason: `${REFUSED_PREFIX.update}: ${path} was edited after it was installed, and updating would overwrite those edits.` };
 	}
 
 	/**
@@ -514,10 +522,10 @@ export class CatalogService {
 	 * and is adopted. Checked before any consent modal.
 	 */
 	private async _occupiedRefusal(path: string, entry: CatalogEntry): Promise<InstallResult | null> {
-		const read = await this._readExisting(path, "Not installed");
+		const read = await this._readExisting(path, REFUSED_PREFIX.install);
 		if (typeof read !== "string") return read;
 		if ((await computeChecksum(read)) === entry.checksum) return null;
-		return { ok: false, reason: `Not installed: ${path} already exists. Move, rename or remove it, then install again.` };
+		return { ok: false, reason: `${REFUSED_PREFIX.install}: ${path} already exists. Move, rename or remove it, then install again.` };
 	}
 
 	/** The file's content; `null` when it does not exist; a refusal (`prefix`) when it cannot be read. */
