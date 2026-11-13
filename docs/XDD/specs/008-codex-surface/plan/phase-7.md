@@ -715,3 +715,12 @@ Closes the gap that started this whole spec: the distribution machinery served f
     - Should both surfaces ever default on, the success line names "the Anvil and the Workbench"; P2 never does.
   - *CSS.* New: `sf-catalog-status.is-bad`, `sf-import-surfaces`, `sf-import-fix`, `sf-catalog-aside`;
     `sf-picker-path` is one line with an ellipsis. Retired: `sf-picker-list`, `-row`, `-name`, `-error`.
+  - *Review fixes (code quality).* A throw no longer leaves a pane stuck: `runImportFlow` computes its tokens inside
+    its `try` (so a rejecting DataviewJS dialog is `failed`, logged); the import modal catches anything on the way
+    (parse, dialog, store) and shows "Import failed: unexpected error"; the catalog browser turns a rejecting
+    `install()` into `unexpected error: <message>`, shown by `describeRefusal` as "Not installed." with that raw line.
+    Both release the in-flight id and redraw, so the button works again. A failing scan (or store read) shows
+    **"Could not list the vault's collections."** with the raw reason and Close (not drawn in the mockup). Fix lines
+    are keyed on a new `ImportError.detail` (`base-not-found`, `base-unreadable`, `base-invalid`, `sf-version`,
+    `sf-name`), never on the message text; the sentences are unchanged. The import modal's candidates are a
+    discriminated union (importable with its definition, or failed with its refusal).

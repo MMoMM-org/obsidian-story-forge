@@ -68,7 +68,8 @@ export interface ImportFlowDeps {
 }
 
 /**
- * Run the import flow for a parsed view definition and report its outcome. Never throws.
+ * Run the import flow for a parsed view definition and report its outcome. Never throws: a
+ * rejecting consent dialog or store write is `failed` (logged when it is not an ImportError).
  *
  * Steps (nothing committed until step 2):
  *   1. Tokens — computed for Bases and DQL; DataviewJS asks (requestConsentForDef). Null
@@ -80,9 +81,10 @@ export async function runImportFlow(
 	deps: ImportFlowDeps,
 	def: ViewDefinition,
 ): Promise<ImportOutcome> {
-	const tokens = await importTokens(deps, def);
-	if (tokens === null) return { status: "declined" };
 	try {
+		// Inside the try: a consent dialog that throws is a failure to report, not an escape.
+		const tokens = await importTokens(deps, def);
+		if (tokens === null) return { status: "declined" };
 		const id = await deps.importer.importToStore(def, {
 			okayed: tokens,
 			enabled: true,

@@ -143,6 +143,19 @@ describe("runImportFlow — consent-then-commit (no bind step)", () => {
 		expect(Notice._instances).toHaveLength(0);
 	});
 
+	it("a rejecting consent gate is 'failed' and logged — runImportFlow never throws", async () => {
+		const boom = new Error("modal blew up");
+		const gate = { requestConsentForDef: vi.fn(async () => { throw boom; }) } as unknown as ConsentGate;
+		const importer = makeImporter();
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const outcome = await runImportFlow({ app, importer, gate }, makeDef());
+
+		expect(outcome).toEqual({ status: "failed", error: boom });
+		expect(importer.importToStore).not.toHaveBeenCalled();
+		expect(errorSpy).toHaveBeenCalledWith(boom);
+	});
+
 	it("UNEXPECTED error: plain Error → console.error + 'failed', resolves without throwing, no Notice", async () => {
 		const gate = makeGate({ version: 1, checksum: "sha256:abc" });
 		const boom = new Error("disk full");

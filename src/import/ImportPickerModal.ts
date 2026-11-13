@@ -38,20 +38,39 @@ import type { ViewImporter } from "import/ViewImporter";
 import { ENGINE_LABEL } from "settings/libraryShared";
 import { defaultSurfaces } from "store/types";
 
-/** A file the scan offered, with what parsing it gave. */
-interface Candidate {
+/** A file the scan offered. */
+interface CandidateBase {
 	file: TFile;
 	path: string;
 	/** sf-name / the `.base` name; the file name when it could not be parsed. */
 	name: string;
 	description?: string | undefined;
-	/** Unknown for a note whose query can't be read (it counts only in "All"). */
-	engine?: CatalogEngine | undefined;
-	/** What the scan parsed (its preview), or null when the file can't be imported. */
-	def: ViewDefinition | null;
-	/** The parse refusal, when the file can't be imported (R2). */
-	problem: Feedback | null;
 }
+
+/** A file that parsed: it can be imported. `def` is the scan's parse (the preview). */
+interface Importable extends CandidateBase {
+	kind: "ok";
+	engine: CatalogEngine;
+	def: ViewDefinition;
+}
+
+/**
+ * A file that did not parse (R2): listed as "Can't import" with its refusal. Its engine is known
+ * only for a `.base`; a note whose query can't be read has none (it counts only in "All").
+ */
+interface Unimportable extends CandidateBase {
+	kind: "failed";
+	engine?: CatalogEngine | undefined;
+	problem: Feedback;
+}
+
+type Candidate = Importable | Unimportable;
+
+/** What one Import came to: the freshly parsed definition when it was saved. */
+type ImportResult =
+	| { status: "imported"; def: ViewDefinition }
+	| { status: "declined" }
+	| { status: "failed"; error: unknown };
 
 const BASE_EXTENSION = "base";
 
@@ -99,16 +118,27 @@ export class ImportPickerModal extends Modal {
 		el.addClass("sf-catalog");
 		el.createEl("h2", { text: "Import a collection" });
 		el.createEl("p", { text: "Notes in your vault marked sf-view: true, and .base files", cls: "sf-picker-sub" });
-		const candidates = await this._scan();
-		if (this.closed || candidates === null) return;
+		const scanned = await this._scanSafely();
+		if (this.closed || scanned === null) return;
 
-		if (candidates.length === 0) this._renderEmpty(el);
-		else this._mountList(el, candidates);
+		if (!Array.isArray(scanned)) this._renderScanError(el, scanned.error);
+		else if (scanned.length === 0) this._renderEmpty(el);
+		else this._mountList(el, scanned);
 
 		const close = el.createDiv({ cls: "sf-picker-foot" }).createEl("button", { text: "Close", attr: { type: "button" } });
 		close.addEventListener("click", () => this.close());
 		if (this.list) this.list.focusStart(close);
 		else close.focus();
+	}
+
+	/** `_scan`, with a failing scan (or store read) reported instead of thrown (A2). */
+	private async _scanSafely(): Promise<Candidate[] | null | { error: unknown }> {
+		try {
+			return await this._scan();
+		} catch (err) {
+			console.error(err);
+			return { error: err };
+		}
 	}
 
 	/** Scan and parse every candidate (R2), sorted by path (R3). Null when the modal closed meanwhile. */
@@ -125,12 +155,22 @@ export class ImportPickerModal extends Modal {
 	private async _candidate(file: TFile): Promise<Candidate> {
 		try {
 			const def = await this.importer.parse(file);
-			return { file, path: file.path, name: def.name, description: def.description, engine: def.engine, def, problem: null };
+			return { kind: "ok", file, path: file.path, name: def.name, description: def.description, engine: def.engine, def };
 		} catch (err) {
 			console.debug("Story Forge: could not parse view candidate", file.path, err);
 			const engine = file.extension === BASE_EXTENSION ? "bases" : undefined;
-			return { file, path: file.path, name: file.basename, engine, def: null, problem: { ...refusalFor(err, file.path), role: "note" } };
+			return { kind: "failed", file, path: file.path, name: file.basename, engine, problem: { ...refusalFor(err, file.path), role: "note" } };
 		}
+	}
+
+	/** A2: the vault could not be listed. Not drawn in the mockup; the modal still offers Close. */
+	private _renderScanError(el: HTMLElement, err: unknown): void {
+		const raw = err instanceof Error ? err.message : String(err);
+		renderFeedback(el.createDiv({ cls: "sf-catalog-split is-single" }), {
+			text: "Could not list the vault's collections.",
+			raw,
+			tone: "error",
+		});
 	}
 
 	private _renderEmpty(el: HTMLElement): void {
@@ -164,7 +204,7 @@ export class ImportPickerModal extends Modal {
 	}
 
 	private _renderStatus(host: HTMLElement, c: Candidate): void {
-		if (c.problem) host.createSpan({ cls: ["sf-catalog-status", "is-bad"], text: "Can't import" });
+		if (c.kind === "failed") host.createSpan({ cls: ["sf-catalog-status", "is-bad"], text: "Can't import" });
 		else if (this.imported.has(c.path)) host.createSpan({ cls: ["sf-catalog-status", "is-installed"], text: "✓ Imported" });
 		else host.createSpan({ cls: "sf-catalog-status" });
 	}
@@ -177,19 +217,19 @@ export class ImportPickerModal extends Modal {
 		const head = pane.createDiv({ cls: "sf-catalog-preview-head" });
 		head.createSpan({ cls: "sf-catalog-preview-title", text: c.name, attr: { id: titleId } });
 		if (c.engine !== undefined) head.createSpan({ cls: "sf-catalog-engine", text: ENGINE_LABEL[c.engine] });
-		if (c.problem || this.imported.has(c.path)) this._renderStatus(head, c);
+		if (c.kind === "failed" || this.imported.has(c.path)) this._renderStatus(head, c);
 		if (c.description) pane.createEl("p", { cls: "sf-catalog-preview-desc", text: c.description });
 
 		const source = renderLabelled(pane, "Source file", "sf-catalog-preview-dest");
 		source.createDiv().createSpan({ cls: "sf-catalog-path", text: c.path });
 		source.createDiv({ cls: "sf-catalog-hint", text: "Stays where it is. The Library links to it, so editing the file changes the collection." });
 
-		if (c.problem) {
+		if (c.kind === "failed") {
 			renderFeedback(pane, c.problem);
 			pane.createDiv({ cls: "sf-catalog-act" }).createSpan({ cls: "sf-catalog-aside", text: "Fix the file, then open this window again." });
 			return;
 		}
-		this._renderShowsIn(pane, c.engine!);
+		this._renderShowsIn(pane, c.engine);
 		if (!this.imported.has(c.path)) this._renderBody(pane, c);
 		if (feedback) renderFeedback(pane, feedback);
 	}
@@ -205,10 +245,10 @@ export class ImportPickerModal extends Modal {
 	}
 
 	/** The preview, the safe / consent note and the one action (not drawn once imported). */
-	private _renderBody(pane: HTMLElement, c: Candidate): void {
-		const engine = c.engine!;
+	private _renderBody(pane: HTMLElement, c: Importable): void {
+		const engine = c.engine;
 		renderLabelled(pane, engine === "bases" ? "Preview" : "Query")
-			.createEl("pre", { cls: "sf-catalog-preview-src", text: (c.def?.querySource ?? "").trimEnd() });
+			.createEl("pre", { cls: "sf-catalog-preview-src", text: c.def.querySource.trimEnd() });
 		if (engine === "dataviewjs") {
 			const note = pane.createDiv({ cls: "sf-catalog-consent" });
 			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L11 text; the rule misreads the leading glyph
@@ -231,36 +271,41 @@ export class ImportPickerModal extends Modal {
 
 	/**
 	 * Import `c` once. While it runs its button stays disabled, however often its pane is redrawn
-	 * (re-selecting it rebuilds the button), so it imports once.
+	 * (re-selecting it rebuilds the button), so it imports once. Whatever happens, the id is released
+	 * and the pane redrawn, so the button is usable again after a failure.
 	 */
-	private async _doImport(c: Candidate): Promise<void> {
+	private async _doImport(c: Importable): Promise<void> {
 		if (this.inFlight.has(c.path)) return;
 		this.inFlight.add(c.path);
 		this._disableAction(c);
-		let result: { outcome: ImportOutcome; def: ViewDefinition | null };
+		let result: ImportResult;
 		try {
 			result = await this._runImport(c);
 		} finally {
 			this.inFlight.delete(c.path);
 		}
-		if (result.outcome.status === "imported") {
+		if (result.status === "imported") {
 			this.imported.add(c.path);
 			this.list?.repaintRow(c);
 		}
 		// The user moved on to another file: its pane is not this result's place (the row still updated).
-		if (this.list?.isSelected(c)) this._showOutcome(c, result.outcome, result.def);
+		if (this.list?.isSelected(c)) this._showOutcome(c, result);
 	}
 
-	/** Re-parse the file (it may have changed since the scan), then run the flow. Never throws. */
-	private async _runImport(c: Candidate): Promise<{ outcome: ImportOutcome; def: ViewDefinition | null }> {
-		let def: ViewDefinition;
+	/**
+	 * Re-parse the file (it may have changed since the scan), then run the flow. Never throws: any
+	 * rejection on the way (parse, the consent dialog, the store) is `failed`, and logged when it is
+	 * not an ImportError.
+	 */
+	private async _runImport(c: Importable): Promise<ImportResult> {
 		try {
-			def = await this.importer.parse(c.file);
+			const def = await this.importer.parse(c.file);
+			const outcome: ImportOutcome = await runImportFlow({ app: this.app, importer: this.importer, gate: this.gate }, def);
+			return outcome.status === "imported" ? { status: "imported", def } : outcome;
 		} catch (err) {
 			if (!(err instanceof ImportError)) console.error(err);
-			return { outcome: { status: "failed", error: err }, def: null };
+			return { status: "failed", error: err };
 		}
-		return { outcome: await runImportFlow({ app: this.app, importer: this.importer, gate: this.gate }, def), def };
 	}
 
 	private _disableAction(c: Candidate): void {
@@ -269,16 +314,17 @@ export class ImportPickerModal extends Modal {
 		if (btn) btn.disabled = true;
 	}
 
-	private _showOutcome(c: Candidate, outcome: ImportOutcome, def: ViewDefinition | null): void {
-		const list = this.list!;
-		if (outcome.status === "imported") {
-			list.showDetail(c, { text: successText(def ?? { ...c.def!, name: c.name }), tone: "success" });
+	private _showOutcome(c: Importable, result: ImportResult): void {
+		const list = this.list;
+		if (!list) return;
+		if (result.status === "imported") {
+			list.showDetail(c, { text: successText(result.def), tone: "success" });
 			list.pane?.querySelector<HTMLElement>(".sf-picker-feedback")?.focus();
 			return;
 		}
-		const fb: Feedback = outcome.status === "declined"
+		const fb: Feedback = result.status === "declined"
 			? { text: CLOSED_REVIEW, tone: "neutral" }
-			: refusalFor(outcome.error, c.path);
+			: refusalFor(result.error, c.path);
 		list.showDetail(c, fb);
 		list.pane?.querySelector<HTMLButtonElement>(".sf-catalog-act button")?.focus();
 	}

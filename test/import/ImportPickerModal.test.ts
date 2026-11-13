@@ -175,7 +175,7 @@ function sixFiles(): Record<string, Parsed> {
 		"00 Meta/Views/pacing-chart.md": new ImportError("ENGINE_MISMATCH", "sf-engine \"dataview-dql\" contradicts the fenced block language \"dataviewjs\""),
 		"20 Manuscript/draft-board.base": baseDef("20 Manuscript/draft-board.base", "Draft board"),
 		"30 Canon/31 Characters/characters-by-faction.base": baseDef("30 Canon/31 Characters/characters-by-faction.base", "Characters by faction"),
-		"30 Canon/Broken test.base": new ImportError("INVALID_BASE", "This .base file is not a valid Bases file: Invalid BasesConfigFile: must have at least one of views, filters, or formulas"),
+		"30 Canon/Broken test.base": new ImportError("INVALID_BASE", "This .base file is not a valid Bases file: Invalid BasesConfigFile: must have at least one of views, filters, or formulas", "base-invalid"),
 	};
 }
 
@@ -279,7 +279,7 @@ describe("ImportPickerModal — a file that can't be imported, selected", () => 
 	const cases: Array<{ name: string; error: Error; text: string; fix: string | null }> = [
 		{
 			name: "an invalid .base",
-			error: new ImportError("INVALID_BASE", "This .base file is not a valid Bases file: Invalid BasesConfigFile: must have at least one of views, filters, or formulas"),
+			error: new ImportError("INVALID_BASE", "This .base file is not a valid Bases file: Invalid BasesConfigFile: must have at least one of views, filters, or formulas", "base-invalid"),
 			text: "This .base file is not a valid Bases file: Invalid BasesConfigFile: must have at least one of views, filters, or formulas",
 			fix: "Add a views: list, filters: or formulas:, or open it in Bases to check it.",
 		},
@@ -303,19 +303,19 @@ describe("ImportPickerModal — a file that can't be imported, selected", () => 
 		},
 		{
 			name: "a bad sf-version",
-			error: new ImportError("INVALID_FRONTMATTER", "sf-version must be an integer"),
+			error: new ImportError("INVALID_FRONTMATTER", "sf-version must be an integer", "sf-version"),
 			text: "sf-version must be an integer",
 			fix: "Use a whole number, like sf-version: 1.",
 		},
 		{
 			name: "a bad sf-name",
-			error: new ImportError("INVALID_FRONTMATTER", "sf-name must be a non-empty string"),
+			error: new ImportError("INVALID_FRONTMATTER", "sf-name must be a non-empty string", "sf-name"),
 			text: "sf-name must be a non-empty string",
 			fix: "Give it a name, or remove sf-name to use the file name.",
 		},
 		{
 			name: "unreadable YAML (no fix line)",
-			error: new ImportError("INVALID_BASE", "This .base file could not be read: bad indentation"),
+			error: new ImportError("INVALID_BASE", "This .base file could not be read: bad indentation", "base-unreadable"),
 			text: "This .base file could not be read: bad indentation",
 			fix: null,
 		},
@@ -341,6 +341,13 @@ describe("ImportPickerModal — a file that can't be imported, selected", () => 
 			expect(pane.querySelector("pre")).toBeNull();
 		});
 	}
+
+	it("A3: picks the fix line by the error's detail, not by its message text", async () => {
+		await openPicker({ "00 Meta/Views/x.md": new ImportError("INVALID_FRONTMATTER", "sf-version must be an integer", "sf-name") });
+		rows()[0]!.click();
+		expect(feedback().querySelector(".sf-catalog-feedback-text")?.textContent).toBe("sf-version must be an integer");
+		expect(feedback().querySelector(".sf-import-fix")?.textContent).toBe("Give it a name, or remove sf-name to use the file name.");
+	});
 
 	it("draws the fix line's code as code", async () => {
 		await openPicker({ "00 Meta/Views/x.md": new ImportError("NO_QUERY_BLOCK", "No query block found") });
@@ -542,10 +549,10 @@ describe("ImportPickerModal — refusals at Import", () => {
 	}
 
 	it.each([
-		["could not be read", "This .base file could not be read: EACCES: permission denied"],
-		["could not be found", "This .base file could not be found"],
-	])("L11f(f): a .base that %s at Import shows today's text under the button, with no fix line", async (_l, message) => {
-		const fb = await importAndRefuse(new ImportError("INVALID_BASE", message));
+		["could not be read", "This .base file could not be read: EACCES: permission denied", "base-unreadable"],
+		["could not be found", "This .base file could not be found", "base-not-found"],
+	] as const)("L11f(f): a .base that %s at Import shows today's text under the button, with no fix line", async (_l, message, why) => {
+		const fb = await importAndRefuse(new ImportError("INVALID_BASE", message, why));
 		expect(fb.getAttribute("role")).toBe("alert");
 		expect(fb.querySelector(".sf-catalog-feedback-text")?.textContent).toBe(message);
 		expect(fb.querySelector(".sf-import-fix")).toBeNull();
@@ -682,3 +689,80 @@ describe("ImportPickerModal — stacked layout", () => {
 		expect(rows()[1]!.getAttribute("aria-selected")).toBe("true");
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Robustness: a throw never leaves the pane stuck (review fix 1, A1, A2)
+// ---------------------------------------------------------------------------
+
+describe("ImportPickerModal — when something throws", () => {
+	it("the DataviewJS review rejecting shows the failure, re-enables the button, and a second click works", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const path = "00 Meta/Views/family-tree.md";
+		const h = await openPicker({ [path]: dvjsDef(path) });
+		vi.mocked(h.gate.requestConsentForDef)
+			.mockRejectedValueOnce(new Error("modal blew up"))
+			.mockResolvedValueOnce({ version: 1, checksum: "sha256:ok" });
+		rows()[0]!.click();
+		actionButtons()[0]!.click();
+		const fb = await waitForFeedback();
+		expect(fb.textContent).toBe("Import failed: unexpected error");
+		expect(fb.getAttribute("role")).toBe("alert");
+		expect(errorSpy).toHaveBeenCalled();
+		expect(actionButtons()[0]!.disabled).toBe(false);
+		actionButtons()[0]!.click();
+		await vi.waitFor(() => expect(feedback().textContent).toContain("Imported Family tree."));
+		expect(h.gate.requestConsentForDef).toHaveBeenCalledTimes(2);
+	});
+
+	it("parse rejecting at Import with a plain Error shows the failure, re-enables the button, and a second click works", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const path = "30 Canon/x.base";
+		const h = await openPicker({ [path]: baseDef(path) });
+		h.parsed.set(path, new Error("disk gone"));
+		rows()[0]!.click();
+		actionButtons()[0]!.click();
+		expect((await waitForFeedback()).textContent).toBe("Import failed: unexpected error");
+		expect(errorSpy).toHaveBeenCalled();
+		expect(actionButtons()[0]!.disabled).toBe(false);
+		h.parsed.set(path, baseDef(path));
+		actionButtons()[0]!.click();
+		await vi.waitFor(() => expect(feedback().textContent).toContain("Imported x."));
+	});
+
+	it.each([
+		["scanVault rejects", "scan"],
+		["the store cannot be read", "store"],
+	] as const)("A2: when %s, an error line and Close are shown", async (_label, how) => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const app = new App();
+		const store = makeStore();
+		const importer = new ViewImporter(app, store);
+		if (how === "scan") vi.spyOn(importer, "scanVault").mockRejectedValue(new Error("vault offline"));
+		else vi.spyOn(store, "getViews").mockRejectedValue(new Error("data.json corrupt"));
+		const modal = new ImportPickerModal(app, importer, { requestConsentForDef: vi.fn() } as unknown as ConsentGate);
+		modal.open();
+		const fb = await vi.waitFor(() => {
+			const el = document.body.querySelector<HTMLElement>(".sf-picker-feedback");
+			if (!el) throw new Error("no error line");
+			return el;
+		});
+		expect(fb.getAttribute("role")).toBe("alert");
+		expect(fb.querySelector(".sf-catalog-feedback-text")?.textContent).toBe("Could not list the vault's collections.");
+		expect(fb.querySelector(".sf-catalog-raw")?.textContent).toBe(how === "scan" ? "vault offline" : "data.json corrupt");
+		expect(document.body.querySelector(".sf-catalog-list")).toBeNull();
+		expect(activeDocument.activeElement?.textContent).toBe("Close");
+	});
+
+	it("A1: closing while an import is in flight, then resolving, draws nothing and throws nothing", async () => {
+		const pending = deferred<string>();
+		const { modal } = await openPicker({ "30 Canon/a.base": baseDef("30 Canon/a.base") }, { importToStore: () => pending.promise });
+		rows()[0]!.click();
+		actionButtons()[0]!.click();
+		await vi.waitFor(() => expect(document.body.querySelector(".sf-catalog-act button")).not.toBeNull());
+		modal.close();
+		pending.resolve("id");
+		await new Promise((r) => setTimeout(r, 0));
+		expect(modal.contentEl.childElementCount).toBe(0);
+	});
+});
+

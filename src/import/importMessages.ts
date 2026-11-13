@@ -22,7 +22,8 @@ export const CLOSED_REVIEW = "Not imported. You closed the review, so nothing wa
 function fixFor(err: ImportError): FixPart[] | undefined {
 	switch (err.code) {
 		case "INVALID_BASE":
-			return err.message.startsWith("This .base file is not a valid Bases file")
+			// Not found / unreadable: the error is the fix.
+			return err.detail === "base-invalid"
 				? ["Add a ", { code: "views:" }, " list, ", { code: "filters:" }, " or ", { code: "formulas:" }, ", or open it in Bases to check it."]
 				: undefined;
 		case "NO_QUERY_BLOCK":
@@ -32,9 +33,9 @@ function fixFor(err: ImportError): FixPart[] | undefined {
 		case "ENGINE_MISMATCH":
 			return ["Make ", { code: "sf-engine" }, " match the block, or remove ", { code: "sf-engine" }, ": the block's language decides."];
 		case "INVALID_FRONTMATTER":
-			return err.message.startsWith("sf-version")
-				? ["Use a whole number, like ", { code: "sf-version: 1" }, "."]
-				: ["Give it a name, or remove ", { code: "sf-name" }, " to use the file name."];
+			if (err.detail === "sf-version") return ["Use a whole number, like ", { code: "sf-version: 1" }, "."];
+			if (err.detail === "sf-name") return ["Give it a name, or remove ", { code: "sf-name" }, " to use the file name."];
+			return undefined;
 		case "DUPLICATE":
 			return undefined;
 	}

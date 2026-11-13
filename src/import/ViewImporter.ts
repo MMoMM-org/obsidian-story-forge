@@ -79,6 +79,7 @@ export class ViewImporter {
 			throw new ImportError(
 				"INVALID_FRONTMATTER",
 				"sf-version must be an integer",
+				"sf-version",
 			);
 		}
 		// rawVersion is now narrowed to number (integer)
@@ -92,6 +93,7 @@ export class ViewImporter {
 				throw new ImportError(
 					"INVALID_FRONTMATTER",
 					"sf-name must be a non-empty string",
+					"sf-name",
 				);
 			}
 		}
@@ -262,10 +264,10 @@ export class ViewImporter {
 	 */
 	private async _parseBase(file: TFile): Promise<ViewDefinition> {
 		const content = await readNoteContent(this.app, file.path);
-		if (content === null) throw new ImportError("INVALID_BASE", "This .base file could not be found");
+		if (content === null) throw new ImportError("INVALID_BASE", "This .base file could not be found", "base-not-found");
 		const result = validateBasesConfig(this._readYaml(content));
 		if (!result.ok) {
-			throw new ImportError("INVALID_BASE", `This .base file is not a valid Bases file: ${result.error}`);
+			throw new ImportError("INVALID_BASE", `This .base file is not a valid Bases file: ${result.error}`, "base-invalid");
 		}
 		return {
 			sourcePath: file.path,
@@ -283,7 +285,7 @@ export class ViewImporter {
 			return parseYaml(content);
 		} catch (err) {
 			const reason = err instanceof Error ? err.message : String(err);
-			throw new ImportError("INVALID_BASE", `This .base file could not be read: ${reason}`);
+			throw new ImportError("INVALID_BASE", `This .base file could not be read: ${reason}`, "base-unreadable");
 		}
 	}
 

@@ -4,10 +4,10 @@
  *
  * The list | detail browser itself — two panes stacking below about 560px (Q1), search and engine
  * filter above 5 entries (Q2), nothing selected on open (Q3), keyboard and "← All collections" —
- * is `BrowserList`, shared with the vault import modal (L11). Rows carry status text only; the one Install / Update button
- * and its feedback live in the detail pane (Q4). The detail shows the query block only, contained
- * (Q5); source, version and checksum sit in a collapsed Details line (Q6). Search and an engine
- * filter appear above 5 entries (Q2).
+ * is `BrowserList`, shared with the vault import modal (L11). This modal draws the rest: rows carry
+ * status text only, and the one Install / Update button and its feedback live in the detail pane
+ * (Q4). The detail shows the query block only, contained (Q5); source, version and checksum sit in
+ * a collapsed Details line (Q6).
  *
  * Install / update is delegated to CatalogService (checksum, consent, update in place and the
  * refusals all live there; DataviewJS consent is asked inside `install()`). The modal only words
@@ -272,6 +272,11 @@ export class BrowseOfficialModal extends Modal {
 		let result: InstallResult;
 		try {
 			result = await this.service.install(entry.id);
+		} catch (err) {
+			// install() promises never to throw; if it does anyway, report it like any refusal so the
+			// pane is redrawn and the button is usable again (describeRefusal's "Not installed." + raw).
+			console.error(err);
+			result = { ok: false, reason: `unexpected error: ${err instanceof Error ? err.message : String(err)}` };
 		} finally {
 			this.inFlight.delete(entry.id);
 		}
@@ -291,7 +296,8 @@ export class BrowseOfficialModal extends Modal {
 	}
 
 	private _showResult(entry: CatalogEntry, result: InstallResult, update: boolean, path: string): void {
-		const list = this.list!;
+		const list = this.list;
+		if (!list) return;
 		if (result.ok) {
 			const written = result.path ?? path;
 			const text = update ? `Updated ${written}.` : `Installed to ${written}. It is in Library › Collections.`;

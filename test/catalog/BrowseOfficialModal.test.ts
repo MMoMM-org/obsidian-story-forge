@@ -934,4 +934,45 @@ describe("BrowseOfficialModal — L10 catalog browser", () => {
 		await new Promise((r) => setTimeout(r, 0));
 		expect(modal.contentEl.childElementCount).toBe(0);
 	});
+
+	// Review fix 1: a throw never leaves the pane stuck.
+	it("an install that rejects shows the fallback refusal, re-enables the button, and a second click works", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		let calls = 0;
+		const { service } = await openModal([makeEntry()], {
+			install: async () => {
+				calls += 1;
+				if (calls === 1) throw new Error("vault exploded");
+				return { ok: true, path: "Dest Folder/overview-characters.base" };
+			},
+		});
+		rows()[0]!.click();
+		findButton(detail(), "Install")!.click();
+		await vi.waitFor(() => {
+			expect(detail().querySelector(".sf-picker-feedback")).not.toBeNull();
+		});
+		expect(feedback().getAttribute("role")).toBe("alert");
+		expect(feedback().querySelector(".sf-catalog-feedback-text")?.textContent).toBe("Not installed.");
+		expect(feedback().querySelector(".sf-catalog-raw")?.textContent).toBe("unexpected error: vault exploded");
+		expect(errorSpy).toHaveBeenCalled();
+		expect(actionButtons()[0]!.disabled).toBe(false);
+		actionButtons()[0]!.click();
+		await vi.waitFor(() => {
+			expect(feedback().textContent).toBe("Installed to Dest Folder/overview-characters.base. It is in Library › Collections.");
+		});
+		expect(service.install).toHaveBeenCalledTimes(2);
+		errorSpy.mockRestore();
+	});
+
+	it("A1: closing while an install is in flight, then resolving, draws nothing and throws nothing", async () => {
+		const pending = deferred<InstallResult>();
+		const { modal } = await openModal([makeEntry()], { install: () => pending.promise });
+		rows()[0]!.click();
+		findButton(detail(), "Install")!.click();
+		modal.close();
+		pending.resolve({ ok: true, path: "Dest Folder/overview-characters.base" });
+		await new Promise((r) => setTimeout(r, 0));
+		expect(modal.contentEl.childElementCount).toBe(0);
+	});
 });
+

@@ -164,6 +164,25 @@ describe("an import whose query cannot be parsed", () => {
 		expect(consent.requestConsentForDef).not.toHaveBeenCalled();
 	});
 
+	// A3: the fix line is chosen by a distinct `detail`, never by matching the message text.
+	it.each([
+		["unparsable YAML", "views: [unclosed\n", "base-unreadable"],
+		["YAML that is not a Bases file", "title: Organizations\n", "base-invalid"],
+	])("names a .base refusal with %s by its detail (%s)", async (_label, yaml, detail) => {
+		const { app } = makeVault({ [ORGS_BASE]: { content: yaml } });
+		const importer = new ViewImporter(app, makeStore().store);
+		await expect(importer.parse(app.vault.getFileByPath(ORGS_BASE)!)).rejects.toMatchObject({ code: "INVALID_BASE", detail });
+	});
+
+	it("names a .base that disappeared by its detail (base-not-found)", async () => {
+		const { app } = makeVault({ [ORGS_BASE]: { content: ORGS_YAML } });
+		const file = app.vault.getFileByPath(ORGS_BASE)!;
+		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(null);
+		vi.mocked(app.vault.getFileByPath).mockReturnValue(null);
+		await expect(new ViewImporter(app, makeStore().store).parse(file))
+			.rejects.toMatchObject({ code: "INVALID_BASE", detail: "base-not-found", message: "This .base file could not be found" });
+	});
+
 	it("refuses a Dataview note with two query blocks, saying so in collection terms", async () => {
 		const note = viewNote("dataview", "LIST\n");
 		note.content += "\n```dataview\nTABLE file.name\n```\n";

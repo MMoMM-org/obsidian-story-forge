@@ -279,6 +279,7 @@ describe("ViewImporter.parse()", () => {
 
 		await expect(importer.parse(file)).rejects.toMatchObject({
 			code: "INVALID_FRONTMATTER",
+			detail: "sf-version",
 		});
 	});
 
@@ -300,6 +301,7 @@ describe("ViewImporter.parse()", () => {
 
 		await expect(importer.parse(file)).rejects.toMatchObject({
 			code: "INVALID_FRONTMATTER",
+			detail: "sf-version",
 		});
 	});
 
@@ -321,6 +323,7 @@ describe("ViewImporter.parse()", () => {
 
 		await expect(importer.parse(file)).rejects.toMatchObject({
 			code: "INVALID_FRONTMATTER",
+			detail: "sf-version",
 		});
 	});
 
@@ -346,6 +349,7 @@ describe("ViewImporter.parse()", () => {
 
 		await expect(importer.parse(file)).rejects.toMatchObject({
 			code: "INVALID_FRONTMATTER",
+			detail: "sf-name",
 		});
 	});
 
