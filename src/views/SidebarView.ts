@@ -1817,16 +1817,17 @@ export class SidebarView extends ItemView {
 	// ---------------------------------------------------------------------------
 
 	/**
-	 * S11 — Engine missing or platform restriction.
-	 * Matches kind-specific copy: dataview-* shows "Dataview not installed";
-	 * "bases" shows the S46 warn+point degrade (ADR-8, F5).
+	 * S11 — Engine missing or platform restriction. A cause, never an action (ADR-36, PRD F8 AC 5):
+	 * dataview-* shows "Needs Dataview" / "This collection needs Dataview, which is not active."
+	 * (T7.4 S5); "bases" says Bases is off and falls back to a read-only list (S46, ADR-8, F5),
+	 * with no Enable button since T7.4 S2.
 	 */
 	private _renderEngineMissing(body: AugEl, kind: ViewRecord["engine"]): void {
 		const empty = body.createDiv({ cls: "sf-engine-missing sf-empty" });
 		empty.createDiv({ cls: "sf-empty-ic", text: "⚙" });
 		if (kind === "bases") {
 			if (Platform.isMobile) {
-				// Mobile: core Bases can't be toggled from mobile — omit the Enable button.
+				// Mobile: core Bases isn't available on this device — say so, and fall back.
 				empty.createDiv({ cls: "sf-empty-lead", text: "⚙ Bases isn't available on this device" });
 				empty.createDiv({
 					text: "The full grid needs the core Bases plugin, which is not available on mobile. Falling back to a read-only list from metadata.",

@@ -129,7 +129,12 @@ describe("main.ts — the Library link (S1, P14)", () => {
 		const blob = { data: {} as StoryForgeData };
 		const { plugin } = await makePlugin(blob);
 		await plugin.onload();
-		const deps = settingsTabArgs.calls.at(-1)?.[8] as { openCapabilities: () => void };
+		// The LibraryDeps argument, found by its shape rather than its position.
+		const deps = settingsTabArgs.calls.at(-1)?.find(
+			(arg): arg is { openCapabilities: () => void } =>
+				typeof arg === "object" && arg !== null && "openCapabilities" in arg,
+		);
+		if (!deps) throw new Error("no LibraryDeps argument with openCapabilities");
 		deps.openCapabilities();
 		expect(screen()?.querySelector("h2")?.textContent).toBe("What optional plugins add");
 		expect(Array.from(screen()!.querySelectorAll(".sf-picker-foot button")).map((b) => b.textContent)).toEqual(["Close"]);
