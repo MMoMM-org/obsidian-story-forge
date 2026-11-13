@@ -96,13 +96,21 @@ describe("(a) installing a curated .base", () => {
 });
 
 describe("(b) nothing regenerates a curated .base", () => {
-	it("makes no vault write when Library or Scope settings change after the install", async () => {
+	// Regression tripwire: no code path from the Library or Scope reaches the vault today. If a
+	// regeneration path is ever added back, this fails before it can overwrite a curated file.
+	it("tripwire: a Library or Scope change after the install touches no vault file", async () => {
 		const { app } = makeVault();
 		const { store, views } = makeStore();
 		const e = await entry();
 		await service(app, store, e).install(e.id);
 		const id = Object.keys(views())[0]!;
-		const writes = (): number[] => [app.vault.adapter.write, app.vault.modify, app.vault.create, app.vault.process].map((f) => vi.mocked(f).mock.calls.length);
+		const a = app.vault.adapter;
+		const mutators = [
+			a.write, a.writeBinary, a.append, a.appendBinary, a.process, a.mkdir, a.trashSystem, a.trashLocal,
+			a.rmdir, a.remove, a.rename, a.copy, app.vault.modify, app.vault.create, app.vault.process,
+			app.vault.delete, app.vault.trash,
+		];
+		const writes = (): number[] => mutators.map((f) => vi.mocked(f).mock.calls.length);
 		const before = writes();
 
 		const plugin = { settings: { ...DEFAULT_SETTINGS } as PluginSettings, saveSettings: vi.fn(async () => {}) };

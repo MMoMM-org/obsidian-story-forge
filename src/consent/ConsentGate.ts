@@ -67,7 +67,8 @@ export interface DvSettingsReader {
 
 /**
  * Reads the CURRENT upstream/template checksum for a generated collection
- * record (T3.4 / ADR-0003). A seam: `ConsentGate` must not import the
+ * record (T3.4 / ADR-0003). Since T7.3 only pre-T7.3 records reach it, and
+ * main.ts always answers null. A seam: `ConsentGate` must not import the
  * catalog, so the caller (main.ts) supplies whatever knows how to look this
  * up. Returns null when the upstream cannot be determined — e.g. the entry
  * is no longer in the catalog — which `_evaluateGeneratedCollection` treats
@@ -78,9 +79,10 @@ export type GetCurrentSourceChecksum = (
 ) => Promise<string | null>;
 
 /**
- * Reads the CURRENT settings-backed params (tag, excluded folders) a
- * generated collection would be rendered with (T3.4 / ADR-0003). Injected so
- * `ConsentGate` does not read `PluginSettings` directly.
+ * Reads the params (tag, excluded folders) a generated collection would be
+ * rendered with (T3.4 / ADR-0003). Injected so `ConsentGate` does not read
+ * `PluginSettings` directly. Since T7.3 main.ts passes the empty params
+ * pre-T7.3 records were installed with (`legacyGeneratedParams`).
  */
 export type GetCurrentParams = () => CollectionParams;
 
@@ -101,12 +103,10 @@ export class ConsentGate {
 		private readonly dvSettings: DvSettingsReader,
 		private readonly store: ViewStore,
 		// Required (T3.4): only consulted from the record.generated branch
-		// below, but a forgotten seam here compiles silently and evaluate()
-		// then behaves as if upstream is unknowable and params are empty —
-		// exactly the drift ADR-0003 exists to prevent once T7.3 wires
-		// regeneration to the same classify() outcome. Every caller must
-		// supply real behavior; main.ts's placeholders are explicit `async ()
-		// => null` / `() => collectionParams`, not silent defaults.
+		// below, which serves records installed before T7.3 alone — a curated
+		// install no longer writes `generated` (T7.3, reduced). main.ts passes
+		// `async () => null` and `() => legacyGeneratedParams` (empty params),
+		// the values those records were installed with; nothing regenerates.
 		private readonly getCurrentSourceChecksum: GetCurrentSourceChecksum,
 		private readonly getCurrentParams: GetCurrentParams,
 	) {}
@@ -424,6 +424,11 @@ export class ConsentGate {
 	 *                    without a signed-off mockup for it.
 	 *   - `reconsent`  → drift (checksum). The upstream template changed —
 	 *                    routes through the existing re-consent flow.
+	 *
+	 * Since T7.3 (reduced) this branch serves only records installed before T7.3,
+	 * and with main.ts's seams (`async () => null`, `legacyGeneratedParams`) the
+	 * `reconsent` and `regenerate` outcomes are inert in production: they are
+	 * reachable only from unit tests over synthetic inputs.
 	 *
 	 * `getCurrentSourceChecksum` returning null means the upstream is unknown
 	 * (e.g. the entry is no longer in the catalog) — treated as "cannot tell,

@@ -105,6 +105,15 @@ function readSchemas(): Array<{ tag: string; fields: Array<{ name: string }> }> 
 		.map((f) => JSON.parse(readFileSync(join(REPO_ROOT, "schema", f), "utf8")) as { tag: string; fields: Array<{ name: string }> });
 }
 
+/*
+ * Limits of the shipped-.base schema check below (filterTerms / propertiesNamed), so a pass is
+ * not read as more than it is:
+ *  - only the first argument of each `file.hasTag(...)` is checked;
+ *  - property references inside filter expressions (e.g. `status == "alive"`) are not checked;
+ *  - a folder test written as `file.folder ==` is not detected, only `file.inFolder(`;
+ *  - the declared fields are the union over every schema the .base selects by tag.
+ */
+
 /** Every filter expression in a .base: the tags it selects, and whether any folder test is outside a `not:`. */
 function filterTerms(config: unknown): { tags: string[]; includesFolder: boolean } {
 	const tags: string[] = [];

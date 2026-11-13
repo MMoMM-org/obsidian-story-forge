@@ -591,6 +591,15 @@ export class App {
 			stat: vi.fn(async () => null),
 			rename: vi.fn(),
 			remove: vi.fn(),
+			// The rest of obsidian.d.ts DataAdapter's mutators, so a test can prove none ran.
+			writeBinary: vi.fn(),
+			append: vi.fn(),
+			appendBinary: vi.fn(),
+			process: vi.fn(),
+			trashSystem: vi.fn(),
+			trashLocal: vi.fn(),
+			rmdir: vi.fn(),
+			copy: vi.fn(),
 		},
 		configDir: ".obsidian",
 		/** Live registrations (event → callbacks), like `metadataCache`'s. Cleared by off(). */

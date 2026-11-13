@@ -165,7 +165,7 @@ function renderFile(panel: HTMLElement, m: RowModel, h: PanelHost, label: string
 	actionButton(cell, "Open file", `open:${m.c.id}`, () => { void h.app.workspace.openLinkText(source, "", true); });
 }
 
-/** The generated template's parameters, shown read-only: changing them regenerates the file (T7.3). */
+/** Legacy generated records only: shown read-only; nothing regenerates the file. */
 function renderParams(panel: HTMLElement, record: ViewRecord): void {
 	const params = record.generated?.params;
 	if (!params) return;

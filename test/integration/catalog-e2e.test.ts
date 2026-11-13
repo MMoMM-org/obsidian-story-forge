@@ -64,7 +64,6 @@ const requestUrlSpy = vi.fn(() => {
 const BASE_YAML =
 	'filters: file.hasTag("test")\nviews:\n  - type: table\n    name: Test View\n';
 
-
 async function makeEntry(overrides: Partial<BasesCatalogEntry> = {}): Promise<BasesCatalogEntry> {
 	const source = overrides.source ?? BASE_YAML;
 	const checksum =
