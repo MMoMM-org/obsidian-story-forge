@@ -366,3 +366,27 @@ describe("XSS safety", () => {
 		await promise;
 	});
 });
+
+describe("DisclosureModal — collection wording", () => {
+	afterEach(() => {
+		document.body.innerHTML = "";
+	});
+
+	it("says collection, not view, in the warning and the drift banner", async () => {
+		const app = makeAppWithFile("views/my-view.md", DV_JS_CONTENT);
+		const { store } = makeStore();
+		const gate = new ConsentGate(app, makeRegistry(), makeDvSettings(true), store, ...inertConsentGateSeams());
+		const record = makeRecord({ engine: "dataviewjs", okayed: { version: 1, checksum: "sha256:" + "0".repeat(64) } });
+
+		const promise = gate.requestReConsent("id-1", record);
+		await waitForButton("Cancel");
+
+		const text = document.body.textContent ?? "";
+		expect(text).toContain(
+			"This collection runs JavaScript with full vault access. Only enable collections whose source you have read and trust.",
+		);
+		expect(text).toContain("Query changed since you last enabled this collection.");
+		findButton(document.body, "Cancel")?.click();
+		await promise;
+	});
+});

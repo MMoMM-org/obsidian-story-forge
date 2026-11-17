@@ -1,7 +1,7 @@
 {
 	"name": "story-forge",
 	"version": "0.2.0",
-	"description": "Property-driven reference panels that follow the active note, showing linked story entities and their fields in the sidebar.",
+	"description": "Shows your story's entities from frontmatter: browse and edit them in the Anvil, and see the ones linked from the active note in the Workbench.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

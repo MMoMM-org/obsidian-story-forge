@@ -157,7 +157,7 @@ export class ImportPickerModal extends Modal {
 			const def = await this.importer.parse(file);
 			return { kind: "ok", file, path: file.path, name: def.name, description: def.description, engine: def.engine, def };
 		} catch (err) {
-			console.debug("Story Forge: could not parse view candidate", file.path, err);
+			console.debug("[StoryForge] could not parse collection candidate", file.path, err);
 			const engine = file.extension === BASE_EXTENSION ? "bases" : undefined;
 			return { kind: "failed", file, path: file.path, name: file.basename, engine, problem: { ...refusalFor(err, file.path), role: "note" } };
 		}

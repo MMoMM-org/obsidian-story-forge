@@ -108,7 +108,7 @@ export class DisclosureModal extends Modal {
 		if (this._info.isDrift) {
 			const banner = body.createDiv({ cls: "sf-drift-banner" });
 			banner.textContent =
-				"⚠ Query changed since you last enabled this view. Review the new source before re-enabling.";
+				"⚠ Query changed since you last enabled this collection. Review the new source before re-enabling.";
 		}
 
 		// Source label + engine badge
@@ -131,7 +131,7 @@ export class DisclosureModal extends Modal {
 		// Security warning
 		const warn = body.createEl("div", { cls: "sf-security-warn" });
 		warn.textContent =
-			"⚠ This view runs JavaScript with full vault access. Only enable views whose source you have read and trust. You will be re-prompted if the code changes.";
+			"⚠ This collection runs JavaScript with full vault access. Only enable collections whose source you have read and trust. You will be re-prompted if the code changes.";
 	}
 
 	// -------------------------------------------------------------------------

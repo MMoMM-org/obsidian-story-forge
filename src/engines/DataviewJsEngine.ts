@@ -43,7 +43,8 @@ export class DataviewJsEngine implements QueryEngine {
 		// the engine must be independently safe — CON-7 / ADR-4)
 		if (Platform.isMobile) {
 			el.createEl("p", {
-				text: "This view type is not available on mobile",
+				// eslint-disable-next-line obsidianmd/ui/sentence-case -- "DataviewJS" is a product name
+				text: "DataviewJS collections are not available on mobile.",
 				cls: "sf-platform-restriction",
 			});
 			return;
@@ -68,7 +69,7 @@ export class DataviewJsEngine implements QueryEngine {
 		// Read the query text fresh from the view-definition note (ADR-3)
 		const block = await readFencedBlock(this.app, view.source);
 		if (block === null) {
-			el.createEl("p", { text: "View source missing or unreadable", cls: "sf-source-missing" });
+			el.createEl("p", { text: "Collection source missing or unreadable", cls: "sf-source-missing" });
 			return;
 		}
 

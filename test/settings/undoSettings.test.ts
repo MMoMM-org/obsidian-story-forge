@@ -68,7 +68,7 @@ describe("SettingsTab — Undo history section", () => {
 		const root = await render(makeTab().tab);
 		expect(row(root, KEEP).textContent).toContain(
 			"Stores the undo history in the plugin folder so you can still undo after restarting Obsidian. " +
-			"It holds copies of field values from your notes and stays on this device. Turning this off deletes the stored history.",
+			"It holds copies of field values from your notes and is meant to stay on this device; Obsidian Sync is not expected to transfer it, but this is not verified. Turning this off deletes the stored history.",
 		);
 		expect(row(root, CLEAR).textContent).toContain(
 			"Empties undo and redo and deletes the stored history. Your notes are not changed.",

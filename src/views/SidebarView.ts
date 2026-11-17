@@ -27,7 +27,7 @@ import {
 import { SIDEBAR_VIEW_TYPE, NAVIGATOR_TAB_ID, ICON, DEBOUNCE_MS } from "pluginConstants";
 import { ScopingService } from "scoping/ScopingService";
 import { resolveWorkspaceScope, DEFAULT_EXCLUDED_FOLDERS } from "scoping/workspaceScope";
-import type { NoteContext, EntityKind } from "scoping/NoteContext";
+import { TRACKED_ENTITY_KINDS, type NoteContext, type EntityKind } from "scoping/NoteContext";
 import { CollapseStore } from "workspace/collapseStore";
 import { mapSceneRow } from "workspace/sceneMapper";
 import {
@@ -112,6 +112,11 @@ type AugEl = HTMLElement & {
 	): HTMLElementTagNameMap[K];
 	empty(): void;
 };
+
+/** "a, b, or c" — the empty state names the kinds the classifier tracks. */
+function listKinds(kinds: readonly string[]): string {
+	return `${kinds.slice(0, -1).join(", ")}, or ${kinds[kinds.length - 1]}`;
+}
 
 function aug(el: HTMLElement): AugEl {
 	// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -1498,7 +1503,7 @@ export class SidebarView extends ItemView {
 			const empty = body.createDiv({ cls: "sf-empty" });
 			empty.createDiv({ cls: "sf-empty-ic", text: "◌" });
 			empty.createDiv({
-				text: "This note isn't a tracked character, location, scene, object, lore, or plotline.",
+				text: `This note isn't a tracked ${listKinds(TRACKED_ENTITY_KINDS)}.`,
 			});
 		} else if (state.kind === "resolving") {
 			// S5: resolving (skeleton)
@@ -1736,7 +1741,7 @@ export class SidebarView extends ItemView {
 
 			case "platform-restricted":
 				this._prepareBody(body);
-				this._renderPlatformRestriction(body);       // S11 variant
+				this._renderPlatformRestriction(body, view);       // S11 variant
 				break;
 
 			case "engine-missing":
@@ -1855,10 +1860,10 @@ export class SidebarView extends ItemView {
 	 */
 	private _renderConsentRequired(body: AugEl, view: ViewRecord): void {
 		const block = aug(body.appendChild(consentBoxShell(false)));
-		block.createDiv({ cls: "sf-cta-title", text: "Review & Enable" });
+		block.createDiv({ cls: "sf-cta-title", text: "Review and enable" });
 		block.createDiv({
 			cls: "sf-cta-body",
-			text: "This view runs DataviewJS — arbitrary JavaScript with full vault access. The code is not running yet.",
+			text: "This collection runs DataviewJS — arbitrary JavaScript with full vault access. The code is not running yet.",
 		});
 		block.createDiv({
 			cls: "sf-cta-warn",
@@ -1869,7 +1874,7 @@ export class SidebarView extends ItemView {
 		const gate = this.consentGate;
 		const id = this.selectedViewId;
 		if (gate && id) {
-			block.appendChild(consentButton("Review & Enable", () => { void gate.requestConsent(id, view); }));
+			block.appendChild(consentButton("Review and enable", () => { void gate.requestConsent(id, view); }));
 		}
 	}
 
@@ -1894,20 +1899,20 @@ export class SidebarView extends ItemView {
 		});
 		errbox.createDiv({
 			cls: "sf-hint",
-			text: "Enable DataviewJS in the Dataview plugin settings to run this view.",
+			text: "Enable DataviewJS in the Dataview plugin settings to run this collection.",
 		});
 	}
 
 	/**
-	 * S16 — View disabled (kill-switch active).
+	 * S16 — Collection disabled (kill-switch active).
 	 */
 	private _renderDisabled(body: AugEl): void {
 		const empty = body.createDiv({ cls: "sf-disabled sf-empty" });
 		empty.createDiv({ cls: "sf-empty-ic", text: "○" });
-		empty.createDiv({ cls: "sf-empty-lead", text: "View disabled" });
+		empty.createDiv({ cls: "sf-empty-lead", text: "Collection disabled" });
 		empty.createDiv({
 			cls: "sf-hint",
-			text: "Enable this view in settings to run it.",
+			text: "Enable this collection in settings to run it.",
 		});
 	}
 
@@ -1917,7 +1922,7 @@ export class SidebarView extends ItemView {
 	 */
 	private _renderReconsentRequired(body: AugEl, view: ViewRecord): void {
 		const banner = aug(body.appendChild(consentBoxShell(true)));
-		banner.createDiv({ text: "Query changed since you last enabled this view." });
+		banner.createDiv({ text: "Query changed since you last enabled this collection." });
 		banner.createDiv({
 			cls: "sf-hint",
 			text: "The code is paused until you re-review it.",
@@ -1939,19 +1944,19 @@ export class SidebarView extends ItemView {
 		errbox.createDiv({ text: "⚠ Query render failed." });
 		errbox.createDiv({
 			cls: "sf-hint",
-			text: "The engine encountered an error. Check the view source and try again.",
+			text: "The engine encountered an error. Check the collection source and try again.",
 		});
 	}
 
 	/**
 	 * S11 variant — Platform restriction (DataviewJS on mobile).
 	 */
-	private _renderPlatformRestriction(body: AugEl): void {
+	private _renderPlatformRestriction(body: AugEl, view: ViewRecord): void {
 		const empty = body.createDiv({ cls: "sf-platform-restricted sf-empty" });
 		empty.createDiv({ cls: "sf-empty-ic", text: "⚙" });
 		empty.createDiv({ cls: "sf-empty-lead", text: "Not available on mobile" });
 		empty.createDiv({
-			text: "DataviewJS views are not available on mobile devices.",
+			text: `${ENGINE_LABEL[view.engine]} collections are not available on mobile devices.`,
 		});
 	}
 

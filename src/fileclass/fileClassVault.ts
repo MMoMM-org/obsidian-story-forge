@@ -142,7 +142,7 @@ function runListeners(listeners: ReadonlySet<() => void>): void {
 		try {
 			listener();
 		} catch (error) {
-			console.error("Story Forge: a FileClass subscriber failed", error);
+			console.error("[StoryForge] a FileClass subscriber failed", error);
 		}
 	}
 }

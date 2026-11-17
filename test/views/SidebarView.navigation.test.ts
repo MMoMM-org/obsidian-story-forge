@@ -364,7 +364,7 @@ describe("SidebarView: drill-in navigation", () => {
 		const badge = view.contentEl.querySelector(".sf-badge");
 		expect(badge?.textContent).toBe("not an entity");
 		expect(body.textContent).toContain(
-			"This note isn't a tracked character, location, scene, object, lore, or plotline.",
+			"This note isn't a tracked character, location, object, lore, scene, plotline, or book.",
 		);
 	});
 

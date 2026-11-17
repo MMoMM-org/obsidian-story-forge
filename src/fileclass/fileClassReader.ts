@@ -96,7 +96,7 @@ function warnOnce(name: string, record: Record<string, unknown> | undefined, why
 	const key = `${name}\u0000${JSON.stringify(record ?? null)}`;
 	if (reported.has(key)) return;
 	reported.add(key);
-	console.warn(`Story Forge: FileClass "${name}" ${why}; skipped.`);
+	console.warn(`[StoryForge] FileClass "${name}" ${why}; skipped.`);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

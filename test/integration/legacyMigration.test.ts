@@ -11,7 +11,7 @@
  * Asserted:
  *   1. every legacy record becomes a working collection where P2/D2 put it: a Workbench tab, not an
  *      Anvil pill, whose query reaches Dataview when the tab is opened;
- *   2. no consent prompt: no DisclosureModal, no S12 "Review & Enable" box, no S17 re-review banner.
+ *   2. no consent prompt: no DisclosureModal, no S12 "Review and enable" box, no S17 re-review banner.
  *      The DataviewJS record keeps the approval it had before the upgrade;
  *   3. not one vault mutator runs — every Vault, DataAdapter and FileManager writer obsidian.d.ts
  *      declares is a spy and none is called;
