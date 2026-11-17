@@ -58,7 +58,7 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   5. Success:
      - [x] Independence is proven by test, not asserted `[ref: PRD/Success Metrics]`
 
-- [ ] **T8.3 Migration from a real legacy install** `[activity: integration]`
+- [x] **T8.3 Migration from a real legacy install** `[activity: integration]`
 
   1. Prime: `[ref: SDD/ADR-29]`; the fixture captured in T3.2.
   2. Test: a `data.json` captured from the **current** release migrates silently — collections keep
@@ -70,7 +70,7 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   3. Implement: the end-to-end migration test.
   4. Validate: green; lint; types.
   5. Success:
-     - [ ] An existing user upgrades without losing anything `[ref: SDD/ADR-29]`
+     - [x] An existing user upgrades without losing anything, apart from the accepted gap: a 0.2.0 catalog-installed `.base` record is not migrated (README decision log, 2026-11-17) `[ref: SDD/ADR-29]`
 
 - [ ] **T8.4 Non-regression of the moved surfaces** `[activity: validate]`
 
