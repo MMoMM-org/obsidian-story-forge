@@ -101,6 +101,27 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
 
 ---
 
+## Decisions taken during implementation
+
+- **T8.1** The extension is demonstrated with no production change:
+  `git diff --name-only 918069d -- src styles.css infra` is empty. The fixtures sit in
+  `test/fixtures/extension/` at the paths they would have in a vault: `fc-organization.md` (title
+  "Organization profile", claimed by `tagNames: canon/organization`, a four-value `Select`, a
+  `Number`), an `Organizations.base` that filters with `file.hasTag("canon/organization")`, and two
+  organization notes. `test/integration/demonstrated-extension.test.ts` reads them off disk and
+  loads the real plugin, with no module of ours mocked. It then imports the file through Settings ›
+  Library › "+ Import from vault…", and goes from the Anvil pill to the editor to a commit.
+  **The jsdom boundary is Bases itself.** The test asserts the fence the plugin hands to
+  `MarkdownRenderer.render`: the user's tag filter, drawn as `story-forge-hero`. It then stands in
+  for Bases in one place only: it builds the view the plugin registered for `story-forge-hero` in
+  the container the plugin rendered into, and gives it the notes that carry the fence's tag.
+  Evaluating `file.hasTag` is the only step the test does on Bases' behalf. The `extends` chain is
+  not used: a standalone FileClass is the stricter case, because nothing it shows can come from a
+  generated FileClass. Mutation-checked against 6 fixture and 10 production mutations, all killed.
+  The "isekai case works without a release" box stays unticked until the live walk (T8.5).
+
+---
+
 ## Deviation Log
 
 *Record any deviation from PRD or SDD discovered during implementation, with rationale and approval,

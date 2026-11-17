@@ -1,0 +1,7 @@
+filters: file.hasTag("canon/organization")
+views:
+  - type: cards
+    name: Organizations
+    order:
+      - file.name
+      - standing
