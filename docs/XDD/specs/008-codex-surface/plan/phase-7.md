@@ -763,3 +763,10 @@ Closes the gap that started this whole spec: the distribution machinery served f
   - *Tests that changed because the behaviour did.* Three test files' `bases/BasesAdapter` mocks gained
     `getBasesCapability` (the screen reads it when the first view opens); the spec-009 end-to-end undo test seeds the
     screen as already dismissed, since its first-run modal takes focus and that test asserts focus.
+  - *Live-test fix: a restored view counts as opened* (coordinator's decision, undrawn case, 2026-11-17). Obsidian
+    restores an Anvil or a Workbench leaf before `layoutReady`, so its `onOpen` was skipped by design, and clicking a
+    restored tab never runs `onOpen` again: with a restored view (almost every real vault) the screen never appeared.
+    `main.ts` now also calls the trigger from `workspace.onLayoutReady` when `getLeavesOfType` finds at least one
+    Anvil or Workbench leaf (popout windows included). The once-per-session and dismissed guards are unchanged, so it
+    still opens at most once; a vault with neither view open at layout ready gets it on the first open, as before.
+    `main.commands.test.ts`'s stale-command test now counts `getLeavesOfType` from the command on (onload reads it).

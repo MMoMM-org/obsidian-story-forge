@@ -10,6 +10,7 @@
 import type { App } from "obsidian";
 import type { BasesCapability } from "bases/basesCapability";
 import { getDataviewApi, getDvSettings } from "engines/EngineRegistry";
+import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import { CapabilitiesModal } from "library/CapabilitiesModal";
 import type { CapabilityFacts } from "library/capabilityReport";
 import { CAPABILITIES_HINT_ID, createCapabilitiesTrigger } from "library/capabilitiesTrigger";
@@ -30,6 +31,13 @@ export interface CapabilitiesWiring {
 	openFromSettings: () => void;
 	/** Each view's `onOpened`: the first-run screen, once. */
 	onViewOpened: () => void;
+	/**
+	 * For `workspace.onLayoutReady`: Obsidian restores an Anvil or a Workbench before layout is ready,
+	 * so its `onOpen` is skipped (not at plugin load), and clicking a restored tab never runs `onOpen`
+	 * again. A view restored at startup counts as opened: if one exists (popout windows included),
+	 * the first-run screen opens now, under the same once-per-session and dismissed guards.
+	 */
+	onLayoutReady: () => void;
 }
 
 export function wireCapabilities(d: CapabilitiesWiringDeps): CapabilitiesWiring {
@@ -45,12 +53,16 @@ export function wireCapabilities(d: CapabilitiesWiringDeps): CapabilitiesWiring 
 			...(mode === "first-run" ? { onDismiss: () => d.dismissHint(CAPABILITIES_HINT_ID) } : {}),
 		}).open();
 	};
+	const onViewOpened = createCapabilitiesTrigger({
+		isLayoutReady: () => d.app.workspace.layoutReady,
+		isDismissed: () => d.getDismissedHints().includes(CAPABILITIES_HINT_ID),
+		open: () => open("first-run"),
+	});
+	const restoredView = (): boolean =>
+		[WORKSPACE_VIEW_TYPE, SIDEBAR_VIEW_TYPE].some((type) => d.app.workspace.getLeavesOfType(type).length > 0);
 	return {
 		openFromSettings: () => open("settings"),
-		onViewOpened: createCapabilitiesTrigger({
-			isLayoutReady: () => d.app.workspace.layoutReady,
-			isDismissed: () => d.getDismissedHints().includes(CAPABILITIES_HINT_ID),
-			open: () => open("first-run"),
-		}),
+		onViewOpened,
+		onLayoutReady: () => { if (restoredView()) onViewOpened(); },
 	};
 }

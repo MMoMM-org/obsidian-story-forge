@@ -247,6 +247,10 @@ describe("StoryForgePlugin — stale-command fail-safe", () => {
 		p._registerViewCommand("gone", "Gone View");
 		expect(captured).toBeDefined();
 
+		// onload reads the leaves once (T7.4: a restored Anvil/Workbench counts as opened); what this
+		// test pins is that the COMMAND activates nothing, so count from here.
+		vi.mocked(plugin.app.workspace.getLeavesOfType).mockClear();
+
 		// Invoke the palette command for a view that no longer exists.
 		captured!();
 		await vi.waitFor(() => {

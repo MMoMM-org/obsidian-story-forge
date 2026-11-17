@@ -101,6 +101,73 @@ describe("main.ts — the capability screen's first run (S1)", () => {
 		await unload(second.plugin);
 	});
 
+	// Live-test bug (T7.4): Obsidian restores the Anvil and the Workbench before layoutReady, so
+	// their onOpen is skipped by design, and clicking a restored tab never runs onOpen again. A view
+	// restored at startup counts as opened: the screen opens once when the layout is ready.
+	it("opens exactly once at layout ready when an Anvil and a Workbench were restored before it", async () => {
+		const blob = { data: {} as StoryForgeData };
+		const { plugin, app } = await makePlugin(blob);
+		app.workspace.layoutReady = false;
+		app.workspace._deferLayoutReady = true;
+		await plugin.onload();
+		await openView(plugin, app, WORKSPACE_VIEW_TYPE);
+		await openView(plugin, app, SIDEBAR_VIEW_TYPE);
+		expect(screen()).toBeNull();
+
+		vi.mocked(app.workspace.getLeavesOfType).mockImplementation((type: string) =>
+			type === WORKSPACE_VIEW_TYPE || type === SIDEBAR_VIEW_TYPE ? [new WorkspaceLeaf()] : []);
+		app.workspace.layoutReady = true;
+		app.workspace._flushLayoutReady();
+
+		expect(document.body.querySelectorAll(".sf-cap-modal")).toHaveLength(1);
+		// Once per session: opening a view afterwards does not open a second one.
+		await openView(plugin, app, WORKSPACE_VIEW_TYPE);
+		expect(document.body.querySelectorAll(".sf-cap-modal")).toHaveLength(1);
+		footButton("Got it").click();
+		await vi.waitFor(() => expect(blob.data.settings?.dismissedHints).toContain(CAPABILITIES_HINT_ID));
+		await unload(plugin);
+	});
+
+	it.each([
+		["the Anvil only", [WORKSPACE_VIEW_TYPE]],
+		["the Workbench only", [SIDEBAR_VIEW_TYPE]],
+	])("one restored view is enough: %s", async (_label, types) => {
+		const { plugin, app } = await makePlugin({ data: {} as StoryForgeData });
+		app.workspace.layoutReady = false;
+		app.workspace._deferLayoutReady = true;
+		await plugin.onload();
+		vi.mocked(app.workspace.getLeavesOfType).mockImplementation((type: string) =>
+			(types as string[]).includes(type) ? [new WorkspaceLeaf()] : []);
+		app.workspace.layoutReady = true;
+		app.workspace._flushLayoutReady();
+		expect(screen()).not.toBeNull();
+		await unload(plugin);
+	});
+
+	it("a vault with no Anvil or Workbench leaf at layout ready does not open it", async () => {
+		const { plugin, app } = await makePlugin({ data: {} as StoryForgeData });
+		app.workspace.layoutReady = false;
+		app.workspace._deferLayoutReady = true;
+		await plugin.onload();
+		vi.mocked(app.workspace.getLeavesOfType).mockReturnValue([]);
+		app.workspace.layoutReady = true;
+		app.workspace._flushLayoutReady();
+		expect(screen()).toBeNull();
+		await unload(plugin);
+	});
+
+	it("a restored view does not reopen it once dismissed", async () => {
+		const { plugin, app } = await makePlugin({ data: { settings: { dismissedHints: [CAPABILITIES_HINT_ID] } } as unknown as StoryForgeData });
+		app.workspace.layoutReady = false;
+		app.workspace._deferLayoutReady = true;
+		await plugin.onload();
+		vi.mocked(app.workspace.getLeavesOfType).mockReturnValue([new WorkspaceLeaf()]);
+		app.workspace.layoutReady = true;
+		app.workspace._flushLayoutReady();
+		expect(screen()).toBeNull();
+		await unload(plugin);
+	});
+
 	it("does not open for a view restored while the layout is still loading", async () => {
 		const { plugin, app } = await makePlugin({ data: {} as StoryForgeData });
 		await plugin.onload();
