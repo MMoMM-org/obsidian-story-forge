@@ -6,7 +6,8 @@
 |-------|-------|
 | **Created** | 2026-07-27 |
 | **Current Phase** | Ready |
-| **Last Updated** | 2026-11-17 | **The DQL light confirm (S21) is removed; the consent modal is DataviewJS-only** | Consequence of the user decision "a DQL collection never drifts" (and R1): nothing reached S21 any more. `DisclosureModal` loses its variant parameter and the S21 copy; every ConsentGate consent request for a non-DataviewJS record opens nothing and grants nothing (2d20403; comment/test tidy e07253e). S21 was a signed-off state; its removal follows from the user's decisions, not a silent deviation. |
+| **Last Updated** | 2026-11-17 | **T8.3: the legacy `.base` migration descope is re-confirmed** (user) | The T8.3 probe showed that a catalog-installed `.base` record from 0.2.0 (no `kind`, YAML in `source`) stays `kind:"view"` and appears on no surface after the upgrade; its vault file and its `data.json` entry are untouched. This is the migration ADR-29 withdrew on 2026-08-02 because no such record exists in any vault; the user re-confirmed that. T8.3 drops the clause "a hand-edited `.base` adopts its content as the baseline" and records the gap as accepted; such a file can be re-added by hand through "+ Import from vault…". T8.3 proves the real 0.2.0 records (DQL, DataviewJS) migrate silently, keep their consent and are idempotent. |
+| 2026-11-17 | **The DQL light confirm (S21) is removed; the consent modal is DataviewJS-only** | Consequence of the user decision "a DQL collection never drifts" (and R1): nothing reached S21 any more. `DisclosureModal` loses its variant parameter and the S21 copy; every ConsentGate consent request for a non-DataviewJS record opens nothing and grants nothing (2d20403; comment/test tidy e07253e). S21 was a signed-off state; its removal follows from the user's decisions, not a silent deviation. |
 | 2026-11-17 |
 
 ## Documents
