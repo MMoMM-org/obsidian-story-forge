@@ -11,7 +11,7 @@
  * A `data.json` written by the PREVIOUS release has none of the new fields
  * and may carry the removed one. It must still load without loss or crash.
  *
- * Fixture A mirrors test/StoryForge/.obsidian/plugins/story-forge/data.json
+ * Fixture A (test/fixtures/legacy/dataJson.ts) mirrors the test vault's data.json
  * verbatim (no `settings` key at all — the real deployed shape). Fixture B
  * models an older install whose settings blob still carries the deleted
  * `exampleSetting`.
@@ -26,55 +26,11 @@ import { App } from "obsidian";
 import { ViewStore } from "store/ViewStore";
 import type { PluginDataPort } from "store/types";
 import { DEFAULT_SETTINGS } from "types/index";
+import { FIXTURE_LEGACY_SETTINGS, FIXTURE_NO_SETTINGS, LEGACY_VIEWS_RAW } from "../fixtures/legacy/dataJson";
 
 // ---------------------------------------------------------------------------
-// Fixtures — raw pre-Phase-3 JSON shapes. Deliberately untyped: these predate
-// the now-required `kind`/`surfaces` fields and would not type-check as
-// `ViewRecord` — that mismatch IS the point of this test.
+// Fixtures — raw pre-Phase-3 JSON shapes, shared with T8.3 (test/fixtures/legacy/dataJson.ts).
 // ---------------------------------------------------------------------------
-
-/** Verbatim shape of test/StoryForge/.obsidian/plugins/story-forge/data.json. */
-const LEGACY_VIEWS_RAW = {
-	"3dc82378-37b0-4634-abf4-8469e098f091": {
-		provenance: "imported",
-		enabled: true,
-		okayed: {
-			version: 1,
-			checksum: "sha256:9791c713dec20e11f1df91ce801287e55bc1cfcffee332f75dabe9a4edde7a70",
-		},
-		source: "sf-views/characters-in-scene.md",
-		engine: "dataview-dql",
-		command: false,
-		commandName: "Characters in scene",
-		description: "Lists all canon characters linked from the active scene note.",
-	},
-	"cba82a5f-688e-4a45-a49e-8e390dde79a0": {
-		provenance: "imported",
-		enabled: true,
-		okayed: {
-			version: 1,
-			checksum: "sha256:d27e0f7926a8b6868ba300f2dab606d27f41f9b5d39a49307e43a1c7b66a5e70",
-		},
-		source: "sf-views/scene-debug-dvjs.md",
-		engine: "dataviewjs",
-		command: false,
-		commandName: "Scene debug (DataviewJS)",
-		description: "Shows the active note's name — a safe, read-only DataviewJS debug view.",
-	},
-};
-
-/** Fixture A: the real deployed shape — no `settings` key at all. */
-const FIXTURE_NO_SETTINGS = { views: LEGACY_VIEWS_RAW };
-
-/** Fixture B: an older install whose settings blob carries the deleted `exampleSetting`. */
-const FIXTURE_LEGACY_SETTINGS = {
-	settings: {
-		exampleSetting: "custom",
-		linkClickAction: "open",
-		curatedBasesFolder: "00 Meta/Bases",
-	},
-	views: LEGACY_VIEWS_RAW,
-};
 
 /**
  * Fixture C: every one of the eight current `PluginSettings` fields present with a

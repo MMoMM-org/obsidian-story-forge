@@ -62,9 +62,11 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
 
   1. Prime: `[ref: SDD/ADR-29]`; the fixture captured in T3.2.
   2. Test: a `data.json` captured from the **current** release migrates silently — collections keep
-     working, no consent modal appears, no user file is overwritten; a legacy install whose vault
+     working, no consent modal appears, no user file is overwritten; ~~a legacy install whose vault
      `.base` was hand-edited adopts that content as the baseline **without a prompt**
-     `[ref: SDD/ADR-29]`; running the migration twice is a no-op.
+     `[ref: SDD/ADR-29]`~~ (dropped: descope re-confirmed by the user, see the spec README decision
+     log, 2026-11-17, "T8.3: the legacy `.base` migration descope is re-confirmed"); running the
+     migration twice is a no-op.
   3. Implement: the end-to-end migration test.
   4. Validate: green; lint; types.
   5. Success:
@@ -145,6 +147,32 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
     `platform-restricted` rule for `.base` collections should be revisited.
   - **Left as is:** with Bases absent, the Anvil's text for a `.base` says the core Bases plugin "is
     turned off" (`codexEmptyState.ts`). That case is unreachable on `minAppVersion` 1.12.7.
+- **T8.3** `test/integration/legacyMigration.test.ts` loads the real plugin over the `data.json`
+  the current release (0.2.0) persists. That is the T3.6 capture of the test vault's file, now shared
+  in `test/fixtures/legacy/dataJson.ts` with `phase-3-upgrade.test.ts`: a DQL and a DataviewJS
+  import, both consented, without `kind` or `surfaces`. The vault holds the seed notes they point
+  at, so the stored approvals are current.
+  - Both records become imported collections with Workbench on and Anvil off (D2, P2), every other
+    field kept. Each tab's query reaches Dataview. The DataviewJS record runs on its pre-upgrade
+    approval: no DisclosureModal, no S12 box, no S17 banner.
+  - No vault file is touched. Every Vault, DataAdapter and FileManager mutator `obsidian.d.ts`
+    declares is a spy, and none is called. The mock gained the five Vault mutators it lacked
+    (`append`, `appendBinary`, `createFolder`, `rename`, `copy`) and `FileManager.renameFile` /
+    `trashFile`.
+  - A second onload (after `_runCleanup`) and a further `migrate()` leave `data.json` byte-identical,
+    with no save and no vault write.
+  - **Accepted gap, by decision (README decision log, 2026-11-17), not a defect.** A `.base` record
+    from 0.2.0's catalog (YAML in `source`, no `kind`) is not migrated. It stays `kind:"view"` in
+    `data.json`, byte for byte; its vault file, hand-edited or not, is untouched; and no surface
+    lists it (`collectionStore.ts` `migrateNow` skips `bases`, `buildCollections` keeps only
+    collections). The hand-edited `.base` clause of the task is struck. A test whose name says the
+    gap is accepted pins this state, so changing it takes a decision. The user can re-add the file
+    through "+ Import from vault…".
+  - Mutation-checked against 11 production mutations, all killed: skip `migrate`; a DataviewJS
+    prompt; migration dropping the approval; a disclosure modal opened at load; an adapter write and
+    a vault `createFolder` during migration; three non-idempotent second runs (re-migrating
+    collections, re-saving the count, re-stamping a timestamp); an Anvil-on default; migrating the
+    `bases` records too.
 
 ---
 

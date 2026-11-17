@@ -549,6 +549,10 @@ class MockFileManager {
 		},
 	);
 
+	/** obsidian.d.ts FileManager.renameFile / trashFile: spies, so a test can prove no note moved. */
+	renameFile: ReturnType<typeof vi.fn> = vi.fn(async (_file: TAbstractFile, _newPath: string): Promise<void> => {});
+	trashFile: ReturnType<typeof vi.fn> = vi.fn(async (_file: TAbstractFile): Promise<void> => {});
+
 	/** Pre-seed a file's frontmatter. Copies the object so mutations are isolated. */
 	_setFrontmatter(path: string, obj: Record<string, unknown>): void {
 		this._store.set(path, { ...obj });
@@ -579,6 +583,12 @@ export class App {
 		readBinary: vi.fn(),
 		createBinary: vi.fn(),
 		modifyBinary: vi.fn(),
+		// The rest of obsidian.d.ts Vault's mutators, so a test can prove none ran.
+		append: vi.fn(),
+		appendBinary: vi.fn(),
+		createFolder: vi.fn(),
+		rename: vi.fn(),
+		copy: vi.fn(),
 		getMarkdownFiles: vi.fn(() => [] as TFile[]),
 		getFiles: vi.fn(() => [] as TFile[]),
 		getAllLoadedFiles: vi.fn(() => [] as (TFile | TFolder)[]),
