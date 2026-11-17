@@ -797,3 +797,8 @@ Closes the gap that started this whole spec: the distribution machinery served f
     open; dismissed before; already shown this session), and "opening (first run)" when it opens; a failure while
     opening is logged with `console.error` instead of vanishing inside the callback. The cause was found by reading
     the code, not in a live console; the debug lines are there so the next live test can confirm it.
+  - *L12 wording amended again* (user, 2026-11-17). The Bases row's where-to-turn-it-on line and the load-time note
+    are one paragraph in the "how" position: **"Ships with Obsidian. Turn it on in *Settings › Core plugins › Bases*.
+    Read when Story Forge loaded; after turning it on or off, restart Obsidian."** This replaces the separate faint
+    line "Read when Story Forge loaded. After turning Bases on or off, restart Obsidian." (and its `sf-cap-note`
+    rule). Same states as before: for "Not in this Obsidian version" only the existing how-line shows.

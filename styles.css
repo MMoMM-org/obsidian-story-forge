@@ -4681,13 +4681,6 @@ body {
 	content: "○ ";
 }
 
-/* L12 amended: how current the status is (Bases is read at load). Faint, never a warning. */
-.sf-cap-note {
-	margin-top: -3px;
-	color: var(--text-faint);
-	font-size: 10.5px;
-}
-
 .sf-cap-cols {
 	display: grid;
 	grid-template-columns: 1fr 1fr;

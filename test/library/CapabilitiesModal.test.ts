@@ -91,18 +91,23 @@ describe("CapabilitiesModal — what it shows (L12a/b)", () => {
 		);
 	});
 
-	it.each(["first-run", "settings"] as const)("%s: the Bases row says its status was read at load, faintly, under the status", (mode) => {
+	// L12 amended twice (user): the where-to-turn-it-on line and the load-time note are one paragraph.
+	it.each(["first-run", "settings"] as const)("%s: the Bases row's how-paragraph also says its status was read at load", (mode) => {
 		open(mode, L12B);
-		const note = rowEl("Bases").querySelector(".sf-cap-note");
-		expect(note?.textContent).toBe("Read when Story Forge loaded. After turning Bases on or off, restart Obsidian.");
-		expect(note?.previousElementSibling?.classList.contains("sf-cap-head")).toBe(true);
-		expect(rowEl("Dataview").querySelector(".sf-cap-note")).toBeNull();
-		expect(rowEl("metadata-menu").querySelector(".sf-cap-note")).toBeNull();
+		const how = rowEl("Bases").querySelectorAll(".sf-cap-how");
+		expect(how).toHaveLength(1);
+		expect(how[0]!.textContent).toBe(
+			"Ships with Obsidian. Turn it on in Settings › Core plugins › Bases. "
+			+ "Read when Story Forge loaded; after turning it on or off, restart Obsidian.",
+		);
+		expect(how[0]!.querySelector("em")?.textContent).toBe("Settings › Core plugins › Bases");
+		expect(document.body.querySelector(".sf-cap-note")).toBeNull();
 	});
 
-	it("no load-time note on an Obsidian without Bases", () => {
+	it("an Obsidian without Bases keeps only the existing how-line", () => {
 		open("settings", { ...L12A, bases: "absent" });
-		expect(rowEl("Bases").querySelector(".sf-cap-note")).toBeNull();
+		expect(rowEl("Bases").querySelector(".sf-cap-how")?.textContent)
+			.toBe("Ships with Obsidian. Turn it on in Settings › Core plugins › Bases.");
 	});
 
 	it("draws what it adds and what is lost without it, with `code` as code", () => {
@@ -117,7 +122,7 @@ describe("CapabilitiesModal — what it shows (L12a/b)", () => {
 	it("only the core row says where to turn it on, as text; community rows have no action at all (S4)", () => {
 		open("first-run");
 		expect(rowEl("Bases").querySelector(".sf-cap-how")?.textContent)
-			.toBe("Ships with Obsidian. Turn it on in Settings › Core plugins › Bases.");
+			.toBe("Ships with Obsidian. Turn it on in Settings › Core plugins › Bases. Read when Story Forge loaded; after turning it on or off, restart Obsidian.");
 		for (const name of ["Bases", "Dataview", "metadata-menu"]) {
 			expect(rowEl(name).querySelectorAll("button, a")).toHaveLength(0);
 		}

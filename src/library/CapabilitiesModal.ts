@@ -90,7 +90,6 @@ export class CapabilitiesModal extends Modal {
 		head.createSpan({ cls: r.kind === "core" ? ["sf-cap-kind", "is-core"] : "sf-cap-kind", text: r.kind });
 		const tone = r.status.tone === "neutral" ? "sf-cap-status" : ["sf-cap-status", `is-${r.status.tone}`];
 		head.createSpan({ cls: tone, text: r.status.text });
-		if (r.note !== undefined) row.createDiv({ cls: "sf-cap-note", text: r.note });
 
 		const cols = row.createDiv({ cls: "sf-cap-cols" });
 		this._renderList(cols, "What it adds", r.adds);
@@ -100,6 +99,8 @@ export class CapabilitiesModal extends Modal {
 			const how = row.createDiv({ cls: "sf-cap-how", text: "Ships with Obsidian. Turn it on in " });
 			how.createEl("em", { text: r.where });
 			how.appendText(".");
+			// L12 amended (user): the load-time note joins this paragraph instead of a line of its own.
+			if (r.note !== undefined) how.appendText(` ${r.note}`);
 		}
 	}
 

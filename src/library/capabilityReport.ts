@@ -53,7 +53,7 @@ export interface CapabilityRow {
 	lostWithout: readonly string[];
 	/** Core only: where it is turned on (S4: named as text, no action). */
 	where?: string;
-	/** A faint line under the status saying how current it is (Bases: read at load, L12 amended). */
+	/** How current the status is (Bases: read at load, L12 amended); drawn at the end of the how-paragraph. */
 	note?: string;
 	sub?: CapabilitySub;
 }
@@ -83,7 +83,7 @@ function basesRow(facts: CapabilityFacts): CapabilityRow {
 		// L12 amended (user, option B): no public API sees Bases turned on or off at runtime, so the
 		// status is the load-time value (ADR-8 revised) and the row says so. Not for an Obsidian
 		// without Bases, where there is nothing to turn on.
-		...(facts.bases !== "absent" ? { note: "Read when Story Forge loaded. After turning Bases on or off, restart Obsidian." } : {}),
+		...(facts.bases !== "absent" ? { note: "Read when Story Forge loaded; after turning it on or off, restart Obsidian." } : {}),
 	};
 }
 

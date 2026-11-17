@@ -145,7 +145,7 @@ describe("capabilityReport — live status (S3)", () => {
 	// it change at runtime), so the row says so instead of pretending to be live.
 	it.each(["enabled", "disabled"] as const)("Bases %s carries the load-time note", (bases) => {
 		expect(row(capabilityReport(facts({ bases })), "bases").note)
-			.toBe("Read when Story Forge loaded. After turning Bases on or off, restart Obsidian.");
+			.toBe("Read when Story Forge loaded; after turning it on or off, restart Obsidian.");
 	});
 
 	it("an Obsidian without Bases has no load-time note, and no other row has one", () => {
