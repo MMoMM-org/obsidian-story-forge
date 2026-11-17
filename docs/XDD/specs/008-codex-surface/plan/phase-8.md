@@ -119,6 +119,32 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   not used: a standalone FileClass is the stricter case, because nothing it shows can come from a
   generated FileClass. Mutation-checked against 6 fixture and 10 production mutations, all killed.
   The "isekai case works without a release" box was ticked after the user walked it live on the seed vault (2026-11-17).
+- **T8.2** `test/integration/degradationMatrix.test.ts` runs all 24 cells, each on the real plugin,
+  with every flag set through the seam the plugin reads:
+  - Bases on/off is what `registerBasesView` returns. Bases absent is `apiVersion` 1.9.0 with no
+    `registerBasesView` at all.
+  - Dataview is its API on `app.plugins`, with JavaScript queries on.
+  - metadata-menu is the seed vault's `fc-character.md`, or no FileClass at all (tier 2).
+  - Mobile is `Platform.isMobile`.
+
+  Every cell also holds an imported `.base` and a DQL collection. One shared nag detector
+  (`communityNags`) scans the Anvil, the Workbench, the Library and Notices.
+  - **Defect found and fixed** (`95f7ed1`, wording approved by the user 2026-11-17). With Bases off
+    or absent on desktop, the Library row of a `.base` read "○ Needs Dataview" and "Needs Dataview,
+    which is not active.". `LibrarySection` mapped every `engine-missing` to Dataview, so a core
+    plugin's collection was blamed on a community plugin. Eight cells failed on it. The row now
+    reads "○ Needs Bases" (neutral) and "Needs the core Bases plugin, which is off.", followed by
+    the "What optional plugins add…" link, the same pattern as S5. Dataview rows keep the S5
+    wording.
+  - **CON-9 is held by the ConsentGate**, not by a fallback in the Anvil. The built-ins draw with
+    the native renderer on every platform, so there is no platform branch. A `.base` on mobile is
+    never handed to Bases because `ConsentGate.evaluate` returns `platform-restricted` for it. That
+    line is matrix mutation M3, killed in the four mobile cells with Bases on.
+  - **Follow-up, not changed:** does current Obsidian run Bases on mobile? If it does, CON-9's
+    premise (spec 007 ADR-10, "Bases surfaces are desktop-only") is out of date, and the
+    `platform-restricted` rule for `.base` collections should be revisited.
+  - **Left as is:** with Bases absent, the Anvil's text for a `.base` says the core Bases plugin "is
+    turned off" (`codexEmptyState.ts`). That case is unreachable on `minAppVersion` 1.12.7.
 
 ---
 
