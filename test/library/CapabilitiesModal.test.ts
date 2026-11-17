@@ -91,6 +91,20 @@ describe("CapabilitiesModal — what it shows (L12a/b)", () => {
 		);
 	});
 
+	it.each(["first-run", "settings"] as const)("%s: the Bases row says its status was read at load, faintly, under the status", (mode) => {
+		open(mode, L12B);
+		const note = rowEl("Bases").querySelector(".sf-cap-note");
+		expect(note?.textContent).toBe("Read when Story Forge loaded. After turning Bases on or off, restart Obsidian.");
+		expect(note?.previousElementSibling?.classList.contains("sf-cap-head")).toBe(true);
+		expect(rowEl("Dataview").querySelector(".sf-cap-note")).toBeNull();
+		expect(rowEl("metadata-menu").querySelector(".sf-cap-note")).toBeNull();
+	});
+
+	it("no load-time note on an Obsidian without Bases", () => {
+		open("settings", { ...L12A, bases: "absent" });
+		expect(rowEl("Bases").querySelector(".sf-cap-note")).toBeNull();
+	});
+
 	it("draws what it adds and what is lost without it, with `code` as code", () => {
 		open("first-run");
 		const cols = rowEl("Bases").querySelectorAll(".sf-cap-cols > div");

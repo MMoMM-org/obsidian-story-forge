@@ -140,4 +140,19 @@ describe("capabilityReport — live status (S3)", () => {
 	it("absence is never a warning: every status tone is on, off or neutral", () => {
 		for (const r of capabilityReport(ABSENT)) expect(["on", "off", "neutral"]).toContain(r.status.tone);
 	});
+
+	// L12 amended (user, option B): Bases is read once at load (ADR-8 revised; no public API sees
+	// it change at runtime), so the row says so instead of pretending to be live.
+	it.each(["enabled", "disabled"] as const)("Bases %s carries the load-time note", (bases) => {
+		expect(row(capabilityReport(facts({ bases })), "bases").note)
+			.toBe("Read when Story Forge loaded. After turning Bases on or off, restart Obsidian.");
+	});
+
+	it("an Obsidian without Bases has no load-time note, and no other row has one", () => {
+		expect(row(capabilityReport(facts({ bases: "absent" })), "bases").note).toBeUndefined();
+		const rows = capabilityReport(facts());
+		expect(row(rows, "dataview").note).toBeUndefined();
+		expect(row(rows, "metadata-menu").note).toBeUndefined();
+	});
 });
+

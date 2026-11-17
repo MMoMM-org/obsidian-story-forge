@@ -770,3 +770,19 @@ Closes the gap that started this whole spec: the distribution machinery served f
     Anvil or Workbench leaf (popout windows included). The once-per-session and dismissed guards are unchanged, so it
     still opens at most once; a vault with neither view open at layout ready gets it on the first open, as before.
     `main.commands.test.ts`'s stale-command test now counts `getLeavesOfType` from the command on (onload reads it).
+  - *Live-test finding: the Bases status is load-time — L12 wording amended* (user's decision, option B, 2026-11-17).
+    Turning core Bases off at runtime left the row at "On": `getBasesCapability` combines `apiVersion` with the
+    `registerBasesView` result cached at `onload` (ADR-8 revised, spec 005: a runtime toggle is not re-detected;
+    recovery is a reload). **No public API detects Bases at runtime.** Checked in `obsidian.d.ts` (1.13.1):
+    `Plugin.registerBasesView` answers only when it registers ("@returns false if bases are not enabled") and must not
+    be called as a probe (it registers a view type; re-registering is undocumented; ADR-8 forbids per-render calls);
+    the Bases types (`BasesView`, `BasesViewConfig`, `QueryController`, …) carry no enabled flag or lifecycle event;
+    no Workspace or Vault event concerns plugins (`layout-change` fires only incidentally, if `.base` leaves close);
+    there is no public view registry, and `getLeavesOfType("bases")` can only show Bases is on, never that it is off;
+    whether our Bases view types are unregistered when Bases is disabled cannot be observed publicly. Reading
+    `app.internalPlugins` (option A) was offered and declined: it is not in `obsidian.d.ts` and the project rule
+    (`basesCapability.ts`, ADR-36) excludes it. Instead the row stays honest: it keeps the load-time "On" / "Off" and
+    adds one faint line under the status, **"Read when Story Forge loaded. After turning Bases on or off, restart
+    Obsidian."**, in both first-run and settings mode and in every Bases state but "Not in this Obsidian version"
+    (`capabilityReport` → `note`; `sf-cap-note`). The Anvil hint and the engine states are unchanged: they are the same
+    load-time value, already documented under ADR-8 revised.

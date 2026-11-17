@@ -90,6 +90,7 @@ export class CapabilitiesModal extends Modal {
 		head.createSpan({ cls: r.kind === "core" ? ["sf-cap-kind", "is-core"] : "sf-cap-kind", text: r.kind });
 		const tone = r.status.tone === "neutral" ? "sf-cap-status" : ["sf-cap-status", `is-${r.status.tone}`];
 		head.createSpan({ cls: tone, text: r.status.text });
+		if (r.note !== undefined) row.createDiv({ cls: "sf-cap-note", text: r.note });
 
 		const cols = row.createDiv({ cls: "sf-cap-cols" });
 		this._renderList(cols, "What it adds", r.adds);
