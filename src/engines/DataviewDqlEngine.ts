@@ -32,7 +32,7 @@ export class DataviewDqlEngine implements QueryEngine {
 		// Read the query text fresh from the view-definition note (ADR-3)
 		const block = await readFencedBlock(this.app, view.source);
 		if (block === null) {
-			el.createEl("p", { text: "View source missing or unreadable", cls: "sf-source-missing" });
+			el.createEl("p", { text: "Collection source missing or unreadable", cls: "sf-source-missing" });
 			return;
 		}
 

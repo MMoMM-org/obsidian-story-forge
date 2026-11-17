@@ -67,6 +67,9 @@ const TAG_KIND_MAP: ReadonlyArray<readonly [string, EntityKind]> = [
 	["planning/book", "book"],
 ];
 
+/** The kinds a note can be tracked as — derived from `TAG_KIND_MAP` so wording that lists them cannot drift. */
+export const TRACKED_ENTITY_KINDS: readonly EntityKind[] = TAG_KIND_MAP.map(([, kind]) => kind);
+
 /**
  * Classify an `EntityKind` from a note's own (unprefixed) tags, falling back
  * to a frontmatter `type` field when no tag matches (ADR-4). Pure — no `App`,

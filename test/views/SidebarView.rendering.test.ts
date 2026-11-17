@@ -178,7 +178,7 @@ describe("SidebarView: state rendering", () => {
 
 		const body = getBody(view);
 		expect(body.textContent).toContain(
-			"This note isn't a tracked character, location, scene, object, lore, or plotline.",
+			"This note isn't a tracked character, location, object, lore, scene, plotline, or book.",
 		);
 	});
 

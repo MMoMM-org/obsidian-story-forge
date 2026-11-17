@@ -91,7 +91,7 @@ describe("DataviewJsEngine", () => {
 
 			await engine.render(makeView(), makeCtx(), el);
 
-			expect(el.textContent).toContain("not available on mobile");
+			expect(el.textContent).toContain("DataviewJS collections are not available on mobile.");
 			expect(dvApi.executeJs).not.toHaveBeenCalled();
 		});
 
