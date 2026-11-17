@@ -150,8 +150,6 @@ async function world(): Promise<World> {
 // Driving the plugin's own surfaces
 // ---------------------------------------------------------------------------
 
-const settle = async (): Promise<void> => { for (let i = 0; i < 20; i++) await new Promise<void>((r) => setTimeout(r, 0)); };
-
 function click(el: Element | null | undefined): void {
 	if (!el) throw new Error("nothing to click");
 	el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -193,7 +191,7 @@ async function importFromVault(w: World, name: string): Promise<void> {
 	await vi.waitFor(() => { byText(document.body, ".sf-catalog-row .sf-catalog-name", name); });
 	click(byText(document.body, ".sf-catalog-row .sf-catalog-name", name).closest(".sf-catalog-row"));
 	click(byText(document.body, ".sf-catalog-act button", "Import"));
-	await settle();
+	await vi.waitFor(() => { expect(document.body.querySelector(".sf-catalog-success")?.textContent).toContain(`Imported ${name}`); });
 	tab.hide();
 }
 
@@ -255,12 +253,12 @@ describe("a FileClass and a .base written by hand (T8.1)", () => {
 
 		// 1 · the collection appears as a pill — through the Library's own import.
 		await importFromVault(w, BASE_NAME);
-		expect(pillLabels(anvil)).toContain(BASE_NAME);
+		await vi.waitFor(() => { expect(pillLabels(anvil)).toContain(BASE_NAME); });
 
 		// 2 · its entries render with the Hero Card: the user's tag filter is handed to Bases as the
 		//     Hero view type, and the Hero view the plugin registered draws one hero card per note.
 		click(byText(anvil.contentEl, "[data-sf-collection]", BASE_NAME));
-		await settle();
+		await vi.waitFor(() => { expect(MarkdownRenderer.render).toHaveBeenCalled(); });
 		const rendered = lastBasesRender();
 		expect(rendered.fence).toContain(`type: ${HERO_VIEW_TYPE}`);
 		expect(rendered.fence).toContain('file.hasTag("canon/organization")');
@@ -271,8 +269,7 @@ describe("a FileClass and a .base written by hand (T8.1)", () => {
 
 		// 3 · selecting one opens the editor, with a section labelled from the new FileClass.
 		click(heroes.find((h) => h.getAttribute("data-sf-card-body") === ember.file.path));
-		await settle();
-		expect(anvil.contentEl.querySelector(`[data-sf-ed-path="${ember.file.path}"]`)).not.toBeNull();
+		await vi.waitFor(() => { expect(anvil.contentEl.querySelector(`[data-sf-ed-path="${ember.file.path}"]`)).not.toBeNull(); });
 		expect(sectionOf(anvil, "standing")).toEqual({ label: "Organization profile", origin: "user" });
 		// Typed by the FileClass, not by the value: `founded` is declared a Number.
 		expect(sectionOf(anvil, "founded").label).toBe("Organization profile");
@@ -288,8 +285,7 @@ describe("a FileClass and a .base written by hand (T8.1)", () => {
 		// 5 · a commit writes a plain Property, through processFrontMatter, and touches nothing else.
 		select.value = "waning";
 		select.dispatchEvent(new Event("change", { bubbles: true }));
-		await settle();
-		expect(w.app.fileManager.processFrontMatter).toHaveBeenCalledWith(ember.file, expect.any(Function));
+		await vi.waitFor(() => { expect(w.app.fileManager.processFrontMatter).toHaveBeenCalledWith(ember.file, expect.any(Function)); });
 		expect(w.app.fileManager._getFrontmatter(ember.file.path)).toEqual({ ...before, standing: "waning" });
 		expect(w.app.vault.modify).not.toHaveBeenCalled();
 	});
