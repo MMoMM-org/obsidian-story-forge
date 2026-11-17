@@ -72,7 +72,7 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   5. Success:
      - [x] An existing user upgrades without losing anything, apart from the accepted gap: a 0.2.0 catalog-installed `.base` record is not migrated (README decision log, 2026-11-17) `[ref: SDD/ADR-29]`
 
-- [ ] **T8.4 Non-regression of the moved surfaces** `[activity: validate]`
+- [x] **T8.4 Non-regression of the moved surfaces** `[activity: validate]`
 
   1. Prime: `[ref: PRD/Success Metrics]` — no regression in the management tabs;
      `[ref: SDD/Implementation Boundaries]`.
@@ -82,7 +82,7 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   3. Implement: no production change expected — if one is needed, that is a regression to fix.
   4. Validate: full suite; lint; types; build.
   5. Success:
-     - [ ] Moving the views cost nothing `[ref: PRD/Success Metrics]`
+     - [x] Moving the views cost nothing `[ref: PRD/Success Metrics]`
 
 - [ ] **T8.5 Gates, live walk and finalize** `[activity: validate]`
 
@@ -184,3 +184,5 @@ per the plan's Deviation Protocol. Empty at plan time.*
 | Date | Phase/Task | Deviation | Rationale | Approved |
 |------|------------|-----------|-----------|----------|
 | — | — | — | — | — |
+
+- **T8.4 (2026-11-17): moving the views cost nothing; three wiring gaps are now pinned.** Against main, the M5/M6 tests changed only by ADR-27 path/option-shape moves (61e08d5, ee55928) and by assertion changes that each trace to a recorded spec 009 decision: ADR-52 (destroy flushes, not cancels), ADR-38 gesture groups (`{ group: null }`), and P4/U3 (zoom slot inside `.sf-ws-headtools`). None is a silent weakening; no production change was needed. Three properties were only tested one layer at a time, and mutations of the Anvil wiring passed the whole suite; 4f1e5c2 pins them with mutation-checked characterization tests: a pre-move `workspace.json` with `story-forge-workspace` and `story-forge-panel` restores through the registered factories (CON-4); a Kanban drag on the Anvil is one `processFrontMatter` call carrying `status` and `order`; the Anvil Plotgrid columns are all scope plotlines, honour the excluded folders, and fill each cell exactly when the scene is on that plotline. Zoom and swimlanes were already covered at the Anvil level and caught their mutations. Persisted Anvil view state (`state.layout`) is not restored on reopen, on main or here — unchanged behaviour, not a regression.
