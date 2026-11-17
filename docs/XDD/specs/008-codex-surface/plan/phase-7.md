@@ -139,7 +139,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   5. Success:
      - [x] Core is suggestible, community is never nagged `[ref: SDD/AC — PRD F4]`
 
-- [ ] **T7.5 Phase Validation** `[activity: validate]`
+- [x] **T7.5 Phase Validation** `[activity: validate]`
 
   - Run all Phase 7 tests. Manual walk: import a hand-written `.base` as a Collection, enable it for
     the Anvil only, confirm it appears in the Codex and **not** in the Workbench, then remove it and
