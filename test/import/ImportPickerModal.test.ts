@@ -766,3 +766,13 @@ describe("ImportPickerModal — when something throws", () => {
 	});
 });
 
+describe("ImportPickerModal — unparseable candidate log", () => {
+	it("logs with the [StoryForge] prefix the rest of the code uses", async () => {
+		const spy = vi.spyOn(console, "debug").mockImplementation(() => {});
+		await openPicker({ "Views/Broken.md": new Error("nope") });
+		const logged = spy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes("could not parse"));
+		expect(logged).toEqual(["[StoryForge] could not parse collection candidate"]);
+		spy.mockRestore();
+	});
+});
+
