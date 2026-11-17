@@ -43,7 +43,7 @@ declare const activeDocument: Document;
 export const CODEX_CHANGE_TAG_ATTR = "data-sf-cx-change-tag";
 
 /** Public documentation for metadata-menu's FileClass concept ("What are FileClasses?"). */
-const FILECLASSES_DOC_URL = "https://mdelobelle.github.io/metadatamenu/";
+const FILECLASSES_DOC_URL = "https://mdelobelle.github.io/metadatamenu/fileclasses/";
 
 export interface CodexEmptyStateOptions {
 	/** The collection's id — the `Change tag` marker's value. */

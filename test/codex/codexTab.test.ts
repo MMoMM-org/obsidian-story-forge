@@ -569,7 +569,7 @@ describe("Codex tab: S98 empty state [PRD/F3 AC]", () => {
 		const box = emptyBox(view);
 		const docsLink = Array.from(box.querySelectorAll("a")).find((a) => a.textContent === "What are FileClasses?");
 		expect(docsLink).toBeDefined();
-		expect(docsLink?.getAttribute("href")).toMatch(/^https:\/\//);
+		expect(docsLink?.getAttribute("href")).toBe("https://mdelobelle.github.io/metadatamenu/fileclasses/");
 		// External link — must not let the destination reach back via window.opener.
 		expect(docsLink?.getAttribute("rel")).toContain("noopener");
 	});
