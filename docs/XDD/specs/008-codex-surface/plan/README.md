@@ -151,7 +151,7 @@ graph LR
 - [x] [Phase 5: The editor pane](phase-5.md)
 - [x] [Phase 6: Deriving away the hardcoded field lists](phase-6.md)
 - [x] [Phase 7: The Library, import and capability disclosure](phase-7.md)
-- [ ] [Phase 8: Integration, degradation and gates](phase-8.md)
+- [x] [Phase 8: Integration, degradation and gates](phase-8.md)
 
 ---
 

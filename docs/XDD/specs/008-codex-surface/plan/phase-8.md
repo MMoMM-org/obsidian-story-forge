@@ -1,6 +1,6 @@
 ---
 title: "Phase 8: Integration, degradation and gates"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 8
 ---
@@ -84,7 +84,7 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   5. Success:
      - [x] Moving the views cost nothing `[ref: PRD/Success Metrics]`
 
-- [ ] **T8.5 Gates, live walk and finalize** `[activity: validate]`
+- [x] **T8.5 Gates, live walk and finalize** `[activity: validate]`
 
   1. Prime: `docs/live-testing.md` — the manual walk format used for previous milestones.
   2. Test: every EARS criterion in `[ref: SDD/Acceptance Criteria]` maps to a passing test; every
@@ -96,10 +96,10 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
      `npm run typecheck:mock`, `npm run schema:check`, `npm run build`, `npm run test:live` — all
      green.
   5. Success:
-     - [ ] Every AC has a passing test `[ref: PRD/Success Metrics]`
-     - [ ] Truth preservation: every value written by the editor is visible and editable in the core
+     - [x] Every AC has a passing test `[ref: PRD/Success Metrics]`
+     - [x] Truth preservation: every value written by the editor is visible and editable in the core
            Properties UI `[ref: PRD/Success Metrics]`
-     - [ ] Spec phase set to Implemented with shipping notes `[ref: xdd-meta Finalize]`
+     - [x] Spec phase set to Implemented with shipping notes `[ref: xdd-meta Finalize]`
 
 ---
 
@@ -188,3 +188,5 @@ per the plan's Deviation Protocol. Empty at plan time.*
 - **T8.4 (2026-11-17): moving the views cost nothing; three wiring gaps are now pinned.** Against main, the M5/M6 tests changed only by ADR-27 path/option-shape moves (61e08d5, ee55928) and by assertion changes that each trace to a recorded spec 009 decision: ADR-52 (destroy flushes, not cancels), ADR-38 gesture groups (`{ group: null }`), and P4/U3 (zoom slot inside `.sf-ws-headtools`). None is a silent weakening; no production change was needed. Three properties were only tested one layer at a time, and mutations of the Anvil wiring passed the whole suite; 4f1e5c2 pins them with mutation-checked characterization tests: a pre-move `workspace.json` with `story-forge-workspace` and `story-forge-panel` restores through the registered factories (CON-4); a Kanban drag on the Anvil is one `processFrontMatter` call carrying `status` and `order`; the Anvil Plotgrid columns are all scope plotlines, honour the excluded folders, and fill each cell exactly when the scene is on that plotline. Zoom and swimlanes were already covered at the Anvil level and caught their mutations. Persisted Anvil view state (`state.layout`) is not restored on reopen, on main or here — unchanged behaviour, not a regression.
 
 - **T8.5 gate `npm run test:live` (2026-11-17, orchestrator).** `vitest.live.config.ts` includes `test/live/**/*.test.ts`, but `test/live/` has never existed in git history, so the gate exits 1 with "No test files found" — it was never a working gate. For spec 008 the live gate is the manual walk recorded in `docs/live-testing.md` (section "Spec 008"); writing automated live tests is out of this spec's scope.
+
+- **T8.5 (2026-11-17).** Traceability in `traceability.md`: 40 EARS (37 covered, 3 deviated-recorded: E36–E38, T7.3 reduced) and 74 PRD ACs (73 covered, 1 deviated-recorded: F7.2, P19), no gap. Live walk recorded in `docs/live-testing.md` (008-A…N all verified 2026-11-17 except 008-M mobile, not walked; covered by the T8.2 matrix). The walk found the "What are FileClasses?" link pointing at the metadata-menu home page; fixed to the FileClasses page in ac6f73c. Mockup moved to `mockups.html` with a pointer left behind. Gates green (4032 tests); `test:live` replaced by the manual walk (see above). **Closing issues #6, #10, #11, #12, #13, #21, #26 is deferred by the user until the branch is pushed/merged**, so each closing comment can name a visible commit.

@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-07-27 |
-| **Current Phase** | Ready |
+| **Current Phase** | Implemented |
 | **Last Updated** | 2026-11-17 |
 
 ## Documents
@@ -23,6 +23,7 @@
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
+| 2026-11-17 | Implementation complete | Phases 1–8 done on branch `codex-surface` (local, not pushed). 4032 tests; lint, typecheck ×3, schema:check, build green; live walk recorded in `docs/live-testing.md`; traceability in `traceability.md` (no gap; deviations recorded). Issues #6, #10, #11, #12, #13, #21, #26 to be closed after the branch is pushed/merged (user decision). |
 | 2026-11-17 | **T8.3: the legacy `.base` migration descope is re-confirmed** (user) | The T8.3 probe showed that a catalog-installed `.base` record from 0.2.0 (no `kind`, YAML in `source`) stays `kind:"view"` and appears on no surface after the upgrade; its vault file and its `data.json` entry are untouched. This is the migration ADR-29 withdrew on 2026-08-02 because no such record exists in any vault; the user re-confirmed that. T8.3 drops the clause "a hand-edited `.base` adopts its content as the baseline" and records the gap as accepted; such a file can be re-added by hand through "+ Import from vault…". T8.3 proves the real 0.2.0 records (DQL, DataviewJS) migrate silently, keep their consent and are idempotent. |
 | 2026-11-17 | **The DQL light confirm (S21) is removed; the consent modal is DataviewJS-only** | Consequence of the user decision "a DQL collection never drifts" (and R1): nothing reached S21 any more. `DisclosureModal` loses its variant parameter and the S21 copy; every ConsentGate consent request for a non-DataviewJS record opens nothing and grants nothing (2d20403; comment/test tidy e07253e). S21 was a signed-off state; its removal follows from the user's decisions, not a silent deviation. |
 | 2026-11-17 | **Phase 7 complete (T7.1–T7.5)** (user) | T7.1 Library, T7.2 import and catalog, T7.3 (reduced: curated `.base` verbatim, `Codex.base` retired), T7.4 capability disclosure and T7.5 validation are all done and walked live. Drift check: 16 F7/F8 acceptance criteria aligned with the code; the deviations are recorded in this log. 3922 tests; build, typecheck, lint and `schema:check` green. Phase 8 is still open. |
