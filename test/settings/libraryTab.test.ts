@@ -949,6 +949,29 @@ describe("L9 · edge states", () => {
 		await vi.waitFor(() => expect(w.stored()["skills"]?.surfaces.anvil).toBe(true));
 	});
 
+	// T8.2 (degradation matrix finding, wording approved 2026-11-17): a `.base` whose engine is
+	// missing needs Bases, the core plugin. It must never be blamed on Dataview.
+	it("(c) engine missing on a .base: the Bases cause, never Dataview, with the capability link", async () => {
+		const w = await open({ decisions: { "30 Canon/Organizations/Organizations.base": "engine-missing" } });
+		const row = item(w.root, "organizations");
+		const stat = q(row, ".sf-lb-stat")!;
+		expect(text(stat)).toBe("○ Needs Bases");
+		expect(stat.classList.contains("is-warn")).toBe(false);
+		const hint = q(row, ".sf-lb-hint")!;
+		expect(hint.classList.contains("is-faint")).toBe(true);
+		expect(text(hint)).toBe("Needs the core Bases plugin, which is off. What optional plugins add…");
+		expect(text(row)).not.toMatch(/Dataview/);
+		expect(hint.querySelectorAll("a")).toHaveLength(0);
+		await click(q<HTMLButtonElement>(hint, "button"));
+		expect(w.openCapabilities).toHaveBeenCalledTimes(1);
+	});
+
+	it("(c) engine missing on a Dataview row beside it keeps the S5 wording", async () => {
+		const w = await open({ decisions: { "30 Canon/Organizations/Organizations.base": "engine-missing", "90 Views/Skills.md": "engine-missing" } });
+		expect(text(q(item(w.root, "skills"), ".sf-lb-stat"))).toBe("○ Needs Dataview");
+		expect(text(q(item(w.root, "skills"), ".sf-lb-hint"))).toBe("Needs Dataview, which is not active. What optional plugins add…");
+	});
+
 	it("(c) the same row covers DataviewJS disabled and not on mobile", async () => {
 		const w = await open({ decisions: { "90 Views/Relationship web.md": "dvjs-off", "90 Views/Skills.md": "platform-restricted" } });
 		expect(text(q(item(w.root, "web"), ".sf-lb-hint"))).toBe("DataviewJS is disabled in Dataview settings.");

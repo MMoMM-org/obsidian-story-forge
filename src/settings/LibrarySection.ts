@@ -51,7 +51,8 @@ function blockOf(record: ViewRecord | undefined, decision: Decision | undefined)
 	if (!record || !decision) return null;
 	switch (decision) {
 		// T7.4 S5 (L12e(b)): a cause in neutral grey, not a warning; the hint links the capability screen.
-		case "engine-missing": return { badge: "○ Needs Dataview", warn: false, hint: null };
+		// T8.2: the cause names the engine the record needs; a `.base` is never blamed on Dataview.
+		case "engine-missing": return { badge: record.engine === "bases" ? "○ Needs Bases" : "○ Needs Dataview", warn: false, hint: null };
 		case "dvjs-off": return { badge: "○ DataviewJS disabled", warn: false, hint: "DataviewJS is disabled in Dataview settings." };
 		case "platform-restricted": return { badge: "○ Not available on mobile", warn: false, hint: "Not available on mobile." };
 		case "drift":
@@ -276,7 +277,7 @@ export class LibrarySection {
 			return;
 		}
 		const block = blockOf(m.record, m.decision);
-		if (m.decision === "engine-missing") return this.paintNeedsDataview(item);
+		if (m.decision === "engine-missing") return this.paintNeedsEngine(item, m.record?.engine);
 		if (block?.hint) {
 			item.createDiv({ cls: "sf-lb-hint", text: block.hint });
 			return;
@@ -289,10 +290,11 @@ export class LibrarySection {
 	/**
 	 * T7.4 S5 (PRD F8 AC 5: the capability list is the only mention of a community plugin): the
 	 * cause, and a button to the capability screen. No outbound link and no install wording.
+	 * T8.2: a `.base` needs the core Bases plugin, and says so in the same pattern.
 	 */
-	private paintNeedsDataview(item: HTMLElement): void {
+	private paintNeedsEngine(item: HTMLElement, engine: ViewRecord["engine"] | undefined): void {
 		const hint = item.createDiv({ cls: "sf-lb-hint is-faint" });
-		hint.appendText("Needs Dataview, which is not active. ");
+		hint.appendText(engine === "bases" ? "Needs the core Bases plugin, which is off. " : "Needs Dataview, which is not active. ");
 		const link = hint.createEl("button", { cls: "sf-lb-link", text: "What optional plugins add…", attr: { type: "button" } });
 		link.addEventListener("click", () => this.d.openCapabilities?.());
 	}
