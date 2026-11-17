@@ -68,7 +68,7 @@ function makeFixture(): { app: App; scenes: TFile[] } {
 	const scenes = [
 		{ n: 1, status: "draft", order: 10 },
 		{ n: 2, status: "draft", order: 20 },
-		{ n: 3, status: "outline", order: 30 },
+		{ n: 3, status: "outline", order: 5 }, // differs from the expected 30, so a status-only write fails
 	].map(({ n, status, order }) => {
 		const path = `10 Manuscript/WoM/Scene ${n}.md`;
 		const fm = { type: "scene", title: `Scene ${n}`, act: 1, order, storyDay: n, status, pov: "Mara Stoneway" };
@@ -127,14 +127,16 @@ describe("Anvil Kanban drag — status + order in one processFrontMatter call (T
 		await vi.runAllTimersAsync();
 
 		const pfm = vi.mocked(fx.app.fileManager.processFrontMatter);
-		// Exactly one write in the whole vault: the dragged card, both keys at once.
-		expect(pfm).toHaveBeenCalledOnce();
-		expect((pfm.mock.calls[0]![0] as TFile).path).toBe(s3.path);
-		const fm = fx.app.fileManager._getFrontmatter(s3.path);
-		expect(fm["status"]).toBe("draft");
-		expect(fm["order"]).toBe(30); // appended after order 20 → before + 10
-		// Sibling facts survive the write.
-		expect(fm["pov"]).toBe("Mara Stoneway");
-		expect(fm["storyDay"]).toBe(3);
+		await vi.waitFor(() => {
+			// Exactly one write in the whole vault: the dragged card, both keys at once.
+			expect(pfm).toHaveBeenCalledOnce();
+			expect((pfm.mock.calls[0]![0] as TFile).path).toBe(s3.path);
+			const fm = fx.app.fileManager._getFrontmatter(s3.path);
+			expect(fm["status"]).toBe("draft");
+			expect(fm["order"]).toBe(30); // was 5; appended after order 20 → before + 10
+			// Sibling facts survive the write.
+			expect(fm["pov"]).toBe("Mara Stoneway");
+			expect(fm["storyDay"]).toBe(3);
+		});
 	});
 });

@@ -85,9 +85,11 @@ describe("AnvilView — Plotgrid coverage matrix (T8.4)", () => {
 		view.setLayout("plotgrid");
 	});
 
-	it("columns are every scope plotline (a scene-less one included, the 00 Meta template not)", () => {
-		const cols = [...view.contentEl.querySelectorAll("[data-sf-plotline-col]")].map((c) => c.getAttribute("data-sf-plotline-col"));
-		expect(cols).toEqual(["The Drowned Bell", "The Dying Light", "The Warden's Oath"]);
+	it("columns are every scope plotline (a scene-less one included, the 00 Meta template not)", async () => {
+		await vi.waitFor(() => {
+			const cols = [...view.contentEl.querySelectorAll("[data-sf-plotline-col]")].map((c) => c.getAttribute("data-sf-plotline-col"));
+			expect(cols).toEqual(["The Drowned Bell", "The Dying Light", "The Warden's Oath"]);
+		});
 	});
 
 	it("each scene × plotline cell is filled exactly when the scene is on that plotline", () => {
