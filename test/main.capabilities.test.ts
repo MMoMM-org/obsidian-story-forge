@@ -128,6 +128,22 @@ describe("main.ts — the capability screen's first run (S1)", () => {
 		await unload(plugin);
 	});
 
+	// Live-test bug 2 (T7.4): jsdom flipped layoutReady before running the layout-ready callbacks;
+	// Obsidian need not. Inside its own onLayoutReady callback the plugin must not re-ask the flag:
+	// being called there IS the evidence that the layout is ready.
+	it("opens from the layout-ready callback even while workspace.layoutReady still reads false there", async () => {
+		const { plugin, app } = await makePlugin({ data: {} as StoryForgeData });
+		app.workspace.layoutReady = false;
+		app.workspace._deferLayoutReady = true;
+		await plugin.onload();
+		await openView(plugin, app, WORKSPACE_VIEW_TYPE);
+		vi.mocked(app.workspace.getLeavesOfType).mockImplementation((type: string) =>
+			type === WORKSPACE_VIEW_TYPE ? [new WorkspaceLeaf()] : []);
+		app.workspace._flushLayoutReady(); // layoutReady deliberately left false
+		expect(document.body.querySelectorAll(".sf-cap-modal")).toHaveLength(1);
+		await unload(plugin);
+	});
+
 	it.each([
 		["the Anvil only", [WORKSPACE_VIEW_TYPE]],
 		["the Workbench only", [SIDEBAR_VIEW_TYPE]],
@@ -211,3 +227,74 @@ describe("main.ts — the Library link (S1, P14)", () => {
 		await unload(plugin);
 	});
 });
+
+// Why it did not open, in the user's console (live-test bug 2): one debug line per early return.
+describe("main.ts — the capability screen says why it stayed closed (console.debug)", () => {
+	async function deferredLoad(data: StoryForgeData) {
+		const made = await makePlugin({ data });
+		made.app.workspace.layoutReady = false;
+		made.app.workspace._deferLayoutReady = true;
+		await made.plugin.onload();
+		return made;
+	}
+
+	function debugLines(spy: ReturnType<typeof vi.spyOn>): string[] {
+		return spy.mock.calls.map((c) => String(c[0])).filter((l) => l.startsWith("[StoryForge] capability screen"));
+	}
+
+	it("a view opening before the layout is ready", async () => {
+		const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+		const { plugin, app } = await deferredLoad({} as StoryForgeData);
+		await openView(plugin, app, WORKSPACE_VIEW_TYPE);
+		expect(debugLines(debug)).toContain("[StoryForge] capability screen: not yet — the layout is still loading; checked again when it is ready");
+		debug.mockRestore();
+		await unload(plugin);
+	});
+
+	it("no Anvil or Workbench leaf at layout ready", async () => {
+		const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+		const { plugin, app } = await deferredLoad({} as StoryForgeData);
+		vi.mocked(app.workspace.getLeavesOfType).mockReturnValue([]);
+		app.workspace._flushLayoutReady();
+		expect(debugLines(debug)).toContain("[StoryForge] capability screen: not yet — no Anvil or Workbench is open; it opens with the first one");
+		debug.mockRestore();
+		await unload(plugin);
+	});
+
+	it("already dismissed", async () => {
+		const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+		const { plugin, app } = await deferredLoad({ settings: { dismissedHints: [CAPABILITIES_HINT_ID] } } as unknown as StoryForgeData);
+		vi.mocked(app.workspace.getLeavesOfType).mockReturnValue([new WorkspaceLeaf()]);
+		app.workspace._flushLayoutReady();
+		expect(debugLines(debug)).toContain("[StoryForge] capability screen: not shown — dismissed before (dismissedHints has \"capabilities\")");
+		debug.mockRestore();
+		await unload(plugin);
+	});
+
+	it("already shown this session, and the opening itself", async () => {
+		const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+		const { plugin, app } = await deferredLoad({} as StoryForgeData);
+		vi.mocked(app.workspace.getLeavesOfType).mockReturnValue([new WorkspaceLeaf()]);
+		app.workspace._flushLayoutReady();
+		app.workspace.layoutReady = true;
+		await openView(plugin, app, SIDEBAR_VIEW_TYPE);
+		expect(debugLines(debug)).toEqual([
+			"[StoryForge] capability screen: opening (first run)",
+			"[StoryForge] capability screen: not shown — already shown this session",
+		]);
+		debug.mockRestore();
+		await unload(plugin);
+	});
+
+	it("a failure while opening is logged, never swallowed", async () => {
+		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		const { plugin, app } = await deferredLoad({} as StoryForgeData);
+		vi.mocked(app.workspace.getLeavesOfType).mockReturnValue([new WorkspaceLeaf()]);
+		vi.mocked(app.vault.getMarkdownFiles).mockImplementation(() => { throw new Error("cache not ready"); });
+		app.workspace._flushLayoutReady();
+		expect(error).toHaveBeenCalledWith("[StoryForge] capability screen: could not open", expect.any(Error));
+		error.mockRestore();
+		await unload(plugin);
+	});
+});
+

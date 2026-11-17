@@ -786,3 +786,14 @@ Closes the gap that started this whole spec: the distribution machinery served f
     Obsidian."**, in both first-run and settings mode and in every Bases state but "Not in this Obsidian version"
     (`capabilityReport` → `note`; `sf-cap-note`). The Anvil hint and the engine states are unchanged: they are the same
     load-time value, already documented under ADR-8 revised.
+  - *Live-test bug 2: still no screen at startup* (2026-11-17). Where the jsdom model differed from Obsidian: the test
+    set `workspace.layoutReady = true` and then ran the layout-ready callbacks, but Obsidian need not flip the flag
+    before it runs them. The restored-view path called the same trigger as a view's `onOpen`, which re-asked
+    `layoutReady`, read false and returned without a word, so a restored Anvil never counted. Now the trigger knows
+    its caller: a view's `onOpen` still waits for `layoutReady`; the layout-ready callback does not re-ask (being
+    called there is the evidence). The check also moved into the existing layout-ready block, after `registerView`,
+    so a late enable or hot reload (callback run at once) already sees our view types. Each early return now writes
+    one `console.debug` line starting "[StoryForge] capability screen:" (layout still loading; no Anvil or Workbench
+    open; dismissed before; already shown this session), and "opening (first run)" when it opens; a failure while
+    opening is logged with `console.error` instead of vanishing inside the callback. The cause was found by reading
+    the code, not in a live console; the debug lines are there so the next live test can confirm it.

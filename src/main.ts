@@ -81,8 +81,6 @@ export default class StoryForgePlugin extends Plugin {
 			getDismissedHints: () => this.settings.dismissedHints,
 			dismissHint: (id) => { this._dismissHint(id); },
 		});
-		// A view restored at startup opened before layout was ready; it counts once layout is.
-		this.app.workspace.onLayoutReady(() => { capabilities.onLayoutReady(); });
 
 		// The undo journal (spec 009, ADR-43): created once, loaded before the settings tab
 		// exists, released on unload. The Workbench and the Anvil receive it below. Mod+Z acts
@@ -342,6 +340,11 @@ export default class StoryForgePlugin extends Plugin {
 					populateRegistry();
 				}),
 			);
+
+			// T7.4: a view restored at startup opened before the layout was ready; it counts now.
+			// Registered here, after registerView, so a late enable (layout already ready, callback
+			// run at once) already sees our view types.
+			capabilities.onLayoutReady();
 		});
 
 		settingsTab = new SettingsTab(

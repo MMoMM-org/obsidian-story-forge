@@ -47,11 +47,16 @@ export function wireCapabilities(d: CapabilitiesWiringDeps): CapabilitiesWiring 
 		fileClasses: { count: d.countFileClasses(), folder: d.getFileClassesFolder() },
 	});
 	const open = (mode: "first-run" | "settings"): void => {
-		new CapabilitiesModal(d.app, {
-			getFacts,
-			mode,
-			...(mode === "first-run" ? { onDismiss: () => d.dismissHint(CAPABILITIES_HINT_ID) } : {}),
-		}).open();
+		try {
+			new CapabilitiesModal(d.app, {
+				getFacts,
+				mode,
+				...(mode === "first-run" ? { onDismiss: () => d.dismissHint(CAPABILITIES_HINT_ID) } : {}),
+			}).open();
+		} catch (err) {
+			// A fact that cannot be read yet must not vanish inside a layout-ready callback.
+			console.error("[StoryForge] capability screen: could not open", err);
+		}
 	};
 	const onViewOpened = createCapabilitiesTrigger({
 		isLayoutReady: () => d.app.workspace.layoutReady,
@@ -63,6 +68,9 @@ export function wireCapabilities(d: CapabilitiesWiringDeps): CapabilitiesWiring 
 	return {
 		openFromSettings: () => open("settings"),
 		onViewOpened,
-		onLayoutReady: () => { if (restoredView()) onViewOpened(); },
+		onLayoutReady: () => {
+			if (restoredView()) return onViewOpened("layout-ready");
+			console.debug("[StoryForge] capability screen: not yet — no Anvil or Workbench is open; it opens with the first one");
+		},
 	};
 }
