@@ -25,7 +25,7 @@
  * To use this file in a new plugin:
  *   1. Drop your hanko at assets/story-forge_hanko_144.png (144×144 PNG).
  *   2. Uncomment the hanko import below and remove the `null` fallback.
- *   3. Set REPO_URL to your GitHub repo and TAGLINE to one curated line.
+ *   3. Set DOCS_URL to your docs index and TAGLINE to one curated line.
  *   4. Replace the `mp` CSS-class prefix throughout this file and styles.css
  *      with your plugin's short prefix (e.g. `kado`, `hashi`).
  */
@@ -38,8 +38,8 @@ interface HeaderSectionDeps {
 	plugin: {manifest: PluginManifest};
 }
 
-const REPO_URL = "https://github.com/MMoMM-org/obsidian-story-forge";
-const TAGLINE = "Curated one-line tagline — replace per plugin";
+const DOCS_URL = "https://github.com/MMoMM-org/obsidian-story-forge/blob/main/docs/README.md";
+const TAGLINE = "Shows your story's entities from frontmatter in the Anvil and the Workbench, which follows the active note.";
 
 function parseAuthorDisplayName(author: string): string {
 	const angleIdx = author.indexOf("<");
@@ -73,7 +73,7 @@ export class HeaderSection {
 		}
 
 		identity.createSpan({text: " · ", cls: "sf-header-sep"});
-		identity.createEl("a", {text: "Documentation", href: REPO_URL});
+		identity.createEl("a", {text: "Documentation", href: DOCS_URL});
 
 		textCol.createEl("p", {text: TAGLINE, cls: "sf-tagline"});
 
