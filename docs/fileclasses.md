@@ -4,6 +4,9 @@ A FileClass tells Story Forge's editor which fields an entity has: their order, 
 the values a choice field offers, and how they are grouped into sections. FileClasses are
 optional. Without them the editor still works from the Properties a note already has.
 
+Want to fill in notes without typing YAML? See
+[Without writing YAML](getting-started.md#without-writing-yaml).
+
 ## What a FileClass is
 
 A FileClass is an ordinary note in your FileClasses folder, named like `fc-character.md`. It
@@ -17,11 +20,12 @@ under **Settings → Story Forge → Scope**.
 Story Forge picks the FileClass for a note in this order:
 
 1. The note's own `fileClass` Property, for example `fileClass: fc-character-fantasy`.
-2. A FileClass whose `tagNames` list contains one of the note's tags.
-3. A FileClass whose `filesPaths` list contains the note's folder.
+2. A FileClass whose `tagNames` list (the tags it applies to) contains one of the note's tags.
+3. A FileClass whose `filesPaths` list (the folders it applies to) contains the note's folder.
 
-The FileClasses for the shipped entity types (`fc-book`, `fc-character`,
-`fc-character-fantasy`, `fc-location`, `fc-lore`, `fc-object`, `fc-plotline` and `fc-scene`) are
+Story Forge's own FileClasses are eight: one for each of the seven entity types (`fc-book`,
+`fc-character`, `fc-location`, `fc-lore`, `fc-object`, `fc-plotline` and `fc-scene`), plus
+`fc-character-fantasy`, which adds fantasy fields to characters. They are
 in the example vault in the repository, under `test/StoryForge/00 Meta/FileClasses/`. Copy
 them into your own FileClasses folder to start from them.
 
@@ -30,20 +34,20 @@ Story Forge only reads FileClasses. It never edits them.
 ## Fields and types
 
 Each entry in a FileClass's `fields` list becomes one field in the editor. The `fieldsOrder`
-list sets their order. A field missing from `fieldsOrder` is shown after the others.
+list (the field names in the order you want them) sets their order. A field missing from `fieldsOrder` is shown after the others.
 
-The field type chooses the control:
+The field type chooses the control. The type names come from Metadata Menu:
 
 | FileClass type             | Control in the editor                                |
 |----------------------------|------------------------------------------------------|
 | `Input`                    | Text box                                             |
 | `Number`                   | Number box                                           |
 | `Boolean`                  | Checkbox                                             |
-| `Select`, `Cycle`          | Drop-down of the values in the FileClass             |
+| `Select`, `Cycle`          | Drop-down of the values in the FileClass. `Cycle` is Metadata Menu's "step through a list" choice; Story Forge shows it as a drop-down too |
 | `Date`, `Datetime`, `Time` | Date or time box                                     |
 | `File`                     | A single link                                        |
-| `Multi`, `MultiFile`       | A row of chips (`MultiFile` chips are links)         |
-| `Media`                    | Image preview with **Choose image…** and **Clear**   |
+| `Multi`, `MultiFile`       | A row of chips, one per value. `Multi` holds several plain values; `MultiFile` holds several links |
+| `Media`                    | An image (a link to a picture in your vault): preview with **Choose image…** and **Clear** |
 | `MultiMedia`, other types  | Plain text box                                       |
 
 A few rules to know:
@@ -55,10 +59,13 @@ A few rules to know:
 - A value no control can represent, such as a nested map, is shown but can't be edited.
 - `tags` is never shown as a field, and `type` is read-only. Both decide what kind of note
   this is. `fileClass` is shown only if your FileClass declares it.
+- A field the FileClass declares but the note doesn't have yet is shown empty. Fill it, and
+  Story Forge adds that Property to the note.
 
 ## Sections
 
-A FileClass can extend another one with `extends`. For example, `fc-character-fantasy` extends
+A FileClass can build on another one with `extends`: it gets all the fields of that
+FileClass, plus its own. For example, `fc-character-fantasy` extends
 `fc-character`. The editor then shows one section per FileClass, starting with the base:
 
 - **Character**: the fields of `fc-character.md`.
@@ -81,18 +88,23 @@ marked "on the note, not declared by any FileClass".
 To give some notes extra fields, write a FileClass that extends one of ours, and point the
 notes at it:
 
-1. Create `fc-isekai.md` (any name starting with `fc-`) in your FileClasses folder.
-2. Add `extends: fc-character`, then a `fields` list and a `fieldsOrder` list in the same
-   format as the shipped files.
-3. On each note that should use it, set `fileClass: fc-isekai`.
+For example, say some of your lore notes describe factions, and you want fields such as
+`leader` and `motto` on them:
 
-The editor now shows the Character section first, then your Isekai section marked `yours`.
-Your fields look and behave exactly like ours.
+1. Create `fc-faction.md` (any name starting with `fc-`) in your FileClasses folder.
+2. Add `extends: fc-lore`, then a `fields` list and a `fieldsOrder` list in the same format as
+   the shipped files. Copying a shipped file and editing it is the easiest start. This step is
+   written in YAML; with the Metadata Menu plugin you can use its form instead.
+3. On each faction note, add the Property `fileClass` with the value `fc-faction`.
+
+The editor now shows the Lore section first, then your Faction section marked `yours`. Your
+fields look and behave exactly like ours. The notes stay lore notes: they keep their
+`canon/lore` tag.
 
 A FileClass sets the fields only. Which notes appear in a collection is decided by the
 collection's tag or query, which you manage in the [Library](library.md). The Workbench's
-story views only know the seven shipped entity types, so a note of a brand-new type shows as
-"not an entity" there.
+story views only know the seven entity types, so a note of a brand-new type shows as not
+tracked there.
 
 ## Without FileClasses
 

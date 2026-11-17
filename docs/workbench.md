@@ -30,7 +30,8 @@ Workbench switch is on in the [Library](library.md). Turn a collection's Workben
 off, and its links are not shown here.
 
 **Following links.** A click on a linked entity follows the **Link click action** setting.
-By default the Workbench shows that entity in place:
+With the default, **Inspect the linked note (show it in place)**, the Workbench shows that
+entity right here in the sidebar:
 
 - The Workbench stops following the active note while you browse. A line at the top shows
   where you came from.
@@ -38,7 +39,8 @@ By default the Workbench shows that entity in place:
   follows the active note again.
 - **⤷ Open note** opens the note you're looking at in the editor.
 
-Cmd/Ctrl-click opens the linked note instead. Right-click a link for Obsidian's file menu.
+With **Open in editor**, a click opens the linked note itself in Obsidian's note editor.
+Cmd/Ctrl-click does the other one. Right-click a link for Obsidian's file menu.
 
 **Editing.** Turn on edit mode with ✎ to edit the note's fields right in the sidebar. Text,
 number and choice fields are editable. Relations and lists are shown but can't be edited here;
@@ -52,8 +54,9 @@ come from the note's FileClass, the same as in the Anvil's editor pane. See
 
 - "No note open": open a note to see its story context.
 - "Story Forge follows markdown notes.": the active file isn't a note, for example an image.
-- "This note isn't a tracked character, location, scene, object, lore, or plotline.": the note
-  has none of the entity tags. See [Getting started](getting-started.md#tag-your-entities).
+- "This note isn't a tracked …" (the message lists the entity types): the note has none of
+  the entity tags and no `type` Property. See
+  [Getting started](getting-started.md#tag-your-entities).
 
 ## Navigator tab
 

@@ -8,18 +8,23 @@ The Library is where you decide what the Codex can show and how it draws it. Ope
 
 ## Collections
 
-A collection is a query over your vault. Each row in **Collections** has:
+A [collection](glossary.md#collection) is a list of notes picked from your vault: by tag for
+the built-ins, or by a query (a `.base` file or a Dataview query) for the others. Each row in
+**Collections** has:
 
-- an **enable checkbox**. This is the master switch. A disabled collection shows nowhere.
+- an **enable checkbox**. This is the master switch: a disabled collection shows nowhere,
+  whatever its two switches say.
 - two switches, **Anvil** and **Workbench**, that choose where the collection appears. While the
   checkbox is off the switches keep their values, and the row says where the collection will
   return when you enable it again.
-- a **provenance** badge, which tells you where the entry came from:
+- a **provenance** badge (provenance means origin), which tells you where the entry came
+  from:
   - **built-in**: ships with Story Forge.
   - **from repo**: installed with **+ Browse repo…**.
   - **imported**: a file from your own vault, added with **+ Import from vault…**.
-- an **engine** badge for collections that a query draws: **Bases**, **Dataview** or
-  **DataviewJS**. Built-in collections have none.
+- an **engine** badge for collections that a query draws. It names what runs the query:
+  **Bases**, **Dataview** or **DataviewJS** (see the [Glossary](glossary.md#dataview-dql-and-dataviewjs)).
+  Built-in collections have none.
 - a **status** badge, only when something stops the collection from drawing. See
   [Troubleshooting](troubleshooting.md).
 - **Configure**, which opens the collection's settings under the row, and **Remove** for
@@ -88,7 +93,8 @@ show in the Workbench. Dismiss the notice with ✕.
 
 ## Cards
 
-A Card decides how each entry of a collection is drawn in the Anvil's Codex. Story Forge ships
+A [Card](glossary.md#card) decides how each entry of a collection is drawn in the Anvil's
+Codex. Story Forge ships
 three built-in Cards: **Hero**, **Table** and **Compact**. You choose the Card for each collection
 in the Anvil, and Story Forge remembers your choice. Dataview and DataviewJS collections draw
 their own output and do not use a Card.
@@ -102,8 +108,8 @@ Each row in **Cards** has:
   in **Sample from**; the first entry is used. The preview is read-only and clicks do nothing in
   it.
 
-**Hero is the fallback Card and cannot be disabled.** Its checkbox is greyed out. Any collection
-whose Card is missing is drawn with Hero.
+**Hero is the fallback Card and cannot be disabled.** Any collection whose Card is missing is
+drawn with Hero. Its checkbox is greyed out.
 
 Under the Cards list, **+ Browse repo…** is disabled ("Coming in a future release"). There is no
 catalog of Cards yet.
@@ -143,8 +149,8 @@ TABLE status FROM #manuscript/scene
 - `sf-version` is required and must be a whole number.
 - `sf-name` is optional. Without it, the file name is used. If present, it must not be empty.
 - `sf-description` is optional and is shown in the window.
-- `sf-engine` is optional. If you set it, it must match the block: `dataview-dql` for a
-  `dataview` block, `dataviewjs` for a `dataviewjs` block.
+- `sf-engine` is optional. If you set it, it must match the block: `dataview-dql` (Dataview's
+  query language, DQL) for a `dataview` block, `dataviewjs` for a `dataviewjs` block.
 
 The block's language decides the engine: a `dataview` block is Dataview, a `dataviewjs` block is
 DataviewJS.
@@ -228,8 +234,9 @@ installed and up to date.
 
 ## Consent and DataviewJS
 
-Only DataviewJS asks for your consent. A DataviewJS collection runs JavaScript with full access to
-your vault, so Story Forge shows you its code before it runs.
+Only DataviewJS asks for your consent, that is, your explicit approval before it runs. A
+DataviewJS collection runs JavaScript with full access to your vault, so Story Forge shows you its
+code before it runs.
 
 - **Bases and Dataview collections never ask.** You enable or disable them, nothing more. If you
   edit a Dataview query by hand, the collection simply draws the new query.

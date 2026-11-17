@@ -12,7 +12,7 @@ in **Settings › Hotkeys**.
 | Open Anvil | Opens the Anvil in the main area, on the Codex tab. If the Anvil is already open, it is shown instead of opening a second one. | none |
 | Open Timeline | Opens the Anvil on the Timeline tab. | none |
 | Open Plotlines | Opens the Anvil on the Plotlines tab. | none |
-| Open Kanban | Opens the Anvil on the Kanban tab. | none |
+| Open Board | Opens the Anvil on the Board tab. Older versions call this command Open Kanban. | none |
 | Open Plotgrid | Opens the Anvil on the Plotgrid tab. | none |
 | Browse collections from the repo | Opens **Collections from the repo**, the bundled catalog. See [The Library](library.md#browsing-the-repo). | none |
 | Undo last change | Undoes the last field change Story Forge made to your notes. See [Undo](undo.md). | none |
@@ -31,5 +31,5 @@ The ribbon icon **Story Forge: open Workbench** does the same as **Open Workbenc
   Configure › Add to command palette**, and set the **Command name** there. Removing the
   collection removes its command. If a command's collection no longer exists, running it shows
   "This Story Forge view no longer exists."
-- **Hotkeys survive.** The Timeline, Plotlines, Kanban and Plotgrid commands are kept so that
+- **Hotkeys survive.** The Timeline, Plotlines, Board and Plotgrid commands are kept so that
   hotkeys you assigned in earlier versions still work. They all open the one Anvil.

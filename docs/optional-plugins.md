@@ -5,8 +5,8 @@ Anvil and the field editor need nothing else. Three optional plugins add more:
 
 | Plugin | Kind | What it adds |
 |--------|------|--------------|
-| Bases | Core plugin, ships with Obsidian | Draws `.base` collections and adds Story Forge Cards to your own `.base` files |
-| Dataview | Community plugin | Runs Dataview and DataviewJS collections |
+| [Bases](glossary.md#bases) | Core plugin, ships with Obsidian | Draws `.base` collections and adds Story Forge Cards to your own `.base` files |
+| [Dataview](glossary.md#dataview-dql-and-dataviewjs) | Community plugin | Runs Dataview and DataviewJS collections |
 | metadata-menu | Community plugin | A form for editing FileClasses |
 
 Story Forge may suggest turning on Bases, because it ships with Obsidian. It never asks you to
@@ -80,8 +80,10 @@ Forge › Scope › FileClasses folder**.
 **With metadata-menu**, you get a form for editing FileClasses: which fields a kind of note has,
 their types, options and order.
 
-**Without it, nothing changes in Story Forge.** Story Forge reads FileClass files itself and ships
-its own for the eight story types. You can edit them as plain notes.
+**Without it, nothing changes in Story Forge.** Story Forge reads FileClass files itself. The
+example vault in the repository has eight of them, under `test/StoryForge/00 Meta/FileClasses/`:
+one for each of the seven entity types, plus `fc-character-fantasy` for fantasy characters. Story
+Forge doesn't copy them into your vault; copy them yourself. You can edit them as plain notes.
 
 With no FileClasses at all, the editor lists every property under "Properties", without sections
 or option lists. See [FileClasses and the editor](fileclasses.md).

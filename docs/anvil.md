@@ -1,7 +1,7 @@
 # The Anvil
 
-The Anvil is Story Forge's main-area view. It opens as a tab named **Anvil**, and has five
-tabs of its own: **Codex**, **Timeline**, **Plotgrid**, **Plotlines** and **Board**. An editor
+The Anvil is Story Forge's main-area view: it opens in the main area as a tab named **Anvil**,
+like a note. It has five tabs of its own: **Codex**, **Timeline**, **Plotgrid**, **Plotlines** and **Board**. An editor
 pane for the selected entry can be shown on every tab.
 
 <!-- screenshot: the Anvil header with its five tabs, zoom controls and the undo/redo buttons -->
@@ -12,7 +12,7 @@ Run **Story Forge: Open Anvil** from the command palette. It opens on the Codex 
 only ever one Anvil: if it is already open, the command brings it to the front.
 
 These commands open the Anvil straight on a tab: **Open Timeline**, **Open Plotlines**,
-**Open Plotgrid** and **Open Kanban** (which opens the Board tab).
+**Open Plotgrid** and **Open Board**. Older versions call **Open Board** "Open Kanban".
 
 The header holds the tabs, zoom controls (**Zoom out**, **Reset zoom**, **Zoom in**) and the
 ↶ ↷ buttons for [Undo](undo.md).
@@ -29,20 +29,26 @@ you have open:
 Notes in your excluded folders (default `00 Meta`) are always left out.
 
 **Clicking names.** On these four tabs, a click on a scene, character, place or plotline name
-follows the **Link click action** setting. By default the entry appears in the editor pane,
-and Cmd/Ctrl-click opens the note instead. See [Configuration](configuration.md).
+follows the **Link click action** setting:
+
+- **Inspect the linked note (show it in place)**, the default: the entry appears in the Anvil's
+  editor pane.
+- **Open in editor**: the note itself opens in Obsidian's note editor.
+
+Cmd/Ctrl-click does the other one. See [Configuration](configuration.md#behaviour).
 
 ## Codex
 
-The Codex shows your story entities as cards, one collection at a time.
+The Codex shows your story entities as cards, one [collection](glossary.md#collection) at a
+time.
 
 - **Collection pills** across the top switch between collections. Out of the box these are
   **Characters**, **Locations**, **Objects** and **Lore**. Collections you added yourself are
   drawn with a dashed outline.
 - **+ Collection** lists collections that are turned on but not shown in the Anvil yet, plus
   **Manage in settings…**, which opens the [Library](library.md).
-- **Card:** picks how entries are drawn: **Hero**, **Table** or **Compact**, plus any Cards of
-  your own under **Yours**. The choice is remembered per collection.
+- **Card:** picks how entries are drawn: **Hero**, **Table** or **Compact** (see
+  [Card](glossary.md#card)), plus any Cards of your own under **Yours**. The choice is remembered per collection.
 
 Clicking works like this:
 
@@ -54,7 +60,8 @@ Clicking works like this:
 
 If a collection finds nothing, it says which tag it looked for, for example "No characters
 found". Use **Change tag** to fix the tag, or **What are FileClasses?** to read about
-FileClasses. A collection drawn by a `.base` file needs the core Bases plugin. A Dataview
+FileClasses. A collection drawn by a [`.base` file](glossary.md#base-file) needs the core
+[Bases](glossary.md#bases) plugin. A [Dataview](glossary.md#dataview-dql-and-dataviewjs)
 collection needs the Dataview plugin, and shows "Drawn by Dataview" instead of the Card picker.
 
 A small badge on a card means "This property does not exist in this note". It usually means
@@ -62,16 +69,19 @@ a Card is showing a collection it wasn't made for.
 
 ## Timeline
 
-The Timeline puts scenes in story order. It sorts by `storyDay`, then by `order`, and groups
-scenes by `act` (scenes without an act go under "No act").
+The Timeline puts scenes in story order. It sorts by `storyDay` (the day of the story the scene
+happens on), then by `order` (reading order), and groups scenes by `act` (scenes without an act
+go under "No act"). See [Getting started](getting-started.md#tag-your-entities) for these
+Properties.
 
 Two modes:
 
 - **Rail:** one scene card per row along a line, with the `when` text beside it. The dot's
   colour shows the plotline. The card links to the POV character, the location and the other
   characters.
-- **Swimlane:** one column per value, with scenes placed in their column. Use
-  **Group swimlanes by** to choose **POV**, **Location** or **Plotline**.
+- **Swimlane:** one column per point-of-view character, location or plotline, with each scene
+  placed in its column. Use **Group swimlanes by** to choose **POV**, **Location** or
+  **Plotline**.
 
 The Timeline is read-only.
 
@@ -105,12 +115,14 @@ with [Undo](undo.md).
 ## The editor pane
 
 When you select an entry, its fields open in the editor pane. The fields come from the note's
-FileClass, or from the Properties the note already has if it has none. See
-[FileClasses and the editor](fileclasses.md).
+[FileClass](glossary.md#fileclass), or from the Properties the note already has if it has none.
+A field the FileClass declares but the note lacks is shown empty; fill it to add it to the note.
+See [FileClasses and the editor](fileclasses.md).
 
 - **Editing:** each change is written to the note's frontmatter as soon as you finish it. For
   a text box, that is when you press Enter or leave the box. If Story Forge can't save a
-  value, it puts back the value the note holds and tells you why. Relations appear as chips.
+  value, it puts back the value the note holds and tells you why. Relations appear as chips. To add one, select **+ link**, type the note's name and press
+Enter; × on a chip removes it.
   Image fields show a preview with **Choose image…** and **Clear**.
 - **Title:** click the note's name in the pane header to open the note in a new tab.
 - **Dock:** the pane starts below the tab's content. **Dock right** moves it beside the

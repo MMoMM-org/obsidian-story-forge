@@ -45,8 +45,9 @@ globally, it also takes over Obsidian's editor undo and redo, so only do that if
   redo steps.
 - It is stored in `undo-journal.json` in the plugin folder inside your vault's config folder,
   usually `.obsidian/plugins/story-forge/undo-journal.json`.
-- **Keep that file out of git**, for example by adding
-  `.obsidian/plugins/story-forge/undo-journal.json` to your `.gitignore`.
+- **If you back up your vault with git**, keep that file out of it: add
+  `.obsidian/plugins/story-forge/undo-journal.json` to your `.gitignore` (the file that lists
+  what git should not save). If you don't use git, you can skip this.
 - **The history is meant to stay on one device.** Obsidian Sync is not expected to transfer
   it, but this has not been verified yet. Other sync tools that copy the plugin folder may copy
   it. If you sync that folder, exclude the file.

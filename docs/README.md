@@ -3,10 +3,10 @@
 ## Overview
 
 Story Forge is an Obsidian plugin for fiction writers who keep their story in notes. Each
-character, location, object, piece of lore, plotline and scene is a note, and its facts are plain
-properties in that note's frontmatter. Story Forge reads those properties and shows your story
+character, location, object, piece of lore, scene, plotline and book is a note, and its facts are
+plain Properties at the top of that note (its frontmatter). Story Forge reads those properties and shows your story
 back to you: the **Workbench** in the sidebar follows the note you have open and shows what it is
-linked to, and the **Anvil** in the main area holds the Codex, Timeline, Plotlines, Kanban and
+linked to, and the **Anvil** in the main area holds the Codex, Timeline, Plotlines, Board and
 Plotgrid. You decide what the Codex shows in the **Library**. Story Forge never takes ownership of
 your story: every story fact it writes is a plain property in your own notes.
 
@@ -23,6 +23,7 @@ your story: every story fact it writes is a plain property in your own notes.
 - [Configuration](configuration.md)
 - [Commands](commands-reference.md)
 - [Troubleshooting](troubleshooting.md)
+- [Glossary](glossary.md): Story Forge's terms in plain language
 
 ## Quick links
 
@@ -30,6 +31,9 @@ your story: every story fact it writes is a plain property in your own notes.
   or [Browsing the repo](library.md#browsing-the-repo).
 - **Find out what Bases or Dataview would add:** [Optional plugins](optional-plugins.md).
 - **Fix a collection that doesn't draw:** [Troubleshooting](troubleshooting.md#common-issues).
+- **See a complete example:** the example vault `test/StoryForge/` in the
+  [repository](https://github.com/MMoMM-org/obsidian-story-forge) (the "Wardens of Moonharbor"
+  story).
 
 ## For contributors
 
