@@ -26,7 +26,7 @@
  * Settings" means. `What are FileClasses?` is a plain external link — no host
  * action needed, so no marker.
  *
- * @ref docs/mockups/anvil-workbench-codex.html — S98
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S98
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F3
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-4.md — T4.6
  */

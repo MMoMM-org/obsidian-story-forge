@@ -35,7 +35,7 @@
  * fact/relation lists from `kindFields("unknown")`, so Hero degrades to
  * image + name rather than a wall of unrelated `.miss` markers (S104).
  *
- * @ref docs/mockups/anvil-workbench-codex.html — S91, S97, S104
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S91, S97, S104
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F4
  */
 

@@ -33,7 +33,7 @@
  * and the width all arrive decided, which is what keeps a user's own FileClass
  * first-class without a line of code that knows about it.
  *
- * @ref docs/mockups/anvil-workbench-codex.html — S92, S99, S100, S102, S103
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S92, S99, S100, S102, S103
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Features F2, F3, F5, F6
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28, ADR-31, ADR-33
  */

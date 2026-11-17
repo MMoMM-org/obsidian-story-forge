@@ -431,7 +431,7 @@ export class ConsentGate {
 	 *                    render-gate concern: mapping `ask` to consented
 	 *                    renders the user's hand-edited file as-is and never
 	 *                    overwrites it — the safe direction. The signed-off
-	 *                    mockup (docs/mockups/anvil-workbench-codex.html:
+	 *                    mockup (docs/XDD/specs/008-codex-surface/mockups.html:
 	 *                    1152-1161) describes the ask/regenerate distinction
 	 *                    in prose but draws NO UI state for that prompt;
 	 *                    inventing a modal here would breach the repo's

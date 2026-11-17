@@ -32,7 +32,7 @@
  * tag it looked for, `Change tag` + `What are FileClasses?`) rather than
  * rendering anything of its own for that case.
  *
- * @ref docs/mockups/anvil-workbench-codex.html — S91
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S91
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Features F2, F3, F7
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28, Building Block View
  */

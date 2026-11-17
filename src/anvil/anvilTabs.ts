@@ -10,7 +10,7 @@
  * `AnvilLayout` value and `data-ws-layout` hook stay `"kanban"` (ADR-27: renaming a surface
  * changes its display name, never any id/value saved workspace layouts or tests key off).
  *
- * @ref docs/mockups/anvil-workbench-codex.html — S91, S94
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S91, S94
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F1
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-27, Directory Map
  */

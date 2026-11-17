@@ -52,7 +52,7 @@
  *
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-5.md — T5.2
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — F2, F5, F6
- * @ref docs/mockups/anvil-workbench-codex.html — S102, S103
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S102, S103
  */
 
 import type { FieldDef } from "editor/fieldModel";

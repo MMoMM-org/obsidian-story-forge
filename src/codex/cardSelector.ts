@@ -17,7 +17,7 @@
  * decide" discipline the collection pills follow in `codexTab.ts` (ADR-28) —
  * the host resolves the active collection and persists the choice.
  *
- * @ref docs/mockups/anvil-workbench-codex.html — S91 (closed), S97 (open)
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S91 (closed), S97 (open)
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F4
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28, ADR-30
  */

@@ -27,7 +27,7 @@
  * function is exercised through the Cards that use it (`heroCard.test.ts`,
  * `tableCard.test.ts`, `compactCard.test.ts`), not in a test file of its own.
  *
- * @ref docs/mockups/anvil-workbench-codex.html — S91, S97, S104
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S91, S97, S104
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F4
  * @ref src/panel/kindFields.ts — the per-kind fact/relation lists reused here
  * @ref src/scoping/NoteContext.ts — classifyEntityKind, the single source of
