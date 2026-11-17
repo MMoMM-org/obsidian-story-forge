@@ -183,21 +183,29 @@ function factory<V>(plugin: Plugin, type: string): (leaf: WorkspaceLeaf) => V {
 	return call[1] as (leaf: WorkspaceLeaf) => V;
 }
 
-const live: World[] = [];
+/** What each cell leaves behind, registered as it is made so a failing setup is cleaned up in its own cell. */
+const cleanups: Array<() => Promise<void>> = [];
 
 afterEach(async () => {
-	for (const w of live.splice(0)) {
-		await w.workbench.onClose();
-		await w.anvil.onClose();
-		w.anvil.contentEl.remove();
-		w.workbench.contentEl.remove();
-	}
+	for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 	document.body.querySelectorAll(".modal").forEach((m) => m.remove());
 	_resetApiVersion();
 	setPlatform(false);
 	Notice._reset();
 	vi.mocked(MarkdownRenderer.render).mockClear();
 });
+
+async function openView<V extends { onOpen(): Promise<void>; onClose(): Promise<void>; contentEl: HTMLElement }>(
+	plugin: Plugin, app: App, type: string,
+): Promise<V> {
+	const leaf = new WorkspaceLeaf();
+	leaf.app = app;
+	const view = factory<V>(plugin, type)(leaf);
+	cleanups.push(async () => { await view.onClose(); view.contentEl.remove(); });
+	await view.onOpen();
+	document.body.appendChild(view.contentEl);
+	return view;
+}
 
 async function world(cell: Cell, settings: Fm = {}): Promise<World> {
 	const { default: StoryForgePlugin } = await import("main");
@@ -210,6 +218,7 @@ async function world(cell: Cell, settings: Fm = {}): Promise<World> {
 	app.workspace.openLinkText = vi.fn(async () => {});
 
 	const plugin = new StoryForgePlugin(app) as Plugin;
+	cleanups.push(async () => { plugin._runCleanup(); });
 	let saved: Fm = { settings };
 	plugin.loadData.mockImplementation(async () => structuredClone(saved));
 	plugin.saveData.mockImplementation(async (d?: unknown) => { saved = structuredClone(d ?? {}) as Fm; });
@@ -217,19 +226,11 @@ async function world(cell: Cell, settings: Fm = {}): Promise<World> {
 	await plugin.onload();
 	for (const [id, record] of Object.entries(USER_COLLECTIONS)) await plugin.store.setRecord(id, record);
 
-	const leaf = new WorkspaceLeaf();
-	leaf.app = app;
-	const anvil = factory<AnvilView>(plugin, WORKSPACE_VIEW_TYPE)(leaf);
-	const workbench = factory<SidebarView>(plugin, SIDEBAR_VIEW_TYPE)(leaf);
-	const w = { app, plugin, anvil, workbench, vault };
-	live.push(w);
-	await anvil.onOpen();
-	document.body.appendChild(anvil.contentEl);
+	const anvil = await openView<AnvilView>(plugin, app, WORKSPACE_VIEW_TYPE);
 	anvil.setLayout("codex");
-	await workbench.onOpen();
-	document.body.appendChild(workbench.contentEl);
+	const workbench = await openView<SidebarView>(plugin, app, SIDEBAR_VIEW_TYPE);
 	await vi.waitFor(() => { expect(pillLabels(anvil)).toContain("Organizations"); });
-	return w;
+	return { app, plugin, anvil, workbench, vault };
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +270,8 @@ async function openLibrary(w: World): Promise<HTMLElement> {
  *     Forge's own repository link in the Library header is not one), or a control whose own text or
  *     label names Dataview, metadata-menu or a community plugin.
  * Allowed, because they state a cause and offer no action: "Needs Dataview", "This collection needs
- * Dataview, which is not active.", "Needs Dataview, which is not active." and the neutral
+ * Dataview, which is not active.", "Needs Dataview, which is not active.", the Bases causes
+ * "○ Needs Bases" and "Needs the core Bases plugin, which is off.", and the neutral
  * "What optional plugins add…" link to the capability screen.
  */
 const COMMUNITY = String.raw`(dataview|metadata[- ]?menu|community plugins?)`;
@@ -365,9 +367,14 @@ describe.each(CELLS.map((c) => [label(c), c] as const))("%s", (_label, cell) => 
 		expect(Notice._instances.map((n) => n.message).filter((m) => NAG_WORDING.some((p) => p.test(m)))).toEqual([]);
 		// The allowed cause, where it applies: present, and not an action.
 		if (!cell.dataview) expect(library.textContent).toContain("Needs Dataview, which is not active.");
-		// A cause names the plugin the collection actually needs: a `.base` row never blames Dataview.
+		// A cause names the plugin the collection actually needs: a `.base` row never blames Dataview,
+		// and where Bases cannot draw it on desktop, it says Bases (mobile is "not available" instead).
 		const baseRow = [...library.querySelectorAll<HTMLElement>(".sf-lb-item")].find((r) => r.textContent?.startsWith("Organizations"));
 		expect(baseRow?.textContent ?? "").not.toMatch(/Dataview/);
+		if (cell.bases !== "on" && !cell.mobile) {
+			expect(baseRow?.querySelector(".sf-lb-stat")?.textContent).toBe("○ Needs Bases");
+			expect(baseRow?.querySelector(".sf-lb-hint")?.textContent).toBe("Needs the core Bases plugin, which is off. What optional plugins add…");
+		}
 	});
 
 	it(cell.bases === "off" ? "shows exactly one dismissible Bases hint" : "shows no Bases hint", async () => {
@@ -395,7 +402,7 @@ describe("the Bases hint once dismissed", () => {
 	});
 });
 
-describe.each((["on", "off", "absent"] as const).map((bases) => [bases] as const))("the capability screen with Bases %s", (bases) => {
+describe.each(["on", "off", "absent"] as const)("the capability screen with Bases %s", (bases) => {
 	it("lists every optional plugin and offers no action for a community one", async () => {
 		await world({ bases, dataview: false, metadataMenu: false, mobile: false });
 		const modal = await vi.waitFor(() => {
@@ -408,8 +415,7 @@ describe.each((["on", "off", "absent"] as const).map((bases) => [bases] as const
 		expect(rows.map((r) => r.querySelector(".sf-cap-name")?.textContent)).toEqual(["Bases", "Dataview", "metadata-menu"]);
 		const community = rows.filter((r) => kindOf(r) === "community");
 		expect(community).toHaveLength(2);
-		for (const row of community) expect(row.querySelectorAll("a, button, [role='button'], [href]")).toHaveLength(0);
-		// The core row names where Bases is turned on, as text (S4), also without a control.
+		// No row has a control, community or core: the core row names where Bases is turned on as text (S4).
 		for (const row of rows) expect(row.querySelectorAll("a, button, [role='button'], [href]")).toHaveLength(0);
 	});
 });

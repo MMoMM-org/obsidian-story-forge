@@ -47,12 +47,22 @@ interface Block {
 	readonly hint: string | null;
 }
 
+/**
+ * The plugin a record's engine needs, for the `engine-missing` badge and hint (T8.2): one place, so
+ * the two cannot name different plugins. A `.base` needs the core Bases plugin, never Dataview.
+ */
+function engineNeeded(engine: ViewRecord["engine"] | undefined): { readonly name: string; readonly cause: string } {
+	return engine === "bases"
+		? { name: "Bases", cause: "Needs the core Bases plugin, which is off." }
+		: { name: "Dataview", cause: "Needs Dataview, which is not active." };
+}
+
 function blockOf(record: ViewRecord | undefined, decision: Decision | undefined): Block | null {
 	if (!record || !decision) return null;
 	switch (decision) {
 		// T7.4 S5 (L12e(b)): a cause in neutral grey, not a warning; the hint links the capability screen.
 		// T8.2: the cause names the engine the record needs; a `.base` is never blamed on Dataview.
-		case "engine-missing": return { badge: record.engine === "bases" ? "○ Needs Bases" : "○ Needs Dataview", warn: false, hint: null };
+		case "engine-missing": return { badge: `○ Needs ${engineNeeded(record.engine).name}`, warn: false, hint: null };
 		case "dvjs-off": return { badge: "○ DataviewJS disabled", warn: false, hint: "DataviewJS is disabled in Dataview settings." };
 		case "platform-restricted": return { badge: "○ Not available on mobile", warn: false, hint: "Not available on mobile." };
 		case "drift":
@@ -294,7 +304,7 @@ export class LibrarySection {
 	 */
 	private paintNeedsEngine(item: HTMLElement, engine: ViewRecord["engine"] | undefined): void {
 		const hint = item.createDiv({ cls: "sf-lb-hint is-faint" });
-		hint.appendText(engine === "bases" ? "Needs the core Bases plugin, which is off. " : "Needs Dataview, which is not active. ");
+		hint.appendText(`${engineNeeded(engine).cause} `);
 		const link = hint.createEl("button", { cls: "sf-lb-link", text: "What optional plugins add…", attr: { type: "button" } });
 		link.addEventListener("click", () => this.d.openCapabilities?.());
 	}
