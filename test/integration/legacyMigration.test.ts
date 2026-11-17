@@ -41,6 +41,7 @@ import {
 	type TFile,
 } from "obsidian";
 import type { AnvilView } from "anvil/AnvilView";
+import { computeChecksum } from "consent/checksum";
 import { DisclosureModal } from "consent/DisclosureModal";
 import type { SettingsTab } from "settings/SettingsTab";
 import type { SidebarView } from "views/SidebarView";
@@ -68,7 +69,6 @@ const DVJS_NOTE = LEGACY_VIEWS_RAW[LEGACY_DVJS_ID].source;
 const ACTIVE_NOTE = "30 Canon/31 Characters/Mara Stoneway.md";
 /** The 0.2.0 catalog file as shipped; the seed vault keeps it byte-identical to main's catalog. */
 const CATALOG_BASE_YAML = readFileSync(path.join(SEED, LEGACY_CATALOG_BASE_PATH), "utf8");
-const CATALOG_BASE_CHECKSUM = "sha256:4e40d2cc8950d8c9d0fb118fb789adb3e46b7c4c6f26e4d5feedba3ece3a70be";
 /** What the user did to the materialised file after installing it. */
 const HAND_EDITED_BASE = `${CATALOG_BASE_YAML}  - type: cards\n    name: Character cards\n`;
 
@@ -111,6 +111,8 @@ function wireVault(app: App, vault: Map<string, VaultFile>): void {
 /**
  * Every writer obsidian.d.ts declares on Vault, DataAdapter and FileManager, by name. Reading
  * them off the app (not a hand-picked few) is what makes "no file was touched" a real claim.
+ * Keep it complete: whenever obsidian.d.ts gains a writer on any of the three, add it here (and to
+ * the mock), or a write through it would pass unseen.
  */
 function vaultMutators(app: App): Record<string, ReturnType<typeof vi.fn>> {
 	const v = app.vault;
@@ -313,7 +315,8 @@ describe("upgrading from a 0.2.0 data.json (T8.3)", () => {
 		"ACCEPTED GAP by user decision 2026-11-17 (ADR-29 descope), not a bug guard: a 0.2.0 catalog .base " +
 		"record stays in data.json unchanged, its hand-edited vault file is untouched, and no surface lists it",
 		async () => {
-			const legacyBase = legacyCatalogBaseRecord(CATALOG_BASE_YAML, CATALOG_BASE_CHECKSUM);
+			// The checksum 0.2.0 stored is the plugin's own, over the YAML it installed.
+			const legacyBase = legacyCatalogBaseRecord(CATALOG_BASE_YAML, await computeChecksum(CATALOG_BASE_YAML));
 			const disk = dataJsonOf({ views: { ...LEGACY_VIEWS_RAW, [LEGACY_CATALOG_BASE_ID]: legacyBase } });
 			const vault = buildVault([vaultFile(LEGACY_CATALOG_BASE_PATH, HAND_EDITED_BASE)]);
 			const w = await load(disk, vault);
@@ -332,11 +335,14 @@ describe("upgrading from a 0.2.0 data.json (T8.3)", () => {
 			expect(tabIds(workbench)).not.toContain(LEGACY_CATALOG_BASE_ID);
 			const settings = w.plugin.addSettingTab.mock.calls.at(-1)?.[0] as SettingsTab;
 			await settings.openTab("library");
-			const row = (id: string): Element | null => settings.containerEl.querySelector(`[data-collection-id="${id}"]`);
-			await vi.waitFor(() => { expect(row(LEGACY_DQL_ID)).not.toBeNull(); });
-			expect(row(LEGACY_CATALOG_BASE_ID)).toBeNull();
-			expect(consentPrompts()).toEqual([]);
-			settings.hide();
+			try {
+				const row = (id: string): Element | null => settings.containerEl.querySelector(`[data-collection-id="${id}"]`);
+				await vi.waitFor(() => { expect(row(LEGACY_DQL_ID)).not.toBeNull(); });
+				expect(row(LEGACY_CATALOG_BASE_ID)).toBeNull();
+				expect(consentPrompts()).toEqual([]);
+			} finally {
+				settings.hide();
+			}
 		},
 	);
 });
