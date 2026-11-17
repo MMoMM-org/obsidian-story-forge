@@ -1,13 +1,20 @@
 # Story Forge
 
-Story Forge turns the Properties of your story notes into a main-area Anvil (Codex, Timeline, Plotgrid, Plotlines and Board) and a Workbench sidebar that follows the active note.
+Story Forge shows your story notes back to you inside Obsidian: the **Anvil**, a main-area view
+with your characters, places and lore as cards plus a scene Timeline, Plotgrid, Plotlines and
+status Board, and the **Workbench**, a sidebar that follows the note you have open and shows
+what it links to, such as a scene's characters and location.
 
 ## Installation
 
 See [docs/installation.md](docs/installation.md) for requirements, verification and updating.
 
-### Community Plugins (after listing)
-1. Open Obsidian Settings → Community Plugins
+### Community Plugins (not available yet)
+
+Story Forge is not listed in Obsidian's Community Plugins directory yet. Use a manual install or
+BRAT until it is. Once it is listed:
+
+1. Open **Settings → Community plugins**
 2. Search for "Story Forge"
 3. Install and enable
 
@@ -18,13 +25,15 @@ See [docs/installation.md](docs/installation.md) for requirements, verification 
 4. Restart Obsidian and enable the plugin
 
 ### BRAT (Beta)
-1. Install [BRAT](https://github.com/TfTHacker/obsidian42-brat)
+1. Install [BRAT](https://github.com/TfTHacker/obsidian42-brat), a community plugin that
+   installs plugins straight from GitHub
 2. Add beta plugin: `MMoMM-org/obsidian-story-forge`
 
 ## Usage
 
-Story Forge reads plain notes: one note per story entity, facts as frontmatter Properties and
-relations as `[[wikilinks]]`. It never owns your story data.
+Story Forge reads plain notes: one note per story entity, facts as Properties (the frontmatter
+at the top of the note) and relations as `[[wikilinks]]` in those Properties. It never owns your
+story data.
 
 - **Anvil** (main area, **Open Anvil**): Codex cards, Timeline, Plotgrid, Plotlines and a
   status Board, with an editor pane for the selected entry. See [docs/anvil.md](docs/anvil.md).
@@ -33,75 +42,16 @@ relations as `[[wikilinks]]`. It never owns your story data.
 - **Library** (Settings → Story Forge): collections and Cards. See [docs/library.md](docs/library.md).
 
 New here? Start with [Getting started](docs/getting-started.md). The full documentation is in
-[docs/README.md](docs/README.md).
+[docs/README.md](docs/README.md), and the terms are explained in the
+[Glossary](docs/glossary.md).
 
 ## Undo
 
 Story Forge keeps its own undo history for the field changes it writes; see [docs/undo.md](docs/undo.md).
 
-## Development
+## Contributing
 
-```bash
-git clone https://github.com/MMoMM-org/obsidian-story-forge.git
-cd obsidian-story-forge
-git config core.hooksPath .githooks
-npm install
-npm run dev       # Watch mode
-npm run build     # Production build
-npm test          # Run tests
-npm run lint      # Lint src/ (eslint) + styles.css (stylelint)
-npm run lint:css  # Just the CSS browser-compat check
-```
-
-`npm run lint` also runs stylelint with `stylelint-no-unsupported-browser-features`
-over `styles.css`, reproducing the Obsidian community-plugin bot's CSS
-browser-compat check locally. The Chromium floor it validates against is the
-`browserslist` field in `package.json` (template default `chrome 114` for
-`minAppVersion` 1.5.7) — **bump it to match your own `minAppVersion`'s Chromium**
-when you raise the floor (Obsidian 1.6.5 / Electron 30 → `chrome 124`).
-
-### Hot-reload vault for development
-
-Plugin development is dramatically faster (~30x per iteration) when the build output is symlinked into a dedicated test vault that can be reload-cycled via `Settings → Community Plugins → toggle off, then on`, rather than restarting Obsidian.
-
-**One-time setup:**
-
-1. Create the test vault directory structure inside the repo:
-
-   ```
-   test/story-forge/
-   ├── .obsidian/
-   │   └── plugins/
-   │       └── story-forge/   # this is what you symlink to
-   └── (test notes go here)
-   ```
-
-   Add `test/story-forge/.obsidian/workspace*` to `.gitignore` (per-developer state).
-
-2. Symlink build outputs into the plugin folder:
-
-   ```bash
-   cd test/story-forge/.obsidian/plugins/story-forge/
-   ln -s ../../../../../main.js main.js
-   ln -s ../../../../../manifest.json manifest.json
-   ln -s ../../../../../styles.css styles.css 2>/dev/null || true
-   ```
-
-3. Open the test vault in Obsidian, enable the plugin under Community Plugins.
-
-**Iteration loop:**
-
-```bash
-npm run dev    # esbuild watch — rebuilds main.js on every save
-```
-
-When you change source: switch to Obsidian → Settings → Community Plugins → toggle the plugin off, then on. The new build is loaded.
-
-**First-light gate.** Don't wait until feature-complete to exercise the plugin in a real vault. UI and API-boundary code carry roughly 80% of plugin bugs but ~30% of LOC, and unit tests against the Obsidian mock cannot catch path conventions, vault-modify-vs-adapter mistakes, popout-window assumptions, or layout-ready timing. Schedule a real-vault smoke session at ~50% of total scope and again before any milestone.
-
-### Diagnostics for external APIs
-
-If this plugin integrates with an external HTTP API or daemon, copy `scripts/api-inspect.template.mjs` to `scripts/<service>-inspect.mjs` and adapt the `BASE_URL` / auth scheme. Use it from day 1 — when an integration bug appears, the SDK's error message rarely tells you whether the bug is auth, path, content-type, or schema. Raw HTTP status + headers + body usually localises in seconds. Observed usage in MiYo: Dropbox path-prefix bugs (archivist), Docker daemon attach hangs (Hashi).
+To build Story Forge or work on it, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
