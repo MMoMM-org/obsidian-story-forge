@@ -1,6 +1,6 @@
 ---
 title: "Phase 8: Integration, degradation and gates"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 8
 ---
