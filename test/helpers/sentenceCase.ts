@@ -5,7 +5,7 @@
 
 /** Words that are proper nouns or UI terms the mockup writes capitalised mid-sentence. */
 const PROPER = new Set([
-	"Anvil", "Workbench", "Bases", "Dataview", "DataviewJS", "Scope", "Obsidian",
+	"Anvil", "Workbench", "Bases", "Dataview", "DataviewJS", "Scope", "Obsidian", "Sync",
 	"Library", "Browse", "Card", "Hero", "Codex", "FileClass", "FileClasses", "Meta", "Story", "Forge",
 ]);
 

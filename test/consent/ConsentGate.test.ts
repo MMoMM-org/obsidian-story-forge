@@ -526,7 +526,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 	it("[REGRESSION] dataview-dql with its note missing is consented: DQL is enable/disable only, the engine reports the missing note", async () => {
 		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
 		// No file in vault. DQL runs no code (2026-11-17), so there is nothing to consent to;
-		// DataviewDqlEngine draws "View source missing or unreadable".
+		// DataviewDqlEngine draws "Collection source missing or unreadable".
 		const app = makeAppSync(null, "");
 		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
