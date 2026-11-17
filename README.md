@@ -1,8 +1,10 @@
 # Story Forge
 
-Property-driven reference panels that follow the active note, showing linked story entities and their fields in the sidebar.
+Story Forge turns the Properties of your story notes into a main-area Anvil (Codex, Timeline, Plotgrid, Plotlines and Board) and a Workbench sidebar that follows the active note.
 
 ## Installation
+
+See [docs/installation.md](docs/installation.md) for requirements, verification and updating.
 
 ### Community Plugins (after listing)
 1. Open Obsidian Settings → Community Plugins
@@ -21,20 +23,21 @@ Property-driven reference panels that follow the active note, showing linked sto
 
 ## Usage
 
-<!-- Describe how to use the plugin -->
+Story Forge reads plain notes: one note per story entity, facts as frontmatter Properties and
+relations as `[[wikilinks]]`. It never owns your story data.
+
+- **Anvil** (main area, **Open Anvil**): Codex cards, Timeline, Plotgrid, Plotlines and a
+  status Board, with an editor pane for the selected entry. See [docs/anvil.md](docs/anvil.md).
+- **Workbench** (right sidebar, **Open Workbench**): the active note's story context, a scene
+  Navigator and your collection tabs. See [docs/workbench.md](docs/workbench.md).
+- **Library** (Settings → Story Forge): collections and Cards. See [docs/library.md](docs/library.md).
+
+New here? Start with [Getting started](docs/getting-started.md). The full documentation is in
+[docs/README.md](docs/README.md).
 
 ## Undo
 
-Story Forge keeps an undo history of the field changes it writes to your notes. Undo and redo are in the Anvil and Workbench (the ↶ and ↷ buttons, or Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z while one of them is active) and in the command palette: **Story Forge: Undo last change** and **Story Forge: Redo last change**.
-
-- **Values are restored, not formatting.** Undo puts the earlier value back. It does not restore how the frontmatter was laid out.
-- **Only Story Forge's own writes are undone.** Hand edits in the note, scripts, other plugins and sync changes are not. Use the editor's own undo for those. If a field was changed elsewhere since, undo still restores the earlier value, and redo brings back the value it replaced.
-- **The history holds copies of field values from your notes.** It keeps up to 50 undo and 50 redo steps and is stored in `undo-journal.json` in the plugin folder inside your vault's config folder (usually `.obsidian`). Keep that file out of git, for example by ignoring `.obsidian/plugins/story-forge/undo-journal.json`.
-- **The history is meant to stay on one device.** It is stored in `undo-journal.json` in the plugin folder. Obsidian Sync is not expected to transfer it, but this has not been verified yet. Other sync tools that copy the plugin folder may copy it; exclude the file if you sync that folder.
-- **Links go stale.** A link stored in the history (a `[[wikilink]]` value) still points at the old name if its target is renamed afterwards.
-- **No default hotkey.** The two commands ship without one. Binding a command to Cmd/Ctrl+Z globally also takes over Obsidian's editor undo and redo, so do that only if you want it.
-
-In Settings → Story Forge, **Keep undo history across restarts** turns the stored file on or off (turning it off deletes it), and **Clear undo history** empties undo and redo. Neither changes your notes.
+Story Forge keeps its own undo history for the field changes it writes; see [docs/undo.md](docs/undo.md).
 
 ## Development
 
