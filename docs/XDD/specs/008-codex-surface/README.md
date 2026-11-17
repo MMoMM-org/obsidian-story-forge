@@ -6,7 +6,8 @@
 |-------|-------|
 | **Created** | 2026-07-27 |
 | **Current Phase** | Ready |
-| **Last Updated** | 2026-11-17 |
+| **Last Updated** | 2026-11-17 | **The DQL light confirm (S21) is removed; the consent modal is DataviewJS-only** | Consequence of the user decision "a DQL collection never drifts" (and R1): nothing reached S21 any more. `DisclosureModal` loses its variant parameter and the S21 copy; every ConsentGate consent request for a non-DataviewJS record opens nothing and grants nothing (2d20403; comment/test tidy e07253e). S21 was a signed-off state; its removal follows from the user's decisions, not a silent deviation. |
+| 2026-11-17 |
 
 ## Documents
 
