@@ -118,7 +118,7 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   Evaluating `file.hasTag` is the only step the test does on Bases' behalf. The `extends` chain is
   not used: a standalone FileClass is the stricter case, because nothing it shows can come from a
   generated FileClass. Mutation-checked against 6 fixture and 10 production mutations, all killed.
-  The "isekai case works without a release" box stays unticked until the live walk (T8.5).
+  The "isekai case works without a release" box was ticked after the user walked it live on the seed vault (2026-11-17).
 
 ---
 
