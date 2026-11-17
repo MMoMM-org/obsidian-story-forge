@@ -123,8 +123,8 @@ only knows our four types is not the Codex we are rebuilding. It follows that a
 user-added category must reach the card grid and the Workbench **through a view they
 author or import**, not through a plugin release (issue #13).
 
-**Substitutable:** a user who dislikes what our shipped Codex base shows writes their
-own `.base` and uses it instead. Curated views are a default, not a fixture.
+**Substitutable:** a user who dislikes what a built-in collection shows writes their
+own `.base` and uses it instead (the shipped `Codex.base` is gone; the built-ins are drawn natively). Curated views are a default, not a fixture.
 
 **Render:** Bases fits the grid (one `.base` per category, or one grouped base); the
 hero-card presentation is our own registered Bases view type (issue #12).

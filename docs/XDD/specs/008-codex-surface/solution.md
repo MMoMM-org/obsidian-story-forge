@@ -226,7 +226,7 @@ version: "1.0"
   - `WorkspaceView` (layout union, header, tab strip) and `SidebarView` (tab strip, labels).
   - `ViewRecord` shape and `applyDefaults`, with migration.
   - `CatalogService` install pipeline (the double-copy defect).
-  - `Codex.base` content — the include-by-folder filter is removed.
+  - `Codex.base` content — the include-by-folder filter is removed. *(Amended 2026-11-13, T7.3 reduced: `Codex.base` is removed entirely, not just its filter.)*
   - `PluginSettings` — new keys for collections, dock, excluded folders, FileClasses folder.
 - **Must Not Touch**
   - `schema/*.json` **story fields** — no fact is added. Revised 2026-11-02: the allowed changes are
@@ -445,6 +445,8 @@ graph LR
 │   │   │                               #   nothing in src/ produces a `sourceChecksum` and
 │   │   │                               #   classify()'s `reconsent` branch is currently unreachable.
 │   │   │                               #   Template resolution + sourceChecksum land in T7.3.
+│   │   │                               #   Amended 2026-11-13 (T7.3 reduced): DEFERRED, not built.
+│   │   │                               #   `classify()` survives for legacy `generated` records only.
 │   │   └── capabilityReport.ts         # NEW: what each optional plugin adds (F8)
 │   ├── navigation/                     # NEW
 │   │   ├── navigationController.ts     # NEW: target-kind matrix, one rule for both surfaces.
@@ -462,6 +464,8 @@ graph LR
 │   ├── store/types.ts                  # MODIFY: `kind` discriminant + CollectionRecord/CardRecord
 │   ├── catalog/CatalogService.ts       # MODIFY: drop the store YAML copy; two-checksum flow
 │   ├── consent/ConsentGate.ts          # MODIFY: generated collections bypass drift (ADR-0003)
+│   │                                   #   Amended 2026-11-13: legacy records only; a new install writes no
+│   │                                   #   `generated` block. Amended 2026-11-17: a DQL collection never drifts.
 │   ├── import/ViewDefinition.ts        # MODIFY: engine union admits `bases`
 │   ├── inspector/inspectorFields.ts    # DELETED 2026-11-02 in de48091 (ADR-0002). Was "DELETE — derived away"
 │   ├── inspector/inspectorFieldsFromModel.ts  # NEW (T6.3): FieldModel → the Workbench's FieldSpec[]
@@ -529,6 +533,8 @@ Record: ViewRecord (MODIFIED)
   ADD FIELD: kind: "collection" | "card" | "view"    # discriminant, defaults to "view" (migration)
   ADD FIELD: surfaces: { anvil: boolean, workbench: boolean }   # F7 per-entry binding
   # For kind:"collection" with provenance:"curated" (generated artifacts — ADR-0003)
+  # AMENDED 2026-11-13 (T7.3 reduced): a new install writes NO `generated` block (curated `.base` files
+  # install verbatim). The field is read for legacy records only. History kept below.
   ADD FIELD: generated?: {
       sourceChecksum: string        # the template's checksum — "did upstream change"
       params: { tag: string, excludedFolders: string[] }   # what it was rendered with
@@ -703,6 +709,7 @@ FUNCTION: createCardTileField (NEW T6.2b — src/codex/cardTileField.ts)
     - `fileFor` answering null falls back to `nativeTileField(entry)`, the shipped names.
 
 ENTITY: GeneratedArtifact (NEW — ADR-0003)
+  # AMENDED 2026-11-13 (T7.3 reduced): legacy records only; nothing writes a new one. `Codex.base` is retired.
   FIELDS: sourceChecksum, params, instanceChecksum, filePath, verify
   BEHAVIORS:
     classify(currentSource, currentParams, fileOnDisk): "clean" | "regenerate" | "ask" | "reconsent"
@@ -771,6 +778,10 @@ never a crash). A field with `ui` set but an unknown type still gets `full`. **R
 `full` (see the value rules under Complex Logic).
 
 #### Example: classifying a generated artifact (ADR-0003 / ADR-35)
+
+> **Amended 2026-11-13 (T7.3 reduced).** This describes the deferred design. A new install writes no
+> `generated` block, `Codex.base` is retired, and `classify()` survives for legacy records only. The
+> example and walkthrough below are kept as history; the `Codex.base` row is no longer reachable.
 
 **Why this example**: the three-way comparison is the heart of ADR-0003, and getting it wrong either
 nags the user on every settings change or silently overwrites their edits.
@@ -987,6 +998,7 @@ required by this spec.
 - pattern: "generated artifact vs consented import" (NEW)
   relevance: CRITICAL
   why: "ADR-0003. schema-gen is the precedent; this spec generalises it to .base files."
+  # Amended 2026-11-13 (T7.3 reduced): the generalisation to .base was NOT done; curated .base files install verbatim.
 ```
 
 ### User Interface & UX
@@ -1172,6 +1184,9 @@ Not applicable — single component.
   - Trade-offs: a template syntax must be specified and tested (empty parameters, folder names with
     spaces).
   - User confirmed: **Yes** (2026-07-28)
+  - **Amended 2026-11-13 (T7.3 reduced).** Curated `.base` files install verbatim, like Dataview notes.
+    Nothing regenerates them from Library/Scope settings; they change only via the catalog Update or
+    a user edit in Bases. Template rendering is deferred. The original text above is kept as history.
 
 - [x] **ADR-35 — Generated collections carry `{sourceChecksum, params, instanceChecksum, verify}`
       and the store keeps no YAML copy.**
@@ -1180,6 +1195,9 @@ Not applicable — single component.
   - Trade-offs: one file read per evaluate (compare `mtime` first if it ever matters); a migration
     for existing bases records.
   - User confirmed: **Yes** (2026-07-28)
+  - **Amended 2026-11-13 (T7.3 reduced).** A new install writes no `generated` block; `generated` and
+    `classify()` survive for legacy records only, and `Codex.base` is retired. The store still keeps no
+    YAML copy. History kept above.
 
 - [x] **ADR-36 — Capability disclosure distinguishes core from community.** Core plugins may be
       suggested once, dismissibly; community plugins appear only in a settings list.

@@ -1,6 +1,6 @@
 ---
 title: "Phase 7: The Library, import and capability disclosure"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 7
 ---
@@ -60,7 +60,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   >   its `cardByCollection` entry, never a file (P5, P16); Cards with "used by" and Hero not
   >   disablable (P19); selectors for the Anvil pills, the Workbench sections and the Workbench
   >   tabs. Pure, no DOM.
-  > - **T7.1b Settings tabs and the Collections list** *(done: ed38944…b1c34ab; the L3b "File found" line in place of an entry count awaits the user's confirmation)* — L1 (Library | Scope | Behaviour, every
+  > - **T7.1b Settings tabs and the Collections list** *(done: ed38944…b1c34ab; the L3b "File found" line in place of an entry count was accepted)* — L1 (Library | Scope | Behaviour, every
   >   existing setting placed), L2, L3, L8a, L9, P11–P14, P17.
   > - **T7.1c Cards list and preview** *(done)* — L4, L5, L8c, P3.
   > - **T7.1d Surfaces** *(done: d1 413b6d5…b8e6670, d2 b2338ff…235bdc7, d3 d9e2a4f…250bd64)*, run as three steps: **d1 wiring** (one shared `CollectionStore` from
@@ -137,7 +137,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   3. Implement: `src/library/capabilityReport.ts` + the first-run screen.
   4. Validate: unit tests across availability combinations; lint; types.
   5. Success:
-     - [x] Core is suggestible, community is never nagged `[ref: SDD/AC — PRD F4]`
+     - [x] Core is suggestible, community is never nagged `[ref: SDD/AC — PRD F8]`
 
 - [x] **T7.5 Phase Validation** `[activity: validate]`
 
@@ -271,7 +271,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
     checkbox line with an editable list". The code keeps the checkbox and adds the list under it.
     **Divergence, recorded after review:** with the checkbox gone there would be no control to
     go back to "same as Scope" short of emptying the list by hand, and an emptied list means
-    "exclude nothing", not "follow Scope". The checkbox stays so the way back is one click.
+    "exclude nothing", not "follow Scope". The checkbox stays so the way back is one click. **Approved by the user after a live test** (see the 2026-11-17 README row).
   - *+ Browse repo….* Its accessible name is its visible text. "Coming in a future release" is
     the `title` and an `aria-describedby` description, not a replacement `aria-label`.
 
@@ -567,7 +567,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
     `catalogId`, and **no `generated` block**: the note is copied verbatim, not rendered from a template, so ADR-0003's
     bookkeeping does not apply. `okayed` = `{sf-version, queryChecksum}`, the tokens `ConsentGate` itself computes from
     the written note, so a DQL entry draws with no modal; a later hand edit reads as drift like any Dataview
-    collection. Install verifies the note's checksum **and** its query checksum (fail closed).
+    collection. *(Superseded 2026-11-17: a DQL collection never drifts; see the README decision log.)* Install verifies the note's checksum **and** its query checksum (fail closed).
   - *A curated DataviewJS entry* is accepted by the builder (catalog and import cover the same engines) and asks the full
     consent **before** its note is written, through the new `ConsentGate.requestConsentForQuery` (same modal, body and
     version supplied by the caller); a decline writes nothing. The shipped catalog has none.
@@ -626,7 +626,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
   - *DataviewJS update (coordinator's decision, undrawn case).* The button reads **"Review and update…"** (it opens
     the consent dialog, as Q7's "Review and install…" does for an install), and the consent note names that button on
     an update; an install keeps "Review and install…". No such entry ships.
-  - *Choices the mockup does not settle.* **Needs the user's eye** on the first.
+  - *Choices the mockup does not settle.* **Needs the user's eye** on the first *(resolved: the user approved the "Not updated" prefix, README 2026-11-17)*.
     - On an update, the reworded Q8 sentences start **"Not updated: …"** (and the closed review reads "Not updated.
       You closed the review…"), following the T7.2 refusals' own install/update prefix; the table gives only the
       "Not installed" forms except for *persist failed*.
@@ -661,7 +661,7 @@ Closes the gap that started this whole spec: the distribution machinery served f
     button. **Import** (Bases and Dataview) saves at once; the light DQL disclosure no longer opens on import.
     `ImportFlow.importTokens` computes DQL tokens the way it does for a `.base`: `{ sf-version, checksum of the query
     block }`, which is exactly what `ConsentGate` computes from the note, so the collection draws without asking
-    (tested end to end) and a later edit reads as drift. **Review and import…** (DataviewJS) opens today's full
+    (tested end to end) and a later edit reads as drift *(superseded 2026-11-17: DQL never drifts, see the README decision log)*. **Review and import…** (DataviewJS) opens today's full
     disclosure first; closing it is the neutral note "Not imported. You closed the review, so nothing was saved."
   - *`runImportFlow` reports instead of notifying.* It returns `{ imported, id } | { declined } | { failed, error }`
     and raises no Notice; the modal shows the result inline (R4, R6). "Collection already imported" (a Notice) is now
