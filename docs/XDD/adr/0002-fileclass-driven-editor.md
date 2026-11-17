@@ -4,7 +4,7 @@
 - **Date:** 2026-07-27
 - **Milestone:** the Codex surface spec (epic #9; issues #13, #21, #12)
 - **Supersedes:** —
-- **Mockups:** `docs/mockups/anvil-workbench-codex.html` S102/S103 (signed off 2026-07-27)
+- **Mockups:** `docs/XDD/specs/008-codex-surface/mockups.html` S102/S103 (signed off 2026-07-27)
 
 ## Context
 
@@ -118,7 +118,7 @@ seven types: `Input` 39, `Select` 17, `Multi` 10, `MultiFile` 10, `Number` 7, `F
 
 ## References
 
-- `docs/mockups/anvil-workbench-codex.html` — S102, S103 (signed off)
+- `docs/XDD/specs/008-codex-surface/mockups.html` — S102, S103 (signed off)
 - `docs/gap-analysis.md` §1.2 (extensibility contract), §1.4 (add-ons), G20/#13
 - `test/StoryForge/00 Meta/FileClasses/fc-character-fantasy.md` — `extends`, `fieldsOrder`, `valuesList`
 - `src/inspector/inspectorFields.ts` — the list being derived away (deleted 2026-11-02, `de48091`)

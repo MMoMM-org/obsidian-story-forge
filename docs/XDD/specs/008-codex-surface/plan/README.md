@@ -37,7 +37,7 @@ version: "1.0"
 **Specification**:
 - `docs/XDD/specs/008-codex-surface/requirements.md` — PRD (F1–F8, 70 Gherkin ACs)
 - `docs/XDD/specs/008-codex-surface/solution.md` — SDD (CON-1…CON-10, ADR-27…ADR-36, EARS ACs)
-- `docs/mockups/anvil-workbench-codex.html` — **signed off** S91–S103. The visual specification.
+- `docs/XDD/specs/008-codex-surface/mockups.html` — **signed off** S91–S103. The visual specification.
   An implementation that diverges from a figure raises it **before** coding; the file is not
   re-synced afterwards.
 - `docs/XDD/adr/0001-bases-integration-strategy.md`, `0002-fileclass-driven-editor.md`,

@@ -23,7 +23,7 @@
  *
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Features F2, F3, F5
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28, ADR-33
- * @ref docs/mockups/anvil-workbench-codex.html — S92, S99, S100
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S92, S99, S100
  */
 
 import { describe, expect, it, vi } from "vitest";

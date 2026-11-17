@@ -17,7 +17,7 @@
  * via frontmatter `type` (no tag) reaches the same rendering, proving the
  * unified `classifyEntityKind` actually lands in Card output.
  *
- * @ref docs/mockups/anvil-workbench-codex.html — S91, S97, S104
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S91, S97, S104
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F4
  */
 

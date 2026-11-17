@@ -326,3 +326,179 @@ the SDD's live walk list; item 1 is recorded under Phase 1.
 The vault notes touched by the walk (including the Mara Stoneway rename and delete) were restored
 from git.
 
+
+## Spec 008 — Codex surface
+
+> **Vault:** `test/StoryForge/` · **Build:** `npm run build` (deploys into the vault's plugin folder)
+> **Scope:** spec 008-codex-surface, T8.5 live walk. Traceability: `docs/XDD/specs/008-codex-surface/traceability.md`.
+> **Mockups:** `docs/XDD/specs/008-codex-surface/mockups.html` (S91–S104) and the four addenda beside it.
+
+Same coverage key as above (AUTO / PARTIAL / MANUAL). Items the maintainer already walked during
+Phases 4–8 carry the date from the spec README decision log or the phase file; only the items with
+an empty **Status:** line still need a walk. Restore touched vault notes from git afterwards
+(`processFrontMatter` reformats the whole block).
+
+### 008-A  The Anvil and its tabs (T2.7 walk; no result was ever recorded)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| A1. Run "Open Anvil" | One main-area view; tab strip Codex · Timeline · Plotgrid · Plotlines · Board; Codex selected | AUTO — `test/anvil/anvilTabs.test.ts > renders one pill per registry tab, in registry order, with the S91 labels`; `test/main.anvil.test.ts > opens a new leaf with the Codex tab selected when no Anvil is open` |
+| A2. Run "Open Anvil" again | The same view is revealed, no second one | AUTO — `test/main.anvil.test.ts > reveals the existing leaf instead of creating a second when 'Open Anvil' runs twice` |
+| A3. Run the legacy "Open Timeline", "Open Plotlines", "Open Kanban", "Open Plotgrid" | Each opens the Anvil on its tab | AUTO — `test/main.anvil.test.ts > %s still exists and opens the Anvil with the %s tab selected` |
+| A4. Switch every tab; on Timeline check Rail \| Swimlane and group-by | The strip stays; Timeline-only controls show on Timeline only; Timeline, Plotgrid, Plotlines, Board look and behave as before the move (zoom, swimlanes, drag) | PARTIAL — `test/anvil/anvilTabs.test.ts > Timeline-only controls are hidden on every other tab, including Codex (S94)`; `test/anvil/AnvilView.m6.test.ts`; Board drag and the Plotgrid matrix walked on the Anvil in spec 009 (2026-11-06, 2026-11-11) |
+| A5. In each tab click an entity name, a card body and a chevron | Name: inspects in the editor pane (default) or opens the note with a modifier; body: inspects; chevron: only collapses. The Workbench never changes tab by itself | PARTIAL — `test/anvil/AnvilView.navigationController.test.ts` (all four describes); `test/editor/editorPane.test.ts > opens no other leaf and reveals nothing when inspecting (PRD/F2)` |
+| A6. Run "Open Workbench"; read the ribbon tooltip | Sidebar opens, titled Workbench; tooltip "Story Forge: open Workbench" | AUTO — `test/main.test.ts > addCommand registers 'open-panel' command named 'Open Workbench'`; `> addRibbonIcon is called with the ICON and 'Story Forge: open Workbench'` |
+
+Status:
+
+### 008-B  Codex pills, Cards and the Bases hint (T4.7 walk, run with T5.6)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| B1. Codex: switch collection pills | The grid re-renders; the first enabled collection is selected on open | AUTO — `test/codex/codexTab.test.ts > selects the first enabled collection on open [PRD/F3 AC]` |
+| B2. Pick Hero for Characters and Table for Lore; reload Obsidian | Both choices survive, per collection; no note changes | PARTIAL — `test/codex/codexTab.test.ts > remembers the Card choice per collection…`; `> a fresh AnvilView reflects a persisted per-collection Card choice immediately (reload) [SDD/AC]` |
+| B3. Open the Card dropdown, then click a card body | The dropdown closes | AUTO — `test/codex/codexTab.test.ts > closes the open dropdown on a click elsewhere that does not itself trigger a re-render` |
+| B4. Turn core Bases off, restart Obsidian, open the Codex | The grid still works; one dismissible hint; after dismissing and a reload it stays away | PARTIAL — `test/integration/degradationMatrix.test.ts > shows exactly one dismissible Bases hint`; `test/main.dismissHint.test.ts > PERMANENCE: …` |
+| B5. A Card in a standalone `.base`; a blank-but-present property there | The Card draws; the blank value is not marked "not set" | PARTIAL — `test/bases/CardBasesView.test.ts > renders a blank-but-present property as present, not marked absent` |
+| B6. A note missing a property a Card reads | Red tint plus a short label and a tooltip; never `undefined` | AUTO — `test/codex/cards/heroCard.test.ts > marks an absent core fact in the facts line with a visible label AND a tooltip` |
+
+Status: ✅ verified by maintainer 2026-11-02 (user's summary confirmation, without per-item results; README decision log 2026-11-02 and `plan/phase-5.md` T5.6)
+
+### 008-C  The empty state and "Change tag" (S98, deep link since T7.1)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| C1. In Settings › Library configure a built-in, set a tag no note carries (for example `canon/none`) | The Codex shows "<Collection> — no entries", names `canon/none`, offers **Change tag** and **What are FileClasses?** | AUTO — `test/codex/codexTab.test.ts > names the heading after the collection and the tag it looked for`; `> offers a primary Change tag action…` |
+| C2. Click **Change tag** | Settings opens on the Library tab with that collection's configure panel open and the Tag field focused | PARTIAL — `test/anvil/anvilLibrary.endToEnd.test.ts > S98's 'Change tag' opens the Library tab on that collection's configure panel` |
+| C3. Click **What are FileClasses?** | The documentation opens | MANUAL |
+| C4. Clear the Tag field and leave it | The shipped tag comes back (the Library never stores an empty tag); the Codex lists the collection again with no prompt | AUTO — `test/library/collectionStore.test.ts > an empty tag falls back to the default; a non-built-in id is refused` |
+
+Status:
+
+### 008-D  The editor pane: docks, fullscreen, Back (T5.6)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| D1. Click a character card | The pane opens below the grid with the full field set | AUTO — `test/editor/editorSections.test.ts > shows the full field set in the bottom dock` |
+| D2. Dock right; resize the window | One card column beside the pane; the dock never changes on resize; the columns scroll independently, the pane header stays put | PARTIAL — `test/editor/editorPane.test.ts > never changes the dock on a window resize (ADR-33)`; scrolling is CSS (MANUAL) |
+| D3. Fullscreen, then Back; then fullscreen and click a tab | Fills the tab body; Back returns to the previous dock; a tab click leaves fullscreen | PARTIAL — `test/editor/editorPane.test.ts > returns from fullscreen to the previous dock (%s) via Back`; `> leaves fullscreen when a tab is used…` |
+| D4. Edit `status` in each dock, then check the note | Written as a plain Property; the card shows the new value | AUTO — `test/editor/fieldCommit.test.ts > calls the writer once and sets only the edited key`; `test/anvil/AnvilView.cardRefresh.test.ts > shows its new value on the note's card in the grid` |
+| D5. Close | The full grid returns | AUTO — `test/editor/editorPane.test.ts > closes back to the full grid` |
+| D6. Short fields two-up, list fields full width | Matches S102/S103 (native select chrome is a recorded divergence) | MANUAL |
+
+Status: ✅ verified by maintainer 2026-11-02 (`plan/phase-5.md` T5.6, every real-vault box ticked; follow-ups `29fae14`, `7446d0a`)
+
+### 008-E  Media fields and rename (T5.5, T6.1)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| E1. *Choose image…* on Mara Stoneway's `portrait` | Stores `[[95 Assets/…]]`; preview shows; a broken link shows the monogram | PARTIAL — `test/editor/mediaPicker.test.ts > resolves to a [[wikilink]] holding the full vault path` |
+| E2. Rename the image file | The value follows the rename (Obsidian rewrites it, in the short form) | MANUAL |
+
+Status: ✅ verified by maintainer 2026-11-02 (`plan/phase-5.md` T5.6; the rename re-run on a full-path value)
+
+### 008-F  FileClass-driven fields and the demonstrated extension (T6.5, T8.1)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| F1. A hand-written `fc-character-custom1.md` with `extends: fc-character` | Its own labelled section, correct controls, two columns; `npm run schema:gen` leaves the file byte-identical | PARTIAL — `test/editor/editorSections.test.ts > gives it its own labelled section rather than appending its fields to ours`; `test/schema/schemaGenHandwritten.test.ts > leaves its bytes and mtime alone` |
+| F2. `fc-organization.md` + `Organizations.base` imported through "+ Import from vault…" | An Organizations pill; Hero cards; the editor shows the Organization profile section; its Select offers the declared values; a commit writes a plain Property | PARTIAL — `test/integration/demonstrated-extension.test.ts > become a Codex collection whose entries open a typed, sectioned editor that writes plain Properties` |
+
+Status: ✅ verified by maintainer — F1 2026-11-04 (README "Phase 6 closed"), F2 2026-11-17 (`plan/phase-8.md` T8.1)
+
+### 008-G  The Workbench tabs (T7.1d3, T7.5)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| G1. Open the Workbench on a character | Tabs Codex, Navigator, then the collection tabs in Library order; the Codex tab's sections are the built-ins with Workbench on | AUTO — `test/views/SidebarView.library.test.ts > are Codex, Navigator, then workbenchTabs of the Library in Library order`; `> are the built-ins with Workbench on, in Library order, each listing only the note's links into it` |
+| G2. Import a `.base`, turn its Anvil switch on and its Workbench switch off | It is a Codex pill and not a Workbench tab; removing it leaves nothing behind in either | PARTIAL — `test/anvil/anvilLibrary.endToEnd.test.ts > appears in the Anvil's Codex, draws through Bases, and leaves nothing behind once removed` |
+| G3. A collection tab | Ends with a Source row (path · engine · provenance collection) | AUTO — `test/views/SidebarView.library.test.ts > names the path, the engine and the provenance, as L7b draws it` |
+
+Status: ✅ verified by maintainer 2026-11-17 (README "Phase 7 complete", T7.5 walk). Tab order and visuals: issue #38
+
+### 008-H  The Library: collections, Cards, import, Browse repo
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| H1. Settings: Library, Scope, Behaviour tabs; native setting groups | Every setting once, under its tab | AUTO — `test/settings/libraryTab.test.ts > places every pre-existing setting exactly once, under its mapped tab (L1c)` |
+| H2. Configure a built-in: tag suggester, "Same as Scope", own excluded folders with folder suggester, live count | As L3a; the checkbox stays (approved deviation) | PARTIAL — `test/settings/suggest.test.ts`; `test/settings/libraryTab.test.ts > unchecking 'Same as Scope' reveals a list…` |
+| H3. Cards list: Hero greyed and not disablable, Preview with Sample from | As L4/L5 | PARTIAL — `test/settings/libraryCards.test.ts > draws the Card being previewed, not always Hero (Table and Compact differ)` |
+| H4. "+ Import from vault…": a `.base`, a DQL note, a DataviewJS note, a broken file | One-click Import for Bases and DQL; "Review and import…" for DataviewJS; the broken one listed as "Can't import" with a fix line; the modal stays open with "✓ Imported" | PARTIAL — `test/import/ImportPickerModal.test.ts`; `test/import/importEngineCoverage.test.ts` |
+| H5. "+ Browse repo…": install "Scenes with this note" and "Characters by role"; edit one, then Update | Installs into the repo folder; an edited file is refused with "Not updated: …" | PARTIAL — `test/catalog/catalogDataview.test.ts`; `test/catalog/curatedBase.test.ts > refuses to update a file the user edited, and changes nothing` |
+| H6. Remove an imported entry | Confirmation names its surfaces and says the file stays; no vault file changes | AUTO — `test/settings/libraryTab.test.ts > never touches the vault: no create, modify, delete or trash` |
+
+Status: ✅ verified by maintainer — H1–H3 2026-11-12 (README "T7.1 live-test fixes accepted"), H4–H5 2026-11-13 (README "L10 catalog browser and L11 import modal pass the live test"), H6 2026-11-17 (T7.5 walk)
+
+### 008-I  A DQL collection never drifts (88af278, decided 2026-11-17)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| I1. Hand-edit the query of an installed or imported DQL collection | It draws the new query in the Workbench, the Anvil and the Library with no prompt | AUTO — `test/anvil/anvilLibrary.test.ts > draws a hand-edited DQL query as it now is, with no re-consent prompt (DQL never drifts)` |
+| I2. Hand-edit a consented DataviewJS script | It is held at re-consent | AUTO — `test/anvil/anvilLibrary.test.ts > still holds a hand-edited DataviewJS script at re-consent` |
+
+Status:
+
+### 008-J  The capability screen (T7.4, after the 2026-11-17 fixes)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| J1. Remove `capabilities` from `dismissedHints` in `data.json`; restart Obsidian with an Anvil or a Workbench restored | The screen opens once at startup; the console shows "[StoryForge] capability screen: opening (first run)" | PARTIAL — `test/main.capabilities.test.ts > opens from the layout-ready callback even while workspace.layoutReady still reads false there` |
+| J2. Read the rows | Bases (core), Dataview and metadata-menu (community); each says what it adds and what is lost; the Bases row reads "Ships with Obsidian. Turn it on in *Settings › Core plugins › Bases*. Read when Story Forge loaded; after turning it on or off, restart Obsidian." | AUTO — `test/library/capabilityReport.test.ts > words each row as the mockup does (L12a)` |
+| J3. Close with ✕ or Escape; restart | It does not come back | AUTO — `test/library/CapabilitiesModal.test.ts > never opens once dismissed` |
+| J4. Library › "What optional plugins add…" | Same screen with only Close; closing records nothing | AUTO — `test/main.capabilities.test.ts > opens the same screen with only Close, and closing it records nothing` |
+
+Status:
+
+### 008-K  Degradation on desktop: Bases off, Dataview off (T8.2)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| K1. Turn core Bases off, restart | Built-ins draw natively; an imported `.base` shows "<name> needs Bases" in the Anvil; its Library row reads "○ Needs Bases" and "Needs the core Bases plugin, which is off." with the capability link (fix `95f7ed1`) | PARTIAL — `test/settings/libraryTab.test.ts > (c) engine missing on a .base: the Bases cause, never Dataview, with the capability link`; `test/integration/degradationMatrix.test.ts` |
+| K2. Disable Dataview | Dataview rows read "○ Needs Dataview" with no install link; nowhere is the user told to install anything | AUTO — `test/integration/degradationMatrix.test.ts > never prompts for a community plugin, in the Anvil, the Workbench, the Library or a Notice` |
+| K3. Disable metadata-menu | The editor still reads the FileClasses and commits | AUTO — `test/integration/degradationMatrix.test.ts > opens the editor from an entry, and a commit writes a plain value` |
+
+Status:
+
+### 008-L  Migration from 0.2.0 (T8.3)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| L1. Back up `data.json`; put the 0.2.0 capture in its place (`test/fixtures/legacy/dataJson.ts` holds it); reload the plugin | Library shows the two Dataview views as imported collections with Workbench on and Anvil off, plus the migration notice; their Workbench tabs draw with no consent prompt; no vault file changes | PARTIAL — `test/integration/legacyMigration.test.ts > turns every legacy view into a Workbench collection that runs, with no prompt and no vault write` |
+| L2. Reload again | Nothing changes; `data.json` is identical | AUTO — `test/integration/legacyMigration.test.ts > is a no-op the second time: data.json stays byte-identical, nothing is saved or written` |
+
+Accepted gap (README 2026-11-17): a 0.2.0 catalog-installed `.base` record is not migrated and appears on no surface.
+
+Status:
+
+### 008-M  Mobile (CON-9), if a device is available
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| M1. Open the Anvil on mobile | Built-ins draw natively; the editor opens and commits | AUTO — `test/integration/degradationMatrix.test.ts` (12 mobile cells) |
+| M2. An imported `.base` collection on mobile | "Not available on mobile"; nothing is handed to Bases | AUTO — same suite (mutation M3) |
+| M3. Note whether Bases itself runs on mobile | Input for the T8.2 follow-up on CON-9's premise | MANUAL |
+
+Status:
+
+### 008-N  Truth preservation (PRD Success Metrics)
+
+| Step | Expected | Coverage |
+|------|----------|----------|
+| N1. In the Anvil editor change one field of each type on a test note: text (`occupation`), Select (`status`), Number, Boolean, Date, a relation (add and remove a chip), Media (`portrait`) | Each write lands in the note | AUTO — `test/editor/fieldCommit.test.ts > commits a %s value without a validation error` |
+| N2. Open the same note's core Properties panel | Every value shows with its own type (number as number, checkbox as checkbox, date as date, list as list, link as link), not as a quoted string | MANUAL |
+| N3. Edit each of those values in the core Properties panel | The edit is accepted there, and the open editor pane shows it without a click | PARTIAL — `test/editor/fieldCommit.test.ts > updates a clean control when the note changes outside the plugin` |
+
+Partly walked: `status` in all three docks, checked in the Properties UI, 2026-11-02 (T5.6). The other types are new here.
+
+Status:
+
+### Spec 008 — items still to walk
+
+- [ ] 008-A The Anvil and its tabs (A1–A6)
+- [ ] 008-C The empty state and Change tag (C1–C4)
+- [ ] 008-I A DQL collection never drifts (I1–I2)
+- [ ] 008-J The capability screen at startup (J1–J4)
+- [ ] 008-K Degradation on desktop (K1–K3)
+- [ ] 008-L Migration from 0.2.0 (L1–L2)
+- [ ] 008-M Mobile, if a device is available (M1–M3)
+- [ ] 008-N Truth preservation (N1–N3)

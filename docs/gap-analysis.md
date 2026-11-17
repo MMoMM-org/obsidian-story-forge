@@ -423,7 +423,7 @@ G14 comment; it was not in the original register.
 **G26 — Codex Cards cannot show a computed stat.**
 *Promise:* signed-off mockup **S91** ends every Hero card with a scene count —
 `12 scenes`, `4 scenes`, `3 scenes` (the `.hx` element,
-`docs/mockups/anvil-workbench-codex.html:613-623`).
+`docs/XDD/specs/008-codex-surface/mockups.html:613-623`).
 *Reality:* unbuilt, and spec 008's Phase 4 closed without it. `CardEntry` — the entry
 shape frozen by T4.2 — exposes only `path`, `name` and `field(id)`, so **every value a
 Card can read is a property of the note**. A scene count is not: it is an aggregate

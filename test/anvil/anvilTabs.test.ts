@@ -11,7 +11,7 @@
  * What this file asserts is unchanged: the strip survives a tab swap and the Codex tab shows
  * Codex content. The body's own behaviour lives in `test/codex/codexTab.test.ts`.
  *
- * @ref docs/mockups/anvil-workbench-codex.html — S91 (tab strip), S94 (Timeline-only controls)
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S91 (tab strip), S94 (Timeline-only controls)
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F1
  */
 

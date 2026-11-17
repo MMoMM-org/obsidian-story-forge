@@ -20,7 +20,7 @@
  *
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-5.md — T5.3
  * @ref docs/XDD/specs/008-codex-surface/solution.md — Complex Logic (traced walkthrough)
- * @ref docs/mockups/anvil-workbench-codex.html — S102, S103
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S102, S103
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";

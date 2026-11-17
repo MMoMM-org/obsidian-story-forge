@@ -454,7 +454,7 @@ observable behaviour, verified the way specs 006 and 007 were:
   used where they help; everything degrades to native rendering without them.
 - **Bases surfaces are desktop-only** and require a recent Obsidian; the Codex must degrade on mobile
   rather than break.
-- **The signed-off mockups are binding.** `docs/mockups/anvil-workbench-codex.html` S91–S103 is the
+- **The signed-off mockups are binding.** `docs/XDD/specs/008-codex-surface/mockups.html` S91–S103 is the
   visual specification; divergence is raised before it is coded.
 - **ADR-0001, ADR-0002 and ADR-0003 are settled** and are not re-opened by this spec.
 - **No new story-schema fields.** This spec adds presentation hints to the plugin's own schema, not

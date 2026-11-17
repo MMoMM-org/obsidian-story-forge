@@ -4,7 +4,7 @@
 - **Date:** 2026-07-27
 - **Milestone:** the Codex surface spec (epic #9; issues #10, #14, #27)
 - **Revises:** the single-checksum consent model (M4) for **bases** records only
-- **Mockups:** `docs/mockups/anvil-workbench-codex.html` S98, S101 (signed off)
+- **Mockups:** `docs/XDD/specs/008-codex-surface/mockups.html` S98, S101 (signed off)
 - **Amended 2026-11-13 (spec 008 T7.3, reduced):** settings-driven regeneration is **deferred**, not built;
   curated `.base` files install **verbatim** with no `generated` block (and `Codex.base` is retired).
 

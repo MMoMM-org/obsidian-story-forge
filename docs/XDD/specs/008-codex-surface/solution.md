@@ -70,7 +70,7 @@ version: "1.0"
   plus narrowing.
 - **CON-9 — Mobile.** Bases surfaces are desktop-only (spec 007 ADR-10). The Codex must degrade to
   the native card renderer on mobile rather than fail.
-- **CON-10 — The signed-off mockups bind.** `docs/mockups/anvil-workbench-codex.html` S91–S103.
+- **CON-10 — The signed-off mockups bind.** `docs/XDD/specs/008-codex-surface/mockups.html` S91–S103.
   Divergence is raised before it is coded.
 
 ## Implementation Context
@@ -82,7 +82,7 @@ version: "1.0"
 #### Documentation Context
 
 ```yaml
-- doc: docs/mockups/anvil-workbench-codex.html
+- doc: docs/XDD/specs/008-codex-surface/mockups.html
   relevance: CRITICAL
   why: "S91–S103, signed off. The visual specification for every surface in this spec."
 

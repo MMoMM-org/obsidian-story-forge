@@ -19,7 +19,7 @@
  *
  * @ref docs/XDD/specs/008-codex-surface/requirements.md — Feature F2, F3, F7
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28
- * @ref docs/mockups/anvil-workbench-codex.html — S91
+ * @ref docs/XDD/specs/008-codex-surface/mockups.html — S91
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -487,7 +487,7 @@ describe("Codex tab: built-in Cards render through the real AnvilView [PRD/F4]",
 	// named their pill markup `.sf-cx-pill`. The later CSS block for the card's
 	// relation pills then overrode `background`/`color` on the COLLECTION pills
 	// too, beating `.sf-cx-pill--sel` and silently dropping the selected
-	// collection pill's accent fill (docs/mockups/anvil-workbench-codex.html —
+	// collection pill's accent fill (docs/XDD/specs/008-codex-surface/mockups.html —
 	// S91). The fix scopes the two under distinct classes
 	// (`.sf-cx-pill` for collections, `.sf-cx-relpill` for a Card's relation
 	// pills); this test fails again if the two are ever collapsed back onto one

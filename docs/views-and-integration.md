@@ -86,7 +86,7 @@ value building block — e.g. "in the Codex on a character, see where they appea
 
 ### Anvil — the Codex tab
 
-*Signed-off design: `docs/mockups/anvil-workbench-codex.html` S91–S103.*
+*Signed-off design: `docs/XDD/specs/008-codex-surface/mockups.html` S91–S103.*
 
 **Two independent axes** — conflating them was the modelling error of the first draft:
 
