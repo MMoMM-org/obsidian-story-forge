@@ -320,7 +320,7 @@ export class SettingsTab extends PluginSettingTab {
 					.setName("Keep undo history across restarts")
 					.setDesc(
 						"Stores the undo history in the plugin folder so you can still undo after restarting Obsidian. " +
-							"It holds copies of field values from your notes and stays on this device. Turning this off deletes the stored history.",
+							"It holds copies of field values from your notes and is meant to stay on this device; Obsidian Sync is not expected to transfer it, but this is not verified. Turning this off deletes the stored history.",
 					)
 					.addToggle((t) =>
 						t.setValue(this.plugin.settings.keepUndoHistory).onChange(async (value) => {
