@@ -30,7 +30,7 @@ phase: 8
 
 Proves the spec end to end, including the parts that are easy to claim and hard to demonstrate.
 
-- [ ] **T8.1 The demonstrated extension** `[activity: integration]`
+- [x] **T8.1 The demonstrated extension** `[activity: integration]`
 
   1. Prime: `[ref: PRD/Success Metrics]` — *"a FileClass and a `.base` written by hand, without
      changing plugin code, produce a working new Codex collection with a typed, sectioned editor"*.
@@ -43,7 +43,7 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   3. Implement: fixtures under `test/` plus the integration test.
   4. Validate: the test passes on a clean checkout of the phase; lint; types.
   5. Success:
-     - [ ] The isekai case works without a release `[ref: PRD/Success Metrics]`
+     - [x] The isekai case works without a release `[ref: PRD/Success Metrics]`
 
 - [ ] **T8.2 The degradation matrix** `[activity: integration]`
 
