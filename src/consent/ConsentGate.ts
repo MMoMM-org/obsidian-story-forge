@@ -221,9 +221,8 @@ export class ConsentGate {
 	}
 
 	/**
-	 * Open the full DataviewJS disclosure modal (S20) or DQL light confirm (S21).
-	 * Since 2026-11-17 no production caller asks for a DQL record (evaluate() never
-	 * withholds one), so the S21 light confirm is not reached from the UI.
+	 * Open the full DataviewJS disclosure modal (S20). For any other engine it opens
+	 * nothing and returns false: consent is a DataviewJS gate only (2026-11-17).
 	 * On "Enable": reads fenced block fresh, computes checksum, writes
 	 * okayed:{version,checksum}+enabled:true via store.setRecord() in ONE call.
 	 * On Cancel/Escape: no write.
@@ -235,7 +234,7 @@ export class ConsentGate {
 	}
 
 	/**
-	 * Open the re-consent modal (S23 for DataviewJS; a DQL record never drifts since 2026-11-17).
+	 * Open the DataviewJS re-consent modal (S23). Any other engine: opens nothing, returns false.
 	 * Triggered when evaluate() returns { status: "drift" }.
 	 * Same write semantics as requestConsent.
 	 *
@@ -348,14 +347,19 @@ export class ConsentGate {
 		return this._presentDisclosure({ ...fields, body: block.body, version }, isDrift);
 	}
 
-	/** Show the DisclosureModal for `query`; the tokens on grant, null on cancel. Never writes. */
+	/**
+	 * Show the DataviewJS DisclosureModal for `query`; the tokens on grant, null on cancel. Never
+	 * writes. Consent is a DataviewJS gate only: any other engine opens nothing and returns null,
+	 * for every entry point (requestConsent, requestReConsent, requestConsentForDef,
+	 * requestConsentForQuery). The DQL light confirm (S21) was removed 2026-11-17.
+	 */
 	private async _presentDisclosure(
 		query: ConsentQuery & { source: string },
 		isDrift: boolean,
 	): Promise<{ version: number; checksum: string } | null> {
-		const variant = query.engine === "dataviewjs" ? "dataviewjs-full" : "dql-light";
+		if (query.engine !== "dataviewjs") return null;
 		const checksum = await computeChecksum(query.body);
-		const modal = new DisclosureModal(this.app, variant, {
+		const modal = new DisclosureModal(this.app, {
 			name: query.name,
 			description: query.description,
 			sourcePath: query.source,

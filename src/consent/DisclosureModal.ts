@@ -1,26 +1,23 @@
 /**
  * DisclosureModal — Obsidian Modal subclass for consent/re-consent flows.
  *
- * Two variants:
- *   - Full disclosure (DataviewJS, S20/S23): name, description, source path,
- *     full source in scrollable block, sha256 checksum, ⚠ JS warning.
- *     Cancel is default-focused (primary). Enable is danger.
- *   - Light confirm (DQL, S21): name, description, source path, source block,
- *     "declarative and read-only" note. Cancel is default-focused. Enable is primary.
+ * Full disclosure for DataviewJS (S20/S23): name, description, source path,
+ * full source in scrollable block, sha256 checksum, ⚠ JS warning.
+ * Cancel is default-focused (primary). Enable is danger.
+ *
+ * The DQL light confirm (S21) was removed 2026-11-17: DQL is enable/disable only
+ * and never asks for consent.
  *
  * All user-supplied text rendered via createEl/textContent (XSS-safe, no innerHTML).
  *
- * @ref SDD/ADR-5 (DataviewJS full disclosure always; DQL light confirm only)
+ * @ref SDD/ADR-5 (DataviewJS full disclosure always)
  * @ref SDD/ADR-7 (standard Modal subclass; focus trap inherited)
  * @ref SDD/Cross-Cutting Concepts — Accessibility
- * @ref mockups.html states S20, S21, S23
+ * @ref mockups.html states S20, S23
  */
 
 import { Modal } from "obsidian";
 import type { App } from "obsidian";
-
-/** Controls which variant is rendered. */
-export type DisclosureVariant = "dataviewjs-full" | "dql-light";
 
 export interface DisclosureInfo {
 	/** View name (commandName or sf-name). */
@@ -45,7 +42,6 @@ export interface DisclosureInfo {
  */
 export class DisclosureModal extends Modal {
 	private _resolver: ((granted: boolean) => void) | null = null;
-	private readonly _variant: DisclosureVariant;
 	private readonly _info: DisclosureInfo;
 
 	/** Escape handler — stored so it can be removed in onClose. */
@@ -56,9 +52,8 @@ export class DisclosureModal extends Modal {
 		}
 	};
 
-	constructor(app: App, variant: DisclosureVariant, info: DisclosureInfo) {
+	constructor(app: App, info: DisclosureInfo) {
 		super(app);
-		this._variant = variant;
 		this._info = info;
 	}
 
@@ -91,11 +86,7 @@ export class DisclosureModal extends Modal {
 		// --- Body ---
 		const body = contentEl.createDiv({ cls: "sf-modal-body" });
 
-		if (this._variant === "dataviewjs-full") {
-			this._buildFullDisclosureBody(body);
-		} else {
-			this._buildLightConfirmBody(body);
-		}
+		this._buildFullDisclosureBody(body);
 
 		// --- Footer ---
 		const foot = contentEl.createDiv({ cls: "sf-modal-foot" });
@@ -143,74 +134,33 @@ export class DisclosureModal extends Modal {
 			"⚠ This view runs JavaScript with full vault access. Only enable views whose source you have read and trust. You will be re-prompted if the code changes.";
 	}
 
-	private _buildLightConfirmBody(body: HTMLElement): void {
-		// Source label + engine badge
-		const sourceLabel = body.createEl("div", { cls: "sf-source-label" });
-		sourceLabel.textContent = "Query ";
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- "dql" is a technical identifier
-		sourceLabel.createEl("span", { cls: "sf-badge sf-badge-dql", text: "dql" });
-
-		// Source code (shown but light — DQL is lower-risk)
-		const pre = body.createEl("pre", { cls: "sf-source-pre sf-source-pre-light" });
-		pre.textContent = this._info.source;
-
-		// "Declarative and read-only" note
-		const note = body.createDiv({ cls: "sf-dql-note" });
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- "DQL" is a proper abbreviation starting the sentence
-		note.textContent = "DQL is declarative and read-only — it cannot modify your vault or run arbitrary code.";
-	}
-
 	// -------------------------------------------------------------------------
 	// Footer buttons
 	// -------------------------------------------------------------------------
 
 	private _buildFooter(foot: HTMLElement): void {
-		if (this._variant === "dataviewjs-full") {
-			// S20/S23: Cancel is primary + default-focused; Enable is danger
-			const cancelBtn = foot.createEl("button", {
-				cls: "sf-btn sf-btn-primary",
-				text: "Cancel",
-			});
-			cancelBtn.setAttribute("type", "button");
-			cancelBtn.addEventListener("click", () => {
-				this._resolveOnce(false);
-				this.close();
-			});
-			// Focus Cancel (safe default per ADR-5)
-			cancelBtn.focus();
+		// S20/S23: Cancel is primary + default-focused; Enable is danger
+		const cancelBtn = foot.createEl("button", {
+			cls: "sf-btn sf-btn-primary",
+			text: "Cancel",
+		});
+		cancelBtn.setAttribute("type", "button");
+		cancelBtn.addEventListener("click", () => {
+			this._resolveOnce(false);
+			this.close();
+		});
+		// Focus Cancel (safe default per ADR-5)
+		cancelBtn.focus();
 
-			const enableBtn = foot.createEl("button", {
-				cls: "sf-btn sf-btn-danger",
-				text: "Enable",
-			});
-			enableBtn.setAttribute("type", "button");
-			enableBtn.addEventListener("click", () => {
-				this._resolveOnce(true);
-				this.close();
-			});
-		} else {
-			// S21: Cancel is default-focused; Enable is primary
-			const cancelBtn = foot.createEl("button", {
-				cls: "sf-btn",
-				text: "Cancel",
-			});
-			cancelBtn.setAttribute("type", "button");
-			cancelBtn.addEventListener("click", () => {
-				this._resolveOnce(false);
-				this.close();
-			});
-			cancelBtn.focus();
-
-			const enableBtn = foot.createEl("button", {
-				cls: "sf-btn sf-btn-primary",
-				text: "Enable",
-			});
-			enableBtn.setAttribute("type", "button");
-			enableBtn.addEventListener("click", () => {
-				this._resolveOnce(true);
-				this.close();
-			});
-		}
+		const enableBtn = foot.createEl("button", {
+			cls: "sf-btn sf-btn-danger",
+			text: "Enable",
+		});
+		enableBtn.setAttribute("type", "button");
+		enableBtn.addEventListener("click", () => {
+			this._resolveOnce(true);
+			this.close();
+		});
 	}
 
 	// -------------------------------------------------------------------------

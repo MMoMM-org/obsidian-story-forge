@@ -1025,3 +1025,45 @@ describe("ConsentGate.evaluate() — a Dataview DQL record is enable/disable onl
 		expect(await gateFor(true).evaluate(record)).toEqual({ status: "disabled" });
 	});
 });
+
+// ---------------------------------------------------------------------------
+// The consent modal is DataviewJS-only (2026-11-17: the DQL light confirm S21 is removed)
+// ---------------------------------------------------------------------------
+
+describe("ConsentGate — the consent modal opens for DataviewJS only", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		vi.restoreAllMocks();
+	});
+
+	const DQL_NOTE = "# View\n\n```dataview\nLIST FROM #canon/skill\n```\n";
+
+	it.each(["dataview-dql", "bases"] as const)("requestConsent and requestReConsent for a %s record open nothing and write nothing", async (engine) => {
+		const present = vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(true);
+		const store = makeStore();
+		const gate = new ConsentGate(makeAppSync("views/my-view.md", DQL_NOTE, 1), makeRegistry(), makeDvSettings(true), store, ...inertConsentGateSeams());
+		const record = makeRecord({ engine });
+
+		expect(await gate.requestConsent("id", record)).toBe(false);
+		expect(await gate.requestReConsent("id", record)).toBe(false);
+		expect(present).not.toHaveBeenCalled();
+		expect(store.setRecord).not.toHaveBeenCalled();
+	});
+
+	it("requestConsentForDef and requestConsentForQuery for DQL open nothing", async () => {
+		const present = vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(true);
+		const gate = new ConsentGate(makeAppSync("views/my-view.md", DQL_NOTE, 1), makeRegistry(), makeDvSettings(true), makeStore(), ...inertConsentGateSeams());
+
+		expect(await gate.requestConsentForDef(makeDef({ engine: "dataview-dql" }))).toBeNull();
+		expect(await gate.requestConsentForQuery({ engine: "dataview-dql", name: "Q", body: "LIST\n", version: 1, sourcePath: "q.md" })).toBeNull();
+		expect(present).not.toHaveBeenCalled();
+	});
+
+	it("still opens the full disclosure for a DataviewJS record", async () => {
+		const present = vi.spyOn(DisclosureModal.prototype, "present").mockResolvedValue(true);
+		const store = makeStore();
+		const gate = new ConsentGate(makeAppSync("views/my-view.md", DV_JS_CONTENT, 1), makeRegistry(), makeDvSettings(true), store, ...inertConsentGateSeams());
+		expect(await gate.requestConsent("id", makeRecord({ engine: "dataviewjs" }))).toBe(true);
+		expect(present).toHaveBeenCalledTimes(1);
+	});
+});
