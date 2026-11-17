@@ -447,7 +447,7 @@ Status:
 | J3. Close with ✕ or Escape; restart | It does not come back | AUTO — `test/library/CapabilitiesModal.test.ts > never opens once dismissed` |
 | J4. Library › "What optional plugins add…" | Same screen with only Close; closing records nothing | AUTO — `test/main.capabilities.test.ts > opens the same screen with only Close, and closing it records nothing` |
 
-Status:
+Status: ✅ verified by maintainer 2026-11-17 (J1: the screen opened at startup after the dismissal was reset; J2–J4 seen during the T7.4 live test)
 
 ### 008-K  Degradation on desktop: Bases off, Dataview off (T8.2)
 
@@ -497,7 +497,7 @@ Status:
 - [ ] 008-A The Anvil and its tabs (A1–A6)
 - [ ] 008-C The empty state and Change tag (C1–C4)
 - [ ] 008-I A DQL collection never drifts (I1–I2)
-- [ ] 008-J The capability screen at startup (J1–J4)
+- [x] 008-J The capability screen at startup (J1–J4) — 2026-11-17
 - [ ] 008-K Degradation on desktop (K1–K3)
 - [ ] 008-L Migration from 0.2.0 (L1–L2)
 - [ ] 008-M Mobile, if a device is available (M1–M3)
