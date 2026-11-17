@@ -177,7 +177,7 @@ consent gate from policing the user's own settings.
   3. Implement: extend `PluginSettings`; remove the sample-plugin residue; add the scope section.
   4. Validate: unit tests; lint; types.
   5. Success:
-     - [ ] Tag and excluded folders are user-editable with shipped defaults `[ref: PRD/F3 AC]`
+     - [x] Tag and excluded folders are user-editable with shipped defaults `[ref: PRD/F3 AC]` — delivered by T7.1b (Library configure panel)
        — excluded folders done; **open until Phase 7's per-entry Library UI** ships the tag field
      - [x] The **Link click action** setting's UI copy says *inspect*, and says it
            surface-neutrally `[ref: SDD/ADR-28]`
