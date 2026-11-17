@@ -70,7 +70,7 @@ Routing for `docs/ai/memory/`:
 
 ## Rules
 
-- Use Plan Mode for any change touching more than 2 files
+- More than 2 files: short plan in chat; features via `/xdd`. No self-started Plan Mode (see `~/Kouzou/standards/general.md`)
 - Commit after every completed task (Conventional Commits; hooks block direct commits to `main`)
 - English for all committed content
 - One feature or fix per change
