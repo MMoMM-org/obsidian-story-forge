@@ -89,8 +89,8 @@ Some collections need another plugin, or your approval before they run:
 
 - "Needs Dataview": install and enable the Dataview plugin. See
   [Optional plugins](optional-plugins.md).
-- **Review & Enable**: the collection runs DataviewJS code, so Story Forge asks before it runs.
+- **Review and enable**: the collection runs DataviewJS code, so Story Forge asks before it runs.
   See [The Library](library.md).
-- "View disabled": the collection is turned off in the Library.
+- "Collection disabled": the collection is turned off in the Library.
 
 Below the result, a **Source** line shows which file the collection comes from.

@@ -95,7 +95,7 @@ If the page says "This collection has no tag configured, so nothing can be shown
 has no tag. Story Forge will not fall back to listing the whole vault. Set a tag in
 **Settings › Story Forge › Library › Configure**.
 
-### "View source missing or unreadable"
+### "Collection source missing or unreadable"
 
 **You see:** this line where a Dataview or DataviewJS collection should draw.
 
@@ -144,8 +144,8 @@ When something does not behave as described, the developer console often says wh
 
 Story Forge's messages start with `[StoryForge]`. For example, the capability screen logs why it
 did or did not open, such as `[StoryForge] capability screen: not shown — already shown this
-session`. A note the import window could not read is logged as `Story Forge: could not parse
-view candidate`.
+session`. A note the import window could not read is logged as `[StoryForge] could not parse
+collection candidate`.
 
 If an undo fails with "an unexpected error occurred", the console has the details.
 
