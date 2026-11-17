@@ -45,7 +45,7 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   5. Success:
      - [x] The isekai case works without a release `[ref: PRD/Success Metrics]`
 
-- [ ] **T8.2 The degradation matrix** `[activity: integration]`
+- [x] **T8.2 The degradation matrix** `[activity: integration]`
 
   1. Prime: `[ref: SDD/CON-3]`, `[ref: CON-9]`; `[ref: PRD/F8 AC]`.
   2. Test: a matrix over {Bases on / off / absent} × {Dataview present / absent} ×
@@ -56,7 +56,7 @@ Proves the spec end to end, including the parts that are easy to claim and hard 
   3. Implement: parametrised test suite over the availability flags.
   4. Validate: every cell green; lint; types.
   5. Success:
-     - [ ] Independence is proven by test, not asserted `[ref: PRD/Success Metrics]`
+     - [x] Independence is proven by test, not asserted `[ref: PRD/Success Metrics]`
 
 - [ ] **T8.3 Migration from a real legacy install** `[activity: integration]`
 
