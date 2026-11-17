@@ -274,8 +274,8 @@ export default class StoryForgePlugin extends Plugin {
 		// M6: interactive Kanban / Plotgrid views (same host).
 		this.addCommand({
 			id: "open-kanban",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Kanban" is a proper noun + action
-			name: "Open Kanban",
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Board" is the proper name of the tab this opens
+			name: "Open Board",
 			callback: () => {
 				void this._openWorkspace("kanban");
 			},
@@ -448,7 +448,7 @@ export default class StoryForgePlugin extends Plugin {
 					if (!views[viewId]) {
 						// "Story Forge" is a proper noun (matches the ribbon label).
 						// eslint-disable-next-line obsidianmd/ui/sentence-case
-						new Notice("This Story Forge view no longer exists.");
+						new Notice("This Story Forge collection no longer exists.");
 						return;
 					}
 					await activateView(this.app);

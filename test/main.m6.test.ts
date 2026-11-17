@@ -32,6 +32,12 @@ describe("StoryForgePlugin M6 — Open Kanban/Plotgrid commands", () => {
 		expect(plugin.addCommand).toHaveBeenCalledWith(expect.objectContaining({ id: "open-plotgrid" }));
 	});
 
+	it("names the Kanban command after the tab it opens, keeping the id", async () => {
+		const { plugin } = await makePlugin();
+		await plugin.onload();
+		expect(plugin.addCommand).toHaveBeenCalledWith(expect.objectContaining({ id: "open-kanban", name: "Open Board" }));
+	});
+
 	it("registers the workspace view type exactly once (no duplicate view types)", async () => {
 		const { plugin } = await makePlugin();
 		await plugin.onload();
