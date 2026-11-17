@@ -271,6 +271,17 @@ describe("CatalogService — installing a curated Dataview view", () => {
 		expect((await realGate(app, store).evaluate(record!)).status).toBe("consented");
 	});
 
+	it("stays consented after the user edits the installed note: DQL never drifts", async () => {
+		const { app, files } = makeVault();
+		const { store, views } = makeStore();
+		const entry = await dataviewEntry();
+		await service(app, store, entry).svc.install(entry.id);
+		files.set("00 Meta/Bases/point-of-view.md", DQL_NOTE.replace("WHERE contains(pov, this.file.link)", "WHERE contains(characters, this.file.link)").replace("sf-version: 2", "sf-version: 5"));
+		const [record] = Object.values(views());
+		expect((await realGate(app, store).evaluate(record!)).status).toBe("consented");
+		expect((await realGate(app, store).evaluate({ ...record!, enabled: false })).status).toBe("disabled");
+	});
+
 	it("reports an installed entry as up to date instead of installing it twice", async () => {
 		const { app } = makeVault();
 		const { store, views } = makeStore();

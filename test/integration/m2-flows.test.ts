@@ -274,19 +274,18 @@ describe("Flow 1 — DataviewJS full consent flow (SDD Flow C)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// FLOW 2 — DQL light-confirm consent flow
+// FLOW 2 — DQL is enable/disable only (2026-11-17; was the light-confirm flow)
 //
-// import DQL note → evaluate = not-consented → requestConsent (light-confirm)
-// → Enable → consented → DataviewDqlEngine.render() calls dvApi.execute with
-// the SUBJECT path.
+// import DQL note → enable → evaluate = consented with no modal → DataviewDqlEngine.render()
+// calls dvApi.execute with the SUBJECT path.
 // ---------------------------------------------------------------------------
 
-describe("Flow 2 — DQL light-confirm consent flow", () => {
+describe("Flow 2 — DQL import draws with no consent step", () => {
 	afterEach(() => {
 		document.body.innerHTML = "";
 	});
 
-	it("DQL import → light-confirm Enable → consented → dvApi.execute called with subject path", async () => {
+	it("DQL import → enable → consented without a modal → dvApi.execute called with subject path", async () => {
 		(Platform as { isMobile: boolean }).isMobile = false;
 
 		const app = new App();
@@ -319,31 +318,12 @@ describe("Flow 2 — DQL light-confirm consent flow", () => {
 		expect(def.engine).toBe("dataview-dql");
 		const viewId = await importer.importToStore(def);
 
-		// Enable and verify not-consented
+		// Enable: consented at once, no modal
 		const views = await store.getViews();
-		const record = views[viewId]!;
-		const enabledRecord: ViewRecord = { ...record, enabled: true };
-		await store.setRecord(viewId, enabledRecord);
-
-		const decision1 = await gate.evaluate(enabledRecord);
-		expect(decision1.status).toBe("not-consented");
-
-		// requestConsent opens light-confirm modal
-		const consentPromise = gate.requestConsent(viewId, enabledRecord);
-		const enableBtn = await waitForButton("Enable");
-		enableBtn.click();
-
-		const granted = await consentPromise;
-		expect(granted).toBe(true);
-
-		// okayed written
-		const updatedViews = await store.getViews();
-		const updatedRecord = updatedViews[viewId]!;
-		expect(updatedRecord.okayed).not.toBeNull();
-
-		// evaluate → consented
-		const decision2 = await gate.evaluate(updatedRecord);
-		expect(decision2.status).toBe("consented");
+		const updatedRecord: ViewRecord = { ...views[viewId]!, enabled: true };
+		await store.setRecord(viewId, updatedRecord);
+		expect((await gate.evaluate(updatedRecord)).status).toBe("consented");
+		expect(document.body.querySelector("button")).toBeNull();
 
 		// engine.render calls dvApi.execute with the SUBJECT path (ADR-3)
 		await engine.render(updatedRecord, ctx, el);
@@ -595,18 +575,18 @@ describe("Flow 4 — Re-consent on checksum drift (AC-F2.4)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// FLOW 5 — Re-consent on version drift
+// FLOW 5 — A DQL view's version or query edit is not drift (2026-11-17)
 //
-// consented DQL view → change sf-version in frontmatter (mock) →
-// evaluate() = {status:"drift", reason:"version"} → light re-confirm → consented.
+// consented DQL view → change sf-version and the query (mock) → evaluate() stays consented.
+// DataviewJS version drift is covered in test/consent/ConsentGate.test.ts.
 // ---------------------------------------------------------------------------
 
-describe("Flow 5 — Re-consent on version drift", () => {
+describe("Flow 5 — a DQL view's version or query edit is not drift", () => {
 	afterEach(() => {
 		document.body.innerHTML = "";
 	});
 
-	it("evaluate returns drift/version when sf-version increments; re-consent restores consented", async () => {
+	it("evaluate stays consented when sf-version increments and the query changes", async () => {
 		(Platform as { isMobile: boolean }).isMobile = false;
 
 		const originalBody = "TABLE file.name FROM #canon\n";
@@ -649,33 +629,16 @@ describe("Flow 5 — Re-consent on version drift", () => {
 		const decision1 = await gate.evaluate(record);
 		expect(decision1.status).toBe("consented");
 
-		// Bump sf-version to 2 in the metadata cache (simulating frontmatter edit)
+		// Bump sf-version to 2 and change the query (simulating a hand edit)
 		vi.mocked(app.metadataCache.getFileCache).mockReturnValue({
 			frontmatter: { "sf-version": 2 },
 		});
+		vi.mocked(app.vault.read).mockResolvedValue("```dataview\nLIST FROM #canon\n```\n");
 
-		// evaluate → drift/version (checksum is unchanged)
+		// DQL never drifts (2026-11-17): still consented, no re-consent modal
 		const decision2 = await gate.evaluate(record);
-		expect(decision2.status).toBe("drift");
-		expect(decision2.status === "drift" && decision2.reason).toBe("version");
-
-		// requestReConsent (DQL → light-confirm) → Enable
-		const reConsentPromise = gate.requestReConsent(viewId, record);
-		const enableBtn = await waitForButton("Enable");
-		enableBtn.click();
-
-		const granted = await reConsentPromise;
-		expect(granted).toBe(true);
-
-		// Updated record has version: 2, same checksum
-		const updatedViews = await store.getViews();
-		const updatedRecord = updatedViews[viewId]!;
-		expect(updatedRecord.okayed?.version).toBe(2);
-		expect(updatedRecord.okayed?.checksum).toBe(checksum);
-
-		// evaluate → consented
-		const decision3 = await gate.evaluate(updatedRecord);
-		expect(decision3.status).toBe("consented");
+		expect(decision2.status).toBe("consented");
+		expect(document.body.querySelector("button")).toBeNull();
 	});
 });
 
@@ -815,7 +778,7 @@ describe("Flow 7 — Duplicate import blocked", () => {
 // ---------------------------------------------------------------------------
 
 describe("Flow 8 — Source missing after import", () => {
-	it("evaluate returns not-consented when source note is deleted after consent was granted", async () => {
+	it("a DQL view whose note was deleted stays consented and the engine reports the missing source", async () => {
 		const originalBody = "LIST FROM #canon\n";
 		const checksum = await computeChecksum(originalBody);
 
@@ -858,9 +821,14 @@ describe("Flow 8 — Source missing after import", () => {
 		// (readFencedBlock calls getAbstractFileByPath to check if the TFile exists)
 		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(null);
 
-		// evaluate → not-consented (source-missing path in ConsentGate.evaluate step 6)
+		// DQL is enable/disable only (2026-11-17): the gate has nothing to withhold, and the
+		// engine draws its own "source missing" line instead of a consent box.
 		const decision2 = await gate.evaluate(record);
-		expect(decision2.status).toBe("not-consented");
+		expect(decision2.status).toBe("consented");
+		const el = makeEl();
+		await new DataviewDqlEngine(app).render(record, makeCtx("notes/act1-scene2.md"), el);
+		expect(el.querySelector(".sf-source-missing")).not.toBeNull();
+		expect(dvApi.execute).not.toHaveBeenCalled();
 	});
 });
 

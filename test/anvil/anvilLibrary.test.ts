@@ -379,6 +379,40 @@ describe("a Dataview collection", () => {
 		expect(w.dv.execute).toHaveBeenCalledWith(DQL_BODY, expect.anything(), expect.anything(), MARA.path);
 	});
 
+	it("draws a hand-edited DQL query as it now is, with no re-consent prompt (DQL never drifts)", async () => {
+		const w = await makeWorld({ views: { skills: await skillsRecord() } });
+		w.bodies.set(SKILLS_NOTE, "# Skills\n\n```dataview\nLIST FROM #canon/skill\n```\n");
+		const view = await w.open();
+		click(pill(view, "Skills"));
+		await settle();
+
+		expect(w.dv.execute).toHaveBeenCalledWith("LIST FROM #canon/skill\n", expect.anything(), expect.anything(), MARA.path);
+		expect(body(view).querySelector(".sf-reconsent-required, .sf-consent-required")).toBeNull();
+	});
+
+	it("draws a DQL collection even when Dataview's JavaScript setting is off", async () => {
+		const w = await makeWorld({ views: { skills: await skillsRecord({ okayed: null }) } });
+		w.dv.settings.enableDataviewJs = false;
+		const view = await w.open();
+		click(pill(view, "Skills"));
+		await settle();
+
+		expect(body(view).querySelector(".dv-out")?.textContent).toContain("Ember Sight");
+		expect(body(view).querySelector(".sf-consent-required, .sf-dvjs-off")).toBeNull();
+	});
+
+	it("still holds a hand-edited DataviewJS script at re-consent", async () => {
+		const js = "dv.list([1])\n";
+		const w = await makeWorld({ views: { script: await skillsRecord({ engine: "dataviewjs", commandName: "Script", okayed: { version: 1, checksum: await computeChecksum(js) } }) } });
+		w.bodies.set(SKILLS_NOTE, "# Skills\n\n```dataviewjs\ndv.list([2])\n```\n");
+		const view = await w.open();
+		click(pill(view, "Script"));
+		await settle();
+
+		expect(w.dv.executeJs).not.toHaveBeenCalled();
+		expect(body(view).querySelector(".sf-reconsent-required")).not.toBeNull();
+	});
+
 	it("does not run DataviewJS the user has not approved", async () => {
 		const w = await makeWorld({ views: { script: await skillsRecord({ engine: "dataviewjs", commandName: "Script", okayed: null }) } });
 		const view = await w.open();

@@ -154,6 +154,14 @@ export class ConsentGate {
 			return { status: "consented" };
 		}
 
+		// 4c. Dataview DQL (user decision, 2026-11-17): enable/disable only, like Bases (PRD F7 AC 8).
+		//     DQL runs no code, so a hand-edited query is not drift and there is no consent to ask
+		//     for — imported, curated and legacy kind:"view" records alike. DataviewJS keeps the
+		//     full gate below, drift included.
+		if (record.engine === "dataview-dql") {
+			return { status: "consented" };
+		}
+
 		// 5. Not consented — okayed is null (never consented)
 		if (!record.okayed) {
 			return { status: "not-consented" };
@@ -212,6 +220,8 @@ export class ConsentGate {
 
 	/**
 	 * Open the full DataviewJS disclosure modal (S20) or DQL light confirm (S21).
+	 * Since 2026-11-17 no production caller asks for a DQL record (evaluate() never
+	 * withholds one), so the S21 light confirm is not reached from the UI.
 	 * On "Enable": reads fenced block fresh, computes checksum, writes
 	 * okayed:{version,checksum}+enabled:true via store.setRecord() in ONE call.
 	 * On Cancel/Escape: no write.
@@ -223,7 +233,7 @@ export class ConsentGate {
 	}
 
 	/**
-	 * Open the re-consent modal (S23 for DataviewJS; same light-confirm for DQL).
+	 * Open the re-consent modal (S23 for DataviewJS; a DQL record never drifts since 2026-11-17).
 	 * Triggered when evaluate() returns { status: "drift" }.
 	 * Same write semantics as requestConsent.
 	 *

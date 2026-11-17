@@ -521,11 +521,12 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 		expect(result).toEqual({ status: "not-consented" });
 	});
 
-	// (d) REGRESSION GUARD: dataview-dql still evaluates exactly as before
+	// (d) dataview-dql: enable/disable only since 2026-11-17 (no drift, no missing-note consent)
 
-	it("[REGRESSION] dataview-dql still requires source note (readFencedBlock path intact)", async () => {
+	it("[REGRESSION] dataview-dql with its note missing is consented: DQL is enable/disable only, the engine reports the missing note", async () => {
 		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
-		// No file in vault → readFencedBlock returns null → not-consented (fail-closed)
+		// No file in vault. DQL runs no code (2026-11-17), so there is nothing to consent to;
+		// DataviewDqlEngine draws "View source missing or unreadable".
 		const app = makeAppSync(null, "");
 		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
 
@@ -537,7 +538,7 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 			}),
 		);
 
-		expect(result).toEqual({ status: "not-consented" });
+		expect(result).toEqual({ status: "consented" });
 	});
 
 	it("[REGRESSION] dataview-dql evaluates consented when source note exists and checksum matches", async () => {
@@ -1008,5 +1009,31 @@ describe("ConsentGate.evaluate() — only a Bases collection is exempt from cons
 		const record = makeRecord({ engine: "dataviewjs", kind: "collection", okayed: null, source: "views/my-view.md" });
 		expect(record.generated).toBeUndefined();
 		expect(await gate.evaluate(record)).toEqual({ status: "not-consented" });
+	});
+});
+
+// ---------------------------------------------------------------------------
+// DQL never drifts (user decision, 2026-11-17): enable/disable only, like Bases
+// ---------------------------------------------------------------------------
+
+describe("ConsentGate.evaluate() — a Dataview DQL record is enable/disable only", () => {
+	const DQL_CONTENT = "# View\n\n```dataview\nLIST FROM #canon/skill\n```\n";
+	const gateFor = (dvJs: boolean) =>
+		new ConsentGate(makeAppSync("views/my-view.md", DQL_CONTENT, 9), makeRegistry(), makeDvSettings(dvJs), makeStore(), ...inertConsentGateSeams());
+
+	it.each(["view", "collection"] as const)("a %s whose query and version changed since approval is consented", async (kind) => {
+		const record = makeRecord({ engine: "dataview-dql", kind, okayed: { version: 1, checksum: `sha256:${"0".repeat(64)}` } });
+		expect(await gateFor(true).evaluate(record)).toEqual({ status: "consented" });
+	});
+
+	it("a DQL record that was never approved is consented, whatever Dataview's JavaScript setting", async () => {
+		const record = makeRecord({ engine: "dataview-dql", kind: "collection", okayed: null });
+		expect(await gateFor(true).evaluate(record)).toEqual({ status: "consented" });
+		expect(await gateFor(false).evaluate(record)).toEqual({ status: "consented" });
+	});
+
+	it("a disabled DQL record stays disabled", async () => {
+		const record = makeRecord({ engine: "dataview-dql", enabled: false });
+		expect(await gateFor(true).evaluate(record)).toEqual({ status: "disabled" });
 	});
 });

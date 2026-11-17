@@ -188,6 +188,27 @@ describe("SidebarView: a Dataview collection bound to the Workbench", () => {
 		expect(el.querySelector(".sf-consent-required")).not.toBeNull();
 	});
 
+	it("dataview-dql: a hand-edited query simply draws, with no re-consent prompt (DQL never drifts)", async () => {
+		const { el, dvEngine, record } = await renderWith("dataview-dql", "TABLE name FROM #canon/skill", true);
+		vi.mocked(dvEngine.render).mockClear();
+		const app = (view as unknown as { app: App }).app;
+		vi.mocked(app.vault.read).mockResolvedValue("---\nsf-version: 2\n---\n```dataview\nLIST FROM #canon/skill\n```\n");
+		vi.mocked(app.metadataCache.getFileCache).mockReturnValue({ frontmatter: { "sf-version": 2 } });
+		const internals = view as unknown as { currentRecord: ViewRecord | null; _renderResolved(el: HTMLElement, ctx: NoteContext): Promise<void> };
+		internals.currentRecord = record;
+		await internals._renderResolved(el, makeCtx());
+
+		expect(dvEngine.render).toHaveBeenCalledTimes(1);
+		expect(el.querySelector(".sf-reconsent-required")).toBeNull();
+		expect(el.querySelector(".sf-consent-required")).toBeNull();
+	});
+
+	it("dataview-dql with no stored approval still draws: there is no consent to give", async () => {
+		const { el, dvEngine } = await renderWith("dataview-dql", "TABLE name FROM #canon/skill", false);
+		expect(dvEngine.render).toHaveBeenCalledTimes(1);
+		expect(el.querySelector(".sf-consent-required")).toBeNull();
+	});
+
 	it("a changed script drifts to re-consent for a collection too", async () => {
 		const { el, dvEngine, record } = await renderWith("dataviewjs", "dv.list([])", true);
 		vi.mocked(dvEngine.render).mockClear();
