@@ -349,7 +349,7 @@ an empty **Status:** line still need a walk. Restore touched vault notes from gi
 | A5. In each tab click an entity name, a card body and a chevron | Name: inspects in the editor pane (default) or opens the note with a modifier; body: inspects; chevron: only collapses. The Workbench never changes tab by itself | PARTIAL — `test/anvil/AnvilView.navigationController.test.ts` (all four describes); `test/editor/editorPane.test.ts > opens no other leaf and reveals nothing when inspecting (PRD/F2)` |
 | A6. Run "Open Workbench"; read the ribbon tooltip | Sidebar opens, titled Workbench; tooltip "Story Forge: open Workbench" | AUTO — `test/main.test.ts > addCommand registers 'open-panel' command named 'Open Workbench'`; `> addRibbonIcon is called with the ICON and 'Story Forge: open Workbench'` |
 
-Status:
+Status: ✅ verified by maintainer 2026-11-17
 
 ### 008-B  Codex pills, Cards and the Bases hint (T4.7 walk, run with T5.6)
 
@@ -373,7 +373,7 @@ Status: ✅ verified by maintainer 2026-11-02 (user's summary confirmation, with
 | C3. Click **What are FileClasses?** | The documentation opens | MANUAL |
 | C4. Clear the Tag field and leave it | The shipped tag comes back (the Library never stores an empty tag); the Codex lists the collection again with no prompt | AUTO — `test/library/collectionStore.test.ts > an empty tag falls back to the default; a non-built-in id is refused` |
 
-Status:
+Status: ✅ verified by maintainer 2026-11-17
 
 ### 008-D  The editor pane: docks, fullscreen, Back (T5.6)
 
@@ -436,7 +436,7 @@ Status: ✅ verified by maintainer — H1–H3 2026-11-12 (README "T7.1 live-tes
 | I1. Hand-edit the query of an installed or imported DQL collection | It draws the new query in the Workbench, the Anvil and the Library with no prompt | AUTO — `test/anvil/anvilLibrary.test.ts > draws a hand-edited DQL query as it now is, with no re-consent prompt (DQL never drifts)` |
 | I2. Hand-edit a consented DataviewJS script | It is held at re-consent | AUTO — `test/anvil/anvilLibrary.test.ts > still holds a hand-edited DataviewJS script at re-consent` |
 
-Status:
+Status: ✅ verified by maintainer 2026-11-17
 
 ### 008-J  The capability screen (T7.4, after the 2026-11-17 fixes)
 
@@ -457,7 +457,7 @@ Status: ✅ verified by maintainer 2026-11-17 (J1: the screen opened at startup 
 | K2. Disable Dataview | Dataview rows read "○ Needs Dataview" with no install link; nowhere is the user told to install anything | AUTO — `test/integration/degradationMatrix.test.ts > never prompts for a community plugin, in the Anvil, the Workbench, the Library or a Notice` |
 | K3. Disable metadata-menu | The editor still reads the FileClasses and commits | AUTO — `test/integration/degradationMatrix.test.ts > opens the editor from an entry, and a commit writes a plain value` |
 
-Status:
+Status: ✅ verified by maintainer 2026-11-17
 
 ### 008-L  Migration from 0.2.0 (T8.3)
 
@@ -468,7 +468,7 @@ Status:
 
 Accepted gap (README 2026-11-17): a 0.2.0 catalog-installed `.base` record is not migrated and appears on no surface.
 
-Status:
+Status: ✅ verified by maintainer 2026-11-17
 
 ### 008-M  Mobile (CON-9), if a device is available
 
@@ -478,7 +478,7 @@ Status:
 | M2. An imported `.base` collection on mobile | "Not available on mobile"; nothing is handed to Bases | AUTO — same suite (mutation M3) |
 | M3. Note whether Bases itself runs on mobile | Input for the T8.2 follow-up on CON-9's premise | MANUAL |
 
-Status:
+Status: not walked (no mobile device in this walk); covered by the 12 mobile cells of the T8.2 matrix; the CON-9 premise follow-up stays open
 
 ### 008-N  Truth preservation (PRD Success Metrics)
 
@@ -490,15 +490,15 @@ Status:
 
 Partly walked: `status` in all three docks, checked in the Properties UI, 2026-11-02 (T5.6). The other types are new here.
 
-Status:
+Status: ✅ verified by maintainer 2026-11-17
 
 ### Spec 008 — items still to walk
 
-- [ ] 008-A The Anvil and its tabs (A1–A6)
-- [ ] 008-C The empty state and Change tag (C1–C4)
-- [ ] 008-I A DQL collection never drifts (I1–I2)
+- [x] 008-A The Anvil and its tabs (A1–A6)
+- [x] 008-C The empty state and Change tag (C1–C4)
+- [x] 008-I A DQL collection never drifts (I1–I2)
 - [x] 008-J The capability screen at startup (J1–J4) — 2026-11-17
-- [ ] 008-K Degradation on desktop (K1–K3)
-- [ ] 008-L Migration from 0.2.0 (L1–L2)
+- [x] 008-K Degradation on desktop (K1–K3)
+- [x] 008-L Migration from 0.2.0 (L1–L2)
 - [ ] 008-M Mobile, if a device is available (M1–M3)
-- [ ] 008-N Truth preservation (N1–N3)
+- [x] 008-N Truth preservation (N1–N3)
