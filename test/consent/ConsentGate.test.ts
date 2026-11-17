@@ -541,23 +541,6 @@ describe("ConsentGate.evaluate() — T2.1 bases source-model seam (ADR-5/ADR-6)"
 		expect(result).toEqual({ status: "consented" });
 	});
 
-	it("[REGRESSION] dataview-dql evaluates consented when source note exists and checksum matches", async () => {
-		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
-		const app = makeAppSync("views/my-view.md", DQL_CONTENT);
-		const gate = new ConsentGate(app, registry, dvSettings, store, ...inertConsentGateSeams());
-
-		const checksum = await computeChecksum(DQL_BODY);
-		const result = await gate.evaluate(
-			makeRecord({
-				engine: "dataview-dql",
-				source: "views/my-view.md",
-				okayed: { version: 0, checksum },
-			}),
-		);
-
-		expect(result).toEqual({ status: "consented" });
-	});
-
 	it("[REGRESSION] dataviewjs still gates: missing source → not-consented (fail-closed)", async () => {
 		const registry = makeRegistry(["dataview-dql", "dataviewjs"]);
 		const app = makeAppSync(null, "");
@@ -1020,6 +1003,11 @@ describe("ConsentGate.evaluate() — a Dataview DQL record is enable/disable onl
 	const DQL_CONTENT = "# View\n\n```dataview\nLIST FROM #canon/skill\n```\n";
 	const gateFor = (dvJs: boolean) =>
 		new ConsentGate(makeAppSync("views/my-view.md", DQL_CONTENT, 9), makeRegistry(), makeDvSettings(dvJs), makeStore(), ...inertConsentGateSeams());
+
+	it("an unchanged DQL record whose approval matches its note is consented", async () => {
+		const record = makeRecord({ engine: "dataview-dql", okayed: { version: 9, checksum: await computeChecksum("LIST FROM #canon/skill\n") } });
+		expect(await gateFor(true).evaluate(record)).toEqual({ status: "consented" });
+	});
 
 	it.each(["view", "collection"] as const)("a %s whose query and version changed since approval is consented", async (kind) => {
 		const record = makeRecord({ engine: "dataview-dql", kind, okayed: { version: 1, checksum: `sha256:${"0".repeat(64)}` } });

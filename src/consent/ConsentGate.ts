@@ -116,6 +116,8 @@ export class ConsentGate {
 	 *
 	 * Decision order (exact per SDD/T1.3):
 	 *   disabled → platform-restricted → engine-missing → dvjs-off →
+	 *   4b .base collection without `generated` (imported / from repo) → consented →
+	 *   4c dataview-dql → consented (enable/disable only, 2026-11-17) →
 	 *   not-consented (null okayed OR missing source) → drift → consented
 	 *
 	 * Reads the fenced block FRESH from record.source on every call.

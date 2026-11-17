@@ -39,7 +39,8 @@ const DECLARATIVE_ENGINES = new Set<ViewDefinition["engine"]>(["bases", "datavie
  *   them (ConsentGate, T7.2);
  * - a Dataview (DQL) note (L11 R1, which retires the light DQL dialog on import): `{ sf-version,
  *   checksum of the query block }`, exactly what ConsentGate computes from the note itself, so the
- *   collection draws without asking and a later edit reads as drift.
+ *   collection draws without asking; a later edit simply draws too (drift applies to DataviewJS
+ *   only, 2026-11-17).
  * DataviewJS keeps the full disclosure; `null` means the user closed it.
  */
 async function importTokens(

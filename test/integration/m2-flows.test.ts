@@ -323,7 +323,8 @@ describe("Flow 2 — DQL import draws with no consent step", () => {
 		const updatedRecord: ViewRecord = { ...views[viewId]!, enabled: true };
 		await store.setRecord(viewId, updatedRecord);
 		expect((await gate.evaluate(updatedRecord)).status).toBe("consented");
-		expect(document.body.querySelector("button")).toBeNull();
+		// Nothing was asked: the stored record is exactly what the enable wrote.
+		expect((await store.getViews())[viewId]).toEqual(updatedRecord);
 
 		// engine.render calls dvApi.execute with the SUBJECT path (ADR-3)
 		await engine.render(updatedRecord, ctx, el);
@@ -638,7 +639,8 @@ describe("Flow 5 — a DQL view's version or query edit is not drift", () => {
 		// DQL never drifts (2026-11-17): still consented, no re-consent modal
 		const decision2 = await gate.evaluate(record);
 		expect(decision2.status).toBe("consented");
-		expect(document.body.querySelector("button")).toBeNull();
+		// No re-consent was written: the stored approval is still the original one.
+		expect((await store.getViews())[viewId]?.okayed).toEqual({ version: 1, checksum });
 	});
 });
 

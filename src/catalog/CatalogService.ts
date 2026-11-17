@@ -361,9 +361,9 @@ export class CatalogService {
 	 * the note is copied verbatim and is not a template (ADR-0003 covers `.base` templates).
 	 *
 	 * `okayed` is what ConsentGate computes from the written note (block checksum, sf-version),
-	 * so a DQL entry draws with no modal (PRD F7 AC 8) and an edited note reads as drift like any
-	 * other Dataview collection. DataviewJS asks BEFORE anything is written; a decline writes
-	 * nothing.
+	 * so a DQL entry draws with no modal (PRD F7 AC 8). Drift applies to DataviewJS only: an edited
+	 * DQL note simply draws (2026-11-17), an edited DataviewJS note asks again. DataviewJS asks
+	 * BEFORE anything is written; a decline writes nothing.
 	 */
 	private async _installDataviewEntry(entry: DataviewCatalogEntry): Promise<InstallResult> {
 		const mismatch = await this._verifyDataview(entry);
