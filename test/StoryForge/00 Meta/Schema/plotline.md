@@ -1,6 +1,6 @@
 # Plotline — property reference
 
-Canonical note for a story arc or plot thread, under `20 Planning/`. A plotline groups the scenes that advance a single narrative question; scenes link to it via their `plotlines` field.
+Canonical note for a story arc or plot thread. A plotline groups the scenes that advance a single narrative question; scenes link to it via their `plotlines` field.
 
 ## Properties
 
@@ -20,7 +20,7 @@ Text. A one-sentence summary of the arc's dramatic question and stakes.
 Select — one of `seed | active | resolved | abandoned`. Current development state of the plotline: `seed` = idea only, `active` = being written, `resolved` = narrative question answered, `abandoned` = cut from the story.
 
 ### `series`
-Text. The series this plotline belongs to (defaults to the vault's series name).
+Text. The series this plotline belongs to.
 
 ### `tags`
 List. Always includes `planning/plotline` — how views and Bases select plotline notes.

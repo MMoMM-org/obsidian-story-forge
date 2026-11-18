@@ -6,7 +6,7 @@ nickname: ""
 role: protagonist        # protagonist | deuteragonist | antagonist | supporting | minor
 status: alive        # alive | dead | missing | unknown
 age: null
-gender: male        # male | female | diverse | nonbinary
+gender: ""        # male | female | diverse | nonbinary
 occupation: ""
 height: null
 build: ""
@@ -21,11 +21,11 @@ friends: []           # ["[[Character]]"]
 allies: []           # ["[[Character]]"]
 enemies: []           # ["[[Character]]"]
 first_appearance: ""
-series: "Forge"
+series: ""
 tags: [canon/character]
 ---
 
-# %name%
+# {{title}}
 
 > [!info] Facts live in the frontmatter above — Bases and the reference panel read them. Prose below.
 

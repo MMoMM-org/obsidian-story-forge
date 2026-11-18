@@ -5,7 +5,6 @@ icon: git-branch
 tagNames:
   - planning/plotline
 filesPaths:
-  - 20 Planning
 bookmarksGroups:
 excludes:
 extends:

@@ -5,7 +5,6 @@ icon: book
 tagNames:
   - planning/book
 filesPaths:
-  - 20 Planning
 bookmarksGroups:
 excludes:
 extends:

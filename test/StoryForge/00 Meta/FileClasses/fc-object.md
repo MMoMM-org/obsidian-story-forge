@@ -5,7 +5,6 @@ icon: package
 tagNames:
   - canon/object
 filesPaths:
-  - 30 Canon/33 Objects
 bookmarksGroups:
 excludes:
 extends:

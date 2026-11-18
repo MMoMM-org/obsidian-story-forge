@@ -1,6 +1,6 @@
 # Location — property reference
 
-Canonical note for a place, under `30 Canon/32 Locations/`. Machine source: `00 Meta/Templates/entity-location.md`.
+Canonical note for a place.
 
 ## Properties
 
@@ -32,7 +32,7 @@ Text — a `[[scene note]]` link. The scene where the location first appears.
 Text. The series this canon belongs to.
 
 ### `image`
-Media. Optional `[[wikilink]]` to the thumbnail image with its full vault path (e.g. `[[95 Assets/Moonharbor Lighthouse.svg]]`), which Meta Bind's image view needs — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays.
+Media. Optional `[[wikilink]]` to the thumbnail image with its full vault path (e.g. `[[Images/Moonharbor Lighthouse.svg]]`), which Meta Bind's image view needs — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays.
 
 ### `tags`
 List. Always includes `canon/location` — how views and Bases select location notes.

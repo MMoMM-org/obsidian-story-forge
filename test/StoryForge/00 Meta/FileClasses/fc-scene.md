@@ -5,7 +5,6 @@ icon: clapperboard
 tagNames:
   - manuscript/scene
 filesPaths:
-  - 10 Manuscript
 bookmarksGroups:
 excludes:
 extends:

@@ -5,11 +5,11 @@ aliases: []
 scope: world rule        # world rule | concept | faction | custom
 related: []
 first_appearance: ""
-series: "Forge"
+series: ""
 tags: [canon/lore]
 ---
 
-# %name%
+# {{title}}
 
 ## Overview
 

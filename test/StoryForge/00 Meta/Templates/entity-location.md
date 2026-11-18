@@ -7,12 +7,12 @@ locationType: world        # world | realm | area | landmark | building | room
 region: ""
 inhabitants: []           # ["[[Character]]"]
 first_appearance: ""
-series: "Forge"
+series: ""
 image: ""
 tags: [canon/location]
 ---
 
-# %name%
+# {{title}}
 
 ## Overview
 

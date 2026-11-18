@@ -1,6 +1,6 @@
 # Book — property reference
 
-Canonical note for a book (volume) in the series, under `20 Planning/`. Scenes link here via their `book` field; the reference panel can surface book metadata alongside scene context.
+Canonical note for a book (volume) in the series. Scenes link here via their `book` field; the reference panel can surface book metadata alongside scene context.
 
 ## Properties
 
@@ -26,7 +26,7 @@ Number. The book's position in the series reading order (1 = first). Used to sor
 Select — one of `planning | drafting | revising | done`. Current production state of the book.
 
 ### `series`
-Text. The series this book belongs to (defaults to the vault's series name).
+Text. The series this book belongs to.
 
 ### `tags`
 List. Always includes `planning/book` — how views and Bases select book notes.

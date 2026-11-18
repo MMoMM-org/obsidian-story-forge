@@ -5,7 +5,6 @@ icon: map-pin
 tagNames:
   - canon/location
 filesPaths:
-  - 30 Canon/32 Locations
 bookmarksGroups:
 excludes:
 extends:

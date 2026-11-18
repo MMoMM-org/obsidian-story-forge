@@ -5,12 +5,12 @@ aliases: []
 owner: ""           # "[[Character]]"
 kind: contract        # contract | artifact | relic | item
 first_appearance: ""
-series: "Forge"
+series: ""
 image: ""
 tags: [canon/object]
 ---
 
-# %name%
+# {{title}}
 
 ## Overview
 

@@ -5,7 +5,6 @@ icon: book-open
 tagNames:
   - canon/lore
 filesPaths:
-  - 30 Canon/34 Lore
 bookmarksGroups:
 excludes:
 extends:
@@ -55,7 +54,7 @@ fields:
   - name: related
     type: MultiFile
     options:
-      dvQueryString: dv.pages('"30 Canon"')
+      dvQueryString: dv.pages("#canon")
     path: ""
     id: r-related
   - name: first_appearance

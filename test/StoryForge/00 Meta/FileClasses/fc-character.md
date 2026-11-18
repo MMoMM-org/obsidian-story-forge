@@ -5,7 +5,6 @@ icon: user
 tagNames:
   - canon/character
 filesPaths:
-  - 30 Canon/31 Characters
 bookmarksGroups:
 excludes:
 extends:

@@ -3,9 +3,7 @@ limit: 20
 mapWithTag: false
 icon: wand-sparkles
 tagNames:
-  - 
 filesPaths:
-  - 
 bookmarksGroups:
 excludes:
 extends: fc-character

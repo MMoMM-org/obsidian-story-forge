@@ -1,6 +1,6 @@
 # Object — property reference
 
-Canonical note for a thing that matters to the story (item, artifact, contract), under `30 Canon/33 Objects/`. Machine source: `00 Meta/Templates/entity-object.md`.
+Canonical note for a thing that matters to the story (item, artifact, contract).
 
 ## Properties
 
@@ -26,7 +26,7 @@ Text — a `[[scene note]]` link. The scene where the object first appears.
 Text. The series this canon belongs to.
 
 ### `image`
-Media. Optional `[[wikilink]]` to the thumbnail image with its full vault path (e.g. `[[95 Assets/Moonharbor Lighthouse.svg]]`), which Meta Bind's image view needs — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays.
+Media. Optional `[[wikilink]]` to the thumbnail image with its full vault path (e.g. `[[Images/Moonharbor Lighthouse.svg]]`), which Meta Bind's image view needs — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays.
 
 ### `tags`
 List. Always includes `canon/object` — how views and Bases select object notes.

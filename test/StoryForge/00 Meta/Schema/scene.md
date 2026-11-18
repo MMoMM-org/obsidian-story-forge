@@ -1,6 +1,6 @@
 # Scene — property reference
 
-A manuscript scene, under `10 Manuscript/<book>/`. Facts live in frontmatter; the prose is the body. Machine source: this schema. Scenes are the notes the reference panel follows: their relation fields (`pov`, `characters`, `location`, `plotlines`) drive which canon entities the panel surfaces.
+A manuscript scene. Facts live in frontmatter; the prose is the body. Machine source: this schema. Scenes are the notes the reference panel follows: their relation fields (`pov`, `characters`, `location`, `plotlines`) drive which canon entities the panel surfaces.
 
 ## Properties
 
@@ -14,7 +14,7 @@ Text. The scene's title. Should match the note title.
 Text. A short logline for the scene.
 
 ### `book`
-A single `[[Book note]]` link (in `20 Planning/`). Which book the scene belongs to.
+A single `[[Book note]]` link. Which book the scene belongs to.
 
 ### `act`
 Number. The act this scene sits in.
@@ -44,13 +44,13 @@ List of `[[Character]]` links present in the scene. The reference panel resolves
 A single `[[Location]]` link — where the scene takes place.
 
 ### `plotlines`
-List of `[[plotline]]` links (in `20 Planning/`). Which story arcs this scene advances; drives the Plotlines view.
+List of `[[plotline]]` links. Which story arcs this scene advances; drives the Plotlines view.
 
 ### `arc`
 Text. The character/story arc this scene advances (free text note, not a link).
 
 ### `beat`
-Text — a `[[beat note]]` link in `20 Planning/`, or empty. The planning beat this scene realises.
+Text — a `[[beat note]]` link, or empty. The planning beat this scene realises.
 
 ### `wordcount`
 Number. Maintained by the word-count plugin; leave empty and let it fill in.

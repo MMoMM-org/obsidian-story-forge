@@ -1,6 +1,6 @@
 # Lore — property reference
 
-Canonical note for a world rule, concept, faction, or custom, under `30 Canon/34 Lore/`. Machine source: `00 Meta/Templates/entity-lore.md`.
+Canonical note for a world rule, concept, faction, or custom.
 
 ## Properties
 
@@ -17,7 +17,7 @@ List of text. Other names for the concept.
 Select — e.g. `world rule | concept | faction | custom`. What kind of lore this is.
 
 ### `related`
-List of `[[wikilinks]]` to any related canon notes (characters, locations, objects, or other lore). A loose typed relation — always wikilinks — for cross-referencing.
+List of `[[wikilinks]]` to any related canon notes (characters, locations, objects, or other lore) — notes tagged `canon/…`. A loose typed relation — always wikilinks — for cross-referencing.
 
 ### `first_appearance`
 Text — a `[[scene note]]` link. The scene where the lore first surfaces.
