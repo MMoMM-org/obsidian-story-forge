@@ -95,3 +95,68 @@ dependency is acceptable for general-purpose infra, or it should fall back to th
 - **Action 4** (single-source enum scripts): implement after **Q4 + Q6** (canonical vocab + read path).
 
 Nothing is applied on the StoryForge side until these are resolved.
+
+---
+
+# 2026-11-18 — Spec 010: shipped artifacts
+
+**Why:** spec 010 (ADR-43) makes the generated vault artifacts a **shipped set** that must work in any
+vault layout. A shipped FileClass, template or schema note therefore cannot name a folder, a series, or a
+demo-vault asset. The dev vault (`test/StoryForge/00 Meta/`) is regenerated from the same `schema/*.json`
+and `npm run schema:check` verifies the two agree (27 files equal). Nothing here changes a field name,
+type or enum value: **no field was added, renamed or removed.** The changes are defaults, description
+text, and what the generator emits. Source of this list: `git diff ea1ad41..HEAD -- schema/`.
+
+## Default changes (these alter what a new note starts with)
+
+| Change | Where | Reason | `_forge` may want to |
+|---|---|---|---|
+| `series` default `"Forge"` removed | book, character, location, lore, object, plotline, scene | A shipped template must not preset a series name from the demo vault. Descriptions lose "(defaults to the vault's series name)". | Drop the `"Forge"` default and the `{{SERIES_NAME}}` placeholder idea; series starts empty. |
+| `character.gender` default `"male"` -> `""` | character | Presetting a gender is a story decision, not a schema default. Empty is a valid option; the template presets none. | Mirror `"default": ""` (generator: `"default": ""` presets none; omitted default still means first value). |
+| `character.status` default `"alive"` removed | character | `alive` is already the first value, and the generator's rule is "first value unless `default`". The explicit key was redundant. Behaviour is unchanged. | Remove the redundant key. |
+
+## Schema text changes (descriptions and notes; no behaviour)
+
+- **Folder-free text.** Every entity `note` and field `description` no longer names a vault folder
+  (`under 30 Canon/31 Characters/`, `(in 20 Planning/)`, `under 10 Manuscript/<book>/`, "Machine source:
+  00 Meta/Templates/entity-location.md" and similar). Affects book, character, character-fantasy,
+  location, lore, object, plotline, scene (`book`, `plotlines`, `beat`, `magical_items`).
+- **Media examples.** `portrait` / `image` examples use `[[Images/<name>.svg]]` instead of
+  `[[95 Assets/<name>.svg]]` (character, location, object).
+- **`character.gender` description** now says `nonbinary` (was `non-binary`), matching the actual value;
+  adds "or empty". This was a text bug in the schema, not an enum change.
+- **`lore.related`** query changed from `dv.pages('"30 Canon"')` (a folder) to `dv.pages("#canon")`
+  (the `canon` tag family); description says "notes tagged `canon/...`". Emitted into `fc-lore`.
+- **`character-fantasy` `valuesFrom`** paths are now the placeholder `{{sf:fileClassesFolder}}/fc-<list>.md`
+  instead of `00 Meta/FileClasses/fc-<list>.md`; descriptions refer to "the value-list note `fc-<list>` in
+  the FileClasses folder". The placeholder is resolved when the file is installed into a vault.
+- **`folder` is kept in `schema/*.json`** (dev-vault location of the type, used by tooling and tests) but
+  is **not emitted** into any artifact. In particular `filesPaths` is no longer written into any
+  FileClass (see below).
+
+## Generator and artifact changes
+
+- **FileClass `filesPaths` removed.** FileClasses now classify by `tagNames` only. Checked against the
+  28 non-Meta seed notes: 23 classify by tag, 5 have no FileClass (3 READMEs, 2 `type: beat` notes). Under
+  the old files two beat notes (`The Failing Light`, `The Gathering Dark`) matched `fc-book` only through
+  `filesPaths: 20 Planning` - a false positive (they are beats, not books), so nothing legitimate lost.
+  No note relied on `filesPaths`; none classifies by the `fileClass` key.
+- **Template bodies are now owned by the generator.** They live in `schema/templates/<template>.md`
+  (book, character, location, lore, object, plotline, scene) and are no longer "author content preserved
+  across regeneration". A type without a body file gets a minimal `# {{title}}`. Bodies use `{{sf:<folder>}}`
+  placeholders and stay folder-free.
+- **Value-list notes are generated, empty.** `fc-armor.md`, `fc-combat-skills.md`,
+  `fc-magical-abilities.md` are emitted (one per `valuesFrom`) so the FileClass field has something to point
+  at. They are value lists, **not FileClasses** (no `fileClass` entry, not part of
+  `generatedFileClasses.ts`).
+- **`Schema/README.md` is generated** (one row per type) instead of hand-maintained.
+- `types.json` (60 widget types), `generatedUiHints.ts` and the artifact index are unaffected in meaning;
+  `schema:check` now also gates the shipped set, the index (`dist/artifact-index.json`) and banned
+  folder/series text.
+
+## Ask of `_forge`
+
+Nothing blocks StoryForge. If `_forge` keeps its own copy of `schema/*.json` or the templates, mirror
+the defaults and text above so a future bundle does not reintroduce `"Forge"`, `male`, the folder prose,
+`95 Assets/`, or `filesPaths`. Tell us if `_forge` relies on `filesPaths` classification or on template
+bodies being author-owned; both changed here.
