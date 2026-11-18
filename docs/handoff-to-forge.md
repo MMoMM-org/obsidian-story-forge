@@ -131,12 +131,13 @@ text, and what the generator emits. Source of this list: `git diff ea1ad41..HEAD
   instead of `00 Meta/FileClasses/fc-<list>.md`; descriptions refer to "the value-list note `fc-<list>` in
   the FileClasses folder". The placeholder is resolved when the file is installed into a vault.
 - **`folder` is kept in `schema/*.json`** (dev-vault location of the type, used by tooling and tests) but
-  is **not emitted** into any artifact. In particular `filesPaths` is no longer written into any
-  FileClass (see below).
+  is **not emitted** into any artifact. In particular `filesPaths` is emitted empty (the folder values are
+  removed), so FileClasses classify by `tagNames` only (see below).
 
 ## Generator and artifact changes
 
-- **FileClass `filesPaths` removed.** FileClasses now classify by `tagNames` only. Checked against the
+- **FileClass `filesPaths` emptied.** `filesPaths` is emitted empty (the folder values are removed), so
+  FileClasses classify by `tagNames` only. Checked against the
   28 non-Meta seed notes: 23 classify by tag, 5 have no FileClass (3 READMEs, 2 `type: beat` notes). Under
   the old files two beat notes (`The Failing Light`, `The Gathering Dark`) matched `fc-book` only through
   `filesPaths: 20 Planning` - a false positive (they are beats, not books), so nothing legitimate lost.
