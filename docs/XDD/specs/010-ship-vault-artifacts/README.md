@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-11-18 |
-| **Current Phase** | SDD |
+| **Current Phase** | PLAN |
 | **Last Updated** | 2026-11-18 |
 
 ## Documents
@@ -13,7 +13,7 @@
 | Document | Status | Notes |
 |----------|--------|-------|
 | requirements.md | completed | 7 Must features, approved 2026-11-18 |
-| solution.md | pending | |
+| solution.md | completed | ADR-38–44, confirmed 2026-11-18 |
 | plan/ | pending | |
 
 **Status values**: `pending` | `in_progress` | `completed` | `skipped`
@@ -32,6 +32,10 @@
 | 2026-11-18 | Spec ends with the first release plus submission readiness; the maintainer submits | Manual and BRAT installs need a release; the directory submission is the user's call |
 | 2026-11-18 | Docs half of #19 is in scope | The shipped files are exactly what metadata-menu and meta-bind use |
 | 2026-11-18 | Adopt EngramQuest's per-file preview, install-time folder rewriting and record-based upgrade detection | User-supplied analysis (2026-11-11); its marker-based detection fails for some file types |
+| 2026-11-18 | Approach A: placeholders + ADR-0003 two checksums | Explicit, testable folder rewriting; dev vault = index resolved with defaults |
+| 2026-11-18 | Shipped files are folder-free (tags only), neutral defaults, three empty value lists | Works in any layout; `_forge` to be told about the schema text changes |
+| 2026-11-18 | Repo made public and release triggered by the maintainer as the last step | Outward actions stay with the user; release is 0.2.0 (what semantic-release computes) |
+| 2026-11-18 | ADR-38–44 confirmed | Index, CI drift gate, `data.json` records, shared Vault-API writer, Scope-tab UI, neutral content, scanner-aligned lint + release |
 
 ## Context
 

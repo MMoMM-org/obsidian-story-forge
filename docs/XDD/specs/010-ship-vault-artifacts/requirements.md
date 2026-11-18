@@ -173,6 +173,9 @@ in `docs/installation.md` do not work.
     `00 Meta/FileClasses`, `00 Meta/Templates` and `00 Meta/Schema`
   - [ ] Given the setup dialog, When the user changes a target folder there, Then the change is
     saved to the matching setting and the files go to that folder
+  - [ ] Given a target folder is not covered by the excluded folders, When the setup dialog
+    shows it, Then it warns that the templates and notes there will be treated as story
+    entities
   - [ ] Given a folder setting changed after setup, When the user next looks for updates, Then
     the files already set up are still found where they were written, and the dialog says that
     the setting now points elsewhere
@@ -208,6 +211,14 @@ in `docs/installation.md` do not work.
   - [ ] Given the shipped schema reference, When the user reads its index note, Then it
     describes the user's own configured folders or none, and mentions no developer tooling
   - [ ] Given a shipped FileClass, When metadata-menu reads it, Then it is a valid FileClass
+  - [ ] Given the shipped files, When they are read, Then they name no folder of the development
+    vault's layout (`30 Canon`, `10 Manuscript`, `20 Planning`, `95 Assets`): FileClasses match
+    notes by tag only, and the schema notes describe Properties without prescribing folders
+  - [ ] Given a shipped template, When it is inserted, Then its defaults are neutral: no
+    `gender` preset; `status` starts at the first value of its list
+  - [ ] Given the fantasy character FileClass, When it is set up, Then the three value lists it
+    refers to (combat skills, magical abilities, armour) are set up with it, empty, in the
+    FileClasses folder
   - [ ] Given a shipped file that names another artifact's folder (for example the schema
     index note naming the FileClasses and templates folders), When it is set up, Then it names
     the folders configured at that moment, not the defaults
@@ -227,7 +238,15 @@ in `docs/installation.md` do not work.
     (`eslint-plugin-obsidianmd` recommended) are run against it, Then they report no error
   - [ ] Given the repository root, When it is checked against the submission requirements, Then
     `README.md`, `LICENSE` and `manifest.json` meet them, including the README's statement on
-    network use and on files written into the vault
+    network use, on files and frontmatter written into the vault, and on running DataviewJS
+    code; `PRIVACY.md` describes what the plugin really does
+  - [ ] Given any file Story Forge writes into the vault (story files or curated collections),
+    When it is written, Then it is written through Obsidian's vault API, not the low-level
+    adapter
+  - [ ] Given the release is prepared, When the first release is cut, Then it is version 0.2.0
+    (the version the manifest already carries), and the repository must be public before
+    the install check below; making it public and triggering the release are the maintainer's
+    steps
   - [ ] Given a fresh vault, When the release is installed manually and with BRAT and setup is
     run, Then the result matches the primary journey
 
@@ -305,8 +324,10 @@ installing and updating curated collections from the repo (spec 008).
   "Not installed: … already exists", untouched.
 - The user deletes a set-up file → Expected: shown as missing; can be set up again; not
   recreated on its own.
-- The vault is synced across devices and setup runs on two devices → Expected: the second
-  device reports the files as already existing; nothing is duplicated or overwritten.
+- The vault and the plugin's data are synced across devices → Expected: the second device sees
+  the same records and reports the files as up to date; nothing is duplicated or overwritten.
+  If only the notes sync and the plugin data does not, the second device reports them as
+  already existing and leaves them alone.
 - Setup runs on mobile → Expected: works the same; these are plain notes.
 - A target folder setting points into an excluded folder (default `00 Meta`) → Expected: the
   set-up notes are not treated as story entities.
@@ -380,7 +401,8 @@ No event leaves the user's device.
 - [x] Which template syntax? — Core Templates.
 - [x] Release scope? — First release plus submission readiness; submission by the maintainer.
 - [x] Docs half of #19? — In scope.
-- [ ] Release version number — 0.3.0 assumed; confirm in the PLAN.
+- [x] Release version — 0.2.0: semantic-release computes it from the commits since tag 0.1.0,
+  and the manifest already carries it (decided 2026-11-18).
 
 ---
 
