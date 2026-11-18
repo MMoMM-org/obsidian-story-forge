@@ -16,8 +16,17 @@ All eight entity types are generated from `schema/`: `book`, `character`, `chara
 
 The flow is `edit schema/<type>.json → npm run schema:gen → npm run schema:check`; the rename /
 seed-note / XDD ripple below still applies. The rest of this runbook describes the underlying
-three-artifact contract — what the generator produces. (A template's note **body** is author
-content: preserved across regeneration, not generated.)
+three-artifact contract — what the generator produces. (A template's note **body** comes from
+`schema/templates/<template>.md`: edit it there, never in the vault — `schema:gen` overwrites the
+vault template. A type without a body file gets a minimal `# {{title}}` body.)
+
+The shipped artifacts are rendered by `scripts/schema-artifacts.mjs` with `{{sf:<folder>}}`
+placeholders (`fileClassesFolder`, `templatesFolder`, `schemaFolder`) and resolved with the default
+`00 Meta/…` folders for the dev vault. Keep their text folder-free: no `00 Meta/`, `30 Canon`,
+`10 Manuscript`, `20 Planning` or `95 Assets` in a description or note, no dev-vault defaults
+(`series`), and `{{title}}` (core Templates) for the heading. A `valuesFrom` path must start with
+`{{sf:fileClassesFolder}}/`; the named value-list note is generated empty into the FileClass set.
+`Schema/README.md` (the index note) is generated too.
 
 ## The generated artifacts (`test/StoryForge/00 Meta/`)
 

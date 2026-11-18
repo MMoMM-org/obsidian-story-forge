@@ -3,7 +3,7 @@
   "icon": "map-pin",
   "folder": "30 Canon/32 Locations",
   "tag": "canon/location",
-  "note": "Canonical note for a place, under `30 Canon/32 Locations/`. Machine source: `00 Meta/Templates/entity-location.md`.",
+  "note": "Canonical note for a place.",
   "idPrefix": "l",
   "fields": [
     { "name": "type", "type": "fixed", "value": "location",
@@ -23,10 +23,10 @@
       "description": "List of `[[Character]]` links. Characters who live in or are strongly associated with this place. A typed relation — always wikilinks." },
     { "name": "first_appearance", "type": "text",
       "description": "Text — a `[[scene note]]` link. The scene where the location first appears." },
-    { "name": "series", "type": "text", "default": "Forge",
+    { "name": "series", "type": "text",
       "description": "Text. The series this canon belongs to." },
     { "name": "image", "type": "media",
-      "description": "Media. Optional `[[wikilink]]` to the thumbnail image with its full vault path (e.g. `[[95 Assets/Moonharbor Lighthouse.svg]]`), which Meta Bind's image view needs — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays." },
+      "description": "Media. Optional `[[wikilink]]` to the thumbnail image with its full vault path (e.g. `[[Images/Moonharbor Lighthouse.svg]]`), which Meta Bind's image view needs — a link, so it survives a rename. Rendered only when set, like a character's `portrait`; a bare vault path or URL still displays." },
     { "name": "tags", "type": "tags",
       "description": "List. Always includes `canon/location` — how views and Bases select location notes." }
   ]

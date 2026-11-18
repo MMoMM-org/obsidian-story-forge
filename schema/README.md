@@ -14,6 +14,8 @@ vault (`test/StoryForge/00 Meta/`), these artifacts:
 | `Templates/<type>.md` (or `entity-<type>.md`) | per type | author-facing frontmatter surface |
 | `FileClasses/fc-<type>.md` | per type | metadata-menu enforced schema |
 | `Schema/<type>.md` | per type | human property reference (from the `description` fields) |
+| `Schema/README.md` | once | the index note: one row per type |
+| `FileClasses/fc-<list>.md` | per `valuesFrom` | empty value-list note a FileClass field points at |
 | `Schema/<type>.json` | per type | raw machine schema (byte-identical to `schema/<type>.json`); the runtime enum source-of-truth vault scripts read |
 | `src/editor/generatedUiHints.ts` | repo (not the vault) | the `ui` hints, keyed by FileClass, compiled into the plugin (`schema:check` fails on drift) |
 | `.obsidian/types.json` | vault-wide | Obsidian's property→widget-type registry, **merge-only** (schema keys added, foreign keys preserved). Local-only — `.obsidian/` is gitignored |
@@ -39,7 +41,7 @@ Base column/view *designs* are authored, not field-derived — that belongs to M
 {
   "entity": "scene",
   "icon": "clapperboard",          // metadata-menu icon
-  "folder": "10 Manuscript",       // where notes of this type live
+  "folder": "10 Manuscript",       // dev-vault folder of this type (not emitted into any artifact)
   "tag": "manuscript/scene",       // the classifier tag
   "note": "One-line description of the entity.",
   "fields": [
@@ -59,7 +61,7 @@ doc note:
 | `text` | Input | `""` | |
 | `number` | Number | `null` | |
 | `boolean` | Boolean | `false` | |
-| `select` + `values` | Select + valuesList | first value (or `default`) | |
+| `select` + `values` | Select + valuesList | first value (or `default`; `"default": ""` presets none) | |
 | `fixed` + `value` | Select (single) | the value | e.g. `type: scene` |
 | `relation` + `relation` | File | `""` | single `[[link]]` |
 | `media` | Media | `""` | one `[[wikilink]]` to an image file (`portrait`, `image`); a link survives a rename, a path does not. `types.json` widget stays `text`. The control comes from this type — there is no `ui: image` |
@@ -94,9 +96,10 @@ All entity types are generated from here:
 
 - ✅ `book`, `character`, `character-fantasy`, `location`, `lore`, `object`, `plotline`, `scene`.
 
-Note the generator owns the frontmatter; a template's note **body** (prose scaffolding,
-meta-bind display lines) is author content — it is preserved across regeneration, and a
-minimal default body is emitted only when a template does not exist yet.
+The generator owns the whole template: the frontmatter comes from the JSON, the note **body**
+(prose scaffolding, meta-bind display lines) from `schema/templates/<template>.md`. A type
+without a body file gets a minimal `# {{title}}` body. The rendered artifacts use
+`{{sf:<folder>}}` placeholders and stay folder-free (see `docs/schema-change-runbook.md`).
 
 ## Cross-repo flow
 

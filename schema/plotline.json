@@ -4,7 +4,7 @@
   "icon": "git-branch",
   "folder": "20 Planning",
   "tag": "planning/plotline",
-  "note": "Canonical note for a story arc or plot thread, under `20 Planning/`. A plotline groups the scenes that advance a single narrative question; scenes link to it via their `plotlines` field.",
+  "note": "Canonical note for a story arc or plot thread. A plotline groups the scenes that advance a single narrative question; scenes link to it via their `plotlines` field.",
   "fields": [
     { "name": "type", "type": "fixed", "value": "plotline",
       "description": "Fixed classifier — always `plotline`. Set by the template; do not change it." },
@@ -17,8 +17,8 @@
     { "name": "status", "type": "select",
       "values": ["seed", "active", "resolved", "abandoned"],
       "description": "Select — one of `seed | active | resolved | abandoned`. Current development state of the plotline: `seed` = idea only, `active` = being written, `resolved` = narrative question answered, `abandoned` = cut from the story." },
-    { "name": "series", "type": "text", "default": "Forge",
-      "description": "Text. The series this plotline belongs to (defaults to the vault's series name)." },
+    { "name": "series", "type": "text",
+      "description": "Text. The series this plotline belongs to." },
     { "name": "tags", "type": "tags",
       "description": "List. Always includes `planning/plotline` — how views and Bases select plotline notes." }
   ]
