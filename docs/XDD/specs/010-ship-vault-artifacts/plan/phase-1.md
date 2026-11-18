@@ -46,6 +46,9 @@ phase: 1
 - Lint crash `no-unsupported-api` "Invalid version" was a cache file
   (`node_modules/.cache/eslint-plugin-obsidianmd/since-map.json`) written by the 0.5.1 audit run;
   removed. Not a code issue.
+- T1.5: the bundled index lives in `src/artifacts/artifactIndex.ts`, not in `main.ts`. Nothing
+  imports it yet, so esbuild leaves it out of `main.js` until T2.7 wires it; T2.7 checks that
+  `main.js` carries it (PRD F1.1). `predev` builds the catalog and artifact indexes.
 
 ---
 
@@ -111,7 +114,7 @@ bundled checksummed index, and a gate that fails on any drift.
   4. Validate: Unit tests pass; mutation-check
   5. Success: Resolution is explicit and total over the closed list `[ref: SDD/ADR-38]`
 
-- [ ] **T1.5 Artifact index build** `[activity: build-tooling]`
+- [x] **T1.5 Artifact index build** `[activity: build-tooling]`
 
   1. Prime: `scripts/build-catalog.mjs`, `test/catalog/buildCatalog.test.ts`, `src/main.ts:27`
      `[ref: SDD/ADR-38]` `[ref: SDD/Application Data Models]`

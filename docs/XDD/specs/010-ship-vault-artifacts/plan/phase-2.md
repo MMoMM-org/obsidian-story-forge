@@ -128,7 +128,9 @@ catalog onto the same writer.
   1. Prime: `src/main.ts` `onload`/`onLayoutReady`
   2. Test: Loading the plugin with an empty vault performs zero vault writes (create, modify,
      createFolder spies)
-  3. Implement: Wire `ArtifactStore` and the index in `main.ts` without any write path on load
+  3. Implement: Wire `ArtifactStore` and the index (`src/artifacts/artifactIndex.ts`) in `main.ts`
+     without any write path on load; check the built `main.js` contains the index entries
+     (PRD F1.1, moved here from T1.5)
   4. Validate: Integration test; mutation-check by adding a write on load
   5. Success: Nothing written unasked `[ref: PRD/F2.1]`
 
