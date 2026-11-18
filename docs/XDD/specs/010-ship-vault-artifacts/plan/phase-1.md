@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Generator, artifact index and drift gate"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 1
 ---
@@ -49,6 +49,16 @@ phase: 1
 - T1.5: the bundled index lives in `src/artifacts/artifactIndex.ts`, not in `main.ts`. Nothing
   imports it yet, so esbuild leaves it out of `main.js` until T2.7 wires it; T2.7 checks that
   `main.js` carries it (PRD F1.1). `predev` builds the catalog and artifact indexes.
+- FileClasses keep an empty `filesPaths:` key (metadata-menu expects it); only the folder
+  values are gone. ADR-43 reworded to "`filesPaths` emitted empty".
+- T1.6 TDD order: the implementation was written before the tests, then stashed to confirm the
+  tests were red, then restored.
+- T1.7: two `type: beat` notes ("The Failing Light", "The Gathering Dark") matched `fc-book` only
+  through `filesPaths: 20 Planning`; that was a false positive and they are now unmatched, which
+  is correct. Reported to `_forge` in `docs/handoff-to-forge.md`.
+- Phase 1 drift check (2026-11-18): PASS with warnings; SDD text updated for `series`, the index
+  module, the resolver location, `filesPaths`, the empty-folder rule and the dist-dependent
+  index comparison. `schema:check` crashing on an unknown placeholder fixed separately.
 
 ---
 
@@ -71,8 +81,8 @@ bundled checksummed index, and a gate that fails on any drift.
   4. Validate: schema tests (`test/schema/*`) pass after updating expectations that encoded the
      old content; mutation-check each new assertion
   5. Success:
-     - [ ] FileClasses match by tag only `[ref: PRD/F5.5]`
-     - [ ] Templates have neutral defaults and no `series: "Forge"` `[ref: PRD/F5.2; PRD/F5.6]`
+     - [x] FileClasses match by tag only `[ref: PRD/F5.5]`
+     - [x] Templates have neutral defaults and no `series: "Forge"` `[ref: PRD/F5.2; PRD/F5.6]`
 
 - [x] **T1.2 Template bodies and value lists as generator inputs** `[activity: domain-modeling]`
 
@@ -87,8 +97,8 @@ bundled checksummed index, and a gate that fails on any drift.
      files
   4. Validate: Generation is idempotent; mutation-check the body and heading assertions
   5. Success:
-     - [ ] Template heading shows the note title with core Templates `[ref: PRD/F5.1]`
-     - [ ] Fantasy FileClass ships with its three value lists `[ref: PRD/F5.7]`
+     - [x] Template heading shows the note title with core Templates `[ref: PRD/F5.1]`
+     - [x] Fantasy FileClass ships with its three value lists `[ref: PRD/F5.7]`
 
 - [x] **T1.3 Generated Schema index note** `[activity: domain-modeling]` `[parallel: true]`
 
@@ -129,9 +139,9 @@ bundled checksummed index, and a gate that fails on any drift.
   4. Validate: `npm run build` succeeds; index size ≤ 200 KB; mutation-check
   5. Success:
      - [ ] Shipped set available offline from main.js `[ref: PRD/F1.1]`
-     - [ ] Dev-only files never shipped `[ref: PRD/F1.3]`
+     - [x] Dev-only files never shipped `[ref: PRD/F1.3]`
 
-- [ ] **T1.6 Content drift gate in CI** `[activity: build-tooling]`
+- [x] **T1.6 Content drift gate in CI** `[activity: build-tooling]`
 
   1. Prime: `scripts/schema-check.mjs`, `test/schema/schemaCheck.test.ts`,
      `.github/workflows/lint.yml` `[ref: SDD/ADR-39]`
@@ -143,10 +153,10 @@ bundled checksummed index, and a gate that fails on any drift.
   4. Validate: Each failure path triggered once by a deliberate mutation; CI job green on the
      branch
   5. Success:
-     - [ ] Shipped set equals the dev vault set `[ref: PRD/F1.2]`
-     - [ ] Out-of-date shipped set fails the gate `[ref: PRD/F1.4]`
+     - [x] Shipped set equals the dev vault set `[ref: PRD/F1.2]`
+     - [x] Out-of-date shipped set fails the gate `[ref: PRD/F1.4]`
 
-- [ ] **T1.7 Regenerate the dev vault and notify `_forge`** `[activity: build-tooling]`
+- [x] **T1.7 Regenerate the dev vault and notify `_forge`** `[activity: build-tooling]`
 
   1. Prime: `docs/schema-change-runbook.md` (seed notes, spec ripple)
   2. Test: `npm run schema:gen && npm run schema:check` clean; full suite green; seed notes in
@@ -157,7 +167,7 @@ bundled checksummed index, and a gate that fails on any drift.
   4. Validate: `git diff` of the vault reviewed; only intended changes
   5. Success: Dev vault and shipped set agree; `_forge` has the change list `[ref: SDD/CON-8]`
 
-- [ ] **T1.8 Phase validation** `[activity: validate]`
+- [x] **T1.8 Phase validation** `[activity: validate]`
 
   - Run all Phase 1 tests, `schema:check`, `build`, lint, typecheck ×3. Verify against ADR-38,
     ADR-39, ADR-43 and PRD F1, F5.

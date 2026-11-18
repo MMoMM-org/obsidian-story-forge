@@ -238,7 +238,7 @@ graph TD
 schema/                                  MODIFY  folder-free descriptions, neutral gender, value-list paths as placeholders
 scripts/
 ├── schema-gen.mjs                       MODIFY  placeholder-aware generators; emits artifact sources; generates Schema/README.md
-├── schema-artifacts.mjs                 NEW     pure: render each artifact (unresolved), resolve(placeholders, folders)
+├── schema-artifacts.mjs                 NEW     pure: render each artifact unresolved (`renderArtifacts`); resolution is src/artifacts/resolvePlaceholders.ts via jiti
 ├── build-artifacts.mjs                  NEW     artifact sources → dist/artifact-index.json (+ checksums)
 └── schema-check.mjs                     MODIFY  content comparison, banned-text scan
 src/
@@ -353,7 +353,8 @@ dev vault:        resolved with defaults → 00 Meta/FileClasses/fc-armor.md
 
 Rules: placeholders are `{{sf:<name>}}` with `<name>` from a closed list; an unknown name fails
 the build; resolution never touches `{{title}}` (core Templates' own placeholder); folder
-values are normalised and have no trailing slash.
+values are normalised and have no trailing slash; a folder that normalises to empty is an
+error (it would turn `{{sf:x}}/a.md` into `/a.md`).
 
 #### Test Examples as Interface Documentation
 
@@ -479,7 +480,7 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
 - [x] **ADR-38 Artifact index built from schema-gen with placeholders.**
   - Choice: schema-gen renders every artifact unresolved with `{{sf:<folder>}}` placeholders;
     `build-artifacts.mjs` writes `dist/artifact-index.json` (entries with set, relPath, source,
-    sha256 checksum, placeholders; no timestamp); `main.ts` imports it statically. The dev vault
+    sha256 checksum, placeholders; no timestamp); `src/artifacts/artifactIndex.ts` imports it statically and `main.ts` uses that module (wired in T2.7). The dev vault
     receives the same sources resolved with default folders. `Schema/README.md` becomes
     generated.
   - Rationale: one source; explicit, testable folder rewriting; same build pattern as the
@@ -492,7 +493,9 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
   - Choice: `schema:check` compares dev vault files byte-for-byte with `resolve(index, defaults)`,
     compares the index with a fresh build, scans shipped sources for banned text (`00 Meta/`,
     `30 Canon`, `10 Manuscript`, `20 Planning`, `95 Assets`, `%title%`, `%name%`, `"Forge"`), and
-    runs in `lint.yml`.
+    runs in `lint.yml` after `npm run build`. The index-vs-fresh-build comparison needs
+    `dist/artifact-index.json` and is skipped when it is absent; the dev-vault comparison, which
+    enforces PRD F1.4, never needs `dist/`.
   - Rationale: today the gate compares property sets only and is not in CI.
   - Trade-offs: stricter gate makes schema edits require `schema:gen` every time (intended).
   - User confirmed: Yes (2026-11-18)
@@ -527,8 +530,8 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
   - User confirmed: Yes (2026-11-18)
 
 - [x] **ADR-43 Neutral, folder-free artifact content.**
-  - Choice: FileClasses match by `tagNames` only (no `filesPaths`), `fc-lore` queries by tag;
-    templates use `{{title}}`, no `series`, no `gender` preset, `status` first list value;
+  - Choice: FileClasses match by `tagNames` only (`filesPaths` emitted empty), `fc-lore` queries by tag;
+    templates use `{{title}}`, `series` empty (no `"Forge"` preset), no `gender` preset, `status` first list value;
     schema descriptions drop folder prescriptions and `95 Assets` examples; the three value
     lists ship empty with the FileClass set; the dev vault follows the same content.
   - Rationale: works in any layout; dev vault = shipped content (ADR-38).
@@ -618,7 +621,7 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
 
 | Term | Definition | Context |
 |------|------------|---------|
-| Artifact index | `dist/artifact-index.json`, bundled into main.js | ADR-38 |
+| Artifact index | `dist/artifact-index.json`, bundled into main.js through `src/artifacts/artifactIndex.ts` | ADR-38 |
 | Placeholder | `{{sf:<folder>}}` in a shipped source, resolved at setup | ADR-38 |
 | Source checksum | sha256 of the unresolved source | ADR-0003, ADR-40 |
 | Instance checksum | sha256 of the bytes written to the vault | ADR-0003, ADR-40 |
