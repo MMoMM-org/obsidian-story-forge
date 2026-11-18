@@ -162,4 +162,25 @@ describe("schema-check shipped artifacts", () => {
 			expect(r.status).toBe(1);
 		});
 	});
+
+	describe("unknown placeholder in a shipped source", () => {
+		it("is reported as an error line, not a crash", () => {
+			const vault = genVault();
+			const schemaDir = path.join(work, "schema");
+			cpSync(path.join(ROOT, "schema"), schemaDir, { recursive: true });
+			const file = path.join(schemaDir, "book.json");
+			const json = JSON.parse(readFileSync(file, "utf8"));
+			json.fields[1].description += " {{sf:nope}}";
+			writeFileSync(file, JSON.stringify(json));
+			const r = spawnSync(
+				"node",
+				["scripts/schema-check.mjs", "--vault", vault, "--schema", schemaDir, "--dist", path.join(work, "no-dist")],
+				{ cwd: ROOT, encoding: "utf8" },
+			);
+			expect(r.status).toBe(1);
+			expect(r.stdout).toContain("✗ artifacts:");
+			expect(r.stdout).toContain("nope");
+			expect(r.stdout + r.stderr).not.toContain("    at ");
+		});
+	});
 });

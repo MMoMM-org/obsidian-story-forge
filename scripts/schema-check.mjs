@@ -297,11 +297,22 @@ const rendered = renderArtifacts(SCHEMA_DIR);
     if (have === null) {
       log.push(`✗ artifacts: missing ${label} (run schema:gen)`);
       errors++;
-    } else if (have !== resolvePlaceholders(source, DEFAULT_ARTIFACT_FOLDERS)) {
-      log.push(`✗ artifacts: ${label} differs from the shipped artifact resolved with defaults (run schema:gen)`);
-      errors++;
     } else {
-      ok++;
+      let resolved = null;
+      try {
+        resolved = resolvePlaceholders(source, DEFAULT_ARTIFACT_FOLDERS);
+      } catch (e) {
+        log.push(`✗ artifacts: ${label} cannot be resolved — ${e.message}`);
+        errors++;
+      }
+      if (resolved === null) {
+        // already reported
+      } else if (have !== resolved) {
+        log.push(`✗ artifacts: ${label} differs from the shipped artifact resolved with defaults (run schema:gen)`);
+        errors++;
+      } else {
+        ok++;
+      }
     }
   }
   if (ok) log.push(`✓ artifacts: ${ok} dev-vault file(s) equal the shipped set`);
