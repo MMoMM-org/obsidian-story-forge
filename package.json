@@ -5,6 +5,7 @@
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
+		"predev": "npm run catalog:build && npm run artifacts:build",
 		"dev": "node esbuild.config.mjs",
 		"catalog:build": "node scripts/build-catalog.mjs",
 		"artifacts:build": "node scripts/build-artifacts.mjs",

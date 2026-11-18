@@ -150,7 +150,8 @@ instead of rewriting a decision.
 
 1. `git status`; create a branch.
 2. Make the change consistent across all three artifacts + seed notes.
-3. `npm run schema:check` until green, then `npm run typecheck && npm run lint && npm run build`.
+3. `npm run schema:check` until green (`schema:gen` regenerates the dev vault; `npm run artifacts:build`,
+   part of `build`/`predev`, regenerates `dist/artifact-index.json`), then `npm run typecheck && npm run lint && npm run build`.
 4. On a property-name or type change, check the XDD-spec ripple (`rg` in `docs/XDD`).
 5. Commit (Conventional Commit), **not** on `main`.
 

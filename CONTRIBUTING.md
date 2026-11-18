@@ -19,7 +19,7 @@ to `main`. Work on a branch.
 
 ```bash
 npm run dev           # esbuild watch; copies each build into the test vault
-npm run build         # catalog build, tsc check and production build
+npm run build         # catalog and artifact index build, tsc check and production build
 npm test              # vitest unit tests
 npm run typecheck     # tsc --noEmit
 npm run lint          # eslint over src/ and stylelint over styles.css
@@ -27,6 +27,11 @@ npm run lint:css      # just the stylelint CSS check
 npm run schema:gen    # regenerate the vault artifacts from schema/*.json
 npm run schema:check  # check that the generated artifacts match schema/*.json
 ```
+
+After a fresh clone, run `npm run build` (or `catalog:build` + `artifacts:build`) once before
+`typecheck` or `test`: both read the generated `dist/*.json` indexes. After a schema change,
+`schema:gen` regenerates the dev vault, while `artifacts:build` (part of `build` and `predev`)
+regenerates `dist/artifact-index.json`.
 
 `npm run lint` runs stylelint with `stylelint-no-unsupported-browser-features` over
 `styles.css`. It reproduces the Obsidian community-plugin bot's CSS browser-compatibility check.

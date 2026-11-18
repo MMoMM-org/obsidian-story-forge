@@ -88,13 +88,10 @@ describe("buildArtifacts", () => {
 
 	it("never ships dev-only files", async () => {
 		const index = await buildArtifacts({ outDir: tmp() });
-		const schemaJson = readdirSync(SCHEMA_DIR).filter((f) => f.endsWith(".json"));
-		expect(schemaJson.length).toBeGreaterThan(0);
 		for (const e of index.entries) {
 			expect(e.relPath).not.toMatch(/\.(json|base|js)$/);
 			expect(e.relPath).not.toMatch(/^CLAUDE\.md$/);
 			expect(e.relPath).not.toMatch(/^(Processes|Bases|Scripts|dataview-views)\//);
-			expect(schemaJson).not.toContain(e.relPath);
 			expect(["fileclasses", "templates", "schema"]).toContain(e.set);
 		}
 		// Value-list notes inside the FileClass set are .md, never copies of schema JSON.
