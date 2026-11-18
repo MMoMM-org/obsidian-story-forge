@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-11-18 |
-| **Current Phase** | PLAN |
+| **Current Phase** | Ready |
 | **Last Updated** | 2026-11-18 |
 
 ## Documents
@@ -14,7 +14,7 @@
 |----------|--------|-------|
 | requirements.md | completed | 7 Must features, approved 2026-11-18 |
 | solution.md | completed | ADR-38–44, confirmed 2026-11-18 |
-| plan/ | pending | |
+| plan/ | completed | 6 phases, 33 tasks; every PRD AC mapped |
 
 **Status values**: `pending` | `in_progress` | `completed` | `skipped`
 
@@ -36,6 +36,7 @@
 | 2026-11-18 | Shipped files are folder-free (tags only), neutral defaults, three empty value lists | Works in any layout; `_forge` to be told about the schema text changes |
 | 2026-11-18 | Repo made public and release triggered by the maintainer as the last step | Outward actions stay with the user; release is 0.2.0 (what semantic-release computes) |
 | 2026-11-18 | ADR-38–44 confirmed | Index, CI drift gate, `data.json` records, shared Vault-API writer, Scope-tab UI, neutral content, scanner-aligned lint + release |
+| 2026-11-18 | PLAN complete: 6 phases | 1 generator/index/gate → 2 core → 3 UI (mockup gate) → 4 scanner-clean (beside 3) → 5 docs → 6 live walk + release checklist |
 
 ## Context
 
