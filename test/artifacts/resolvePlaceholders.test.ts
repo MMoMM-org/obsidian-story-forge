@@ -94,3 +94,22 @@ describe("normalizeFolder", () => {
 		expect(normalizeFolder("a b/c")).toBe("a b/c");
 	});
 });
+
+describe("resolvePlaceholders follow-ups", () => {
+	it("normalises backslashes to forward slashes", () => {
+		expect(normalizeFolder("a\\b")).toBe("a/b");
+		expect(resolvePlaceholders("{{sf:schemaFolder}}", { ...folders, schemaFolder: "a\\b\\" })).toBe("a/b");
+	});
+
+	it.each(["", "   ", "/", "\\", " "])("throws, naming the placeholder, for empty folder %j", (v) => {
+		expect(() =>
+			resolvePlaceholders("{{sf:schemaFolder}}/x.md", { ...folders, schemaFolder: v }),
+		).toThrow(/schemaFolder/);
+	});
+
+	it("only checks folders that are used", () => {
+		expect(
+			resolvePlaceholders("{{sf:templatesFolder}}", { ...folders, schemaFolder: "" }),
+		).toBe("Story/Templates");
+	});
+});

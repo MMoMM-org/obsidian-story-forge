@@ -25,11 +25,18 @@ import { wireLibrary, type LibraryWiring } from "library/wireLibrary";
 import { openLibrarySettings } from "library/openLibrary";
 import { buildAnvilCodexOpts } from "anvil/anvilCodexOpts";
 import catalogIndexRaw from "../dist/catalog-index.json";
+import artifactIndexRaw from "../dist/artifact-index.json";
+import type { ArtifactIndex } from "artifacts/artifactTypes";
 
 // The bundled catalog-index.json is built by `catalog:build` before esbuild
 // reads this file. TypeScript infers `engine` as `string` from JSON; the cast
 // is safe because build-catalog.mjs validates every entry's engine at build time.
 const catalogIndex = catalogIndexRaw as unknown as CatalogIndex;
+
+// Built by `artifacts:build` (scripts/build-artifacts.mjs) from schema/*.json. `set` is
+// inferred as `string` from JSON; the build only ever emits the three ArtifactSet values.
+// Consumed by the artifact installer (later phase of spec 010).
+export const artifactIndex = artifactIndexRaw as unknown as ArtifactIndex;
 
 /** Last path segment of a source path, with a trailing `.md` stripped. */
 function basenameNoMd(source: string): string {

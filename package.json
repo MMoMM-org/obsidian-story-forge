@@ -7,7 +7,8 @@
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"catalog:build": "node scripts/build-catalog.mjs",
-		"build": "npm run catalog:build && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"artifacts:build": "node scripts/build-artifacts.mjs",
+		"build": "npm run catalog:build && npm run artifacts:build && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"typecheck": "tsc --noEmit",
 		"typecheck:test": "tsc --noEmit -p tsconfig.test.json",
 		"typecheck:mock": "tsc -p tsconfig.test.json --emitDeclarationOnly --declaration --noEmit false --outDir .typecheck-mock-tmp && tsc --noEmit -p tsconfig.mock.json",
