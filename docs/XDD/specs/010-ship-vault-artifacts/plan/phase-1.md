@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Generator, artifact index and drift gate"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 1
 ---
@@ -32,6 +32,21 @@ phase: 1
 
 **Dependencies**: none.
 
+**Decisions taken during implementation**:
+- T1.4 ran first, then T1.1–T1.3 together: all three change `schema-gen.mjs`, and the dev vault
+  is written by resolving placeholders, which needs the resolver.
+- `series` stays a Property and is emitted empty (`series: ""`). ADR-43's "no `series`" means no
+  `"Forge"` preset; removing the Property would be a schema REMOVE that ripples into seed notes.
+- `scripts/schema-artifacts.mjs` (pure renderers, `renderArtifacts`) was created in T1.1–T1.3;
+  T1.5 adds only `build-artifacts.mjs`, the index and the import.
+- Value-list notes are empty files (a comment line would be read by metadata-menu as a value),
+  live in the FileClasses folder and are not in `GENERATED_FILE_CLASSES`. They inflate
+  `fileClassVault.count()` (11 instead of 8); the fix is part of T3.4.
+- `gender`'s description said `non-binary`; the value is `nonbinary`; fixed.
+- Lint crash `no-unsupported-api` "Invalid version" was a cache file
+  (`node_modules/.cache/eslint-plugin-obsidianmd/since-map.json`) written by the 0.5.1 audit run;
+  removed. Not a code issue.
+
 ---
 
 ## Tasks
@@ -39,7 +54,7 @@ phase: 1
 Establishes one source for the shipped files: neutral content generated from `schema/`, a
 bundled checksummed index, and a gate that fails on any drift.
 
-- [ ] **T1.1 Neutral, folder-free schema content** `[activity: domain-modeling]`
+- [x] **T1.1 Neutral, folder-free schema content** `[activity: domain-modeling]`
 
   1. Prime: Read `schema/*.json`, `scripts/schema-gen.mjs`, the generated files in
      `test/StoryForge/00 Meta/` `[ref: SDD/ADR-43]` `[ref: PRD/F5]`
@@ -56,7 +71,7 @@ bundled checksummed index, and a gate that fails on any drift.
      - [ ] FileClasses match by tag only `[ref: PRD/F5.5]`
      - [ ] Templates have neutral defaults and no `series: "Forge"` `[ref: PRD/F5.2; PRD/F5.6]`
 
-- [ ] **T1.2 Template bodies and value lists as generator inputs** `[activity: domain-modeling]`
+- [x] **T1.2 Template bodies and value lists as generator inputs** `[activity: domain-modeling]`
 
   1. Prime: `schema-gen.mjs:157-168` (body preservation), the 7 checked-in template bodies, the
      three value-list references `[ref: SDD/ADR-38 trade-offs]` `[ref: SDD/ADR-43]`
@@ -72,7 +87,7 @@ bundled checksummed index, and a gate that fails on any drift.
      - [ ] Template heading shows the note title with core Templates `[ref: PRD/F5.1]`
      - [ ] Fantasy FileClass ships with its three value lists `[ref: PRD/F5.7]`
 
-- [ ] **T1.3 Generated Schema index note** `[activity: domain-modeling]` `[parallel: true]`
+- [x] **T1.3 Generated Schema index note** `[activity: domain-modeling]` `[parallel: true]`
 
   1. Prime: `test/StoryForge/00 Meta/Schema/README.md` and the agent findings on its dev-only
      parts `[ref: SDD/ADR-38]` `[ref: PRD/F5.3]`
@@ -84,7 +99,7 @@ bundled checksummed index, and a gate that fails on any drift.
   5. Success: The index describes the configured folders and no developer tooling
      `[ref: PRD/F5.3; PRD/F5.8]`
 
-- [ ] **T1.4 Placeholder resolver** `[activity: domain-modeling]` `[parallel: true]`
+- [x] **T1.4 Placeholder resolver** `[activity: domain-modeling]` `[parallel: true]`
 
   1. Prime: `[ref: SDD/Implementation Examples; placeholder resolution]`
      `[ref: SDD/Implementation Gotchas]`

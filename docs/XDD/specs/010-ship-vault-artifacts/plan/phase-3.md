@@ -82,7 +82,9 @@ Gives the user the deliberate, previewed setup and update flow.
   1. Prime: signed-off S6; `src/library/CapabilitiesModal.ts`, `capabilityReport.ts`,
      `capabilitiesWiring.ts`
   2. Test: The screen shows the pointer row; its button opens the setup dialog; showing the
-     screen writes nothing
+     screen writes nothing; the FileClass count ignores the three value-list notes (notes with
+     no FileClass frontmatter), so a fresh setup reports 8, not 11
+     (`src/fileclass/fileClassVault.ts` `count()`, found in the T1.1–T1.3 review)
   3. Implement: Inject `openStoryFiles` through the capability wiring
   4. Validate: Modal tests; mutation-check
   5. Success: First-run screen points to setup without writing `[ref: PRD/F2.9]`
