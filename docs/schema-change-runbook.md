@@ -71,7 +71,14 @@ FileClass in the same folder is not ours: `schema:gen` leaves it alone
 - **`types.json`** — when `.obsidian/types.json` is present, it carries every schema-derived widget
   type. It is skipped when absent (a fresh clone, CI).
 
-The gate reads its type list from `schema/*.json`, so a new type joins it with no script change.
+- **Shipped artifacts** — every FileClass, Template and Schema reference note in the dev vault
+  equals the shipped artifact resolved with the default folders, byte for byte (a missing file
+  fails too; unrelated files in those folders are ignored). When `dist/artifact-index.json`
+  exists it must equal a fresh build (stale → run `npm run artifacts:build`). No shipped source
+  may contain dev-vault-only text (`00 Meta/`, `30 Canon`, `10 Manuscript`, `20 Planning`,
+  `95 Assets`, `%title%`, `%name%`, `"Forge"`).
+
+The gate runs in CI (`.github/workflows/lint.yml`) and reads its type list from `schema/*.json`, so a new type joins it with no script change.
 
 ## Checklist by change type
 

@@ -29,6 +29,8 @@ jobs:
             - run: npm run build --if-present
             - run: npm test
             - run: npm run lint
+            # Drift gate: dev vault == shipped artifacts, index == fresh build, no banned text.
+            - run: npm run schema:check
             - run: npm run typecheck:test
             # Guards the hand-written Obsidian mock against the real obsidian API:
             # a fictional method on the mock (e.g. metadataCache.iterateAllFiles)

@@ -9,10 +9,20 @@
 // The human reference (00 Meta/Schema/<type>.md) must document EXACTLY those
 // properties, one `### \`prop\`` subsection each. Drift → non-zero exit.
 //
-// Usage: node scripts/schema-check.mjs [--vault <path>] [--schema <dir>]   (defaults test/StoryForge, schema)
+// Shipped artifacts (spec 010, ADR-39): the dev vault's FileClasses / Templates / Schema
+// notes must equal the rendered artifacts resolved with the default folders, byte for byte;
+// dist/artifact-index.json (when present) must equal a fresh build; and no shipped source
+// may carry dev-vault-only text (BANNED).
+//
+// Usage: node scripts/schema-check.mjs [--vault <path>] [--schema <dir>] [--dist <dir>]
+//   (defaults test/StoryForge, schema, dist)
 
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { renderArtifacts } from './schema-artifacts.mjs';
+import { buildArtifacts } from './build-artifacts.mjs';
 import { deriveNativeTypes, diffTypes } from './schema-types-json.mjs';
 import { collectUiHints, renderUiHintsModule, UI_HINT_FILE } from './schema-ui-hints.mjs';
 import { readInfra, injectEnums, baseRefErrors, schemaLookups } from './schema-infra.mjs';
@@ -29,6 +39,8 @@ const SCHEMA = join(META, 'Schema');
 // Canonical schemas, read off disk: adding schema/<type>.json adds a type to the gate.
 const schemaIdx = args.indexOf('--schema');
 const SCHEMA_DIR = schemaIdx !== -1 ? args[schemaIdx + 1] : 'schema';
+const distIdx = args.indexOf('--dist');
+const DIST_DIR = distIdx !== -1 ? args[distIdx + 1] : 'dist';
 const schemas = readdirSync(SCHEMA_DIR)
   .filter((f) => f.endsWith('.json'))
   .map((f) => JSON.parse(readFileSync(join(SCHEMA_DIR, f), 'utf8')))
@@ -254,6 +266,65 @@ if (!existsSync(TYPES_JSON)) {
         log.push(`✗ types.json: ${name} is ${old}, schema wants ${native} (run schema:gen -- --force)`);
         errors++;
       }
+    }
+  }
+}
+
+// ── shipped artifacts (ADR-39) ───────────────────────────────────────────────
+const jitiMod = await import('jiti');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const jiti = (jitiMod.default ?? jitiMod.createJiti)(ROOT, { interopDefault: true });
+const { resolvePlaceholders } = jiti(join(ROOT, 'src/artifacts/resolvePlaceholders.ts'));
+const { DEFAULT_ARTIFACT_FOLDERS } = jiti(join(ROOT, 'src/artifacts/artifactTypes.ts'));
+const SET_FOLDER = { fileclasses: 'fileClassesFolder', templates: 'templatesFolder', schema: 'schemaFolder' };
+
+// Text that belongs to the dev vault only; a shipped (unresolved) source must not carry it.
+const BANNED = ['00 Meta/', '30 Canon', '10 Manuscript', '20 Planning', '95 Assets', '%title%', '%name%', '"Forge"'];
+
+const rendered = renderArtifacts(SCHEMA_DIR);
+{
+  let ok = 0;
+  for (const { set, relPath, source } of rendered) {
+    const folder = DEFAULT_ARTIFACT_FOLDERS[SET_FOLDER[set]];
+    const label = `${folder}/${relPath}`;
+    for (const b of BANNED) {
+      if (source.includes(b)) {
+        log.push(`✗ artifacts: shipped source ${set}/${relPath} contains banned text ${JSON.stringify(b)}`);
+        errors++;
+      }
+    }
+    const have = read(join(VAULT, folder, relPath));
+    if (have === null) {
+      log.push(`✗ artifacts: missing ${label} (run schema:gen)`);
+      errors++;
+    } else if (have !== resolvePlaceholders(source, DEFAULT_ARTIFACT_FOLDERS)) {
+      log.push(`✗ artifacts: ${label} differs from the shipped artifact resolved with defaults (run schema:gen)`);
+      errors++;
+    } else {
+      ok++;
+    }
+  }
+  if (ok) log.push(`✓ artifacts: ${ok} dev-vault file(s) equal the shipped set`);
+
+  // dist/ is gitignored: compare the built index with a fresh build only when it exists.
+  const distIndex = join(DIST_DIR, 'artifact-index.json');
+  if (!existsSync(distIndex)) {
+    log.push(`• artifact index: ${distIndex} not present — skipped (run artifacts:build)`);
+  } else {
+    const tmp = mkdtempSync(join(tmpdir(), 'schema-check-'));
+    try {
+      await buildArtifacts({ outDir: tmp, schemaDir: SCHEMA_DIR });
+      if (readFileSync(distIndex, 'utf8') === readFileSync(join(tmp, 'artifact-index.json'), 'utf8')) {
+        log.push(`✓ artifact index: ${distIndex} equals a fresh build`);
+      } else {
+        log.push(`✗ artifact index: ${distIndex} is stale — differs from a fresh build (run npm run artifacts:build)`);
+        errors++;
+      }
+    } catch (e) {
+      log.push(`✗ artifact index: fresh build failed — ${e.message}`);
+      errors++;
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
     }
   }
 }

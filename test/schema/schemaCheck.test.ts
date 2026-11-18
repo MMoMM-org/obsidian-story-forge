@@ -7,7 +7,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import {
-	cpSync, mkdtempSync, rmSync, writeFileSync,
+	appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -39,10 +39,17 @@ function gen(vault: string, schemaDir: string = path.join(ROOT, "schema")): void
 	);
 }
 
-function check(vault: string, schemaDir: string): { status: number | null; out: string } {
-	const r = spawnSync("node", ["scripts/schema-check.mjs", "--vault", vault, "--schema", schemaDir], {
-		cwd: ROOT, encoding: "utf8",
-	});
+/** `dist` defaults to a directory with no index, so a temp schema is not judged against the repo's dist/. */
+function check(
+	vault: string,
+	schemaDir: string,
+	dist: string = path.join(work, "no-dist"),
+): { status: number | null; out: string } {
+	const r = spawnSync(
+		"node",
+		["scripts/schema-check.mjs", "--vault", vault, "--schema", schemaDir, "--dist", dist],
+		{ cwd: ROOT, encoding: "utf8" },
+	);
 	return { status: r.status, out: r.stdout };
 }
 
@@ -68,5 +75,91 @@ describe("schema-check type list", () => {
 		const broken = check(vault, schemaDir);
 		expect(broken.out).toContain("✗ zine: missing reference note");
 		expect(broken.status).toBe(1);
+	});
+});
+
+describe("schema-check shipped artifacts", () => {
+	const SCENE_FILES = [
+		"00 Meta/FileClasses/fc-scene.md",
+		"00 Meta/Templates/scene.md",
+		"00 Meta/Schema/scene.md",
+	];
+
+	function genVault(schemaDir: string = path.join(ROOT, "schema")): string {
+		const vault = path.join(work, "vault");
+		gen(vault, schemaDir);
+		return vault;
+	}
+
+	it("passes on a freshly generated vault", () => {
+		const vault = genVault();
+		const r = check(vault, path.join(ROOT, "schema"));
+		expect(r.out).toMatch(/✓ artifacts: \d+ dev-vault file\(s\) equal the shipped set/);
+		expect(r.status).toBe(0);
+	});
+
+	it.each(SCENE_FILES)("fails naming %s when one byte differs", (rel) => {
+		const vault = genVault();
+		appendFileSync(path.join(vault, rel), " ");
+		const r = check(vault, path.join(ROOT, "schema"));
+		expect(r.out).toContain(`✗ artifacts: ${rel}`);
+		expect(r.status).toBe(1);
+	});
+
+	it("fails when a shipped artifact is missing from the dev vault", () => {
+		const vault = genVault();
+		rmSync(path.join(vault, "00 Meta/FileClasses/fc-scene.md"));
+		const r = check(vault, path.join(ROOT, "schema"));
+		expect(r.out).toContain("✗ artifacts: missing 00 Meta/FileClasses/fc-scene.md");
+		expect(r.status).toBe(1);
+	});
+
+	it("ignores files in those folders that are not shipped", () => {
+		const vault = genVault();
+		writeFileSync(path.join(vault, "00 Meta/Templates/my-own.md"), "mine");
+		expect(check(vault, path.join(ROOT, "schema")).status).toBe(0);
+	});
+
+	describe("artifact index", () => {
+		function buildDist(): string {
+			const dist = path.join(work, "dist");
+			execFileSync("node", ["scripts/build-artifacts.mjs", "--out", dist], { cwd: ROOT, stdio: "pipe" });
+			return dist;
+		}
+
+		it("passes when the index equals a fresh build", () => {
+			const vault = genVault();
+			const r = check(vault, path.join(ROOT, "schema"), buildDist());
+			expect(r.out).toContain("✓ artifact index");
+			expect(r.status).toBe(0);
+		});
+
+		it("fails with the artifacts:build hint when an entry source is stale", () => {
+			const vault = genVault();
+			const dist = buildDist();
+			const file = path.join(dist, "artifact-index.json");
+			const idx = JSON.parse(readFileSync(file, "utf8"));
+			idx.entries[0].source += "x";
+			writeFileSync(file, JSON.stringify(idx, null, 2) + "\n");
+			const r = check(vault, path.join(ROOT, "schema"), dist);
+			expect(r.out).toContain("stale");
+			expect(r.out).toContain("npm run artifacts:build");
+			expect(r.status).toBe(1);
+		});
+	});
+
+	describe("banned text in shipped sources", () => {
+		it.each([
+			"00 Meta/", "30 Canon", "10 Manuscript", "20 Planning",
+			"95 Assets", "%title%", "%name%", "\"Forge\"",
+		])("fails naming %s", (banned) => {
+			const schemaDir = path.join(work, "schema");
+			cpSync(path.join(ROOT, "schema"), schemaDir, { recursive: true });
+			appendFileSync(path.join(schemaDir, "templates/entity-character.md"), `\nleak: ${banned}\n`);
+			const vault = genVault(schemaDir);
+			const r = check(vault, schemaDir);
+			expect(r.out).toContain(`banned text ${JSON.stringify(banned)}`);
+			expect(r.status).toBe(1);
+		});
 	});
 });

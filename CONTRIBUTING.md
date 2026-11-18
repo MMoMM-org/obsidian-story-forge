@@ -25,7 +25,7 @@ npm run typecheck     # tsc --noEmit
 npm run lint          # eslint over src/ and stylelint over styles.css
 npm run lint:css      # just the stylelint CSS check
 npm run schema:gen    # regenerate the vault artifacts from schema/*.json
-npm run schema:check  # check that the generated artifacts match schema/*.json
+npm run schema:check  # drift gate (also in CI): dev vault, shipped artifacts and index match schema/*.json
 ```
 
 After a fresh clone, run `npm run build` (or `catalog:build` + `artifacts:build`) once before
