@@ -39,6 +39,7 @@ const VALUE_LISTS = ["fc-armor.md", "fc-combat-skills.md", "fc-magical-abilities
 const BANNED = ["30 Canon", "10 Manuscript", "20 Planning", "95 Assets", "00 Meta/", "%title%", "%name%", '"Forge"'];
 
 let renderArtifacts: (schemaDir: string) => RenderedArtifact[];
+let templateNameOf: (s: { entity: string; template?: string }) => string;
 let work = "";
 let vault = "";
 let sources: RenderedArtifact[] = [];
@@ -61,8 +62,6 @@ const schemaTypes = (dir: string = SCHEMA_DIR): Array<{ entity: string; hasTempl
 	readdirSync(dir)
 		.filter((f) => f.endsWith(".json"))
 		.map((f) => JSON.parse(readFileSync(path.join(dir, f), "utf8")) as { entity: string });
-const templateName = (s: { entity: string; template?: string }): string =>
-	s.template ?? (s.entity === "scene" ? "scene.md" : `entity-${s.entity}.md`);
 const frontmatter = (text: string): string => text.match(/^---\n([\s\S]*?)\n---\n/)?.[1] ?? "";
 const bodyOf = (text: string): string => text.replace(/^---\n[\s\S]*?\n---\n/, "");
 
@@ -70,6 +69,7 @@ beforeAll(async () => {
 	const mod = await import("../../scripts/schema-artifacts.mjs");
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 	renderArtifacts = mod.renderArtifacts as typeof renderArtifacts;
+	templateNameOf = mod.templateNameOf as typeof templateNameOf;
 	sources = renderArtifacts(SCHEMA_DIR);
 	work = mkdtempSync(path.join(tmpdir(), "artifact-content-"));
 	vault = path.join(work, "vault");
@@ -124,7 +124,7 @@ describe("Templates have neutral defaults (T1.1, PRD F5.2/F5.6)", () => {
 			if (s.hasTemplate === false) continue;
 			const status = s.fields.find((f) => f.name === "status");
 			if (!status?.values) continue;
-			const fm = frontmatter(source("templates", templateName(s)));
+			const fm = frontmatter(source("templates", templateNameOf(s)));
 			expect(fm, s.entity).toMatch(new RegExp(`^status: ${status.values[0]}\\s`, "m"));
 		}
 	});
@@ -222,5 +222,15 @@ describe("Schema index note (T1.3, PRD F5.3/F5.8)", () => {
 		const plus = renderArtifacts(dir).find((a) => a.set === "schema" && a.relPath === "README.md")?.source ?? "";
 		expect(rows(plus)).toHaveLength(rows(readme()).length + 1);
 		expect(plus).toContain("| `zine` |");
+	});
+
+	it("rejects a valuesFrom outside the FileClasses folder", () => {
+		const dir = path.join(work, "schema-bad-values");
+		cpSync(SCHEMA_DIR, dir, { recursive: true });
+		writeFileSync(path.join(dir, "bad.json"), JSON.stringify({
+			entity: "bad", icon: "book", folder: "", tag: "canon/bad", note: "A test-only type.", idPrefix: "b",
+			fields: [{ name: "kind", type: "list", valuesFrom: "00 Meta/FileClasses/fc-x.md", description: "Bad." }],
+		}));
+		expect(() => renderArtifacts(dir)).toThrow(/valuesFrom must start with/);
 	});
 });

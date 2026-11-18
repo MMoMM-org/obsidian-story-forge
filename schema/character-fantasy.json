@@ -3,7 +3,7 @@
   "icon": "wand-sparkles",
   "folder": "",
   "tag": "",
-    "note": "Extension fields for fantasy characters, added on top of the base `character.md` schema. Machine source: the `fc-character-fantasy` FileClass, which `extends: fc-character`. Apply this FileClass to characters that need species/combat/magic facts; otherwise the base character schema is enough.",
+  "note": "Extension fields for fantasy characters, added on top of the base `character.md` schema. Machine source: the `fc-character-fantasy` FileClass, which `extends: fc-character`. Apply this FileClass to characters that need species/combat/magic facts; otherwise the base character schema is enough.",
   "hasTemplate": false,
   "extends": "character",
   "idPrefix": "g",
