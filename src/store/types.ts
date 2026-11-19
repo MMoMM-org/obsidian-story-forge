@@ -6,6 +6,7 @@
  */
 
 import type { PluginSettings } from "types/index";
+import type { ArtifactRecords } from "artifacts/artifactTypes";
 
 // ---------------------------------------------------------------------------
 // Core types
@@ -85,6 +86,8 @@ export interface StoryForgeData {
   settings?: StoryForgeSettings;
   /** Keyed by view id — NOT an array, NO schemaVersion. */
   views?: Record<string, ViewRecord>;
+  /** Shipped-artifact install records (spec 010). Operational state; never a view. */
+  artifacts?: ArtifactRecords;
 }
 
 /** Re-exported alias so store code doesn't need to import from types/index. */
