@@ -24,7 +24,7 @@ import type {
 } from "./artifactTypes";
 import { normalizeFolder } from "./resolvePlaceholders";
 
-export const FOLDER_OF: Record<ArtifactSet, ArtifactPlaceholder> = {
+const FOLDER_OF: Record<ArtifactSet, ArtifactPlaceholder> = {
 	fileclasses: "fileClassesFolder",
 	templates: "templatesFolder",
 	schema: "schemaFolder",

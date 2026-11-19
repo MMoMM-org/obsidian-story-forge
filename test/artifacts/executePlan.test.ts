@@ -222,10 +222,16 @@ describe("executePlan — skipped items", () => {
 		expect(result.skipped).toEqual([{ path: "Story/Classes/up.md", reason: "up to date; setting now points to X" }]);
 	});
 
-	it("refuses (fails closed) an entry whose source no longer matches its checksum", async () => {
+	it("fails (fails closed) an entry whose source no longer matches its checksum", async () => {
 		const e = { ...(await entry("fc-a.md")), source: "tampered" };
 		const result = await run([item(e, "create")]);
-		expect(result.skipped).toEqual([{ path: "Story/Classes/fc-a.md", reason: "checksum mismatch" }]);
+		expect(result.skipped).toEqual([]);
+		expect(result.failed).toEqual([
+			{
+				path: "Story/Classes/fc-a.md",
+				reason: "Not installed: Story/Classes/fc-a.md — the shipped source no longer matches its checksum",
+			},
+		]);
 		expect(mem.files.size).toBe(0);
 	});
 

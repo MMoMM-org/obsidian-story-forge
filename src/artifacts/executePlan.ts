@@ -93,6 +93,7 @@ const creates = (item: PlanItem): boolean => item.action === "create" || item.ac
 
 const prefixOf = (item: PlanItem): string => (item.action === "update" ? UPDATED : INSTALLED);
 
+// Kept although createNew ensures parents too: dedupes per parent and gives the "could not create folder" reason.
 /**
  * Ensure the parent folder of each create/missing item's own path, once per parent. Returns the
  * failure (without prefix) per parent folder that could not be created.
@@ -114,13 +115,25 @@ async function ensureItemFolders(app: App, plan: readonly PlanItem[]): Promise<M
 	return failures;
 }
 
+/** Undo `written`; returns `ok` on success, else "; undoing the write failed: <err>". */
+async function undoNote(app: App, written: Written, ok = ""): Promise<string> {
+	try {
+		await undo(app, written);
+		return ok;
+	} catch (undoErr) {
+		return `; undoing the write failed: ${messageOf(undoErr)}`;
+	}
+}
+
 /** Write one item and save its record; throws a Skip or an Error with the reported reason. */
 async function writeItem(item: PlanItem, folders: ArtifactFolders, deps: ExecutePlanDeps): Promise<void> {
 	const { app, store } = deps;
 	const { entry, path } = item;
 	const prefix = prefixOf(item);
 
-	if ((await computeChecksum(entry.source)) !== entry.checksum) throw new Skip("checksum mismatch");
+	if ((await computeChecksum(entry.source)) !== entry.checksum) {
+		throw new Error(`${prefix}: ${path} — the shipped source no longer matches its checksum`);
+	}
 	let content: string;
 	try {
 		content = resolvePlaceholders(entry.source, folders);
@@ -152,14 +165,7 @@ async function writeItem(item: PlanItem, folders: ArtifactFolders, deps: Execute
 	}
 	if (written.previous !== expectedPrevious) {
 		// Only an update gets here: its file held other bytes inside the atomic write (or was gone).
-		let reason = `${prefix}: ${path} changed while updating`;
-		try {
-			await undo(app, written);
-			reason += "; it was left as it was.";
-		} catch (undoErr) {
-			reason += `; undoing the write failed: ${messageOf(undoErr)}`;
-		}
-		throw new Error(reason);
+		throw new Error(`${prefix}: ${path} changed while updating${await undoNote(app, written, "; it was left as it was.")}`);
 	}
 
 	try {
@@ -171,13 +177,7 @@ async function writeItem(item: PlanItem, folders: ArtifactFolders, deps: Execute
 			pluginVersion: deps.pluginVersion,
 		});
 	} catch (err) {
-		let reason = `${prefix}: could not record ${path}: ${messageOf(err)}`;
-		try {
-			await undo(app, written);
-		} catch (undoErr) {
-			reason += `; undoing the write failed: ${messageOf(undoErr)}`;
-		}
-		throw new Error(reason);
+		throw new Error(`${prefix}: could not record ${path}: ${messageOf(err)}${await undoNote(app, written)}`);
 	}
 }
 
