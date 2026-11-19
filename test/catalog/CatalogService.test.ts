@@ -14,7 +14,8 @@
  * Design:
  *   - CatalogService receives the CatalogIndex via constructor injection — no
  *     dist/ read at runtime, fully testable without build artifacts.
- *   - Vault writes are mocked via App.vault.adapter (write + exists + mkdir + remove).
+ *   - The vault is in memory (wireMemoryVault): reads, folders, create, process and
+ *     trashFile go through the Vault API; vault.adapter is never used (CON-3).
  *   - store.setRecord is mocked to capture the persisted ViewRecord.
  *   - No fetch/network calls on any path (CON-9, offline-only catalog).
  *
@@ -27,7 +28,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { App } from "obsidian";
+import { App, TFile, wireMemoryVault, type MemoryVault } from "obsidian";
 import { computeChecksum } from "consent/checksum";
 import { CatalogService } from "catalog/CatalogService";
 import type { BasesCatalogEntry, CatalogIndex, CatalogEntry } from "catalog/catalogTypes";
@@ -73,14 +74,14 @@ async function makeCatalogIndex(entries?: CatalogEntry[]): Promise<CatalogIndex>
 	};
 }
 
-function makeApp(): App {
+/** An app on an empty in-memory vault, and that vault. */
+function makeVault(): { app: App; mem: MemoryVault } {
 	const app = new App();
-	vi.mocked(app.vault.adapter.exists).mockResolvedValue(false);
-	vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
-	// mkdir is properly typed on DataAdapter (obsidian.d.ts:2099) — no cast needed.
-	vi.mocked(app.vault.adapter.mkdir).mockResolvedValue(undefined);
-	vi.mocked(app.vault.adapter.remove).mockResolvedValue(undefined);
-	return app;
+	return { app, mem: wireMemoryVault(app) };
+}
+
+function makeApp(): App {
+	return makeVault().app;
 }
 
 /** A store that captures setRecord calls and surfaces them for assertions. */
@@ -136,8 +137,9 @@ describe("CatalogService — checksum mismatch fails closed (AC-F4.5)", () => {
 
 		const result = await svc.install(entry.id);
 
-		// Must not write to the vault adapter.
-		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
+		// Must not write to the vault.
+		expect(vi.mocked(app.vault.create)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.process)).not.toHaveBeenCalled();
 		// Must not call store.setRecord.
 		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
 		// Must surface a reason.
@@ -209,7 +211,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 
 		await svc.install(entry.id);
 
-		const [writtenPath] = vi.mocked(app.vault.adapter.write).mock.calls[0]!;
+		const [writtenPath] = vi.mocked(app.vault.create).mock.calls[0]!;
 		const [writtenRecord] = capturedRecords.values();
 		expect(writtenRecord!.source).toBe(writtenPath);
 		expect(writtenRecord!.source).not.toBe(BASE_YAML);
@@ -273,7 +275,7 @@ describe("CatalogService — bases entry: ViewRecord has engine='bases' (AC-F4.5
 		await svc.install(entry.id);
 
 		// Derive the expectation from the bytes the mock actually received.
-		const [, writtenContent] = vi.mocked(app.vault.adapter.write).mock.calls[0]!;
+		const [, writtenContent] = vi.mocked(app.vault.create).mock.calls[0]!;
 		const written = await computeChecksum(writtenContent);
 		const [writtenRecord] = capturedRecords.values();
 
@@ -400,7 +402,6 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 		const { store } = makeStore();
 
 		// File write succeeds but store persist fails.
-		vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
 		vi.mocked(store.setRecord).mockRejectedValue(new Error("disk full"));
 
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
@@ -426,7 +427,6 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 		const app = makeApp();
 		const { store } = makeStore();
 
-		vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
 		vi.mocked(store.setRecord).mockRejectedValue(new Error("disk full"));
 
 		const entry = await makeEntry({ id: "overview-characters" });
@@ -441,19 +441,18 @@ describe("CatalogService — atomic install: partial-write cleanup (C1)", () => 
 
 		await svc.install(entry.id);
 
-		// adapter.remove must have been called on the path that was written.
-		expect(vi.mocked(app.vault.adapter.remove)).toHaveBeenCalledTimes(1);
-		const [removedPath] = vi.mocked(app.vault.adapter.remove).mock.calls[0]!;
-		expect(removedPath).toContain("overview-characters.base");
+		// The file that was written must have been trashed.
+		expect(vi.mocked(app.fileManager.trashFile)).toHaveBeenCalledTimes(1);
+		const [trashed] = vi.mocked(app.fileManager.trashFile).mock.calls[0]!;
+		expect((trashed as TFile).path).toContain("overview-characters.base");
 	});
 
-	it("still returns ok:false even when rollback remove also fails", async () => {
+	it("still returns ok:false even when rollback trash also fails", async () => {
 		const app = makeApp();
 		const { store } = makeStore();
 
-		vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
 		vi.mocked(store.setRecord).mockRejectedValue(new Error("disk full"));
-		vi.mocked(app.vault.adapter.remove).mockRejectedValue(new Error("remove also failed"));
+		vi.mocked(app.fileManager.trashFile).mockRejectedValue(new Error("trash also failed"));
 
 		const entry = await makeEntry();
 		const index = await makeCatalogIndex([entry]);
@@ -596,7 +595,7 @@ describe("CatalogService — checksum match: install result (AC-F4.6)", () => {
 // ---------------------------------------------------------------------------
 
 describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5/ADR-5)", () => {
-	it("writes entry.source to <curatedBasesFolder>/<entry.id>.base via vault.adapter.write", async () => {
+	it("writes entry.source to <curatedBasesFolder>/<entry.id>.base via vault.create", async () => {
 		const app = makeApp();
 		const entry = await makeEntry({ id: "overview-characters", source: BASE_YAML });
 		const index = await makeCatalogIndex([entry]);
@@ -610,7 +609,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		await svc.install(entry.id);
 
-		const writeCalls = vi.mocked(app.vault.adapter.write).mock.calls;
+		const writeCalls = vi.mocked(app.vault.create).mock.calls;
 		expect(writeCalls).toHaveLength(1);
 		const [writtenPath, writtenContent] = writeCalls[0]!;
 		// Path must be normalizePath'd and point into curatedBasesFolder.
@@ -634,13 +633,12 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		await svc.install(entry.id);
 
-		const [writtenPath] = vi.mocked(app.vault.adapter.write).mock.calls[0]!;
+		const [writtenPath] = vi.mocked(app.vault.create).mock.calls[0]!;
 		expect(writtenPath).not.toContain("//");
 	});
 
 	it("creates the folder if it does not exist", async () => {
 		const app = makeApp();
-		vi.mocked(app.vault.adapter.exists).mockResolvedValue(false);
 
 		const entry = await makeEntry();
 		const index = await makeCatalogIndex([entry]);
@@ -654,12 +652,12 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		await svc.install(entry.id);
 
-		expect(vi.mocked(app.vault.adapter.mkdir)).toHaveBeenCalled();
+		expect(vi.mocked(app.vault.createFolder).mock.calls.map((c) => c[0])).toEqual(["00 Meta", "00 Meta/Bases"]);
 	});
 
 	it("does NOT re-create the folder if it already exists", async () => {
-		const app = makeApp();
-		vi.mocked(app.vault.adapter.exists).mockResolvedValue(true);
+		const { app, mem } = makeVault();
+		mem.folders.add("00 Meta").add("00 Meta/Bases");
 
 		const entry = await makeEntry();
 		const index = await makeCatalogIndex([entry]);
@@ -673,7 +671,7 @@ describe("CatalogService — materialise: bases entry writes .base file (AC-F4.5
 
 		await svc.install(entry.id);
 
-		expect(vi.mocked(app.vault.adapter.mkdir)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.createFolder)).not.toHaveBeenCalled();
 	});
 });
 
@@ -821,15 +819,10 @@ describe("CatalogService — updating an installed .base", () => {
 	const PATH = "00 Meta/Bases/overview-characters.base";
 	const V2_YAML = BASE_YAML.replace("name: Test View", "name: Test View v2");
 
-	/** An app whose adapter keeps files in a map, so writes, reads and removals are observable. */
+	/** An app on an in-memory vault, so writes, reads and trashing are observable. */
 	function vaultApp(): { app: App; files: Map<string, string> } {
-		const app = makeApp();
-		const files = new Map<string, string>();
-		vi.mocked(app.vault.adapter.exists).mockImplementation(async (p: string) => files.has(p));
-		vi.mocked(app.vault.adapter.read).mockImplementation(async (p: string) => files.get(p)!);
-		vi.mocked(app.vault.adapter.write).mockImplementation(async (p: string, d: string) => { files.set(p, d); });
-		vi.mocked(app.vault.adapter.remove).mockImplementation(async (p: string) => { files.delete(p); });
-		return { app, files };
+		const { app, mem } = makeVault();
+		return { app, files: mem.files };
 	}
 
 	function svcFor(app: App, store: ViewStore, entry: CatalogEntry): CatalogService {
@@ -880,7 +873,8 @@ describe("CatalogService — updating an installed .base", () => {
 			ok: false,
 			reason: `Not installed: ${PATH} already exists. Move, rename or remove it, then install again.`,
 		});
-		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.create)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.process)).not.toHaveBeenCalled();
 		expect(vi.mocked(store.setRecord)).not.toHaveBeenCalled();
 		expect(files.get(PATH)).toBe("views: []\n");
 	});
@@ -896,7 +890,7 @@ describe("CatalogService — updating an installed .base", () => {
 	it("fails closed, without throwing, when the installed .base cannot be read", async () => {
 		const { app, files, store } = await installedV1();
 		const before = structuredClone(await store.getViews());
-		vi.mocked(app.vault.adapter.read).mockRejectedValueOnce(new Error("EACCES"));
+		vi.mocked(app.vault.read).mockRejectedValueOnce(new Error("EACCES"));
 		const v2 = await makeEntry({ source: V2_YAML });
 		expect(await svcFor(app, store, v2).install(v2.id)).toEqual({ ok: false, reason: `Not updated: could not read ${PATH}: EACCES` });
 		expect(files.get(PATH)).toBe(BASE_YAML);

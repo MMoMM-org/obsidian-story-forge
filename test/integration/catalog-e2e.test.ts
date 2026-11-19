@@ -13,7 +13,8 @@
  *   - ConsentGate     — real evaluate() for bases records
  *
  * What IS mocked (the Obsidian boundary):
- *   - App / vault.adapter (write, exists, mkdir, remove) — in-memory interceptors
+ *   - App / vault (wireMemoryVault: getAbstractFileByPath, read, create, process, createFolder,
+ *     fileManager.trashFile) — an in-memory vault on the real Vault API
  *   - DisclosureModal.present() — injectable gate double for consent tests
  *
  * @ref PRD/F4, F7
@@ -25,7 +26,7 @@ import { join, resolve } from "node:path";
 import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { App, TFile } from "../__mocks__/obsidian";
+import { App, TFile, wireMemoryVault } from "../__mocks__/obsidian";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import { CatalogService } from "catalog/CatalogService";
 import { ViewStore } from "store/ViewStore";
@@ -80,37 +81,18 @@ async function makeEntry(overrides: Partial<BasesCatalogEntry> = {}): Promise<Ba
 }
 
 // ---------------------------------------------------------------------------
-// In-memory vault adapter — captures written files; throws if not configured.
+// In-memory vault — the files CatalogService wrote through the Vault API.
 // ---------------------------------------------------------------------------
 
 interface InMemoryVault {
-	/** path → content for every write call. */
+	/** path → content of every file in the vault (a rollback trashes it again). */
 	written: Map<string, string>;
-	/** paths removed after rollback. */
-	removed: Set<string>;
 	app: App;
 }
 
-function makeVault(folderExists = false): InMemoryVault {
-	const written = new Map<string, string>();
-	const removed = new Set<string>();
+function makeVault(): InMemoryVault {
 	const app = new App();
-
-	vi.mocked(app.vault.adapter.exists).mockResolvedValue(folderExists);
-	vi.mocked(app.vault.adapter.mkdir).mockResolvedValue(undefined);
-	vi.mocked(app.vault.adapter.write).mockImplementation(
-		async (path: string, content: string): Promise<void> => {
-			written.set(path, content);
-		},
-	);
-	vi.mocked(app.vault.adapter.remove).mockImplementation(
-		async (path: string): Promise<void> => {
-			written.delete(path);
-			removed.add(path);
-		},
-	);
-
-	return { written, removed, app };
+	return { written: wireMemoryVault(app).files, app };
 }
 
 // ---------------------------------------------------------------------------
@@ -199,7 +181,7 @@ async function mountHarness(
 	entries: CatalogEntry[],
 	initialRecords: Record<string, ViewRecord> = {},
 ): Promise<E2EHarness> {
-	const vault = makeVault(false);
+	const vault = makeVault();
 	const { store, raw: storeRaw } = makeStoreHarness(initialRecords);
 
 	// The two classify() seams only matter for records installed before T7.3 (with a
@@ -465,7 +447,8 @@ describe("E2E T6.3.3 — already-installed: second install does not write a seco
 		expect(r2.ok).toBe(false);
 
 		// Only one vault write total.
-		expect(vi.mocked(h.app.vault.adapter.write)).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(h.app.vault.create)).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(h.app.vault.process)).not.toHaveBeenCalled();
 	});
 
 	it("second install does not fire the subscriber a second time", async () => {
@@ -745,7 +728,7 @@ describe("E2E T6.3.5 — bases entry bypasses DisclosureModal; ConsentGate confi
 			surfaces: { anvil: false, workbench: false },
 		};
 
-		const vault = makeVault(false);
+		const vault = makeVault();
 		const { store } = makeStoreHarness({ "stale-id": staleRecord });
 		const gate = new ConsentGate(vault.app, makeBasesRegistry(), makeDvSettings(), store, ...inertConsentGateSeams());
 
@@ -928,10 +911,6 @@ const DECLINED_DEF = {
 function makeAppWithVaultContent(sourcePath: string, content: string): App {
 	const app = new App();
 
-	vi.mocked(app.vault.adapter.exists).mockResolvedValue(false);
-	vi.mocked(app.vault.adapter.mkdir).mockResolvedValue(undefined);
-	vi.mocked(app.vault.adapter.write).mockResolvedValue(undefined);
-	vi.mocked(app.vault.adapter.remove).mockResolvedValue(undefined);
 	vi.mocked(app.vault.read).mockResolvedValue(content);
 
 	const mockFile = new TFile();
@@ -1018,7 +997,9 @@ describe("E2E T6.3.7 — consent-decline contract: decline → nothing written (
 
 		await installCurated({ app, importer, gate }, DECLINED_DEF);
 
-		// The vault adapter write must NOT have been called — nothing materialised.
+		// Nothing materialised: no vault write, through the Vault API or the adapter.
+		expect(vi.mocked(app.vault.create)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.process)).not.toHaveBeenCalled();
 		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
 	});
 

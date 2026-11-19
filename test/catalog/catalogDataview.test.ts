@@ -15,7 +15,7 @@ import { mkdirSync, rmSync, writeFileSync, readdirSync, readFileSync } from "nod
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { parse as parseYaml } from "yaml";
-import { App, TFile, createMockTFile } from "../__mocks__/obsidian";
+import { App, TFile, wireMemoryVault } from "../__mocks__/obsidian";
 import { computeChecksum } from "consent/checksum";
 import { ConsentGate } from "consent/ConsentGate";
 import { CatalogService } from "catalog/CatalogService";
@@ -207,18 +207,10 @@ describe("the shipped catalog/", () => {
 // (e) a curated Dataview view installs from the catalog
 // ---------------------------------------------------------------------------
 
-/** A vault whose adapter writes are real files the vault and metadata cache then see. */
+/** An in-memory vault (Vault API) whose writes are real files the metadata cache then sees. */
 function makeVault() {
 	const app = new App();
-	const files = new Map<string, string>();
-	const tfile = (path: string): TFile | null =>
-		files.has(path) ? createMockTFile({ path, name: path.split("/").pop()!, extension: path.split(".").pop()! }) : null;
-	vi.mocked(app.vault.adapter.exists).mockImplementation(async (p: string) => files.has(p));
-	vi.mocked(app.vault.adapter.read).mockImplementation(async (p: string) => files.get(p)!);
-	vi.mocked(app.vault.adapter.write).mockImplementation(async (p: string, data: string) => { files.set(p, data); });
-	vi.mocked(app.vault.adapter.remove).mockImplementation(async (p: string) => { files.delete(p); });
-	vi.mocked(app.vault.getAbstractFileByPath).mockImplementation(tfile);
-	vi.mocked(app.vault.read).mockImplementation(async (f: TFile) => files.get(f.path)!);
+	const { files } = wireMemoryVault(app);
 	vi.mocked(app.metadataCache.getFileCache).mockImplementation((f: TFile) => {
 		const fm = /^---\n([\s\S]*?)\n---/.exec(files.get(f.path) ?? "")?.[1];
 		return fm === undefined ? null : { frontmatter: parseYaml(fm) as Record<string, unknown> };
@@ -470,7 +462,8 @@ describe("CatalogService — updating an installed Dataview entry", () => {
 			ok: false,
 			reason: `Not installed: ${PATH} already exists. Move, rename or remove it, then install again.`,
 		});
-		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.create)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.process)).not.toHaveBeenCalled();
 		expect(files.get(PATH)).toBe("my own note\n");
 		expect(views()).toEqual({});
 	});
@@ -483,7 +476,8 @@ describe("CatalogService — updating an installed Dataview entry", () => {
 		const { svc, consent } = service(app, store, entry, vi.fn(async () => ({ version: 3, checksum: "x" })));
 		expect((await svc.install(entry.id)).ok).toBe(false);
 		expect(consent).not.toHaveBeenCalled();
-		expect(vi.mocked(app.vault.adapter.write)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.create)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.process)).not.toHaveBeenCalled();
 	});
 
 	it("adopts a note with exactly the entry's bytes whose record was lost", async () => {
@@ -499,7 +493,7 @@ describe("CatalogService — updating an installed Dataview entry", () => {
 	it("fails closed, without throwing, when the installed note cannot be read", async () => {
 		const { app, files, store, views } = await installedV1();
 		const before = structuredClone(views());
-		vi.mocked(app.vault.adapter.read).mockRejectedValueOnce(new Error("EACCES"));
+		vi.mocked(app.vault.read).mockRejectedValueOnce(new Error("EACCES"));
 		const v2 = await bumpedEntry();
 		expect(await service(app, store, v2).svc.install(v2.id)).toEqual({
 			ok: false,

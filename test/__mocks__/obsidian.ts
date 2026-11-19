@@ -1875,8 +1875,8 @@ export interface MemoryVault {
 }
 
 /**
- * Back `app.vault`'s file API with an in-memory vault: `getAbstractFileByPath`, `read`,
- * `create`, `process`, `createFolder`, and `app.fileManager.trashFile`. Each behaves as
+ * Back `app.vault`'s file API with an in-memory vault: `getAbstractFileByPath`, `getFileByPath`,
+ * `read`, `cachedRead`, `create`, `process`, `createFolder`, and `app.fileManager.trashFile`. Each behaves as
  * obsidian.d.ts documents it: lookups return a `TFile`/`TFolder` or `null`, `create` and
  * `createFolder` fail on an existing path (and `create` when the parent folder is missing),
  * `read`/`process` fail on a file that is gone. The other vault mutators stay bare spies, so a
@@ -1914,7 +1914,9 @@ export function wireMemoryVault(app: App): MemoryVault {
 		if (folders.has(p)) return folderAt(p);
 		return null;
 	});
+	vi.mocked(v.getFileByPath).mockImplementation((p: string) => (files.has(p) ? fileAt(p) : null));
 	vi.mocked(v.read).mockImplementation(async (file: TFile) => existing(file));
+	vi.mocked(v.cachedRead).mockImplementation(async (file: TFile) => existing(file));
 	vi.mocked(v.create).mockImplementation(async (p: string, data: string) => {
 		if (files.has(p) || folders.has(p)) throw new Error("File already exists.");
 		const parent = parentOf(p);

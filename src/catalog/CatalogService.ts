@@ -19,7 +19,7 @@
  *                    regenerates it from settings; it changes only by Update or
  *                    by the user in Bases. Records installed earlier still carry
  *                    `generated` and keep working (ConsentGate, `installedPath`).
- *   If PERSIST fails after MATERIALISE, the write is undone (a new file removed, a
+ *   If PERSIST fails after MATERIALISE, the write is undone (a new file trashed, a
  *   replaced one restored) so no partial state is left. An Update replaces the
  *   stale record in place and refuses when the user edited the installed file
  *   (T7.2). install() NEVER throws — always returns InstallResult.
@@ -63,6 +63,7 @@ import type { ConsentGate } from "consent/ConsentGate";
 import { installedChecksum } from "catalog/catalogTypes";
 import type { BasesCatalogEntry, CatalogEntry, CatalogIndex, DataviewCatalogEntry } from "catalog/catalogTypes";
 import { extractQueryBlocks } from "import/queryBlocks";
+import { checkOccupied, editedRefusal, readExisting, undo, write, type Written } from "vault/managedFileWriter";
 
 // ---------------------------------------------------------------------------
 // Public result type
@@ -102,12 +103,6 @@ async function matchesInstalled(content: string, installed: Installed): Promise<
 	return blocks.length === 1 && (await computeChecksum(blocks[0]!.body)) === installed.queryBlock;
 }
 
-/** A file `_materialise` wrote, with its content before (`null`: it did not exist). */
-interface Written {
-	path: string;
-	previous: string | null;
-}
-
 // ---------------------------------------------------------------------------
 // Refusal wording (mockups-catalog.html L10f, Q8)
 // ---------------------------------------------------------------------------
@@ -128,8 +123,8 @@ const RAW = {
 } as const;
 
 /**
- * How a refusal that already reads as a sentence begins. `_editedRefusal`, `_occupiedRefusal` and
- * `_readExisting` produce them; `describeRefusal` passes anything starting with one through as is.
+ * How a refusal that already reads as a sentence begins. `_editedRefusal` and `_occupiedRefusal`
+ * produce them (wording in `managedFileWriter`); `describeRefusal` passes anything starting with one through as is.
  */
 const REFUSED_PREFIX = { install: "Not installed", update: "Not updated" } as const;
 
@@ -475,39 +470,28 @@ export class CatalogService {
 	 * proceeds. An unreadable file fails closed.
 	 */
 	private async _editedRefusal(path: string, installed: Installed): Promise<InstallResult | null> {
-		const read = await this._readExisting(path, REFUSED_PREFIX.update);
-		if (typeof read !== "string") return read;
-		if (await matchesInstalled(read, installed)) return null;
-		return { ok: false, reason: `${REFUSED_PREFIX.update}: ${path} was edited after it was installed, and updating would overwrite those edits.` };
+		const read = await readExisting(this.deps.app, path, REFUSED_PREFIX.update);
+		if ("refusal" in read) return { ok: false, reason: read.refusal };
+		if ("absent" in read) return null;
+		if (await matchesInstalled(read.content, installed)) return null;
+		return { ok: false, reason: editedRefusal(path, REFUSED_PREFIX.update) };
 	}
 
 	/**
 	 * Refuse a fresh install onto a file the catalog did not write (no record of it): it would be
 	 * overwritten. A file with exactly the entry's bytes is the same install with a lost record,
-	 * and is adopted. Checked before any consent modal.
+	 * and is adopted (`adoptIdentical`, the catalog's rule only). The entry's bytes were verified
+	 * against its checksum before this runs. Checked before any consent modal.
 	 */
 	private async _occupiedRefusal(path: string, entry: CatalogEntry): Promise<InstallResult | null> {
-		const read = await this._readExisting(path, REFUSED_PREFIX.install);
-		if (typeof read !== "string") return read;
-		if ((await computeChecksum(read)) === entry.checksum) return null;
-		return { ok: false, reason: `${REFUSED_PREFIX.install}: ${path} already exists. Move, rename or remove it, then install again.` };
-	}
-
-	/** The file's content; `null` when it does not exist; a refusal (`prefix`) when it cannot be read. */
-	private async _readExisting(path: string, prefix: string): Promise<string | InstallResult | null> {
-		const adapter = this.deps.app.vault.adapter;
-		try {
-			return (await adapter.exists(path)) ? await adapter.read(path) : null;
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : String(err);
-			return { ok: false, reason: `${prefix}: could not read ${path}: ${msg}` };
-		}
+		const refusal = await checkOccupied(this.deps.app, path, entry.source, REFUSED_PREFIX.install, { adoptIdentical: true });
+		return refusal === null ? null : { ok: false, reason: refusal };
 	}
 
 	/**
 	 * Write `record` — under the stale record's id, keeping what the user set on it (enabled, the
 	 * two surfaces, the command), or under a new id. On failure undo the file write: a file that
-	 * did not exist is removed, one that did gets its previous content back.
+	 * did not exist is trashed, one that did gets its previous content back.
 	 */
 	private async _persist(stale: { id: string; record: ViewRecord } | null, record: ViewRecord, written: Written): Promise<InstallResult> {
 		const id = stale?.id ?? crypto.randomUUID();
@@ -524,10 +508,8 @@ export class CatalogService {
 
 	/** Best-effort rollback of `_materialise`; a failure is logged, never masks the original error. */
 	private async _undoWrite(written: Written): Promise<void> {
-		const adapter = this.deps.app.vault.adapter;
 		try {
-			if (written.previous === null) await adapter.remove(written.path);
-			else await adapter.write(written.path, written.previous);
+			await undo(this.deps.app, written);
 		} catch {
 			console.debug("[StoryForge] CatalogService: rollback failed", written.path);
 		}
@@ -538,25 +520,15 @@ export class CatalogService {
 	// ---------------------------------------------------------------------------
 
 	/**
-	 * Write an entry (`.base` or, T7.2, a Dataview `.md`) to `filePath`, remembering what was
-	 * there before so `_persist` can undo the write.
-	 *
-	 * Creates the folder via vault.adapter.mkdir when absent. mkdir is a properly
-	 * typed method on the DataAdapter interface (obsidian.d.ts:2099) — no `as
-	 * unknown` cast needed; no fictional-method risk.
+	 * Write an entry (`.base` or, T7.2, a Dataview `.md`) to `filePath` through `managedFileWriter`
+	 * (Vault API, ADR-41), remembering what was there before so `_persist` can undo the write.
+	 * `write` creates every missing folder level of `filePath` first.
 	 *
 	 * Throws on any vault error — the callers (_installBasesEntry, _installDataviewEntry) catch and
 	 * return { ok:false }.
 	 */
 	private async _materialise(entry: CatalogEntry, filePath: string): Promise<Written> {
-		const adapter = this.deps.app.vault.adapter;
-		const folderPath = normalizePath(this.deps.curatedBasesFolder);
-		if (!(await adapter.exists(folderPath))) {
-			await adapter.mkdir(folderPath);
-		}
-		const previous = (await adapter.exists(filePath)) ? await adapter.read(filePath) : null;
-		await adapter.write(filePath, entry.source);
-		return { path: filePath, previous };
+		return write(this.deps.app, filePath, entry.source);
 	}
 
 	/** Where `entry` is written: `<curatedBasesFolder>/<id>.<extension>`. */

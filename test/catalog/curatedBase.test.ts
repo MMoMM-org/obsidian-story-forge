@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { App, TFile, createMockTFile } from "../__mocks__/obsidian";
+import { App, wireMemoryVault } from "../__mocks__/obsidian";
 import { computeChecksum } from "consent/checksum";
 import { ConsentGate } from "consent/ConsentGate";
 import { CatalogService } from "catalog/CatalogService";
@@ -31,19 +31,10 @@ async function entry(source = V1): Promise<BasesCatalogEntry> {
 	return { id: "characters-by-role", name: "Characters by role", engine: "bases", source, checksum: await computeChecksum(source) };
 }
 
-/** A vault whose adapter keeps files in a map; every way of writing a file is a spy. */
+/** An in-memory vault (Vault API); every way of writing a file is a spy. */
 function makeVault() {
 	const app = new App();
-	const files = new Map<string, string>();
-	const tfile = (p: string): TFile | null => (files.has(p) ? createMockTFile({ path: p, name: p.split("/").pop()!, extension: "base" }) : null);
-	vi.mocked(app.vault.adapter.exists).mockImplementation(async (p: string) => files.has(p));
-	vi.mocked(app.vault.adapter.read).mockImplementation(async (p: string) => files.get(p)!);
-	vi.mocked(app.vault.adapter.write).mockImplementation(async (p: string, d: string) => { files.set(p, d); });
-	vi.mocked(app.vault.adapter.remove).mockImplementation(async (p: string) => { files.delete(p); });
-	vi.mocked(app.vault.getFileByPath).mockImplementation(tfile);
-	vi.mocked(app.vault.getAbstractFileByPath).mockImplementation(tfile);
-	vi.mocked(app.vault.cachedRead).mockImplementation(async (f: TFile) => files.get(f.path)!);
-	vi.mocked(app.vault.read).mockImplementation(async (f: TFile) => files.get(f.path)!);
+	const { files } = wireMemoryVault(app);
 	return { app, files };
 }
 
@@ -108,7 +99,7 @@ describe("(b) nothing regenerates a curated .base", () => {
 		const mutators = [
 			a.write, a.writeBinary, a.append, a.appendBinary, a.process, a.mkdir, a.trashSystem, a.trashLocal,
 			a.rmdir, a.remove, a.rename, a.copy, app.vault.modify, app.vault.create, app.vault.process,
-			app.vault.delete, app.vault.trash,
+			app.vault.delete, app.vault.trash, app.vault.createFolder, app.fileManager.trashFile,
 		];
 		const writes = (): number[] => mutators.map((f) => vi.mocked(f).mock.calls.length);
 		const before = writes();
