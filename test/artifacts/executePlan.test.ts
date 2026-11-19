@@ -183,6 +183,43 @@ describe("executePlan — writes and records", () => {
 	});
 });
 
+describe("executePlan — folders named in content", () => {
+	const OTHER: ArtifactFolders = { fileClassesFolder: "Old/Classes", templatesFolder: "Old/Templates", schemaFolder: "Old/Schema" };
+	const OLD_SCHEMA = "---\nfileClass: x\n---\nsee Old/Schema and {{title}}\n";
+
+	it("an update resolves with the record's params and keeps them in the new record", async () => {
+		const e = await entry("fc-a.md");
+		addFolders("Story/Classes");
+		mem.files.set("Story/Classes/fc-a.md", OLD_RESOLVED);
+		await store.setRecord(e.id, { path: "Story/Classes/fc-a.md", sourceChecksum: `sha256:${"0".repeat(64)}`, instanceChecksum: await computeChecksum(OLD_RESOLVED), params: OTHER, pluginVersion: "0.1.0" });
+
+		const result = await run([item(e, "update")]);
+
+		expect(result.written).toEqual(["Story/Classes/fc-a.md"]);
+		expect(mem.files.get("Story/Classes/fc-a.md")).toBe(OLD_SCHEMA);
+		expect((await persisted())[e.id]?.params).toEqual(OTHER);
+	});
+
+	it("a missing item resolves with the record's params and keeps them in the new record", async () => {
+		const e = await entry("fc-a.md");
+		await store.setRecord(e.id, { path: "Old/fc-a.md", sourceChecksum: e.checksum, instanceChecksum: e.checksum, params: OTHER, pluginVersion: "0.1.0" });
+
+		const result = await run([item(e, "missing", undefined, "Old/fc-a.md")]);
+
+		expect(result.written).toEqual(["Old/fc-a.md"]);
+		expect(mem.files.get("Old/fc-a.md")).toBe(OLD_SCHEMA);
+		expect((await persisted())[e.id]?.params).toEqual(OTHER);
+	});
+
+	it("a create item resolves with the current folders and records them", async () => {
+		const e = await entry("fc-a.md");
+		await run([item(e, "create")]);
+
+		expect(mem.files.get("Story/Classes/fc-a.md")).toBe(RESOLVED);
+		expect((await persisted())[e.id]?.params).toEqual(folders);
+	});
+});
+
 describe("executePlan — skipped items", () => {
 	it("skips every non-writing action with its reason and writes nothing", async () => {
 		const up = await entry("up.md");
@@ -329,7 +366,7 @@ describe("executePlan — failures", () => {
 		expect((await persisted())[e.id]?.pluginVersion).toBe("0.1.0");
 	});
 
-	it("a folder creation failure fails that set's items only; other sets proceed", async () => {
+	it("a folder creation failure fails the items under that parent folder only; other folders proceed", async () => {
 		const fc1 = await entry("fc-a.md", "fileclasses");
 		const tpl = await entry("tpl.md", "templates");
 		const fc2 = await entry("fc-b.md", "fileclasses");

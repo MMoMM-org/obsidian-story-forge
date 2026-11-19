@@ -134,16 +134,19 @@ async function writeItem(item: PlanItem, folders: ArtifactFolders, deps: Execute
 	if ((await computeChecksum(entry.source)) !== entry.checksum) {
 		throw new Error(`${prefix}: ${path} — the shipped source no longer matches its checksum`);
 	}
+	// An update or missing item stays at its record path, so its content keeps naming the folders its
+	// siblings were written to; only a create uses the folders currently configured.
+	const record = item.action === "create" ? undefined : store.get(entry.id);
+	const params = record?.params ?? folders;
 	let content: string;
 	try {
-		content = resolvePlaceholders(entry.source, folders);
+		content = resolvePlaceholders(entry.source, params);
 	} catch (err) {
 		throw new Error(`${prefix}: ${messageOf(err)}`);
 	}
 
 	let expectedPrevious: string | null = null;
 	if (item.action === "update") {
-		const record = store.get(entry.id);
 		if (record === undefined) throw new Error(`${prefix}: no install record for ${path}`);
 		const existing = await readExisting(app, path, prefix);
 		if ("refusal" in existing) throw new Skip(existing.refusal);
@@ -173,7 +176,7 @@ async function writeItem(item: PlanItem, folders: ArtifactFolders, deps: Execute
 			path: written.path,
 			sourceChecksum: entry.checksum,
 			instanceChecksum: await computeChecksum(content),
-			params: { ...folders },
+			params: { ...params },
 			pluginVersion: deps.pluginVersion,
 		});
 	} catch (err) {
