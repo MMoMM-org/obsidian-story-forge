@@ -24,6 +24,7 @@ function fakePort(initial: unknown = {}): PluginDataPort & { data: unknown; save
 	let saveCount = 0;
 	return {
 		get data() { return data; },
+		set data(v: unknown) { data = structuredClone(v); },
 		get saveCount() { return saveCount; },
 		async load() { await tick(); return structuredClone(data); },
 		async save(d: unknown) { await tick(); saveCount++; data = structuredClone(d); },
@@ -48,6 +49,20 @@ async function loadWith(artifacts: unknown) {
 }
 
 describe("ArtifactStore.load", () => {
+	it("populates get and all, and a second load picks up external changes", async () => {
+		const port = fakePort({ artifacts: { a: record() } });
+		const store = new ArtifactStore(createDataFile(port));
+		expect(store.all()).toEqual({});
+		await store.load();
+		expect(store.get("a")).toEqual(record());
+		expect(store.all()).toEqual({ a: record() });
+		port.data = { artifacts: { b: record({ path: "p" }) } };
+		await store.load();
+		expect(store.get("a")).toBeUndefined();
+		expect(store.get("b")).toEqual(record({ path: "p" }));
+		expect(Object.keys(store.all())).toEqual(["b"]);
+	});
+
 	it("reads a missing artifacts key as {}", async () => {
 		expect(await loadWith(undefined)).toEqual({});
 	});
@@ -126,6 +141,7 @@ describe("ArtifactStore writes", () => {
 		const port = fakePort({});
 		const store = new ArtifactStore(createDataFile(port));
 		await expect(store.deleteRecord("nope")).resolves.toBeUndefined();
+		expect(port.saveCount).toBe(1);
 	});
 
 	it("get and all reflect the latest load or write", async () => {
@@ -175,11 +191,28 @@ describe("ArtifactStore.onChange", () => {
 
 	it("does not notify when the write fails", async () => {
 		const port = fakePort({});
-		port.save = () => Promise.reject(new Error("disk full"));
 		const store = new ArtifactStore(createDataFile(port));
+		await store.setRecord("a", record());
+		port.save = () => Promise.reject(new Error("disk full"));
 		const listener = vi.fn();
 		store.onChange(listener);
-		await expect(store.setRecord("a", record())).rejects.toThrow("disk full");
+		await expect(store.setRecord("b", record({ path: "p" }))).rejects.toThrow("disk full");
 		expect(listener).not.toHaveBeenCalled();
+		expect(store.get("b")).toBeUndefined();
+		expect(store.all()).toEqual({ a: record() });
+	});
+
+	it("a throwing listener does not reject the write or starve later listeners", async () => {
+		const port = fakePort({});
+		const store = new ArtifactStore(createDataFile(port));
+		const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const next = vi.fn();
+		store.onChange(() => { throw new Error("boom"); });
+		store.onChange(next);
+		await expect(store.setRecord("a", record())).resolves.toBeUndefined();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(spy).toHaveBeenCalledWith(expect.stringContaining("[StoryForge]"), expect.any(Error));
+		expect((port.data as { artifacts: object }).artifacts).toEqual({ a: record() });
+		spy.mockRestore();
 	});
 });

@@ -75,7 +75,7 @@ export class ArtifactStore {
 	}
 
 	/** All records as of the last load or write. */
-	all(): ArtifactRecords {
+	all(): Readonly<ArtifactRecords> {
 		return this.records;
 	}
 
@@ -102,6 +102,13 @@ export class ArtifactStore {
 			data.artifacts = next;
 		});
 		this.records = next;
-		for (const listener of [...this.listeners]) listener();
+		for (const listener of [...this.listeners]) {
+			try {
+				listener();
+			} catch (err) {
+				// The data is already saved; a faulty subscriber must not fail the write.
+				console.error("[StoryForge] ArtifactStore onChange listener threw", err);
+			}
+		}
 	}
 }
