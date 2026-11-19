@@ -24,6 +24,9 @@ import { wireUndoJournal } from "undo/wireUndoJournal";
 import { wireLibrary, type LibraryWiring } from "library/wireLibrary";
 import { openLibrarySettings } from "library/openLibrary";
 import { buildAnvilCodexOpts } from "anvil/anvilCodexOpts";
+import { ArtifactStore } from "artifacts/ArtifactStore";
+import { artifactIndex } from "artifacts/artifactIndex";
+import type { ArtifactIndex } from "artifacts/artifactTypes";
 import catalogIndexRaw from "../dist/catalog-index.json";
 
 // The bundled catalog-index.json is built by `catalog:build` before esbuild
@@ -45,6 +48,10 @@ export default class StoryForgePlugin extends Plugin {
 		load: () => this.loadData() as Promise<unknown>,
 		save: (d: unknown) => this.saveData(d),
 	});
+	/** Install records for the shipped vault artifacts (spec 010, ADR-40). Reading only: nothing here writes a vault file. */
+	readonly artifactStore: ArtifactStore = new ArtifactStore(this.dataFile);
+	/** The artifact index bundled into main.js (ADR-38): what can be set up, with no network. */
+	readonly artifactIndex: ArtifactIndex = artifactIndex;
 	/** The one shared Library: collection store, change signal and a synchronous snapshot (T7.1d1). */
 	library!: LibraryWiring;
 
@@ -56,6 +63,9 @@ export default class StoryForgePlugin extends Plugin {
 		this.store = new ViewStore(this.dataFile);
 
 		await this.loadSettings();
+
+		// Spec 010 (CON-4): load the install records only. Nothing is set up unasked.
+		await this.artifactStore.load();
 
 		// The Library (T7.1d1): one CollectionStore for the settings tab and both hosts.
 		// `migrate()` runs here, once, after the data is loaded and before any view renders.
