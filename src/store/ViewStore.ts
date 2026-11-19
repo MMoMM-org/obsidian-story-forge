@@ -6,14 +6,19 @@
  *         Read-modify-write preserving sibling `settings`. Never persist on read.
  */
 
-import { applyDefaults, type PluginDataPort, type StoryForgeData, type ViewRecord } from "store/types";
+import { createDataFile, type DataFile } from "store/dataFileQueue";
+import { applyDefaults, type PluginDataPort, type ViewRecord } from "store/types";
 
 export class ViewStore {
-  private readonly port: PluginDataPort;
+  private readonly file: DataFile;
   private readonly _subscribers = new Set<() => void>();
 
-  constructor(port: PluginDataPort) {
-    this.port = port;
+  /**
+   * Pass the plugin's shared DataFile so view writes queue with settings and artifact writes
+   * (T2.2). A bare port gets a queue of its own — fine for a store that is the blob's only writer.
+   */
+  constructor(port: PluginDataPort | DataFile) {
+    this.file = "update" in port ? port : createDataFile(port);
   }
 
   /**
@@ -41,7 +46,7 @@ export class ViewStore {
    * Does NOT persist — ADR-6 read path.
    */
   async getViews(): Promise<Record<string, ViewRecord>> {
-    const data = await this.readData();
+    const data = await this.file.read();
     const raw = data.views ?? {};
     const defaulted: Record<string, ViewRecord> = {};
     for (const [id, entry] of Object.entries(raw)) {
@@ -55,10 +60,11 @@ export class ViewStore {
    * Persists exactly once. — ADR-6 mutation path.
    */
   async setRecord(id: string, rec: ViewRecord): Promise<void> {
-    const data = await this.readData();
-    const views = data.views ?? {};
-    views[id] = rec;
-    await this.port.save({ ...data, views });
+    await this.file.update((data) => {
+      const views = data.views ?? {};
+      views[id] = rec;
+      data.views = views;
+    });
     this._notify();
   }
 
@@ -67,23 +73,11 @@ export class ViewStore {
    * Read-modify-write; preserves sibling `settings`. — ADR-6 mutation path.
    */
   async deleteRecord(id: string): Promise<void> {
-    const data = await this.readData();
-    const views = data.views ?? {};
-    delete views[id];
-    await this.port.save({ ...data, views });
+    await this.file.update((data) => {
+      const views = data.views ?? {};
+      delete views[id];
+      data.views = views;
+    });
     this._notify();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
-
-  private async readData(): Promise<StoryForgeData> {
-    const raw = await this.port.load();
-    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-      return {};
-    }
-    // raw is narrowed to non-null, non-array object — TypeScript accepts object as StoryForgeData.
-    return raw;
   }
 }

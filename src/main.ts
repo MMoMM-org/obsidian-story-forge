@@ -2,7 +2,7 @@ import { Plugin, Events, Notice } from "obsidian";
 import { SettingsTab } from "settings/SettingsTab";
 import { DEFAULT_SETTINGS, normalizeSettings, type PluginSettings } from "types/index";
 import { ViewStore } from "store/ViewStore";
-import type { PluginDataPort, StoryForgeData } from "store/types";
+import { createDataFile, type DataFile } from "store/dataFileQueue";
 import { SidebarView, activateView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE, ICON, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { WorkspaceLeaf } from "obsidian";
@@ -40,6 +40,11 @@ function basenameNoMd(source: string): string {
 export default class StoryForgePlugin extends Plugin {
 	settings: PluginSettings = DEFAULT_SETTINGS;
 	store!: ViewStore;
+	/** The one save queue for data.json (T2.2): settings, views and artifacts all write through it. */
+	readonly dataFile: DataFile = createDataFile({
+		load: () => this.loadData() as Promise<unknown>,
+		save: (d: unknown) => this.saveData(d),
+	});
 	/** The one shared Library: collection store, change signal and a synchronous snapshot (T7.1d1). */
 	library!: LibraryWiring;
 
@@ -47,13 +52,8 @@ export default class StoryForgePlugin extends Plugin {
 	readonly _commandIds: Set<string> = new Set();
 
 	async onload(): Promise<void> {
-		// Build the single shared data port — both store and settings use it.
-		const port: PluginDataPort = {
-			load: () => this.loadData() as Promise<unknown>,
-			save: (d: unknown) => this.saveData(d),
-		};
-
-		this.store = new ViewStore(port);
+		// Views share the one data.json save queue with settings (T2.2).
+		this.store = new ViewStore(this.dataFile);
 
 		await this.loadSettings();
 
@@ -506,20 +506,16 @@ export default class StoryForgePlugin extends Plugin {
 	// ---------------------------------------------------------------------------
 
 	async loadSettings(): Promise<void> {
-		const raw = await this.loadData() as StoryForgeData | null | undefined;
+		const raw = await this.dataFile.read();
 		// normalizeSettings builds this.settings field-by-field from only the keys
 		// PluginSettings declares — a stray persisted key (e.g. a removed field like
 		// the pre-Phase-3 exampleSetting, G17) cannot ride along (see types/index.ts).
-		this.settings = normalizeSettings(raw?.settings ?? null);
+		this.settings = normalizeSettings(raw.settings ?? null);
 	}
 
 	async saveSettings(): Promise<void> {
-		// Read-modify-write: preserve the views key alongside settings.
-		const raw = await this.loadData() as StoryForgeData | null | undefined;
-		const data: StoryForgeData = raw && typeof raw === "object" && !Array.isArray(raw)
-			? raw
-			: {};
-		data.settings = this.settings;
-		await this.saveData(data);
+		// Read-modify-write through the shared queue: keeps the views/artifacts keys and cannot
+		// interleave with a ViewStore or ArtifactStore save (T2.2).
+		await this.dataFile.update((data) => { data.settings = this.settings; });
 	}
 }
