@@ -50,7 +50,8 @@ Gives the user the deliberate, previewed setup and update flow.
      `renderLabelled`); `isExcluded` in `src/scoping/workspaceScope.ts`
   2. Test: Opens with three sets, each with folder, checkbox and per-file action rows from
      `planSetup`; deselecting a set removes its writes; changing a folder saves the setting and
-     replans; folder not covered by `excludedFolders` shows the warning; cancel/close writes
+     replans; folder not covered by `excludedFolders` shows the warning; a `missing` file is
+     shown unticked and is written only when the user ticks it (PRD F4.5); cancel/close writes
      nothing; confirm runs `executePlan` and shows one Notice with written, skipped and failed
      lines; clicking a row never writes
   3. Implement: `src/artifacts/StoryFilesModal.ts`, styles in `styles.css`

@@ -320,14 +320,23 @@ carries the note "setting now points to …".
 
 ```pseudocode
 managedFileWriter (src/vault/managedFileWriter.ts):
-  readExisting(vault, path) -> { content } | { absent } | { refusal }
-  ensureFolder(vault, folder)                       # creates every missing level
-  write(vault, path, content) -> Written {path, previous}   # create or process
-  undo(vault, written)                              # restore previous / trash new file
+  # every function takes `app` (trashFile needs app.fileManager)
+  readExisting(app, path, prefix) -> { content } | { absent: true } | { refusal }
+  ensureFolder(app, folder)                         # creates every missing level
+  parentFolderOf(path)
+  createNew(app, path, content) -> Written {path, previous: null}   # vault.create; rejects if it exists
+  write(app, path, content) -> Written {path, previous}             # process, or createNew if absent
+  undo(app, written)                                # restore previous / trash new file; throws on vault error
+  checkOccupied(app, path, content, prefix, { adoptIdentical })
   editedRefusal(path, prefix) / occupiedRefusal(path, prefix)
   # CatalogService passes adoptIdentical=true to keep its current behaviour; artifacts never do.
 
-planSetup(index, records, readFile, folders, selectedSets) -> PlanItem[]
+createDataFile(port) -> DataFile { read(), update(syncMutator) }   # one queue for data.json
+ArtifactStore(dataFile): load(), get(id), all(), setRecord(id, rec), deleteRecord(id),
+  onChange(listener) -> unsubscribe                 # fires after a successful save; listeners isolated
+
+planSetup(index, records, readFile, folders, selectedSets) -> Promise<PlanItem[]>
+  # readFile(path) -> ArtifactFileRead { kind: "content", text } | { kind: "absent" } | { kind: "unreadable", reason }
 executePlan(plan, folders, { app, store, pluginVersion })
   -> { written[], skipped[{path, reason}], failed[{path, reason}] }   # never throws
 # create/missing: managedFileWriter.createNew (vault.create, rejects if the file exists);
@@ -383,7 +392,10 @@ schema-check: dev vault file differs from resolve(index, defaults) -> exit 1
    checkbox, exclusion warning and one row per file with its action.
 4. User may change a folder (saved to settings, plan recomputed) or deselect a set; confirms.
 5. `executePlan` writes `create`/`update`/`missing` items in order, each followed by a record
-   update; skips the rest.
+   update; skips the rest. The dialog passes a `missing` item only when the user ticked it
+   ("set up again"); it is never recreated by default (PRD F4.5). `create` items resolve
+   placeholders with the current folders; `update` and `missing` items keep the folders in
+   their record (`record.params`), because the file stays at its record path.
 6. One Notice: "Set up N story files." plus skipped/failed lines (refusal prefixes); debug log
    per refusal with `[StoryForge]`.
 
@@ -401,7 +413,7 @@ sequenceDiagram
   P-->>M: PlanItem[]
   U->>M: Confirm
   loop each actionable item
-    M->>W: ensureFolder + write
+    M->>W: executePlan (createNew / write per item)
     W-->>M: Written
     M->>S: setRecord (undo write on failure)
   end

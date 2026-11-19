@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Setup core"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 2
 ---
@@ -28,6 +28,32 @@ phase: 2
 - Refusal wording and prefixes are the catalog's (`Not installed:` / `Not updated:`).
 - Vault files are written only through the Vault API (CON-3).
 - No UI in this phase.
+
+**Decisions taken during implementation**:
+- T2.1 and T2.5, then T2.2 and T2.4, ran in parallel (separate files). Each implementer staged
+  only its own files.
+- T2.1: the new folder settings reject whitespace-only values; `fileClassesFolder` predates that
+  and is unchanged. One shared guard/normaliser.
+- T2.2: `createDataFile(port)` is the one queue for data.json; settings, ViewStore and
+  ArtifactStore use `plugin.dataFile`. `ViewStore` still accepts a bare port (it then gets a
+  private queue) so existing test setups did not change; production passes the shared queue and
+  a test pins that.
+- T2.3: `ArtifactStore` drops malformed records on load and on every rewrite; `onChange` fires
+  after a successful save, listeners isolated.
+- T2.4: every writer function takes `app`; `write` creates parent folders itself; catalog
+  rollback trashes (user's trash setting) instead of `adapter.remove`; the catalog's
+  adopt-identical compares bytes (the source is checksum-verified first).
+- T2.5: new plan action `refused` (index checksum mismatch); notes joined with "; ".
+- T2.6: `executePlan(plan, folders, {app, store, pluginVersion})`, never throws. create/missing
+  use `createNew` (atomic `vault.create`); update uses `write` with previous-bytes check and undo.
+  Each create/missing item's own parent folder is ensured once; update items never fail on a
+  folder. Right before writing: occupied or edited → skipped, vanished update → failed. A source
+  checksum mismatch at write time → failed. Undo failures are appended to the reason.
+- Phase-2 drift check: update and missing items resolve with their record's `params`, create
+  items with the current folders (fix in executePlan); the dialog passes a missing item only when
+  the user ticks it (Phase 3, PRD F4.5).
+- T2.7: `artifactStore.load()` runs in onload after `loadSettings` (read-only). The bundle check
+  is strict under `CI`; locally it skips a missing or stale `build/main.js`.
 
 **Dependencies**: Phase 1 (index, resolver).
 
@@ -88,8 +114,8 @@ catalog onto the same writer.
   4. Validate: Catalog e2e and BrowseOfficialModal tests green; no `vault.adapter` use for vault
      files left in `src/catalog/`; mutation-check the writer
   5. Success:
-     - [ ] Every vault write goes through the Vault API `[ref: PRD/F6.4]`
-     - [ ] Catalog behaviour preserved `[ref: SDD/Implementation Boundaries]`
+     - [x] Every vault write goes through the Vault API `[ref: PRD/F6.4]`
+     - [x] Catalog behaviour preserved `[ref: SDD/Implementation Boundaries]`
 
 - [x] **T2.5 planSetup** `[activity: domain-modeling]`
 
@@ -102,28 +128,28 @@ catalog onto the same writer.
   3. Implement: `src/artifacts/planSetup.ts` (pure)
   4. Validate: Table-driven tests; each row mutation-checked
   5. Success:
-     - [ ] Non-owned file never changed `[ref: PRD/F4.1]`
-     - [ ] Unedited updated, edited refused `[ref: PRD/F4.3; PRD/F4.4]`
-     - [ ] Deleted or moved file reported missing, not recreated `[ref: PRD/F4.5]`
-     - [ ] Unchanged shipped file not offered `[ref: PRD/F4.6]`
-     - [ ] Changed setting after setup handled `[ref: PRD/F3.4]`
+     - [x] Non-owned file never changed `[ref: PRD/F4.1]`
+     - [x] Unedited updated, edited refused `[ref: PRD/F4.3; PRD/F4.4]`
+     - [x] Deleted or moved file reported missing, not recreated `[ref: PRD/F4.5]`
+     - [x] Unchanged shipped file not offered `[ref: PRD/F4.6]`
+     - [x] Changed setting after setup handled `[ref: PRD/F3.4]`
 
-- [ ] **T2.6 executePlan** `[activity: backend]`
+- [x] **T2.6 executePlan** `[activity: backend]`
 
   1. Prime: `[ref: SDD/Primary Flow]` `[ref: SDD/Error Handling]`
   2. Test: Writes create/update/missing items in order, records each after its write; skips
      others; a write failure leaves earlier items written and recorded and reports the failure
      with its path; a record failure undoes that write; folder creation failure fails that
-     set's items only; result lists written, skipped (with reason), failed; resolves placeholders
+     items under that parent folder only (per-parent since the T2.6 review); result lists written, skipped (with reason), failed; resolves placeholders
      with the folders the plan used and stores them as `params`
   3. Implement: `src/artifacts/executePlan.ts`
   4. Validate: Unit tests with the vault mock; mutation-check
   5. Success:
-     - [ ] Missing folders created `[ref: PRD/F2.8]`
-     - [ ] Partial failure never claims a write `[ref: PRD/F4 Rule 5]`
-     - [ ] Files name the folders configured at setup `[ref: PRD/F5.8]`
+     - [x] Missing folders created `[ref: PRD/F2.8]`
+     - [x] Partial failure never claims a write `[ref: PRD/F4 Rule 5]`
+     - [x] Files name the folders configured at setup `[ref: PRD/F5.8]`
 
-- [ ] **T2.7 No write on load** `[activity: backend]`
+- [x] **T2.7 No write on load** `[activity: backend]`
 
   1. Prime: `src/main.ts` `onload`/`onLayoutReady`
   2. Test: Loading the plugin with an empty vault performs zero vault writes (create, modify,
@@ -134,6 +160,6 @@ catalog onto the same writer.
   4. Validate: Integration test; mutation-check by adding a write on load
   5. Success: Nothing written unasked `[ref: PRD/F2.1]`
 
-- [ ] **T2.8 Phase validation** `[activity: validate]`
+- [x] **T2.8 Phase validation** `[activity: validate]`
 
   - Run all tests, lint, typecheck ×3, build. Verify against ADR-40, ADR-41 and PRD F4.

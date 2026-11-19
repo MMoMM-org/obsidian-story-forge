@@ -104,7 +104,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 > **Tracking Principle**: Track logical units that produce verifiable outcomes. The TDD cycle is the method, not separate tracked items.
 
 - [x] [Phase 1: Generator, artifact index and drift gate](phase-1.md)
-- [ ] [Phase 2: Setup core](phase-2.md)
+- [x] [Phase 2: Setup core](phase-2.md)
 - [ ] [Phase 3: Setup UI](phase-3.md)
 - [ ] [Phase 4: Scanner-clean source](phase-4.md)
 - [ ] [Phase 5: Documentation and disclosures](phase-5.md)
