@@ -1868,6 +1868,77 @@ export function createMockTFile(overrides?: Partial<{
 	return file;
 }
 
+/** The files and folders an in-memory vault (`wireMemoryVault`) holds, by normalized path. */
+export interface MemoryVault {
+	files: Map<string, string>;
+	folders: Set<string>;
+}
+
+/**
+ * Back `app.vault`'s file API with an in-memory vault: `getAbstractFileByPath`, `read`,
+ * `create`, `process`, `createFolder`, and `app.fileManager.trashFile`. Each behaves as
+ * obsidian.d.ts documents it: lookups return a `TFile`/`TFolder` or `null`, `create` and
+ * `createFolder` fail on an existing path (and `create` when the parent folder is missing),
+ * `read`/`process` fail on a file that is gone. The other vault mutators stay bare spies, so a
+ * test can still prove none ran. Wires only methods the real API has (no fictional ones).
+ */
+export function wireMemoryVault(app: App): MemoryVault {
+	const files = new Map<string, string>();
+	const folders = new Set<string>();
+	const parentOf = (p: string): string => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
+	const nameOf = (p: string): string => p.slice(p.lastIndexOf("/") + 1);
+	const fileAt = (p: string): TFile => {
+		const name = nameOf(p);
+		const dot = name.lastIndexOf(".");
+		return createMockTFile({
+			path: p,
+			name,
+			basename: dot > 0 ? name.slice(0, dot) : name,
+			extension: dot > 0 ? name.slice(dot + 1) : "",
+		});
+	};
+	const folderAt = (p: string): TFolder => {
+		const folder = new TFolder();
+		folder.path = p;
+		folder.name = nameOf(p);
+		return folder;
+	};
+	const existing = (file: TAbstractFile): string => {
+		const content = files.get(file.path);
+		if (content === undefined) throw new Error(`File not found: ${file.path}`);
+		return content;
+	};
+	const v = app.vault;
+	vi.mocked(v.getAbstractFileByPath).mockImplementation((p: string) => {
+		if (files.has(p)) return fileAt(p);
+		if (folders.has(p)) return folderAt(p);
+		return null;
+	});
+	vi.mocked(v.read).mockImplementation(async (file: TFile) => existing(file));
+	vi.mocked(v.create).mockImplementation(async (p: string, data: string) => {
+		if (files.has(p) || folders.has(p)) throw new Error("File already exists.");
+		const parent = parentOf(p);
+		if (parent !== "" && !folders.has(parent)) throw new Error(`ENOENT: no such file or directory, open '${p}'`);
+		files.set(p, data);
+		return fileAt(p);
+	});
+	vi.mocked(v.process).mockImplementation(async (file: TFile, fn: (data: string) => string) => {
+		const next = fn(existing(file));
+		files.set(file.path, next);
+		return next;
+	});
+	vi.mocked(v.createFolder).mockImplementation(async (p: string) => {
+		if (files.has(p) || folders.has(p)) throw new Error("Folder already exists.");
+		folders.add(p);
+		return folderAt(p);
+	});
+	vi.mocked(app.fileManager.trashFile).mockImplementation(async (file: TAbstractFile) => {
+		files.delete(file.path);
+		folders.delete(file.path);
+	});
+	return { files, folders };
+}
+
 export function createMockCachedMetadata(overrides?: Partial<{
 	tags: TagCache[];
 	frontmatter: Record<string, unknown>;
