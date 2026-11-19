@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Setup core"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 2
 ---
@@ -38,7 +38,7 @@ phase: 2
 Delivers a safe, fully tested engine that can plan and perform setup and update, and moves the
 catalog onto the same writer.
 
-- [ ] **T2.1 Folder settings** `[activity: domain-modeling]` `[parallel: true]`
+- [x] **T2.1 Folder settings** `[activity: domain-modeling]` `[parallel: true]`
 
   1. Prime: `src/types/index.ts` (`PluginSettings`, `normalizeSettings`, guards)
      `[ref: SDD/Data Storage Changes]`
@@ -49,7 +49,7 @@ catalog onto the same writer.
   4. Validate: Settings tests pass; mutation-check
   5. Success: One folder setting per artifact set exists `[ref: PRD/F3.1]`
 
-- [ ] **T2.2 Serialised data.json saves** `[activity: data-architecture]`
+- [x] **T2.2 Serialised data.json saves** `[activity: data-architecture]`
 
   1. Prime: `src/main.ts` `saveSettings`, `src/store/ViewStore.ts`, `src/store/types.ts`
      `[ref: SDD/Implementation Gotchas; serialise]` `[ref: SDD/Known Technical Issues]`
@@ -60,7 +60,7 @@ catalog onto the same writer.
   4. Validate: Store and settings suites pass unchanged; mutation-check the race test
   5. Success: No lost update across the three writers `[ref: SDD/ADR-40 trade-offs]`
 
-- [ ] **T2.3 ArtifactStore** `[activity: data-architecture]`
+- [x] **T2.3 ArtifactStore** `[activity: data-architecture]`
 
   1. Prime: `[ref: SDD/ADR-40]` `[ref: SDD/Data Storage Changes]`
   2. Test: Missing `artifacts` key reads as `{}`; malformed entries (missing checksum, non-string
@@ -72,7 +72,7 @@ catalog onto the same writer.
   5. Success: Records are operational state in data.json `[ref: PRD/F4 Rule 6]`
      `[ref: PRD/F5.9]`
 
-- [ ] **T2.4 managedFileWriter and catalog migration** `[activity: backend]`
+- [x] **T2.4 managedFileWriter and catalog migration** `[activity: backend]`
 
   1. Prime: `src/catalog/CatalogService.ts` (`_readExisting`, `_editedRefusal`,
      `_occupiedRefusal`, `_materialise`, `_undoWrite`, `describeRefusal`),
@@ -91,7 +91,7 @@ catalog onto the same writer.
      - [ ] Every vault write goes through the Vault API `[ref: PRD/F6.4]`
      - [ ] Catalog behaviour preserved `[ref: SDD/Implementation Boundaries]`
 
-- [ ] **T2.5 planSetup** `[activity: domain-modeling]`
+- [x] **T2.5 planSetup** `[activity: domain-modeling]`
 
   1. Prime: `[ref: SDD/Application Data Models; decision table]` `[ref: PRD/F4]`
   2. Test: One test per decision-table row (create, skip-exists, missing, up-to-date, update,

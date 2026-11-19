@@ -296,7 +296,7 @@ PlanItem {
   entry: ArtifactEntry
   path: string                     # target vault path
   action: "create" | "up-to-date" | "update" | "skip-exists" | "skip-edited"
-        | "missing" | "unreadable"
+        | "missing" | "unreadable" | "refused"   # refused: index entry checksum mismatch
   note?: string                    # e.g. "setting now points to <folder>"
 }
 ```
@@ -328,7 +328,10 @@ managedFileWriter (src/vault/managedFileWriter.ts):
   # CatalogService passes adoptIdentical=true to keep its current behaviour; artifacts never do.
 
 planSetup(index, records, readFile, folders, selectedSets) -> PlanItem[]
-executePlan(plan, writer, store) -> { written[], skipped[{path, reason}], failed[{path, reason}] }
+executePlan(plan, folders, { app, store, pluginVersion })
+  -> { written[], skipped[{path, reason}], failed[{path, reason}] }   # never throws
+# create/missing: managedFileWriter.createNew (vault.create, rejects if the file exists);
+# update: managedFileWriter.write (process, previous captured, undone on mismatch)
 ```
 
 #### Integration Points
@@ -413,8 +416,10 @@ sequenceDiagram
 | Error | Handling |
 |---|---|
 | Target read fails | `unreadable`, reported with path, nothing written |
-| Folder creation fails | Every item of that set fails with the path; other sets proceed |
+| Folder creation fails | The parent folder of each create/missing item is ensured once; every item under a parent that cannot be created fails; update items never need it; other items proceed |
 | Write fails | Item failed, no record, other items proceed (PRD Rule 5) |
+| File changed since planning | Re-checked right before writing: occupied (create/missing) or edited (update) → skipped with the refusal; an update whose file vanished → failed |
+| File appears between check and write | create/missing: `vault.create` rejects, nothing overwritten, item failed; update: write undone, item failed; an undo failure is appended to the reason |
 | Record save fails after a write | Write undone (new file trashed, replaced file restored), item failed |
 | Index checksum mismatch at runtime | Entry refused ("checksum mismatch"), fail closed — as the catalog |
 | Unknown placeholder | Build fails (`build-artifacts`); never reaches runtime |
