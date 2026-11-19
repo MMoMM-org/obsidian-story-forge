@@ -3,7 +3,7 @@
  *
  * CON-3 firewall: All Bases typings and every Bases-runtime interaction
  * live in src/bases/ — exactly as src/engines/EngineRegistry.ts is the
- * sole home for the `app as any` Dataview casts.
+ * sole home for the Dataview reads of `app` (via `Reflect.get` as `unknown`).
  *
  * ADR-8 (revised): Feature-detection caches the boolean returned by
  * registerBasesView at plugin onload time (WeakMap<Plugin, boolean>).
@@ -37,9 +37,9 @@ import type { LinkClickAction } from "navigation/navigationController";
  * Shape of the registerBasesView method as it appears on Plugin
  * (obsidian.d.ts:5009, @since 1.10.0).
  *
- * We read this off the plugin instance via `as any` — sanctioned by CON-3
- * (this file is the sole Bases-typings firewall, mirroring the `app as any`
- * casts in EngineRegistry.ts).
+ * We read this off the plugin instance via `Reflect.get` as `unknown` — sanctioned by CON-3
+ * (this file is the sole Bases-typings firewall, mirroring the `app` reads
+ * in EngineRegistry.ts).
  */
 type RegisterBasesViewFn = (viewId: string, registration: BasesViewRegistration) => boolean;
 

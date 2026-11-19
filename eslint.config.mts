@@ -138,7 +138,7 @@ export default defineConfig([
 	{
 		// The scanner honours disable comments but does not report unused ones.
 		linterOptions: {
-			reportUnusedDisableDirectives: "off",
+			reportUnusedDisableDirectives: "warn",
 			reportUnusedInlineConfigs: "off",
 		},
 	},

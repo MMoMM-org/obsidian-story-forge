@@ -227,6 +227,7 @@ body {
 	border-radius: var(--radius-s);
 	padding: 0 5px;
 	opacity: 0.85;
+	text-transform: lowercase;
 }
 
 .sf-badge {

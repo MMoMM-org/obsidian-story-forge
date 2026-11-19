@@ -206,6 +206,26 @@ describe("InteractionHandler — pointer state machine", () => {
 	});
 
 	// -----------------------------------------------------------------------
+	// Popout: a card from another window's realm still resolves
+	// -----------------------------------------------------------------------
+	it("arms a card whose element belongs to another window's realm", () => {
+		const frame = document.createElement("iframe");
+		document.body.appendChild(frame);
+		const foreign = frame.contentDocument!.createElement("div");
+		host.appendChild(foreign); // adopted, but keeps the iframe realm's prototype
+		// Obsidian's Node.instanceOf answers per the element's own window.
+		(foreign as unknown as { instanceOf: (t: unknown) => boolean }).instanceOf = (t) => t === HTMLElement;
+		expect(foreign instanceof HTMLElement).toBe(false);
+
+		handler.bind(foreign, file, makeDraggable([makeEntry()]));
+		pointerDown(foreign, 100, 100);
+		pointerMove(110, 100);
+
+		expect(foreign.classList.contains("sf-dragging")).toBe(true);
+		frame.remove();
+	});
+
+	// -----------------------------------------------------------------------
 	// T3.1-2: Does NOT arm when pointerdown is inside [data-sf-link]
 	// -----------------------------------------------------------------------
 	it("does NOT arm drag when pointerdown target is inside [data-sf-link]", () => {
