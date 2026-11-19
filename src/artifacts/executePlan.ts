@@ -9,8 +9,14 @@
  *
  * Planning and writing are apart in time, so each write is re-checked first: a create (or
  * missing) target must still be free, an update target must still hold the bytes Story Forge
- * wrote. A file that slips in after that check is detected from the write's captured previous
- * content and restored. A file Story Forge did not write is never changed (PRD Rule 2).
+ * wrote. A create or missing item is written create-only (`createNew`), so a file that slips in
+ * after the check makes the create fail and is never overwritten. An update that finds other
+ * bytes inside its atomic write is restored; a failed restore is reported. A file Story Forge
+ * did not write is never changed (PRD Rule 2).
+ *
+ * Folders: only a create or missing item needs one, and it is the parent of that item's own
+ * path (a missing item writes at its record path, which can lie outside the configured folder).
+ * Each parent is ensured once; a parent that cannot be created fails only the items under it.
  *
  * Never throws: every failure lands in the result.
  *
@@ -23,18 +29,19 @@ import type { App } from "obsidian";
 import { computeChecksum } from "../consent/checksum";
 import {
 	checkOccupied,
+	createNew,
 	editedRefusal,
 	ensureFolder,
 	occupiedRefusal,
+	parentFolderOf,
 	readExisting,
 	undo,
 	write,
 	type Written,
 } from "../vault/managedFileWriter";
 import type { ArtifactStore } from "./ArtifactStore";
-import type { ArtifactFolders, ArtifactSet, PlanItem } from "./artifactTypes";
-import { FOLDER_OF } from "./planSetup";
-import { normalizeFolder, resolvePlaceholders } from "./resolvePlaceholders";
+import type { ArtifactFolders, PlanItem } from "./artifactTypes";
+import { resolvePlaceholders } from "./resolvePlaceholders";
 
 export interface ExecutePlanDeps {
 	app: App;
@@ -82,26 +89,26 @@ function skipReason(item: PlanItem): string {
 /** Thrown inside one item to land it in `skipped` rather than `failed`. */
 class Skip extends Error {}
 
+const creates = (item: PlanItem): boolean => item.action === "create" || item.action === "missing";
+
+const prefixOf = (item: PlanItem): string => (item.action === "update" ? UPDATED : INSTALLED);
+
 /**
- * Ensure each set's configured folder once, for sets that will create a file. Returns the
- * failure reason per set whose folder could not be created.
+ * Ensure the parent folder of each create/missing item's own path, once per parent. Returns the
+ * failure (without prefix) per parent folder that could not be created.
  */
-async function ensureSetFolders(
-	app: App,
-	plan: readonly PlanItem[],
-	folders: ArtifactFolders,
-): Promise<Map<ArtifactSet, string>> {
-	const failures = new Map<ArtifactSet, string>();
-	const done = new Set<ArtifactSet>();
+async function ensureItemFolders(app: App, plan: readonly PlanItem[]): Promise<Map<string, string>> {
+	const failures = new Map<string, string>();
+	const done = new Set<string>();
 	for (const item of plan) {
-		const set = item.entry.set;
-		if (done.has(set) || (item.action !== "create" && item.action !== "missing")) continue;
-		done.add(set);
-		const folder = normalizeFolder(folders[FOLDER_OF[set]]);
+		if (!creates(item)) continue;
+		const parent = parentFolderOf(item.path);
+		if (parent === "" || done.has(parent)) continue;
+		done.add(parent);
 		try {
-			await ensureFolder(app, folder);
+			await ensureFolder(app, parent);
 		} catch (err) {
-			failures.set(set, `${INSTALLED}: could not create folder ${folder}: ${messageOf(err)}`);
+			failures.set(parent, `could not create folder ${parent}: ${messageOf(err)}`);
 		}
 	}
 	return failures;
@@ -111,7 +118,7 @@ async function ensureSetFolders(
 async function writeItem(item: PlanItem, folders: ArtifactFolders, deps: ExecutePlanDeps): Promise<void> {
 	const { app, store } = deps;
 	const { entry, path } = item;
-	const prefix = item.action === "update" ? UPDATED : INSTALLED;
+	const prefix = prefixOf(item);
 
 	if ((await computeChecksum(entry.source)) !== entry.checksum) throw new Skip("checksum mismatch");
 	let content: string;
@@ -139,14 +146,20 @@ async function writeItem(item: PlanItem, folders: ArtifactFolders, deps: Execute
 
 	let written: Written;
 	try {
-		written = await write(app, path, content);
+		written = item.action === "update" ? await write(app, path, content) : await createNew(app, path, content);
 	} catch (err) {
 		throw new Error(`${prefix}: could not write ${path}: ${messageOf(err)}`);
 	}
 	if (written.previous !== expectedPrevious) {
-		await undo(app, written).catch(() => undefined);
-		const what = item.action === "update" ? "changed while updating" : "appeared while installing";
-		throw new Error(`${prefix}: ${path} ${what}; it was left as it was.`);
+		// Only an update gets here: its file held other bytes inside the atomic write (or was gone).
+		let reason = `${prefix}: ${path} changed while updating`;
+		try {
+			await undo(app, written);
+			reason += "; it was left as it was.";
+		} catch (undoErr) {
+			reason += `; undoing the write failed: ${messageOf(undoErr)}`;
+		}
+		throw new Error(reason);
 	}
 
 	try {
@@ -178,16 +191,16 @@ export async function executePlan(
 	deps: ExecutePlanDeps,
 ): Promise<ExecutePlanResult> {
 	const result: ExecutePlanResult = { written: [], skipped: [], failed: [] };
-	const folderFailures = await ensureSetFolders(deps.app, plan, folders);
+	const folderFailures = await ensureItemFolders(deps.app, plan);
 
 	for (const item of plan) {
 		if (!writes(item)) {
 			result.skipped.push({ path: item.path, reason: skipReason(item) });
 			continue;
 		}
-		const folderFailure = folderFailures.get(item.entry.set);
+		const folderFailure = creates(item) ? folderFailures.get(parentFolderOf(item.path)) : undefined;
 		if (folderFailure !== undefined) {
-			result.failed.push({ path: item.path, reason: folderFailure });
+			result.failed.push({ path: item.path, reason: `${prefixOf(item)}: ${folderFailure}` });
 			continue;
 		}
 		try {

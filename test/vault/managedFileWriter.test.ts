@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { App, TFile, wireMemoryVault, type MemoryVault } from "obsidian";
 import {
 	checkOccupied,
+	createNew,
 	editedRefusal,
 	ensureFolder,
 	occupiedRefusal,
@@ -131,6 +132,37 @@ describe("write", () => {
 	it("refuses to write over a folder", async () => {
 		mem.folders.add(PATH);
 		await expect(write(app, PATH, "x")).rejects.toThrow(/is a folder/);
+	});
+});
+
+describe("createNew", () => {
+	it("creates a new file, its parent folders first, and remembers there was none", async () => {
+		expect(await createNew(app, PATH, "new")).toEqual({ path: PATH, previous: null });
+		expect(mem.files.get(PATH)).toBe("new");
+		expect(mem.folders.has("00 Meta")).toBe(true);
+		expect(mem.folders.has("00 Meta/Bases")).toBe(true);
+		expect(vi.mocked(app.vault.create)).toHaveBeenCalledWith(PATH, "new");
+		expectNoAdapterUse();
+	});
+
+	it("creates at the normalized path", async () => {
+		expect(await createNew(app, "00 Meta//Bases/x.base", "new")).toEqual({ path: PATH, previous: null });
+		expect(mem.files.get(PATH)).toBe("new");
+	});
+
+	it("rejects an existing file and leaves its bytes untouched (never overwrites)", async () => {
+		mem.folders.add("00 Meta").add("00 Meta/Bases");
+		mem.files.set(PATH, "mine");
+		await expect(createNew(app, PATH, "new")).rejects.toThrow(/already exists/);
+		expect(mem.files.get(PATH)).toBe("mine");
+		expect(vi.mocked(app.vault.process)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.vault.modify)).not.toHaveBeenCalled();
+	});
+
+	it("fails when a file occupies a parent level", async () => {
+		mem.files.set("00 Meta", "a file");
+		await expect(createNew(app, PATH, "new")).rejects.toThrow(/00 Meta is a file/);
+		expect(mem.files.has(PATH)).toBe(false);
 	});
 });
 

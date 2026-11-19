@@ -358,7 +358,7 @@ describe("executePlan — failures", () => {
 		expect(await persisted()).toEqual({});
 	});
 
-	it("a file that appears after the occupancy check but before the write's lookup is restored, not claimed", async () => {
+	it("a file that appears after the occupancy check is rejected by create, never overwritten, and fails", async () => {
 		const e = await entry("fc-a.md");
 		addFolders("Story/Classes");
 		const lookup = vi.mocked(app.vault.getAbstractFileByPath).getMockImplementation()!;
@@ -372,9 +372,92 @@ describe("executePlan — failures", () => {
 		const result = await run([item(e, "create")]);
 
 		expect(result.written).toEqual([]);
-		expect(result.failed).toEqual([{ path: "Story/Classes/fc-a.md", reason: "Not installed: Story/Classes/fc-a.md appeared while installing; it was left as it was." }]);
+		expect(result.failed).toEqual([{ path: "Story/Classes/fc-a.md", reason: "Not installed: could not write Story/Classes/fc-a.md: File already exists." }]);
 		expect(mem.files.get("Story/Classes/fc-a.md")).toBe("raced in");
+		expect(vi.mocked(app.vault.process)).not.toHaveBeenCalled();
+		expect(vi.mocked(app.fileManager.trashFile)).not.toHaveBeenCalled();
 		expect(await persisted()).toEqual({});
+	});
+
+	it("an update whose file changes inside the write is restored and reported so", async () => {
+		const e = await entry("fc-a.md");
+		addFolders("Story/Classes");
+		mem.files.set("Story/Classes/fc-a.md", OLD_RESOLVED);
+		await store.setRecord(e.id, { path: "Story/Classes/fc-a.md", sourceChecksum: `sha256:${"0".repeat(64)}`, instanceChecksum: await computeChecksum(OLD_RESOLVED), params: folders, pluginVersion: "0.1.0" });
+		const process = vi.mocked(app.vault.process).getMockImplementation()!;
+		vi.mocked(app.vault.process).mockImplementationOnce(async (f, fn) => {
+			mem.files.set(f.path, "raced in");
+			return process(f, fn);
+		});
+
+		const result = await run([item(e, "update")]);
+
+		expect(result.written).toEqual([]);
+		expect(result.failed).toEqual([{ path: "Story/Classes/fc-a.md", reason: "Not updated: Story/Classes/fc-a.md changed while updating; it was left as it was." }]);
+		expect(mem.files.get("Story/Classes/fc-a.md")).toBe("raced in");
+		expect((await persisted())[e.id]?.pluginVersion).toBe("0.1.0");
+	});
+
+	it("an update race whose undo fails reports the undo failure, not that the file was left as it was", async () => {
+		const e = await entry("fc-a.md");
+		addFolders("Story/Classes");
+		mem.files.set("Story/Classes/fc-a.md", OLD_RESOLVED);
+		await store.setRecord(e.id, { path: "Story/Classes/fc-a.md", sourceChecksum: `sha256:${"0".repeat(64)}`, instanceChecksum: await computeChecksum(OLD_RESOLVED), params: folders, pluginVersion: "0.1.0" });
+		const process = vi.mocked(app.vault.process).getMockImplementation()!;
+		vi.mocked(app.vault.process)
+			.mockImplementationOnce(async (f, fn) => {
+				mem.files.set(f.path, "raced in");
+				return process(f, fn);
+			})
+			.mockImplementationOnce(async () => { throw new Error("EBUSY"); });
+
+		const result = await run([item(e, "update")]);
+
+		expect(result.written).toEqual([]);
+		expect(result.failed).toEqual([{ path: "Story/Classes/fc-a.md", reason: "Not updated: Story/Classes/fc-a.md changed while updating; undoing the write failed: EBUSY" }]);
+		expect(result.failed[0]?.reason).not.toMatch(/left as it was/);
+		expect((await persisted())[e.id]?.pluginVersion).toBe("0.1.0");
+	});
+
+	it("a missing item whose own parent folder cannot be created fails with a folder reason; its set's other items proceed", async () => {
+		const lost = await entry("fc-lost.md");
+		const ok = await entry("fc-ok.md");
+		await store.setRecord(lost.id, { path: "Old/Sub/fc-lost.md", sourceChecksum: lost.checksum, instanceChecksum: lost.checksum, params: folders, pluginVersion: "0.1.0" });
+		mem.files.set("Old", "a file where the folder should be");
+
+		const result = await run([item(lost, "missing", undefined, "Old/Sub/fc-lost.md"), item(ok, "create")]);
+
+		expect(result.failed).toEqual([{ path: "Old/Sub/fc-lost.md", reason: "Not installed: could not create folder Old/Sub: Old is a file" }]);
+		expect(result.written).toEqual(["Story/Classes/fc-ok.md"]);
+		expect(mem.files.get("Old")).toBe("a file where the folder should be");
+		expect(Object.keys(await persisted()).sort()).toEqual([lost.id, ok.id].sort());
+		expect((await persisted())[lost.id]?.pluginVersion).toBe("0.1.0");
+	});
+
+	it("creates no configured folder when the only item is a missing one elsewhere", async () => {
+		const e = await entry("fc-a.md");
+		await store.setRecord(e.id, { path: "Old/fc-a.md", sourceChecksum: e.checksum, instanceChecksum: e.checksum, params: folders, pluginVersion: "0.1.0" });
+
+		const result = await run([item(e, "missing", undefined, "Old/fc-a.md")]);
+
+		expect(result.written).toEqual(["Old/fc-a.md"]);
+		expect([...mem.folders].sort()).toEqual(["Old"]);
+	});
+
+	it("an update in a set whose configured folder cannot be created still updates", async () => {
+		const fresh = await entry("fc-new.md");
+		const upd = await entry("fc-upd.md");
+		addFolders("Story", "Elsewhere");
+		mem.files.set("Story/Classes", "a file where the folder should be");
+		mem.files.set("Elsewhere/fc-upd.md", OLD_RESOLVED);
+		await store.setRecord(upd.id, { path: "Elsewhere/fc-upd.md", sourceChecksum: `sha256:${"0".repeat(64)}`, instanceChecksum: await computeChecksum(OLD_RESOLVED), params: folders, pluginVersion: "0.1.0" });
+
+		const result = await run([item(fresh, "create"), item(upd, "update", undefined, "Elsewhere/fc-upd.md")]);
+
+		expect(result.failed).toEqual([{ path: "Story/Classes/fc-new.md", reason: "Not installed: could not create folder Story/Classes: Story/Classes is a file" }]);
+		expect(result.written).toEqual(["Elsewhere/fc-upd.md"]);
+		expect(mem.files.get("Elsewhere/fc-upd.md")).toBe(RESOLVED);
+		expect((await persisted())[upd.id]?.pluginVersion).toBe(VERSION);
 	});
 
 	it("fails an update whose file vanished since planning, recording nothing", async () => {

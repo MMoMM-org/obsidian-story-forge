@@ -73,26 +73,41 @@ export async function ensureFolder(app: App, folder: string): Promise<void> {
 	}
 }
 
+/** The parent folder of a normalized path; `""` for the vault root. */
+export function parentFolderOf(path: string): string {
+	const target = normalizePath(path);
+	const slash = target.lastIndexOf("/");
+	return slash > 0 ? target.slice(0, slash) : "";
+}
+
+/**
+ * Create `path` with `content`, its parent folders first. Create-only: `vault.create` rejects
+ * when anything is already at the path, so an existing file is never overwritten. Throws on any
+ * vault error.
+ */
+export async function createNew(app: App, path: string, content: string): Promise<Written> {
+	const target = normalizePath(path);
+	const parent = parentFolderOf(target);
+	if (parent !== "") await ensureFolder(app, parent);
+	await app.vault.create(target, content);
+	return { path: target, previous: null };
+}
+
 /**
  * Write `content` to `path`: replace an existing file with `process` (its previous content is
- * captured inside the same atomic step) or `create` a new one after its parent folders. Throws on
- * any vault error, and when a folder is at `path`.
+ * captured inside the same atomic step) or create a new one (`createNew`). Throws on any vault
+ * error, and when a folder is at `path`.
  */
 export async function write(app: App, path: string, content: string): Promise<Written> {
 	const target = normalizePath(path);
 	const file = fileAt(app, target);
-	if (file !== null) {
-		let previous = "";
-		await app.vault.process(file, (data: string) => {
-			previous = data;
-			return content;
-		});
-		return { path: target, previous };
-	}
-	const slash = target.lastIndexOf("/");
-	if (slash > 0) await ensureFolder(app, target.slice(0, slash));
-	await app.vault.create(target, content);
-	return { path: target, previous: null };
+	if (file === null) return createNew(app, target, content);
+	let previous = "";
+	await app.vault.process(file, (data: string) => {
+		previous = data;
+		return content;
+	});
+	return { path: target, previous };
 }
 
 /**
