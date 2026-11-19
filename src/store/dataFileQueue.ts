@@ -16,7 +16,8 @@ export interface DataFile {
 	read(): Promise<StoryForgeData>;
 	/**
 	 * Load, apply `mutator` to the blob in place, save. Unknown top-level keys are kept, since the
-	 * mutator edits the loaded object rather than building a new one.
+	 * mutator edits the loaded object rather than building a new one. The mutator must be
+	 * synchronous: the save runs right after it returns.
 	 */
 	update(mutator: (data: StoryForgeData) => void): Promise<void>;
 }
@@ -25,7 +26,7 @@ export function createDataFile(port: PluginDataPort): DataFile {
 	let tail: Promise<unknown> = Promise.resolve();
 
 	const enqueue = <T>(job: () => Promise<T>): Promise<T> => {
-		const run = tail.then(job, job);
+		const run = tail.then(job);
 		tail = run.catch(() => undefined);
 		return run;
 	};

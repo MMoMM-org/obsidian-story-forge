@@ -6,9 +6,15 @@
  * chains them.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createDataFile } from "../../src/store/dataFileQueue";
 import type { PluginDataPort } from "../../src/store/types";
+
+vi.mock("bases/BasesAdapter", () => ({
+	registerCodexView: vi.fn(() => false),
+	isBasesAvailable: vi.fn(() => false),
+	getBasesCapability: vi.fn(() => "disabled"),
+}));
 
 const tick = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0); });
 
@@ -117,17 +123,16 @@ describe("StoryForgePlugin data.json writers", () => {
 	it("a settings save and a view save started together both persist", async () => {
 		const { App } = await import("obsidian");
 		const { default: StoryForgePlugin } = await import("../../src/main");
-		const { ViewStore } = await import("../../src/store/ViewStore");
 		const port = deferredPort({ settings: {}, future: 1 });
 		const plugin = new StoryForgePlugin(new App());
 		plugin.loadData.mockImplementation(async () => (await port.load()) ?? {});
 		plugin.saveData.mockImplementation((d: unknown) => port.save(d));
-		const views = new ViewStore(plugin.dataFile);
+		await plugin.onload();
 		plugin.settings = { ...plugin.settings, fileClassesFolder: "Mine" };
 
 		await Promise.all([
 			plugin.saveSettings(),
-			views.setRecord("v1", { source: "s" } as never),
+			plugin.store.setRecord("v1", { source: "s" } as never),
 			plugin.dataFile.update((d) => { (d as Record<string, unknown>)["artifacts"] = { a: 1 }; }),
 		]);
 
