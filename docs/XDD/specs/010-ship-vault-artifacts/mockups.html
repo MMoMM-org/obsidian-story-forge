@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Forge — Story files mockups (spec 010, S1–S6)</title>
+<style>
+  /* ════════════════════════════════════════════════════════════════════════
+   * Tokens and page scaffolding copied from spec 008 mockups-catalog.html
+   * (light default, dark behind [data-theme="dark"] and .th-dark). The md-
+   * prefix draws the Obsidian modal shell, set-/lb- the settings tab (from
+   * mockups-library.html), cp- the capability screen (mockups-capabilities.html).
+   * New mockup classes use the sx- prefix (story files).
+   * ════════════════════════════════════════════════════════════════════════ */
+  :root{
+    --bg:#ececec; --panel:#ffffff; --panel-2:#f5f5f6; --header:#fafafa;
+    --border:#e0e0e0; --border-2:#cfcfd4; --hover:#f0f0f2;
+    --text:#222222; --muted:#5c5c5c; --faint:#7d7d7d;
+    --accent:#8a5cf5; --link:#6b45d6;
+    --pill:#efeaff; --pill-text:#5f43b8;
+    --st-draft:#a85f00; --st-outline:#3a69b0; --st-written:#1d8a44;
+    --shadow:0 3px 12px rgba(0,0,0,.10);
+    --miss-bg:rgba(200,40,40,.08); --miss-bd:rgba(200,40,40,.40); --miss-tx:#b02a2a;
+    --ok-bg:rgba(29,138,68,.08); --ok-bd:rgba(29,138,68,.35);
+    --warn-bg:rgba(168,95,0,.08); --warn-bd:rgba(168,95,0,.35);
+    --mk-proposal:#a85f00; --mk-decision:#c0263a;
+    --notice-bg:#2b2b2b; --notice-tx:#f2f2f2;
+    color-scheme:light;
+  }
+  [data-theme="dark"], .th-dark{
+    --bg:#1a1a1a; --panel:#202020; --panel-2:#262626; --header:#1c1c1c;
+    --border:#333; --border-2:#3a3a3a; --hover:#2c2c2c;
+    --text:#dcddde; --muted:#9a9a9a; --faint:#6b6b6b;
+    --accent:#7c6cf0; --link:#8b8bf0;
+    --pill:#2f2f38; --pill-text:#b9b3e6;
+    --st-draft:#e0a34a; --st-outline:#5b8bd0; --st-written:#6ac47a;
+    --shadow:0 4px 14px rgba(0,0,0,.35);
+    --miss-bg:rgba(214,92,92,.15); --miss-bd:rgba(214,92,92,.42); --miss-tx:#e79a9a;
+    --ok-bg:rgba(106,196,122,.12); --ok-bd:rgba(106,196,122,.38);
+    --warn-bg:rgba(224,163,74,.12); --warn-bd:rgba(224,163,74,.40);
+    --mk-proposal:#e0a34a; --mk-decision:#fb464c;
+    --notice-bg:#3a3a3a; --notice-tx:#e8e8e8;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;margin:34px 0 14px;border-bottom:1px solid var(--border);padding-bottom:6px;
+    text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  h2 .h2s{color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0}
+  .sub{color:var(--muted);margin:0 0 8px;font-size:13px;max-width:96ch}
+  code{background:var(--panel-2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .banner{border:1px solid var(--border-2);border-left:3px solid var(--accent);background:var(--panel);
+    border-radius:6px;padding:10px 14px;margin:0 0 20px;max-width:110ch;font-size:12.5px;color:var(--muted)}
+  .banner b{color:var(--text)}
+  table.inv{border-collapse:collapse;font-size:12px;margin:0 0 8px}
+  table.inv th,table.inv td{border:1px solid var(--border);padding:4px 10px;text-align:left;vertical-align:top}
+  table.inv th{color:var(--faint);font-weight:600}
+  .gallery{display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-start;margin-bottom:6px}
+  figure{margin:0}
+  figcaption{font-size:12px;color:var(--muted);margin-bottom:8px;min-height:40px;max-width:76ch}
+  figcaption b{color:var(--text);font-weight:600}
+  .note{font-size:11px;color:var(--faint);margin-top:7px;max-width:76ch}
+  .note b{color:var(--muted)}
+  .oq{font-size:11px;color:var(--mk-proposal);margin-top:6px;max-width:76ch}
+  .oq b{color:var(--mk-proposal)}
+
+  .mk-toggle{position:fixed;top:14px;right:18px;display:flex;border:1px solid var(--border-2);
+    border-radius:6px;overflow:hidden;background:var(--panel);z-index:20}
+  .mk-toggle button{border:0;background:transparent;color:var(--muted);padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}
+  .mk-toggle button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  .mk-open{border:1px solid var(--mk-proposal);border-left:4px solid var(--mk-proposal);background:var(--panel);
+    border-radius:6px;padding:12px 16px;margin:0 0 22px;max-width:110ch}
+  .mk-open h3{margin:0 0 6px;font-size:13px;color:var(--mk-proposal);text-transform:uppercase;letter-spacing:.04em}
+  .mk-open ol{margin:0 0 6px;padding-left:22px}
+  .mk-open li{margin:0 0 9px;color:var(--muted);font-size:12.5px}
+  .mk-open li b{color:var(--text)}
+  .mk-open li .rec{display:block;color:var(--text);margin-top:2px}
+  .mk-tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:0 6px;border-radius:9px;vertical-align:middle;margin-left:4px}
+  .mk-tag.prop{color:var(--mk-proposal);border:1px solid var(--mk-proposal)}
+  .mk-tag.sdd{color:var(--st-written);border:1px solid var(--st-written)}
+  .mk-wrap{overflow-x:auto;max-width:100%}
+
+  /* ---- Obsidian modal shell (spec 008) ---- */
+  .md{width:760px;max-width:100%;background:var(--panel);border:1px solid var(--border-2);border-radius:10px;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+  .md.nar{width:400px}
+  .md-head{display:flex;align-items:flex-start;gap:10px;padding:14px 16px 4px}
+  .md-head .t{font-size:15px;font-weight:600;color:var(--text);margin:0}
+  .md-head .x{margin-left:auto;color:var(--faint);font-size:13px;cursor:pointer}
+  .md-sub{padding:0 16px 10px;font-size:12px;color:var(--muted)}
+  .md-foot{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
+  .btn{font:inherit;font-size:12px;border:1px solid var(--border-2);border-radius:5px;padding:4px 12px;
+    background:var(--panel);color:var(--text);cursor:pointer;white-space:nowrap}
+  .btn.cta{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.foc{outline:2px solid var(--accent);outline-offset:2px}
+  .btn[disabled]{opacity:.45;cursor:default}
+  .ct-fb{font-size:11.5px;border-radius:6px;padding:7px 10px;border:1px solid}
+  .ct-fb .raw{display:block;margin-top:3px;font:10px ui-monospace,Menlo,Consolas,monospace;color:var(--faint);overflow-wrap:anywhere}
+  .ct-path{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:var(--panel-2);
+    border:1px solid var(--border);border-radius:4px;padding:1px 6px;overflow-wrap:anywhere}
+
+  /* ---- settings tab (spec 008 mockups-library.html L1) ---- */
+  .view{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;
+    display:flex;flex-direction:column;box-shadow:var(--shadow)}
+  .vhead{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--header);border-bottom:1px solid var(--border)}
+  .brand{font-weight:700;font-size:13px;color:var(--text);padding-right:6px}
+  .tabs{display:flex;gap:2px}
+  .tabs span{font-size:11px;padding:3px 9px;border-radius:6px;color:var(--muted);cursor:pointer}
+  .tabs span.sel{background:var(--accent);color:#fff}
+  .set{width:560px;max-width:100%}
+  .set-sec{padding:11px 13px;border-bottom:1px solid var(--border)}
+  .set-sec h4{margin:0 0 2px;font-size:12px;color:var(--text);font-weight:600}
+  .set-sec .d{font-size:10.5px;color:var(--faint);margin-bottom:8px}
+  .lb-ident{padding:10px 13px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}
+  .lb-ident b{color:var(--text);font-size:12.5px}
+  .lb-ident a{color:var(--link);text-decoration:none}
+  .lb-f{background:var(--panel);border:1px solid var(--border-2);border-radius:4px;padding:2px 7px;min-height:21px;
+    display:flex;align-items:center;gap:6px;color:var(--text);flex-wrap:wrap;font-size:11.5px}
+  /* the group heading a SettingGroup draws */
+  .set-grp{padding:12px 13px 4px;font-size:12.5px;font-weight:700;color:var(--text);border-bottom:1px solid var(--border)}
+  .set-grp.new{box-shadow:inset 3px 0 0 var(--mk-proposal)}
+  .set-sec.new{box-shadow:inset 3px 0 0 var(--mk-proposal)}
+  .set-ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+  /* ---- S1 status line ---- */
+  .sx-status{font-size:11px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+  .sx-status.none{color:var(--muted)}
+  .sx-status.ok{color:var(--st-written)}
+  .sx-status.ok::before{content:"✓"}
+  .sx-status.upd{color:var(--st-draft);font-weight:600}
+  .sx-status.miss{color:var(--st-draft);font-weight:600}
+  .sx-status .aside{color:var(--faint);font-weight:400}
+  .sx-variants{display:grid;grid-template-columns:150px minmax(0,1fr);gap:6px 12px;font-size:11px;align-items:center;
+    background:var(--panel);border:1px solid var(--border-2);border-radius:8px;padding:10px 13px;width:560px;max-width:100%}
+  .sx-variants .k{color:var(--faint)}
+
+  /* ---- S2/S3 setup dialog ---- */
+  .sx-body{padding:2px 16px 12px;display:flex;flex-direction:column;gap:10px;max-height:640px;overflow-y:auto}
+  .sx-set{border:1px solid var(--border);border-radius:8px;background:var(--panel)}
+  .sx-set.off{opacity:.55}
+  .sx-sh{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:9px 12px}
+  .sx-cb{width:14px;height:14px;border-radius:3px;border:1px solid var(--border-2);display:inline-flex;align-items:center;
+    justify-content:center;font-size:9.5px;flex:none;background:var(--panel)}
+  .sx-cb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .sx-cb.mixed{background:var(--accent);border-color:var(--accent);color:#fff}
+  .sx-cb.foc{outline:2px solid var(--accent);outline-offset:2px}
+  .sx-sn{font-size:13px;font-weight:600;color:var(--text)}
+  .sx-sn .n{font-weight:400;color:var(--faint);font-size:11.5px;margin-left:4px}
+  .sx-tog{font-size:11px;color:var(--link);cursor:pointer;white-space:nowrap}
+  .sx-fold{grid-column:2/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--faint)}
+  .sx-fold .lb-f{min-width:200px;flex:0 1 260px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
+  .sx-fold .lb-f::after{content:"📁";margin-left:auto;font-size:10px;opacity:.6}
+  .sx-sum{grid-column:2/-1;display:flex;gap:6px;flex-wrap:wrap}
+  .sx-chip{font-size:10px;padding:0 7px;border-radius:9px;border:1px solid var(--border-2);color:var(--muted);line-height:17px;white-space:nowrap}
+  .sx-chip.create{border-color:var(--accent);color:var(--link)}
+  .sx-chip.upd{border-color:var(--st-draft);color:var(--st-draft)}
+  .sx-chip.ok{border-color:var(--ok-bd);color:var(--st-written)}
+  .sx-chip.skip{border-color:var(--border-2);color:var(--faint)}
+  .sx-chip.bad{border-color:var(--miss-bd);color:var(--miss-tx)}
+  .sx-chip.miss{border-color:var(--st-draft);color:var(--st-draft);border-style:dashed}
+  .sx-warn{grid-column:2/-1;font-size:11.5px;color:var(--text);background:var(--warn-bg);border:1px solid var(--warn-bd);
+    border-radius:6px;padding:7px 10px}
+  .sx-warn b{color:var(--st-draft)}
+  .sx-warn .btn{margin-top:6px;font-size:11px;padding:2px 9px}
+  .sx-moved{grid-column:2/-1;font-size:11px;color:var(--muted);background:var(--panel-2);border:1px solid var(--border-2);
+    border-radius:6px;padding:6px 10px}
+  .sx-rows{border-top:1px solid var(--border);padding:2px 0 4px}
+  .sx-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:1px 10px;align-items:center;padding:5px 12px 5px 12px}
+  .sx-row + .sx-row{border-top:1px solid var(--border)}
+  .sx-row .f{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sx-row .f i{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-style:normal;color:var(--faint);font-size:10.5px;margin-left:6px}
+  .sx-row .why{grid-column:2/-1;font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+  .sx-row .why.err{color:var(--miss-tx)}
+  .sx-row .why .raw{display:block;font:10px ui-monospace,Menlo,Consolas,monospace;color:var(--faint)}
+  .sx-row.dim .f{color:var(--faint)}
+  .sx-act{font-size:10.5px;white-space:nowrap;padding:0 7px;border-radius:9px;line-height:17px;border:1px solid transparent}
+  .sx-act.create{color:var(--link);border-color:var(--accent)}
+  .sx-act.ok{color:var(--st-written)}
+  .sx-act.ok::before{content:"✓ "}
+  .sx-act.upd{color:var(--st-draft);border-color:var(--st-draft);font-weight:600}
+  .sx-act.skip{color:var(--faint);border-color:var(--border-2)}
+  .sx-act.bad{color:var(--miss-tx);border-color:var(--miss-bd)}
+  .sx-act.miss{color:var(--st-draft);border-color:var(--st-draft);border-style:dashed}
+  .sx-again{font-size:11px;color:var(--text);display:inline-flex;gap:5px;align-items:center}
+  .sx-foot-sum{margin-right:auto;font-size:11px;color:var(--faint)}
+
+  /* ---- S5 Obsidian notice ---- */
+  .notice-stack{display:flex;flex-direction:column;gap:8px;align-items:flex-end;width:380px;max-width:100%}
+  .notice{background:var(--notice-bg);color:var(--notice-tx);border-radius:6px;padding:10px 14px;font-size:12.5px;
+    box-shadow:0 4px 14px rgba(0,0,0,.25);width:100%;white-space:pre-line;line-height:1.45}
+  .notice .h{font-weight:600}
+  .notice .l{display:block;padding-left:10px;text-indent:-10px;font-size:12px;opacity:.92}
+  .notice .l::before{content:"• "}
+  .notice .more{display:block;margin-top:4px;font-size:11.5px;opacity:.75}
+
+  /* ---- S6 capability screen (spec 008 mockups-capabilities.html L12) ---- */
+  .md.cp{width:620px}
+  .cp-body{padding:4px 16px 12px;display:flex;flex-direction:column;gap:12px}
+  .cp-grp{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:700;margin:4px 0 -4px}
+  .cp-grp span{text-transform:none;letter-spacing:0;font-weight:400}
+  .cp-row{border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--panel)}
+  .cp-row.new{box-shadow:inset 3px 0 0 var(--mk-proposal)}
+  .cp-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .cp-h .n{font-size:13px;font-weight:600;color:var(--text)}
+  .cp-kind{font-size:9.5px;padding:0 6px;border-radius:9px;border:1px solid var(--border-2);color:var(--muted);line-height:16px}
+  .cp-kind.core{border-color:var(--accent);color:var(--link)}
+  .cp-st{margin-left:auto;font-size:10.5px;white-space:nowrap;color:var(--muted)}
+  .cp-st.on{color:var(--st-written)}
+  .cp-st.on::before{content:"✓ "}
+  .cp-st.off::before{content:"○ "}
+  .cp-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .cp-cols h5{margin:0 0 2px;font-size:10.5px;color:var(--faint);font-weight:600}
+  .cp-cols ul{margin:0;padding-left:16px;font-size:11.5px;color:var(--text)}
+  .cp-cols li{margin:0 0 2px}
+  .cp-how{font-size:11px;color:var(--faint)}
+  .cp-how i{color:var(--muted)}
+  .cp-intro{font-size:12px;color:var(--text);margin:0}
+  .cp-later{font-size:11px;color:var(--faint);margin-right:auto;align-self:center}
+  .cp-desc{font-size:11.5px;color:var(--text);margin:0}
+  .cp-act{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .cp-act .aside{font-size:11px;color:var(--faint)}
+  .cp-trim{font-size:11px;color:var(--faint);text-align:center;border:1px dashed var(--border-2);border-radius:8px;padding:6px}
+  .ins{background:var(--warn-bg);border-radius:3px;padding:0 2px}
+  .del{text-decoration:line-through;color:var(--faint)}
+
+  @media (max-width:560px){
+    body{padding:16px}
+    .cp-cols{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="mk-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-btn="light" aria-pressed="true">Light</button>
+  <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+</div>
+
+<h1>Story Forge — Story files <span style="color:var(--faint);font-weight:400;font-size:14px">· setup and update S1–S6 · spec 010 T3.1 · draft for sign-off</span></h1>
+
+<p class="sub"><b>Why this page exists.</b> Spec 010 ships the FileClasses, templates and schema reference inside
+<code>main.js</code> and writes them into the vault only when you ask (PRD F2, F4). The SDD (ADR-42, CON-6) puts the UI
+behind this sign-off: a <i>Story files</i> group in Settings › Scope, one <i>Set up story files</i> dialog for both
+setup and update, a result notice, and a pointer on the capability screen. Nothing here is coded yet. Once you sign
+off, T3.2–T3.4 build what is drawn here, and any divergence is raised before it is coded.</p>
+
+<div class="banner" style="border-left-color:var(--st-written)">
+<b>How to read this file.</b> Light theme is the default; the <b>Dark / Light</b> toggle (top right) switches every
+figure. Tags: <span class="mk-tag sdd">SDD</span> / <span class="mk-tag sdd">PRD</span> = already decided in
+<code>solution.md</code> or <code>requirements.md</code>, drawn as decided; <span class="mk-tag prop">proposed</span>
+or <span class="mk-tag prop">D#</span> = <b>invented here</b>, not decided until you sign it off. Every UI string that
+is not existing code or a spec quote is marked <i>proposed</i>. An amber bar on the left edge of a settings row or
+capability row marks something new. <b>Shipped set</b> (from <code>dist/artifact-index.json</code>): 27 files —
+<b>FileClasses</b> 11 (8 <code>fc-*.md</code> + the value lists <code>fc-armor</code>, <code>fc-combat-skills</code>,
+<code>fc-magical-abilities</code>), <b>Templates</b> 7, <b>Schema reference</b> 9 (<code>README.md</code> + 8 types).
+Default folders <code>00 Meta/FileClasses</code>, <code>00 Meta/Templates</code>, <code>00 Meta/Schema</code>;
+<i>Excluded folders</i> default <code>00 Meta</code>.
+</div>
+
+<div class="mk-open">
+<h3>Decisions for sign-off (recommended default in each)</h3>
+<ol>
+  <li id="D1"><b>D1 — Where the group and status line sit.</b> A new <i>Story files</i> group in the Scope tab, directly
+    under <i>Vault folders</i>: <i>Templates folder</i>, <i>Schema reference folder</i>, then a <i>Set up story files</i>
+    row whose description <b>is</b> the status line and whose button is <i>Set up story files…</i>. <i>FileClasses
+    folder</i> stays in <i>Vault folders</i>, and its description gains one sentence pointing at the setup.
+    <span class="rec"><b>Recommended</b> as drawn in S1. Alternative: a status line of its own above the button — one
+    more row for the same information.</span></li>
+  <li id="D2"><b>D2 — One button label in every state.</b> The button always reads <i>Set up story files…</i> (same as
+    the command), also when updates are available. The status line carries the state.
+    <span class="rec"><b>Recommended.</b> One name for one dialog. Alternative: <i>Review updates…</i> when anything is
+    updatable, which makes the command and the button disagree.</span></li>
+  <li id="D3"><b>D3 — What the status line counts.</b> <i>N updates available</i> counts <code>update</code> items;
+    <i>N missing</i> counts <code>missing</code> items; both appear together when both exist. <code>skip-exists</code>
+    (your own file) and <code>skip-edited</code> (you edited it) are <b>never</b> counted as something to do — at most a
+    faint aside <i>(1 edited file left as it is)</i>. <i>Not set up</i> = no records at all; a partial setup says
+    <i>9 of 27 story files set up</i>.
+    <span class="rec"><b>Recommended.</b> The settings never nag about a file you chose to keep. The aside is optional;
+    drop it if you want the line shorter.</span></li>
+  <li id="D4"><b>D4 — Sets collapsed, with counts; expand per set.</b> Each set is a card: checkbox, name, file count,
+    target folder, a row of action chips (<i>11 create</i>, <i>2 update</i>, <i>1 edited</i>…) and <i>Show files</i>.
+    Fresh vault: all three collapsed. Mixed: a set opens on its own when it holds anything you might want to look at
+    (<code>skip-*</code>, <code>missing</code>, <code>unreadable</code>, <code>refused</code>); sets with only
+    create / update / up to date stay collapsed.
+    <span class="rec"><b>Recommended.</b> 27 rows at once is a wall; the chips already answer "what happens", and the
+    rows are one click away.</span></li>
+  <li id="D5"><b>D5 — Per-file choice.</b> Every row that will write has its own checkbox: <i>Create</i> and
+    <i>Update</i> rows start ticked, a <i>Missing</i> row starts <b>unticked</b> with the label <i>Set up again</i>
+    (PRD F4.5). The set checkbox ticks or unticks all of its writable rows and shows a dash when only some are ticked.
+    Rows that write nothing (<i>Up to date</i>, <i>Not installed</i>, <i>Not updated</i>, <i>Unreadable</i>,
+    <i>Damaged</i>) have no checkbox.
+    <span class="rec"><b>Recommended.</b> Covers the PRD's Should <i>per-file choice in the update list</i> and
+    <i>re-set-up of a missing file</i> with one rule.</span></li>
+  <li id="D6"><b>D6 — The primary button counts what it writes.</b> <i>Set up 27 files</i> when everything is a create;
+    <i>Update 3 files</i> when everything is an update; <i>Set up and update 10 files</i> when mixed (ticked
+    <i>Set up again</i> rows count as set up). With nothing ticked it reads <i>Nothing to set up</i>, disabled. Second
+    button: <i>Cancel</i>. Focus starts on the first set's checkbox, never on the primary button.
+    <span class="rec"><b>Recommended.</b> The count is the last check before writing; Enter on open never writes.</span></li>
+  <li id="D7"><b>D7 — Folder changes in the dialog.</b> The folder field per set is the same folder suggester as in
+    settings. A change is saved to the matching setting when you leave the field, and the set's plan is recomputed (SDD
+    Primary Flow step 4). <i>Cancel</i> writes no file, but a folder you changed stays changed.
+    <span class="rec"><b>Recommended</b> — that is what the SDD says. Open question O1 below asks whether you would
+    rather have <i>Cancel</i> revert the folder too.</span></li>
+  <li id="D8"><b>D8 — "Setting now points to …" shown once per set.</b> When the set's files were set up in another folder
+    than the setting now names, the set card carries one grey note above its rows; the rows show the record path.
+    <span class="rec"><b>Recommended.</b> Seven identical row notes are noise. A per-row note appears only for a file
+    whose record folder differs from the rest of its set.</span></li>
+  <li id="D9"><b>D9 — Folder-not-excluded warning.</b> An amber note inside the set card, wording proposed in S4, with a
+    button <i>Add to excluded folders</i> that changes the <i>Excluded folders</i> setting only (no file written). Setup
+    stays allowed.
+    <span class="rec"><b>Recommended</b> with the button. Alternative: text only, naming <i>Settings › Scope › Excluded
+    folders</i>. Either way the warning does not block.</span></li>
+  <li id="D10"><b>D10 — Result notice and truncation.</b> One Obsidian notice. Success only: one line, hides after the
+    usual few seconds. Anything skipped or failed: the notice stays until clicked; it lists at most <b>5</b> reason lines
+    (failed first, then skipped), then <i>and N more. Open Set up story files again to see each file.</i> Every refusal
+    and failure is also logged with <code>console.debug("[StoryForge] …")</code>.
+    <span class="rec"><b>Recommended.</b> "See the console" does not work on mobile; the dialog does, and it shows every
+    skipped file's state again. Failures are re-offered there as <i>Create</i>.</span></li>
+  <li id="D11"><b>D11 — Capability screen pointer.</b> A <i>Story files</i> row first in the body, in a group of its own
+    (<i>Story Forge · written only when you ask</i>), with a status and the button <i>Set up story files…</i>. The button
+    closes the capability screen (first run: recorded as seen) and opens the setup dialog. The screen writes nothing.
+    <span class="rec"><b>Recommended.</b> For a new user this is the one thing on that screen that changes what they
+    see. Alternative: the row last, after the community plugins.</span></li>
+  <li id="D12"><b>D12 — Names.</b> Set names <i>FileClasses</i>, <i>Templates</i>, <i>Schema reference</i>; settings
+    <i>Templates folder</i> and <i>Schema reference folder</i>; command <i>Set up story files</i>; refusal texts word for
+    word from <code>managedFileWriter</code> / <code>executePlan</code> (the spec 008 prefixes <i>Not installed:</i> /
+    <i>Not updated:</i>).
+    <span class="rec"><b>Recommended.</b> "Schema reference folder" matches the set name; "Schema folder" is the
+    shorter alternative.</span></li>
+</ol>
+</div>
+
+<h2>State inventory</h2>
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>S</th><th>State</th><th>Shows</th><th>Decisions</th></tr>
+<tr><td><b>S1</b></td><td>Scope tab, <i>Story files</i> group</td><td>(a) the tab, not set up; (b) every status line variant; (c) the command</td><td>D1 D2 D3 D12</td></tr>
+<tr><td><b>S2</b></td><td>Setup dialog, fresh vault</td><td>(a) three sets collapsed, all <i>Create</i>; (b) FileClasses expanded; (c) 400px</td><td>D4 D5 D6 D7</td></tr>
+<tr><td><b>S3</b></td><td>Setup dialog, mixed</td><td>every action: up to date, update, not installed, not updated, missing, unreadable, damaged; <i>setting now points to</i></td><td>D4 D5 D6 D8</td></tr>
+<tr><td><b>S4</b></td><td>Folder not excluded</td><td>(a) the warning in a set card; (b) after <i>Add to excluded folders</i></td><td>D9</td></tr>
+<tr><td><b>S5</b></td><td>Result notice</td><td>(a) success; (b) update; (c) mixed with truncation; (d) folder failure</td><td>D10</td></tr>
+<tr><td><b>S6</b></td><td>Capability screen pointer</td><td>(a) first run, not set up; (b) from settings, set up</td><td>D11</td></tr>
+</table>
+</div>
+
+<!-- ═════════════════════════════════ S1 ═════════════════════════════════ -->
+<h2>S1 — Settings › Scope <span class="h2s">· the Story files group</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>S1a · Scope tab, fresh vault.</b> <i>Vault folders</i> is today's group, unchanged apart from one
+sentence <span class="mk-tag prop">proposed</span>. Below it the new <i>Story files</i> group
+<span class="mk-tag sdd">ADR-42</span>: two folder settings with the same folder suggester as <i>FileClasses
+folder</i>, then the setup row with the status line as its description <span class="mk-tag prop">D1</span> and the
+button <span class="mk-tag prop">D2</span>.</figcaption>
+<div class="view set">
+  <div class="lb-ident"><b>Story Forge</b> v0.2.0 · Marcus Breiden · <a>Documentation</a></div>
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs" role="tablist"><span role="tab" aria-selected="false">Library</span><span class="sel" role="tab" aria-selected="true">Scope</span><span role="tab" aria-selected="false">Behaviour</span></div>
+  </div>
+  <div class="set-grp">Vault folders</div>
+  <div class="set-sec">
+    <h4>FileClasses folder</h4>
+    <div class="d">Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses
+      <span class="ins">Set up story files… writes Story Forge's FileClasses here.</span> <span class="mk-tag prop">proposed</span></div>
+    <div class="lb-f" style="max-width:260px">00 Meta/FileClasses</div>
+  </div>
+  <div class="set-sec">
+    <h4>Excluded folders</h4>
+    <div class="d">Comma-separated vault folders left out of every collection and scope view. Default: 00 Meta.
+      A collection can use its own list instead (Library › configure).</div>
+    <div class="lb-f" style="max-width:260px">00 Meta</div>
+  </div>
+  <div class="set-grp new">Story files <span class="mk-tag prop">proposed</span></div>
+  <div class="set-sec new">
+    <h4>Templates folder</h4>
+    <div class="d">Where Set up story files… places the entity and scene templates. Point Obsidian's core Templates
+      plugin at the same folder to use them. Default: 00 Meta/Templates <span class="mk-tag prop">proposed</span></div>
+    <div class="lb-f" style="max-width:260px">00 Meta/Templates</div>
+  </div>
+  <div class="set-sec new">
+    <h4>Schema reference folder</h4>
+    <div class="d">Where Set up story files… places the notes that explain each story Property and its values.
+      Default: 00 Meta/Schema <span class="mk-tag prop">proposed</span></div>
+    <div class="lb-f" style="max-width:260px">00 Meta/Schema</div>
+  </div>
+  <div class="set-sec new" style="border-bottom:none">
+    <h4>Set up story files</h4>
+    <div class="set-ctl">
+      <div class="sx-status none" role="status" style="flex:1 1 280px">Not set up. Writes FileClasses, templates and a schema reference into the folders above, after you confirm.</div>
+      <button class="btn">Set up story files…</button>
+    </div>
+  </div>
+</div>
+<p class="note"><b>Folder fields</b> behave like <i>FileClasses folder</i>: <code>attachFolderSuggest</code>, trimmed,
+an emptied field falls back to the default. Changing a folder writes no file. <b>The status line</b> is computed
+read-only when the Scope tab is drawn (SDD: about 25 reads) and redrawn after the dialog closes; while it is being
+computed it reads <i>Checking story files…</i> <span class="mk-tag prop">proposed</span>. It is a polite live region,
+so its change after the dialog closes is announced. <b>The button</b> opens the S2/S3 dialog in every state.</p>
+</figure>
+
+<figure>
+<figcaption><b>S1b · Every status line variant</b> <span class="mk-tag prop">D3</span>, all wording
+<span class="mk-tag prop">proposed</span>. Only the line changes; the row, the heading and the button stay as in
+S1a.</figcaption>
+<div class="sx-variants">
+  <span class="k">Checking (transient)</span><span class="sx-status none">Checking story files…</span>
+  <span class="k">Not set up</span><span class="sx-status none">Not set up. Writes FileClasses, templates and a schema reference into the folders above, after you confirm.</span>
+  <span class="k">Up to date</span><span class="sx-status ok">27 story files set up and up to date.</span>
+  <span class="k">Partly set up</span><span class="sx-status ok">9 of 27 story files set up and up to date. <span class="aside">FileClasses and Templates are not set up.</span></span>
+  <span class="k">Updates available</span><span class="sx-status upd">3 updates available.</span>
+  <span class="k">Missing</span><span class="sx-status miss">1 missing. <span class="aside">A set-up file was moved or deleted; it is not recreated unless you ask.</span></span>
+  <span class="k">Both</span><span class="sx-status upd">3 updates available · 1 missing.</span>
+  <span class="k">With edited files (aside)</span><span class="sx-status upd">3 updates available. <span class="aside">(1 edited file left as it is)</span></span>
+  <span class="k">Up to date + edited</span><span class="sx-status ok">27 story files set up and up to date. <span class="aside">(1 edited file left as it is)</span></span>
+</div>
+<p class="note"><b>Counting:</b> <i>updates</i> = items with action <code>update</code>; <i>missing</i> =
+<code>missing</code>. Not counted: <code>up-to-date</code>, <code>skip-exists</code> (a file you own sits at the
+path — no record, never ours), <code>skip-edited</code> (shown only as the aside), <code>unreadable</code> and
+<code>refused</code> (reported in the dialog). "Set up" in <i>N of 27</i> = files with a record. Singular:
+<i>1 update available.</i> Amber is text weight plus colour; the words carry the meaning on their own.</p>
+<p class="oq"><b>Open question O2:</b> should <i>Partly set up</i> name the missing sets (as drawn) or only the
+count? Naming them is one more clause, but tells you why the number is not 27.</p>
+</figure>
+
+<figure>
+<figcaption><b>S1c · The command.</b> <span class="mk-tag sdd">ADR-42</span> id <code>set-up-story-files</code>, name
+<i>Set up story files</i>. Opens the same dialog. No hotkey by default.</figcaption>
+<div class="md" style="width:440px">
+  <div style="padding:10px 12px;border-bottom:1px solid var(--border)"><span class="lb-f" style="font-size:12.5px">set up story</span></div>
+  <div style="padding:6px 0">
+    <div style="padding:6px 14px;background:var(--panel-2);font-size:12.5px"><span style="color:var(--faint)">Story Forge:</span> <b>Set up story</b> files</div>
+  </div>
+</div>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ S2 ═════════════════════════════════ -->
+<h2>S2 — Setup dialog, fresh vault <span class="h2s">· three sets, everything a Create</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>S2a · Opened on a vault with no Story Forge files.</b> Title <i>Set up story files</i>
+<span class="mk-tag sdd">ADR-42</span>; intro <span class="mk-tag prop">proposed</span>. Three set cards, collapsed
+<span class="mk-tag prop">D4</span>, each with its checkbox, name and file count, the folder it goes to (editable,
+<span class="mk-tag prop">D7</span>) and its chips. Primary button with the count <span class="mk-tag prop">D6</span>.
+All three folders are inside <code>00 Meta</code>, so no warning (S4 shows it).</figcaption>
+<div class="md" role="dialog" aria-labelledby="s2a-t" style="width:620px">
+  <div class="md-head"><p class="t" id="s2a-t">Set up story files</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-sub">Story Forge writes these notes into your vault when you select the button below. It never
+    overwrites a file that is already there. <span class="mk-tag prop">proposed</span></div>
+  <div class="sx-body">
+    <div class="sx-set" role="group" aria-labelledby="s2a-fc">
+      <div class="sx-sh">
+        <span class="sx-cb on foc" role="checkbox" aria-checked="true" aria-labelledby="s2a-fc">✓</span>
+        <span class="sx-sn" id="s2a-fc">FileClasses<span class="n">11 files</span></span>
+        <span class="sx-tog" role="button" aria-expanded="false">▸ Show files</span>
+        <div class="sx-fold">Folder <span class="lb-f">00 Meta/FileClasses</span></div>
+        <div class="sx-sum"><span class="sx-chip create">11 create</span></div>
+      </div>
+    </div>
+    <div class="sx-set" role="group" aria-labelledby="s2a-tp">
+      <div class="sx-sh">
+        <span class="sx-cb on" role="checkbox" aria-checked="true">✓</span>
+        <span class="sx-sn" id="s2a-tp">Templates<span class="n">7 files</span></span>
+        <span class="sx-tog" role="button" aria-expanded="false">▸ Show files</span>
+        <div class="sx-fold">Folder <span class="lb-f">00 Meta/Templates</span></div>
+        <div class="sx-sum"><span class="sx-chip create">7 create</span></div>
+      </div>
+    </div>
+    <div class="sx-set" role="group" aria-labelledby="s2a-sc">
+      <div class="sx-sh">
+        <span class="sx-cb on" role="checkbox" aria-checked="true">✓</span>
+        <span class="sx-sn" id="s2a-sc">Schema reference<span class="n">9 files</span></span>
+        <span class="sx-tog" role="button" aria-expanded="false">▸ Show files</span>
+        <div class="sx-fold">Folder <span class="lb-f">00 Meta/Schema</span></div>
+        <div class="sx-sum"><span class="sx-chip create">9 create</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><span class="sx-foot-sum">Folders that do not exist yet are created.</span><button class="btn">Cancel</button><button class="btn cta">Set up 27 files</button></div>
+</div>
+<p class="note"><b>Footer aside</b> <span class="mk-tag prop">proposed</span> answers PRD F2.8 before you ask. <b>Set
+checkbox</b> unticked: the card dims, its chips stay (so you still see what you are leaving out), its files are not
+written, and the button count drops (S2-variant: <i>Set up 20 files</i> with Schema reference unticked).
+<b>Keyboard:</b> Tab order is set checkbox → <i>Show files</i> → folder field, per set, then <i>Cancel</i> → primary.
+Focus starts on the first set checkbox <span class="mk-tag prop">D6</span>; Escape and ✕ equal <i>Cancel</i> (PRD F2.6).
+<b>Screen reader:</b> each card is a group named after the set; the chips are read as text ("11 create").</p>
+</figure>
+
+<figure>
+<figcaption><b>S2b · FileClasses expanded.</b> One row per file: its own checkbox <span class="mk-tag prop">D5</span>,
+the file name, and the action on the right. The three value lists carry a faint hint saying which FileClass uses them
+<span class="mk-tag prop">proposed</span>. Rows show the file name only; the folder is the set's.</figcaption>
+<div class="md" style="width:620px">
+  <div class="md-head"><p class="t">Set up story files</p><span class="x">✕</span></div>
+  <div class="sx-body" style="padding-top:8px">
+    <div class="sx-set">
+      <div class="sx-sh">
+        <span class="sx-cb on">✓</span>
+        <span class="sx-sn">FileClasses<span class="n">11 files</span></span>
+        <span class="sx-tog" role="button" aria-expanded="true">▾ Hide files</span>
+        <div class="sx-fold">Folder <span class="lb-f">00 Meta/FileClasses</span></div>
+        <div class="sx-sum"><span class="sx-chip create">11 create</span></div>
+      </div>
+      <div class="sx-rows">
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-book.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-character.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-character-fantasy.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-location.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-lore.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-object.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-plotline.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-scene.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-armor.md<i>value list for fc-character-fantasy</i></span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-combat-skills.md<i>value list for fc-character-fantasy</i></span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-magical-abilities.md<i>value list for fc-character-fantasy</i></span><span class="sx-act create">Create</span></div>
+      </div>
+    </div>
+    <div class="sx-set"><div class="sx-sh"><span class="sx-cb on">✓</span><span class="sx-sn">Templates<span class="n">7 files</span></span><span class="sx-tog">▸ Show files</span>
+      <div class="sx-fold">Folder <span class="lb-f">00 Meta/Templates</span></div><div class="sx-sum"><span class="sx-chip create">7 create</span></div></div></div>
+    <div class="sx-set"><div class="sx-sh"><span class="sx-cb on">✓</span><span class="sx-sn">Schema reference<span class="n">9 files</span></span><span class="sx-tog">▸ Show files</span>
+      <div class="sx-fold">Folder <span class="lb-f">00 Meta/Schema</span></div><div class="sx-sum"><span class="sx-chip create">9 create</span></div></div></div>
+  </div>
+  <div class="md-foot"><span class="sx-foot-sum">Folders that do not exist yet are created.</span><button class="btn">Cancel</button><button class="btn cta">Set up 27 files</button></div>
+</div>
+<p class="note"><b>Templates rows</b> (collapsed here): <code>entity-book.md</code>, <code>entity-character.md</code>,
+<code>entity-location.md</code>, <code>entity-lore.md</code>, <code>entity-object.md</code>,
+<code>entity-plotline.md</code>, <code>scene.md</code>. <b>Schema reference rows:</b> <code>README.md</code> then
+<code>book.md</code> … <code>scene.md</code>. Order = index order, with <code>README.md</code> first. <b>Unticking
+<code>fc-armor.md</code></b> alone is allowed; the fantasy character FileClass then points at a value list that does
+not exist, which metadata-menu tolerates (empty list).</p>
+<p class="oq"><b>Open question O3:</b> should the three value lists be tied to <code>fc-character-fantasy.md</code>
+(unticking one unticks all four), or stay independent as drawn? Independent is simpler; tied matches PRD F5's "set
+up with it".</p>
+</figure>
+
+<figure>
+<figcaption><b>S2c · 400px (mobile).</b> The set header wraps: the folder field takes the full width, <i>Show
+files</i> moves under the chips. Buttons stay in the footer; the footer aside moves above them.</figcaption>
+<div class="md nar">
+  <div class="md-head"><p class="t">Set up story files</p><span class="x">✕</span></div>
+  <div class="md-sub">Story Forge writes these notes into your vault when you select the button below. It never overwrites a file that is already there.</div>
+  <div class="sx-body">
+    <div class="sx-set"><div class="sx-sh" style="grid-template-columns:auto minmax(0,1fr)"><span class="sx-cb on">✓</span><span class="sx-sn">FileClasses<span class="n">11 files</span></span>
+      <div class="sx-fold"><span class="lb-f" style="flex-basis:100%">00 Meta/FileClasses</span></div><div class="sx-sum"><span class="sx-chip create">11 create</span><span class="sx-tog">▸ Show files</span></div></div></div>
+    <div class="sx-set"><div class="sx-sh" style="grid-template-columns:auto minmax(0,1fr)"><span class="sx-cb on">✓</span><span class="sx-sn">Templates<span class="n">7 files</span></span>
+      <div class="sx-fold"><span class="lb-f" style="flex-basis:100%">00 Meta/Templates</span></div><div class="sx-sum"><span class="sx-chip create">7 create</span><span class="sx-tog">▸ Show files</span></div></div></div>
+    <div class="sx-set"><div class="sx-sh" style="grid-template-columns:auto minmax(0,1fr)"><span class="sx-cb on">✓</span><span class="sx-sn">Schema reference<span class="n">9 files</span></span>
+      <div class="sx-fold"><span class="lb-f" style="flex-basis:100%">00 Meta/Schema</span></div><div class="sx-sum"><span class="sx-chip create">9 create</span><span class="sx-tog">▸ Show files</span></div></div></div>
+  </div>
+  <div class="md-foot" style="flex-wrap:wrap"><span class="sx-foot-sum" style="flex-basis:100%">Folders that do not exist yet are created.</span><button class="btn">Cancel</button><button class="btn cta">Set up 27 files</button></div>
+</div>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ S3 ═════════════════════════════════ -->
+<h2>S3 — Setup dialog, mixed <span class="h2s">· after a plugin update, every action at once</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>S3 · The same dialog after a plugin update.</b> Scenario: FileClasses and Templates were set up earlier
+in <code>00 Meta/…</code>, the schema reference was not; since then the Templates setting was changed to <code>Writing/Templates</code>; you edited
+<code>fc-scene.md</code> and deleted <code>fc-location.md</code>; you already had your own <code>README.md</code> in
+the schema folder before setting up the schema reference; <code>book.md</code> could not be read; one bundled
+template is damaged. Sets with something to look at open on their own <span class="mk-tag prop">D4</span>. Refusal
+texts are the code's, word for word <span class="mk-tag sdd">SDD</span>; action labels and the <i>Missing</i> and
+<i>Damaged</i> wording are <span class="mk-tag prop">proposed</span>.</figcaption>
+<div class="md" style="width:700px">
+  <div class="md-head"><p class="t">Set up story files</p><span class="x">✕</span></div>
+  <div class="md-sub">Story Forge writes these notes into your vault when you select the button below. It never overwrites a file that is already there.</div>
+  <div class="sx-body">
+    <!-- FileClasses -->
+    <div class="sx-set" role="group" aria-labelledby="s3-fc">
+      <div class="sx-sh">
+        <span class="sx-cb mixed" role="checkbox" aria-checked="mixed" aria-labelledby="s3-fc">–</span>
+        <span class="sx-sn" id="s3-fc">FileClasses<span class="n">11 files</span></span>
+        <span class="sx-tog" aria-expanded="true">▾ Hide files</span>
+        <div class="sx-fold">Folder <span class="lb-f">00 Meta/FileClasses</span></div>
+        <div class="sx-sum"><span class="sx-chip upd">2 update</span><span class="sx-chip ok">7 up to date</span><span class="sx-chip skip">1 edited</span><span class="sx-chip miss">1 missing</span></div>
+      </div>
+      <div class="sx-rows">
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-character.md</span><span class="sx-act upd">Update</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-lore.md</span><span class="sx-act upd">Update</span></div>
+        <div class="sx-row"><span></span><span class="f">fc-scene.md</span><span class="sx-act skip">Not updated</span>
+          <span class="why">Not updated: 00 Meta/FileClasses/fc-scene.md was edited after it was installed, and updating would overwrite those edits.</span></div>
+        <div class="sx-row"><span class="sx-cb" role="checkbox" aria-checked="false" aria-label="Set up fc-location.md again">&nbsp;</span><span class="f">fc-location.md</span><span class="sx-act miss">Missing</span>
+          <span class="why">00 Meta/FileClasses/fc-location.md was set up but is no longer there. It is not recreated unless you tick <i>Set up again</i>. <span class="mk-tag prop">proposed</span></span></div>
+        <div class="sx-row dim"><span></span><span class="f">fc-book.md</span><span class="sx-act ok">Up to date</span></div>
+        <div class="sx-row dim"><span></span><span class="f">fc-character-fantasy.md</span><span class="sx-act ok">Up to date</span></div>
+        <div class="sx-row dim"><span></span><span class="f">fc-object.md · fc-plotline.md · fc-armor.md · fc-combat-skills.md · fc-magical-abilities.md</span><span class="sx-act ok">Up to date</span></div>
+      </div>
+    </div>
+    <!-- Templates -->
+    <div class="sx-set" role="group" aria-labelledby="s3-tp">
+      <div class="sx-sh">
+        <span class="sx-cb on" role="checkbox" aria-checked="true">✓</span>
+        <span class="sx-sn" id="s3-tp">Templates<span class="n">7 files</span></span>
+        <span class="sx-tog" aria-expanded="true">▾ Hide files</span>
+        <div class="sx-fold">Folder <span class="lb-f">Writing/Templates</span></div>
+        <div class="sx-moved">These files were set up in <span class="ct-path">00 Meta/Templates</span>. The setting now points to
+          <span class="ct-path">Writing/Templates</span>; updates stay where the files are. Files set up from now on go to
+          the new folder. <span class="mk-tag prop">proposed</span> <span class="mk-tag prop">D8</span></div>
+        <div class="sx-warn"><b>▲ Not in your excluded folders.</b> Notes in <span class="ct-path">Writing/Templates</span> will be treated as story entities … <i>(S4)</i></div>
+        <div class="sx-sum"><span class="sx-chip upd">1 update</span><span class="sx-chip ok">5 up to date</span><span class="sx-chip bad">1 damaged</span></div>
+      </div>
+      <div class="sx-rows">
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">scene.md</span><span class="sx-act upd">Update</span></div>
+        <div class="sx-row"><span></span><span class="f">entity-plotline.md</span><span class="sx-act bad">Damaged</span>
+          <span class="why err">Not installed: the bundled copy of this file is damaged, so nothing was written. Reinstalling Story Forge restores it. <span class="mk-tag prop">proposed</span>
+            <span class="raw">checksum mismatch</span></span></div>
+        <div class="sx-row dim"><span></span><span class="f">entity-book.md · entity-character.md · entity-location.md · entity-lore.md · entity-object.md</span><span class="sx-act ok">Up to date</span></div>
+      </div>
+    </div>
+    <!-- Schema -->
+    <div class="sx-set" role="group" aria-labelledby="s3-sc">
+      <div class="sx-sh">
+        <span class="sx-cb on" role="checkbox" aria-checked="true">✓</span>
+        <span class="sx-sn" id="s3-sc">Schema reference<span class="n">9 files</span></span>
+        <span class="sx-tog" aria-expanded="true">▾ Hide files</span>
+        <div class="sx-fold">Folder <span class="lb-f">00 Meta/Schema</span></div>
+        <div class="sx-sum"><span class="sx-chip create">7 create</span><span class="sx-chip skip">1 already exists</span><span class="sx-chip bad">1 unreadable</span></div>
+      </div>
+      <div class="sx-rows">
+        <div class="sx-row"><span></span><span class="f">README.md</span><span class="sx-act skip">Not installed</span>
+          <span class="why">Not installed: 00 Meta/Schema/README.md already exists. Move, rename or remove it, then install again.</span></div>
+        <div class="sx-row"><span></span><span class="f">book.md</span><span class="sx-act bad">Unreadable</span>
+          <span class="why err">Not installed: could not read 00 Meta/Schema/book.md: EACCES: permission denied</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">character.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">character-fantasy.md</span><span class="sx-act create">Create</span></div>
+        <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">location.md · lore.md · object.md · plotline.md · scene.md</span><span class="sx-act create">Create</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Cancel</button><button class="btn cta">Set up and update 10 files</button></div>
+</div>
+<p class="note"><b>Mockup shorthand:</b> rows joined with " · " stand for one row each in the real dialog. <b>Row
+order</b> within a set <span class="mk-tag prop">proposed</span>: rows that write (Update, Create, Missing) first,
+then rows that need you (Not updated, Not installed, Unreadable, Damaged), then <i>Up to date</i> rows, dimmed. The
+FileClasses checkbox is a dash because <code>fc-location.md</code> is unticked. <b>Button count:</b> 2 + 1 updates +
+7 creates = 10; ticking <i>Set up again</i> makes it 11 <span class="mk-tag prop">D6</span>. The missing file is set
+up again at its record path with its recorded folders (SDD Primary Flow step 5).</p>
+<div class="mk-wrap" style="margin-top:10px">
+<table class="inv">
+<tr><th>PlanItem action</th><th>Row label <span class="mk-tag prop">proposed</span></th><th>Checkbox</th><th>Reason line</th></tr>
+<tr><td><code>create</code></td><td>Create</td><td>ticked</td><td>—</td></tr>
+<tr><td><code>update</code></td><td>Update</td><td>ticked</td><td>—</td></tr>
+<tr><td><code>up-to-date</code></td><td>✓ Up to date</td><td>none</td><td>—</td></tr>
+<tr><td><code>skip-exists</code></td><td>Not installed</td><td>none</td><td><i>Not installed: &lt;path&gt; already exists. Move, rename or remove it, then install again.</i> (code)</td></tr>
+<tr><td><code>skip-edited</code></td><td>Not updated</td><td>none</td><td><i>Not updated: &lt;path&gt; was edited after it was installed, and updating would overwrite those edits.</i> (code)</td></tr>
+<tr><td><code>missing</code></td><td>Missing</td><td><b>unticked</b>, label <i>Set up again</i></td><td><i>&lt;path&gt; was set up but is no longer there. It is not recreated unless you tick Set up again.</i></td></tr>
+<tr><td><code>unreadable</code></td><td>Unreadable</td><td>none</td><td><i>Not installed: could not read &lt;path&gt;: &lt;error&gt;</i> (code)</td></tr>
+<tr><td><code>refused</code></td><td>Damaged</td><td>none</td><td><i>Not installed: the bundled copy of this file is damaged, so nothing was written. Reinstalling Story Forge restores it.</i> + raw <code>checksum mismatch</code> (spec 008 L10f(d) wording, "collection" → "file")</td></tr>
+</table>
+</div>
+<p class="oq"><b>Open question O4:</b> the code's refusal texts say "installed" / "install again" (shared with curated
+collections). In this dialog the verb is "set up". Keep them word for word (as drawn, PRD F4 quotes the catalog
+prefixes), or give story files their own verb (<i>…was edited after it was set up…</i>, <i>…then set it up
+again.</i>)? Recommended: keep word for word — one writer, one set of sentences.</p>
+<p class="oq"><b>Open question O5:</b> the Missing row's checkbox label. Drawn as an <code>aria-label</code> only, with
+the visible hint in the reason line. Alternative: a visible <i>☐ Set up again</i> next to the action pill
+(clearer, one more control on the row).</p>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ S4 ═════════════════════════════════ -->
+<h2>S4 — Folder not excluded <span class="h2s">· the set's notes would show up as story entities</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>S4a · Templates folder outside the excluded folders.</b> Shown inside the set card, under the folder,
+whenever the set's folder is not inside one of <code>excludedFolders</code> (PRD F3.3). It applies to all three
+sets. Wording and button <span class="mk-tag prop">proposed</span> <span class="mk-tag prop">D9</span>. It never
+blocks setup.</figcaption>
+<div class="md" style="width:620px">
+  <div class="md-head"><p class="t">Set up story files</p><span class="x">✕</span></div>
+  <div class="sx-body" style="padding-top:8px">
+    <div class="sx-set">
+      <div class="sx-sh">
+        <span class="sx-cb on">✓</span>
+        <span class="sx-sn">Templates<span class="n">7 files</span></span>
+        <span class="sx-tog">▸ Show files</span>
+        <div class="sx-fold">Folder <span class="lb-f">Templates</span></div>
+        <div class="sx-warn" role="note"><b>▲ Not in your excluded folders.</b> Notes in <span class="ct-path">Templates</span>
+          will be treated as story entities: they show up in the Anvil, the Workbench and your collections next to your
+          real characters and scenes. Your excluded folders are <span class="ct-path">00 Meta</span>.<br>
+          <button class="btn">Add Templates to excluded folders</button></div>
+        <div class="sx-sum"><span class="sx-chip create">7 create</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><span class="sx-foot-sum">Folders that do not exist yet are created.</span><button class="btn">Cancel</button><button class="btn cta">Set up 7 files</button></div>
+</div>
+<p class="note"><b>When it shows:</b> the folder is neither one of <code>normalizeExcludedFolders(settings.excludedFolders)</code>
+nor below one (same test the collections use). With an empty excluded list it shows for every set and the sentence
+reads <i>You have no excluded folders.</i> <span class="mk-tag prop">proposed</span>. It is re-evaluated when you change
+the folder field. <b>The button</b> appends the folder to <i>Excluded folders</i> through the same store call as the
+Scope tab (<code>collections.setScope</code>), so collections and counts update; it writes no file and does not need
+undo beyond editing the setting. Not a live region; it is plain text inside the group, read when the group is
+reached.</p>
+</figure>
+
+<figure>
+<figcaption><b>S4b · After <i>Add Templates to excluded folders</i>.</b> The warning is replaced by a neutral line
+that names where to undo it <span class="mk-tag prop">proposed</span>; it disappears the next time the dialog
+opens.</figcaption>
+<div class="md" style="width:620px">
+  <div class="sx-body" style="padding-top:10px">
+    <div class="sx-set">
+      <div class="sx-sh">
+        <span class="sx-cb on">✓</span>
+        <span class="sx-sn">Templates<span class="n">7 files</span></span>
+        <span class="sx-tog">▸ Show files</span>
+        <div class="sx-fold">Folder <span class="lb-f">Templates</span></div>
+        <div class="sx-moved" role="status">✓ Templates added to your excluded folders. Change them in Settings › Scope › Excluded folders.</div>
+        <div class="sx-sum"><span class="sx-chip create">7 create</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</figure>
+
+<figure>
+<figcaption><b>S4c · The text-only alternative</b> (if you reject the button in D9).</figcaption>
+<div class="md" style="width:620px">
+  <div class="sx-body" style="padding-top:10px">
+    <div class="sx-warn" role="note" style="grid-column:auto"><b>▲ Not in your excluded folders.</b> Notes in
+      <span class="ct-path">Templates</span> will be treated as story entities: they show up in the Anvil, the Workbench
+      and your collections. To keep them out, add the folder to <i>Settings › Scope › Excluded folders</i>, or choose a
+      folder inside <span class="ct-path">00 Meta</span>.</div>
+  </div>
+</div>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ S5 ═════════════════════════════════ -->
+<h2>S5 — Result notice <span class="h2s">· one Obsidian notice per confirm</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>S5a · Everything written.</b> <i>Set up 27 story files.</i> <span class="mk-tag sdd">SDD</span>
+Hides after Obsidian's default time. The dialog has closed.</figcaption>
+<div class="notice-stack"><div class="notice" role="status">Set up 27 story files.</div></div>
+</figure>
+
+<figure>
+<figcaption><b>S5b · Updates only / set up and update</b> <span class="mk-tag prop">proposed</span>. The verb follows
+what was written, like the button (D6).</figcaption>
+<div class="notice-stack">
+  <div class="notice" role="status">Updated 3 story files.</div>
+  <div class="notice" role="status">Set up 7 and updated 3 story files.</div>
+</div>
+</figure>
+
+<figure>
+<figcaption><b>S5c · Mixed: written, skipped, failed, truncated.</b> The first line says what was written; then
+<i>Failed</i>, then <i>Skipped</i>, each with its count and the code's reason lines; at most 5 lines in total, then the
+tail <span class="mk-tag prop">D10</span>. Stays until clicked. Heading words <span class="mk-tag prop">proposed</span>.</figcaption>
+<div class="notice-stack">
+  <div class="notice" role="alert"><span class="h">Set up 6 and updated 3 story files.</span>
+<span class="h">Failed (1):</span><span class="l">Not installed: could not write 00 Meta/Schema/scene.md: disk full</span><span class="h">Skipped (5):</span><span class="l">Not updated: 00 Meta/FileClasses/fc-scene.md was edited after it was installed, and updating would overwrite those edits.</span><span class="l">Not installed: 00 Meta/Schema/README.md already exists. Move, rename or remove it, then install again.</span><span class="l">Not installed: could not read 00 Meta/Schema/book.md: EACCES: permission denied</span><span class="l">Not installed: the bundled copy of 00 Meta/Templates/entity-plotline.md is damaged, so nothing was written. Reinstalling Story Forge restores it.</span><span class="more">and 1 more. Open Set up story files again to see each file.</span></div>
+</div>
+<p class="note"><b>What counts as skipped</b> in the notice: every item that was in a ticked set and is not written —
+<code>skip-exists</code>, <code>skip-edited</code>, <code>unreadable</code>, <code>refused</code>, and items that
+turned into a refusal at the re-check just before writing (SDD Error Handling). <b>Not listed:</b>
+<code>up-to-date</code> items, unticked rows and unticked sets — you chose those. <b>Failed</b> uses
+<code>executePlan</code>'s reasons as they are. Each line is also logged once with
+<code>console.debug("[StoryForge] …")</code>. The notice is built with element helpers, no <code>innerHTML</code>.
+In the damaged line, the notice names the path because it has no row to sit in.</p>
+<p class="oq"><b>Open question O6:</b> the dialog already showed every skip reason before you confirmed. Should the
+notice repeat the skipped lines (as drawn, PRD F2.7 "names each file that was skipped with its reason") or only count
+them (<i>5 skipped</i>) and list failures? Recommended: as drawn — the PRD asks for names.</p>
+</figure>
+
+<figure>
+<figcaption><b>S5d · A folder could not be created.</b> Every item under that folder fails with the folder reason
+(SDD Error Handling, code wording); other folders proceed.</figcaption>
+<div class="notice-stack">
+  <div class="notice" role="alert"><span class="h">Set up 18 story files.</span>
+<span class="h">Failed (9):</span><span class="l">Not installed: could not create folder Writing/Schema: permission denied</span><span class="more">The same reason for 8 more files in Writing/Schema.</span></div>
+</div>
+<p class="note"><b>Grouping</b> <span class="mk-tag prop">proposed</span>: identical reasons collapse into one line plus
+<i>The same reason for N more files in &lt;folder&gt;.</i>, so nine copies of one folder error do not fill the
+notice. <b>Nothing written at all</b> (every item failed or skipped): the first line reads <i>No story files
+written.</i> <span class="mk-tag prop">proposed</span>.</p>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ S6 ═════════════════════════════════ -->
+<h2>S6 — Capability screen pointer <span class="h2s">· "What optional plugins add" points to the setup</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>S6a · First run, nothing set up.</b> Today's L12a screen with one new row first in the body
+<span class="mk-tag prop">D11</span>. Its group, name, status, description and button are all
+<span class="mk-tag prop">proposed</span>. The rows below it are unchanged and drawn cut short. The button opens the
+setup dialog; this screen writes nothing (PRD F2.9).</figcaption>
+<div class="md cp" role="dialog" aria-labelledby="s6a-t" aria-describedby="s6a-i">
+  <div class="md-head"><p class="t" id="s6a-t">What optional plugins add</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="cp-body">
+    <p class="cp-intro" id="s6a-i">Story Forge works without any of these. Each row says what it adds and what you have without it.</p>
+    <div class="cp-grp">Story Forge <span>· written only when you ask</span></div>
+    <div class="cp-row new" role="group" aria-labelledby="s6a-sf">
+      <div class="cp-h"><span class="n" id="s6a-sf">Story files</span><span class="cp-kind core">Story Forge</span><span class="cp-st off">Not set up</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>FileClasses for the eight story types: the editor shows their sections, option lists and field order.</li>
+          <li>Templates for a new scene or entity, for Obsidian's core Templates plugin.</li>
+          <li>A schema reference: one note per story type that explains each Property and its values.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>The editor lists every property under "Properties", without sections or option lists.</li>
+          <li>You create scenes and entities by hand and add their Properties yourself.</li></ul></div>
+      </div>
+      <div class="cp-act"><button class="btn">Set up story files…</button><span class="aside">Shows every file and folder first. Nothing is written until you confirm.</span></div>
+    </div>
+    <div class="cp-grp">Core plugin <span>· ships with Obsidian</span></div>
+    <div class="cp-row">
+      <div class="cp-h"><span class="n">Bases</span><span class="cp-kind core">core</span><span class="cp-st on">On</span></div>
+      <div class="cp-trim">… unchanged (L12a) …</div>
+    </div>
+    <div class="cp-grp">Community plugins <span>· installed separately, never required</span></div>
+    <div class="cp-row">
+      <div class="cp-h"><span class="n">Dataview</span><span class="cp-kind">community</span><span class="cp-st off">Not active</span></div>
+      <div class="cp-trim">… unchanged (L12a) …</div>
+    </div>
+    <div class="cp-row">
+      <div class="cp-h"><span class="n">metadata-menu</span><span class="cp-kind">community</span><span class="cp-st off">No FileClasses in 00 Meta/FileClasses</span></div>
+      <div class="cp-cols">
+        <div><h5>What it adds</h5><ul>
+          <li>A form for editing FileClasses (<code>fc-*.md</code>): which fields a kind of note has, their types, options and order.</li></ul></div>
+        <div><h5>Without it</h5><ul>
+          <li>Nothing changes in Story Forge. It reads FileClass files itself <span class="del">and ships its own for the eight story types</span><span class="ins">; Set up story files… writes its own for the eight story types</span>. You edit them as plain notes. <span class="mk-tag prop">proposed</span></li>
+          <li>With no FileClasses at all, the editor lists every property under "Properties", without sections or option lists.</li></ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><span class="cp-later">Open this again from Settings › Library › What optional plugins add…</span><button class="btn cta foc">Got it</button></div>
+</div>
+<p class="note"><b>The button</b> closes this screen and opens <i>Set up story files</i>; on first run that close
+counts as <i>Got it</i> (recorded as seen, as any close does today). The capability modal itself calls only the
+injected <code>openStoryFiles</code> callback (SDD Integration Points). <b>Focus</b> still starts on <i>Got it</i>, so
+Enter on open does what it did before. <b>Status</b> is the S1 status line, shortened: <i>Not set up</i>, <i>27 set
+up</i>, <i>3 updates available</i>, <i>1 missing</i> <span class="mk-tag prop">proposed</span>; tone "off" for not set
+up, "on" for set up, neutral text for updates. <b>Kind pill</b> reads <i>Story Forge</i> in the core colour, so it is
+not mistaken for a plugin to install. <b>metadata-menu row:</b> its "ships its own" sentence was written before the
+files became something you set up; the proposed edit makes it true for a fresh vault.</p>
+</figure>
+
+<figure>
+<figcaption><b>S6b · Opened from settings, everything set up.</b> Same row, status <i>✓ 27 set up</i>; the button
+stays (it is how you reach updates from here), the aside changes <span class="mk-tag prop">proposed</span>. Footer
+only <i>Close</i>, as in L12b.</figcaption>
+<div class="md cp" style="width:560px">
+  <div class="md-head"><p class="t">What optional plugins add</p><span class="x">✕</span></div>
+  <div class="cp-body">
+    <p class="cp-intro">Story Forge works without any of these. Each row says what it adds and what you have without it.</p>
+    <div class="cp-grp">Story Forge <span>· written only when you ask</span></div>
+    <div class="cp-row new">
+      <div class="cp-h"><span class="n">Story files</span><span class="cp-kind core">Story Forge</span><span class="cp-st on">27 set up</span></div>
+      <div class="cp-trim">… What it adds / Without it as in S6a …</div>
+      <div class="cp-act"><button class="btn">Set up story files…</button><span class="aside">Check for updates and set up missing files.</span></div>
+    </div>
+    <div class="cp-trim">… Bases, Dataview, metadata-menu unchanged …</div>
+  </div>
+  <div class="md-foot"><button class="btn cta foc">Close</button></div>
+</div>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ open questions ═════════════════════════════════ -->
+<h2>Open questions <span class="h2s">· beyond D1–D12</span></h2>
+<div class="mk-open" style="border-color:var(--border-2);border-left-color:var(--mk-proposal)">
+<ol>
+  <li><b>O1 — Cancel and a changed folder.</b> D7 follows the SDD: a folder changed in the dialog is saved when you
+    leave the field, so <i>Cancel</i> keeps it. Alternative: hold folder changes in the dialog and save them only on
+    confirm. <span class="rec">Recommended: SDD as written; say so in the field's hint if you agree
+    (<i>Saved to Settings › Scope when you leave the field.</i> <span class="mk-tag prop">proposed</span>).</span></li>
+  <li><b>O2 — Partly set up status</b> names the missing sets or only counts (S1b).</li>
+  <li><b>O3 — Value lists tied to <code>fc-character-fantasy.md</code></b> or independent rows (S2b).</li>
+  <li><b>O4 — Refusal verb</b> "installed" (code, word for word) or "set up" (S3).</li>
+  <li><b>O5 — Missing row checkbox</b> visible label or aria-label only (S3).</li>
+  <li><b>O6 — Skipped lines in the notice</b> listed (PRD) or only counted (S5c).</li>
+</ol>
+</div>
+
+<h2>Mockup piece → code <span class="h2s">· for T3.2–T3.4</span></h2>
+<div class="mk-wrap">
+<table class="inv">
+<tr><th>Mockup piece</th><th>Where in code</th></tr>
+<tr><td>Story files group, two folder settings, setup row + status line</td><td><code>SettingsTab._renderScopeSection</code> (new <code>SettingGroup</code> "Story files"), <code>attachFolderSuggest</code>; status from a read-only <code>planSetup</code></td></tr>
+<tr><td>Setup dialog, set cards, rows, chips, warning, moved note</td><td><code>src/artifacts/StoryFilesModal.ts</code>; classes <code>sf-story-*</code> (new) in <code>styles.css</code>; footer reuses <code>sf-picker-foot</code></td></tr>
+<tr><td>Row reason lines</td><td><code>PlanItem.note</code> / <code>managedFileWriter</code> refusal texts; raw line like <code>renderFeedback</code>'s <code>sf-catalog-raw</code></td></tr>
+<tr><td>Result notice</td><td>one <code>Notice</code> from the <code>executePlan</code> result (<code>written</code>, <code>skipped</code>, <code>failed</code>)</td></tr>
+<tr><td>Capability pointer row</td><td><code>CapabilitiesModal</code> + <code>capabilityReport</code> (new row kind), injected <code>openStoryFiles</code></td></tr>
+<tr><td>Command</td><td><code>storyFilesWiring.ts</code>: <code>set-up-story-files</code></td></tr>
+</table>
+</div>
+
+<script>
+  (function(){
+    var btns = document.querySelectorAll('[data-theme-btn]');
+    btns.forEach(function(b){
+      b.addEventListener('click', function(){
+        var t = b.getAttribute('data-theme-btn');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+        else document.documentElement.removeAttribute('data-theme');
+        btns.forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+      });
+    });
+  })();
+</script>
+</body>
+</html>
