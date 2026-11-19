@@ -46,3 +46,55 @@ export interface ArtifactIndex {
 	version: "1";
 	entries: ArtifactEntry[];
 }
+
+/**
+ * What Story Forge wrote for one artifact id, kept in data.json "artifacts".
+ * Operational state, not story data.
+ *
+ * @ref SDD/Data storage — artifact record
+ */
+export interface ArtifactRecord {
+	/** Vault path written (normalised). */
+	path: string;
+	/** "sha256:…" of the unresolved source that was installed. */
+	sourceChecksum: string;
+	/** "sha256:…" of the resolved bytes actually written. */
+	instanceChecksum: string;
+	/** Folder values the placeholders were resolved with. */
+	params: ArtifactFolders;
+	/** Manifest version at write time (diagnostics only). */
+	pluginVersion: string;
+}
+
+/** Records keyed by artifact id. */
+export type ArtifactRecords = Record<string, ArtifactRecord>;
+
+/**
+ * Planned action for one artifact. "refused" is an addition to the SDD union:
+ * an index entry whose checksum does not match its source (fail closed).
+ */
+export type PlanAction =
+	| "create"
+	| "up-to-date"
+	| "update"
+	| "skip-exists"
+	| "skip-edited"
+	| "missing"
+	| "unreadable"
+	| "refused";
+
+/** @ref SDD/Application Data Models — PlanItem */
+export interface PlanItem {
+	entry: ArtifactEntry;
+	/** Target vault path (the record's path when a record exists). */
+	path: string;
+	action: PlanAction;
+	/** e.g. "setting now points to <folder>", a read failure, "checksum mismatch". */
+	note?: string;
+}
+
+/** Result of reading one vault path for planning. */
+export type ArtifactFileRead =
+	| { kind: "content"; text: string }
+	| { kind: "absent" }
+	| { kind: "unreadable"; reason: string };
