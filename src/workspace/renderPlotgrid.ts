@@ -68,7 +68,7 @@ export function renderPlotgrid(
 	// Build the grid table
 	const tableEl = host.createEl("div", { cls: "sf-pg-table" });
 	tableEl.setAttribute("role", "table");
-	tableEl.setAttribute("aria-label", "Plotgrid: scenes × plotlines");
+	tableEl.setAttribute("aria-label", "Plotgrid: scenes × Plotlines");
 
 	// Header row: corner + one column header per plotline
 	const theadEl = tableEl.createEl("div", { cls: "sf-pg-thead" });

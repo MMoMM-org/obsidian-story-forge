@@ -176,7 +176,7 @@ describe("SidebarView: pin toggle", () => {
 		const pinTag = view.contentEl.querySelector(".sf-pin-tag") as HTMLElement | null;
 		expect(pinTag).not.toBeNull();
 		expect(pinTag?.classList.contains("sf-hidden")).toBe(false);
-		expect(pinTag?.textContent).toBe("pinned");
+		expect(pinTag?.textContent).toBe("Pinned");
 	});
 
 	it("unpinning resumes following the active note", () => {

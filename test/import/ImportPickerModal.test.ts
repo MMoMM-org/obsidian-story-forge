@@ -28,7 +28,7 @@ import type { ConsentGate } from "consent/ConsentGate";
 // ---------------------------------------------------------------------------
 
 const PLACEHOLDER = "Select a collection to see what it shows and where it goes.";
-const STAYS = "Stays where it is. The Library links to it, so editing the file changes the collection.";
+const STAYS = "Stays where it is. Story Forge links to it, so editing the file changes the collection.";
 const CHANGE = "Change this per collection in Library › Collections.";
 const FIX_FILE = "Fix the file, then open this window again.";
 

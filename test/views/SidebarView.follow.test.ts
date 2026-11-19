@@ -219,7 +219,7 @@ describe("SidebarView: follow lifecycle", () => {
 		// (b) the body shows S4 non-entity content (not S9 error, not S6 stub)
 		const body = view.contentEl.querySelector(".sf-body") as HTMLElement;
 		const badge = view.contentEl.querySelector(".sf-badge");
-		expect(badge?.textContent).toBe("not an entity");
+		expect(badge?.textContent).toBe("Not an entity");
 		expect(body.querySelector(".sf-empty")).not.toBeNull();
 		expect(body.textContent).toContain(
 			"This note isn't a tracked character, location, object, lore, scene, plotline, or book.",

@@ -548,7 +548,7 @@ describe("a Codex section row", () => {
 		click(row(view, "Tobias Ferro"));
 		await settle();
 
-		expect(view.contentEl.querySelector(".sf-trailrow")?.textContent).toBe("from Mara Stoneway › Tobias Ferro");
+		expect(view.contentEl.querySelector(".sf-trailrow")?.textContent).toBe("From Mara Stoneway › Tobias Ferro");
 		expect(vi.mocked(w.app.workspace.openLinkText)).not.toHaveBeenCalled();
 	});
 

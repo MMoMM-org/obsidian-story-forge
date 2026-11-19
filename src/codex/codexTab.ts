@@ -361,7 +361,6 @@ function renderAddPill(): HTMLElement {
 	pill.setAttribute("role", "button");
 	pill.setAttribute("tabindex", "0");
 	pill.setAttribute("aria-haspopup", "menu");
-	// eslint-disable-next-line obsidianmd/ui/sentence-case -- S93/P15 draw "+ Collection" with a capital C
 	pill.textContent = "+ Collection";
 	return pill;
 }

@@ -54,7 +54,6 @@ export class CapabilitiesModal extends Modal {
 		const body = el.createDiv({ cls: "sf-cap-body" });
 		body.createEl("p", {
 			cls: "sf-cap-intro",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Story Forge" is the plugin's own name (L12a text)
 			text: "Story Forge works without any of these. Each row says what it adds and what you have without it.",
 			attr: { id: INTRO_ID },
 		});

@@ -222,7 +222,7 @@ export class ImportPickerModal extends Modal {
 
 		const source = renderLabelled(pane, "Source file", "sf-catalog-preview-dest");
 		source.createDiv().createSpan({ cls: "sf-catalog-path", text: c.path });
-		source.createDiv({ cls: "sf-catalog-hint", text: "Stays where it is. The Library links to it, so editing the file changes the collection." });
+		source.createDiv({ cls: "sf-catalog-hint", text: "Stays where it is. Story Forge links to it, so editing the file changes the collection." });
 
 		if (c.kind === "failed") {
 			renderFeedback(pane, c.problem);
@@ -251,7 +251,6 @@ export class ImportPickerModal extends Modal {
 			.createEl("pre", { cls: "sf-catalog-preview-src", text: c.def.querySource.trimEnd() });
 		if (engine === "dataviewjs") {
 			const note = pane.createDiv({ cls: "sf-catalog-consent" });
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L11 text; the rule misreads the leading glyph
 			note.createEl("strong", { text: "▲ Runs JavaScript." });
 			note.appendText(" This collection runs code with full vault access. ");
 			note.createEl("em", { text: actionLabel(engine) });

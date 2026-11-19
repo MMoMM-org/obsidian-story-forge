@@ -149,7 +149,6 @@ export class BrowserList<T extends Filterable<CatalogEngine>> {
 		const titleId = `${this.opts.titleIdPrefix}-${this.opts.keyOf(item)}`;
 		pane.setAttribute("role", "region");
 		pane.setAttribute("aria-labelledby", titleId);
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L10/L11 text; the rule misreads the leading glyph
 		const back = pane.createEl("button", { cls: "sf-catalog-back", text: "← All collections", attr: { type: "button" } });
 		back.addEventListener("click", () => this._back(true));
 		this.opts.renderDetail(pane, item, titleId, feedback);

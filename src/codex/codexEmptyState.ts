@@ -102,7 +102,6 @@ export function renderCodexEmptyState(container: HTMLElement, opts: CodexEmptySt
 
 	const docsLink = activeDocument.createElement("a");
 	docsLink.className = "sf-btn sf-cx-empty-action";
-	// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClasses' is metadata-menu's proper noun (mirrors SettingsTab.ts's "FileClasses folder")
 	docsLink.textContent = "What are FileClasses?";
 	docsLink.href = FILECLASSES_DOC_URL;
 	// noopener: an external link rendered in a plugin pane must not let the
@@ -134,7 +133,6 @@ export function renderBasesOffState(container: HTMLElement, label: string): HTML
 	box.appendChild(heading);
 	const detail = activeDocument.createElement("div");
 	detail.className = "sf-cx-empty-detail";
-	// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'Bases' is Obsidian's proper noun for the core plugin
 	detail.textContent = "This collection is a Bases file, and the core Bases plugin is turned off.";
 	box.appendChild(detail);
 	container.appendChild(box);

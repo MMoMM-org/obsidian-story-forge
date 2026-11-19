@@ -49,7 +49,6 @@ export function paintAddRow(
 	const add = host.createDiv({ cls: "sf-lb-add" });
 	const browse = add.createEl("button", {
 		cls: "sf-lb-addbtn",
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L2 text; the rule misreads the leading '+' glyph
 		text: "+ Browse repo…",
 		attr: { type: "button" },
 	});
@@ -66,7 +65,6 @@ export function paintAddRow(
 	}
 	const imp = add.createEl("button", {
 		cls: "sf-lb-addbtn",
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L2 text; the rule misreads the leading '+' glyph
 		text: "+ Import from vault…",
 		attr: { type: "button" },
 	});

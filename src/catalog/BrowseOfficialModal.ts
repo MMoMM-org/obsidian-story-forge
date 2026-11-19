@@ -217,7 +217,6 @@ export class BrowseOfficialModal extends Modal {
 			.createEl("pre", { cls: "sf-catalog-preview-src", text: queryOf(entry) });
 		if (entry.engine === "dataviewjs") {
 			const note = pane.createDiv({ cls: "sf-catalog-consent" });
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L10 text; the rule misreads the leading glyph
 			note.createEl("strong", { text: "▲ Runs JavaScript." });
 			note.appendText(" This collection runs code with full vault access. ");
 			note.createEl("em", { text: actionLabel(entry, status) });
@@ -235,7 +234,6 @@ export class BrowseOfficialModal extends Modal {
 		const box = pane.createDiv({ cls: "sf-catalog-preview-details" });
 		const toggle = box.createEl("button", {
 			cls: "sf-catalog-details-toggle",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- mockup L10 text; the rule misreads the leading glyph
 			text: "▸ Details",
 			attr: { type: "button", "aria-expanded": "false" },
 		});

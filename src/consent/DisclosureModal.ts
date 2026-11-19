@@ -114,8 +114,7 @@ export class DisclosureModal extends Modal {
 		// Source label + engine badge
 		const sourceLabel = body.createEl("div", { cls: "sf-source-label" });
 		sourceLabel.textContent = "Source ";
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- "dataviewjs" is a technical identifier, not a UI sentence
-		sourceLabel.createEl("span", { cls: "sf-badge sf-badge-dvjs", text: "dataviewjs" });
+		sourceLabel.createEl("span", { cls: "sf-badge sf-badge-dvjs", text: "DataviewJS" });
 
 		// Source code in a scrollable pre block
 		const pre = body.createEl("pre", { cls: "sf-source-pre" });
@@ -123,7 +122,6 @@ export class DisclosureModal extends Modal {
 
 		// Checksum section
 		const checksumSection = body.createDiv({ cls: "sf-checksum-section" });
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- "SHA-256" is an algorithm name, not a sentence
 		checksumSection.createEl("div", { cls: "sf-checksum-label", text: "SHA-256 checksum" });
 		const checksumEl = checksumSection.createEl("div", { cls: "sf-checksum-value" });
 		checksumEl.textContent = this._info.checksum;

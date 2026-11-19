@@ -68,7 +68,7 @@ describe("compactCard [PRD/F4]", () => {
 		expect(el.textContent).not.toContain("undefined");
 		const miss = el.querySelector(".sf-cx-miss");
 		expect(miss?.querySelector("b")?.textContent).toBe("role");
-		expect(miss?.querySelector("i")?.textContent).toBe("not set");
+		expect(miss?.querySelector("i")?.textContent).toBe("Not set");
 		expect(miss?.getAttribute("title")).toBe("This property does not exist in this note");
 	});
 

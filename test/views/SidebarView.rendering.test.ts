@@ -3,7 +3,7 @@
  *
  * Tests for each render state asserting DOM structure:
  * - S2: no note → "No note open" empty state
- * - S3: non-markdown file → "Story Forge follows markdown notes."
+ * - S3: non-markdown file → "Story Forge follows Markdown notes."
  * - S4: markdown non-entity (kind unknown) → "not an entity" badge
  * - S5: resolving → "resolving…" + skeleton bars
  * - S6/S7: resolved → stub rows with field + kind
@@ -131,7 +131,7 @@ describe("SidebarView: state rendering", () => {
 	// S3: non-markdown file
 	// -----------------------------------------------------------------------
 
-	it("S3 non-md: body shows 'Story Forge follows markdown notes.'", () => {
+	it("S3 non-md: body shows 'Story Forge follows Markdown notes.'", () => {
 		// Manually drive the private renderState
 		const privateView = view as unknown as {
 			_renderState(s: { kind: string; file: TFile }): void;
@@ -140,7 +140,7 @@ describe("SidebarView: state rendering", () => {
 		privateView._renderState({ kind: "non-md", file });
 
 		const body = getBody(view);
-		expect(body.textContent).toContain("Story Forge follows markdown notes.");
+		expect(body.textContent).toContain("Story Forge follows Markdown notes.");
 	});
 
 	it("S3 non-md: header title is the file name", () => {
@@ -166,7 +166,7 @@ describe("SidebarView: state rendering", () => {
 		privateView._renderState({ kind: "non-entity", file, activeKind: "unknown" });
 
 		const badge = view.contentEl.querySelector(".sf-badge");
-		expect(badge?.textContent).toBe("not an entity");
+		expect(badge?.textContent).toBe("Not an entity");
 	});
 
 	it("S4 non-entity: body contains expected text", () => {
@@ -194,7 +194,7 @@ describe("SidebarView: state rendering", () => {
 		privateView._renderState({ kind: "resolving", file, activeKind: "character" });
 
 		const body = getBody(view);
-		expect(getText(body, ".sf-resolving")).toBe("resolving…");
+		expect(getText(body, ".sf-resolving")).toBe("Resolving…");
 	});
 
 	it("S5 resolving: body has skeleton bars", () => {
@@ -236,7 +236,7 @@ describe("SidebarView: state rendering", () => {
 		privateView._renderState({ kind: "resolved", ctx });
 
 		const body = getBody(view);
-		expect(getText(body, ".sf-stublabel")).toBe("resolved context (stub)");
+		expect(getText(body, ".sf-stublabel")).toBe("Resolved context (stub)");
 	});
 
 	it("S6 resolved-scene: rows list each entity with field and kind", () => {

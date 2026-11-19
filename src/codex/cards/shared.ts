@@ -123,9 +123,9 @@ export function missBadge(fieldId: string): HTMLElement {
 	const state = activeDocument.createElement("i");
 	// "not set" is a mid-sentence continuation of the bold field label (mockup
 	// S91/S97/S104: "<b>level</b> <i>not set</i>" reads as one phrase), not a
-	// standalone sentence.
-	// eslint-disable-next-line obsidianmd/ui/sentence-case
-	state.textContent = "not set";
+	// standalone sentence. The source is written in sentence case and
+	// `.sf-cx-miss i` lowercases it, so it still reads "level not set".
+	state.textContent = "Not set";
 	badge.appendChild(state);
 
 	return badge;

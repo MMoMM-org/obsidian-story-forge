@@ -47,7 +47,7 @@ Status: AUTO ✓
 
 | Step | Expected | Coverage |
 |------|----------|----------|
-| 3a. Focus a Canvas or PDF | Body shows "Story Forge follows markdown notes." | AUTO — `test/views/SidebarView.rendering.test.ts > S3 — non-markdown file` |
+| 3a. Focus a Canvas or PDF | Body shows "Story Forge follows Markdown notes." | AUTO — `test/views/SidebarView.rendering.test.ts > S3 — non-markdown file` |
 | 3b. Panel title shows the file name | | AUTO — same suite |
 
 Status: AUTO ✓

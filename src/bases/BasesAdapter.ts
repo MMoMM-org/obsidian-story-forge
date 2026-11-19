@@ -138,8 +138,9 @@ export function registerCodexView(
 		return availabilityCache.get(plugin)!;
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-	const registerFn: unknown = (plugin as any).registerBasesView;
+	// Read as `unknown` (not through the typed method) so a host without
+	// Bases, where the method is absent at run time, is detected, not called.
+	const registerFn: unknown = Reflect.get(plugin, "registerBasesView");
 	if (typeof registerFn !== "function") {
 		availabilityCache.set(plugin, false);
 		return false;

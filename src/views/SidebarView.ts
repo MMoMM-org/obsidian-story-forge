@@ -119,8 +119,8 @@ function listKinds(kinds: readonly string[]): string {
 }
 
 function aug(el: HTMLElement): AugEl {
-	// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-	return el as unknown as AugEl;
+	// Obsidian augments HTMLElement with createDiv/createSpan/empty, so no cast is needed.
+	return el;
 }
 
 // ---------------------------------------------------------------------------
@@ -842,7 +842,6 @@ export class SidebarView extends ItemView {
 		backEl.setAttribute("tabindex", "0");
 		backEl.setAttribute("data-sf-nav", "back");
 		// "‹ Back" — proper action label; sentence-case exempt like other nav.
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		backEl.textContent = "‹ Back";
 		this._backEl = backEl;
 		this.registerDomEvent(backEl, "click", () => { this._navBack(); });
@@ -1433,8 +1432,7 @@ export class SidebarView extends ItemView {
 			badgeEl.textContent = "—";
 			badgeEl.className = "sf-badge sf-badge-none";
 		} else if (state.kind === "non-entity") {
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			badgeEl.textContent = "not an entity";
+			badgeEl.textContent = "Not an entity";
 			badgeEl.className = "sf-badge sf-badge-none";
 		} else if (state.kind === "resolving") {
 			badgeEl.textContent = state.activeKind;
@@ -1450,8 +1448,7 @@ export class SidebarView extends ItemView {
 		// Pin tag — show/hide via CSS class (no style.display)
 		const showPin = this.subject.source === "pinned" && state.kind !== "no-note";
 		if (showPin) {
-			// eslint-disable-next-line obsidianmd/ui/sentence-case
-			pinTagEl.textContent = "pinned";
+			pinTagEl.textContent = "Pinned";
 			pinTagEl.classList.remove("sf-hidden");
 		} else {
 			pinTagEl.textContent = "";
@@ -1497,7 +1494,7 @@ export class SidebarView extends ItemView {
 			const empty = body.createDiv({ cls: "sf-empty" });
 			empty.createDiv({ cls: "sf-empty-ic", text: "🖼" });
 			// "Story Forge" is a proper noun — not a sentence-case violation
-			empty.createDiv({ text: "Story Forge follows markdown notes." });
+			empty.createDiv({ text: "Story Forge follows Markdown notes." });
 		} else if (state.kind === "non-entity") {
 			// S4: not a story entity
 			const empty = body.createDiv({ cls: "sf-empty" });
@@ -1507,7 +1504,7 @@ export class SidebarView extends ItemView {
 			});
 		} else if (state.kind === "resolving") {
 			// S5: resolving (skeleton)
-			body.createDiv({ cls: "sf-resolving", text: "resolving…" });
+			body.createDiv({ cls: "sf-resolving", text: "Resolving…" });
 			body.createDiv({ cls: "sf-skel" });
 			body.createDiv({ cls: "sf-skel" });
 			body.createDiv({ cls: "sf-skel" });
@@ -1570,7 +1567,7 @@ export class SidebarView extends ItemView {
 		const current = this.subject.file;
 		if (prev && current && state.kind !== "no-note") {
 			const trail = body.createDiv({ cls: "sf-trailrow" });
-			trail.createSpan({ cls: "sf-trail-lead", text: "from " });
+			trail.createSpan({ cls: "sf-trail-lead", text: "From " });
 			const prevLnk = trail.createSpan({ cls: "sf-lrow-lnk", text: prev.basename });
 			prevLnk.setAttribute("role", "link");
 			prevLnk.setAttribute("tabindex", "0");
@@ -1614,7 +1611,6 @@ export class SidebarView extends ItemView {
 		foot.setAttribute("role", "button");
 		foot.setAttribute("tabindex", "0");
 		foot.setAttribute("data-sf-nav", "open");
-		// eslint-disable-next-line obsidianmd/ui/sentence-case
 		foot.textContent = "⤷ Open note";
 	}
 
@@ -1768,7 +1764,7 @@ export class SidebarView extends ItemView {
 	 * TODO(T4.4): delete this method once main.ts is rewired
 	 */
 	private _renderResolvedLegacy(body: AugEl, ctx: NoteContext): void {
-		body.createDiv({ cls: "sf-stublabel", text: "resolved context (stub)" });
+		body.createDiv({ cls: "sf-stublabel", text: "Resolved context (stub)" });
 		const rows = body.createDiv({ cls: "sf-rows" });
 		for (const entity of ctx.entities) {
 			const row = rows.createDiv({ cls: "sf-row" });
@@ -1779,7 +1775,7 @@ export class SidebarView extends ItemView {
 		// Appears footer (backlink seam — M3)
 		body.createDiv({
 			cls: "sf-appears",
-			text: "appears in: — (M3)",
+			text: "Appears in: — (M3)",
 		});
 	}
 
@@ -1883,7 +1879,7 @@ export class SidebarView extends ItemView {
 	 * Rendered synchronously before engine.render() resolves.
 	 */
 	private _renderLoading(body: AugEl): void {
-		const el = body.createDiv({ cls: "sf-loading sf-resolving", text: "querying…" });
+		const el = body.createDiv({ cls: "sf-loading sf-resolving", text: "Querying…" });
 		el.createDiv({ cls: "sf-skel" });
 		el.createDiv({ cls: "sf-skel" });
 		el.createDiv({ cls: "sf-skel" });

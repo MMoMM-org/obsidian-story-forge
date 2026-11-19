@@ -43,8 +43,8 @@ export interface DataviewApi {
 }
 
 /**
- * Augmented App type for the single sanctioned any-cast (ADR-2, CON-8).
- * Usage: const dvApi = (app as any).plugins.plugins["dataview"]?.api
+ * Shape of the undocumented plugin registry EngineRegistry reads (ADR-2).
+ * Usage: app.plugins.plugins["dataview"]?.api, read via Reflect.get + narrowing
  *
  * Never used as a real runtime type — only for documentation purposes.
  */

@@ -159,7 +159,7 @@ describe("heroCard [PRD/F4] — S91 structure", () => {
 		const miss = factsLine(el)?.querySelector(".sf-cx-miss");
 		expect(miss).not.toBeNull();
 		expect(miss?.querySelector("b")?.textContent).toBe("status");
-		expect(miss?.querySelector("i")?.textContent).toBe("not set");
+		expect(miss?.querySelector("i")?.textContent).toBe("Not set");
 		expect(miss?.getAttribute("title")).toBe("This property does not exist in this note");
 	});
 
@@ -232,7 +232,7 @@ describe("heroCard [PRD/F4] — S91 structure", () => {
 			(m) => m.querySelector("b")?.textContent === "occupation",
 		);
 		expect(miss).toBeTruthy();
-		expect(miss?.querySelector("i")?.textContent).toBe("not set");
+		expect(miss?.querySelector("i")?.textContent).toBe("Not set");
 		expect(miss?.getAttribute("title")).toBe("This property does not exist in this note");
 	});
 

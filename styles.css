@@ -406,6 +406,8 @@ body {
 .sf-resolving {
 	font-size: 12px;
 	color: var(--text-faint);
+	/* Status label drawn lower case ("resolving…", "querying…"). */
+	text-transform: lowercase;
 }
 
 .sf-skel {
@@ -2229,6 +2231,11 @@ body {
 	color: var(--text-accent);
 }
 
+/* The lead word continues into the link: "from <prev>". */
+.sf-trail-lead {
+	text-transform: lowercase;
+}
+
 .sf-trail-cur {
 	color: var(--text-normal);
 }
@@ -3999,6 +4006,8 @@ body {
 .sf-cx-miss i {
 	font-style: normal;
 	opacity: 0.9;
+	/* "Not set" continues the bold label as one phrase: "level not set". */
+	text-transform: lowercase;
 }
 
 /* --- Table --- */

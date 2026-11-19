@@ -43,7 +43,6 @@ export class DataviewJsEngine implements QueryEngine {
 		// the engine must be independently safe — CON-7 / ADR-4)
 		if (Platform.isMobile) {
 			el.createEl("p", {
-				// eslint-disable-next-line obsidianmd/ui/sentence-case -- "DataviewJS" is a product name
 				text: "DataviewJS collections are not available on mobile.",
 				cls: "sf-platform-restriction",
 			});

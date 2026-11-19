@@ -216,10 +216,8 @@ export default class StoryForgePlugin extends Plugin {
 			},
 		);
 
-		// Ribbon icon — open the Workbench on click. "Workbench" is a registered
-		// brand (eslint.config.mts); "Story Forge" is the plugin's own name and
-		// isn't (T2.6) — the disable below is still needed for that half.
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Story Forge" is a proper noun
+		// Ribbon icon — open the Workbench on click. "Story Forge" and
+		// "Workbench" are registered brands (eslint.config.mts).
 		this.addRibbonIcon(ICON, "Story Forge: open Workbench", () => {
 			void activateView(this.app);
 		});
@@ -266,7 +264,6 @@ export default class StoryForgePlugin extends Plugin {
 		// existing hotkey binding survives (SDD Risks — hotkeys). Do not remove them.
 		this.addCommand({
 			id: "open-timeline",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Timeline" is a proper noun + action
 			name: "Open Timeline",
 			callback: () => {
 				void this._openWorkspace("timeline");
@@ -274,7 +271,6 @@ export default class StoryForgePlugin extends Plugin {
 		});
 		this.addCommand({
 			id: "open-plotlines",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Plotlines" is a proper noun + action
 			name: "Open Plotlines",
 			callback: () => {
 				void this._openWorkspace("plotlines");
@@ -284,15 +280,13 @@ export default class StoryForgePlugin extends Plugin {
 		// M6: interactive Kanban / Plotgrid views (same host).
 		this.addCommand({
 			id: "open-kanban",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Board" is the proper name of the tab this opens
-			name: "Open Board",
+			name: "Open board",
 			callback: () => {
 				void this._openWorkspace("kanban");
 			},
 		});
 		this.addCommand({
 			id: "open-plotgrid",
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- "Open Plotgrid" is a proper noun + action
 			name: "Open Plotgrid",
 			callback: () => {
 				void this._openWorkspace("plotgrid");
@@ -457,7 +451,6 @@ export default class StoryForgePlugin extends Plugin {
 					const views = await this.store.getViews();
 					if (!views[viewId]) {
 						// "Story Forge" is a proper noun (matches the ribbon label).
-						// eslint-disable-next-line obsidianmd/ui/sentence-case
 						new Notice("This Story Forge collection no longer exists.");
 						return;
 					}

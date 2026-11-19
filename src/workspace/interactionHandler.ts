@@ -37,6 +37,7 @@ import { Component, debounce } from "obsidian";
 import { DEBOUNCE_MS } from "pluginConstants";
 import type { CommitEntry, CommitResult } from "../inspector/frontmatterWriter";
 import type { JournalGroup } from "../undo/journalTypes";
+import { isHtmlElement } from "../navigation/keyboardRouting";
 
 // ---------------------------------------------------------------------------
 // Re-export CommitEntry so renderers don't need a second import path.
@@ -567,8 +568,8 @@ export class InteractionHandler {
 	private _resolveCard(target: Element): HTMLElement | null {
 		let el: Element | null = target;
 		while (el) {
-			// eslint-disable-next-line obsidianmd/prefer-instanceof
-			if (el instanceof HTMLElement && this._cards.has(el)) {
+			// Cross-window check: a card in a popout is another window's HTMLElement.
+			if (isHtmlElement(el) && this._cards.has(el)) {
 				return el;
 			}
 			el = el.parentElement;

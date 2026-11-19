@@ -37,8 +37,8 @@ type AugEl = HTMLElement & {
 };
 
 function asAug(el: HTMLElement): AugEl {
-	// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-	return el as unknown as AugEl;
+	// Obsidian augments HTMLElement with createDiv/createSpan/empty, so no cast is needed.
+	return el;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +63,7 @@ export class StubContextTab implements ContextTab {
 		// Backlink seam footer — empty in M1, filled in M3
 		root.createDiv({
 			cls: "sf-appears",
-			text: "appears in: — (M3)",
+			text: "Appears in: — (M3)",
 		});
 	}
 }

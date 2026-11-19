@@ -75,7 +75,6 @@ function renderSceneCard(rail: HTMLElement, scene: SceneRow): void {
 	const cm = card.createEl("div", { cls: "sf-tl-cm" });
 	if (scene.pov) {
 		const pov = cm.createEl("span", { cls: "sf-tl-pov" });
-		// eslint-disable-next-line obsidianmd/ui/sentence-case -- "POV" is an acronym
 		pov.createEl("span", { cls: "sf-tl-pov-k", text: "POV: " });
 		fieldLink(pov, "sf-tl-flink", scene.pov.name, scene.pov.path);
 	}

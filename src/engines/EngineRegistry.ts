@@ -3,10 +3,10 @@
  * getDvSettings   — reads Dataview's runtime settings (enableDataviewJs).
  * buildEngineRegistry — constructs the wired registry for SidebarView.
  *
- * CON-8 / ADR-2: ALL `app as any` casts in the codebase are confined to THIS
- * file. getDataviewApi and getDvSettings are the ONLY two sanctioned any-cast
- * surfaces; both access cross-plugin state via the Obsidian community plugin
- * convention (plugins.plugins["dataview"]). No other file may cast app to any.
+ * ADR-2: ALL reads of the undocumented `app.plugins` registry are confined to
+ * THIS file. getDataviewApi and getDvSettings are the ONLY two surfaces; both
+ * access cross-plugin state via the Obsidian community plugin convention
+ * (plugins.plugins["dataview"]), read as `unknown` and narrowed — no `any`.
  *
  * @ref SDD/ADR-2 (feature detection; any-cast isolation; version gate >=0.5.31;
  *              re-read per render — no cached reference)
@@ -26,7 +26,7 @@ import { BasesFenceEngine } from "engines/BasesFenceEngine";
 /**
  * Read the Dataview plugin API from the app's plugin registry.
  *
- * CON-8 sanctioned any-cast #1 of 2 (both in this file).
+ * Registry read #1 of 2 (both in this file, through dataviewPlugin()).
  * Accessing cross-plugin API via plugins.plugins["dataview"]?.api
  * is the Obsidian community plugin convention.
  *
@@ -39,8 +39,7 @@ import { BasesFenceEngine } from "engines/BasesFenceEngine";
  * Dataview can be disabled at runtime).
  */
 export function getDataviewApi(app: App): DataviewApi | undefined {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-	const api: unknown = (app as any).plugins?.plugins?.["dataview"]?.api;
+	const api = dataviewPlugin(app)?.api;
 	if (!api || typeof api !== "object") return undefined;
 	const typed = api as DataviewApi;
 	if (!typed.version?.satisfies?.(">=0.5.31")) return undefined;
@@ -50,7 +49,7 @@ export function getDataviewApi(app: App): DataviewApi | undefined {
 /**
  * Read Dataview's runtime settings from the app's plugin registry.
  *
- * CON-8 sanctioned any-cast #2 of 2 (both in this file).
+ * Registry read #2 of 2 (both in this file, through dataviewPlugin()).
  * Used by ConsentGate (via DvSettingsReader) to check whether DataviewJS
  * execution is enabled in Dataview's own settings panel. Does NOT require the
  * version gate — we need raw settings access independent of API readiness.
@@ -59,11 +58,27 @@ export function getDataviewApi(app: App): DataviewApi | undefined {
  * Re-read on every call — no cached reference (same rationale as getDataviewApi).
  */
 export function getDvSettings(app: App): { enableDataviewJs: boolean } {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-	const dv = (app as any).plugins?.plugins?.["dataview"];
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-	const enabled: unknown = dv?.api?.settings?.enableDataviewJs;
+	const api = dataviewPlugin(app)?.api;
+	const settings = isRecord(api) ? api.settings : undefined;
+	const enabled = isRecord(settings) ? settings.enableDataviewJs : undefined;
 	return { enableDataviewJs: enabled === true };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+/**
+ * Dataview's entry in `app.plugins.plugins`, or `undefined` when any step is
+ * missing. `App` does not declare `plugins` (it is undocumented), so the
+ * registry is read with `Reflect.get` as `unknown` and narrowed one level at a
+ * time instead of casting `app`.
+ */
+function dataviewPlugin(app: App): Record<string, unknown> | undefined {
+	const registry: unknown = Reflect.get(app, "plugins");
+	const plugins = isRecord(registry) ? registry.plugins : undefined;
+	const dataview = isRecord(plugins) ? plugins["dataview"] : undefined;
+	return isRecord(dataview) ? dataview : undefined;
 }
 
 /**

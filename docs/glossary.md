@@ -21,7 +21,7 @@ usually edit it in Bases.
 ## Board
 
 The Anvil tab that shows scenes in columns by their `status`. Dragging a card writes the new
-`status` (and `order`) to the note. The command that opens it is **Open Board** (older versions call it
+`status` (and `order`) to the note. The command that opens it is **Open board** (older versions call it
 **Open Kanban**).
 
 ## Capability screen

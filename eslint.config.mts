@@ -33,6 +33,14 @@ const BRANDS = [
 	"JavaScript",
 	"iOS",
 	"Android",
+	// Plugins Story Forge integrates with
+	"Bases",
+	"Dataview",
+	"DataviewJS",
+	"Metadata Menu",
+	"Longform",
+	"Calendarium",
+	"Storyline",
 	// Story Forge's own vocabulary
 	"Story Forge",
 	"Anvil",
@@ -41,8 +49,18 @@ const BRANDS = [
 	"Timeline",
 	"Plotlines",
 	"Plotgrid",
+	"FileClass",
 	"FileClasses",
+	// The default vault folder Story Forge installs into, named as written
+	"00 Meta",
+	// Acronyms the UI writes in capitals (the `acronyms` option would replace
+	// the rule's whole default list, so they sit here)
+	"POV",
 ];
+
+// Settings breadcrumbs ("Settings › Library › Collections") name headings and
+// tabs exactly as the UI shows them, so their words keep their case.
+const IGNORE_REGEX = [" › "];
 
 export default defineConfig([
 	{
@@ -96,7 +114,10 @@ export default defineConfig([
 			"obsidianmd/no-unsupported-api": "error",
 
 			// Local addition (see the header): sentence case with our brands.
-			"obsidianmd/ui/sentence-case": ["error", { enforceCamelCaseLower: true, brands: BRANDS }],
+			"obsidianmd/ui/sentence-case": [
+				"error",
+				{ enforceCamelCaseLower: true, brands: BRANDS, ignoreRegex: IGNORE_REGEX },
+			],
 		},
 	},
 

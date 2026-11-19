@@ -362,7 +362,7 @@ describe("SidebarView: drill-in navigation", () => {
 		// ...and the S4 state renders.
 		const body = getBody(view);
 		const badge = view.contentEl.querySelector(".sf-badge");
-		expect(badge?.textContent).toBe("not an entity");
+		expect(badge?.textContent).toBe("Not an entity");
 		expect(body.textContent).toContain(
 			"This note isn't a tracked character, location, object, lore, scene, plotline, or book.",
 		);
@@ -763,7 +763,7 @@ describe("SidebarView: header Back + drill trail (S41)", () => {
 
 		const trail = getBody(view).querySelector(".sf-trailrow") as HTMLElement | null;
 		expect(trail).not.toBeNull();
-		expect(trail?.textContent).toContain("from");
+		expect(trail?.textContent).toContain("From");
 		expect(trail?.textContent).toContain("Mara Stoneway");
 		expect(trail?.textContent).toContain("Silvan Nightweaver");
 	});
@@ -1111,9 +1111,9 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 
 		expect(() => { view.showFile(nonMd); }).not.toThrow();
 
-		// Non-md state: body shows "Story Forge follows markdown notes." (S3)
+		// Non-md state: body shows "Story Forge follows Markdown notes." (S3)
 		const body = view.contentEl.querySelector(".sf-body");
-		expect(body?.textContent).toContain("Story Forge follows markdown notes.");
+		expect(body?.textContent).toContain("Story Forge follows Markdown notes.");
 	});
 
 	it("showFile(mdFile with null cache) yields error state and does not throw (AC-F2.6)", () => {
@@ -1142,7 +1142,7 @@ describe("SidebarView: showFile public seam (T3.1)", () => {
 		expect(() => { view.showFile(nonEntity); }).not.toThrow();
 
 		const badge = view.contentEl.querySelector(".sf-badge");
-		expect(badge?.textContent).toBe("not an entity");
+		expect(badge?.textContent).toBe("Not an entity");
 	});
 });
 

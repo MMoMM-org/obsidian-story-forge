@@ -250,7 +250,6 @@ export class SettingsTab extends PluginSettingTab {
 				.setDesc("Where Browse repo… places the .base files and Dataview notes it installs. Default: 00 Meta/Bases")
 				.addText((text) =>
 					text
-						// eslint-disable-next-line obsidianmd/ui/sentence-case -- '00 Meta/Bases' is a vault path placeholder
 						.setPlaceholder("00 Meta/Bases")
 						.setValue(this.plugin.settings.curatedBasesFolder)
 						.onChange(async (value) => {
@@ -353,13 +352,10 @@ export class SettingsTab extends PluginSettingTab {
 		new SettingGroup(containerEl).setHeading("Vault folders")
 			.addSetting((setting) => {
 				setting
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClasses' is metadata-menu's proper noun for its fc-*.md files
 					.setName("FileClasses folder")
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- 'FileClass'/'FileClasses' are metadata-menu's proper noun
 					.setDesc("Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses")
 					.addText((text) => {
 						text
-							// eslint-disable-next-line obsidianmd/ui/sentence-case -- '00 Meta/FileClasses' is a vault path placeholder
 							.setPlaceholder("00 Meta/FileClasses")
 							.setValue(normalizeFileClassesFolder(this.plugin.settings.fileClassesFolder))
 							.onChange(async (value) => {

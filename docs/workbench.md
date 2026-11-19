@@ -53,7 +53,7 @@ come from the note's FileClass, the same as in the Anvil's editor pane. See
 **Empty states.**
 
 - "No note open": open a note to see its story context.
-- "Story Forge follows markdown notes.": the active file isn't a note, for example an image.
+- "Story Forge follows Markdown notes.": the active file isn't a note, for example an image.
 - "This note isn't a tracked …" (the message lists the entity types): the note has none of
   the entity tags and no `type` Property. See
   [Getting started](getting-started.md#tag-your-entities).

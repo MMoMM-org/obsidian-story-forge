@@ -12,7 +12,7 @@ Run **Story Forge: Open Anvil** from the command palette. It opens on the Codex 
 only ever one Anvil: if it is already open, the command brings it to the front.
 
 These commands open the Anvil straight on a tab: **Open Timeline**, **Open Plotlines**,
-**Open Plotgrid** and **Open Board**. Older versions call **Open Board** "Open Kanban".
+**Open Plotgrid** and **Open board**. Older versions call **Open board** "Open Kanban".
 
 The header holds the tabs, zoom controls (**Zoom out**, **Reset zoom**, **Zoom in**) and the
 ↶ ↷ buttons for [Undo](undo.md).
