@@ -4,7 +4,7 @@
  *
  * @ref docs/XDD/specs/010-ship-vault-artifacts/solution.md — CON-4, ADR-38, ADR-40
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App, wireMemoryVault } from "obsidian";
@@ -53,6 +53,9 @@ describe("loading the plugin into an empty vault (T2.7)", () => {
 		live.push(plugin);
 		// Layout-ready callbacks run at once in the mock; flush any that were deferred.
 		app.workspace._flushLayoutReady();
+		// _restoreViewCommands is fire-and-forget async: let it settle so a late write is caught.
+		await new Promise((r) => setTimeout(r, 0));
+		await new Promise((r) => setTimeout(r, 0));
 		await plugin.artifactStore.load();
 
 		const ran = Object.entries(vaultMutators(app))
@@ -68,10 +71,15 @@ describe("loading the plugin into an empty vault (T2.7)", () => {
 
 describe("the production bundle (PRD F1.1)", () => {
 	const bundle = path.resolve(__dirname, "../../build/main.js");
+	const indexFile = path.resolve(__dirname, "../../dist/artifact-index.json");
 	const present = existsSync(bundle);
+	// A bundle older than the index it embeds is stale (built before the index changed).
+	const stale = present && existsSync(indexFile) && statSync(bundle).mtimeMs < statSync(indexFile).mtimeMs;
 	// CI builds before testing (.github/workflows/lint.yml: `npm run build`, then `npm test`),
-	// so a missing bundle there is a failure; locally it is skipped.
-	it.skipIf(!present && !process.env.CI)("build/main.js carries the artifact index entries", () => {
+	// so a missing bundle there is a failure; locally a missing or stale one is skipped.
+	const skipLocal = !process.env.CI && (!present || stale);
+	if (skipLocal) console.warn("skipping bundle check: build/main.js missing or older than dist/artifact-index.json; run `npm run build`");
+	it.skipIf(skipLocal)("build/main.js carries the artifact index entries", () => {
 		expect(present, "build/main.js missing: run `npm run build` before `npm test`").toBe(true);
 		const js = readFileSync(bundle, "utf8");
 		expect(js.includes("fileclass/fc-scene"), "index entry fileclass/fc-scene").toBe(true);
