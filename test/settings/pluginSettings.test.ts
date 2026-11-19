@@ -29,8 +29,13 @@ import {
 	normalizeExcludedFolders,
 	isFileClassesFolder,
 	normalizeFileClassesFolder,
+	isTemplatesFolder,
+	normalizeTemplatesFolder,
+	isSchemaFolder,
+	normalizeSchemaFolder,
 	normalizeSettings,
 } from "../../src/types/index";
+import { DEFAULT_ARTIFACT_FOLDERS } from "../../src/artifacts/artifactTypes";
 
 type RemoveCommandCallback = (viewId: string) => void;
 
@@ -411,5 +416,52 @@ describe("keepUndoHistory", () => {
 
 	it.each([["false", "false"], ["0", 0], ["null", null], ["object", {}]])("falls back to true for a non-boolean (%s)", (_n, v) => {
 		expect(normalizeSettings({ keepUndoHistory: v }).keepUndoHistory).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// templatesFolder / schemaFolder (spec 010, T2.1)
+// ---------------------------------------------------------------------------
+
+describe.each([
+	["templatesFolder", "00 Meta/Templates", isTemplatesFolder, normalizeTemplatesFolder],
+	["schemaFolder", "00 Meta/Schema", isSchemaFolder, normalizeSchemaFolder],
+] as const)("%s", (key, def, isFn, normFn) => {
+	it("defaults to the shipped artifact folder", () => {
+		expect(DEFAULT_SETTINGS[key]).toBe(def);
+		expect(DEFAULT_SETTINGS[key]).toBe(DEFAULT_ARTIFACT_FOLDERS[key]);
+		expect(normalizeSettings({})[key]).toBe(def);
+	});
+	it("guard accepts a non-empty string only", () => {
+		expect(isFn("Custom")).toBe(true);
+		for (const v of ["", "   ", 1, null, undefined, {}, []]) expect(isFn(v)).toBe(false);
+	});
+	it("normaliser keeps a valid value and strips trailing slashes", () => {
+		expect(normFn("Custom/Dir")).toBe("Custom/Dir");
+		expect(normFn("Custom/Dir///")).toBe("Custom/Dir");
+	});
+	it("normaliser falls back for empty, whitespace, slashes-only and non-strings", () => {
+		for (const v of ["", "  ", "/", "///", 1, null, undefined, true, {}]) expect(normFn(v)).toBe(def);
+	});
+	it("normalizeSettings keeps a stored valid value and falls back for an invalid one", () => {
+		expect(normalizeSettings({ [key]: "My/Folder/" })[key]).toBe("My/Folder");
+		expect(normalizeSettings({ [key]: 5 })[key]).toBe(def);
+	});
+});
+
+describe("normalizeSettings — settings saved before the two folder keys existed", () => {
+	it("loads unchanged and only gains the two defaults", () => {
+		const legacy = {
+			linkClickAction: "open",
+			cardTitleOpensNote: false,
+			curatedBasesFolder: "My/Bases",
+			fileClassesFolder: "My/FC",
+			excludedFolders: ["X"],
+			editorDock: "right",
+		};
+		const out = normalizeSettings(legacy);
+		expect(out).toMatchObject(legacy);
+		expect(out.templatesFolder).toBe("00 Meta/Templates");
+		expect(out.schemaFolder).toBe("00 Meta/Schema");
 	});
 });

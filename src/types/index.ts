@@ -1,4 +1,5 @@
 import { BUILT_IN_COLLECTIONS } from "codex/builtinCollections";
+import { DEFAULT_ARTIFACT_FOLDERS } from "artifacts/artifactTypes";
 
 export interface PluginSettings {
 	/** ADR-5: link-click action; modifier-click inverts. Default: "drill". */
@@ -18,6 +19,18 @@ export interface PluginSettings {
 	 * @ref SDD/Data Storage Changes — Settings.fileClassesFolder
 	 */
 	fileClassesFolder: string;
+	/**
+	 * Vault folder the shipped entity and scene Templates are written to.
+	 * Default "00 Meta/Templates". Falls back to the default when unset or empty.
+	 * @ref SDD/Data Storage Changes — Settings.templatesFolder
+	 */
+	templatesFolder: string;
+	/**
+	 * Vault folder the shipped Schema reference notes are written to.
+	 * Default "00 Meta/Schema". Falls back to the default when unset or empty.
+	 * @ref SDD/Data Storage Changes — Settings.schemaFolder
+	 */
+	schemaFolder: string;
 	/**
 	 * Folders whose notes are excluded from every collection/scope resolution
 	 * (CON-7: exclusion only — this is never an include list). Default ["00 Meta"].
@@ -115,6 +128,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	cardTitleOpensNote: true,
 	curatedBasesFolder: "00 Meta/Bases",
 	fileClassesFolder: DEFAULT_FILE_CLASSES_FOLDER,
+	templatesFolder: DEFAULT_ARTIFACT_FOLDERS.templatesFolder,
+	schemaFolder: DEFAULT_ARTIFACT_FOLDERS.schemaFolder,
 	excludedFolders: [...DEFAULT_EXCLUDED_FOLDERS],
 	editorDock: DEFAULT_EDITOR_DOCK,
 	cardByCollection: {},
@@ -181,6 +196,30 @@ export function normalizeFileClassesFolder(v: unknown): string {
 	if (!isFileClassesFolder(v)) return DEFAULT_FILE_CLASSES_FOLDER;
 	const trimmed = v.replace(/\/+$/, "");
 	return trimmed === "" ? DEFAULT_FILE_CLASSES_FOLDER : trimmed;
+}
+
+/** Type guard: returns true if `v` is a valid `templatesFolder` value (a non-blank string). */
+export function isTemplatesFolder(v: unknown): v is string {
+	return typeof v === "string" && v.trim().length > 0;
+}
+
+/** Normalizer: trailing slashes stripped; unset, blank or slashes-only fails closed to the default. */
+export function normalizeTemplatesFolder(v: unknown): string {
+	if (!isTemplatesFolder(v)) return DEFAULT_ARTIFACT_FOLDERS.templatesFolder;
+	const trimmed = v.replace(/\/+$/, "");
+	return trimmed.trim() === "" ? DEFAULT_ARTIFACT_FOLDERS.templatesFolder : trimmed;
+}
+
+/** Type guard: returns true if `v` is a valid `schemaFolder` value (a non-blank string). */
+export function isSchemaFolder(v: unknown): v is string {
+	return typeof v === "string" && v.trim().length > 0;
+}
+
+/** Normalizer: trailing slashes stripped; unset, blank or slashes-only fails closed to the default. */
+export function normalizeSchemaFolder(v: unknown): string {
+	if (!isSchemaFolder(v)) return DEFAULT_ARTIFACT_FOLDERS.schemaFolder;
+	const trimmed = v.replace(/\/+$/, "");
+	return trimmed.trim() === "" ? DEFAULT_ARTIFACT_FOLDERS.schemaFolder : trimmed;
 }
 
 /** Type guard: returns true if `v` is a valid `curatedBasesFolder` value (a non-empty string). */
@@ -294,6 +333,8 @@ export function normalizeSettings(raw: unknown): PluginSettings {
 		cardTitleOpensNote: normalizeCardTitleOpensNote(stored.cardTitleOpensNote),
 		curatedBasesFolder: normalizeCuratedBasesFolder(stored.curatedBasesFolder),
 		fileClassesFolder: normalizeFileClassesFolder(stored.fileClassesFolder),
+		templatesFolder: normalizeTemplatesFolder(stored.templatesFolder),
+		schemaFolder: normalizeSchemaFolder(stored.schemaFolder),
 		excludedFolders: normalizeExcludedFolders(stored.excludedFolders),
 		editorDock: normalizeEditorDock(stored.editorDock),
 		cardByCollection: normalizeCardByCollection(stored.cardByCollection),

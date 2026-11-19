@@ -184,7 +184,7 @@ describe("Phase 3 upgrade — settings load through main.ts's loadSettings()", (
 		expect("exampleSetting" in plugin.settings).toBe(false);
 	});
 
-	it("round-trips all twelve declared fields when every one is stored, and carries no stray key", async () => {
+	it("round-trips all fourteen declared fields when every one is stored, and carries no stray key", async () => {
 		const plugin = await makePlugin();
 		plugin.loadData.mockResolvedValue(FIXTURE_ALL_FIELDS_STORED);
 
@@ -195,6 +195,8 @@ describe("Phase 3 upgrade — settings load through main.ts's loadSettings()", (
 			cardTitleOpensNote: false,
 			curatedBasesFolder: "Custom/Bases",
 			fileClassesFolder: "Custom/FileClasses",
+			templatesFolder: "00 Meta/Templates",
+			schemaFolder: "00 Meta/Schema",
 			excludedFolders: ["Custom Excluded"],
 			editorDock: "right",
 			cardByCollection: { character: "table" },
@@ -229,6 +231,8 @@ describe("Phase 3 upgrade — settings save through main.ts's saveSettings()", (
 			cardTitleOpensNote: true,
 			curatedBasesFolder: "00 Meta/Bases",
 			fileClassesFolder: "00 Meta/FileClasses",
+			templatesFolder: "00 Meta/Templates",
+			schemaFolder: "00 Meta/Schema",
 			excludedFolders: ["00 Meta"],
 			editorDock: "bottom",
 			cardByCollection: {},
