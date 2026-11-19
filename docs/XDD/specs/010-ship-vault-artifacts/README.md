@@ -37,6 +37,7 @@
 | 2026-11-18 | Repo made public and release triggered by the maintainer as the last step | Outward actions stay with the user; release is 0.2.0 (what semantic-release computes) |
 | 2026-11-18 | ADR-38–44 confirmed | Index, CI drift gate, `data.json` records, shared Vault-API writer, Scope-tab UI, neutral content, scanner-aligned lint + release |
 | 2026-11-18 | PLAN complete: 6 phases | 1 generator/index/gate → 2 core → 3 UI (mockup gate) → 4 scanner-clean (beside 3) → 5 docs → 6 live walk + release checklist |
+| 2026-11-19 | Mockup open questions O1–O6 decided | O1 a folder change in the dialog is saved only on confirm, Cancel changes nothing; O2 the partial status names the sets not set up; O3 value lists stay independent of fc-character-fantasy; O4 refusals keep "Not installed"/"Not updated"; O5 the missing-row checkbox has a visible "Set up again" label; O6 the notice lists up to 5 skipped files by name. Mockups S1–S6 (D1–D12) await sign-off |
 
 ## Context
 
