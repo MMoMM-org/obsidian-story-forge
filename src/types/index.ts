@@ -198,28 +198,39 @@ export function normalizeFileClassesFolder(v: unknown): string {
 	return trimmed === "" ? DEFAULT_FILE_CLASSES_FOLDER : trimmed;
 }
 
-/** Type guard: returns true if `v` is a valid `templatesFolder` value (a non-blank string). */
-export function isTemplatesFolder(v: unknown): v is string {
+/**
+ * Shared guard for the artifact folder settings: a non-blank string. The new keys reject
+ * whitespace-only on purpose; `fileClassesFolder` predates that and still accepts it.
+ */
+function isFolderSetting(v: unknown): v is string {
 	return typeof v === "string" && v.trim().length > 0;
 }
 
-/** Normalizer: trailing slashes stripped; unset, blank or slashes-only fails closed to the default. */
-export function normalizeTemplatesFolder(v: unknown): string {
-	if (!isTemplatesFolder(v)) return DEFAULT_ARTIFACT_FOLDERS.templatesFolder;
+/** Shared normalizer: trailing slashes stripped; unset, blank or slashes-only fails closed to `fallback`. */
+function normalizeFolderSetting(v: unknown, fallback: string): string {
+	if (!isFolderSetting(v)) return fallback;
 	const trimmed = v.replace(/\/+$/, "");
-	return trimmed.trim() === "" ? DEFAULT_ARTIFACT_FOLDERS.templatesFolder : trimmed;
+	return trimmed.trim() === "" ? fallback : trimmed;
+}
+
+/** Type guard: returns true if `v` is a valid `templatesFolder` value (a non-blank string). */
+export function isTemplatesFolder(v: unknown): v is string {
+	return isFolderSetting(v);
+}
+
+/** Normalizer for `templatesFolder`; see `normalizeFolderSetting`. */
+export function normalizeTemplatesFolder(v: unknown): string {
+	return normalizeFolderSetting(v, DEFAULT_ARTIFACT_FOLDERS.templatesFolder);
 }
 
 /** Type guard: returns true if `v` is a valid `schemaFolder` value (a non-blank string). */
 export function isSchemaFolder(v: unknown): v is string {
-	return typeof v === "string" && v.trim().length > 0;
+	return isFolderSetting(v);
 }
 
-/** Normalizer: trailing slashes stripped; unset, blank or slashes-only fails closed to the default. */
+/** Normalizer for `schemaFolder`; see `normalizeFolderSetting`. */
 export function normalizeSchemaFolder(v: unknown): string {
-	if (!isSchemaFolder(v)) return DEFAULT_ARTIFACT_FOLDERS.schemaFolder;
-	const trimmed = v.replace(/\/+$/, "");
-	return trimmed.trim() === "" ? DEFAULT_ARTIFACT_FOLDERS.schemaFolder : trimmed;
+	return normalizeFolderSetting(v, DEFAULT_ARTIFACT_FOLDERS.schemaFolder);
 }
 
 /** Type guard: returns true if `v` is a valid `curatedBasesFolder` value (a non-empty string). */
