@@ -65,6 +65,8 @@
   .note b{color:var(--muted)}
   .oq{font-size:11px;color:var(--mk-proposal);margin-top:6px;max-width:76ch}
   .oq b{color:var(--mk-proposal)}
+  .oq.res{color:var(--muted)}
+  .oq.res b{color:var(--st-written)}
 
   .mk-toggle{position:fixed;top:14px;right:18px;display:flex;border:1px solid var(--border-2);
     border-radius:6px;overflow:hidden;background:var(--panel);z-index:20}
@@ -300,10 +302,10 @@ Default folders <code>00 Meta/FileClasses</code>, <code>00 Meta/Templates</code>
     button: <i>Cancel</i>. Focus starts on the first set's checkbox, never on the primary button.
     <span class="rec"><b>Recommended.</b> The count is the last check before writing; Enter on open never writes.</span></li>
   <li id="D7"><b>D7 — Folder changes in the dialog.</b> The folder field per set is the same folder suggester as in
-    settings. A change is saved to the matching setting when you leave the field, and the set's plan is recomputed (SDD
-    Primary Flow step 4). <i>Cancel</i> writes no file, but a folder you changed stays changed.
-    <span class="rec"><b>Recommended</b> — that is what the SDD says. Open question O1 below asks whether you would
-    rather have <i>Cancel</i> revert the folder too.</span></li>
+    settings. A change is saved to the matching setting only when you confirm with the primary button; the set's plan is
+    still recomputed on change, as a preview only (SDD Primary Flow step 4). <i>Cancel</i> (and Escape, ✕) changes
+    nothing: no file is written and no setting is changed.
+    <span class="rec"><b>Decided (O1, 2026-11-19)</b> — this replaces the SDD's "saved when you leave the field".</span></li>
   <li id="D8"><b>D8 — "Setting now points to …" shown once per set.</b> When the set's files were set up in another folder
     than the setting now names, the set card carries one grey note above its rows; the rows show the record path.
     <span class="rec"><b>Recommended.</b> Seven identical row notes are noise. A per-row note appears only for a file
@@ -409,7 +411,7 @@ S1a.</figcaption>
   <span class="k">Checking (transient)</span><span class="sx-status none">Checking story files…</span>
   <span class="k">Not set up</span><span class="sx-status none">Not set up. Writes FileClasses, templates and a schema reference into the folders above, after you confirm.</span>
   <span class="k">Up to date</span><span class="sx-status ok">27 story files set up and up to date.</span>
-  <span class="k">Partly set up</span><span class="sx-status ok">9 of 27 story files set up and up to date. <span class="aside">FileClasses and Templates are not set up.</span></span>
+  <span class="k">Partly set up</span><span class="sx-status ok">FileClasses and Schema reference set up · Templates not set up. <span class="aside">9 of 27 story files up to date.</span></span>
   <span class="k">Updates available</span><span class="sx-status upd">3 updates available.</span>
   <span class="k">Missing</span><span class="sx-status miss">1 missing. <span class="aside">A set-up file was moved or deleted; it is not recreated unless you ask.</span></span>
   <span class="k">Both</span><span class="sx-status upd">3 updates available · 1 missing.</span>
@@ -421,8 +423,8 @@ S1a.</figcaption>
 path — no record, never ours), <code>skip-edited</code> (shown only as the aside), <code>unreadable</code> and
 <code>refused</code> (reported in the dialog). "Set up" in <i>N of 27</i> = files with a record. Singular:
 <i>1 update available.</i> Amber is text weight plus colour; the words carry the meaning on their own.</p>
-<p class="oq"><b>Open question O2:</b> should <i>Partly set up</i> name the missing sets (as drawn) or only the
-count? Naming them is one more clause, but tells you why the number is not 27.</p>
+<p class="oq res"><b>Resolved O2:</b> <i>Partly set up</i> names the sets that are not set up (as drawn); the
+9-of-27 count stays as an aside. Wording stays <span class="mk-tag prop">proposed</span>.</p>
 </figure>
 
 <figure>
@@ -531,9 +533,8 @@ the file name, and the action on the right. The three value lists carry a faint 
 <code>book.md</code> … <code>scene.md</code>. Order = index order, with <code>README.md</code> first. <b>Unticking
 <code>fc-armor.md</code></b> alone is allowed; the fantasy character FileClass then points at a value list that does
 not exist, which metadata-menu tolerates (empty list).</p>
-<p class="oq"><b>Open question O3:</b> should the three value lists be tied to <code>fc-character-fantasy.md</code>
-(unticking one unticks all four), or stay independent as drawn? Independent is simpler; tied matches PRD F5's "set
-up with it".</p>
+<p class="oq res"><b>Resolved O3:</b> the three value lists stay independent rows, as drawn (unticking one does not
+untick the others).</p>
 </figure>
 
 <figure>
@@ -584,7 +585,7 @@ texts are the code's, word for word <span class="mk-tag sdd">SDD</span>; action 
         <div class="sx-row"><span class="sx-cb on">✓</span><span class="f">fc-lore.md</span><span class="sx-act upd">Update</span></div>
         <div class="sx-row"><span></span><span class="f">fc-scene.md</span><span class="sx-act skip">Not updated</span>
           <span class="why">Not updated: 00 Meta/FileClasses/fc-scene.md was edited after it was installed, and updating would overwrite those edits.</span></div>
-        <div class="sx-row"><span class="sx-cb" role="checkbox" aria-checked="false" aria-label="Set up fc-location.md again">&nbsp;</span><span class="f">fc-location.md</span><span class="sx-act miss">Missing</span>
+        <div class="sx-row"><span class="sx-cb" role="checkbox" aria-checked="false" aria-labelledby="s3-again">&nbsp;</span><span class="f">fc-location.md</span><span style="display:inline-flex;align-items:center;gap:8px"><span id="s3-again" style="font-size:11px;color:var(--text)">Set up again</span><span class="sx-act miss">Missing</span></span>
           <span class="why">00 Meta/FileClasses/fc-location.md was set up but is no longer there. It is not recreated unless you tick <i>Set up again</i>. <span class="mk-tag prop">proposed</span></span></div>
         <div class="sx-row dim"><span></span><span class="f">fc-book.md</span><span class="sx-act ok">Up to date</span></div>
         <div class="sx-row dim"><span></span><span class="f">fc-character-fantasy.md</span><span class="sx-act ok">Up to date</span></div>
@@ -648,18 +649,15 @@ up again at its record path with its recorded folders (SDD Primary Flow step 5).
 <tr><td><code>up-to-date</code></td><td>✓ Up to date</td><td>none</td><td>—</td></tr>
 <tr><td><code>skip-exists</code></td><td>Not installed</td><td>none</td><td><i>Not installed: &lt;path&gt; already exists. Move, rename or remove it, then install again.</i> (code)</td></tr>
 <tr><td><code>skip-edited</code></td><td>Not updated</td><td>none</td><td><i>Not updated: &lt;path&gt; was edited after it was installed, and updating would overwrite those edits.</i> (code)</td></tr>
-<tr><td><code>missing</code></td><td>Missing</td><td><b>unticked</b>, label <i>Set up again</i></td><td><i>&lt;path&gt; was set up but is no longer there. It is not recreated unless you tick Set up again.</i></td></tr>
+<tr><td><code>missing</code></td><td>Missing</td><td><b>unticked</b>, visible label <i>Set up again</i> beside the action pill</td><td><i>&lt;path&gt; was set up but is no longer there. It is not recreated unless you tick Set up again.</i></td></tr>
 <tr><td><code>unreadable</code></td><td>Unreadable</td><td>none</td><td><i>Not installed: could not read &lt;path&gt;: &lt;error&gt;</i> (code)</td></tr>
 <tr><td><code>refused</code></td><td>Damaged</td><td>none</td><td><i>Not installed: the bundled copy of this file is damaged, so nothing was written. Reinstalling Story Forge restores it.</i> + raw <code>checksum mismatch</code> (spec 008 L10f(d) wording, "collection" → "file")</td></tr>
 </table>
 </div>
-<p class="oq"><b>Open question O4:</b> the code's refusal texts say "installed" / "install again" (shared with curated
-collections). In this dialog the verb is "set up". Keep them word for word (as drawn, PRD F4 quotes the catalog
-prefixes), or give story files their own verb (<i>…was edited after it was set up…</i>, <i>…then set it up
-again.</i>)? Recommended: keep word for word — one writer, one set of sentences.</p>
-<p class="oq"><b>Open question O5:</b> the Missing row's checkbox label. Drawn as an <code>aria-label</code> only, with
-the visible hint in the reason line. Alternative: a visible <i>☐ Set up again</i> next to the action pill
-(clearer, one more control on the row).</p>
+<p class="oq res"><b>Resolved O4:</b> refusals keep the code's wording word for word, "Not installed" / "Not updated"
+(one writer, one set of sentences).</p>
+<p class="oq res"><b>Resolved O5:</b> the Missing row's checkbox carries a visible label <i>Set up again</i> next to
+the action pill, not only an <code>aria-label</code>.</p>
 </figure>
 </div>
 
@@ -765,9 +763,7 @@ turned into a refusal at the re-check just before writing (SDD Error Handling). 
 <code>executePlan</code>'s reasons as they are. Each line is also logged once with
 <code>console.debug("[StoryForge] …")</code>. The notice is built with element helpers, no <code>innerHTML</code>.
 In the damaged line, the notice names the path because it has no row to sit in.</p>
-<p class="oq"><b>Open question O6:</b> the dialog already showed every skip reason before you confirmed. Should the
-notice repeat the skipped lines (as drawn, PRD F2.7 "names each file that was skipped with its reason") or only count
-them (<i>5 skipped</i>) and list failures? Recommended: as drawn — the PRD asks for names.</p>
+<p class="oq res"><b>Resolved O6:</b> the notice lists up to 5 skipped or failed files by name, as drawn (PRD F2.7).</p>
 </figure>
 
 <figure>
@@ -837,7 +833,7 @@ setup dialog; this screen writes nothing (PRD F2.9).</figcaption>
 counts as <i>Got it</i> (recorded as seen, as any close does today). The capability modal itself calls only the
 injected <code>openStoryFiles</code> callback (SDD Integration Points). <b>Focus</b> still starts on <i>Got it</i>, so
 Enter on open does what it did before. <b>Status</b> is the S1 status line, shortened: <i>Not set up</i>, <i>27 set
-up</i>, <i>3 updates available</i>, <i>1 missing</i> <span class="mk-tag prop">proposed</span>; tone "off" for not set
+up</i>, <i>FileClasses set up · Templates not set up</i> (partly set up), <i>3 updates available</i>, <i>1 missing</i> <span class="mk-tag prop">proposed</span>; tone "off" for not set
 up, "on" for set up, neutral text for updates. <b>Kind pill</b> reads <i>Story Forge</i> in the core colour, so it is
 not mistaken for a plugin to install. <b>metadata-menu row:</b> its "ships its own" sentence was written before the
 files became something you set up; the proposed edit makes it true for a fresh vault.</p>
@@ -865,18 +861,18 @@ only <i>Close</i>, as in L12b.</figcaption>
 </div>
 
 <!-- ═════════════════════════════════ open questions ═════════════════════════════════ -->
-<h2>Open questions <span class="h2s">· beyond D1–D12</span></h2>
+<h2>Resolved questions <span class="h2s">· beyond D1–D12, decided 2026-11-19</span></h2>
 <div class="mk-open" style="border-color:var(--border-2);border-left-color:var(--mk-proposal)">
 <ol>
-  <li><b>O1 — Cancel and a changed folder.</b> D7 follows the SDD: a folder changed in the dialog is saved when you
-    leave the field, so <i>Cancel</i> keeps it. Alternative: hold folder changes in the dialog and save them only on
-    confirm. <span class="rec">Recommended: SDD as written; say so in the field's hint if you agree
-    (<i>Saved to Settings › Scope when you leave the field.</i> <span class="mk-tag prop">proposed</span>).</span></li>
-  <li><b>O2 — Partly set up status</b> names the missing sets or only counts (S1b).</li>
-  <li><b>O3 — Value lists tied to <code>fc-character-fantasy.md</code></b> or independent rows (S2b).</li>
-  <li><b>O4 — Refusal verb</b> "installed" (code, word for word) or "set up" (S3).</li>
-  <li><b>O5 — Missing row checkbox</b> visible label or aria-label only (S3).</li>
-  <li><b>O6 — Skipped lines in the notice</b> listed (PRD) or only counted (S5c).</li>
+  <li><b>O1 — Cancel and a changed folder.</b> Resolved: a folder change is saved only when you confirm with the
+    primary button. Cancel changes nothing (no file, no setting). The plan is still recomputed on change, as a preview
+    only (D7).</li>
+  <li><b>O2 — Partly set up status.</b> Resolved: names the sets not set up, e.g. <i>FileClasses and Schema reference
+    set up · Templates not set up</i> (proposed wording); the 9-of-27 count is kept as an aside (S1b, S6).</li>
+  <li><b>O3 — Value lists.</b> Resolved: independent rows, not tied to <code>fc-character-fantasy.md</code> (S2b).</li>
+  <li><b>O4 — Refusal verb.</b> Resolved: keep "Not installed" / "Not updated" word for word (S3).</li>
+  <li><b>O5 — Missing row checkbox.</b> Resolved: visible label <i>Set up again</i> (S3 and the action table).</li>
+  <li><b>O6 — Skipped lines in the notice.</b> Resolved: up to 5 skipped or failed files listed by name (S5c).</li>
 </ol>
 </div>
 
