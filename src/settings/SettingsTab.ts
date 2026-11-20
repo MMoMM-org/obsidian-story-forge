@@ -259,7 +259,7 @@ export class SettingsTab extends PluginSettingTab {
 
 	private async renderLibraryTab(panel: HTMLElement): Promise<void> {
 		// S7a: filled once the status is known, and only while nothing is set up.
-		this.storyHintSlot = panel.createDiv({ cls: "sf-story-hint-slot" });
+		this.storyHintSlot = panel.createDiv({ cls: "sf-story-nudge-slot" });
 		new Setting(panel)
 			.setName("Collections")
 			.setDesc("What the Codex can show. Each is a query over your vault. Choose where each one appears.")
@@ -516,6 +516,8 @@ export class SettingsTab extends PluginSettingTab {
 			statusEl.textContent = "Checking story files…";
 			delete statusEl.dataset["kind"];
 		}
+		// While checking, the hint draws nothing (S7a): no stale hint from the last read.
+		slot?.empty();
 		const deps = this.storyFiles;
 		deps.getStatus().then(
 			(s) => {
@@ -540,13 +542,13 @@ export class SettingsTab extends PluginSettingTab {
 		slot.empty();
 		const deps = this.storyFiles;
 		if (!deps || status.kind !== "none" || deps.isHintDismissed()) return;
-		const hint = slot.createDiv({ cls: "sf-story-hint", attr: { role: "status" } });
-		const text = hint.createSpan({ cls: "sf-story-hint-text" });
+		const hint = slot.createDiv({ cls: "sf-story-nudge", attr: { role: "status" } });
+		const text = hint.createSpan({ cls: "sf-story-nudge-text" });
 		text.createEl("b", { text: "Story files are not set up." });
 		text.appendText(
 			" Without them the editor shows no sections or option lists, and there are no templates for new scenes and entities.",
 		);
-		const actions = hint.createDiv({ cls: "sf-story-hint-actions" });
+		const actions = hint.createDiv({ cls: "sf-story-nudge-actions" });
 		const open = actions.createEl("button", { text: "Set up story files…", attr: { type: "button" } });
 		open.addEventListener("click", () => this.openStoryFiles());
 		const dismiss = actions.createEl("button", { cls: "sf-lb-link", text: "Don't show again", attr: { type: "button" } });

@@ -5098,7 +5098,7 @@ body {
 	font-weight: var(--font-semibold);
 }
 
-.sf-story-hint {
+.sf-story-nudge {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -5110,14 +5110,14 @@ body {
 	background: var(--background-secondary);
 }
 
-.sf-story-hint-text {
+.sf-story-nudge-text {
 	flex: 1 1 260px;
 	min-width: 0;
 	color: var(--text-normal);
 	font-size: var(--font-ui-small);
 }
 
-.sf-story-hint-actions {
+.sf-story-nudge-actions {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;

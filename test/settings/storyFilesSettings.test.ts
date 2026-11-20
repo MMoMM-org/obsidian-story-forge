@@ -8,6 +8,7 @@
  * @ref PRD/F2.4 (button opens the dialog), F3.1 (folder settings), F4.2 (updates with a count)
  * @ref mockups.html S1a, S1b, S7a; SDD ADR-42
  */
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AbstractInputSuggest, App } from "../__mocks__/obsidian";
 import { SettingsTab, type StoryFilesTabDeps } from "../../src/settings/SettingsTab";
@@ -79,7 +80,7 @@ const row = (root: HTMLElement, name: string): HTMLElement =>
 	root.querySelector<HTMLElement>(`[data-setting-name="${name}"]`)!;
 const statusEl = (root: HTMLElement): HTMLElement =>
 	row(root, "Set up story files").querySelector<HTMLElement>(".sf-story-status")!;
-const hint = (root: HTMLElement): HTMLElement | null => panel(root, "library").querySelector<HTMLElement>(".sf-story-hint");
+const hint = (root: HTMLElement): HTMLElement | null => panel(root, "library").querySelector<HTMLElement>(".sf-story-nudge");
 const button = (scope: HTMLElement, label: string): HTMLButtonElement => {
 	const b = [...scope.querySelectorAll<HTMLButtonElement>("button")].find((x) => x.textContent === label);
 	if (!b) throw new Error(`no button ${label}`);
@@ -227,7 +228,7 @@ describe("S7a · the Library tab hint", () => {
 		const h = hint(root)!;
 		expect(h).not.toBeNull();
 		expect(h.getAttribute("role")).toBe("status");
-		expect(h.querySelector(".sf-story-hint-text")?.textContent).toBe(
+		expect(h.querySelector(".sf-story-nudge-text")?.textContent).toBe(
 			"Story files are not set up. Without them the editor shows no sections or option lists, and there are no templates for new scenes and entities.",
 		);
 		expect(h.querySelector("b, strong")?.textContent).toBe("Story files are not set up.");
@@ -247,7 +248,7 @@ describe("S7a · the Library tab hint", () => {
 		const { root } = await render({ statuses: [new Promise(() => {})] });
 		await flush();
 		expect(hint(root)).toBeNull();
-		expect(panel(root, "library").querySelector(".sf-story-hint-slot")?.childElementCount).toBe(0);
+		expect(panel(root, "library").querySelector(".sf-story-nudge-slot")?.childElementCount).toBe(0);
 	});
 
 	it("draws nothing when the status cannot be read", async () => {
@@ -279,6 +280,27 @@ describe("S7a · the Library tab hint", () => {
 		button(hint(root)!, "Don't show again").click();
 		expect(deps.dismissHint).toHaveBeenCalledTimes(1);
 		expect(hint(root)).toBeNull();
+	});
+
+	it("is gone while the status is read again after the dialog closes", async () => {
+		const { root, deps } = await render({ statuses: [NONE, new Promise(() => {})] });
+		await flush();
+		expect(hint(root)).not.toBeNull();
+		button(hint(root)!, "Set up story files…").click();
+		(deps.open.mock.calls[0]?.[0] as () => void)();
+		expect(hint(root)).toBeNull();
+		expect(panel(root, "library").querySelector(".sf-story-nudge-slot")?.childElementCount).toBe(0);
+	});
+
+	it("shares no class with the setup dialog (its styles must not bleed in)", async () => {
+		const { root } = await render();
+		await flush();
+		const classes = new Set([hint(root)!, ...hint(root)!.querySelectorAll("*")].flatMap((el) => [...el.classList]));
+		classes.add("sf-story-nudge-slot");
+		const modalSource = readFileSync("src/artifacts/StoryFilesModal.ts", "utf8");
+		const shared = [...classes].filter((c) => c.startsWith("sf-story") && modalSource.includes(`"${c}"`));
+		expect([...classes]).toContain("sf-story-nudge");
+		expect(shared).toEqual([]);
 	});
 
 	it("disappears after the dialog closes once something is set up", async () => {
