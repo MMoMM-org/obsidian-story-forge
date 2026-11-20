@@ -26,6 +26,10 @@ has signed off the mockups (T3.1).**
 - Command id `set-up-story-files`, name "Set up story files".
 - The capability screen only points to setup; it writes nothing.
 
+**Decisions taken during implementation**:
+- 2026-11-20 sign-off with review changes O7–O9 (mockups S6, S7): rename of the capability screen,
+  Library tab hint, metadata-menu Properties panel bullet (checked live in T3.5 before it ships).
+
 **Dependencies**: Phase 2.
 
 ---
@@ -34,7 +38,7 @@ has signed off the mockups (T3.1).**
 
 Gives the user the deliberate, previewed setup and update flow.
 
-- [ ] **T3.1 Mockups S1–S6 and sign-off** `[activity: ui-design]`
+- [x] **T3.1 Mockups S1–S7 and sign-off** `[activity: ui-design]`
 
   1. Prime: `[ref: SDD/User Interface & UX]`, L10/L12 mockups of spec 008
   2. Test: Each state S1–S6 is drawn as HTML in
@@ -70,7 +74,9 @@ Gives the user the deliberate, previewed setup and update flow.
   2. Test: Command `set-up-story-files` opens the modal; Scope tab shows the "Story files" group
      with both folder settings, the button and a status line (not set up / up to date /
      N updates available / N missing) computed read-only from `planSetup`; the button opens the
-     same modal; drawing the tab writes nothing
+     same modal; drawing the tab writes nothing. Library tab (S7): the hint shows only while
+     nothing is set up and not dismissed; its button opens the modal; "Don't show again" stores
+     the preference and redraws without the hint; nothing is drawn while the status is checking
   3. Implement: `src/artifacts/storyFilesWiring.ts`, SettingsTab group, command registration
   4. Validate: Settings and command tests; mutation-check
   5. Success:
@@ -86,7 +92,11 @@ Gives the user the deliberate, previewed setup and update flow.
      screen writes nothing; the FileClass count ignores the three value-list notes (notes with
      no FileClass frontmatter), so a fresh setup reports 8, not 11
      (`src/fileclass/fileClassVault.ts` `count()`, found in the T1.1–T1.3 review)
-  3. Implement: Inject `openStoryFiles` through the capability wiring
+     The screen is named "What Story Forge can use" (O7) in its title, footer line, the Library
+     tab link and the Dataview hints; no "What optional plugins add" is left in `src/`, `test/`,
+     `styles.css` comments, the user docs (`docs/*.md`) or the PRD text. The intro and the
+     metadata-menu row read as in S6 (O9)
+  3. Implement: Inject `openStoryFiles` through the capability wiring; rename everywhere
   4. Validate: Modal tests; mutation-check
   5. Success: First-run screen points to setup without writing `[ref: PRD/F2.9]`
 
