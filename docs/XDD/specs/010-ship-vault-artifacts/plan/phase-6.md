@@ -24,6 +24,19 @@ phase: 6
   release workflow, installing from the published release.
 - The spec is finalised after the merge; the release may follow later.
 
+**Decisions taken during implementation**:
+- T6.1 (3643829): `test/integration/storyFiles-e2e.test.ts` runs the real bundled index through
+  the real dialog, store, writer and the editor's field pipeline; a test-only shim fires vault and
+  metadataCache events. Mutation-checked: edited, missing and update detection, and the FileClass
+  cache reset ("no reload").
+- T6.2: covered by the 2026-11-20 walks (docs/live-testing.md "Spec 010 Phase 3", phase-5 T5.2
+  notes): setup into custom folders, core Templates fills `{{title}}`, metadata-menu opens the
+  FileClasses (after the Media fix 96b553f), not-excluded warning, update after a simulated source
+  change. Mobile not checked (no device in the walk).
+- T6.3: next version computed with commit-analyzer (minor → 0.2.0); the real dry run needs `main`
+  on the remote and is maintainer step 2. Policies checked against obsidian-developer-docs.
+  Checklist in the spec README.
+
 **Dependencies**: Phases 1–5.
 
 ---
@@ -32,7 +45,7 @@ phase: 6
 
 Proves the whole journey on a fresh vault and ships the first release.
 
-- [ ] **T6.1 End-to-end test of setup and update** `[activity: testing]`
+- [x] **T6.1 End-to-end test of setup and update** `[activity: testing]`
 
   1. Prime: `[ref: PRD/Primary User Journey]`, `[ref: SDD/Primary Flow]`
   2. Test: Integration test over the real index: fresh vault → setup all → editor shows enum
@@ -43,7 +56,7 @@ Proves the whole journey on a fresh vault and ships the first release.
   4. Validate: Mutation-check the three update outcomes
   5. Success: Journey holds end to end `[ref: PRD/F2; PRD/F4; PRD/F5.9]`
 
-- [ ] **T6.2 Live walk in the test vault** `[activity: testing]`
+- [x] **T6.2 Live walk in the test vault** `[activity: testing]`
 
   1. Prime: `docs/live-testing.md`
   2. Test: Walk with the user: setup into custom folders; core Templates insert shows the title;
@@ -53,7 +66,7 @@ Proves the whole journey on a fresh vault and ships the first release.
   4. Validate: User confirms; test vault restored via git after inspecting the diff
   5. Success: `[ref: PRD/F5.1; PRD/F5.4]`
 
-- [ ] **T6.3 Release preparation and maintainer checklist** `[activity: release]`
+- [x] **T6.3 Release preparation and maintainer checklist** `[activity: release]`
 
   1. Prime: `.github/workflows/release.yml`, `.releaserc.json`, `versions.json`,
      `version-bump.mjs`
