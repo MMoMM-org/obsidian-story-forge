@@ -27,11 +27,8 @@ export interface CapabilitiesWiringDeps {
 	dismissHint: (id: string) => void;
 	/** The story files status, read-only (spec 010 S6). */
 	getStoryFilesStatus: () => Promise<StoryFilesStatus>;
-	/**
-	 * Opens the story files setup dialog from the screen's row (spec 010 T3.4). Optional until the
-	 * dialog is wired (T3.3); absent, the row's button only closes the screen.
-	 */
-	openStoryFiles?: () => void;
+	/** Opens the story files setup dialog from the screen's row (spec 010 T3.4). */
+	openStoryFiles: () => void;
 }
 
 export interface CapabilitiesWiring {
@@ -59,7 +56,7 @@ export function wireCapabilities(d: CapabilitiesWiringDeps): CapabilitiesWiring 
 			new CapabilitiesModal(d.app, {
 				getFacts,
 				getStoryFilesStatus: d.getStoryFilesStatus,
-				...(d.openStoryFiles ? { openStoryFiles: d.openStoryFiles } : {}),
+				openStoryFiles: d.openStoryFiles,
 				mode,
 				...(mode === "first-run" ? { onDismiss: () => d.dismissHint(CAPABILITIES_HINT_ID) } : {}),
 			}).open();
