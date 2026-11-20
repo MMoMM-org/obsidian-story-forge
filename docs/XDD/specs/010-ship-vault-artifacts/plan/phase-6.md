@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Live walk and release"
-status: pending
+status: in_progress
 version: "1.0"
 phase: 6
 ---
