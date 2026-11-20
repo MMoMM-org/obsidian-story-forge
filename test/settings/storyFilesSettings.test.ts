@@ -9,6 +9,7 @@
  * @ref mockups.html S1a, S1b, S7a; SDD ADR-42
  */
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AbstractInputSuggest, App } from "../__mocks__/obsidian";
 import { SettingsTab, type StoryFilesTabDeps } from "../../src/settings/SettingsTab";
@@ -111,7 +112,7 @@ describe("S1a · Scope tab, the Story files group", () => {
 	it("adds the one sentence under FileClasses folder", async () => {
 		const { root } = await render();
 		expect(row(root, "FileClasses folder").querySelector("div:nth-child(2)")?.textContent).toBe(
-			"Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses " +
+			"Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses. " +
 				"Set up story files… writes Story Forge's FileClasses here.",
 		);
 	});
@@ -297,7 +298,7 @@ describe("S7a · the Library tab hint", () => {
 		await flush();
 		const classes = new Set([hint(root)!, ...hint(root)!.querySelectorAll("*")].flatMap((el) => [...el.classList]));
 		classes.add("sf-story-nudge-slot");
-		const modalSource = readFileSync("src/artifacts/StoryFilesModal.ts", "utf8");
+		const modalSource = readFileSync(resolve(__dirname, "../../src/artifacts/StoryFilesModal.ts"), "utf8");
 		const shared = [...classes].filter((c) => c.startsWith("sf-story") && modalSource.includes(`"${c}"`));
 		expect([...classes]).toContain("sf-story-nudge");
 		expect(shared).toEqual([]);

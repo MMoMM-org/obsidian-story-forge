@@ -135,6 +135,8 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	hide(): void {
+		// A status read still in flight must not paint into the hidden tab.
+		this.storyGen++;
 		this._unsubscribeStore?.();
 		this._unsubscribeStore = null;
 		this.library.suspend();
@@ -386,7 +388,7 @@ export class SettingsTab extends PluginSettingTab {
 				setting
 					.setName("FileClasses folder")
 					.setDesc(
-						"Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses " +
+						"Vault folder containing your FileClass definitions (fc-*.md). Default: 00 Meta/FileClasses. " +
 							"Set up story files… writes Story Forge's FileClasses here.",
 					)
 					.addText((text) => {
