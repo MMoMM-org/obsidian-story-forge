@@ -141,7 +141,7 @@ issue, or `—` for gaps with no issue yet.
 | **G1** | Catalog and import flow cover **disjoint engines** | — |
 | **G2** | The `_forge` view set is **hardcoded, not catalog data** | — |
 | **G3** | Workspace views are **unconfigurable hardcoded renderers** | partial: #4, #8 |
-| **G4** | **No scope/folder configuration** anywhere in settings | — |
+| **G4** | Folder settings exist (artifact folders, excluded folders); **no include scope** to a book or folder set | — |
 | **G19** | Plugin ships **no custom Bases views** (hero cards) | — |
 | **G20** | **User cannot extend entities** with own fields and see them | — |
 
@@ -209,16 +209,27 @@ constants**, so #4 (Kanban by `act`) has to be shipped as a feature instead of
 being a dropdown. The substitutability requirement of §1.3 lands on the
 **entity/collection** surfaces instead (G19, G20).
 
-**G4 — No scope/folder configuration.**
+**G4 — Folder settings exist; no scope to a book or folder set.**
 *Promise:* views scope to a book / a folder set the user controls (implied
 throughout; recorded earlier as a deferred settings picker with `00 Meta` as the
 default exclusion).
-*Reality:* `PluginSettings` has three keys — `exampleSetting`, `linkClickAction`,
-`curatedBasesFolder` (`src/types/index.ts:1-12`). Exclusions live in
-`DEFAULT_EXCLUDED_FOLDERS` (`src/scoping/workspaceScope.ts`), and
-`Codex.base` hardcodes folder inclusion.
-*Impact:* the plugin only fits a vault laid out exactly like `test/StoryForge/`.
-For a "no structure lock-in" plugin this is the sharpest contradiction.
+*Reality:* `PluginSettings` (`src/types/index.ts`) has three folder paths in the
+settings tab's "Vault folders" group: `fileClassesFolder` (default
+`00 Meta/FileClasses`), `templatesFolder` (`00 Meta/Templates`) and `schemaFolder`
+(`00 Meta/Schema`). `curatedBasesFolder` (`00 Meta/Bases`) is set separately, under
+"Folder for collections from the repo". `excludedFolders` (default `["00 Meta"]`,
+"Excluded folders" in the "Vault folders" group) is an exclusion list applied by
+every collection and scope view. Its default is `DEFAULT_EXCLUDED_FOLDERS` in
+`src/types/index.ts`, which `src/scoping/workspaceScope.ts` re-exports. `Codex.base`,
+the one shipped view that hardcoded folder inclusion, was retired in spec 008
+(T7.3), so no shipped view does that now.
+*Revised 2026-11-20:* the settings above exist, so the "no folder configuration"
+claim is gone. What is still missing is an **include** scope: a view cannot be
+pointed at a book or a chosen folder set. The code documents folder scoping as
+exclusion-only (CON-7), so the promise is open until that changes.
+*Impact:* the folders can now be moved, but every default still assumes a `00 Meta`
+root, and nothing narrows a view to one book or folder. For a "no structure
+lock-in" plugin the include gap is the sharpest remaining contradiction.
 
 **G19 — The plugin ships no custom Bases views.**
 *Promise:* ADR-0001 decision 2 establishes `registerBasesView` as the sanctioned
@@ -365,8 +376,8 @@ notes); it still leaves the promise open.
 | ID | Gap | Issue |
 |---|---|---|
 | **G13** | Inspector edits **scalars/enums only** — no relation editing | — |
-| **G14** | metadata-menu / meta-bind: **provision + documentation**, not integration | — |
-| **G25** | The plugin **ships no vault artifacts** — a fresh install gets nothing | — |
+| **G14** | metadata-menu / meta-bind: **provision** (resolved by spec 010) + **documentation** (open), not integration | — |
+| **G25** | ~~The plugin **ships no vault artifacts**~~ — resolved by spec 010 (2026-11-20) | #27 |
 | **G26** | Codex Cards have **no seam for computed stats** — S91's scene-count line is unbuilt | **#29** |
 
 **G13 — Relations cannot be edited.**
@@ -400,15 +411,23 @@ frontmatter.
 own the editing path"* — posed a false choice. **Neither plugin is ever required**
 (§1.4). What we owe is not integration but **provision and documentation**:
 
-- **ship** the FileClasses, the Templater and core-template templates (with the
-  `VIEW[]` parts once they exist), and the Schema reference — see **G25**;
+- ~~**ship** the FileClasses, the Templater and core-template templates (with the
+  `VIEW[]` parts once they exist), and the Schema reference — see **G25**;~~
+  **Provision resolved by spec 010 (2026-11-20):** the FileClasses, the entity and
+  scene templates and the Schema reference are bundled with the plugin and written
+  on request (see **G25**). The `VIEW[]` clause is not part of that resolution.
 - **document** what installing metadata-menu or meta-bind adds, and precisely what
-  a user is missing without it;
+  a user is missing without it; **still open** (spec 010 T5.2 is the planned fix);
 - **never** let a feature depend on either being present; if one ever does, say so
-  loudly in the docs.
+  loudly in the docs. **Still open.**
 
-**G25 — The plugin ships no vault artifacts at all.**
-*Reality:* the FileClasses, entity/scene templates and the human-readable `Schema/`
+**G25 — ~~The plugin ships no vault artifacts at all~~ → resolved by spec 010
+(2026-11-20).**
+*Resolution:* the Set up story files command writes the FileClasses, the entity and
+scene templates and the Schema reference from copies bundled in the plugin, and only
+when the user asks. Folders come from the settings in G4. Updates replace files the
+user has not edited and refuse edited ones. Spec: `docs/XDD/specs/010-ship-vault-artifacts/`.
+*Reality at audit (2026-07-26):* the FileClasses, entity/scene templates and the human-readable `Schema/`
 reference are generated by `npm run schema:gen` **into `test/StoryForge/00 Meta/`**.
 That is the development vault. A user who installs Story Forge from the community
 directory gets **none of it** — no FileClasses for metadata-menu, no templates, no
