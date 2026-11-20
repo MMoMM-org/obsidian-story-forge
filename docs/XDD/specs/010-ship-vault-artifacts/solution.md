@@ -250,8 +250,8 @@ src/
 │   ├── executePlan.ts                   NEW     runs a plan via managedFileWriter, records results
 │   ├── StoryFilesModal.ts               NEW     setup/update dialog (per-file preview)
 │   ├── storyFilesStatus.ts              NEW     summarizeStoryFiles (pure), readStoryFilesStatus (read-only)
-│   ├── storyFilesNotice.ts              NEW     pure composeNotice (result notice text and role)
-│   └── storyFilesWiring.ts              NEW     command, getStatus, Library hint (isHintDismissed/dismissHint), the one settings→folders mapping
+│   ├── storyFilesNotice.ts              NEW     pure composeNotice (result notice text and role; PlannedWrite, per-set setLines, unbudgeted, R2)
+│   └── storyFilesWiring.ts              NEW     command, getStatus, Library hints (isHintDismissed(kind)/dismissHint(kind); kinds setup (S7a) and updates (R3), id via storyFilesUpdatesHintId(version)), the one settings→folders mapping
 ├── vault/managedFileWriter.ts           NEW     Vault-API writer: read/occupied/edited checks, write, undo
 ├── catalog/CatalogService.ts            MODIFY  delegates file IO to managedFileWriter
 ├── settings/SettingsTab.ts              MODIFY  Scope tab "Story files" group
@@ -302,6 +302,8 @@ PlanItem {
   action: "create" | "up-to-date" | "update" | "skip-exists" | "skip-edited"
         | "missing" | "unreadable" | "refused"   # refused: index entry checksum mismatch
   note?: string                    # e.g. "setting now points to <folder>"
+  sameContent?: boolean            # skip-exists only: bytes equal the shipped copy; drives the
+                                   # dialog's reason line, never claims the file (R1)
 }
 ```
 
@@ -310,7 +312,7 @@ PlanItem {
 | Record? | File at record path / target path | Shipped checksum vs record.source | File checksum vs record.instance | Action |
 |---|---|---|---|---|
 | none | target free | – | – | create |
-| none | target occupied | – | – | skip-exists ("Not installed: … already exists") |
+| none | target occupied | – | – | skip-exists (dialog: "Already there", dimmed, never written or recorded, not in the result notice, R1; executePlan still skips a file that appears between plan and write with "Not installed: … already exists") |
 | yes | record path missing | – | – | missing (offered as set up again) |
 | yes | present | equal | – | up-to-date |
 | yes | present | differs | equal | update |
@@ -365,7 +367,9 @@ StoryFilesDeps (src/artifacts/StoryFilesModal.ts):
   nothing.
 - **fileClassVault count:** `count()` counts notes with frontmatter, so the empty value-list
   notes are left out (8 FileClasses, not 11).
-- **Mock `Notice`:** accepts a `DocumentFragment`, as `obsidian.d.ts` does.
+- **Mock `Notice`:** accepts a `DocumentFragment`, as `obsidian.d.ts` does. The result notice
+  is built into `messageEl` (`new Notice("")`, then fill `messageEl`): a fragment built in one
+  window's realm rendered as an object name after a popout (found live, 2026-11-20).
 
 ### Implementation Examples
 
@@ -388,7 +392,7 @@ error (it would turn `{{sf:x}}/a.md` into `/a.md`).
 ```pseudocode
 planSetup: record present, shipped changed, file unchanged      -> "update"
 planSetup: record present, shipped changed, file edited          -> "skip-edited"
-planSetup: no record, same bytes already at target               -> "skip-exists" (never adopted)
+planSetup: no record, same bytes already at target               -> "skip-exists", sameContent true (never adopted)
 executePlan: second write fails                                  -> first written + recorded,
                                                                     second reported failed, no record
 schema-check: dev vault file differs from resolve(index, defaults) -> exit 1
@@ -412,8 +416,9 @@ schema-check: dev vault file differs from resolve(index, defaults) -> exit 1
    ("set up again"); it is never recreated by default (PRD F4.5). `create` items resolve
    placeholders with the current folders; `update` and `missing` items keep the folders in
    their record (`record.params`), because the file stays at its record path.
-6. One Notice: "Set up N story files." plus skipped/failed lines (refusal prefixes); debug log
-   per refusal with `[StoryForge]`.
+6. One Notice: "Set up N story files.", one line per written set and folder (R2), then failed and
+   skipped lines (refusal prefixes). "Already there" files (R1) are not listed; only a file
+   that appears between plan and write is skipped. Debug log per refusal with `[StoryForge]`.
 
 ```mermaid
 sequenceDiagram
@@ -441,6 +446,11 @@ read-only) when the Scope tab is drawn, and again after the dialog closes
 (`Modal.setCloseCallback`). It shows "N updates available" when any item is `update` or
 `missing`. A folder edit in the Scope tab does not re-read. The button always reads "Set up story
 files…" and opens the same modal.
+
+**Library hint slot:** one hint at a time. S7a ("Story files are not set up", while nothing is
+set up) wins over R3 ("N story file updates available.", when the status has at least one
+update). "Don't show again" (S7a) and "Not now" (R3) store an id in `dismissedHints`; the R3 id
+carries the plugin version (`storyFilesUpdatesHintId`), so a later version shows it again.
 
 ### Error Handling
 
@@ -491,7 +501,8 @@ table-tested row by row, each row mutation-checked.
   relevance: CRITICAL
 - pattern: Pure model → thin renderer → host (spec 008)
   relevance: HIGH
-- pattern: Refusal prefixes "Not installed:" / "Not updated:" (spec 008 L10f)
+- pattern: Refusal prefixes "Not installed:" / "Not updated:" (spec 008 L10f); in setup they come
+  from executePlan only, since a file already there is not a refusal but an "Already there" row (R1)
   relevance: HIGH
 - pattern (new): managedFileWriter — the one place that writes vault files on the user's behalf
   relevance: HIGH
@@ -506,12 +517,17 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
   in "Vault folders"), "Set up story files…" button, status line (not set up / up to date /
   N updates available / N missing).
 - **S2** Setup dialog, fresh vault: three sets, all "create".
-- **S3** Setup dialog, mixed: up to date, update, skip-exists, skip-edited, missing.
+- **S3** Setup dialog, mixed: up to date, update, skip-exists ("Already there"), skip-edited, missing.
 - **S4** Folder not excluded warning.
 - **S5** Result notice (written + skipped + failed).
 - **S6** Capability screen row; the screen is named "What Story Forge can use" (O7).
-- **S7** Library hint "Story files are not set up" with "Don't show again" (id
+- **S7a** Library hint "Story files are not set up" with "Don't show again" (id
   `story-files-not-set-up` in `dismissedHints`, data.json), re-read after the dialog closes.
+- **R1** "Already there" rows: dimmed, reason line (same content / your own file), disabled set
+  checkbox when all files are there; not in the result notice.
+- **R2** Result notice with one line per written set and folder.
+- **R3** Library hint "N story file updates available." with "Review updates…" and "Not now"
+  (id per plugin version).
 - **O9** The metadata-menu row has a Properties-panel bullet (checked live in T3.5).
 
 ### System-Wide Patterns
@@ -583,6 +599,9 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
     templates use `{{title}}`, `series` empty (no `"Forge"` preset), no `gender` preset, `status` first list value;
     schema descriptions drop folder prescriptions and `95 Assets` examples; the three value
     lists ship empty with the FileClass set; the dev vault follows the same content.
+  - Media fields are generated with metadata-menu's full default options (`embed` false,
+    `folders` [], `display` card, `thumbnailSize` "100"), because metadata-menu 0.8.12's
+    FileClass form fails on a missing `folders` (96b553f, handed to _forge).
   - Rationale: works in any layout; dev vault = shipped content (ADR-38).
   - Trade-offs: the dev vault loses folder-based FileClass matching (unused: classification is
     by `fileClass` key, then tag); `_forge` must be told about the schema text changes.
@@ -616,8 +635,9 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
   byte for byte (PRD F1, F5).
 - Given each row of the planSetup table, When planned, Then the action is that row's action
   (PRD F4).
-- Given a non-owned identical file, When setup runs, Then it is reported "Not installed: …
-  already exists" and not recorded (PRD F4 Rule 2).
+- Given a non-owned identical file, When setup runs, Then the dialog shows it as
+  "Already there" (`sameContent` true), it is never written or recorded, and it is not in the
+  result notice (PRD F4 Rule 2, R1).
 - Given a record save failure, When executing, Then the write is undone (PRD Rule 5).
 - Given the plugin loads, When no user action happens, Then no vault write occurs (PRD F2).
 - Given the scanner configuration, When run on the release source, Then 0 errors (PRD F6).
