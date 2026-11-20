@@ -113,7 +113,7 @@ version: "1.0"
   why: Scope tab "Vault folders" group; new "Story files" group
 - file: src/library/CapabilitiesModal.ts, src/library/capabilityReport.ts, src/library/capabilitiesWiring.ts
   relevance: MEDIUM
-  why: First-run screen gains a pointer to setup
+  why: Capability screen ("What Story Forge can use") gains a story files row; the wiring takes getStoryFilesStatus and openStoryFiles
 - file: src/fileclass/fileClassVault.ts
   relevance: MEDIUM
   why: Reacts to vault events; newly set-up FileClasses must take effect without reload
@@ -162,7 +162,7 @@ graph LR
 inbound:
   - name: Command "Set up story files" (id set-up-story-files)
     type: Obsidian command
-  - name: Settings → Scope → Story files → "Set up story files…" / "Update…"
+  - name: Settings → Scope → Story files → "Set up story files…"
     type: Settings UI
   - name: Capability screen pointer
     type: Button/link in CapabilitiesModal
@@ -249,11 +249,15 @@ src/
 │   ├── planSetup.ts                     NEW     pure: index × records × vault state × folders → PlanItem[]
 │   ├── executePlan.ts                   NEW     runs a plan via managedFileWriter, records results
 │   ├── StoryFilesModal.ts               NEW     setup/update dialog (per-file preview)
-│   └── storyFilesWiring.ts              NEW     command, settings callback, capability pointer
+│   ├── storyFilesStatus.ts              NEW     summarizeStoryFiles (pure), readStoryFilesStatus (read-only)
+│   ├── storyFilesNotice.ts              NEW     pure composeNotice (result notice text and role)
+│   └── storyFilesWiring.ts              NEW     command, getStatus, Library hint (isHintDismissed/dismissHint), the one settings→folders mapping
 ├── vault/managedFileWriter.ts           NEW     Vault-API writer: read/occupied/edited checks, write, undo
 ├── catalog/CatalogService.ts            MODIFY  delegates file IO to managedFileWriter
 ├── settings/SettingsTab.ts              MODIFY  Scope tab "Story files" group
 ├── library/CapabilitiesModal.ts         MODIFY  pointer to setup
+├── library/capabilitiesWiring.ts        MODIFY  takes getStoryFilesStatus and openStoryFiles
+├── scoping/workspaceScope.ts            MODIFY  exports isExcluded
 ├── types/index.ts                       MODIFY  templatesFolder, schemaFolder
 ├── store/types.ts                       MODIFY  StoryForgeData.artifacts
 └── main.ts                              MODIFY  import index, register command, wire
@@ -343,14 +347,25 @@ executePlan(plan, folders, { app, store, pluginVersion })
 # update: managedFileWriter.write (process, previous captured, undone on mismatch)
 ```
 
+```pseudocode
+StoryFilesDeps (src/artifacts/StoryFilesModal.ts):
+  app, settings() -> StoryFilesSettings, saveFolders(folders)   # confirm only, and only if one changed
+  addExcludedFolder(folder)     # D9 button; wiring calls the collection store's setScope([...current, folder])
+  store: ArtifactStore, index: ArtifactIndex, pluginVersion
+```
+
 #### Integration Points
 
 - **CatalogService → managedFileWriter:** same call order and reason strings, so the catalog
   test suite passes unchanged except for the mocked IO surface (adapter → vault).
 - **fileClassVault:** Vault-API writes emit `create`/`modify` immediately, so the FileClass
   cache invalidates without reload.
-- **Capability screen:** a pointer row with a button calling the injected `openStoryFiles`
-  callback; it writes nothing.
+- **Capability screen:** a row with a button calling the injected `openStoryFiles` callback; the
+  capability wiring takes `getStoryFilesStatus` and `openStoryFiles` (both required). It writes
+  nothing.
+- **fileClassVault count:** `count()` counts notes with frontmatter, so the empty value-list
+  notes are left out (8 FileClasses, not 11).
+- **Mock `Notice`:** accepts a `DocumentFragment`, as `obsidian.d.ts` does.
 
 ### Implementation Examples
 
@@ -390,7 +405,8 @@ schema-check: dev vault file differs from resolve(index, defaults) -> exit 1
    `managedFileWriter.readExisting`, calls `planSetup`.
 3. Modal shows three set sections (FileClasses, Templates, Schema reference) with folder,
    checkbox, exclusion warning and one row per file with its action.
-4. User may change a folder (saved to settings, plan recomputed) or deselect a set; confirms.
+4. User may change a folder (a preview: the plan is recomputed, nothing is saved) or deselect a
+   set; folders are saved only on confirm (O1). A failed recompute restores the previous folder.
 5. `executePlan` writes `create`/`update`/`missing` items in order, each followed by a record
    update; skips the rest. The dialog passes a `missing` item only when the user ticked it
    ("set up again"); it is never recreated by default (PRD F4.5). `create` items resolve
@@ -420,8 +436,11 @@ sequenceDiagram
   M-->>U: Notice summary
 ```
 
-**Updates available:** the Scope tab computes the plan (read-only) when drawn and shows
-"N updates available" when any item is `update` or `missing`; its button opens the same modal.
+**Updates available:** the status is one read through `storyFilesStatus` (`readStoryFilesStatus`,
+read-only) when the Scope tab is drawn, and again after the dialog closes
+(`Modal.setCloseCallback`). It shows "N updates available" when any item is `update` or
+`missing`. A folder edit in the Scope tab does not re-read. The button always reads "Set up story
+files…" and opens the same modal.
 
 ### Error Handling
 
@@ -435,6 +454,15 @@ sequenceDiagram
 | Record save fails after a write | Write undone (new file trashed, replaced file restored), item failed |
 | Index checksum mismatch at runtime | Entry refused ("checksum mismatch"), fail closed — as the catalog |
 | Unknown placeholder | Build fails (`build-artifacts`); never reaches runtime |
+| Folder check fails in the dialog | "Could not check <folder>: <reason>. The folder stays <previous>." in the card; previous folder restored |
+| Story files cannot be read | "Could not read the story files: <reason>" |
+| Folder settings cannot be saved | "Could not save the folder settings: <reason> Nothing was written." |
+| Excluded-folder add fails | "Could not add <folder> to excluded folders: <reason>" |
+| Status check fails (capability row) | Row reads "Could not check story files" |
+
+The result notice (pure `composeNotice`) has role `status` when it hides itself and `alert` when
+it stays (sticky). While confirming, every dialog control is locked; closing with Escape
+mid-write does not stop the write, and the result notice still reports it.
 
 ### Complex Logic
 
@@ -481,7 +509,10 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
 - **S3** Setup dialog, mixed: up to date, update, skip-exists, skip-edited, missing.
 - **S4** Folder not excluded warning.
 - **S5** Result notice (written + skipped + failed).
-- **S6** Capability screen pointer row.
+- **S6** Capability screen row; the screen is named "What Story Forge can use" (O7).
+- **S7** Library hint "Story files are not set up" with "Don't show again" (id
+  `story-files-not-set-up` in `dismissedHints`, data.json), re-read after the dialog closes.
+- **O9** The metadata-menu row has a Properties-panel bullet (checked live in T3.5).
 
 ### System-Wide Patterns
 
@@ -540,11 +571,12 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
 - [x] **ADR-42 UI: Scope tab group, setup dialog, command, capability pointer.**
   - Choice: "Story files" group in the Scope tab (two folder settings, button, status line);
     command `set-up-story-files` / "Set up story files"; `StoryFilesModal` with per-file preview
-    and a warning for folders not covered by `excludedFolders`; pointer on the capability screen.
-    Mockups signed off first.
+    and a warning for folders not covered by `excludedFolders`; pointer on the capability screen
+    (named "What Story Forge can use", O7); a Library hint with "Don't show again" (S7). Mockups
+    signed off first; S7 and the rename signed off 2026-11-20.
   - Rationale: folders already live in Scope; one dialog for setup and update.
   - Trade-offs: the update status is computed when the Scope tab is drawn (cheap: ~25 reads).
-  - User confirmed: Yes (2026-11-18)
+  - User confirmed: Yes (2026-11-18; S7 and the O7 rename 2026-11-20)
 
 - [x] **ADR-43 Neutral, folder-free artifact content.**
   - Choice: FileClasses match by `tagNames` only (`filesPaths` emitted empty), `fc-lore` queries by tag;
@@ -605,6 +637,8 @@ Drawn in `docs/XDD/specs/010-ship-vault-artifacts/mockups.html` and signed off b
 
 - 116 `prefer-create-el` and 11 `prefer-instanceof` scanner warnings remain (warnings, not
   errors); tracked separately.
+- The dialog's folder suggester is not closed when the dialog closes: `attachFolderSuggest`
+  (`src/settings/suggesters.ts`) returns no handle. Its input is removed with the dialog content.
 - `obsidian` typings (1.13.1) are newer than `minAppVersion` (1.12.7).
 
 ### Implementation Gotchas
