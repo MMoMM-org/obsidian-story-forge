@@ -82,3 +82,36 @@ Plugins submission rules as known.
 - [x] `PRIVACY.md` has no template placeholders (no `YYYY-MM-DD`, `_e.g._` or HTML comments).
 - [x] `manifest.json` description: 143 characters, ends with a period, no "Obsidian" or "plugin".
   Maintainer: confirm `author`/`authorUrl`, and the funding links, before submission.
+
+## Release 0.2.0: checks and maintainer checklist (T6.3)
+
+**Checks done (2026-11-20, on `feat/ship-vault-artifacts`):**
+
+- Next version: `@semantic-release/commit-analyzer` over the 848 commits since tag `0.1.0`
+  returns `minor`, and no commit carries a breaking-change marker, so the release is **0.2.0**.
+  A real `npx semantic-release --dry-run` needs the release branch on the remote; run it on
+  `main` after the merge is pushed (step 2 below).
+- `manifest.json` and `package.json` already read 0.2.0 (manual bump 902e481); `versions.json`
+  maps 0.2.0 → 1.12.7. `@semantic-release/npm` uses `--allow-same-version` and
+  `version-bump.mjs` writes `versions.json` only on a change, so the release step is a no-op
+  for these files.
+- Release assets: `build/main.js`, `build/manifest.json`, `build/styles.css` (`.releaserc.json`),
+  all produced by `npm run build`; attested in `release.yml`.
+- Submission requirements and developer policies, read from obsidianmd/obsidian-developer-docs
+  (`en/Community directory/…`): description 143 characters, ends with a period, no emoji;
+  `minAppVersion` 1.12.7; no Node.js or Electron imports in `src/` (`isDesktopOnly: false` is
+  right); command ids carry no plugin id; no sample code; MIT `LICENSE`; no ads, no telemetry,
+  no network, no account, no payment, no files outside the vault (README "What Story Forge does
+  to your vault", `PRIVACY.md`). `fundingUrl` lists Buy Me a Coffee and GitHub Sponsors: keep it
+  only if you accept donations.
+
+**Maintainer steps (never done by the agent):**
+
+1. Make the GitHub repository public.
+2. On `main` (after the merge is pushed): `npx semantic-release --dry-run` and check it says
+   0.2.0; then run the **Release** workflow (Actions → Release → Run workflow).
+3. In a fresh vault, install the release manually (main.js, manifest.json, styles.css into
+   `.obsidian/plugins/story-forge/`) and once with BRAT (`MMoMM-org/obsidian-story-forge`).
+4. Run **Set up story files** there and open the Anvil.
+5. When ready, submit on community.obsidian.md. After acceptance, change "Once Story Forge is
+   listed…" / "not listed yet" in `README.md` and `docs/installation.md`.
