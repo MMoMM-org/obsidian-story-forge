@@ -191,6 +191,28 @@ See [Undo](undo.md).
 
 **Fix:** turn on its **Anvil** or **Workbench** switch in the Library.
 
+### metadata-menu's FileClass button does nothing
+
+**You see:** nothing opens, and the developer console shows `Attempting to register an existing
+view type "FileClassView__fc-…"`.
+
+**Cause:** a bug in metadata-menu 0.8.12, not in Story Forge. metadata-menu remembers FileClass
+views you opened in earlier sessions and registers them again at startup; opening the same
+FileClass again then fails. See
+[metadatamenu#801](https://github.com/mdelobelle/metadatamenu/issues/801).
+
+**Fix:** until metadata-menu fixes it, open the developer console (Cmd+Option+I on macOS,
+Ctrl+Shift+I on Windows and Linux) and run:
+
+```js
+Object.keys(app.viewRegistry.viewByType)
+  .filter(t => t.startsWith("FileClassView__") && app.workspace.getLeavesOfType(t).length === 0)
+  .forEach(t => app.viewRegistry.unregisterView(t));
+```
+
+This removes only FileClass view types that have no open tab. Story Forge works the same either
+way; it reads the FileClass files itself.
+
 ## Debug information
 
 When something does not behave as described, the developer console often says why.
