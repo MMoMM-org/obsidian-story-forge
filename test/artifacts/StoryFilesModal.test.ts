@@ -220,6 +220,8 @@ describe("StoryFilesModal — fresh vault (S2)", () => {
 		expect(primary().textContent).toBe("Set up 6 files");
 		expect(cancel().textContent).toBe("Cancel");
 		expect($(".sf-story-foot-aside").textContent).toBe("Folders that do not exist yet are created.");
+		expect($(".sf-story-foot-aside").classList.contains("sf-hidden")).toBe(false);
+		expect($(".sf-picker-foot").firstElementChild?.classList.contains("sf-story-foot-aside")).toBe(true);
 		expect(document.activeElement).toBe(setBox("fileclasses"));
 	});
 
@@ -251,7 +253,7 @@ describe("StoryFilesModal — fresh vault (S2)", () => {
 	it("omits the folder aside when every create goes into an existing folder", async () => {
 		for (const f of ["00 Meta", "00 Meta/FileClasses", "00 Meta/Templates", "00 Meta/Schema"]) mem.folders.add(f);
 		await open();
-		expect(document.querySelector(".sf-story-foot-aside")).toBeNull();
+		expect($(".sf-story-foot-aside").classList.contains("sf-hidden")).toBe(true);
 	});
 
 	it("clicking rows, names, chips, the toggle and checkboxes writes nothing", async () => {
@@ -775,6 +777,135 @@ describe("StoryFilesModal — result notice (S5)", () => {
 		await open();
 		await confirm();
 		expect($(".sf-story-notice-head", Notice._instances[0]!.messageEl).textContent).toBe("No story files written.");
+	});
+});
+
+/** A promise with its resolve / reject handed out. */
+function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void; reject: (e: unknown) => void } {
+	let resolve!: (v: T) => void;
+	let reject!: (e: unknown) => void;
+	const promise = new Promise<T>((res, rej) => {
+		resolve = res;
+		reject = rej;
+	});
+	return { promise, resolve, reject };
+}
+
+describe("StoryFilesModal — confirm locks the dialog", () => {
+	it("disables folder fields and every checkbox while confirming", async () => {
+		const save = deferred<void>();
+		saveFolders.mockImplementationOnce(() => save.promise);
+		await open();
+		await changeFolder("templates", "00 Meta/Other");
+		primary().click();
+		for (const input of document.querySelectorAll<HTMLInputElement>(".sf-story-folder input")) expect(input.disabled).toBe(true);
+		for (const box of document.querySelectorAll<HTMLInputElement>(".sf-story-set-cb, .sf-story-row-cb")) expect(box.disabled).toBe(true);
+		save.resolve();
+		await vi.waitFor(() => expect(Notice._instances).toHaveLength(1));
+	});
+
+	it("writes and reports what was ticked when confirm was pressed, whatever changes during the save", async () => {
+		mem.files.set("00 Meta/Schema/README.md", "mine");
+		const save = deferred<void>();
+		saveFolders.mockImplementationOnce(() => save.promise);
+		await open();
+		await changeFolder("templates", "00 Meta/Other");
+		primary().click();
+		// A change that slips past the lock (dispatched directly) must not alter this confirm.
+		const box = setBox("schema");
+		box.checked = false;
+		box.dispatchEvent(new Event("change"));
+		save.resolve();
+		await vi.waitFor(() => expect(Notice._instances).toHaveLength(1));
+		expect(mem.files.has("00 Meta/Schema/s-a.md")).toBe(true);
+		expect(Notice._instances[0]!.message).toContain("00 Meta/Schema/README.md already exists");
+	});
+
+	it("a failed folder save writes nothing, says so and keeps the dialog usable", async () => {
+		saveFolders.mockRejectedValueOnce(new Error("data.json locked"));
+		const m = await open();
+		await changeFolder("templates", "00 Meta/Other");
+		primary().click();
+		await vi.waitFor(() => expect(Notice._instances).toHaveLength(1));
+		expect(Notice._instances[0]!.message).toBe("Could not save the folder settings: data.json locked. Nothing was written.");
+		expect(app.vault.create).not.toHaveBeenCalled();
+		expect(m.close).not.toHaveBeenCalled();
+		expect(document.querySelector(".sf-story")).not.toBeNull();
+		expect(primary().disabled).toBe(false);
+		expect(folderInput("templates").disabled).toBe(false);
+		expect(setBox("fileclasses").disabled).toBe(false);
+	});
+});
+
+describe("StoryFilesModal — async edges", () => {
+	it("renders only the latest of two overlapping replans; the button waits for both", async () => {
+		mem.files.set("A/t-a.md", "slow");
+		const slow = deferred<string>();
+		const read = vi.mocked(app.vault.read).getMockImplementation()!;
+		vi.mocked(app.vault.read).mockImplementation(async (file) => (file.path === "A/t-a.md" ? slow.promise : read(file)));
+		await open();
+		typeFolder("templates", "A");
+		await changeFolder("templates", "B");
+		expect(rowPaths("templates")).toEqual(["B/t-a.md"]);
+		expect(primary().disabled).toBe(true);
+		slow.resolve("slow");
+		await vi.waitFor(() => expect(primary().disabled).toBe(false));
+		expect(rowPaths("templates")).toEqual(["B/t-a.md"]);
+		expect(setEl("templates").dataset["folder"]).toBe("B");
+		expect(actOf("B/t-a.md")).toBe("Create");
+	});
+
+	it("a failed load shows the error and a Cancel-only footer", async () => {
+		const d = deps();
+		vi.spyOn(d.store, "load").mockRejectedValueOnce(new Error("disk gone"));
+		modal = openStoryFiles(d);
+		await vi.waitFor(() => expect(document.querySelector(".sf-story .sf-picker-feedback")).not.toBeNull());
+		expect($(".sf-story .sf-picker-feedback").textContent).toBe("Could not read the story files: disk gone");
+		expect(document.querySelectorAll(".sf-story-set")).toHaveLength(0);
+		const buttons = [...document.querySelectorAll(".sf-picker-foot button")].map((b) => b.textContent);
+		expect(buttons).toEqual(["Cancel"]);
+	});
+
+	it("closing during the first plan draws nothing afterwards", async () => {
+		const d = deps();
+		const load = deferred<Awaited<ReturnType<ArtifactStore["load"]>>>();
+		vi.spyOn(d.store, "load").mockImplementationOnce(() => load.promise);
+		const m = openStoryFiles(d);
+		m.close();
+		load.resolve({});
+		await new Promise((r) => setTimeout(r, 20));
+		expect(m.contentEl.childElementCount).toBe(0);
+		expect(writes()).toBe(0);
+	});
+
+	it("closing during a replan draws nothing afterwards", async () => {
+		mem.files.set("A/t-a.md", "slow");
+		const slow = deferred<string>();
+		const read = vi.mocked(app.vault.read).getMockImplementation()!;
+		vi.mocked(app.vault.read).mockImplementation(async (file) => (file.path === "A/t-a.md" ? slow.promise : read(file)));
+		const m = await open();
+		typeFolder("templates", "A");
+		m.close();
+		slow.resolve("slow");
+		await new Promise((r) => setTimeout(r, 20));
+		expect(m.contentEl.childElementCount).toBe(0);
+	});
+
+	it("closing during the write still reports the result and draws nothing", async () => {
+		const gate = deferred<void>();
+		const create = vi.mocked(app.vault.create).getMockImplementation()!;
+		vi.mocked(app.vault.create).mockImplementation(async (p: string, data: string) => {
+			await gate.promise;
+			return create(p, data);
+		});
+		const m = await open();
+		primary().click();
+		await vi.waitFor(() => expect(app.vault.create).toHaveBeenCalled());
+		m.close();
+		gate.resolve();
+		await vi.waitFor(() => expect(Notice._instances).toHaveLength(1));
+		expect(Notice._instances[0]!.message).toBe("Set up 6 story files.");
+		expect(m.contentEl.childElementCount).toBe(0);
 	});
 });
 

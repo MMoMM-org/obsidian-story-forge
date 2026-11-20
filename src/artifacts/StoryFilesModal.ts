@@ -41,6 +41,7 @@ import type {
 import { executePlan, type ExecutePlanResult, type PlanOutcome } from "./executePlan";
 import { planSetup, targetPathOf } from "./planSetup";
 import { normalizeFolder } from "./resolvePlaceholders";
+import { composeNotice, damagedRefusal } from "./storyFilesNotice";
 
 /** The settings the dialog reads. */
 export type StoryFilesSettings = Pick<PluginSettings, ArtifactPlaceholder | "excludedFolders">;
@@ -102,12 +103,6 @@ function rowGroup(a: PlanAction): number {
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
-const MAX_NOTICE_LINES = 5;
-
-function damagedRefusal(subject: string): string {
-	return `${INSTALLED}: the bundled copy of ${subject} is damaged, so nothing was written. Reinstalling Story Forge restores it.`;
-}
-
 /** The FileClass whose value list `entry` is (S2b hint), by its `valuesListNotePath`. */
 function valueListUser(entry: ArtifactEntry, index: ArtifactIndex): string | undefined {
 	const needle = `/${entry.relPath}`;
@@ -155,7 +150,6 @@ export class StoryFilesModal extends Modal {
 	private primaryBtn: HTMLButtonElement | null = null;
 	private cancelBtn: HTMLButtonElement | null = null;
 	private asideEl: HTMLElement | null = null;
-	private footEl: HTMLElement | null = null;
 	private ids = 0;
 
 	constructor(private readonly deps: StoryFilesDeps) {
@@ -251,25 +245,33 @@ export class StoryFilesModal extends Modal {
 		const gen = ++view.gen;
 		this.pending++;
 		this._refreshFoot();
+		let outcome: { items: PlanItem[] } | { error: unknown };
 		try {
-			const items = (await this._planSets([set])).get(set) ?? [];
-			if (this.closed || gen !== view.gen) return;
-			this.plan.set(set, items);
-			this._tickDefaults(items);
-			view.planned = folder;
-			view.error = null;
-			view.card.dataset["folder"] = folder;
+			outcome = { items: (await this._planSets([set])).get(set) ?? [] };
 		} catch (err) {
 			console.error("[StoryForge] could not plan story files", err);
-			if (this.closed || gen !== view.gen) return;
-			// The shown plan is still the old folder's: go back to it, so confirm never mixes the two.
-			view.error = `Could not check ${folder}: ${messageOf(err)}. The folder stays ${view.planned}.`;
-			this.folders = { ...this.folders, [key]: view.planned };
-			view.input.value = view.planned;
+			outcome = { error: err };
 		} finally {
 			this.pending--;
 		}
 		if (this.closed) return;
+		// A newer replan of this set is on its way: drop this result, only the button may change.
+		if (gen !== view.gen) {
+			this._refreshFoot();
+			return;
+		}
+		if ("items" in outcome) {
+			this.plan.set(set, outcome.items);
+			this._tickDefaults(outcome.items);
+			view.planned = folder;
+			view.error = null;
+			view.card.dataset["folder"] = folder;
+		} else {
+			// The shown plan is still the old folder's: go back to it, so confirm never mixes the two.
+			view.error = `Could not check ${folder}: ${messageOf(outcome.error)}. The folder stays ${view.planned}.`;
+			this.folders = { ...this.folders, [key]: view.planned };
+			view.input.value = view.planned;
+		}
 		this._renderDyn(set);
 		this._renderRows(set);
 		this._refresh();
@@ -350,8 +352,7 @@ export class StoryFilesModal extends Modal {
 		const folder = this.folders[this._keyOf(set)];
 		const items = this.plan.get(set) ?? [];
 
-		const moved = items.filter((i) => i.path !== targetPathOf(i.entry, this.folders));
-		const recordFolder = this._movedFolder(moved);
+		const recordFolder = this._movedFolder(items);
 		if (recordFolder !== undefined) {
 			const note = dyn.createDiv({ cls: "sf-story-moved" });
 			note.appendText("These files were set up in ");
@@ -378,10 +379,14 @@ export class StoryFilesModal extends Modal {
 		}
 	}
 
-	/** The most common record folder of the moved items. */
-	private _movedFolder(moved: readonly PlanItem[]): string | undefined {
+	/** The most common record folder of the items set up elsewhere than the folder now names (D8). */
+	private _movedFolder(items: readonly PlanItem[]): string | undefined {
 		const counts = new Map<string, number>();
-		for (const item of moved) counts.set(folderOfRecord(item), (counts.get(folderOfRecord(item)) ?? 0) + 1);
+		for (const item of items) {
+			if (item.path === targetPathOf(item.entry, this.folders)) continue;
+			const folder = folderOfRecord(item);
+			counts.set(folder, (counts.get(folder) ?? 0) + 1);
+		}
 		let best: string | undefined;
 		for (const [folder, n] of counts) if (best === undefined || n > (counts.get(best) ?? 0)) best = folder;
 		return best;
@@ -427,8 +432,7 @@ export class StoryFilesModal extends Modal {
 		if (!view) return;
 		view.rows.empty();
 		const items = this.plan.get(set) ?? [];
-		const moved = items.filter((i) => i.path !== targetPathOf(i.entry, this.folders));
-		const noteFolder = this._movedFolder(moved);
+		const noteFolder = this._movedFolder(items);
 		for (const item of items) this._renderRow(view.rows, item, noteFolder);
 	}
 
@@ -458,14 +462,14 @@ export class StoryFilesModal extends Modal {
 
 		const end = row.createSpan({ cls: "sf-story-end" });
 		if (item.action === "missing" && box) {
-			box.setAttribute("aria-labelledby", `${this._labelId(end, box)} ${fileId}`);
+			box.setAttribute("aria-labelledby", `${this._renderAgainLabel(end, box)} ${fileId}`);
 		}
 		end.createSpan({ cls: ["sf-story-act", `is-${meta.kind}`], text: meta.label });
 		this._renderWhy(row, item);
 	}
 
-	/** The visible "Set up again" label of a Missing row (O5); returns its id. */
-	private _labelId(end: HTMLElement, box: HTMLInputElement): string {
+	/** Draw the visible "Set up again" label of a Missing row (O5); returns its id. */
+	private _renderAgainLabel(end: HTMLElement, box: HTMLInputElement): string {
 		const id = this._id("again");
 		end.createEl("label", { cls: "sf-story-again", text: "Set up again", attr: { for: box.id, id } });
 		return id;
@@ -524,7 +528,10 @@ export class StoryFilesModal extends Modal {
 		for (const [set, view] of this.views) {
 			const writable = (this.plan.get(set) ?? []).filter((i) => writes(i.action));
 			const on = writable.filter((i) => this.ticked.has(i.entry.id)).length;
-			view.box.disabled = writable.length === 0;
+			// Locked while confirming, so nothing changes what is being written.
+			view.box.disabled = this.busy || writable.length === 0;
+			view.input.disabled = this.busy;
+			for (const row of view.rows.querySelectorAll<HTMLInputElement>(".sf-story-row-cb")) row.disabled = this.busy;
 			view.box.checked = writable.length > 0 && on === writable.length;
 			view.box.indeterminate = on > 0 && on < writable.length;
 			view.card.toggleClass("is-off", writable.length > 0 && on === 0);
@@ -540,10 +547,14 @@ export class StoryFilesModal extends Modal {
 
 	private _renderFoot(el: HTMLElement): void {
 		const foot = el.createDiv({ cls: "sf-picker-foot sf-story-foot" });
-		this.footEl = foot;
+		// PRD F2.8, answered before you ask; shown while a ticked file goes into a folder not there yet.
+		this.asideEl = foot.createSpan({ cls: "sf-story-foot-aside", text: "Folders that do not exist yet are created." });
 		this.cancelBtn = foot.createEl("button", { text: "Cancel", attr: { type: "button" } });
 		this.cancelBtn.addEventListener("click", () => this.close());
-		if (this.views.size === 0) return;
+		if (this.views.size === 0) {
+			this.asideEl.addClass("sf-hidden");
+			return;
+		}
 		this.primaryBtn = foot.createEl("button", { cls: "mod-cta", attr: { type: "button" } });
 		this.primaryBtn.addEventListener("click", () => void this._confirm());
 	}
@@ -560,15 +571,8 @@ export class StoryFilesModal extends Modal {
 		else btn.textContent = `Set up and update ${plural(items.length, "file", "files")}`;
 		btn.disabled = items.length === 0 || this.pending > 0 || this.busy;
 		if (this.cancelBtn) this.cancelBtn.disabled = this.busy;
-		// PRD F2.8, answered before you ask: shown while a ticked file goes into a folder not there yet.
 		const needsFolder = items.some((i) => i.action !== "update" && !this._folderExists(parentFolderOf(i.path)));
-		if (!needsFolder) {
-			this.asideEl?.remove();
-			this.asideEl = null;
-		} else if (!this.asideEl && this.footEl) {
-			this.asideEl = this.footEl.createSpan({ cls: "sf-story-foot-aside", text: "Folders that do not exist yet are created." });
-			this.footEl.prepend(this.asideEl);
-		}
+		this.asideEl?.toggleClass("sf-hidden", !needsFolder);
 	}
 
 	private _folderExists(folder: string): boolean {
@@ -581,9 +585,11 @@ export class StoryFilesModal extends Modal {
 
 	private async _confirm(): Promise<void> {
 		// The primary button is disabled while busy, planning or with nothing ticked.
+		// Everything this confirm writes and reports is fixed here, before the first await.
 		const items = this._tickedItems();
+		const refusals = this._refusalLines();
 		this.busy = true;
-		this._refreshFoot();
+		this._refresh();
 		// Equal to the folders the shown plans were computed for: the button is disabled while a replan
 		// is pending, and a failed replan puts its set's previous folder back.
 		const folders = { ...this.folders };
@@ -594,11 +600,10 @@ export class StoryFilesModal extends Modal {
 			} catch (err) {
 				new Notice(`Could not save the folder settings: ${messageOf(err)}. Nothing was written.`);
 				this.busy = false;
-				this._refreshFoot();
+				this._refresh();
 				return;
 			}
 		}
-		const refusals = this._refusalLines();
 		const result = await executePlan(items, folders, { app: this.app, store: this.deps.store, pluginVersion: this.deps.pluginVersion });
 		this.close();
 		showResult(result, items, refusals);
@@ -639,73 +644,30 @@ export class StoryFilesModal extends Modal {
 }
 
 // ---------------------------------------------------------------------------
-// Result notice (S5, D10)
+// Result notice (S5, D10): composed in storyFilesNotice.ts, drawn here
 // ---------------------------------------------------------------------------
-
-interface NoticeLine {
-	reason: string;
-	paths: string[];
-}
-
-/** Identical reasons collapse into one line (S5d). */
-function group(outcomes: readonly PlanOutcome[]): NoticeLine[] {
-	const lines: NoticeLine[] = [];
-	for (const o of outcomes) {
-		const line = lines.find((l) => l.reason === o.reason);
-		if (line) line.paths.push(o.path);
-		else lines.push({ reason: o.reason, paths: [o.path] });
-	}
-	return lines;
-}
-
-function writtenLine(created: number, updated: number): string {
-	if (created > 0 && updated > 0) return `Set up ${created} and updated ${plural(updated, "story file", "story files")}.`;
-	if (created > 0) return `Set up ${plural(created, "story file", "story files")}.`;
-	if (updated > 0) return `Updated ${plural(updated, "story file", "story files")}.`;
-	return "No story files written.";
-}
 
 function showResult(result: ExecutePlanResult, items: readonly PlanItem[], planSkips: readonly PlanOutcome[]): void {
 	const updates = new Set(items.filter((i) => i.action === "update").map((i) => i.path));
-	const updated = result.written.filter((p) => updates.has(p)).length;
-	const created = result.written.length - updated;
-	const skipped = [...planSkips, ...result.skipped];
-	for (const o of [...result.failed, ...skipped]) console.debug(`[StoryForge] ${o.reason}`);
+	const notice = composeNotice(result, updates, planSkips);
+	for (const line of notice.debug) console.debug(line);
 
-	const quiet = result.failed.length === 0 && skipped.length === 0;
 	const box = activeDocument.createElement("div");
 	box.addClass("sf-story-notice");
-	// S5a/b hide on their own (status); S5c/d stay until clicked (alert).
-	box.setAttribute("role", quiet ? "status" : "alert");
-	box.createSpan({ cls: "sf-story-notice-head", text: writtenLine(created, updated) });
-	let budget = MAX_NOTICE_LINES;
-	let hidden = 0;
-	for (const [heading, outcomes] of [["Failed", result.failed], ["Skipped", skipped]] as const) {
-		if (outcomes.length === 0) continue;
-		const lines = group(outcomes);
-		const shown = lines.slice(0, budget);
-		budget -= shown.length;
-		for (const line of lines.slice(shown.length)) hidden += line.paths.length;
-		if (shown.length === 0) continue;
-		box.createSpan({ cls: "sf-story-notice-head", text: `${heading} (${outcomes.length}):` });
-		for (const line of shown) {
-			box.createSpan({ cls: "sf-story-notice-line", text: line.reason });
-			if (line.paths.length > 1) {
-				const more = line.paths.length - 1;
-				box.createSpan({
-					cls: "sf-story-notice-more",
-					text: `The same reason for ${plural(more, "more file", "more files")} in ${parentFolderOf(line.paths[0]!)}.`,
-				});
-			}
+	box.setAttribute("role", notice.role);
+	box.createSpan({ cls: "sf-story-notice-head", text: notice.head });
+	for (const section of notice.sections) {
+		box.createSpan({ cls: "sf-story-notice-head", text: section.heading });
+		for (const line of section.lines) {
+			box.createSpan({ cls: "sf-story-notice-line", text: line.text });
+			if (line.more !== undefined) box.createSpan({ cls: "sf-story-notice-more", text: line.more });
 		}
 	}
-	if (hidden > 0) {
-		box.createSpan({ cls: "sf-story-notice-more", text: `and ${hidden} more. Open Set up story files again to see each file.` });
-	}
+	if (notice.tail !== undefined) box.createSpan({ cls: "sf-story-notice-more", text: notice.tail });
 	const fragment = activeDocument.createDocumentFragment();
 	fragment.append(box);
-	if (quiet) new Notice(fragment);
-	else new Notice(fragment, 0);
+	if (notice.sticky) new Notice(fragment, 0);
+	else new Notice(fragment);
 }
 
 /** Open the "Set up story files" dialog with its dependencies (wired by T3.3). */
