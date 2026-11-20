@@ -41,6 +41,7 @@
 | 2026-11-19 | Phase 4 done: scanner-clean, 0 errors, 128 warnings left (116 prefer-create-el, 11 prefer-instanceof, 1 prefer-setting-definitions) | ADR-44; warnings are out of scope; the popout card fix likely addresses #31 (to confirm live) |
 | 2026-11-20 | Mockups S1–S7 signed off | User review added O7–O9: the capability screen is renamed "What Story Forge can use" everywhere it is named (title, footer, Library link, Dataview hints, user docs, PRD text); the Library tab shows a hint with "Don't show again" while no story file is set up (S7); the metadata-menu row names its option lists in Obsidian's Properties panel, to be confirmed in the live walk before it ships |
 | 2026-11-20 | Phase 3 built: setup dialog, command, Scope tab group, Library hint, capability row | Live walk items 5–6 still open; #31 confirmed fixed in a popout; O9 wording corrected to the buttons metadata-menu draws in the Properties panel; SDD synced to the build |
+| 2026-11-20 | Mockups R1–R2 signed off (live walk review) | R1: files already in the folder but not written by Story Forge show "Already there", dimmed, with a reason line (same content / your own file) and a set line when the whole set is affected; they leave the result notice; revises O4 for the dialog rows only. R2: the result notice adds one line per written set with count and folder. Also found live: the notice showed no text, only something like an object name; fixed by filling `Notice.messageEl` instead of passing a DocumentFragment |
 
 ## Context
 
