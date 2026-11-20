@@ -92,7 +92,9 @@ function fcField(f, prefix) {
       break;
     case 'media':
       type = 'Media';
-      optionsBlock = '    options: {}';
+      // metadata-menu's Media defaults, written out: its FileClass form reads them without
+      // falling back (0.8.12 fails on a missing `folders`).
+      optionsBlock = '    options:\n      embed: false\n      folders: []\n      display: card\n      thumbnailSize: "100"';
       break;
     case 'text':
     default:

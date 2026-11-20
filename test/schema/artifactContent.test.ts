@@ -87,6 +87,22 @@ describe("FileClasses match by tag only (T1.1, PRD F5.5)", () => {
 		}
 	});
 
+	// metadata-menu 0.8.12 reads a Media field's options without defaults (`options.folders.join`)
+	// and fails to open the FileClass form when they are missing (live walk 2026-11-20).
+	it("give every Media field the options metadata-menu reads", () => {
+		const media = sources
+			.filter((a) => a.set === "fileclasses")
+			.flatMap((a) => [...a.source.matchAll(/ {2}- name: (\S+)\n {4}type: Media\n {4}options:(.*?)\n {4}path:/gs)]
+				.map((m) => ({ file: a.relPath, name: m[1], options: m[2] })));
+		expect(media.length).toBeGreaterThan(0);
+		for (const m of media) {
+			expect(m.options, `${m.file} ${m.name}`).toMatch(/\n {6}folders: \[\]/);
+			expect(m.options, `${m.file} ${m.name}`).toMatch(/\n {6}embed: false/);
+			expect(m.options, `${m.file} ${m.name}`).toMatch(/\n {6}display: card/);
+			expect(m.options, `${m.file} ${m.name}`).toMatch(/\n {6}thumbnailSize: "100"/);
+		}
+	});
+
 	it("query fc-lore's related notes by tag, not by folder", () => {
 		const lore = source("fileclasses", "fc-lore.md");
 		const line = lore.split("\n").find((l) => l.includes("dvQueryString")) ?? "";

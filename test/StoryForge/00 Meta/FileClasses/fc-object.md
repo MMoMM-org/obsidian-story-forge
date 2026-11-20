@@ -70,7 +70,11 @@ fields:
     id: o-series
   - name: image
     type: Media
-    options: {}
+    options:
+      embed: false
+      folders: []
+      display: card
+      thumbnailSize: "100"
     path: ""
     id: o-image
 ---

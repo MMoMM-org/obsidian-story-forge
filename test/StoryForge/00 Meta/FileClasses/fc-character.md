@@ -139,7 +139,11 @@ fields:
     id: f-tagline
   - name: portrait
     type: Media
-    options: {}
+    options:
+      embed: false
+      folders: []
+      display: card
+      thumbnailSize: "100"
     path: ""
     id: f-portrait
   - name: significant_other
