@@ -114,13 +114,16 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
+let store: ArtifactStore;
+
 function deps(): StoryFilesDeps {
+	store = new ArtifactStore(createDataFile(port));
 	return {
 		app,
 		settings: () => settings,
 		saveFolders,
 		addExcludedFolder,
-		store: new ArtifactStore(createDataFile(port)),
+		store,
 		index,
 		pluginVersion: VERSION,
 	};
@@ -364,12 +367,62 @@ describe("StoryFilesModal — cancel and folder change", () => {
 		expect(saveFolders).not.toHaveBeenCalled();
 	});
 
-	it("a blank folder field keeps the setting's folder", async () => {
+	it("an emptied folder field falls back to the set's default folder, as the settings fields do", async () => {
+		settings = { ...settings, templatesFolder: "Writing/Templates" };
 		await open();
-		await changeFolder("templates", "Writing/Templates");
 		await changeFolder("templates", "   ", "00 Meta/Templates");
 		expect(folderInput("templates").value).toBe("00 Meta/Templates");
 		expect(rowPaths("templates")).toEqual(["00 Meta/Templates/t-a.md"]);
+	});
+
+	it("a malformed folder field (slashes only) falls back to the default folder", async () => {
+		settings = { ...settings, schemaFolder: "Writing/Schema", fileClassesFolder: "Writing/Classes" };
+		await open();
+		await changeFolder("schema", "///", "00 Meta/Schema");
+		await changeFolder("fileclasses", "  ", "00 Meta/FileClasses");
+		expect(folderInput("schema").value).toBe("00 Meta/Schema");
+		expect(folderInput("fileclasses").value).toBe("00 Meta/FileClasses");
+	});
+});
+
+describe("StoryFilesModal — replan failure", () => {
+	async function failReplan(): Promise<void> {
+		await open();
+		vi.spyOn(store, "all").mockImplementationOnce(() => {
+			throw new Error("store gone");
+		});
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		typeFolder("templates", "Writing/Templates");
+		await vi.waitFor(() => expect(setEl("templates").querySelector(".sf-story-error")).not.toBeNull());
+	}
+
+	it("restores the previous folder in the field and shows the error in the set card", async () => {
+		await failReplan();
+		expect(folderInput("templates").value).toBe("00 Meta/Templates");
+		const err = $(".sf-story-error", setEl("templates"));
+		expect(err.getAttribute("role")).toBe("alert");
+		expect(err.textContent).toBe("Could not check Writing/Templates: store gone. The folder stays 00 Meta/Templates.");
+		expect(setEl("fileclasses").querySelector(".sf-story-error")).toBeNull();
+	});
+
+	it("restores the folder state too: no warning for the folder that was not planned", async () => {
+		await failReplan();
+		expect(setEl("templates").querySelector(".sf-story-warn")).toBeNull();
+	});
+
+	it("confirm then writes the plan's folder and saves no setting", async () => {
+		await failReplan();
+		expect(primary().disabled).toBe(false);
+		await confirm();
+		expect(saveFolders).not.toHaveBeenCalled();
+		expect(mem.files.has("00 Meta/Templates/t-a.md")).toBe(true);
+		expect(mem.files.has("Writing/Templates/t-a.md")).toBe(false);
+	});
+
+	it("a later successful replan clears the error", async () => {
+		await failReplan();
+		await changeFolder("templates", "00 Meta/Other");
+		expect(setEl("templates").querySelector(".sf-story-error")).toBeNull();
 	});
 });
 
@@ -421,6 +474,20 @@ describe("StoryFilesModal — folder not excluded (S4)", () => {
 		);
 		expect(writes()).toBe(before);
 		expect(saveFolders).not.toHaveBeenCalled();
+	});
+
+	it("a failed add says so in a notice and keeps the warning", async () => {
+		addExcludedFolder.mockRejectedValueOnce(new Error("store busy"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		await open();
+		await changeFolder("templates", "Templates");
+		const btn = $<HTMLButtonElement>(".sf-story-warn button", setEl("templates"));
+		btn.click();
+		await vi.waitFor(() => expect(Notice._instances).toHaveLength(1));
+		expect(Notice._instances[0]!.message).toBe("Could not add Templates to excluded folders: store busy");
+		expect(setEl("templates").querySelector(".sf-story-warn")).not.toBeNull();
+		expect(setEl("templates").querySelector(".sf-story-note")).toBeNull();
+		expect(btn.disabled).toBe(false);
 	});
 
 	it("the warning button is labelled with the folder", async () => {
@@ -598,6 +665,7 @@ describe("StoryFilesModal — result notice (S5)", () => {
 		expect(Notice._instances).toHaveLength(1);
 		expect(Notice._instances[0]!.message).toBe("Set up 6 story files.");
 		expect(Notice._instances[0]!.timeout).toBeUndefined();
+		expect($(".sf-story-notice", Notice._instances[0]!.messageEl).getAttribute("role")).toBe("status");
 	});
 
 	it("disables the primary button while writing, so a second click writes nothing more", async () => {
@@ -626,6 +694,7 @@ describe("StoryFilesModal — result notice (S5)", () => {
 		await confirm();
 		const notice = Notice._instances[0]!;
 		expect(notice.timeout).toBe(0);
+		expect($(".sf-story-notice", notice.messageEl).getAttribute("role")).toBe("alert");
 		const texts = [...notice.messageEl.querySelectorAll(".sf-story-notice-head, .sf-story-notice-line")].map((e) => e.textContent);
 		expect(texts).toEqual([
 			"Updated 1 story file.",

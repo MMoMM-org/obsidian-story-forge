@@ -24,6 +24,7 @@ import { Modal, Notice, TFolder } from "obsidian";
 import type { App } from "obsidian";
 import { attachFolderSuggest } from "settings/suggesters";
 import { isExcluded } from "scoping/workspaceScope";
+import { normalizeFileClassesFolder, normalizeSchemaFolder, normalizeTemplatesFolder } from "types/index";
 import type { PluginSettings } from "types/index";
 import { editedRefusal, occupiedRefusal, parentFolderOf, readExisting } from "../vault/managedFileWriter";
 import type { ArtifactStore } from "./ArtifactStore";
@@ -64,6 +65,15 @@ const SETS: readonly { set: ArtifactSet; name: string; key: ArtifactPlaceholder 
 ];
 
 const INSTALLED = "Not installed";
+
+/** The settings fields' normalisers: an emptied or malformed field falls back to the default folder. */
+const NORMALIZE: Record<ArtifactPlaceholder, (v: unknown) => string> = {
+	fileClassesFolder: normalizeFileClassesFolder,
+	templatesFolder: normalizeTemplatesFolder,
+	schemaFolder: normalizeSchemaFolder,
+};
+
+const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
 type Kind = "create" | "update" | "ok" | "skip" | "bad" | "missing";
 
@@ -121,6 +131,10 @@ interface SetView {
 	rows: HTMLElement;
 	toggle: HTMLButtonElement;
 	expanded: boolean;
+	/** The folder the shown plan was computed for: what confirm saves and writes with. */
+	planned: string;
+	/** A failed replan, shown in the card until the next successful one. */
+	error: string | null;
 	/** Replan generation: a stale replan's result is dropped. */
 	gen: number;
 }
@@ -212,7 +226,7 @@ export class StoryFilesModal extends Modal {
 			plan = await this._planSets(SETS.map((s) => s.set));
 		} catch (err) {
 			if (this.closed) return;
-			el.createEl("p", { cls: "sf-picker-feedback", text: `Could not read the story files: ${err instanceof Error ? err.message : String(err)}` });
+			el.createEl("p", { cls: "sf-picker-feedback", text: `Could not read the story files: ${messageOf(err)}` });
 			this._renderFoot(el);
 			return;
 		}
@@ -232,6 +246,8 @@ export class StoryFilesModal extends Modal {
 	private async _replan(set: ArtifactSet): Promise<void> {
 		const view = this.views.get(set);
 		if (!view) return;
+		const key = this._keyOf(set);
+		const folder = this.folders[key];
 		const gen = ++view.gen;
 		this.pending++;
 		this._refreshFoot();
@@ -240,9 +256,16 @@ export class StoryFilesModal extends Modal {
 			if (this.closed || gen !== view.gen) return;
 			this.plan.set(set, items);
 			this._tickDefaults(items);
-			view.card.dataset["folder"] = this.folders[this._keyOf(set)];
+			view.planned = folder;
+			view.error = null;
+			view.card.dataset["folder"] = folder;
 		} catch (err) {
 			console.error("[StoryForge] could not plan story files", err);
+			if (this.closed || gen !== view.gen) return;
+			// The shown plan is still the old folder's: go back to it, so confirm never mixes the two.
+			view.error = `Could not check ${folder}: ${messageOf(err)}. The folder stays ${view.planned}.`;
+			this.folders = { ...this.folders, [key]: view.planned };
+			view.input.value = view.planned;
 		} finally {
 			this.pending--;
 		}
@@ -290,7 +313,7 @@ export class StoryFilesModal extends Modal {
 		input.addEventListener("change", () => this._onFolder(s.set, input));
 		const dyn = head.createDiv({ cls: "sf-story-dyn" });
 		const rows = card.createDiv({ cls: "sf-story-rows", attr: { id: rowsId } });
-		const view: SetView = { card, box, input, dyn, rows, toggle, expanded, gen: 0 };
+		const view: SetView = { card, box, input, dyn, rows, toggle, expanded, planned: this.folders[s.key], error: null, gen: 0 };
 		toggle.addEventListener("click", () => {
 			view.expanded = !view.expanded;
 			this._applyExpanded(view);
@@ -309,8 +332,7 @@ export class StoryFilesModal extends Modal {
 
 	private _onFolder(set: ArtifactSet, input: HTMLInputElement): void {
 		const key = this._keyOf(set);
-		const typed = normalizeFolder(input.value);
-		const next = typed === "" ? this.saved[key] : typed;
+		const next = normalizeFolder(NORMALIZE[key](input.value.trim()));
 		input.value = next;
 		if (next === this.folders[key]) return;
 		this.folders = { ...this.folders, [key]: next };
@@ -324,6 +346,7 @@ export class StoryFilesModal extends Modal {
 		if (!view) return;
 		const dyn = view.dyn;
 		dyn.empty();
+		if (view.error !== null) dyn.createDiv({ cls: ["sf-story-error", "sf-picker-feedback"], attr: { role: "alert" }, text: view.error });
 		const folder = this.folders[this._keyOf(set)];
 		const items = this.plan.get(set) ?? [];
 
@@ -386,6 +409,7 @@ export class StoryFilesModal extends Modal {
 			await this.deps.addExcludedFolder(folder);
 		} catch (err) {
 			console.error("[StoryForge] could not add the excluded folder", err);
+			new Notice(`Could not add ${folder} to excluded folders: ${messageOf(err)}`);
 			btn.disabled = false;
 			return;
 		}
@@ -560,13 +584,15 @@ export class StoryFilesModal extends Modal {
 		const items = this._tickedItems();
 		this.busy = true;
 		this._refreshFoot();
+		// Equal to the folders the shown plans were computed for: the button is disabled while a replan
+		// is pending, and a failed replan puts its set's previous folder back.
 		const folders = { ...this.folders };
 		const changed = SETS.some((s) => folders[s.key] !== this.saved[s.key]);
 		if (changed) {
 			try {
 				await this.deps.saveFolders(folders);
 			} catch (err) {
-				new Notice(`Could not save the folder settings: ${err instanceof Error ? err.message : String(err)}. Nothing was written.`);
+				new Notice(`Could not save the folder settings: ${messageOf(err)}. Nothing was written.`);
 				this.busy = false;
 				this._refreshFoot();
 				return;
@@ -646,8 +672,11 @@ function showResult(result: ExecutePlanResult, items: readonly PlanItem[], planS
 	const skipped = [...planSkips, ...result.skipped];
 	for (const o of [...result.failed, ...skipped]) console.debug(`[StoryForge] ${o.reason}`);
 
+	const quiet = result.failed.length === 0 && skipped.length === 0;
 	const box = activeDocument.createElement("div");
 	box.addClass("sf-story-notice");
+	// S5a/b hide on their own (status); S5c/d stay until clicked (alert).
+	box.setAttribute("role", quiet ? "status" : "alert");
 	box.createSpan({ cls: "sf-story-notice-head", text: writtenLine(created, updated) });
 	let budget = MAX_NOTICE_LINES;
 	let hidden = 0;
@@ -675,7 +704,6 @@ function showResult(result: ExecutePlanResult, items: readonly PlanItem[], planS
 	}
 	const fragment = activeDocument.createDocumentFragment();
 	fragment.append(box);
-	const quiet = result.failed.length === 0 && skipped.length === 0;
 	if (quiet) new Notice(fragment);
 	else new Notice(fragment, 0);
 }
