@@ -32,8 +32,9 @@ phase: 5
   syntax ships. Live check (2026-11-20, maintainer): without meta-bind the `VIEW[]` lines show as
   plain text; with it the values show, empty fields stay blank until selected; `{{title}}` is
   filled by core Templates only (Templater leaves it), now stated. metadata-menu's FileClass form
-  could not be opened: metadata-menu itself threw "Attempting to register an existing view type
-  FileClassView__fc-character", so the doc no longer claims the form reads the files (b647fac).
+  first failed: a stale view registration in metadata-menu itself (mdelobelle/metadatamenu#801),
+  then our Media fields with `options: {}` (fixed in 96b553f, metadata-menu's Media defaults
+  written out). After the fix the form opens fc-character; the doc says so again.
 - T5.3 (f340025, 76f74e4): README section "What Story Forge does to your vault" and a rewritten
   PRIVACY.md, each claim tied to code (checklist in the spec README). The Obsidian policy pages
   could not be fetched; re-check them before submission (Phase 6).

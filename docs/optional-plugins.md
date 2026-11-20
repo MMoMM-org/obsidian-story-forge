@@ -86,7 +86,7 @@ Scope → Set up story files…**, or the same button on the capability screen) 
 each of the eight story types: `book`, `character`, `character-fantasy`, `location`, `lore`,
 `object`, `plotline` and `scene`. It shows every file first and writes nothing until you confirm.
 They are written in metadata-menu's format and use its field types (Input, Number, Select,
-Multi, File, MultiFile, Media).
+Multi, File, MultiFile, Media), so metadata-menu's FileClass form opens and edits them as they are.
 
 **With metadata-menu you get:**
 
