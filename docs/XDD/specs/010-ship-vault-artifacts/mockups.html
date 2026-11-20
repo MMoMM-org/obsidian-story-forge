@@ -226,6 +226,9 @@
   .cp-act .aside{font-size:11px;color:var(--faint)}
   .cp-trim{font-size:11px;color:var(--faint);text-align:center;border:1px dashed var(--border-2);border-radius:8px;padding:6px}
   .ins{background:var(--warn-bg);border-radius:3px;padding:0 2px}
+  .sx-hint{margin:10px 13px 2px;padding:9px 11px;border:1px solid var(--border);border-left:3px solid var(--st-draft);border-radius:6px;display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;font-size:12px;box-shadow:inset 3px 0 0 var(--mk-proposal)}
+  .sx-hint .txt{flex:1 1 260px;min-width:0}
+  .sx-hint .lnk{color:var(--faint);text-decoration:underline;cursor:pointer;font-size:11px}
   .del{text-decoration:line-through;color:var(--faint)}
 
   @media (max-width:560px){
@@ -344,7 +347,8 @@ Default folders <code>00 Meta/FileClasses</code>, <code>00 Meta/Templates</code>
 <tr><td><b>S3</b></td><td>Setup dialog, mixed</td><td>every action: up to date, update, not installed, not updated, missing, unreadable, damaged; <i>setting now points to</i></td><td>D4 D5 D6 D8</td></tr>
 <tr><td><b>S4</b></td><td>Folder not excluded</td><td>(a) the warning in a set card; (b) after <i>Add to excluded folders</i></td><td>D9</td></tr>
 <tr><td><b>S5</b></td><td>Result notice</td><td>(a) success; (b) update; (c) mixed with truncation; (d) folder failure</td><td>D10</td></tr>
-<tr><td><b>S6</b></td><td>Capability screen pointer</td><td>(a) first run, not set up; (b) from settings, set up</td><td>D11</td></tr>
+<tr><td><b>S6</b></td><td>Capability screen pointer</td><td>(a) first run, not set up; (b) from settings, set up</td><td>D11 O7 O9</td></tr>
+<tr><td><b>S7</b></td><td>Library tab hint</td><td>(a) Library tab, nothing set up</td><td>O8</td></tr>
 </table>
 </div>
 
@@ -781,7 +785,7 @@ written.</i> <span class="mk-tag prop">proposed</span>.</p>
 </div>
 
 <!-- ═════════════════════════════════ S6 ═════════════════════════════════ -->
-<h2>S6 — Capability screen pointer <span class="h2s">· "What optional plugins add" points to the setup</span></h2>
+<h2>S6 — Capability screen pointer <span class="h2s">· renamed "What Story Forge can use" (O7), points to the setup</span></h2>
 <div class="gallery">
 <figure>
 <figcaption><b>S6a · First run, nothing set up.</b> Today's L12a screen with one new row first in the body
@@ -789,9 +793,9 @@ written.</i> <span class="mk-tag prop">proposed</span>.</p>
 <span class="mk-tag prop">proposed</span>. The rows below it are unchanged and drawn cut short. The button opens the
 setup dialog; this screen writes nothing (PRD F2.9).</figcaption>
 <div class="md cp" role="dialog" aria-labelledby="s6a-t" aria-describedby="s6a-i">
-  <div class="md-head"><p class="t" id="s6a-t">What optional plugins add</p><span class="x" aria-label="Close">✕</span></div>
+  <div class="md-head"><p class="t" id="s6a-t">What Story Forge can use <span class="mk-tag prop">O7</span></p><span class="x" aria-label="Close">✕</span></div>
   <div class="cp-body">
-    <p class="cp-intro" id="s6a-i">Story Forge works without any of these. Each row says what it adds and what you have without it.</p>
+    <p class="cp-intro" id="s6a-i">Story Forge works without any of these, and best with its story files. Each row says what it adds and what you have without it.</p>
     <div class="cp-grp">Story Forge <span>· written only when you ask</span></div>
     <div class="cp-row new" role="group" aria-labelledby="s6a-sf">
       <div class="cp-h"><span class="n" id="s6a-sf">Story files</span><span class="cp-kind core">Story Forge</span><span class="cp-st off">Not set up</span></div>
@@ -820,14 +824,16 @@ setup dialog; this screen writes nothing (PRD F2.9).</figcaption>
       <div class="cp-h"><span class="n">metadata-menu</span><span class="cp-kind">community</span><span class="cp-st off">No FileClasses in 00 Meta/FileClasses</span></div>
       <div class="cp-cols">
         <div><h5>What it adds</h5><ul>
-          <li>A form for editing FileClasses (<code>fc-*.md</code>): which fields a kind of note has, their types, options and order.</li></ul></div>
+          <li>A form for editing FileClasses (<code>fc-*.md</code>): which fields a kind of note has, their types, options and order.</li>
+          <li><span class="ins">Option lists from the FileClasses outside Story Forge too: in Obsidian's Properties panel you pick a value such as <i>male</i> for <i>gender</i> from a list.</span> <span class="mk-tag prop">O9</span></li></ul></div>
         <div><h5>Without it</h5><ul>
           <li>Nothing changes in Story Forge. It reads FileClass files itself <span class="del">and ships its own for the eight story types</span><span class="ins">; Set up story files… writes its own for the eight story types</span>. You edit them as plain notes. <span class="mk-tag prop">proposed</span></li>
-          <li>With no FileClasses at all, the editor lists every property under "Properties", without sections or option lists.</li></ul></div>
+          <li>With no FileClasses at all, the editor lists every property under "Properties", without sections or option lists.</li>
+          <li><span class="ins">Obsidian's Properties panel shows plain text fields; option lists exist only in Story Forge's editor.</span> <span class="mk-tag prop">O9</span></li></ul></div>
       </div>
     </div>
   </div>
-  <div class="md-foot"><span class="cp-later">Open this again from Settings › Library › What optional plugins add…</span><button class="btn cta foc">Got it</button></div>
+  <div class="md-foot"><span class="cp-later">Open this again from Settings › Library › What Story Forge can use…</span><button class="btn cta foc">Got it</button></div>
 </div>
 <p class="note"><b>The button</b> closes this screen and opens <i>Set up story files</i>; on first run that close
 counts as <i>Got it</i> (recorded as seen, as any close does today). The capability modal itself calls only the
@@ -844,9 +850,9 @@ files became something you set up; the proposed edit makes it true for a fresh v
 stays (it is how you reach updates from here), the aside changes <span class="mk-tag prop">proposed</span>. Footer
 only <i>Close</i>, as in L12b.</figcaption>
 <div class="md cp" style="width:560px">
-  <div class="md-head"><p class="t">What optional plugins add</p><span class="x">✕</span></div>
+  <div class="md-head"><p class="t">What Story Forge can use</p><span class="x">✕</span></div>
   <div class="cp-body">
-    <p class="cp-intro">Story Forge works without any of these. Each row says what it adds and what you have without it.</p>
+    <p class="cp-intro">Story Forge works without any of these, and best with its story files. Each row says what it adds and what you have without it.</p>
     <div class="cp-grp">Story Forge <span>· written only when you ask</span></div>
     <div class="cp-row new">
       <div class="cp-h"><span class="n">Story files</span><span class="cp-kind core">Story Forge</span><span class="cp-st on">27 set up</span></div>
@@ -857,6 +863,45 @@ only <i>Close</i>, as in L12b.</figcaption>
   </div>
   <div class="md-foot"><button class="btn cta foc">Close</button></div>
 </div>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ S7 ═════════════════════════════════ -->
+<h2>S7 — Library tab hint <span class="h2s">· the first settings page says when story files are not set up (O8)</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>S7a · Library tab, nothing set up.</b> One hint above <i>Collections</i>, all wording
+<span class="mk-tag prop">proposed</span>. It shows only while the S1 status is <i>Not set up</i> (no set-up file at
+all). The button opens the S2 dialog; the hint itself writes nothing. Once any set is set up, the hint is gone and the
+Scope tab carries the status.</figcaption>
+<div class="view set">
+  <div class="lb-ident"><b>Story Forge</b> v0.2.0 · Marcus Breiden · <a>Documentation</a></div>
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs" role="tablist"><span class="sel" role="tab" aria-selected="true">Library</span><span role="tab" aria-selected="false">Scope</span><span role="tab" aria-selected="false">Behaviour</span></div>
+  </div>
+  <div class="sx-hint" role="status">
+    <span class="txt"><b>Story files are not set up.</b> Without them the editor shows no sections or option lists, and
+      there are no templates for new scenes and entities.</span>
+    <button class="btn">Set up story files…</button>
+    <span class="lnk" role="button">Don't show again</span>
+  </div>
+  <div class="set-sec">
+    <h4>Collections</h4>
+    <div class="d">What the Codex can show. Each is a query over your vault. Choose where each one appears.</div>
+    <div class="cp-trim">… unchanged (spec 008 L2a) …</div>
+  </div>
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Folder for collections from the repo</h4>
+    <div class="cp-trim">… unchanged …</div>
+    <div style="margin-top:9px"><span class="set-add" style="padding-top:0">What Story Forge can use…</span> <span class="mk-tag prop">O7</span></div>
+  </div>
+</div>
+<p class="note"><b>Don't show again</b> stores one UI preference in <code>data.json</code> (operational state, not
+story data) and redraws the tab without the hint; it is a deliberate affordance, not a side effect of a click on
+the hint. The Scope tab status and the capability screen row still show <i>Not set up</i>. <b>Checking:</b> the hint
+uses the same read-only status as S1; while it is computed nothing is drawn, so the hint never flashes for a vault
+that is set up. <b>Not shown</b> for <i>partly set up</i>, <i>updates available</i> or <i>missing</i>: those are for
+the Scope tab, the first page stays quiet once you have chosen.</p>
 </figure>
 </div>
 
@@ -873,6 +918,15 @@ only <i>Close</i>, as in L12b.</figcaption>
   <li><b>O4 — Refusal verb.</b> Resolved: keep "Not installed" / "Not updated" word for word (S3).</li>
   <li><b>O5 — Missing row checkbox.</b> Resolved: visible label <i>Set up again</i> (S3 and the action table).</li>
   <li><b>O6 — Skipped lines in the notice.</b> Resolved: up to 5 skipped or failed files listed by name (S5c).</li>
+  <li><b>O7 — Name of the capability screen.</b> Proposed 2026-11-20 after review: <i>What optional plugins add</i>
+    became wrong once Story Forge's own story files sit first on it. New name <i>What Story Forge can use</i>, used
+    for the title, the footer line and every link that opens it (Library tab, Dataview hints). The intro adds
+    "and best with its story files". The command and the seen-flag do not change.</li>
+  <li><b>O8 — Library tab hint.</b> Proposed 2026-11-20 after review: the first settings page shows a hint while no
+    story file is set up (S7), with <i>Don't show again</i>.</li>
+  <li><b>O9 — metadata-menu in the Properties panel.</b> Proposed 2026-11-20 after review: the row names that
+    metadata-menu brings the FileClass option lists into Obsidian's Properties panel. Observed by the maintainer;
+    metadata-menu's own docs do not describe it, so the live walk (T3.5) checks it before the wording ships.</li>
 </ol>
 </div>
 
