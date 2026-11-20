@@ -349,7 +349,7 @@ Default folders <code>00 Meta/FileClasses</code>, <code>00 Meta/Templates</code>
 <tr><td><b>S5</b></td><td>Result notice</td><td>(a) success; (b) update; (c) mixed with truncation; (d) folder failure</td><td>D10</td></tr>
 <tr><td><b>S6</b></td><td>Capability screen pointer</td><td>(a) first run, not set up; (b) from settings, set up</td><td>D11 O7 O9</td></tr>
 <tr><td><b>S7</b></td><td>Library tab hint</td><td>(a) Library tab, nothing set up</td><td>O8</td></tr>
-<tr><td><b>R</b></td><td>Live walk review</td><td>R1 files already there; R2 notice says what went where</td><td>R1 R2</td></tr>
+<tr><td><b>R</b></td><td>Live walk review</td><td>R1 files already there; R2 notice says what went where; R3 Library hint for updates</td><td>R1 R2 R3</td></tr>
 </table>
 </div>
 
@@ -961,6 +961,31 @@ line per set that was written: the count, the set and its folder.</figcaption>
 <p class="note">One line per set, set names lower case as a noun (<i>FileClasses</i> stays as the brand). The folder is
 the folder the files went to (a record's folder for updates and set-up-again files). Failed and Skipped sections of
 S5c/S5d follow unchanged, inside the same 5-line budget for file lines; the set lines do not count against it.</p>
+</figure>
+<figure>
+<figcaption><b>R3 · Library tab, updates available.</b> Extends S7 <span class="mk-tag prop">R3</span>. Asked for in
+the live walk: an update was only visible at the foot of the Scope tab. The same hint slot above <i>Collections</i>
+now also shows when the S1 status has updates. Wording <span class="mk-tag prop">proposed</span>.</figcaption>
+<div class="view set">
+  <div class="vhead"><span class="brand">Story Forge</span>
+    <div class="tabs" role="tablist"><span class="sel" role="tab" aria-selected="true">Library</span><span role="tab" aria-selected="false">Scope</span><span role="tab" aria-selected="false">Behaviour</span></div>
+  </div>
+  <div class="sx-hint" role="status">
+    <span class="txt"><b><span class="ins">3 story file updates available.</span></b> <span class="ins">This version of Story Forge ships
+      newer FileClasses, templates or schema notes. Files you edited are left as they are.</span></span>
+    <button class="btn">Review updates…</button>
+    <span class="lnk" role="button">Not now</span>
+  </div>
+  <div class="set-sec" style="border-bottom:none">
+    <h4>Collections</h4>
+    <div class="cp-trim">… unchanged …</div>
+  </div>
+</div>
+<p class="note"><b>When:</b> the status counts at least one update (singular <i>1 story file update available.</i>).
+Not for <i>missing</i> or <i>partly set up</i>: those are your choices. If nothing is set up, S7a shows instead.
+<b>Review updates…</b> opens the S3 dialog. <b>Not now</b> hides this hint until Story Forge's version changes (one
+dismissed id per plugin version in <code>dismissedHints</code>); the Scope tab line still shows the count. <i>Don't
+show again</i> on S7a does not hide this one.</p>
 </figure>
 </div>
 
