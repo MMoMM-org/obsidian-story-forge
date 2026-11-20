@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Documentation and disclosures"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 5
 ---
@@ -29,7 +29,11 @@ phase: 5
   and every refusal text. About 48 quoted UI strings grep-checked against `src/`; links resolve.
 - T5.2 (54187fc): optional-plugins covers Bases, Dataview, metadata-menu, meta-bind and core
   Templates; meta-bind only adds the two `VIEW[]` lines of the character template; no Templater
-  syntax ships. Open: the statements checked live with each plugin on and off (T5.2 step 4).
+  syntax ships. Live check (2026-11-20, maintainer): without meta-bind the `VIEW[]` lines show as
+  plain text; with it the values show, empty fields stay blank until selected; `{{title}}` is
+  filled by core Templates only (Templater leaves it), now stated. metadata-menu's FileClass form
+  could not be opened: metadata-menu itself threw "Attempting to register an existing view type
+  FileClassView__fc-character", so the doc no longer claims the form reads the files (b647fac).
 - T5.3 (f340025, 76f74e4): README section "What Story Forge does to your vault" and a rewritten
   PRIVACY.md, each claim tied to code (checklist in the spec README). The Obsidian policy pages
   could not be fetched; re-check them before submission (Phase 6).
@@ -58,7 +62,7 @@ their vault.
   4. Validate: Link check; quoted strings grep-checked against `src/`
   5. Success: `[ref: PRD/F7.1; PRD/F7.2]`
 
-- [ ] **T5.2 What metadata-menu and meta-bind add (#19)** `[activity: documentation]`
+- [x] **T5.2 What metadata-menu and meta-bind add (#19)** `[activity: documentation]`
   `[parallel: true]`
 
   1. Prime: issue #19, `docs/optional-plugins.md`, shipped FileClasses and template bodies
