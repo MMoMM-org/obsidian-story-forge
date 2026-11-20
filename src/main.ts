@@ -26,6 +26,7 @@ import { openLibrarySettings } from "library/openLibrary";
 import { buildAnvilCodexOpts } from "anvil/anvilCodexOpts";
 import { ArtifactStore } from "artifacts/ArtifactStore";
 import { artifactIndex } from "artifacts/artifactIndex";
+import { readStoryFilesStatus } from "artifacts/storyFilesStatus";
 import type { ArtifactIndex } from "artifacts/artifactTypes";
 import catalogIndexRaw from "../dist/catalog-index.json";
 
@@ -82,7 +83,7 @@ export default class StoryForgePlugin extends Plugin {
 		this.register(() => { fileClasses.dispose(); });
 
 		// T7.4 (PRD F8, ADR-36): the capability screen — once on the first Anvil or Workbench
-		// open, and from the Library's "What optional plugins add…".
+		// open, and from the Library's "What Story Forge can use…".
 		const capabilities = wireCapabilities({
 			app: this.app,
 			getBasesCapability: () => getBasesCapability(this),
@@ -90,6 +91,12 @@ export default class StoryForgePlugin extends Plugin {
 			getFileClassesFolder: () => this.settings.fileClassesFolder,
 			getDismissedHints: () => this.settings.dismissedHints,
 			dismissHint: (id) => { this._dismissHint(id); },
+			getStoryFilesStatus: () => readStoryFilesStatus(this.app, this.artifactIndex, this.artifactStore.all(), {
+				fileClassesFolder: this.settings.fileClassesFolder,
+				templatesFolder: this.settings.templatesFolder,
+				schemaFolder: this.settings.schemaFolder,
+			}),
+			// `openStoryFiles` is passed by the story files wiring (T3.3).
 		});
 
 		// The undo journal (spec 009, ADR-43): created once, loaded before the settings tab
@@ -360,7 +367,7 @@ export default class StoryForgePlugin extends Plugin {
 			registerCommand,
 			this._removeViewCommand.bind(this),
 			journal,
-			// T7.4: "What optional plugins add…" opens the capability screen (Close only).
+			// T7.4: "What Story Forge can use…" opens the capability screen (Close only).
 			{ fileClasses, collections: this.library.collections, openCapabilities: capabilities.openFromSettings, browseRepo },
 		);
 		this.addSettingTab(settingsTab);

@@ -130,10 +130,13 @@ function metadataMenuRow(facts: CapabilityFacts): CapabilityRow {
 		status: fileClassStatus(facts.fileClasses),
 		adds: [
 			"A form for editing FileClasses (`fc-*.md`): which fields a kind of note has, their types, options and order.",
+			// O9 (spec 010): observed by the maintainer; the live walk (T3.5) checks it before release.
+			"Option lists from the FileClasses outside Story Forge too: in Obsidian's Properties panel you pick a value such as _male_ for _gender_ from a list.",
 		],
 		lostWithout: [
-			"Nothing changes in Story Forge. It reads FileClass files itself and ships its own for the eight story types. You edit them as plain notes.",
+			"Nothing changes in Story Forge. It reads FileClass files itself; Set up story files… writes its own for the eight story types. You edit them as plain notes.",
 			"With no FileClasses at all, the editor lists every property under \"Properties\", without sections or option lists.",
+			"Obsidian's Properties panel shows plain text fields; option lists exist only in Story Forge's editor.",
 		],
 	};
 }
@@ -141,4 +144,39 @@ function metadataMenuRow(facts: CapabilityFacts): CapabilityRow {
 /** The screen's rows, core first, whatever is present. */
 export function capabilityReport(facts: CapabilityFacts): CapabilityRow[] {
 	return [basesRow(facts), dataviewRow(facts), metadataMenuRow(facts)];
+}
+
+/**
+ * The pointer row for Story Forge's own story files (spec 010 S6, D11). Its status is live and
+ * comes from `storyFilesStatus`; the text here does not change. Written only when the user asks
+ * (PRD F2.9): the row's button opens the setup dialog, the screen itself writes nothing.
+ */
+export interface StoryFilesRowContent {
+	name: string;
+	kindLabel: string;
+	adds: readonly string[];
+	lostWithout: readonly string[];
+	buttonLabel: string;
+	/** Under the button: before any set-up, and once something is set up. */
+	asideNotSetUp: string;
+	asideSetUp: string;
+}
+
+export function storyFilesRow(): StoryFilesRowContent {
+	return {
+		name: "Story files",
+		kindLabel: "Story Forge",
+		adds: [
+			"FileClasses for the eight story types: the editor shows their sections, option lists and field order.",
+			"Templates for a new scene or entity, for Obsidian's core Templates plugin.",
+			"A schema reference: one note per story type that explains each Property and its values.",
+		],
+		lostWithout: [
+			"The editor lists every property under \"Properties\", without sections or option lists.",
+			"You create scenes and entities by hand and add their Properties yourself.",
+		],
+		buttonLabel: "Set up story files…",
+		asideNotSetUp: "Shows every file and folder first. Nothing is written until you confirm.",
+		asideSetUp: "Check for updates and set up missing files.",
+	};
 }

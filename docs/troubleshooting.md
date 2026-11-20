@@ -110,7 +110,7 @@ For a `.base` collection, **Configure** says "File not found: <path>" in the sam
 **Why:** it opens by itself only once, the first time you open the Anvil or the Workbench. Any
 close (Got it, ✕ or Escape) is remembered.
 
-**Fix:** open it any time from **Settings › Story Forge › Library › What optional plugins add…**.
+**Fix:** open it any time from **Settings › Story Forge › Library › What Story Forge can use…**.
 
 ### Undo does not do what you expect
 

@@ -272,7 +272,7 @@ async function openLibrary(w: World): Promise<HTMLElement> {
  * Allowed, because they state a cause and offer no action: "Needs Dataview", "This collection needs
  * Dataview, which is not active.", "Needs Dataview, which is not active.", the Bases causes
  * "○ Needs Bases" and "Needs the core Bases plugin, which is off.", and the neutral
- * "What optional plugins add…" link to the capability screen.
+ * "What Story Forge can use…" link to the capability screen.
  */
 const COMMUNITY = String.raw`(dataview|metadata[- ]?menu|community plugins?)`;
 const NAG_WORDING: readonly RegExp[] = [
@@ -373,7 +373,7 @@ describe.each(CELLS.map((c) => [label(c), c] as const))("%s", (_label, cell) => 
 		expect(baseRow?.textContent ?? "").not.toMatch(/Dataview/);
 		if (cell.bases !== "on" && !cell.mobile) {
 			expect(baseRow?.querySelector(".sf-lb-stat")?.textContent).toBe("○ Needs Bases");
-			expect(baseRow?.querySelector(".sf-lb-hint")?.textContent).toBe("Needs the core Bases plugin, which is off. What optional plugins add…");
+			expect(baseRow?.querySelector(".sf-lb-hint")?.textContent).toBe("Needs the core Bases plugin, which is off. What Story Forge can use…");
 		}
 	});
 
@@ -412,10 +412,11 @@ describe.each(["on", "off", "absent"] as const)("the capability screen with Base
 		});
 		const rows = [...modal.querySelectorAll<HTMLElement>(".sf-cap-row")];
 		const kindOf = (r: HTMLElement): string | null | undefined => r.querySelector(".sf-cap-kind")?.textContent;
-		expect(rows.map((r) => r.querySelector(".sf-cap-name")?.textContent)).toEqual(["Bases", "Dataview", "metadata-menu"]);
+		expect(rows.map((r) => r.querySelector(".sf-cap-name")?.textContent)).toEqual(["Story files", "Bases", "Dataview", "metadata-menu"]);
 		const community = rows.filter((r) => kindOf(r) === "community");
 		expect(community).toHaveLength(2);
-		// No row has a control, community or core: the core row names where Bases is turned on as text (S4).
-		for (const row of rows) expect(row.querySelectorAll("a, button, [role='button'], [href]")).toHaveLength(0);
+		// No plugin row has a control, community or core: the core row names where Bases is turned on as text (S4).
+		// Story Forge's own Story files row has the one button (spec 010 S6).
+		for (const row of rows.filter((r) => kindOf(r) !== "Story Forge")) expect(row.querySelectorAll("a, button, [role='button'], [href]")).toHaveLength(0);
 	});
 });

@@ -525,8 +525,21 @@ describe("createFileClassCache — count", () => {
 		const app = new App();
 		const nested = createMockTFile({ basename: "fc-nested", path: `${FOLDER}/Fantasy/fc-nested.md` });
 		const outside = createMockTFile({ basename: "Mara", path: "30 Canon/Mara.md" });
-		seed(app, [...SHIPPED, { file: nested, frontmatter: {} }, { file: outside, frontmatter: {} }]);
+		seed(app, [...SHIPPED, { file: nested, frontmatter: { fields: [] } }, { file: outside, frontmatter: {} }]);
 		expect(cacheOver(app).count()).toBe(SHIPPED.filter((n) => n.file.path.startsWith(`${FOLDER}/`)).length + 1);
+	});
+
+	it("ignores notes with no FileClass frontmatter (the value-list notes), so a fresh setup counts 8, not 11", () => {
+		const app = new App();
+		const lists = ["fc-armor", "fc-combat-skills", "fc-magical-abilities"].map((basename) => ({
+			file: createMockTFile({ basename, path: `${FOLDER}/${basename}.md` }),
+		}));
+		const classes = ["a", "b", "c", "d", "e", "f", "g", "h"].map((basename) => ({
+			file: createMockTFile({ basename: `fc-${basename}`, path: `${FOLDER}/fc-${basename}.md` }),
+			frontmatter: { limit: 20, fields: [] },
+		}));
+		seed(app, [...classes, ...lists]);
+		expect(cacheOver(app).count()).toBe(8);
 	});
 
 	it("is 0 for an empty or missing folder, and follows the folder setting", () => {

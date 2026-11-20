@@ -12,6 +12,7 @@ import type { BasesCapability } from "bases/basesCapability";
 import { getDataviewApi, getDvSettings } from "engines/EngineRegistry";
 import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import { CapabilitiesModal } from "library/CapabilitiesModal";
+import type { StoryFilesStatus } from "artifacts/storyFilesStatus";
 import type { CapabilityFacts } from "library/capabilityReport";
 import { CAPABILITIES_HINT_ID, createCapabilitiesTrigger } from "library/capabilitiesTrigger";
 
@@ -24,6 +25,13 @@ export interface CapabilitiesWiringDeps {
 	getDismissedHints: () => readonly string[];
 	/** Persist a dismissal (operational state, data.json). */
 	dismissHint: (id: string) => void;
+	/** The story files status, read-only (spec 010 S6). */
+	getStoryFilesStatus: () => Promise<StoryFilesStatus>;
+	/**
+	 * Opens the story files setup dialog from the screen's row (spec 010 T3.4). Optional until the
+	 * dialog is wired (T3.3); absent, the row's button only closes the screen.
+	 */
+	openStoryFiles?: () => void;
 }
 
 export interface CapabilitiesWiring {
@@ -50,6 +58,8 @@ export function wireCapabilities(d: CapabilitiesWiringDeps): CapabilitiesWiring 
 		try {
 			new CapabilitiesModal(d.app, {
 				getFacts,
+				getStoryFilesStatus: d.getStoryFilesStatus,
+				...(d.openStoryFiles ? { openStoryFiles: d.openStoryFiles } : {}),
 				mode,
 				...(mode === "first-run" ? { onDismiss: () => d.dismissHint(CAPABILITIES_HINT_ID) } : {}),
 			}).open();

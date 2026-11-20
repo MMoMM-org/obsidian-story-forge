@@ -90,8 +90,11 @@ or option lists. See [FileClasses and the editor](fileclasses.md).
 
 ## The capability screen
 
-The **What optional plugins add** screen lists the three plugins with what each adds, what you
-have without it, and its current status:
+The **What Story Forge can use** screen starts with a **Story files** row for Story Forge's own
+FileClasses, templates and schema reference. It shows whether they are set up, for example
+"Not set up" or "27 set up", and its button opens the setup dialog. Showing the screen writes
+nothing. Below it, the screen lists the three plugins with what each adds, what you have without
+it, and its current status:
 
 - Bases: **On**, **Off**, or **Not in this Obsidian version**.
 - Dataview: **Active** or **Not active**, and whether JavaScript queries are on.
@@ -100,7 +103,7 @@ have without it, and its current status:
 
 The status is read when the screen opens. None of these states is an error.
 
-<!-- screenshot: the What optional plugins add screen -->
+<!-- screenshot: the What Story Forge can use screen -->
 
 **It opens by itself once**, the first time you open the Anvil or the Workbench. Close it with
 **Got it**, ✕ or Escape, and it does not open by itself again.

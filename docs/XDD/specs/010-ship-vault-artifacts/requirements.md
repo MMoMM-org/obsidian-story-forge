@@ -96,7 +96,7 @@ in `docs/installation.md` do not work.
 ### Primary User Journey: Set up a story vault after installing
 
 1. **Awareness:** After enabling Story Forge, the first Anvil or Workbench opening shows the
-   "What optional plugins add" screen, which now also points out that story files can be set up.
+   "What Story Forge can use" screen, which now also points out that story files can be set up.
    The getting-started doc says the same.
 2. **Consideration:** The user opens the setup, sees the list of files (FileClasses, templates,
    schema reference) with the folder each goes to, and can change the folders.
@@ -160,7 +160,7 @@ in `docs/installation.md` do not work.
     written and names each file that was skipped with its reason
   - [ ] Given a target folder does not exist, When setup writes into it, Then the folder is
     created
-  - [ ] Given the "What optional plugins add" screen, When it is shown, Then it points to the
+  - [ ] Given the "What Story Forge can use" screen, When it is shown, Then it points to the
     setup without writing anything itself
 
 #### Feature 3: Folder settings

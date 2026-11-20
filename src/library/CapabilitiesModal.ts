@@ -1,5 +1,5 @@
 /**
- * CapabilitiesModal — "What optional plugins add" (spec 008 T7.4, PRD F8, ADR-36), built to the
+ * CapabilitiesModal — "What Story Forge can use" (spec 008 T7.4, PRD F8, ADR-36), built to the
  * signed-off mockup `docs/XDD/specs/008-codex-surface/mockups-capabilities.html` L12a–g (S1–S6).
  *
  * One modal, two ways in (S1):
@@ -15,12 +15,23 @@
 
 import { Modal } from "obsidian";
 import type { App } from "obsidian";
-import { capabilityReport } from "library/capabilityReport";
+import { capabilityReport, storyFilesRow } from "library/capabilityReport";
 import type { CapabilityFacts, CapabilityRow } from "library/capabilityReport";
+import type { StoryFilesStatus } from "artifacts/storyFilesStatus";
 
 export interface CapabilitiesModalOptions {
 	/** Read when the modal opens; an open modal does not follow later changes. */
 	getFacts: () => CapabilityFacts;
+	/**
+	 * The story files status, computed read-only when the modal opens (spec 010 S6). The row draws
+	 * "Checking story files…" until it settles.
+	 */
+	getStoryFilesStatus: () => Promise<StoryFilesStatus>;
+	/**
+	 * The row's button: the screen closes, then this opens the setup dialog. Injected so this modal
+	 * never imports it and writes nothing itself (PRD F2.9). Absent: the button only closes the screen.
+	 */
+	openStoryFiles?: () => void;
 	mode: "first-run" | "settings";
 	/** First run only: called once when the modal closes, however it is closed. */
 	onDismiss?: () => void;
@@ -29,12 +40,19 @@ export interface CapabilitiesModalOptions {
 const TITLE_ID = "sf-cap-title";
 const INTRO_ID = "sf-cap-intro";
 
-/** Append `text` to `host`, drawing `backticked` parts as code. */
+/** Append `text` to `host`, drawing `backticked` parts as code and `_underscored_` parts in italics. */
 function appendMarked(host: HTMLElement, text: string): void {
 	text.split("`").forEach((part, i) => {
 		if (part === "") return;
-		if (i % 2 === 1) host.createEl("code", { text: part });
-		else host.appendText(part);
+		if (i % 2 === 1) {
+			host.createEl("code", { text: part });
+			return;
+		}
+		part.split("_").forEach((piece, j) => {
+			if (piece === "") return;
+			if (j % 2 === 1) host.createEl("i", { text: piece });
+			else host.appendText(piece);
+		});
 	});
 }
 
@@ -50,13 +68,14 @@ export class CapabilitiesModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 		el.addClass("sf-cap");
-		el.createEl("h2", { text: "What optional plugins add", attr: { id: TITLE_ID } });
+		el.createEl("h2", { text: "What Story Forge can use", attr: { id: TITLE_ID } });
 		const body = el.createDiv({ cls: "sf-cap-body" });
 		body.createEl("p", {
 			cls: "sf-cap-intro",
-			text: "Story Forge works without any of these. Each row says what it adds and what you have without it.",
+			text: "Story Forge works without any of these, and best with its story files. Each row says what it adds and what you have without it.",
 			attr: { id: INTRO_ID },
 		});
+		this._renderStoryFiles(body);
 		this._renderRows(body, capabilityReport(this.opts.getFacts()));
 		this._renderFoot(el);
 	}
@@ -64,6 +83,40 @@ export class CapabilitiesModal extends Modal {
 	onClose(): void {
 		this.contentEl.empty();
 		if (this.opts.mode === "first-run") this.opts.onDismiss?.();
+	}
+
+	/** S6: Story Forge's own story files, first in the body; the status fills in when it is read. */
+	private _renderStoryFiles(body: HTMLElement): void {
+		const c = storyFilesRow();
+		this._renderGroup(body, "Story Forge", " · written only when you ask");
+		const nameId = "sf-cap-story-files";
+		const row = body.createDiv({ cls: "sf-cap-row", attr: { role: "group", "aria-labelledby": nameId } });
+		const head = row.createDiv({ cls: "sf-cap-head" });
+		head.createSpan({ cls: "sf-cap-name", text: c.name, attr: { id: nameId } });
+		head.createSpan({ cls: ["sf-cap-kind", "is-core"], text: c.kindLabel });
+		const status = head.createSpan({ cls: "sf-cap-status", text: "Checking story files…" });
+		const cols = row.createDiv({ cls: "sf-cap-cols" });
+		this._renderList(cols, "What it adds", c.adds);
+		this._renderList(cols, "Without it", c.lostWithout);
+		const act = row.createDiv({ cls: "sf-cap-act" });
+		const btn = act.createEl("button", { text: c.buttonLabel, attr: { type: "button" } });
+		// The dialog opens after this one is gone; on first run that close counts as Got it.
+		btn.addEventListener("click", () => {
+			this.close();
+			this.opts.openStoryFiles?.();
+		});
+		const aside = act.createSpan({ cls: "sf-cap-aside", text: c.asideNotSetUp });
+		this.opts.getStoryFilesStatus().then(
+			(s) => {
+				status.textContent = s.short;
+				if (s.tone !== "neutral") status.addClass(`is-${s.tone}`);
+				aside.textContent = s.kind === "none" ? c.asideNotSetUp : c.asideSetUp;
+			},
+			(err: unknown) => {
+				console.error("[StoryForge] capability screen: could not read the story files status", err);
+				status.textContent = "Could not check story files";
+			},
+		);
 	}
 
 	private _renderRows(body: HTMLElement, rows: CapabilityRow[]): void {
@@ -122,7 +175,7 @@ export class CapabilitiesModal extends Modal {
 		const foot = el.createDiv({ cls: "sf-picker-foot" });
 		const firstRun = this.opts.mode === "first-run";
 		if (firstRun) {
-			foot.createSpan({ cls: "sf-cap-later", text: "Open this again from Settings › Library › What optional plugins add…" });
+			foot.createSpan({ cls: "sf-cap-later", text: "Open this again from Settings › Library › What Story Forge can use…" });
 		}
 		const btn = foot.createEl("button", {
 			...(firstRun ? { cls: "mod-cta" } : {}),

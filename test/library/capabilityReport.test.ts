@@ -84,10 +84,12 @@ describe("capabilityReport — the rows", () => {
 		]);
 		expect(row(rows, "metadata-menu").adds).toEqual([
 			"A form for editing FileClasses (`fc-*.md`): which fields a kind of note has, their types, options and order.",
+			"Option lists from the FileClasses outside Story Forge too: in Obsidian's Properties panel you pick a value such as _male_ for _gender_ from a list.",
 		]);
 		expect(row(rows, "metadata-menu").lostWithout).toEqual([
-			"Nothing changes in Story Forge. It reads FileClass files itself and ships its own for the eight story types. You edit them as plain notes.",
+			"Nothing changes in Story Forge. It reads FileClass files itself; Set up story files… writes its own for the eight story types. You edit them as plain notes.",
 			"With no FileClasses at all, the editor lists every property under \"Properties\", without sections or option lists.",
+			"Obsidian's Properties panel shows plain text fields; option lists exist only in Story Forge's editor.",
 		]);
 	});
 });

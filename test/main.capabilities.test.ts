@@ -6,7 +6,7 @@
  * - the first time the Anvil or the Workbench opens after layout is ready, the screen opens once;
  * - any close dismisses it for good (`dismissedHints`, persisted), so a reload never shows it;
  * - not at plugin load (layout still being restored);
- * - the Library link ("What optional plugins add…") opens the same screen with only Close, and
+ * - the Library link ("What Story Forge can use…") opens the same screen with only Close, and
  *   closing that one records nothing.
  */
 
@@ -84,7 +84,7 @@ describe("main.ts — the capability screen's first run (S1)", () => {
 		expect(screen()).toBeNull(); // not at plugin load
 
 		await openView(first.plugin, first.app, type);
-		expect(screen()?.querySelector("h2")?.textContent).toBe("What optional plugins add");
+		expect(screen()?.querySelector("h2")?.textContent).toBe("What Story Forge can use");
 		footButton("Got it").click();
 		expect(screen()).toBeNull();
 		await vi.waitFor(() => expect(blob.data.settings?.dismissedHints).toContain(CAPABILITIES_HINT_ID));
@@ -219,7 +219,7 @@ describe("main.ts — the Library link (S1, P14)", () => {
 		);
 		if (!deps) throw new Error("no LibraryDeps argument with openCapabilities");
 		deps.openCapabilities();
-		expect(screen()?.querySelector("h2")?.textContent).toBe("What optional plugins add");
+		expect(screen()?.querySelector("h2")?.textContent).toBe("What Story Forge can use");
 		expect(Array.from(screen()!.querySelectorAll(".sf-picker-foot button")).map((b) => b.textContent)).toEqual(["Close"]);
 		footButton("Close").click();
 		expect(screen()).toBeNull();

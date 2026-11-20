@@ -16,6 +16,7 @@ import { App, TFile, createMockTFile } from "../__mocks__/obsidian";
 import { CapabilitiesModal } from "library/CapabilitiesModal";
 import { CAPABILITIES_HINT_ID, createCapabilitiesTrigger } from "library/capabilitiesTrigger";
 import type { CapabilityFacts } from "library/capabilityReport";
+import type { StoryFilesStatus } from "artifacts/storyFilesStatus";
 import { CollectionEmbed } from "anvil/collectionEmbed";
 import type { ViewRecord } from "store/types";
 
@@ -31,11 +32,28 @@ const L12B: CapabilityFacts = {
 	fileClasses: { count: 9, folder: "00 Meta/FileClasses" },
 };
 
-function open(mode: "first-run" | "settings", facts: CapabilityFacts = L12A, onDismiss = vi.fn()) {
-	const modal = new CapabilitiesModal(new App(), { getFacts: () => facts, mode, onDismiss });
+const NOT_SET_UP: StoryFilesStatus = { kind: "none", short: "Not set up", line: "", tone: "off", updates: 0, missing: 0, setUp: 0, total: 27 };
+const ALL_SET_UP: StoryFilesStatus = { kind: "up-to-date", short: "27 set up", line: "", tone: "on", updates: 0, missing: 0, setUp: 27, total: 27 };
+
+function open(
+	mode: "first-run" | "settings",
+	facts: CapabilityFacts = L12A,
+	onDismiss = vi.fn(),
+	extra: { status?: StoryFilesStatus | Error; openStoryFiles?: () => void; app?: App } = {},
+) {
+	const status = extra.status ?? NOT_SET_UP;
+	const modal = new CapabilitiesModal(extra.app ?? new App(), {
+		getFacts: () => facts,
+		getStoryFilesStatus: () => (status instanceof Error ? Promise.reject(status) : Promise.resolve(status)),
+		...(extra.openStoryFiles ? { openStoryFiles: extra.openStoryFiles } : {}),
+		mode,
+		onDismiss,
+	});
 	modal.open();
 	return { modal, onDismiss };
 }
+
+const settled = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 function rowEl(name: string): HTMLElement {
 	const r = Array.from(document.body.querySelectorAll<HTMLElement>(".sf-cap-row"))
@@ -55,15 +73,16 @@ afterEach(() => {
 describe("CapabilitiesModal — what it shows (L12a/b)", () => {
 	it("draws the title, the intro and one row per plugin under its group", () => {
 		const { modal } = open("first-run");
-		expect(document.body.querySelector("h2")?.textContent).toBe("What optional plugins add");
+		expect(document.body.querySelector("h2")?.textContent).toBe("What Story Forge can use");
 		expect(document.body.querySelector(".sf-cap-intro")?.textContent)
-			.toBe("Story Forge works without any of these. Each row says what it adds and what you have without it.");
+			.toBe("Story Forge works without any of these, and best with its story files. Each row says what it adds and what you have without it.");
 		expect(Array.from(document.body.querySelectorAll(".sf-cap-grp")).map((g) => g.textContent)).toEqual([
+			"Story Forge · written only when you ask",
 			"Core plugin · ships with Obsidian",
 			"Community plugins · installed separately, never required",
 		]);
 		expect(Array.from(document.body.querySelectorAll(".sf-cap-name")).map((n) => n.textContent))
-			.toEqual(["Bases", "Dataview", "metadata-menu"]);
+			.toEqual(["Story files", "Bases", "Dataview", "metadata-menu"]);
 		expect(modal.modalEl.classList.contains("sf-cap-modal")).toBe(true);
 	});
 
@@ -134,7 +153,7 @@ describe("CapabilitiesModal — what it shows (L12a/b)", () => {
 
 	it("with everything absent, every row is still drawn (L12c)", () => {
 		open("settings", { bases: "disabled", dataview: { active: false, jsEnabled: false }, fileClasses: { count: 0, folder: "00 Meta/FileClasses" } });
-		expect(document.body.querySelectorAll(".sf-cap-row")).toHaveLength(3);
+		expect(document.body.querySelectorAll(".sf-cap-row")).toHaveLength(4);
 		expect(rowEl("metadata-menu").querySelector(".sf-cap-status")?.textContent).toBe("No FileClasses in 00 Meta/FileClasses");
 	});
 });
@@ -144,7 +163,7 @@ describe("CapabilitiesModal — closing (S1)", () => {
 		open("first-run");
 		expect(footButtons()).toEqual(["Got it"]);
 		expect(document.body.querySelector(".sf-cap-later")?.textContent)
-			.toBe("Open this again from Settings › Library › What optional plugins add…");
+			.toBe("Open this again from Settings › Library › What Story Forge can use…");
 		expect(activeDocument.activeElement?.textContent).toBe("Got it");
 	});
 
@@ -232,5 +251,101 @@ describe("No-nag guard — the Anvil (ADR-36, PRD F8 AC 5)", () => {
 		expect(host.textContent).toContain("Dataview");
 		expect(host.textContent).not.toMatch(/install/i);
 		expect(host.querySelectorAll("a, button")).toHaveLength(0);
+	});
+});
+
+
+// Spec 010 T3.4 (S6, O7, O9, PRD F2.9): the pointer row, the rename, the metadata-menu wording.
+describe("CapabilitiesModal — story files pointer row (S6)", () => {
+	it("is the first row, with the Story Forge kind pill, its description and the not-set-up status", async () => {
+		open("first-run");
+		await settled();
+		const row = rowEl("Story files");
+		expect(document.body.querySelector(".sf-cap-row")).toBe(row);
+		expect(row.querySelector(".sf-cap-kind")?.textContent).toBe("Story Forge");
+		expect(row.querySelector(".sf-cap-kind")?.classList.contains("is-core")).toBe(true);
+		const st = row.querySelector(".sf-cap-status")!;
+		expect([st.textContent, st.className]).toEqual(["Not set up", "sf-cap-status is-off"]);
+		const cols = Array.from(row.querySelectorAll("li")).map((l) => l.textContent);
+		expect(cols).toEqual([
+			"FileClasses for the eight story types: the editor shows their sections, option lists and field order.",
+			"Templates for a new scene or entity, for Obsidian's core Templates plugin.",
+			"A schema reference: one note per story type that explains each Property and its values.",
+			"The editor lists every property under \"Properties\", without sections or option lists.",
+			"You create scenes and entities by hand and add their Properties yourself.",
+		]);
+		expect(row.querySelector(".sf-cap-aside")?.textContent)
+			.toBe("Shows every file and folder first. Nothing is written until you confirm.");
+	});
+
+	it("set up: status on, the button stays, the aside changes", async () => {
+		open("settings", L12B, vi.fn(), { status: ALL_SET_UP });
+		await settled();
+		const row = rowEl("Story files");
+		const st = row.querySelector(".sf-cap-status")!;
+		expect([st.textContent, st.className]).toEqual(["27 set up", "sf-cap-status is-on"]);
+		expect(row.querySelector("button")?.textContent).toBe("Set up story files…");
+		expect(row.querySelector(".sf-cap-aside")?.textContent).toBe("Check for updates and set up missing files.");
+	});
+
+	it("updates available read as neutral text; a failed check says so and keeps the button", async () => {
+		open("settings", L12B, vi.fn(), { status: { ...ALL_SET_UP, kind: "actions", short: "3 updates available", tone: "neutral" } });
+		await settled();
+		expect(rowEl("Story files").querySelector(".sf-cap-status")?.className).toBe("sf-cap-status");
+		document.body.innerHTML = "";
+		open("settings", L12B, vi.fn(), { status: new Error("x") });
+		await settled();
+		expect(rowEl("Story files").querySelector(".sf-cap-status")?.textContent).toBe("Could not check story files");
+		expect(rowEl("Story files").querySelector("button")).not.toBeNull();
+	});
+
+	it("its button closes the screen and calls openStoryFiles; on first run the close counts as Got it", async () => {
+		const openStoryFiles = vi.fn();
+		const { onDismiss } = open("first-run", L12A, vi.fn(), { openStoryFiles });
+		await settled();
+		const btn = rowEl("Story files").querySelector("button")!;
+		expect(openStoryFiles).not.toHaveBeenCalled();
+		btn.click();
+		expect(openStoryFiles).toHaveBeenCalledTimes(1);
+		expect(onDismiss).toHaveBeenCalledTimes(1);
+		expect(document.body.querySelector(".sf-cap")).toBeNull();
+	});
+
+	it("from settings the button closes without recording anything", async () => {
+		const openStoryFiles = vi.fn();
+		const { onDismiss } = open("settings", L12A, vi.fn(), { openStoryFiles });
+		await settled();
+		rowEl("Story files").querySelector("button")!.click();
+		expect(openStoryFiles).toHaveBeenCalledTimes(1);
+		expect(onDismiss).not.toHaveBeenCalled();
+	});
+
+	it("without a callback the button stays and does nothing but close", async () => {
+		open("settings");
+		await settled();
+		expect(() => rowEl("Story files").querySelector("button")!.click()).not.toThrow();
+	});
+
+	it("showing the screen writes nothing to the vault", async () => {
+		const app = new App();
+		open("first-run", L12A, vi.fn(), { app });
+		await settled();
+		for (const fn of [app.vault.create, app.vault.modify, app.vault.process, app.vault.createFolder, app.fileManager.processFrontMatter]) {
+			expect(fn).not.toHaveBeenCalled();
+		}
+	});
+
+	it("focus still starts on Got it", async () => {
+		open("first-run");
+		await settled();
+		expect(document.activeElement?.textContent).toBe("Got it");
+	});
+
+	it("metadata-menu row names the Properties panel and the Set up story files wording (O9)", () => {
+		open("first-run");
+		const items = Array.from(rowEl("metadata-menu").querySelectorAll("li")).map((l) => l.textContent);
+		expect(items).toContain("Option lists from the FileClasses outside Story Forge too: in Obsidian's Properties panel you pick a value such as male for gender from a list.");
+		expect(items).toContain("Nothing changes in Story Forge. It reads FileClass files itself; Set up story files… writes its own for the eight story types. You edit them as plain notes.");
+		expect(items).toContain("Obsidian's Properties panel shows plain text fields; option lists exist only in Story Forge's editor.");
 	});
 });

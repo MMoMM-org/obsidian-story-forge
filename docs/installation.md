@@ -66,7 +66,7 @@ When Story Forge is enabled:
   tabs **Library**, **Scope** and **Behaviour**.
 
 The first time you open the Anvil or the Workbench, Story Forge shows a short screen called
-**What optional plugins add**. You can open it again later from the Library settings.
+**What Story Forge can use**. You can open it again later from the Library settings.
 
 <!-- screenshot: the ribbon icon tooltip and the empty Workbench in the right sidebar -->
 

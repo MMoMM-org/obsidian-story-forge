@@ -445,7 +445,7 @@ Status: ✅ verified by maintainer 2026-11-17
 | J1. Remove `capabilities` from `dismissedHints` in `data.json`; restart Obsidian with an Anvil or a Workbench restored | The screen opens once at startup; the console shows "[StoryForge] capability screen: opening (first run)" | PARTIAL — `test/main.capabilities.test.ts > opens from the layout-ready callback even while workspace.layoutReady still reads false there` |
 | J2. Read the rows | Bases (core), Dataview and metadata-menu (community); each says what it adds and what is lost; the Bases row reads "Ships with Obsidian. Turn it on in *Settings › Core plugins › Bases*. Read when Story Forge loaded; after turning it on or off, restart Obsidian." | AUTO — `test/library/capabilityReport.test.ts > words each row as the mockup does (L12a)` |
 | J3. Close with ✕ or Escape; restart | It does not come back | AUTO — `test/library/CapabilitiesModal.test.ts > never opens once dismissed` |
-| J4. Library › "What optional plugins add…" | Same screen with only Close; closing records nothing | AUTO — `test/main.capabilities.test.ts > opens the same screen with only Close, and closing it records nothing` |
+| J4. Library › "What Story Forge can use…" | Same screen with only Close; closing records nothing | AUTO — `test/main.capabilities.test.ts > opens the same screen with only Close, and closing it records nothing` |
 
 Status: ✅ verified by maintainer 2026-11-17 (J1: the screen opened at startup after the dismissal was reset; J2–J4 seen during the T7.4 live test)
 

@@ -32,7 +32,7 @@ export interface LibraryDeps {
 	notes?: () => readonly IndexedNote[];
 	/** The plugin's FileClass cache, so a Card preview draws its tile as the Anvil does. */
 	fileClasses?: FileClassSource;
-	/** The "What optional plugins add…" link: opens the capability screen (T7.4). */
+	/** The "What Story Forge can use…" link: opens the capability screen (T7.4). */
 	openCapabilities?: () => void;
 	/** "+ Browse repo…" (T7.2): opens the catalog. Absent, the button stays disabled. */
 	browseRepo?: () => void;
@@ -238,7 +238,7 @@ export class SettingsTab extends PluginSettingTab {
 		const cardList = slot.createDiv({ cls: "sf-lb-list" });
 		this.renderCuratedFolder(panel);
 		const foot = panel.createDiv({ cls: "sf-lb-foot" });
-		const link = foot.createEl("button", { cls: "sf-lb-link", text: "What optional plugins add…", attr: { type: "button" } });
+		const link = foot.createEl("button", { cls: "sf-lb-link", text: "What Story Forge can use…", attr: { type: "button" } });
 		link.addEventListener("click", () => this.openCapabilities());
 		await Promise.all([this.library.render(list), this.cards.render(cardList)]);
 	}

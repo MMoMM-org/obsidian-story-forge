@@ -34,7 +34,7 @@ export interface LibrarySectionDeps {
 	readonly importFromVault: () => void;
 	/** "+ Browse repo…": opens the catalog (T7.2). Absent, the button is the disabled control. */
 	readonly browseRepo?: () => void;
-	/** "What optional plugins add…" in a Dataview row's cause (T7.4 S5). Absent: the link does nothing. */
+	/** "What Story Forge can use…" in a Dataview row's cause (T7.4 S5). Absent: the link does nothing. */
 	readonly openCapabilities?: () => void;
 }
 
@@ -305,7 +305,7 @@ export class LibrarySection {
 	private paintNeedsEngine(item: HTMLElement, engine: ViewRecord["engine"] | undefined): void {
 		const hint = item.createDiv({ cls: "sf-lb-hint is-faint" });
 		hint.appendText(`${engineNeeded(engine).cause} `);
-		const link = hint.createEl("button", { cls: "sf-lb-link", text: "What optional plugins add…", attr: { type: "button" } });
+		const link = hint.createEl("button", { cls: "sf-lb-link", text: "What Story Forge can use…", attr: { type: "button" } });
 		link.addEventListener("click", () => this.d.openCapabilities?.());
 	}
 

@@ -867,9 +867,9 @@ describe("P14 · the curated folder and the capability link", () => {
 		expect(w.plugin.saveSettings).toHaveBeenCalled();
 	});
 
-	it("shows 'What optional plugins add…' at the foot of the Library and calls the T7.4 hook", async () => {
+	it("shows 'What Story Forge can use…' at the foot of the Library and calls the T7.4 hook", async () => {
 		const w = await open();
-		const link = button(panelOf(w.root, "library"), "What optional plugins add…")!;
+		const link = button(panelOf(w.root, "library"), "What Story Forge can use…")!;
 		const folder = q(panelOf(w.root, "library"), '[data-setting-name="Folder for collections from the repo"]')!;
 		expect(folder.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 		await click(link);
@@ -880,7 +880,7 @@ describe("P14 · the curated folder and the capability link", () => {
 		const w = makeWorld();
 		const bare = new SettingsTab(w.app, w.plugin as never, w.views, w.gate as unknown as ConsentGate, {} as ViewImporter, vi.fn(), vi.fn(), { setPersistence: async () => {}, clear: async () => {} }, { collections: w.collections, notes: () => [] });
 		await bare.displayAsync();
-		await expect(click(button(bare.containerEl, "What optional plugins add…"))).resolves.toBeUndefined();
+		await expect(click(button(bare.containerEl, "What Story Forge can use…"))).resolves.toBeUndefined();
 	});
 
 	it("keeps a marked place for the Cards list between the collections and the folder", async () => {
@@ -936,11 +936,11 @@ describe("L9 · edge states", () => {
 		expect(stat.classList.contains("is-warn")).toBe(false);
 		const hint = q(item(w.root, "skills"), ".sf-lb-hint")!;
 		expect(hint.classList.contains("is-faint")).toBe(true);
-		expect(text(hint)).toBe("Needs Dataview, which is not active. What optional plugins add…");
+		expect(text(hint)).toBe("Needs Dataview, which is not active. What Story Forge can use…");
 		expect(hint.querySelectorAll("a")).toHaveLength(0);
 		expect(text(hint)).not.toMatch(/install/i);
 		const link = q<HTMLButtonElement>(hint, "button")!;
-		expect(text(link)).toBe("What optional plugins add…");
+		expect(text(link)).toBe("What Story Forge can use…");
 		expect(w.openCapabilities).not.toHaveBeenCalled();
 		await click(link);
 		expect(w.openCapabilities).toHaveBeenCalledTimes(1);
@@ -959,7 +959,7 @@ describe("L9 · edge states", () => {
 		expect(stat.classList.contains("is-warn")).toBe(false);
 		const hint = q(row, ".sf-lb-hint")!;
 		expect(hint.classList.contains("is-faint")).toBe(true);
-		expect(text(hint)).toBe("Needs the core Bases plugin, which is off. What optional plugins add…");
+		expect(text(hint)).toBe("Needs the core Bases plugin, which is off. What Story Forge can use…");
 		expect(text(row)).not.toMatch(/Dataview/);
 		expect(hint.querySelectorAll("a")).toHaveLength(0);
 		await click(q<HTMLButtonElement>(hint, "button"));
@@ -969,7 +969,7 @@ describe("L9 · edge states", () => {
 	it("(c) engine missing on a Dataview row beside it keeps the S5 wording", async () => {
 		const w = await open({ decisions: { "30 Canon/Organizations/Organizations.base": "engine-missing", "90 Views/Skills.md": "engine-missing" } });
 		expect(text(q(item(w.root, "skills"), ".sf-lb-stat"))).toBe("○ Needs Dataview");
-		expect(text(q(item(w.root, "skills"), ".sf-lb-hint"))).toBe("Needs Dataview, which is not active. What optional plugins add…");
+		expect(text(q(item(w.root, "skills"), ".sf-lb-hint"))).toBe("Needs Dataview, which is not active. What Story Forge can use…");
 	});
 
 	it("(c) the same row covers DataviewJS disabled and not on mobile", async () => {

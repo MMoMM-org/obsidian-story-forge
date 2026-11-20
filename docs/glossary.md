@@ -26,7 +26,7 @@ The Anvil tab that shows scenes in columns by their `status`. Dragging a card wr
 
 ## Capability screen
 
-The window **What optional plugins add**. It lists the optional plugins, what each one adds,
+The window **What Story Forge can use**. It lists the optional plugins, what each one adds,
 and whether you have it. See [Optional plugins](optional-plugins.md#the-capability-screen).
 
 ## Card
