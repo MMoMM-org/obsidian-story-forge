@@ -6,7 +6,8 @@
  *   the set holds something to look at (a skip, missing, unreadable or damaged file).
  * - One row per planned file (D5): rows that write carry their own checkbox; a Missing row starts
  *   unticked with the visible label "Set up again" (PRD F4.5, O5). Reason lines are the writer's
- *   refusal texts word for word (O4).
+ *   refusal texts word for word (O4), except a file already there without a record: "Already
+ *   there", dimmed, with its own reason line and a set line when the whole set is in that state (R1).
  * - A folder change replans its set as a preview only; the setting is saved only on confirm, and
  *   Cancel, Escape and ✕ change nothing (D7, O1).
  * - A folder outside the excluded folders shows the warning (D9) — same `isExcluded` as the
@@ -27,7 +28,7 @@ import { attachFolderSuggest } from "settings/suggesters";
 import { isExcluded } from "scoping/workspaceScope";
 import { normalizeFileClassesFolder, normalizeSchemaFolder, normalizeTemplatesFolder } from "types/index";
 import type { PluginSettings } from "types/index";
-import { editedRefusal, occupiedRefusal, parentFolderOf, readExisting } from "../vault/managedFileWriter";
+import { editedRefusal, parentFolderOf, readExisting } from "../vault/managedFileWriter";
 import type { ArtifactStore } from "./ArtifactStore";
 import type {
 	ArtifactEntry,
@@ -84,22 +85,25 @@ const ACTION: Record<PlanAction, { label: string; chip: string; kind: Kind }> = 
 	update: { label: "Update", chip: "update", kind: "update" },
 	"up-to-date": { label: "Up to date", chip: "up to date", kind: "ok" },
 	"skip-edited": { label: "Not updated", chip: "edited", kind: "skip" },
-	"skip-exists": { label: "Not installed", chip: "already exists", kind: "skip" },
+	"skip-exists": { label: "Already there", chip: "already there", kind: "ok" },
 	missing: { label: "Missing", chip: "missing", kind: "missing" },
 	unreadable: { label: "Unreadable", chip: "unreadable", kind: "bad" },
 	refused: { label: "Damaged", chip: "damaged", kind: "bad" },
 };
 
 /** Chip order: what is written, then what stays, then what needs you. */
-const CHIP_ORDER: readonly PlanAction[] = ["create", "update", "up-to-date", "skip-edited", "skip-exists", "missing", "unreadable", "refused"];
+const CHIP_ORDER: readonly PlanAction[] = ["create", "update", "up-to-date", "skip-exists", "skip-edited", "missing", "unreadable", "refused"];
 
 const writes = (a: PlanAction): boolean => a === "create" || a === "update" || a === "missing";
 const opensSet = (a: PlanAction): boolean => a !== "create" && a !== "update" && a !== "up-to-date";
 
-/** Row order (S3 note): rows that write, then rows that need you, then up to date. */
+/** Dimmed rows: nothing to write and nothing that needs you (Up to date, Already there, R1). */
+const dims = (a: PlanAction): boolean => a === "up-to-date" || a === "skip-exists";
+
+/** Row order (S3 note, R1): rows that write, then rows that need you, then the dimmed rows. */
 function rowGroup(a: PlanAction): number {
 	if (writes(a)) return 0;
-	return a === "up-to-date" ? 2 : 1;
+	return dims(a) ? 2 : 1;
 }
 
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
@@ -363,6 +367,8 @@ export class StoryFilesModal extends Modal {
 			note.appendText("; updates stay where the files are. Files set up from now on go to the new folder.");
 		}
 
+		if (items.length > 0 && items.every((i) => i.action === "skip-exists")) this._renderAllThere(dyn, items.length, folder);
+
 		const excluded = this.deps.settings().excludedFolders;
 		if (!isExcluded(folder, excluded)) this._renderWarn(dyn, set, folder, excluded);
 		else if (this.added.has(set)) {
@@ -391,6 +397,18 @@ export class StoryFilesModal extends Modal {
 		let best: string | undefined;
 		for (const [folder, n] of counts) if (best === undefined || n > (counts.get(best) ?? 0)) best = folder;
 		return best;
+	}
+
+	/** The set line when every file of the set is already there, not written by Story Forge (R1). */
+	private _renderAllThere(dyn: HTMLElement, n: number, folder: string): void {
+		const note = dyn.createDiv({ cls: ["sf-story-moved", "sf-story-there"], attr: { role: "note" } });
+		note.appendText(n === 1 ? "The file is already in " : `All ${n} files are already in `);
+		note.createSpan({ cls: "sf-story-path", text: folder });
+		note.appendText(
+			n === 1
+				? ", and Story Forge did not write it, so it leaves it alone and will not update it. To get Story Forge's copy, choose another folder, or move this file away first."
+				: ", and Story Forge did not write them, so it leaves them alone and will not update them. To get Story Forge's copies, choose another folder, or move these files away first.",
+		);
 	}
 
 	private _renderWarn(dyn: HTMLElement, set: ArtifactSet, folder: string, excluded: readonly string[]): void {
@@ -440,7 +458,7 @@ export class StoryFilesModal extends Modal {
 	private _renderRow(host: HTMLElement, item: PlanItem, noteFolder: string | undefined): void {
 		const meta = ACTION[item.action];
 		const row = host.createDiv({ cls: "sf-story-row", attr: { "data-path": item.path } });
-		if (item.action === "up-to-date") row.addClass("is-dim");
+		if (dims(item.action)) row.addClass("is-dim");
 		const fileId = this._id("file");
 		const check = row.createSpan({ cls: "sf-story-row-check" });
 		let box: HTMLInputElement | null = null;
@@ -479,7 +497,12 @@ export class StoryFilesModal extends Modal {
 	private _renderWhy(row: HTMLElement, item: PlanItem): void {
 		switch (item.action) {
 			case "skip-exists":
-				row.createDiv({ cls: "sf-story-why", text: occupiedRefusal(item.path, INSTALLED) });
+				row.createDiv({
+					cls: "sf-story-why",
+					text: item.sameContent === true
+						? "Same content as Story Forge's copy, but not written by Story Forge."
+						: "Your own file, different from Story Forge's copy. Story Forge never overwrites it.",
+				});
 				return;
 			case "skip-edited":
 				row.createDiv({ cls: "sf-story-why", text: editedRefusal(item.path, "Not updated") });
@@ -612,7 +635,8 @@ export class StoryFilesModal extends Modal {
 
 	/**
 	 * Skipped lines from the plan (S5c): every item that writes nothing and needs you, in a set the
-	 * user did not untick. Up-to-date items, unticked rows and unticked sets are not listed.
+	 * user did not untick. Up-to-date and Already there items (R1), unticked rows and unticked sets
+	 * are not listed.
 	 */
 	private _refusalLines(): PlanOutcome[] {
 		const out: PlanOutcome[] = [];
@@ -630,8 +654,6 @@ export class StoryFilesModal extends Modal {
 
 	private _noticeReason(item: PlanItem): string | undefined {
 		switch (item.action) {
-			case "skip-exists":
-				return occupiedRefusal(item.path, INSTALLED);
 			case "skip-edited":
 				return editedRefusal(item.path, "Not updated");
 			case "unreadable":

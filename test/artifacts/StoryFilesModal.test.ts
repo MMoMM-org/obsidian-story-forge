@@ -24,6 +24,7 @@ import { StoryFilesModal, openStoryFiles, type StoryFilesDeps, type StoryFilesSe
 import { computeChecksum } from "../../src/consent/checksum";
 import { createDataFile } from "../../src/store/dataFileQueue";
 import type { PluginDataPort } from "../../src/store/types";
+import { sentenceCaseViolations } from "../helpers/sentenceCase";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -189,6 +190,16 @@ function writes(): number {
 		vi.mocked(app.fileManager.trashFile).mock.calls.length +
 		port.saves
 	);
+}
+
+/** Reading any of `paths` throws "EACCES: permission denied" (each file is put in the vault). */
+function unreadable(...paths: string[]): void {
+	for (const p of paths) if (!mem.files.has(p)) mem.files.set(p, "x");
+	const read = vi.mocked(app.vault.read).getMockImplementation()!;
+	vi.mocked(app.vault.read).mockImplementation(async (file) => {
+		if (paths.includes(file.path)) throw new Error("EACCES: permission denied");
+		return read(file);
+	});
 }
 
 async function confirm(): Promise<void> {
@@ -547,11 +558,11 @@ describe("StoryFilesModal — mixed (S3)", () => {
 		expect(actOf("00 Meta/Templates/t-a.md")).toBe("Up to date");
 		expect(rowBox("00 Meta/Templates/t-a.md")).toBeNull();
 		expect(rowEl("00 Meta/Templates/t-a.md").classList.contains("is-dim")).toBe(true);
-		expect(actOf("00 Meta/Schema/README.md")).toBe("Not installed");
+		expect(actOf("00 Meta/Schema/README.md")).toBe("Already there");
 		expect(rowBox("00 Meta/Schema/README.md")).toBeNull();
-		expect(whyOf("00 Meta/Schema/README.md")).toBe(
-			"Not installed: 00 Meta/Schema/README.md already exists. Move, rename or remove it, then install again.",
-		);
+		expect(rowEl("00 Meta/Schema/README.md").classList.contains("is-dim")).toBe(true);
+		expect($(".sf-story-act", rowEl("00 Meta/Schema/README.md")).classList.contains("is-ok")).toBe(true);
+		expect(whyOf("00 Meta/Schema/README.md")).toBe("Your own file, different from Story Forge's copy. Story Forge never overwrites it.");
 		expect(actOf("00 Meta/Schema/s-a.md")).toBe("Unreadable");
 		expect(rowBox("00 Meta/Schema/s-a.md")).toBeNull();
 		expect(whyOf("00 Meta/Schema/s-a.md")).toBe("Not installed: could not read 00 Meta/Schema/s-a.md: EACCES: permission denied");
@@ -573,7 +584,7 @@ describe("StoryFilesModal — mixed (S3)", () => {
 		await open();
 		expect(chips("fileclasses")).toEqual(["1 update", "1 edited", "1 missing"]);
 		expect(chips("templates")).toEqual(["1 up to date"]);
-		expect(chips("schema")).toEqual(["1 already exists", "1 unreadable"]);
+		expect(chips("schema")).toEqual(["1 already there", "1 unreadable"]);
 		expect($(".sf-story-rows", setEl("fileclasses")).classList.contains("sf-hidden")).toBe(false);
 		expect($(".sf-story-rows", setEl("schema")).classList.contains("sf-hidden")).toBe(false);
 		expect($(".sf-story-rows", setEl("templates")).classList.contains("sf-hidden")).toBe(true);
@@ -586,6 +597,11 @@ describe("StoryFilesModal — mixed (S3)", () => {
 			"00 Meta/FileClasses/fc-list.md",
 			"00 Meta/FileClasses/fc-b.md",
 		]);
+	});
+
+	it("puts Already there with the dimmed rows, after the rows that need you (R1)", async () => {
+		await open();
+		expect(rowPaths("schema")).toEqual(["00 Meta/Schema/s-a.md", "00 Meta/Schema/README.md"]);
 	});
 
 	it("set checkbox is mixed while the missing row is unticked; the button counts updates", async () => {
@@ -641,6 +657,49 @@ describe("StoryFilesModal — setting now points elsewhere (S3, D8)", () => {
 		);
 		expect(setEl("fileclasses").querySelector(".sf-story-moved")).toBeNull();
 		expect($(".sf-story-file", rowEl("00 Meta/Templates/t-a.md")).textContent).toBe("t-a.md");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// R1 — files already there, not written by Story Forge
+// ---------------------------------------------------------------------------
+
+describe("StoryFilesModal — files already there (R1)", () => {
+	it("says a file with the shipped bytes has the same content but was not written by Story Forge", async () => {
+		mem.files.set("00 Meta/Schema/README.md", index.entries[5]!.source);
+		await open();
+		expect(actOf("00 Meta/Schema/README.md")).toBe("Already there");
+		expect(whyOf("00 Meta/Schema/README.md")).toBe("Same content as Story Forge's copy, but not written by Story Forge.");
+	});
+
+	it("says once under the folder when every file of a set is already there, and disables the set", async () => {
+		for (const e of index.entries.filter((x) => x.set === "fileclasses")) mem.files.set(`00 Meta/FileClasses/${e.relPath}`, e.source);
+		await open();
+		const line = $(".sf-story-there", setEl("fileclasses"));
+		expect(line.getAttribute("role")).toBe("note");
+		expect(line.textContent).toBe(
+			"All 3 files are already in 00 Meta/FileClasses, and Story Forge did not write them, so it leaves them alone and will not update them. To get Story Forge's copies, choose another folder, or move these files away first.",
+		);
+		expect($(".sf-story-path", line).textContent).toBe("00 Meta/FileClasses");
+		expect(sentenceCaseViolations(line.textContent ?? "", ["00 Meta/FileClasses"])).toEqual([]);
+		expect(setBox("fileclasses").disabled).toBe(true);
+		expect(chips("fileclasses")).toEqual(["3 already there"]);
+		expect(setEl("schema").querySelector(".sf-story-there")).toBeNull();
+	});
+
+	it("uses the singular for a set of one file", async () => {
+		mem.files.set("00 Meta/Templates/t-a.md", "mine");
+		await open();
+		expect($(".sf-story-there", setEl("templates")).textContent).toBe(
+			"The file is already in 00 Meta/Templates, and Story Forge did not write it, so it leaves it alone and will not update it. To get Story Forge's copy, choose another folder, or move this file away first.",
+		);
+	});
+
+	it("draws no set line when only some files of the set are already there", async () => {
+		mem.files.set("00 Meta/FileClasses/fc-a.md", "mine");
+		await open();
+		expect(setEl("fileclasses").querySelector(".sf-story-there")).toBeNull();
+		expect(setBox("fileclasses").disabled).toBe(false);
 	});
 });
 
@@ -712,14 +771,13 @@ describe("StoryFilesModal — result notice (S5)", () => {
 			"Updated 1 story file.",
 			"Failed (1):",
 			"Not installed: could not write 00 Meta/FileClasses/fc-list.md: disk full",
-			"Skipped (3):",
+			"Skipped (2):",
 			"Not updated: 00 Meta/FileClasses/fc-b.md was edited after it was installed, and updating would overwrite those edits.",
-			"Not installed: 00 Meta/Schema/README.md already exists. Move, rename or remove it, then install again.",
 			"Not installed: could not read 00 Meta/Schema/s-a.md: EACCES: permission denied",
 		]);
 		expect(notice.messageEl.querySelector(".sf-story-notice-more")).toBeNull();
 		expect(debug).toHaveBeenCalledWith("[StoryForge] Not installed: could not write 00 Meta/FileClasses/fc-list.md: disk full");
-		expect(debug).toHaveBeenCalledWith("[StoryForge] Not installed: 00 Meta/Schema/README.md already exists. Move, rename or remove it, then install again.");
+		expect(debug).toHaveBeenCalledWith("[StoryForge] Not installed: could not read 00 Meta/Schema/s-a.md: EACCES: permission denied");
 	});
 
 	it("does not list up-to-date files, unticked rows or unticked sets as skipped", async () => {
@@ -732,12 +790,23 @@ describe("StoryFilesModal — result notice (S5)", () => {
 	});
 
 	it("does not list the refusals of a set the user unticked", async () => {
-		mem.files.set("00 Meta/Schema/README.md", "mine");
+		unreadable("00 Meta/Schema/s-a.md");
 		await open();
 		toggle(setBox("schema"));
 		await confirm();
-		expect(Notice._instances[0]!.message).not.toContain("README.md");
+		expect(Notice._instances[0]!.message).not.toContain("s-a.md");
 		expect(Notice._instances[0]!.timeout).toBeUndefined();
+	});
+
+	it("does not list files that were already there as skipped (R1)", async () => {
+		mem.files.set("00 Meta/Schema/README.md", "mine");
+		await open();
+		await confirm();
+		const notice = Notice._instances[0]!;
+		expect(notice.message).not.toContain("README.md");
+		expect(notice.message).not.toContain("Skipped");
+		expect(notice.timeout).toBeUndefined();
+		expect($(".sf-story-notice", notice.messageEl).getAttribute("role")).toBe("status");
 	});
 
 	it("names the path of a damaged file in the notice", async () => {
@@ -753,7 +822,7 @@ describe("StoryFilesModal — result notice (S5)", () => {
 	it("lists at most 5 lines, then says how many more (D10, O6)", async () => {
 		const extra = await Promise.all(["s-b.md", "s-c.md", "s-d.md", "s-e.md", "s-f.md"].map((n) => entry("schema", n)));
 		index.entries.push(...extra);
-		for (const e of [...extra, index.entries[3]!]) mem.files.set(`00 Meta/Schema/${e.relPath}`, "mine");
+		unreadable(...[...extra, index.entries[3]!].map((e) => `00 Meta/Schema/${e.relPath}`));
 		await open();
 		await confirm();
 		const el = Notice._instances[0]!.messageEl;
@@ -815,7 +884,7 @@ describe("StoryFilesModal — confirm locks the dialog", () => {
 	});
 
 	it("writes and reports what was ticked when confirm was pressed, whatever changes during the save", async () => {
-		mem.files.set("00 Meta/Schema/README.md", "mine");
+		unreadable("00 Meta/Schema/README.md");
 		const save = deferred<void>();
 		saveFolders.mockImplementationOnce(() => save.promise);
 		await open();
@@ -828,7 +897,7 @@ describe("StoryFilesModal — confirm locks the dialog", () => {
 		save.resolve();
 		await vi.waitFor(() => expect(Notice._instances).toHaveLength(1));
 		expect(mem.files.has("00 Meta/Schema/s-a.md")).toBe(true);
-		expect(Notice._instances[0]!.message).toContain("00 Meta/Schema/README.md already exists");
+		expect(Notice._instances[0]!.message).toContain("could not read 00 Meta/Schema/README.md");
 	});
 
 	it("a failed folder save writes nothing, says so and keeps the dialog usable", async () => {
