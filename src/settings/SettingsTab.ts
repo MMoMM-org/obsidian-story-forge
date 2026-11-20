@@ -26,6 +26,7 @@ import { createLibraryPort } from "library/settingsPort";
 import { createNoteIndex } from "codex/noteIndex";
 import type { IndexedNote } from "codex/collectionResolver";
 import type { StoryFilesStatus } from "artifacts/storyFilesStatus";
+import type { StoryFilesHintKind } from "artifacts/storyFilesWiring";
 
 /** Callback injected from main.ts to remove a view's command palette entry on deletion. */
 export type RemoveCommandCallback = (viewId: string) => void;
@@ -40,8 +41,8 @@ export interface StoryFilesTabDeps {
 	/** Open the setup dialog; `onClose` runs once it has closed. */
 	open: (onClose?: () => void) => void;
 	/** The Library hints' dismissals: S7a "Don't show again", R3 "Not now". */
-	isHintDismissed: (kind: "setup" | "updates") => boolean;
-	dismissHint: (kind: "setup" | "updates") => void;
+	isHintDismissed: (kind: StoryFilesHintKind) => boolean;
+	dismissHint: (kind: StoryFilesHintKind) => void;
 }
 
 /** What the Library tab reads beyond the view store. Each member defaults to the plugin's own. */
@@ -559,7 +560,7 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private drawStoryHint(
-		slot: HTMLElement, kind: "setup" | "updates", lead: string, rest: string, openLabel: string, dismissLabel: string,
+		slot: HTMLElement, kind: StoryFilesHintKind, lead: string, rest: string, openLabel: string, dismissLabel: string,
 	): void {
 		const deps = this.storyFiles;
 		if (!deps) return;
