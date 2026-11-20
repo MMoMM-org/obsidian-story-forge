@@ -5129,3 +5129,10 @@ body {
 	align-items: center;
 	gap: var(--size-4-3);
 }
+
+/* R1: a set or row checkbox with nothing to write looks and acts disabled. */
+.sf-story-set-cb:disabled,
+.sf-story-row-cb:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
