@@ -5064,9 +5064,15 @@ body {
 
 /* S5: the result notice, one line per span. */
 .sf-story-notice-head,
+.sf-story-notice-set,
 .sf-story-notice-line,
 .sf-story-notice-more {
 	display: block;
+}
+
+/* R2: what went where, plain lines under the first line. */
+.sf-story-notice-set {
+	font-size: 0.95em;
 }
 
 .sf-story-notice-head {

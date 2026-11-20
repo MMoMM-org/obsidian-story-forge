@@ -724,7 +724,7 @@ describe("StoryFilesModal — result notice (S5)", () => {
 		expect(stored["templates/t-a.md"]?.pluginVersion).toBe(VERSION);
 		expect(m.close).toHaveBeenCalled();
 		expect(Notice._instances).toHaveLength(1);
-		expect(Notice._instances[0]!.message).toBe("Set up 6 story files.");
+		expect($(".sf-story-notice-head", Notice._instances[0]!.messageEl).textContent).toBe("Set up 6 story files.");
 		expect(Notice._instances[0]!.timeout).toBeUndefined();
 		expect($(".sf-story-notice", Notice._instances[0]!.messageEl).getAttribute("role")).toBe("status");
 	});
@@ -737,6 +737,32 @@ describe("StoryFilesModal — result notice (S5)", () => {
 		// as "[object DocumentFragment]" (seen live after a popout).
 		expect(notice._message).toBe("");
 		expect($(".sf-story-notice-head", notice.messageEl).textContent).toBe("Set up 6 story files.");
+	});
+
+	it("says under the first line what was written into which folder, per set (R2)", async () => {
+		await open();
+		await confirm();
+		const el = Notice._instances[0]!.messageEl;
+		const texts = [...el.querySelectorAll(".sf-story-notice-head, .sf-story-notice-set")].map((e) => e.textContent);
+		expect(texts).toEqual([
+			"Set up 6 story files.",
+			"3 FileClasses in 00 Meta/FileClasses",
+			"1 template in 00 Meta/Templates",
+			"2 schema reference notes in 00 Meta/Schema",
+		]);
+	});
+
+	it("names updates with the record's folder, not the folder the setting now names (R2)", async () => {
+		const tA = index.entries[2]!;
+		mem.files.set("00 Meta/Templates/t-a.md", "old t-a");
+		port = fakePort({ artifacts: { [tA.id]: await record("00 Meta/Templates/t-a.md", "old source", "old t-a") } });
+		settings = { ...settings, templatesFolder: "Writing/Templates" };
+		await open();
+		toggle(setBox("fileclasses"));
+		toggle(setBox("schema"));
+		await confirm();
+		const texts = [...Notice._instances[0]!.messageEl.querySelectorAll(".sf-story-notice-set")].map((e) => e.textContent);
+		expect(texts).toEqual(["1 template updated in 00 Meta/Templates"]);
 	});
 
 	it("disables the primary button while writing, so a second click writes nothing more", async () => {
@@ -983,7 +1009,7 @@ describe("StoryFilesModal — async edges", () => {
 		m.close();
 		gate.resolve();
 		await vi.waitFor(() => expect(Notice._instances).toHaveLength(1));
-		expect(Notice._instances[0]!.message).toBe("Set up 6 story files.");
+		expect($(".sf-story-notice-head", Notice._instances[0]!.messageEl).textContent).toBe("Set up 6 story files.");
 		expect(m.contentEl.childElementCount).toBe(0);
 	});
 });

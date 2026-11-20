@@ -43,7 +43,7 @@ import type {
 import { executePlan, type ExecutePlanResult, type PlanOutcome } from "./executePlan";
 import { planSetup, targetPathOf } from "./planSetup";
 import { normalizeFolder } from "./resolvePlaceholders";
-import { composeNotice, damagedRefusal } from "./storyFilesNotice";
+import { composeNotice, damagedRefusal, type PlannedWrite } from "./storyFilesNotice";
 
 /** The settings the dialog reads. */
 export type StoryFilesSettings = Pick<PluginSettings, ArtifactPlaceholder | "excludedFolders">;
@@ -671,8 +671,10 @@ export class StoryFilesModal extends Modal {
 // ---------------------------------------------------------------------------
 
 function showResult(result: ExecutePlanResult, items: readonly PlanItem[], planSkips: readonly PlanOutcome[]): void {
-	const updates = new Set(items.filter((i) => i.action === "update").map((i) => i.path));
-	const notice = composeNotice(result, updates, planSkips);
+	const planned = new Map<string, PlannedWrite>(
+		items.map((i) => [i.path, { set: i.entry.set, update: i.action === "update", folder: folderOfRecord(i) }]),
+	);
+	const notice = composeNotice(result, planned, planSkips);
 	for (const line of notice.debug) console.debug(line);
 
 	// The Notice gets an empty string and its public messageEl is filled with element helpers:
@@ -681,6 +683,7 @@ function showResult(result: ExecutePlanResult, items: readonly PlanItem[], planS
 	const shown = notice.sticky ? new Notice("", 0) : new Notice("");
 	const box = shown.messageEl.createDiv({ cls: "sf-story-notice", attr: { role: notice.role } });
 	box.createSpan({ cls: "sf-story-notice-head", text: notice.head });
+	for (const line of notice.setLines) box.createSpan({ cls: "sf-story-notice-set", text: line });
 	for (const section of notice.sections) {
 		box.createSpan({ cls: "sf-story-notice-head", text: section.heading });
 		for (const line of section.lines) {
