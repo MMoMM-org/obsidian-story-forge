@@ -40,7 +40,7 @@
 | 2026-11-19 | Mockup open questions O1–O6 decided | O1 a folder change in the dialog is saved only on confirm, Cancel changes nothing; O2 the partial status names the sets not set up; O3 value lists stay independent of fc-character-fantasy; O4 refusals keep "Not installed"/"Not updated"; O5 the missing-row checkbox has a visible "Set up again" label; O6 the notice lists up to 5 skipped files by name. Mockups S1–S6 (D1–D12) await sign-off |
 | 2026-11-19 | Phase 4 done: scanner-clean, 0 errors, 128 warnings left (116 prefer-create-el, 11 prefer-instanceof, 1 prefer-setting-definitions) | ADR-44; warnings are out of scope; the popout card fix likely addresses #31 (to confirm live) |
 | 2026-11-20 | Mockups S1–S7 signed off | User review added O7–O9: the capability screen is renamed "What Story Forge can use" everywhere it is named (title, footer, Library link, Dataview hints, user docs, PRD text); the Library tab shows a hint with "Don't show again" while no story file is set up (S7); the metadata-menu row names its option lists in Obsidian's Properties panel, to be confirmed in the live walk before it ships |
-| 2026-11-20 | Phase 3 done: setup dialog, command, Scope tab group, Library hint, capability row | Live walk passed; #31 confirmed fixed in a popout; O9 wording corrected to the buttons metadata-menu draws in the Properties panel; SDD synced to the build |
+| 2026-11-20 | Phase 3 built: setup dialog, command, Scope tab group, Library hint, capability row | Live walk items 5–6 still open; #31 confirmed fixed in a popout; O9 wording corrected to the buttons metadata-menu draws in the Properties panel; SDD synced to the build |
 
 ## Context
 
