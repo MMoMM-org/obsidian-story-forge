@@ -79,5 +79,5 @@ Plugins submission rules as known.
   `undo-journal.json` (`src/undo/journalStore.ts:38-41`, write :83).
 - [x] No telemetry: no analytics code or hosts in `src/`.
 - [x] `PRIVACY.md` has no template placeholders (no `YYYY-MM-DD`, `_e.g._` or HTML comments).
-- [x] `manifest.json` description: 160 characters, ends with a period, no "Obsidian" or "plugin".
+- [x] `manifest.json` description: 143 characters, ends with a period, no "Obsidian" or "plugin".
   Maintainer: confirm `author`/`authorUrl`, and the funding links, before submission.
