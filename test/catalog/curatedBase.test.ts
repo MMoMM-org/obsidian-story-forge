@@ -45,7 +45,7 @@ function makeStore() {
 }
 
 function service(app: App, store: ViewStore, e: BasesCatalogEntry): CatalogService {
-	return new CatalogService({ version: "1", generated: "", entries: [e] }, {
+	return new CatalogService({ version: "1", entries: [e] }, {
 		app, gate: {} as unknown as ConsentGate, store, curatedBasesFolder: FOLDER,
 	});
 }

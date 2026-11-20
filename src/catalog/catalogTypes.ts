@@ -3,7 +3,7 @@
  *
  * Shape MUST match the JSON emitted by scripts/build-catalog.mjs exactly.
  * The build script emits:
- *   { version: "1", generated: <ISO>, entries: [BasesCatalogEntry | DataviewCatalogEntry] }
+ *   { version: "1", entries: [BasesCatalogEntry | DataviewCatalogEntry] }
  *
  * @ref SDD/ADR-9 (index schema version = "1")
  * @ref SDD/Building Block View — catalog/catalogTypes.ts
@@ -64,11 +64,9 @@ export function installedChecksum(entry: CatalogEntry): string {
  * dist/catalog-index.json.
  *
  * - version:   index schema version string ("1" for the initial schema)
- * - generated: ISO timestamp of the build run
  * - entries:   the ordered list of curated catalog entries
  */
 export interface CatalogIndex {
 	version: string;
-	generated: string;
 	entries: CatalogEntry[];
 }

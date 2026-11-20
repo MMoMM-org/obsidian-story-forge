@@ -12,7 +12,8 @@
  * calls buildCatalog() and exits non-zero on any failure.
  *
  * Design decisions (ADR-9, T4.2 notes):
- *   - Index shape: { version: "1", generated: <ISO>, entries: [...] }
+ *   - Index shape: { version: "1", entries: [...] } — no build timestamp, so the
+ *     same source always bundles to the same main.js (#53)
  *     "version" is the index schema version (not a semver); start at "1".
  *   - Entry shape aligns with ViewRecord / ViewDefinition field names so T4.4
  *     (CatalogService) has no impedance mismatch:
@@ -162,7 +163,6 @@ function readFrontmatter(source, fail) {
 /**
  * @typedef {Object} CatalogIndex
  * @property {string} version
- * @property {string} generated
  * @property {CatalogEntry[]} entries
  */
 
@@ -198,7 +198,6 @@ export async function buildCatalog({ catalogDir, outDir }) {
   /** @type {CatalogIndex} */
   const index = {
     version: '1',
-    generated: new Date().toISOString(),
     entries,
   };
 

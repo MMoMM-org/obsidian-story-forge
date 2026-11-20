@@ -69,7 +69,6 @@ async function makeCatalogIndex(entries?: CatalogEntry[]): Promise<CatalogIndex>
 	const resolvedEntries = entries ?? [await makeEntry()];
 	return {
 		version: "1",
-		generated: new Date().toISOString(),
 		entries: resolvedEntries,
 	};
 }
@@ -797,7 +796,7 @@ describe("CatalogService.getEntries()", () => {
 
 	it("returns an empty array when the index has no entries", async () => {
 		const app = makeApp();
-		const index: CatalogIndex = { version: "1", generated: new Date().toISOString(), entries: [] };
+		const index: CatalogIndex = { version: "1", entries: [] };
 
 		const svc = new CatalogService(index, {
 			app,
@@ -826,7 +825,7 @@ describe("CatalogService — updating an installed .base", () => {
 	}
 
 	function svcFor(app: App, store: ViewStore, entry: CatalogEntry): CatalogService {
-		return new CatalogService({ version: "1", generated: "", entries: [entry] }, {
+		return new CatalogService({ version: "1", entries: [entry] }, {
 			app, gate: makeGate(), store, curatedBasesFolder: "00 Meta/Bases",
 		});
 	}

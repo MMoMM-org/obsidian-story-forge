@@ -19,7 +19,7 @@
  * @ref SDD/ADR-4  (byte-exact SHA-256; CRLF ≠ LF)
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { writeFileSync, mkdirSync, rmSync, existsSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -50,7 +50,6 @@ interface CatalogEntry {
 
 interface CatalogIndex {
 	version: string;
-	generated: string;
 	entries: CatalogEntry[];
 }
 
@@ -209,14 +208,37 @@ describe("buildCatalog — real-world .base sources: checksums are byte-exact", 
 			const { readFileSync } = await import("node:fs");
 			const indexPath = join(outDir, "catalog-index.json");
 			const written = JSON.parse(readFileSync(indexPath, "utf8")) as CatalogIndex;
-			// Round-trip: entries length, checksums, and generated timestamp must match.
+			// Round-trip: entries length and checksums must match.
 			expect(written.entries.length).toBe(index.entries.length);
-			expect(written.generated).toBe(index.generated);
 			for (let i = 0; i < index.entries.length; i++) {
 				expect(written.entries[i]!.checksum).toBe(index.entries[i]!.checksum);
 			}
 		} finally {
 			rmSync(outDir, { recursive: true, force: true });
+		}
+	});
+
+	// #53: the index is bundled into main.js, so anything that varies per build
+	// run (a timestamp) makes the release asset differ from a rebuild of the
+	// tagged source, and the community hub's build verification fails.
+	it("is byte-identical when the same source is built at two different times", async () => {
+		await loadBuildModule();
+		const { readFileSync } = await import("node:fs");
+		const first = makeTempDir("repro-a");
+		const second = makeTempDir("repro-b");
+		vi.useFakeTimers({ toFake: ["Date"] });
+		try {
+			vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+			await buildCatalog({ catalogDir: TEST_VAULT_BASES_DIR, outDir: first });
+			vi.setSystemTime(new Date("2026-06-15T12:34:56.789Z"));
+			await buildCatalog({ catalogDir: TEST_VAULT_BASES_DIR, outDir: second });
+			const a = readFileSync(join(first, "catalog-index.json"), "utf8");
+			const b = readFileSync(join(second, "catalog-index.json"), "utf8");
+			expect(b).toBe(a);
+		} finally {
+			vi.useRealTimers();
+			rmSync(first, { recursive: true, force: true });
+			rmSync(second, { recursive: true, force: true });
 		}
 	});
 });

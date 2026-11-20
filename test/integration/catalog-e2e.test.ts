@@ -197,7 +197,6 @@ async function mountHarness(
 
 	const index: CatalogIndex = {
 		version: "1",
-		generated: new Date().toISOString(),
 		entries,
 	};
 

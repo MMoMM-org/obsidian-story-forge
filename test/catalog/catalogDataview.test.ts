@@ -231,7 +231,7 @@ async function dataviewEntry(overrides: Partial<CatalogEntry> = {}): Promise<Cat
 
 function service(app: App, store: ViewStore, entry: CatalogEntry, consent = vi.fn(async () => null as { version: number; checksum: string } | null), folder = "00 Meta/Bases") {
 	const gate = { requestConsentForQuery: consent } as unknown as ConsentGate;
-	const svc = new CatalogService({ version: "1", generated: "", entries: [entry] }, {
+	const svc = new CatalogService({ version: "1", entries: [entry] }, {
 		app, gate, store, curatedBasesFolder: folder,
 	});
 	return { svc, consent };
