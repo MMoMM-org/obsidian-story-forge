@@ -327,6 +327,22 @@ The vault notes touched by the walk (including the Mara Stoneway rename and dele
 from git.
 
 
+## Spec 010 Phase 3: setup UI (2026-11-20)
+
+Build 0.2.0-dev.20261120-1007, vault `test/StoryForge/`, metadata-menu 0.8.12. Run by the maintainer.
+
+| Item | Action | Result |
+|---|---|---|
+| 1 | Settings › Library on a vault with nothing set up | The S7 hint shows; the footer link reads "What Story Forge can use…". Passed |
+| 2 | Open the capability screen from that link | "Story files" first with "Not set up"; metadata-menu counts 8 FileClasses. Passed |
+| 3 | Scope tab: Templates and Schema reference folders set to new folders, open the dialog | Passed |
+| 4 | Dialog on the dev vault | Templates and Schema reference: 16 files to create. FileClasses: all 11 files "Not installed" and the set cannot be ticked, because identical files without a record already sit in `00 Meta/FileClasses` (artifacts never adopt a file they did not write, ADR-41). As designed |
+| 5 | Run the dialog again | Everything up to date. Passed |
+| 6 | Edit one set-up template, delete one schema note | "Not updated" and "Missing" (unticked, "Set up again"). Passed |
+| 7 | Change a folder in the dialog, Cancel | The setting keeps the old folder. Passed |
+| 8 | metadata-menu in Obsidian's Properties panel (O9) | metadata-menu draws buttons between a property's name and its value, by field type (text, list, dropdown, link, +/−). The capability row wording was changed to describe these buttons rather than a dropdown in the value field |
+| 9 | Anvil in a popout window, click another card (#31) | The card opens. Passed |
+
 ## Spec 008 — Codex surface
 
 > **Vault:** `test/StoryForge/` · **Build:** `npm run build` (deploys into the vault's plugin folder)

@@ -132,13 +132,13 @@ function metadataMenuRow(facts: CapabilityFacts): CapabilityRow {
 		status: fileClassStatus(facts.fileClasses),
 		adds: [
 			"A form for editing FileClasses (`fc-*.md`): which fields a kind of note has, their types, options and order.",
-			// O9 (spec 010): observed by the maintainer; the live walk (T3.5) checks it before release.
-			"Option lists from the FileClasses outside Story Forge too: in Obsidian's Properties panel you pick a value such as _male_ for _gender_ from a list.",
+			// O9 (spec 010): confirmed in the live walk (T3.5, 2026-11-20) with metadata-menu 0.8.12.
+			"Buttons in Obsidian's Properties panel, between a property's name and its value, that follow the FileClass: pick an option such as _male_ for _gender_, edit a list, set a link.",
 		],
 		lostWithout: [
 			"Nothing changes in Story Forge. It reads FileClass files itself; Set up story files… writes its own for the eight story types. You edit them as plain notes.",
 			"With no FileClasses at all, the editor lists every property under \"Properties\", without sections or option lists.",
-			"Obsidian's Properties panel shows plain text fields; option lists exist only in Story Forge's editor.",
+			"Obsidian's Properties panel has no such buttons; option lists exist only in Story Forge's editor.",
 		],
 	};
 }

@@ -344,8 +344,8 @@ describe("CapabilitiesModal — story files pointer row (S6)", () => {
 	it("metadata-menu row names the Properties panel and the Set up story files wording (O9)", () => {
 		open("first-run");
 		const items = Array.from(rowEl("metadata-menu").querySelectorAll("li")).map((l) => l.textContent);
-		expect(items).toContain("Option lists from the FileClasses outside Story Forge too: in Obsidian's Properties panel you pick a value such as male for gender from a list.");
+		expect(items).toContain("Buttons in Obsidian's Properties panel, between a property's name and its value, that follow the FileClass: pick an option such as male for gender, edit a list, set a link.");
 		expect(items).toContain("Nothing changes in Story Forge. It reads FileClass files itself; Set up story files… writes its own for the eight story types. You edit them as plain notes.");
-		expect(items).toContain("Obsidian's Properties panel shows plain text fields; option lists exist only in Story Forge's editor.");
+		expect(items).toContain("Obsidian's Properties panel has no such buttons; option lists exist only in Story Forge's editor.");
 	});
 });
