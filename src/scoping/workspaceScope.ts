@@ -43,7 +43,8 @@ export interface ResolvedScope {
  */
 export { DEFAULT_EXCLUDED_FOLDERS };
 
-function isExcluded(path: string, excludedFolders: readonly string[]): boolean {
+/** Is `path` one of `excludedFolders` or below one (path-segment prefix match)? */
+export function isExcluded(path: string, excludedFolders: readonly string[]): boolean {
 	return excludedFolders.some((dir) => path === dir || path.startsWith(`${dir}/`));
 }
 

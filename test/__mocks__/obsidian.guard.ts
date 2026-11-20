@@ -142,9 +142,10 @@ type AssertNoFiction<Mock, Real> = FictionalKeys<Mock, Real> extends never
 
 /**
  * Notice allowlist:
- *   message  — the constructor stores the raw message string for test assertions
- *               (`Notice._instances[0].message`). Real Notice stores it in the
- *               DOM element `messageEl`; there is no plain string field.
+ *   message  — the message as text for test assertions (`Notice._instances[0].message`):
+ *               the string, or a DocumentFragment's text content. Real Notice stores it
+ *               only in the DOM element `messageEl` (mirrored by the mock); there is no
+ *               plain string field.
  *   timeout  — the optional duration is stored for test assertions.  Real Notice
  *               accepts it as a constructor argument but does not expose it as a
  *               public field.

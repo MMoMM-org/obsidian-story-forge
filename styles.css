@@ -4752,3 +4752,324 @@ body {
 		white-space: normal;
 	}
 }
+
+/* ===========================================================================
+ * Set up story files (StoryFilesModal) — spec 010 mockups.html S2–S5.
+ * Set cards with checkbox, name, count, folder field and chips (D4); one row per
+ * file with its own checkbox and action (D5); the not-excluded warning (D9);
+ * the moved note (D8); the result notice lines (D10). Footer: .sf-picker-foot.
+ * =========================================================================== */
+
+.modal.sf-story-modal {
+	--dialog-width: 680px;
+}
+
+.sf-story {
+	container-type: inline-size;
+	display: flex;
+	flex-direction: column;
+}
+
+.sf-story > h2 {
+	margin: 0 0 2px 0;
+	font-size: 15px;
+}
+
+.sf-story > .sf-picker-sub {
+	margin-bottom: 10px;
+}
+
+.sf-story-body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+.sf-story-set {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+}
+
+.sf-story-set.is-off {
+	opacity: 0.55;
+}
+
+.sf-story-head {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 4px 10px;
+	align-items: center;
+	padding: 9px 12px;
+}
+
+.sf-story-set-cb,
+.sf-story-row-cb {
+	margin: 0;
+}
+
+.sf-story-set-name {
+	color: var(--text-normal);
+	font-size: 13px;
+	font-weight: var(--font-semibold);
+}
+
+.sf-story-set-count {
+	margin-left: 4px;
+	color: var(--text-faint);
+	font-size: 11.5px;
+}
+
+.sf-story-toggle {
+	padding: 0 4px;
+	border: none;
+	background: none;
+	box-shadow: none;
+	color: var(--text-accent);
+	font-size: 11px;
+	white-space: nowrap;
+	cursor: var(--cursor);
+}
+
+.sf-story-folder {
+	display: flex;
+	flex-wrap: wrap;
+	grid-column: 2 / -1;
+	gap: 8px;
+	align-items: center;
+	color: var(--text-faint);
+	font-size: 11px;
+}
+
+.sf-story-folder input {
+	flex: 0 1 260px;
+	min-width: 0;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+}
+
+.sf-story-dyn {
+	display: flex;
+	flex-direction: column;
+	grid-column: 2 / -1;
+	gap: 6px;
+}
+
+.sf-story-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.sf-story-chip,
+.sf-story-act {
+	padding: 0 7px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 9px;
+	color: var(--text-muted);
+	font-size: 10.5px;
+	line-height: 17px;
+	white-space: nowrap;
+}
+
+.sf-story-chip.is-create,
+.sf-story-act.is-create {
+	border-color: var(--interactive-accent);
+	color: var(--text-accent);
+}
+
+.sf-story-chip.is-update,
+.sf-story-act.is-update {
+	border-color: var(--sf-warn);
+	color: var(--sf-warn);
+}
+
+.sf-story-act.is-update {
+	font-weight: var(--font-semibold);
+}
+
+.sf-story-chip.is-ok {
+	border-color: color-mix(in srgb, var(--color-green) 40%, transparent);
+	color: var(--color-green);
+}
+
+.sf-story-act.is-ok {
+	border-color: transparent;
+	color: var(--color-green);
+}
+
+.sf-story-act.is-ok::before {
+	content: "✓ ";
+}
+
+.sf-story-chip.is-skip,
+.sf-story-act.is-skip {
+	color: var(--text-faint);
+}
+
+.sf-story-chip.is-bad,
+.sf-story-act.is-bad {
+	border-color: color-mix(in srgb, var(--color-red) 40%, transparent);
+	color: var(--text-error);
+}
+
+.sf-story-chip.is-missing,
+.sf-story-act.is-missing {
+	border-style: dashed;
+	border-color: var(--sf-warn);
+	color: var(--sf-warn);
+}
+
+.sf-story-warn {
+	padding: 7px 10px;
+	border: 1px solid color-mix(in srgb, var(--sf-warn) 35%, transparent);
+	border-radius: var(--radius-s);
+	background: color-mix(in srgb, var(--sf-warn) 10%, transparent);
+	color: var(--text-normal);
+	font-size: 11.5px;
+}
+
+.sf-story-warn strong {
+	color: var(--sf-warn);
+}
+
+.sf-story-warn button {
+	margin-top: 6px;
+	font-size: 11px;
+}
+
+.sf-story-moved,
+.sf-story-note {
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: 11px;
+}
+
+.sf-story-path {
+	font-family: var(--font-monospace);
+	overflow-wrap: anywhere;
+}
+
+.sf-story-rows {
+	padding: 2px 0 4px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.sf-story-row {
+	display: grid;
+	grid-template-columns: 18px minmax(0, 1fr) auto;
+	gap: 1px 10px;
+	align-items: center;
+	padding: 5px 12px;
+}
+
+.sf-story-row + .sf-story-row {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.sf-story-file {
+	overflow: hidden;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 11.5px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sf-story-row.is-dim .sf-story-file {
+	color: var(--text-faint);
+}
+
+.sf-story-hint {
+	margin-left: 6px;
+	color: var(--text-faint);
+	font-family: var(--font-interface);
+	font-size: 10.5px;
+	font-style: normal;
+}
+
+.sf-story-end {
+	display: inline-flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.sf-story-again {
+	color: var(--text-normal);
+	font-size: 11px;
+}
+
+.sf-story-why {
+	grid-column: 2 / -1;
+	color: var(--text-muted);
+	font-size: 11px;
+	overflow-wrap: anywhere;
+}
+
+.sf-story-why.is-error {
+	color: var(--text-error);
+}
+
+.sf-story-foot {
+	align-items: center;
+}
+
+.sf-story-foot-aside {
+	margin-right: auto;
+	color: var(--text-faint);
+	font-size: 11px;
+}
+
+/* S2c: at phone width the folder field takes the full width; the footer aside goes above the buttons. */
+@container (max-width: 480px) {
+	.sf-story-head {
+		grid-template-columns: auto minmax(0, 1fr);
+	}
+
+	.sf-story-toggle {
+		grid-column: 2;
+		justify-self: start;
+	}
+
+	.sf-story-folder input {
+		flex-basis: 100%;
+	}
+
+	.sf-story-foot {
+		flex-wrap: wrap;
+	}
+
+	.sf-story-foot-aside {
+		flex-basis: 100%;
+	}
+}
+
+/* S5: the result notice, one line per span. */
+.sf-story-notice-head,
+.sf-story-notice-line,
+.sf-story-notice-more {
+	display: block;
+}
+
+.sf-story-notice-head {
+	font-weight: var(--font-semibold);
+}
+
+.sf-story-notice-line {
+	font-size: 0.95em;
+}
+
+.sf-story-notice-line::before {
+	content: "• ";
+}
+
+.sf-story-notice-more {
+	margin-top: 4px;
+	font-size: 0.9em;
+	opacity: 0.75;
+}

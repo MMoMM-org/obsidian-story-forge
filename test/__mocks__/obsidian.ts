@@ -874,10 +874,17 @@ export abstract class FuzzySuggestModal<T> extends Modal {
 
 export class Notice {
 	static _instances: Notice[] = [];
+	/** obsidian.d.ts `Notice.messageEl`: holds the message (the string, or the fragment's nodes). */
+	messageEl: HTMLElement = document.createElement("div");
+	/** The message as text: the string itself, or the fragment's text content. */
+	message: string;
 	constructor(
-		public message: string,
+		message: string | DocumentFragment,
 		public timeout?: number,
 	) {
+		if (typeof message === "string") this.messageEl.textContent = message;
+		else this.messageEl.append(message);
+		this.message = this.messageEl.textContent ?? "";
 		Notice._instances.push(this);
 	}
 	static _reset(): void {
