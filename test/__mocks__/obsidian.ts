@@ -883,16 +883,20 @@ export class Notice {
 	static _instances: Notice[] = [];
 	/** obsidian.d.ts `Notice.messageEl`: holds the message (the string, or the fragment's nodes). */
 	messageEl: HTMLElement = document.createElement("div");
-	/** The message as text: the string itself, or the fragment's text content. */
-	message: string;
+	/** Test-only: the first constructor argument exactly as passed (a string or a fragment). */
+	readonly _message: string | DocumentFragment;
 	constructor(
 		message: string | DocumentFragment,
 		public timeout?: number,
 	) {
+		this._message = message;
 		if (typeof message === "string") this.messageEl.textContent = message;
 		else this.messageEl.append(message);
-		this.message = this.messageEl.textContent ?? "";
 		Notice._instances.push(this);
+	}
+	/** The message as text, read from `messageEl` now (it can be filled after construction). */
+	get message(): string {
+		return this.messageEl.textContent ?? "";
 	}
 	static _reset(): void {
 		Notice._instances.length = 0;

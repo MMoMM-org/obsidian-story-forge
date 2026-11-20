@@ -14,7 +14,8 @@
  * - The primary button counts what it writes (D6); it is the only control that writes a file.
  *   Confirm runs `executePlan` and shows one Notice (D10, O6).
  *
- * DOM safety: no innerHTML — element helpers only. Popout-safe: `activeDocument` only.
+ * DOM safety: no innerHTML — element helpers only. Popout-safe: no global `document`; the result
+ * notice is drawn into its own `messageEl`, never passed as a fragment.
  *
  * @ref SDD/ADR-42, SDD/Primary Flow, SDD/Error Handling
  * @ref PRD/F2.3, F2.5, F2.6, F2.7, F3.2, F3.3, F4.5
@@ -652,9 +653,11 @@ function showResult(result: ExecutePlanResult, items: readonly PlanItem[], planS
 	const notice = composeNotice(result, updates, planSkips);
 	for (const line of notice.debug) console.debug(line);
 
-	const box = activeDocument.createElement("div");
-	box.addClass("sf-story-notice");
-	box.setAttribute("role", notice.role);
+	// The Notice gets an empty string and its public messageEl is filled with element helpers:
+	// a fragment from another window's document (after a popout) fails Obsidian's instanceof
+	// check and shows as "[object DocumentFragment]". messageEl creates in its own document.
+	const shown = notice.sticky ? new Notice("", 0) : new Notice("");
+	const box = shown.messageEl.createDiv({ cls: "sf-story-notice", attr: { role: notice.role } });
 	box.createSpan({ cls: "sf-story-notice-head", text: notice.head });
 	for (const section of notice.sections) {
 		box.createSpan({ cls: "sf-story-notice-head", text: section.heading });
@@ -664,10 +667,6 @@ function showResult(result: ExecutePlanResult, items: readonly PlanItem[], planS
 		}
 	}
 	if (notice.tail !== undefined) box.createSpan({ cls: "sf-story-notice-more", text: notice.tail });
-	const fragment = activeDocument.createDocumentFragment();
-	fragment.append(box);
-	if (notice.sticky) new Notice(fragment, 0);
-	else new Notice(fragment);
 }
 
 /** Open the "Set up story files" dialog with its dependencies (wired by T3.3). */

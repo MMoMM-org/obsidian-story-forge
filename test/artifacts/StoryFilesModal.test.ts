@@ -670,6 +670,16 @@ describe("StoryFilesModal — result notice (S5)", () => {
 		expect($(".sf-story-notice", Notice._instances[0]!.messageEl).getAttribute("role")).toBe("status");
 	});
 
+	it("builds the notice from a string and fills messageEl, never from a fragment (realm-safe)", async () => {
+		await open();
+		await confirm();
+		const notice = Notice._instances[0]!;
+		// A fragment from another window's document fails Obsidian's instanceof check and shows
+		// as "[object DocumentFragment]" (seen live after a popout).
+		expect(notice._message).toBe("");
+		expect($(".sf-story-notice-head", notice.messageEl).textContent).toBe("Set up 6 story files.");
+	});
+
 	it("disables the primary button while writing, so a second click writes nothing more", async () => {
 		await open();
 		primary().click();
