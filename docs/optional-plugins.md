@@ -1,13 +1,17 @@
 # Optional plugins
 
 Story Forge works without any other plugin. The four built-in collections, the Workbench, the
-Anvil and the field editor need nothing else. Three optional plugins add more:
+Anvil and the field editor need nothing else. These plugins add more:
 
 | Plugin | Kind | What it adds |
 |--------|------|--------------|
 | [Bases](glossary.md#bases) | Core plugin, ships with Obsidian | Draws `.base` collections and adds Story Forge Cards to your own `.base` files |
 | [Dataview](glossary.md#dataview-dql-and-dataviewjs) | Community plugin | Runs Dataview and DataviewJS collections |
-| metadata-menu | Community plugin | A form for editing FileClasses |
+| metadata-menu | Community plugin | Edits FileClasses, and adds buttons in Obsidian's Properties panel |
+| meta-bind | Community plugin | Draws the height, build, hair, eyes and portrait lines in the character template |
+| Templates | Core plugin, ships with Obsidian | Creates a new note from one of Story Forge's templates |
+
+None of them is required. No Story Forge feature depends on any of them.
 
 Story Forge may suggest turning on Bases, because it ships with Obsidian. It never asks you to
 install a community plugin.
@@ -77,29 +81,70 @@ metadata-menu is a community plugin. Story Forge never checks whether it is inst
 the FileClass files (`fc-*.md`) that metadata-menu uses, in the folder set in **Settings › Story
 Forge › Scope › FileClasses folder**.
 
-**With metadata-menu**, you get a form for editing FileClasses: which fields a kind of note has,
-their types, options and order.
+**Story Forge's own FileClasses.** The **Set up story files** step (in the Library tab of the
+settings, or the **Set up story files…** button on the capability screen) writes a FileClass for
+each of the eight story types: `book`, `character`, `character-fantasy`, `location`, `lore`,
+`object`, `plotline` and `scene`. It shows every file first and writes nothing until you confirm.
+They use metadata-menu's field types (Input, Number, Select, Multi, File, MultiFile, Media), so
+metadata-menu can read them as they are.
 
-**Without it, nothing changes in Story Forge.** Story Forge reads FileClass files itself. The
-example vault in the repository has eight of them, under `test/StoryForge/00 Meta/FileClasses/`:
-one for each of the seven entity types, plus `fc-character-fantasy` for fantasy characters. Story
-Forge doesn't copy them into your vault; copy them yourself. You can edit them as plain notes.
+**With metadata-menu you get:**
+
+- A form for editing FileClasses: which fields a kind of note has, their types, options and order.
+- Buttons in Obsidian's Properties panel, between a property's name and its value, that follow the
+  FileClass by field type: pick an option such as _male_ for _gender_, edit a list, set a link.
+
+**Without it, nothing changes in Story Forge.** Story Forge reads the FileClass files itself, and
+its editor shows their sections, option lists and field order. You can edit them as plain notes.
+What you miss is only metadata-menu's own tools: the FileClass form, and the buttons in the
+Properties panel. Obsidian's Properties panel has no option lists of its own; they exist only in
+Story Forge's editor.
 
 With no FileClasses at all, the editor lists every property under "Properties", without sections
 or option lists. See [FileClasses and the editor](fileclasses.md).
+
+## meta-bind
+
+meta-bind is a community plugin. Story Forge never checks whether it is installed and has no
+feature that uses it.
+
+**Where it appears.** Only in the shipped character template (`entity-character`). Its
+Appearance section has two display lines written as meta-bind `VIEW[]` fields: one line with
+height, build, hair and eyes, and one with the portrait image. They read the note's own
+frontmatter, so the facts stay in the Properties. The other templates have no meta-bind fields.
+
+**With meta-bind**, a note made from that template shows those two lines as values and the
+portrait as an image.
+
+**Without it**, the notes work the same: the same Properties, the same editor, the same
+collections. The two lines show as plain text such as `VIEW[{height}][text]` instead of values.
+You can delete them or leave them.
+
+## Templates
+
+Story Forge's templates are written for Obsidian's core **Templates** plugin (**Settings › Core
+plugins › Templates**). They use only its `{{title}}` variable. **Set up story files** writes seven
+of them: one for each entity type except `character-fantasy`, plus one for a scene. They are
+plain Markdown with no code. Templater is not needed, and no shipped template uses Templater
+syntax.
+
+**Without the core Templates plugin**, you can still copy a template's text into a new note by
+hand. You can also create scenes and entities by hand and add their Properties yourself.
 
 ## The capability screen
 
 The **What Story Forge can use** screen starts with a **Story files** row for Story Forge's own
 FileClasses, templates and schema reference. It shows whether they are set up, for example
-"Not set up" or "27 set up", and its button opens the setup dialog. Showing the screen writes
-nothing. Below it, the screen lists the three plugins with what each adds, what you have without
-it, and its current status:
+"Not set up" or "27 set up", and its **Set up story files…** button opens the setup dialog.
+Showing the screen writes nothing. Below it, the screen lists three plugins with what each adds,
+what you have without it, and its current status:
 
 - Bases: **On**, **Off**, or **Not in this Obsidian version**.
 - Dataview: **Active** or **Not active**, and whether JavaScript queries are on.
 - metadata-menu: how many FileClasses Story Forge found in your FileClasses folder, for example
   "<n> FileClasses in 00 Meta/FileClasses".
+
+meta-bind and core Templates are not listed there. This page is where they are described.
 
 The status is read when the screen opens. None of these states is an error.
 
