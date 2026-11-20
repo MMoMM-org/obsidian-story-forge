@@ -4569,7 +4569,7 @@ body {
 }
 
 /* ===========================================================================
- * Capability screen — "What optional plugins add" (CapabilitiesModal, T7.4).
+ * Capability screen — "What Story Forge can use" (CapabilitiesModal, T7.4).
  * mockups-capabilities.html L12a–g: one row per optional plugin, kind pill, a
  * neutral live status (absence is grey, never a warning), what it adds and
  * what is lost without it side by side, stacking at phone width (L12f).
@@ -4726,6 +4726,19 @@ body {
 
 .sf-cap-how em {
 	color: var(--text-muted);
+}
+
+/* Spec 010 S6: the Story files row's button and the line under it. */
+.sf-cap-act {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.sf-cap-aside {
+	color: var(--text-faint);
+	font-size: 11px;
 }
 
 .sf-cap .sf-picker-foot {
