@@ -48,6 +48,15 @@ has signed off the mockups (T3.1).**
   accepts a DocumentFragment, as obsidian.d.ts does.
 - Debt: the folder suggester in the dialog is not closed on close, because `attachFolderSuggest`
   (src/settings/suggesters.ts) returns no handle; its input is removed with the dialog content.
+- T3.3: `src/artifacts/storyFilesWiring.ts` is the one place that maps settings to folders and
+  serves the command, the Scope tab, the Library hint and the capability screen. "Don't show
+  again" stores the id `story-files-not-set-up` in the existing `dismissedHints` (data.json),
+  not a new boolean. It is a real button styled as a link. The Scope line and the hint are re-read
+  after the dialog closes through the public `Modal.setCloseCallback` (since 1.10.0); a folder
+  change in the Scope tab does not re-read the status. The hint uses its own `sf-story-nudge*`
+  classes. Punctuation: "Default: 00 Meta/FileClasses." gets a full stop before the added
+  sentence (the mockup ran the two together). The sentence-case test helper allows "Templates"
+  and "Property", both needed by the signed-off wording.
 
 **Dependencies**: Phase 2.
 
@@ -86,7 +95,7 @@ Gives the user the deliberate, previewed setup and update flow.
      - [x] Folder change saved `[ref: PRD/F3.2]`
      - [x] Not-excluded warning `[ref: PRD/F3.3]`
 
-- [ ] **T3.3 Command and Scope tab group** `[activity: frontend-ui]`
+- [x] **T3.3 Command and Scope tab group** `[activity: frontend-ui]`
 
   1. Prime: signed-off S1; `src/settings/SettingsTab.ts` (Scope tab, `LibraryDeps` callbacks);
      command conventions in `src/main.ts`
@@ -99,9 +108,9 @@ Gives the user the deliberate, previewed setup and update flow.
   3. Implement: `src/artifacts/storyFilesWiring.ts`, SettingsTab group, command registration
   4. Validate: Settings and command tests; mutation-check
   5. Success:
-     - [ ] Command and button open the dialog `[ref: PRD/F2.2; PRD/F2.4]`
-     - [ ] Updates available shown with a count `[ref: PRD/F4.2]`
-     - [ ] Folder settings in the settings tab `[ref: PRD/F3.1]`
+     - [x] Command and button open the dialog `[ref: PRD/F2.2; PRD/F2.4]`
+     - [x] Updates available shown with a count `[ref: PRD/F4.2]`
+     - [x] Folder settings in the settings tab `[ref: PRD/F3.1]`
 
 - [x] **T3.4 Capability screen pointer** `[activity: frontend-ui]` `[parallel: true]`
 
