@@ -161,3 +161,20 @@ Nothing blocks StoryForge. If `_forge` keeps its own copy of `schema/*.json` or 
 the defaults and text above so a future bundle does not reintroduce `"Forge"`, `male`, the folder prose,
 `95 Assets/`, or `filesPaths`. Tell us if `_forge` relies on `filesPaths` classification or on template
 bodies being author-owned; both changed here.
+
+## 2026-11-20 addendum: Media field options
+
+FileClass `Media` fields (`portrait` in fc-character, the thumbnails in fc-location and fc-object)
+now carry metadata-menu's Media defaults instead of `options: {}`:
+
+```yaml
+    options:
+      embed: false
+      folders: []
+      display: card
+      thumbnailSize: "100"
+```
+
+metadata-menu 0.8.12 reads `options.folders` without a fallback, so its FileClass form crashed on
+`options: {}` ("Cannot read properties of undefined (reading 'join')"). Found in the spec 010 live
+walk. `_forge`'s FileClasses need the same block.
