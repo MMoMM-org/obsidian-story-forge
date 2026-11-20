@@ -3,6 +3,54 @@
 This page takes you from a freshly installed plugin to seeing your own characters, places and
 scenes in Story Forge. New words are explained in the [Glossary](glossary.md).
 
+## Set up story files
+
+Story Forge brings three sets of ready-made notes. You write them into your vault once, with
+**Set up story files**:
+
+- **FileClasses**: tell the editor which fields each story type has. See
+  [FileClasses and the editor](fileclasses.md).
+- **Templates**: one for each entity type and one for scenes, for Obsidian's core **Templates**
+  plugin.
+- **Schema reference**: one note per story type that explains each Property and its values.
+
+Story Forge works without them, but the editor then shows no sections or option lists, and you
+have no templates. Nothing is written until you ask.
+
+Open the dialog in any of these ways:
+
+- Run **Story Forge: Set up story files** from the command palette.
+- Open **Settings → Story Forge → Scope** and select **Set up story files…** under **Story
+  files**.
+- In **Settings → Story Forge → Library**, select **Set up story files…** in the hint that says
+  "Story files are not set up."
+- In the screen **What Story Forge can use**, select **Set up story files…** in the **Story
+  files** row.
+
+The dialog shows what it would do, before it does anything:
+
+- **One card per set**: **FileClasses**, **Templates** and **Schema reference**. Each card has a
+  checkbox, a file count and a **Folder** field. The defaults are `00 Meta/FileClasses`,
+  `00 Meta/Templates` and `00 Meta/Schema`. Change a folder and the dialog shows the new plan;
+  the folder is saved only when you confirm.
+- **One row per file**, with what will happen to it: **Create**, **Update**, **Up to date**,
+  **Not updated**, **Already there**, **Missing**, **Unreadable** or **Damaged**. Rows that
+  would write a file have their own checkbox, so you can leave single files out. A **Missing**
+  file starts unticked, with the label **Set up again**.
+- **A warning** when a folder is not in your excluded folders: "Not in your excluded folders."
+  Notes there would be treated as story entities. The button **Add <folder> to excluded
+  folders** fixes it without writing any file. The default folders are in `00 Meta`, which is
+  excluded already.
+- **The footer**: "Folders that do not exist yet are created." The button names what it writes,
+  for example **Set up 3 files** or **Update 2 files**. **Cancel**, Escape and ✕ change nothing.
+
+Select the button to write. Story Forge then shows one notice that says what was set up, and
+what was skipped and why. If something is refused, see
+[Troubleshooting](troubleshooting.md#story-files).
+
+Run the dialog again any time, for example after updating Story Forge. See
+[Updating story files](fileclasses.md#updating-story-files).
+
 ## How Story Forge reads your notes
 
 Story Forge works on plain notes you already own:
@@ -87,7 +135,7 @@ up as entities. You can change this under **Settings → Story Forge → Scope**
 [Configuration](configuration.md#scope).
 
 To see a complete setup, browse the example vault in the repository: `test/StoryForge/`
-(the "Wardens of Moonharbor" story).
+(the "Wardens of Moonharbor" story). You don't need it to use the plugin.
 
 ## Without writing YAML
 
@@ -102,11 +150,12 @@ palette, or select **Add property** under the Properties the note already has.
   suggestions. For a list such as `characters`, change the property's type to **List** (select
   the icon next to its name) and add one link per entry.
 
-**A template.** The example vault has one template per entity type, except fantasy characters,
-in `test/StoryForge/00 Meta/Templates/` (`entity-character.md`, `entity-location.md`,
-`entity-object.md`, `entity-lore.md`, `entity-plotline.md`, `entity-book.md` and `scene.md`).
-Each already holds the tag, the `type` and every field, empty. Copy them into your vault's
-templates folder, then insert one into a new note with Obsidian's core **Templates** plugin.
+**A template.** [Set up story files](#set-up-story-files) writes one template per entity type,
+except fantasy characters (`entity-character.md`, `entity-location.md`, `entity-object.md`,
+`entity-lore.md`, `entity-plotline.md`, `entity-book.md` and `scene.md`), into the Templates
+folder (`00 Meta/Templates` by default). Each already holds the tag, the `type` and every
+field, empty. Point Obsidian's core **Templates** plugin at that folder, then insert one into a
+new note.
 The templates also contain placeholders and blocks for other plugins in the note text; delete
 what you don't use.
 
@@ -114,8 +163,8 @@ what you don't use.
 the editor pane. With a FileClass, the pane shows every field the FileClass declares, even the
 ones the note doesn't have yet. Fill an empty field and Story Forge adds that Property to the
 note. To add a relation, select **+ link** in a link field, type the note's name and press
-Enter. Story Forge stores it as a wikilink. The FileClasses ship in the example vault; see
-[FileClasses and the editor](fileclasses.md).
+Enter. Story Forge stores it as a wikilink. The FileClasses come from
+[Set up story files](#set-up-story-files); see [FileClasses and the editor](fileclasses.md).
 
 Two things the editor pane can't do:
 
@@ -156,8 +205,8 @@ If your story notes have no special tags yet, do this once:
 ## FileClasses (optional)
 
 A [FileClass](glossary.md#fileclass) decides which fields the editor shows for each entity, in
-what order, and of what type. You don't need them. Without them, the editor shows the
-Properties a note already has. See [FileClasses and the editor](fileclasses.md).
+what order, and of what type. [Set up story files](#set-up-story-files) writes Story Forge's
+own. Without them, the editor shows the Properties a note already has. See [FileClasses and the editor](fileclasses.md).
 
 ## Open the Anvil and the Workbench
 

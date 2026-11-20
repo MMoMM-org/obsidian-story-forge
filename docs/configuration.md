@@ -42,7 +42,10 @@ Scope is the settings tab that decides which notes Story Forge looks at.
 
 | Name | Default | What it does |
 |------|---------|--------------|
-| FileClasses folder | `00 Meta/FileClasses` | The vault folder with your FileClass definitions (`fc-*.md`). Story Forge reads the editor's fields from here. Clear it to go back to the default. |
+| FileClasses folder | `00 Meta/FileClasses` | The vault folder with your FileClass definitions (`fc-*.md`). Story Forge reads the editor's fields from here. **Set up story files** writes Story Forge's FileClasses here. Clear it to go back to the default. |
+| Templates folder | `00 Meta/Templates` | Where **Set up story files** places the entity and scene templates. Point Obsidian's core Templates plugin at the same folder to use them. Clear it to go back to the default. Changing it writes no file. |
+| Schema reference folder | `00 Meta/Schema` | Where **Set up story files** places the notes that explain each story Property and its values. Clear it to go back to the default. Changing it writes no file. |
+| Set up story files… (button) | | Opens the dialog. Next to it, a status line says whether the story files are set up. See [Getting started](getting-started.md#set-up-story-files). |
 | Excluded folders | `00 Meta` | Comma-separated folders whose notes Story Forge leaves out. See below. Clearing the field means "exclude nothing"; it does not restore the default. |
 
 **How excluded folders work**
@@ -57,6 +60,17 @@ Scope is the settings tab that decides which notes Story Forge looks at.
   without a leading or trailing `/`. The field suggests folders as you type.
 - **A built-in collection can have its own list** (Library › Configure, untick **Same as
   Scope**). That list replaces this one for that collection only.
+
+The three story files folders (FileClasses, Templates and Schema reference) are also fields in
+the **Set up story files** dialog. A folder you change there is saved only when you confirm.
+They sit in two groups in the tab: **Vault folders** (FileClasses folder, Excluded folders) and
+**Story files** (Templates folder, Schema reference folder and the button).
+
+If story files are not set up, the Library tab shows a hint, "Story files are not set up.", with
+**Set up story files…** and **Don't show again**. When updates are available, it shows
+"1 story file update available." (or "2 story file updates available.") with **Review updates…**
+and **Not now**. **Don't show again** hides the first hint for good. **Not now** hides the second
+until the next Story Forge version. Neither changes any file.
 
 ### Behaviour
 
@@ -81,7 +95,7 @@ See [Undo](undo.md) for how undo works.
 - **Some choices are remembered without a setting.** Story Forge saves the Card you pick for
   each collection in the Anvil and where you dock the Anvil's editor pane (bottom by default).
   It also remembers which one-time hints you closed, such as the
-  [capability screen](glossary.md#capability-screen).
+  [capability screen](glossary.md#capability-screen) and the two story files hints.
 - **None of this is stored in your notes.** Settings and remembered choices live in Story
   Forge's plugin folder. Your story data stays in your notes' properties.
 - **Moving your FileClasses?** Change **FileClasses folder** in Scope, or the editor will not

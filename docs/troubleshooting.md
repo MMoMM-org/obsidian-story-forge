@@ -80,6 +80,65 @@ again."
 **Fix:** another file already sits where the entry goes. Move, rename or remove it, or change
 **Folder for collections from the repo** in Settings › Library, and install again.
 
+### Story files
+
+These messages come from **Set up story files**. Nothing in them is an emergency: Story Forge
+refuses to write rather than risk your notes. See
+[Getting started](getting-started.md#set-up-story-files) and
+[Updating story files](fileclasses.md#updating-story-files).
+
+**"Not updated: <path> was edited after it was installed, and updating would overwrite those
+edits."** You changed a file Story Forge wrote, so it leaves it alone. Keep your version, or move
+or rename your file and run **Set up story files** again to get the new one.
+
+**"Already there"**, with "Same content as Story Forge's copy, but not written by Story Forge."
+or "Your own file, different from Story Forge's copy. Story Forge never overwrites it." A file
+with that name was in the folder before Story Forge wrote anything, so Story Forge never takes
+it over. If every file of a set is like this, the dialog says "The file is already in <folder>"
+or "All <N> files are already in <folder>", and that Story Forge leaves them alone. Choose
+another folder for the set, or move your files away first.
+
+**"Missing"**: "<path> was set up but is no longer there. It is not recreated unless you tick Set
+up again." You moved or deleted a file. Tick **Set up again** on its row to write it again, or
+leave it.
+
+**"Not installed: <path> already exists. Move, rename or remove it, then install again."** A file
+appeared at that path while the dialog was open. Move, rename or remove it, then run the dialog
+again.
+
+**"Not installed: could not read <path>: <reason>"** Story Forge could not read the file at that
+path, so it did not write there. The reason comes from Obsidian. Check that the path is a note
+and not a folder, then try again.
+
+**"Not installed: the bundled copy of <file> is damaged, so nothing was written. Reinstalling
+Story Forge restores it."** The copy of the file inside Story Forge fails its check. Reinstall
+Story Forge (see [Installation](installation.md)) and run the dialog again.
+
+**"Not installed: could not create folder <folder>: <reason>"** Story Forge could not create the
+folder. Check the name for characters your system does not allow, or choose another folder in the
+dialog.
+
+**"Could not save the folder settings: <reason>. Nothing was written."** Your folder choices
+could not be saved, so no file was written. Run the dialog again. If it keeps failing, check
+that the vault's config folder is writable.
+
+**"Could not check <folder>: <reason>. The folder stays <previous folder>."** You changed a
+folder and Story Forge could not read it. The dialog goes back to the folder it had before.
+
+**"Could not read the story files: <reason>"** The dialog could not read its plan. Close it and
+open it again.
+
+**"Could not check story files"** The status line in the Scope tab or the capability screen could
+not read the state of the files. Open the dialog to try again; run
+[Debug information](#debug-information) if it keeps happening.
+
+**"Could not add <folder> to excluded folders: <reason>"** The button **Add <folder> to excluded
+folders** failed, so the setting did not change. Add the folder by hand under **Settings → Story
+Forge → Scope → Excluded folders**.
+
+After a write, a longer notice lists what failed or was skipped. If it is cut off, it ends with
+"Open Set up story files again to see each file."
+
 ### The Codex says "No characters found"
 
 **You see:** an empty Codex page: "No characters found" (or locations, objects, lore) and "This

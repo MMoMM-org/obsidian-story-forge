@@ -14,6 +14,7 @@ in **Settings › Hotkeys**.
 | Open Plotlines | Opens the Anvil on the Plotlines tab. | none |
 | Open board | Opens the Anvil on the Board tab. Older versions call this command Open Kanban. | none |
 | Open Plotgrid | Opens the Anvil on the Plotgrid tab. | none |
+| Set up story files | Opens the **Set up story files** dialog. It shows what it would write, and writes only after you confirm. See [Getting started](getting-started.md#set-up-story-files). | none |
 | Browse collections from the repo | Opens **Collections from the repo**, the bundled catalog. See [The Library](library.md#browsing-the-repo). | none |
 | Undo last change | Undoes the last field change Story Forge made to your notes. See [Undo](undo.md). | none |
 | Redo last change | Redoes the last change you undid. | none |

@@ -15,7 +15,8 @@ plugin. Story Forge reads that format directly, so you don't need Metadata Menu 
 you do use it, both plugins read the same files.
 
 The folder is `00 Meta/FileClasses` by default. You can change it with **FileClasses folder**
-under **Settings → Story Forge → Scope**.
+under **Settings → Story Forge → Scope**. **Set up story files** writes Story Forge's FileClasses
+into that folder.
 
 Story Forge picks the FileClass for a note in this order:
 
@@ -25,11 +26,33 @@ Story Forge picks the FileClass for a note in this order:
 
 Story Forge's own FileClasses are eight: one for each of the seven entity types (`fc-book`,
 `fc-character`, `fc-location`, `fc-lore`, `fc-object`, `fc-plotline` and `fc-scene`), plus
-`fc-character-fantasy`, which adds fantasy fields to characters. They are
-in the example vault in the repository, under `test/StoryForge/00 Meta/FileClasses/`. Copy
-them into your own FileClasses folder to start from them.
+`fc-character-fantasy`, which adds fantasy fields to characters. You get them from
+**Set up story files**: see [Getting started](getting-started.md#set-up-story-files). It writes
+them into your FileClasses folder. You don't copy anything by hand.
 
-Story Forge only reads FileClasses. It never edits them.
+Story Forge's editor only reads FileClasses. It never edits them. The only time Story Forge
+writes a FileClass is **Set up story files**, when you confirm, and then only as described below.
+
+## Updating story files
+
+A new version of Story Forge can ship newer FileClasses. They are not written by themselves.
+When updates are available, **Settings → Story Forge → Library** shows "1 story file update
+available." (or "2 story file updates available.", and so on) with the buttons **Review updates…** and **Not now**. **Not now** hides the hint
+until the next Story Forge version. You can also run **Story Forge: Set up story files** at any
+time. The dialog sorts every file into one of these states:
+
+- **Update**: you did not edit the file since Story Forge wrote it, so it is updated.
+- **Up to date**: nothing to do.
+- **Not updated**: you edited the file. It is left as it is, and nothing overwrites your edits.
+  To get the new version, move or rename your file and run the dialog again.
+- **Already there**: a file with that name was in the folder before Story Forge wrote anything,
+  so Story Forge has no record of writing it. It is never taken over, even if it is identical.
+  To get Story Forge's copy, choose another folder, or move your file away first.
+- **Missing**: Story Forge wrote the file once, but it was moved or deleted. It is set up
+  again only if you tick it (**Set up again**).
+
+Templates and schema notes follow the same rules. If you move a set's folder, updates stay
+where the files already are; only files set up from now on go to the new folder.
 
 ## Fields and types
 
