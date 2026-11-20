@@ -100,8 +100,10 @@ in `docs/installation.md` do not work.
    The getting-started doc says the same.
 2. **Consideration:** The user opens the setup, sees the list of files (FileClasses, templates,
    schema reference) with the folder each goes to, and can change the folders.
-3. **Adoption:** They confirm. The files appear; a notice says how many were written and names
-   any that were skipped and why.
+3. **Adoption:** They confirm. The files appear; a notice says how many were written, one line per
+   set and folder, and names any that failed or were skipped and why. Files already in the folder
+   that Story Forge did not write are shown in the dialog as "Already there" and are not part of
+   the notice (revised 2026-11-20, R1, R2).
 4. **Usage:** They create a scene with the core Templates plugin from the new templates folder;
    the editor now shows the scene's sections and enum dropdowns.
 5. **Retention:** After a later plugin update, the settings say updates are available; they
@@ -150,14 +152,19 @@ in `docs/installation.md` do not work.
     opens listing each artifact set, its files and its target folder
   - [ ] Given the setup dialog, When it lists the files, Then each file shows what will happen
     to it before anything is written: created, already up to date, updated, or skipped with the
-    reason (already exists, edited)
+    reason (edited). A file already at the target that Story Forge did not write is shown as
+    "Already there", dimmed, with the reason "Same content as Story Forge's copy, but not written
+    by Story Forge." or "Your own file, different from Story Forge's copy. Story Forge never
+    overwrites it." (revised 2026-11-20, R1)
   - [ ] Given the Story Forge settings, When the user selects the setup button, Then the same
     setup dialog opens
   - [ ] Given the setup dialog, When the user deselects an artifact set and confirms, Then only
     the selected sets are written
   - [ ] Given the setup dialog, When the user cancels or closes it, Then no file is written
   - [ ] Given the user confirms, When setup finishes, Then a notice reports how many files were
-    written and names each file that was skipped with its reason
+    written, lists one line per written set and folder with its count and folder (revised
+    2026-11-20, R2), and names each file that failed or was skipped with its reason. Files shown as
+    "Already there" are not listed (revised 2026-11-20, R1)
   - [ ] Given a target folder does not exist, When setup writes into it, Then the folder is
     created
   - [ ] Given the "What Story Forge can use" screen, When it is shown, Then it points to the
@@ -186,10 +193,15 @@ in `docs/installation.md` do not work.
   files alone, so that I never lose work.
 - **Acceptance Criteria:**
   - [ ] Given a file already exists at a target path that Story Forge did not write, When setup
-    runs, Then that file is not changed and is reported as "Not installed: <path> already
-    exists…"
+    runs, Then that file is not changed, never recorded, and shown in the dialog as "Already
+    there" with a reason line; it is not listed in the result notice (revised 2026-11-20, R1).
+    Only a file that appears between the plan and the write is skipped with "Not installed:
+    <path> already exists…"
   - [ ] Given a plugin update ships a newer version of a set-up file, When the user opens the
     settings, Then they see that updates are available and for how many files
+  - [ ] Given at least one update is available, When the user opens the Library tab, Then a hint
+    shows "N story file updates available." with "Review updates…" and "Not now"; "Not now" hides
+    it until the next plugin version (revised 2026-11-20, R3)
   - [ ] Given an update is available and the user has not edited the file, When the user runs
     the update, Then the file is replaced with the new version
   - [ ] Given an update is available and the user has edited the file, When the user runs the
@@ -321,7 +333,8 @@ installing and updating curated collections from the repo (spec 008).
 - The user set up files, then changed the templates folder setting → Expected: updates still
   target where the files were written; the dialog says the setting now points elsewhere.
 - The user's FileClass in the target folder has the same name but different content → Expected:
-  "Not installed: … already exists", untouched.
+  shown as "Already there", untouched, never recorded, not in the result notice (revised
+  2026-11-20, R1).
 - The user deletes a set-up file → Expected: shown as missing; can be set up again; not
   recreated on its own.
 - The vault and the plugin's data are synced across devices → Expected: the second device sees
