@@ -982,6 +982,21 @@ describe("the Media control is chosen by TYPE, never by name (T5.5, ADR-32)", ()
 	});
 });
 
+// #51: the media panel is the box, so its cell must draw none. The stylesheet
+// keys that off a modifier class rather than `:has(> .sf-ed-media)`.
+describe("the Media cell carries its own modifier class (#51)", () => {
+	it("marks the cell of a Media field with sf-ed-f--media", () => {
+		const { el } = renderMedia(mediaField("portrait"), "[[mara.png]]");
+		expect(el.classList.contains("sf-ed-f")).toBe(true);
+		expect(el.classList.contains("sf-ed-f--media")).toBe(true);
+	});
+
+	it("does not mark the cell of any other field", () => {
+		const { el } = render(fieldDef({ name: "portrait", type: "Input" }), "mara.png");
+		expect(el.classList.contains("sf-ed-f--media")).toBe(false);
+	});
+});
+
 describe("the Media preview never shows a broken image (T5.5)", () => {
 	it.each([[null], [""], [undefined]])("shows the monogram for an empty value %j", (value) => {
 		const { el } = renderMedia(mediaField("portrait"), value);

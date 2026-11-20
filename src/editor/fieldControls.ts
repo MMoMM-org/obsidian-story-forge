@@ -342,6 +342,9 @@ function mediaControl(
 	deps: FieldControlDeps,
 ): () => FieldValue {
 	let current = emptyToNull(asText(value).trim());
+	// The panel is the box, so the cell draws none (styles.css keys off this
+	// class; `:has(> .sf-ed-media)` would invalidate too broadly, #51).
+	cell.classList.add("sf-ed-f--media");
 	const box = el("div", "sf-ed-media");
 	cell.appendChild(box);
 

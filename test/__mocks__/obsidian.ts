@@ -8,7 +8,7 @@
  *
  * Key behaviours:
  * - Obsidian's element helpers (`createEl/createDiv/createSpan/appendText/
- *   empty/addClass/removeClass/toggleClass`) are installed ONCE on
+ *   empty/addClass/removeClass/toggleClass/hide/show/toggle`) are installed ONCE on
  *   `HTMLElement.prototype`, the way the real app provides them, so every
  *   element has them however it was created. `augmentEl()` is a retained
  *   no-op kept for its many call sites.
@@ -190,6 +190,23 @@ function installElementHelpers(): void {
 
 	proto["toggleClass"] = function (this: HTMLElement, cls: string, force?: boolean): void {
 		this.classList.toggle(cls, force);
+	};
+
+	// Visibility helpers, as Obsidian implements them: an inline `display`, so a
+	// hidden element stays hidden whatever its classes set. `isShown()` is left
+	// out on purpose: Obsidian reads layout (`offsetParent`), which jsdom lacks,
+	// so tests assert on `style.display` instead.
+	proto["hide"] = function (this: HTMLElement): void {
+		this.style.display = "none";
+	};
+
+	proto["show"] = function (this: HTMLElement): void {
+		this.style.display = "";
+	};
+
+	proto["toggle"] = function (this: HTMLElement, show: boolean): void {
+		if (show) this.style.display = "";
+		else this.style.display = "none";
 	};
 }
 

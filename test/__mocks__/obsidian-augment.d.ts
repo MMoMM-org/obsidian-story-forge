@@ -43,6 +43,11 @@ declare global {
 		removeClass(...classes: string[]): void;
 		toggleClass(cls: string, force?: boolean): void;
 		setText(text: string): void;
+		// Visibility, as in obsidian.d.ts. isShown() is deliberately absent: the
+		// real one reads layout, which jsdom has none of (see obsidian.ts).
+		show(): void;
+		hide(): void;
+		toggle(show: boolean): void;
 	}
 }
 
