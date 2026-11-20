@@ -5,7 +5,8 @@
  * A file Story Forge did not write is never claimed (no record → skip-exists,
  * even with identical bytes). A record's path wins over the current folder
  * setting. An index entry whose checksum does not match its source is refused
- * (fail closed, as the catalog).
+ * (fail closed, as the catalog). A skip-exists item says whether the file already holds
+ * the shipped bytes (`sameContent`), for the dialog's reason line only (R1).
  *
  * @ref SDD/Application Data Models — planSetup decision table
  * @ref PRD/F4.1, F4.3, F4.4, F4.5, F4.6, F3.4
@@ -22,7 +23,7 @@ import type {
 	ArtifactSet,
 	PlanItem,
 } from "./artifactTypes";
-import { normalizeFolder } from "./resolvePlaceholders";
+import { normalizeFolder, resolvePlaceholders } from "./resolvePlaceholders";
 
 const FOLDER_OF: Record<ArtifactSet, ArtifactPlaceholder> = {
 	fileclasses: "fileClassesFolder",
@@ -33,6 +34,15 @@ const FOLDER_OF: Record<ArtifactSet, ArtifactPlaceholder> = {
 /** Normalised vault path for `entry` under the current folder settings. */
 export function targetPathOf(entry: ArtifactEntry, folders: ArtifactFolders): string {
 	return normalizeFolder(`${normalizeFolder(folders[FOLDER_OF[entry.set]])}/${entry.relPath}`);
+}
+
+/** Whether `text` equals `entry`'s shipped copy resolved with `folders`; an unresolvable copy never does. */
+function sameAsShipped(entry: ArtifactEntry, text: string, folders: ArtifactFolders): boolean {
+	try {
+		return text === resolvePlaceholders(entry.source, folders);
+	} catch {
+		return false;
+	}
 }
 
 async function planEntry(
@@ -60,7 +70,11 @@ async function planEntry(
 	const file = await readFile(path);
 	if (file.kind === "unreadable") return item("unreadable", file.reason);
 
-	if (!record) return item(file.kind === "absent" ? "create" : "skip-exists");
+	if (!record) {
+		if (file.kind === "absent") return item("create");
+		// Without a record the path is the target, so the shipped copy resolves with `folders` (R1).
+		return { ...item("skip-exists"), sameContent: sameAsShipped(entry, file.text, folders) };
+	}
 	if (file.kind === "absent") return item("missing");
 	if (entry.checksum === record.sourceChecksum) return item("up-to-date");
 	if ((await computeChecksum(file.text)) === record.instanceChecksum) return item("update");

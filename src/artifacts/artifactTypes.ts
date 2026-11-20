@@ -91,6 +91,11 @@ export interface PlanItem {
 	action: PlanAction;
 	/** e.g. "setting now points to <folder>", a read failure, "checksum mismatch". */
 	note?: string;
+	/**
+	 * skip-exists only: the file's bytes equal the shipped copy resolved with the current folders.
+	 * Shown in the dialog's reason line; it never makes Story Forge claim the file (ADR-41).
+	 */
+	sameContent?: boolean;
 }
 
 /** Result of reading one vault path for planning. */

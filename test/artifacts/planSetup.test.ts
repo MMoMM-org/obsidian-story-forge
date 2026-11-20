@@ -163,6 +163,37 @@ describe("planSetup edge cases", () => {
 		expect(item?.action).toBe("skip-exists");
 	});
 
+	it("marks a skip-exists file whose bytes equal the resolved shipped copy as sameContent (R1)", async () => {
+		const e = await entry();
+		const { readFile } = fakeVault({ [TARGET]: content(RESOLVED) });
+		const [item] = await planSetup(index(e), {}, readFile, folders, ALL_SETS);
+		expect(item).toMatchObject({ action: "skip-exists", sameContent: true });
+	});
+
+	it("marks a skip-exists file with other bytes as not sameContent (R1)", async () => {
+		const e = await entry();
+		const { readFile } = fakeVault({ [TARGET]: content(EDITED) });
+		const [item] = await planSetup(index(e), {}, readFile, folders, ALL_SETS);
+		expect(item).toMatchObject({ action: "skip-exists", sameContent: false });
+	});
+
+	it("compares with the resolved copy, not the raw source with its placeholders (R1)", async () => {
+		const e = await entry();
+		const { readFile } = fakeVault({ [TARGET]: content(SOURCE) });
+		const [item] = await planSetup(index(e), {}, readFile, folders, ALL_SETS);
+		expect(item).toMatchObject({ action: "skip-exists", sameContent: false });
+	});
+
+	it("sets sameContent only on skip-exists items", async () => {
+		const e = await entry();
+		const records = { [e.id]: await record(e, SOURCE, RESOLVED) };
+		const { readFile } = fakeVault({ [TARGET]: content(RESOLVED) });
+		const [upToDate] = await planSetup(index(e), records, readFile, folders, ALL_SETS);
+		const [created] = await planSetup(index(e), {}, fakeVault({}).readFile, folders, ALL_SETS);
+		expect(upToDate).not.toHaveProperty("sameContent");
+		expect(created).not.toHaveProperty("sameContent");
+	});
+
 	it("targets the record path, not the current setting, and notes the new setting", async () => {
 		const e = await entry();
 		const oldPath = "Old/Classes/fc-character.md";
