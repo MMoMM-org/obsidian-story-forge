@@ -5086,3 +5086,40 @@ body {
 	font-size: 0.9em;
 	opacity: 0.75;
 }
+
+/* ---------------------------------------------------------------------------
+ * Spec 010 T3.3 — Scope tab "Set up story files" status line (S1b) and the
+ * Library tab hint (S7a). Updates and missing files read in warning colour and
+ * weight; the words carry the meaning on their own.
+ * ------------------------------------------------------------------------- */
+
+.sf-story-status[data-kind="actions"] {
+	color: var(--text-warning);
+	font-weight: var(--font-semibold);
+}
+
+.sf-story-hint {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2) var(--size-4-3);
+	margin-bottom: var(--size-4-4);
+	padding: var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.sf-story-hint-text {
+	flex: 1 1 260px;
+	min-width: 0;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+}
+
+.sf-story-hint-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-3);
+}

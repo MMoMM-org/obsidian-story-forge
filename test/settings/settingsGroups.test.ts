@@ -50,9 +50,12 @@ describe("T7.1 · settings groups", () => {
 		]);
 	});
 
-	it("groups Scope into one group of vault folders", async () => {
+	it("groups Scope into vault folders and story files (spec 010 S1a)", async () => {
 		const root = await render();
-		expect(groups(panel(root, "scope"))).toEqual([["Vault folders", ["FileClasses folder", "Excluded folders"]]]);
+		expect(groups(panel(root, "scope"))).toEqual([
+			["Vault folders", ["FileClasses folder", "Excluded folders"]],
+			["Story files", ["Templates folder", "Schema reference folder", "Set up story files"]],
+		]);
 	});
 
 	it("puts the repo folder row in its own Library group, after the Collections and Cards lists", async () => {
@@ -68,7 +71,8 @@ describe("T7.1 · settings groups", () => {
 		const root = await render();
 		const all = names(root);
 		for (const name of [
-			"Folder for collections from the repo", "FileClasses folder", "Excluded folders", "Link click action",
+			"Folder for collections from the repo", "FileClasses folder", "Excluded folders", "Templates folder",
+			"Schema reference folder", "Set up story files", "Link click action",
 			"Open note from card title", "Keep undo history across restarts", "Clear undo history",
 		]) expect(all.filter((n) => n === name), name).toHaveLength(1);
 		for (const tab of ["scope", "behaviour"]) {

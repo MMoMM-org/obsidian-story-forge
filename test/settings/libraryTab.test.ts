@@ -1027,13 +1027,16 @@ describe("sentence case in the rendered text (test 10)", () => {
 
 	it("has no mid-sentence capital outside the mockup's proper nouns", async () => {
 		const strings = await everything();
-		const labels = ["Relationship web", "Organizations", "Creatures", "Characters", "Skills", "Locations", "Objects", "Lore"];
+		// "Set up story files…" is the command's name, quoted in the Scope tab descriptions (spec 010 S1a).
+		const labels = ["Relationship web", "Organizations", "Creatures", "Characters", "Skills", "Locations", "Objects", "Lore", "Set up story files…"];
 		const offenders = strings.flatMap((t) => sentenceCaseViolations(t, labels).map((w) => `${w} in "${t}"`));
 		expect(offenders).toEqual([]);
 	});
 
 	it("the checker itself flags a capitalised label (guards the guard)", () => {
 		expect(sentenceCaseViolations("Open Note from card title", [])).toEqual(["Note"]);
+		expect(sentenceCaseViolations("Open the Note's title", [])).toEqual(["Note's"]);
+		expect(sentenceCaseViolations("Point Obsidian's Templates plugin", [])).toEqual([]);
 		expect(sentenceCaseViolations("Shown nowhere. Turn on Anvil or Workbench.", [])).toEqual([]);
 		expect(sentenceCaseViolations("▲ Consent required", [])).toEqual([]);
 	});

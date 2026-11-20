@@ -7,6 +7,8 @@
 const PROPER = new Set([
 	"Anvil", "Workbench", "Bases", "Dataview", "DataviewJS", "Scope", "Obsidian", "Sync",
 	"Library", "Browse", "Card", "Hero", "Codex", "FileClass", "FileClasses", "Meta", "Story", "Forge",
+	// Spec 010 S1a: Obsidian's core Templates plugin, and its Property term.
+	"Templates", "Property",
 ]);
 
 /** Capitalised words that are not at the start of a sentence and not allowed. */
@@ -18,7 +20,8 @@ export function sentenceCaseViolations(raw: string, labels: readonly string[]): 
 	const bad: string[] = [];
 	words.forEach((word, i) => {
 		const atStart = i === 0 || /[.?!:]$/.test(words[i - 1] ?? "");
-		const bare = word.replace(/[^A-Za-z]/g, "");
+		// A possessive is the noun itself: "Obsidian's" is checked as "Obsidian".
+		const bare = word.replace(/['’]s\b/, "").replace(/[^A-Za-z]/g, "");
 		if (atStart || !/^[A-Z][a-z]/.test(bare) || PROPER.has(bare)) return;
 		bad.push(word);
 	});

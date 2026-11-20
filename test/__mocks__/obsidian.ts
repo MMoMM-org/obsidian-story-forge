@@ -838,9 +838,16 @@ export class Modal {
 		// mounted contentEl on its own; detach that too.
 		this.modalEl.remove();
 		if (this.contentEl.parentNode !== this.modalEl) this.contentEl.remove();
+		this._closeCallback?.();
 	});
 	onOpen(): void {}
 	onClose(): void {}
+	private _closeCallback: (() => unknown) | null = null;
+	/** obsidian.d.ts `Modal.setCloseCallback` (since 1.10.0): runs once the modal has closed. */
+	setCloseCallback(callback: () => unknown): this {
+		this._closeCallback = callback;
+		return this;
+	}
 }
 
 /**
@@ -1144,6 +1151,11 @@ export class ButtonComponent {
 	setIcon = vi.fn(() => this);
 	setTooltip = vi.fn((text: string) => {
 		this.buttonEl.setAttribute("aria-label", text);
+		return this;
+	});
+	/** obsidian.d.ts `ButtonComponent.setDisabled` (BaseComponent). */
+	setDisabled = vi.fn((disabled: boolean) => {
+		this.buttonEl.disabled = disabled;
 		return this;
 	});
 	onClick = vi.fn((cb: () => void) => {

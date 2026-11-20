@@ -60,7 +60,7 @@ describe("SettingsTab — Undo history section", () => {
 	it("renders once when two renders overlap", async () => {
 		const { tab } = makeTab();
 		await Promise.all([tab.displayAsync(), tab.displayAsync()]);
-		expect(tab.containerEl.querySelectorAll(".setting-group .setting-item-heading")).toHaveLength(4);
+		expect(tab.containerEl.querySelectorAll(".setting-group .setting-item-heading")).toHaveLength(5);
 		expect([...tab.containerEl.querySelectorAll(".setting-item-heading")].filter((h) => h.textContent === "Undo history")).toHaveLength(1);
 	});
 
