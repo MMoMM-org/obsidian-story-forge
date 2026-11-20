@@ -48,8 +48,12 @@ Select the button to write. Story Forge then shows one notice that says what was
 what was skipped and why. If something is refused, see
 [Troubleshooting](troubleshooting.md#story-files).
 
-Run the dialog again any time, for example after updating Story Forge. See
+Run the dialog again any time, for example after updating Story Forge. **Update** replaces only
+a file you have not edited since it was set up. A file you edited shows **Not updated** and is
+left as it is. Your own story notes are never touched by this dialog. See
 [Updating story files](fileclasses.md#updating-story-files).
+
+For a first novel, keep the default folders and all three sets ticked.
 
 ## How Story Forge reads your notes
 
@@ -154,10 +158,19 @@ palette, or select **Add property** under the Properties the note already has.
 except fantasy characters (`entity-character.md`, `entity-location.md`, `entity-object.md`,
 `entity-lore.md`, `entity-plotline.md`, `entity-book.md` and `scene.md`), into the Templates
 folder (`00 Meta/Templates` by default). Each already holds the tag, the `type` and every
-field, empty. Point Obsidian's core **Templates** plugin at that folder, then insert one into a
-new note.
-The templates also contain placeholders and blocks for other plugins in the note text; delete
-what you don't use.
+field, empty. To use them with Obsidian's core **Templates** plugin:
+
+1. Open **Settings → Core plugins** and turn on **Templates**.
+2. Open **Settings → Templates** and set **Template folder location** to the Templates folder
+   (`00 Meta/Templates` by default).
+3. Create a new note, run **Templates: Insert template** from the command palette and pick, for
+   example, `entity-character`. The note's title fills in `{{title}}`.
+
+The templates also contain placeholders and blocks for other plugins in the note text (see
+[Optional plugins](optional-plugins.md)); delete what you don't use.
+
+A template is copied into the note when you insert it. Updating the templates later never
+changes notes you already made from them.
 
 **Story Forge's editor pane.** Once a note is recognized, select it in the Anvil to open it in
 the editor pane. With a FileClass, the pane shows every field the FileClass declares, even the
