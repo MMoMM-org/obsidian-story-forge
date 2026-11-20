@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Live walk and release"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 6
 ---
@@ -78,7 +78,7 @@ Proves the whole journey on a fresh vault and ships the first release.
   4. Validate: Dry run output recorded
   5. Success: Release ready; maintainer steps explicit `[ref: PRD/F6.1; PRD/F6.5; PRD/F6.6]`
 
-- [ ] **T6.4 Final validation and finalize** `[activity: validate]`
+- [x] **T6.4 Final validation and finalize** `[activity: validate]`
 
   - Full gates (tests, lint, typecheck ×3, schema:check, build); traceability of every PRD AC to a
     test or walk step; drift check; spec README finalised after merge; close #27 and #19 after

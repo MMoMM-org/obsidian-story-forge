@@ -108,7 +108,7 @@ Each phase is defined in a separate file. Tasks follow red-green-refactor: **Pri
 - [x] [Phase 3: Setup UI](phase-3.md)
 - [x] [Phase 4: Scanner-clean source](phase-4.md)
 - [x] [Phase 5: Documentation and disclosures](phase-5.md)
-- [ ] [Phase 6: Live walk and release](phase-6.md)
+- [x] [Phase 6: Live walk and release](phase-6.md)
 
 Dependencies: 1 → 2 → 3 → 6. Phase 4 depends only on Phase 2 (the catalog migration touches
 the same files) and can run beside Phase 3. Phase 5 needs Phase 3's UI wording.

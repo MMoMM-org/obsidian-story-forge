@@ -5,8 +5,8 @@
 | Field | Value |
 |-------|-------|
 | **Created** | 2026-11-18 |
-| **Current Phase** | Ready |
-| **Last Updated** | 2026-11-18 |
+| **Current Phase** | Implemented |
+| **Last Updated** | 2026-11-20 |
 
 ## Documents
 
@@ -46,6 +46,8 @@
 | 2026-11-20 | Correction to the R1 row | R1 also removes these files from the result notice, as drawn in the mockup (the row above says only that it revises O4 for the dialog rows); PRD F2.7/F4.1 and the SDD follow the mockup |
 | 2026-11-20 | Phase 3 done | Live walk passed with R1–R3 and the notice fix; #31 confirmed fixed in a popout |
 | 2026-11-20 | Phase 5 done | Docs lead with Community Plugins; setup, updates and refusals documented; README/PRIVACY disclosures tied to code; reader test PASS; optional-plugins checked live (metadata-menu form not checkable: metadata-menu error) |
+| 2026-11-20 | Phase 6 done | E2E test over the real index (T6.1); live walks cover T6.2 (mobile and Sync not checked); release 0.2.0 prepared, maintainer checklist below (T6.3); PRD/SDD synced to R1–R3 (T6.4) |
+| 2026-11-20 | Implementation complete | feat/ship-vault-artifacts fast-forwarded into main and pushed; closes #27, #19, #31; release 0.2.0 is a maintainer step |
 
 ## Context
 
