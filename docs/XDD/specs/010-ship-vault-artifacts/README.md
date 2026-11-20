@@ -54,3 +54,30 @@ release, which also makes the manual and BRAT install paths in `docs/installatio
 
 ---
 *This file is managed by the xdd-meta skill.*
+
+## T5.3 disclosure checklist
+
+Checked 2026-11-20 against the code. Obsidian's developer-policy pages could not be fetched
+(the docs site returned "Not Found"), so the policy rules are applied from the Community
+Plugins submission rules as known.
+
+- [x] README and PRIVACY state no network use. `grep` of `src/` finds no `requestUrl`, `fetch(`,
+  `XMLHttpRequest` or `WebSocket`; the only URLs are doc links (`src/settings/HeaderSection.ts:41`,
+  `src/codex/codexEmptyState.ts:46`). The catalog index is bundled (`src/main.ts:52-53`).
+- [x] Story frontmatter is written only through `processFrontMatter`
+  (`src/inspector/frontmatterWriter.ts:247`, `:353`), on deliberate editor/Board actions and undo.
+- [x] Every other vault write goes through `src/vault/managedFileWriter.ts` (`createFolder` :69,
+  `create` :92, `process` :106, `trashFile` :120); no other `vault.create/modify/process`
+  exists in `src/`.
+- [x] Set up story files writes only on confirm (`src/artifacts/StoryFilesModal.ts:583`, `:610`,
+  `:631`).
+- [x] Repo collections are written only by install (`src/catalog/CatalogService.ts:235`).
+- [x] DataviewJS runs code only after consent: `src/catalog/CatalogService.ts:402-412`,
+  `src/import/ImportFlow.ts:120`, `src/consent/ConsentGate.ts:126`; execution at
+  `src/engines/DataviewJsEngine.ts:81`.
+- [x] Plugin-folder files: `data.json` via `saveData` (`src/main.ts:49-50`),
+  `undo-journal.json` (`src/undo/journalStore.ts:38-41`, write :83).
+- [x] No telemetry: no analytics code or hosts in `src/`.
+- [x] `PRIVACY.md` has no template placeholders (no `YYYY-MM-DD`, `_e.g._` or HTML comments).
+- [x] `manifest.json` description: 160 characters, ends with a period, no "Obsidian" or "plugin".
+  Maintainer: confirm `author`/`authorUrl`, and the funding links, before submission.

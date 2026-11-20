@@ -1,62 +1,56 @@
-# Privacy Policy — Story Forge
+# Privacy Policy: Story Forge
 
-_Last updated: YYYY-MM-DD._
+_Last updated: 2026-11-20 (version 0.2.0)._
 
-> Required for any plugin that touches the network, stores credentials, or processes user content beyond the local vault. If your plugin is purely offline with no telemetry, you can drop this file or keep a one-paragraph version that says so explicitly.
+## Summary
 
-## TL;DR
+Story Forge works entirely on your machine. It makes no network requests, has no accounts and
+collects no telemetry or analytics. Your vault content is never uploaded.
 
-<!-- One-paragraph summary. Example: -->
-<!-- Story Forge is an offline-first, zero-telemetry Obsidian community plugin. Your vault content stays on your machine. The plugin does not phone home and does not collect usage analytics. -->
+## What Story Forge reads and writes
 
-## What Story Forge does with your data
+Story Forge reads the notes in your vault to show your story entities. It writes only in the
+cases below.
 
-<!-- Enumerate every data flow: what is read, what is written, what is sent over the network, where it is stored. -->
-- _e.g._ Vault content remains local; no upload.
-- _e.g._ Credentials (API tokens) are stored in `<vault>/.obsidian/plugins/story-forge/data.json`.
-
-## What Story Forge does NOT do
-
-- **No telemetry.** No usage events, crash reports, or analytics.
-- **No third-party tracking.** No advertising IDs, cookies, or fingerprinting.
-- **No sharing.** The plugin does not initiate sharing flows.
-
-## Network hosts contacted
-
-<!-- Required if the plugin makes network requests. List every host explicitly — Obsidian reviewers and security-conscious users will check this. -->
-
-| Host | Purpose | Required |
+| What | When | Where |
 |---|---|---|
-| _(none)_ | _Plugin makes no network requests._ | — |
+| Frontmatter fields of a story note | When you save an edit in the Anvil editor or the Workbench, or move a card on the Board, and when you undo or redo such a change. Written with Obsidian's frontmatter API. | The note you edited |
+| FileClasses, templates and schema notes | Only after you confirm in **Set up story files** | The folders you chose in settings |
+| A collection (`.base` or `.md` file) from the repo | Only when you install it from the repo browser | Your "Folder for collections from the repo" |
+| Settings, collection list, install records | When you change a setting or install or remove a collection | `.obsidian/plugins/story-forge/data.json` |
+| Undo history | After each change Story Forge makes to a note | `.obsidian/plugins/story-forge/undo-journal.json` |
 
-## Permissions and scopes requested
+A bare click never writes, and Story Forge does not overwrite a story file you have
+edited. The undo history holds the old and new values of the fields Story Forge changed, so it
+can contain text from your notes. It stays in the plugin folder.
 
-<!-- Required if the plugin uses OAuth or any third-party API. List each scope and why. -->
+## DataviewJS
 
-| Scope | Why |
-|---|---|
-| _(none)_ | _No third-party API access._ |
+A DataviewJS collection is JavaScript. Story Forge shows you the code and runs it, through the
+Dataview plugin, only after you consent. If the code changes, Story Forge asks again. Bases and
+Dataview (DQL) collections run no code.
 
-## Security of local credentials
+## What Story Forge does not do
 
-<!-- Required if any credentials or tokens are stored locally. -->
-- _e.g._ Tokens are stored at `<vault>/.obsidian/plugins/story-forge/data.json` with `chmod 600` where the platform allows.
-- _e.g._ Tokens are NOT stored in `data.json` so that Obsidian Sync does not propagate them across devices.
+- **No telemetry.** No usage events, crash reports or analytics.
+- **No third-party tracking.** No advertising IDs, cookies or fingerprinting.
+- **No network use.** No hosts are contacted, and no account is needed. The list of collections
+  you can install from the repo is bundled in the plugin itself.
+- **No credentials.** Story Forge stores no tokens or API keys.
 
-## Disconnect and data retention
+## Data retention
 
-- Uninstalling the plugin removes its bundle from `<vault>/.obsidian/plugins/story-forge/`.
-- Local plugin data (settings, cached state) is retained until the user manually deletes the plugin folder.
-
-## Dependencies and supply chain
-
-The full list of bundled dependencies is visible in `package-lock.json` in this repository. We run `npm audit` on every release; security issues in dependencies are tracked as part of the release checklist (see `SECURITY.md`).
+Uninstalling the plugin removes its bundle from `.obsidian/plugins/story-forge/`. Files Story
+Forge created in your vault (story files, installed collections) and the changes it made to
+your notes stay, because they are your notes. Delete the plugin folder to remove `data.json`
+and `undo-journal.json`.
 
 ## Open source
 
 - Source code: https://github.com/MMoMM-org/obsidian-story-forge
 - Issue tracker: https://github.com/MMoMM-org/obsidian-story-forge/issues
 - License: MIT
+- Dependencies: see `package-lock.json`; security reporting is in `SECURITY.md`.
 
 ## Contact
 
@@ -64,4 +58,4 @@ Privacy-relevant bug reports: open an issue at the tracker above, or email `marc
 
 ## Changes to this policy
 
-Any changes to this policy will be announced in the release notes and in `CHANGELOG.md`.
+Changes are announced in the release notes and in `CHANGELOG.md`.

@@ -7,16 +7,10 @@ what it links to, such as a scene's characters and location.
 
 ## Installation
 
-See [docs/installation.md](docs/installation.md) for requirements, verification and updating.
-
-### Community Plugins (not available yet)
-
-Story Forge is not listed in Obsidian's Community Plugins directory yet. Use a manual install or
-BRAT until it is. Once it is listed:
-
-1. Open **Settings → Community plugins**
-2. Search for "Story Forge"
-3. Install and enable
+Install Story Forge from **Settings → Community plugins → Browse** once it is listed there
+(search "Story Forge", then **Install** and **Enable**). Until then, install it manually or
+with BRAT, below. Requirements, verification and updating are in
+[docs/installation.md](docs/installation.md).
 
 ### Manual
 1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/MMoMM-org/obsidian-story-forge/releases/latest)
@@ -44,6 +38,25 @@ story data.
 New here? Start with [Getting started](docs/getting-started.md). The full documentation is in
 [docs/README.md](docs/README.md), and the terms are explained in the
 [Glossary](docs/glossary.md).
+
+## What Story Forge does to your vault
+
+- **No network.** It makes no network requests, has no accounts and sends no telemetry. The
+  catalog of ready-made collections is bundled in the plugin; nothing is downloaded.
+- **Your story notes.** It changes a note's frontmatter (Properties) only when you save an edit
+  in the Anvil editor or the Workbench, or move a card on the Board. Each change is written with
+  Obsidian's own frontmatter API, one field at a time, and nothing is written on a bare click.
+- **Set up story files** (Settings → Story Forge) creates FileClasses, templates and schema
+  notes in your vault, only after you confirm in the dialog. It never overwrites a file you
+  edited.
+- **Collections from the repo** write one `.base` or `.md` file into your chosen folder, only
+  when you install one.
+- **DataviewJS collections run code** (through the Dataview plugin), and only after you have
+  read the code and consented. Bases and Dataview (DQL) collections run no code.
+- **In the plugin folder** (`.obsidian/plugins/story-forge/`): `data.json` holds your settings
+  and collection list, and `undo-journal.json` holds the undo history.
+
+See [PRIVACY.md](PRIVACY.md) for the details.
 
 ## Undo
 
