@@ -59,6 +59,8 @@ views from older versions of Story Forge, and Dataview entries from the repo.
   active."
 - You can still import and install them. They run once Dataview is active.
 - Built-in and `.base` collections are not affected.
+- With metadata-menu, its link buttons in the Properties panel offer every note instead of only the
+  matching kind (see [metadata-menu](#metadata-menu)).
 
 Story Forge only sees plugins that are loaded, so a disabled Dataview and a missing one look the
 same: "not active".
@@ -93,6 +95,13 @@ Multi, File, MultiFile, Media), so metadata-menu's FileClass form opens and edit
 - A form for editing FileClasses: which fields a kind of note has, their types, options and order.
 - Buttons in Obsidian's Properties panel, between a property's name and its value, that follow the
   FileClass by field type: pick an option such as _male_ for _gender_, edit a list, set a link.
+
+**metadata-menu's link buttons need Dataview.** Each link field in the shipped FileClasses
+(`enemies`, `allies`, `pov`, `location` and so on) names its targets with a Dataview query, for
+example `dv.pages("#canon/character")`. metadata-menu runs that query through Dataview. With
+Dataview active, the link button for `enemies` offers only characters. Without Dataview it offers
+every note in the vault. Story Forge's own editor does not use these queries, so it is not
+affected.
 
 **Without it, nothing changes in Story Forge.** Story Forge reads the FileClass files itself, and
 its editor shows their sections, option lists and field order. You can edit them as plain notes.
