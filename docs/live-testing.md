@@ -342,6 +342,8 @@ Build 0.2.0-dev.20261120-1007, vault `test/StoryForge/`, metadata-menu 0.8.12. R
 | 7 | Change a folder in the dialog, Cancel | The setting keeps the old folder. Passed |
 | 8 | metadata-menu in Obsidian's Properties panel (O9) | metadata-menu draws buttons between a property's name and its value, by field type (text, list, dropdown, link, +/−). The capability row wording was changed to describe these buttons rather than a dropdown in the value field |
 | 9 | Anvil in a popout window, click another card (#31) | The card opens. Passed |
+| 10 | metadata-menu FileClass form for fc-character (after the Media options fix 96b553f; first a stale view registration in metadata-menu itself, mdelobelle/metadatamenu#801, cleared via the console) | Opens and shows the fields. Passed |
+| 11 | Mobile | Not run (no device) |
 
 ## Spec 008 — Codex surface
 
