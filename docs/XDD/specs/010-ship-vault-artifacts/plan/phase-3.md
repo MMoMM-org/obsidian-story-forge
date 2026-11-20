@@ -64,6 +64,26 @@ has signed off the mockups (T3.1).**
   male for gender, edit a list, set a link." and "Obsidian's Properties panel has no such
   buttons; …". On the dev vault the FileClasses set shows "Not installed" for all 11 files
   (identical files without a record; no adoption, ADR-41), as designed.
+- Live walk follow-up (mockups R1, R2, signed off 2026-11-20):
+  - Notice fix: the result notice showed "[object DocumentFragment]" after a popout (a fragment
+    from another window's document fails Obsidian's instanceof check). The Notice is now built
+    with an empty string and its public `messageEl` (since 1.8.7) is filled with element helpers;
+    no other Notice in `src/` was built from a fragment. The mock keeps the raw constructor
+    argument as `_message` and reads `message` from `messageEl`.
+  - R1: `PlanItem.sameContent` (skip-exists only) compares the file with the shipped copy
+    resolved with the current folders; it never claims the file (ADR-41). Rows read "Already
+    there", dimmed, sorted with Up to date. Undrawn singular of the set line: "The file is
+    already in <folder>, and Story Forge did not write it, so it leaves it alone and will not
+    update it. To get Story Forge's copy, choose another folder, or move this file away first."
+    The chip sits after "up to date" in the chip order. The set line reuses the moved-note style
+    (`sf-story-moved sf-story-there`). These files are not in the notice's Skipped list; a file
+    that slips in between plan and write is still reported with the writer's "Not installed: …"
+    text (re-check skip). `storyFilesStatus` never counted skip-exists: unchanged.
+  - R2: `composeNotice` takes the planned writes by path (`PlannedWrite`: set, update, folder)
+    instead of the update paths and returns `setLines`, in the dialog's set order (FileClasses,
+    Templates, Schema reference), one per set and folder. The folder is the item's path minus
+    its relPath (the record's folder for updates and Set up again). A Set up again file counts
+    as set up, as in the first line. Set lines are drawn as `sf-story-notice-set`.
 
 **Dependencies**: Phase 2.
 
