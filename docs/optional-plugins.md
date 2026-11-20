@@ -81,12 +81,12 @@ metadata-menu is a community plugin. Story Forge never checks whether it is inst
 the FileClass files (`fc-*.md`) that metadata-menu uses, in the folder set in **Settings › Story
 Forge › Scope › FileClasses folder**.
 
-**Story Forge's own FileClasses.** The **Set up story files** step (in the Library tab of the
-settings, or the **Set up story files…** button on the capability screen) writes a FileClass for
+**Story Forge's own FileClasses.** The **Set up story files** step (**Settings → Story Forge →
+Scope → Set up story files…**, or the same button on the capability screen) writes a FileClass for
 each of the eight story types: `book`, `character`, `character-fantasy`, `location`, `lore`,
 `object`, `plotline` and `scene`. It shows every file first and writes nothing until you confirm.
-They use metadata-menu's field types (Input, Number, Select, Multi, File, MultiFile, Media), so
-metadata-menu can read them as they are.
+They are written in metadata-menu's format and use its field types (Input, Number, Select,
+Multi, File, MultiFile, Media).
 
 **With metadata-menu you get:**
 
@@ -114,7 +114,7 @@ height, build, hair and eyes, and one with the portrait image. They read the not
 frontmatter, so the facts stay in the Properties. The other templates have no meta-bind fields.
 
 **With meta-bind**, a note made from that template shows those two lines as values and the
-portrait as an image.
+portrait as an image. While a field is still empty, its place stays blank until you select it.
 
 **Without it**, the notes work the same: the same Properties, the same editor, the same
 collections. The two lines show as plain text such as `VIEW[{height}][text]` instead of values.
@@ -126,7 +126,8 @@ Story Forge's templates are written for Obsidian's core **Templates** plugin (**
 plugins › Templates**). They use only its `{{title}}` variable. **Set up story files** writes seven
 of them: one for each entity type except `character-fantasy`, plus one for a scene. They are
 plain Markdown with no code. Templater is not needed, and no shipped template uses Templater
-syntax.
+syntax. Insert them with **Templates: Insert template**, not with Templater: Templater has its own
+syntax and leaves `{{title}}` as it is.
 
 **Without the core Templates plugin**, you can still copy a template's text into a new note by
 hand. You can also create scenes and entities by hand and add their Properties yourself.
