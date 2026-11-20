@@ -65,9 +65,9 @@ export interface OwnedFileClassCache extends FileClassCache {
 	/** Cancel a change still pending and drop every subscriber. For the owner's unload. */
 	dispose(): void;
 	/**
-	 * How many FileClass files the folder holds (subfolders included). Notes without frontmatter, such
-	 * as the three value-list notes the setup writes, are not FileClasses and are not counted. The capability screen's
-	 * metadata-menu row (T7.4, S6): Story Forge reads the files, it never detects the plugin.
+	 * How many FileClass files the folder holds (subfolders included). Counts notes that have
+	 * frontmatter; the value-list notes the setup writes have none. Used by the capability screen's
+	 * metadata-menu row: Story Forge reads the files, it never detects the plugin.
 	 */
 	count(): number;
 }

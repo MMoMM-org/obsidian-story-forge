@@ -127,6 +127,8 @@ function metadataMenuRow(facts: CapabilityFacts): CapabilityRow {
 		name: "metadata-menu",
 		kind: "community",
 		// S6: Story Forge never detects the plugin; it reads the files metadata-menu writes.
+		// Row texts are markup: `code` and _italic_ (CapabilitiesModal appendMarked). Keep bare
+		// underscores (snake_case) inside backticks.
 		status: fileClassStatus(facts.fileClasses),
 		adds: [
 			"A form for editing FileClasses (`fc-*.md`): which fields a kind of note has, their types, options and order.",
