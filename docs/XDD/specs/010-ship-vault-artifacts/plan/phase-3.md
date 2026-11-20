@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Setup UI"
-status: in_progress
+status: completed
 version: "1.0"
 phase: 3
 ---
@@ -65,7 +65,7 @@ has signed off the mockups (T3.1).**
   `isHintDismissed("setup" | "updates")` / `dismissHint(kind)`; the folders mapping is unchanged.
   Same `sf-story-nudge*` classes, no new accent. No undrawn wording.
 - T3.5 live walk (docs/live-testing.md, 2026-11-20): items 1–4, 7–9 passed; #31 confirmed fixed
-  in a popout. Items 5–6 (re-run, edited, missing) still open: no setup was confirmed in the vault. O9 confirmed with a correction: metadata-menu shows buttons between a property's name and
+  in a popout. Items 5–6 passed after the R1–R3 changes and the notice fix; skip-edited was checked by simulating a plugin update in `data.json`. O9 confirmed with a correction: metadata-menu shows buttons between a property's name and
   value in the Properties panel, so the row now reads "Buttons in Obsidian's Properties panel,
   between a property's name and its value, that follow the FileClass: pick an option such as
   male for gender, edit a list, set a link." and "Obsidian's Properties panel has no such
@@ -162,7 +162,7 @@ Gives the user the deliberate, previewed setup and update flow.
   4. Validate: Modal tests; mutation-check
   5. Success: First-run screen points to setup without writing `[ref: PRD/F2.9]`
 
-- [ ] **T3.5 Phase validation and live check** `[activity: validate]`
+- [x] **T3.5 Phase validation and live check** `[activity: validate]`
 
   - Run all tests, lint, typecheck ×3, build. Live in the test vault (after a git-restorable
     state): set up into a fresh folder layout, re-run (all up to date), edit one file and bump a

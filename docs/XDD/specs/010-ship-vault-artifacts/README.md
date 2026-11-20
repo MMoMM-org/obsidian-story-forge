@@ -43,6 +43,7 @@
 | 2026-11-20 | Phase 3 built: setup dialog, command, Scope tab group, Library hint, capability row | Live walk items 5–6 still open; #31 confirmed fixed in a popout; O9 wording corrected to the buttons metadata-menu draws in the Properties panel; SDD synced to the build |
 | 2026-11-20 | Mockups R1–R2 signed off (live walk review) | R1: files already in the folder but not written by Story Forge show "Already there", dimmed, with a reason line (same content / your own file) and a set line when the whole set is affected; they leave the result notice; revises O4 for the dialog rows only. R2: the result notice adds one line per written set with count and folder. Also found live: the notice showed no text, only something like an object name; fixed by filling `Notice.messageEl` instead of passing a DocumentFragment |
 | 2026-11-20 | Mockup R3 signed off (live walk review) | The Library hint slot also shows "N story file updates available." with Review updates… and Not now when the status has at least one update and something is set up (S7a wins when nothing is). Not now stores one dismissed id per plugin version, independent of S7a's Don't show again; the Scope tab line still shows the count |
+| 2026-11-20 | Phase 3 done | Live walk passed with R1–R3 and the notice fix; #31 confirmed fixed in a popout |
 
 ## Context
 
