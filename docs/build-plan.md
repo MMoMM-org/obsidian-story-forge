@@ -140,8 +140,8 @@ UI; no plugin-owned state.
 - Optional later views only if wanted: **subway map**, **custom Story Graph**
   (port `StoryGraph.ts`; the **core Obsidian graph is the MVP** until then),
   the note-panel surface.
-- README/PRIVACY finalised; **re-enable the Release workflow** (restore the `push`
-  trigger) and cut the first real release deliberately.
+- ~~README/PRIVACY finalised; re-enable the Release workflow~~ done in spec 010: README and
+  PRIVACY finalised, the Release workflow runs on every push to `main`.
 
 ---
 

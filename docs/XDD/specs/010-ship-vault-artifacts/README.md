@@ -111,8 +111,9 @@ Plugins submission rules as known.
 **Maintainer steps (never done by the agent):**
 
 1. Make the GitHub repository public.
-2. On `main` (after the merge is pushed): `npx semantic-release --dry-run` and check it says
-   0.2.0; then run the **Release** workflow (Actions → Release → Run workflow).
+2. Merge `ci/auto-release` (the Release workflow then runs on every push to `main`). That
+   merge itself cuts **0.2.0**, because the commits since `0.1.0` contain `feat:` commits.
+   Optional first: `npx semantic-release --dry-run` on `main` to see the version.
 3. In a fresh vault, install the release manually (main.js, manifest.json, styles.css into
    `.obsidian/plugins/story-forge/`) and once with BRAT (`MMoMM-org/obsidian-story-forge`).
 4. Run **Set up story files** there and open the Anvil.

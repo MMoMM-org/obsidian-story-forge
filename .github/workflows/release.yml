@@ -1,12 +1,18 @@
 name: Release
 
-# Paused: releases are manual-only until the plugin is real. Semantic-release
-# auto-cut 1.0.0/1.1.0 on every push and always starts at 1.x, which is wrong
-# for a pre-plugin repo. Re-enable by restoring the `push` trigger below.
+# Every push to main runs semantic-release: feat → minor, fix/perf → patch,
+# anything else → no release. The version follows the tags (baseline tag 0.1.0),
+# so the first automatic release is 0.2.0. The release commit carries [skip ci].
+# workflow_dispatch stays for a manual re-run.
 on:
+    push:
+        branches: [main]
     workflow_dispatch:
-    # push:
-    #     branches: [main]
+
+# One release at a time; a second push waits instead of racing the first.
+concurrency:
+    group: release
+    cancel-in-progress: false
 
 permissions:
     contents: write

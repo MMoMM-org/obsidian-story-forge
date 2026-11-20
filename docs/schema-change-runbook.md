@@ -150,8 +150,8 @@ instead of rewriting a decision.
   plugin-owned store.
 - **Branch discipline** — hooks block writes/commits on `main`. Branch first:
   `git checkout -b <feat|chore|docs>/<slug>`. Conventional Commits.
-- **Release CI is paused** (`workflow_dispatch`) — `feat:`/`fix:` do **not** cut a release.
-  Version baseline is `0.1.0`.
+- **Release CI runs on every push to `main`** — a `feat:` commit cuts a minor release, `fix:`
+  a patch; `docs:`/`chore:`/`test:` cut none. Choose the commit type accordingly.
 
 ## Procedure
 
