@@ -213,10 +213,10 @@ being a dropdown. The substitutability requirement of §1.3 lands on the
 *Promise:* views scope to a book / a folder set the user controls (implied
 throughout; recorded earlier as a deferred settings picker with `00 Meta` as the
 default exclusion).
-*Reality:* `PluginSettings` (`src/types/index.ts`) has three folder paths in the
-settings tab's "Vault folders" group: `fileClassesFolder` (default
-`00 Meta/FileClasses`), `templatesFolder` (`00 Meta/Templates`) and `schemaFolder`
-(`00 Meta/Schema`). `curatedBasesFolder` (`00 Meta/Bases`) is set separately, under
+*Reality:* `PluginSettings` (`src/types/index.ts`) has three folder paths on the
+Scope tab: `fileClassesFolder` (default `00 Meta/FileClasses`, "Vault folders"
+group), and `templatesFolder` (`00 Meta/Templates`) and `schemaFolder`
+(`00 Meta/Schema`) in the "Story files" group. `curatedBasesFolder` (`00 Meta/Bases`) is set separately, under
 "Folder for collections from the repo". `excludedFolders` (default `["00 Meta"]`,
 "Excluded folders" in the "Vault folders" group) is an exclusion list applied by
 every collection and scope view. Its default is `DEFAULT_EXCLUDED_FOLDERS` in
