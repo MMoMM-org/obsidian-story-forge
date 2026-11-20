@@ -349,6 +349,7 @@ Default folders <code>00 Meta/FileClasses</code>, <code>00 Meta/Templates</code>
 <tr><td><b>S5</b></td><td>Result notice</td><td>(a) success; (b) update; (c) mixed with truncation; (d) folder failure</td><td>D10</td></tr>
 <tr><td><b>S6</b></td><td>Capability screen pointer</td><td>(a) first run, not set up; (b) from settings, set up</td><td>D11 O7 O9</td></tr>
 <tr><td><b>S7</b></td><td>Library tab hint</td><td>(a) Library tab, nothing set up</td><td>O8</td></tr>
+<tr><td><b>R</b></td><td>Live walk review</td><td>R1 files already there; R2 notice says what went where</td><td>R1 R2</td></tr>
 </table>
 </div>
 
@@ -902,6 +903,64 @@ the hint. The Scope tab status and the capability screen row still show <i>Not s
 uses the same read-only status as S1; while it is computed nothing is drawn, so the hint never flashes for a vault
 that is set up. <b>Not shown</b> for <i>partly set up</i>, <i>updates available</i> or <i>missing</i>: those are for
 the Scope tab, the first page stays quiet once you have chosen.</p>
+</figure>
+</div>
+
+<!-- ═════════════════════════════════ live-walk review ═════════════════════════════════ -->
+<h2>R — Live walk review <span class="h2s">· changes asked for on 2026-11-20, proposed</span></h2>
+<div class="gallery">
+<figure>
+<figcaption><b>R1 · Files already in the folder, not written by Story Forge.</b> Replaces the <i>Not installed</i>
+row of S3 for <code>skip-exists</code> <span class="mk-tag prop">R1</span>. Seen live: in a vault that already holds
+the FileClasses, all 11 rows said <i>Not installed</i> and the set could not be ticked, without saying why. Now the rows
+are dimmed like <i>Up to date</i>, the pill names the state, the reason line says why Story Forge leaves the file alone,
+and a set where every file is in this state says so once under the folder.</figcaption>
+<div class="md" style="width:700px">
+  <div class="md-head"><p class="t">Set up story files</p><span class="x">✕</span></div>
+  <div class="sx-body">
+    <div class="sx-set" role="group" aria-labelledby="r1-fc">
+      <div class="sx-sh">
+        <span class="sx-cb" role="checkbox" aria-checked="false" aria-disabled="true" aria-labelledby="r1-fc" style="opacity:.45">&nbsp;</span>
+        <span class="sx-sn" id="r1-fc">FileClasses<span class="n">11 files</span></span>
+        <span class="sx-tog" aria-expanded="true">▾ Hide files</span>
+        <div class="sx-fold">Folder <span class="lb-f">00 Meta/FileClasses</span></div>
+        <div class="sx-moved" role="note"><span class="ins">All 11 files are already in <span class="ct-path">00 Meta/FileClasses</span>, and
+          Story Forge did not write them, so it leaves them alone and will not update them. To get Story Forge's copies,
+          choose another folder, or move these files away first.</span></div>
+        <div class="sx-sum"><span class="sx-chip skip">11 already there</span></div>
+      </div>
+      <div class="sx-rows">
+        <div class="sx-row dim"><span></span><span class="f">fc-book.md</span><span class="sx-act ok">Already there</span>
+          <span class="why"><span class="ins">Same content as Story Forge's copy, but not written by Story Forge.</span></span></div>
+        <div class="sx-row dim"><span></span><span class="f">fc-character.md</span><span class="sx-act ok">Already there</span>
+          <span class="why"><span class="ins">Your own file, different from Story Forge's copy. Story Forge never overwrites it.</span></span></div>
+        <div class="sx-row dim"><span></span><span class="f">fc-character-fantasy.md · … (9 more)</span><span class="sx-act ok">Already there</span>
+          <span class="why">…</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="md-foot"><button class="btn">Cancel</button><button class="btn cta">Set up 16 files</button></div>
+</div>
+<p class="note"><b>Pill</b> <i>Already there</i> (was <i>Not installed</i>), neutral like <i>Up to date</i>, row dimmed,
+no checkbox. <b>Reason line</b> has two forms: same bytes as the shipped copy, or different content. <b>Set line</b>
+(under the folder, as the D8 note) shows only when every file of the set is <i>Already there</i>; the set checkbox is
+disabled. In a mixed set the rows say it on their own. <b>Chip</b> <i>N already there</i> (was <i>N already
+exists</i>). <b>Not changed:</b> Story Forge still does not take over a file it did not write (ADR-41). <b>The result
+notice</b> no longer lists these files as skipped: you can see them before you confirm, and you could not tick them.
+This revises O4 for the dialog rows only; the catalog keeps its "Not installed:" wording.</p>
+</figure>
+
+<figure>
+<figcaption><b>R2 · The result notice says what went where.</b> Revises S5a/S5b <span class="mk-tag prop">R2</span>.
+Seen live: "Set up 16 story files." did not say what was written or where. Now the first line is followed by one
+line per set that was written: the count, the set and its folder.</figcaption>
+<div class="sx-variants" style="grid-template-columns:auto 1fr">
+  <span class="k">S5a</span><span><b>Set up 16 story files.</b><br><span class="ins">7 templates in Story/Templates<br>9 schema reference notes in Story/Schema</span></span>
+  <span class="k">S5b</span><span><b>Set up 7 and updated 3 story files.</b><br><span class="ins">2 FileClasses updated in 00 Meta/FileClasses<br>7 templates set up in Story/Templates · 1 updated</span></span>
+</div>
+<p class="note">One line per set, set names lower case as a noun (<i>FileClasses</i> stays as the brand). The folder is
+the folder the files went to (a record's folder for updates and set-up-again files). Failed and Skipped sections of
+S5c/S5d follow unchanged, inside the same 5-line budget for file lines; the set lines do not count against it.</p>
 </figure>
 </div>
 
