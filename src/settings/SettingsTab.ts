@@ -39,9 +39,9 @@ export interface StoryFilesTabDeps {
 	getStatus: () => Promise<StoryFilesStatus>;
 	/** Open the setup dialog; `onClose` runs once it has closed. */
 	open: (onClose?: () => void) => void;
-	/** The Library hint's "Don't show again" (S7). */
-	isHintDismissed: () => boolean;
-	dismissHint: () => void;
+	/** The Library hints' dismissals: S7a "Don't show again", R3 "Not now". */
+	isHintDismissed: (kind: "setup" | "updates") => boolean;
+	dismissHint: (kind: "setup" | "updates") => void;
 }
 
 /** What the Library tab reads beyond the view store. Each member defaults to the plugin's own. */
@@ -539,23 +539,40 @@ export class SettingsTab extends PluginSettingTab {
 		);
 	}
 
-	/** S7a: the hint shows only while nothing is set up and it is not dismissed. */
+	/** One hint in the slot: S7a while nothing is set up, else R3 when updates are available. */
 	private renderStoryHint(slot: HTMLElement, status: StoryFilesStatus): void {
 		slot.empty();
 		const deps = this.storyFiles;
-		if (!deps || status.kind !== "none" || deps.isHintDismissed()) return;
+		if (!deps) return;
+		if (status.kind === "none") {
+			if (deps.isHintDismissed("setup")) return;
+			this.drawStoryHint(slot, "setup", "Story files are not set up.",
+				" Without them the editor shows no sections or option lists, and there are no templates for new scenes and entities.",
+				"Set up story files…", "Don't show again");
+		} else if (status.updates >= 1) {
+			if (deps.isHintDismissed("updates")) return;
+			const n = status.updates;
+			this.drawStoryHint(slot, "updates", `${n} story file ${n === 1 ? "update" : "updates"} available.`,
+				" This version of Story Forge ships newer FileClasses, templates or schema notes. Files you edited are left as they are.",
+				"Review updates…", "Not now");
+		}
+	}
+
+	private drawStoryHint(
+		slot: HTMLElement, kind: "setup" | "updates", lead: string, rest: string, openLabel: string, dismissLabel: string,
+	): void {
+		const deps = this.storyFiles;
+		if (!deps) return;
 		const hint = slot.createDiv({ cls: "sf-story-nudge", attr: { role: "status" } });
 		const text = hint.createSpan({ cls: "sf-story-nudge-text" });
-		text.createEl("b", { text: "Story files are not set up." });
-		text.appendText(
-			" Without them the editor shows no sections or option lists, and there are no templates for new scenes and entities.",
-		);
+		text.createEl("b", { text: lead });
+		text.appendText(rest);
 		const actions = hint.createDiv({ cls: "sf-story-nudge-actions" });
-		const open = actions.createEl("button", { text: "Set up story files…", attr: { type: "button" } });
+		const open = actions.createEl("button", { text: openLabel, attr: { type: "button" } });
 		open.addEventListener("click", () => this.openStoryFiles());
-		const dismiss = actions.createEl("button", { cls: "sf-lb-link", text: "Don't show again", attr: { type: "button" } });
+		const dismiss = actions.createEl("button", { cls: "sf-lb-link", text: dismissLabel, attr: { type: "button" } });
 		dismiss.addEventListener("click", () => {
-			deps.dismissHint();
+			deps.dismissHint(kind);
 			slot.empty();
 		});
 	}

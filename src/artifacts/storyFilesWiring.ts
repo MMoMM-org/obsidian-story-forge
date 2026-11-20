@@ -7,8 +7,9 @@
  * - `open(onClose?)`: the setup dialog; `onClose` runs after it closes (the settings tab redraws
  *   its status line and hint then).
  * - `getStatus()`: the read-only status (S1b) with the current three folders.
- * - `isHintDismissed()` / `dismissHint()`: the Library hint's "Don't show again" (S7), one id in
- *   `dismissedHints` — operational state in data.json, never story data.
+ * - `isHintDismissed(kind)` / `dismissHint(kind)`: the Library hints' dismissals, one id each in
+ *   `dismissedHints` — operational state in data.json, never story data. `setup` is S7a's
+ *   "Don't show again"; `updates` is R3's "Not now", one id per plugin version.
  *
  * Nothing here writes a vault file; only the dialog's own confirm does.
  *
@@ -26,6 +27,12 @@ import type { ArtifactFolders, ArtifactIndex } from "./artifactTypes";
 export const STORY_FILES_COMMAND_ID = "set-up-story-files";
 /** `dismissedHints` id for the Library tab's "Story files are not set up" hint (S7, O8). */
 export const STORY_FILES_HINT_ID = "story-files-not-set-up";
+
+/** `dismissedHints` id for the Library hint for available updates (R3): one per plugin version. */
+export const storyFilesUpdatesHintId = (pluginVersion: string): string => `story-files-updates-${pluginVersion}`;
+
+/** Which Library hint: S7a "not set up" (`setup`) or R3 "updates available" (`updates`). */
+export type StoryFilesHintKind = "setup" | "updates";
 
 export interface StoryFilesWiringDeps {
 	app: App;
@@ -46,8 +53,8 @@ export interface StoryFilesWiring {
 	command: { id: string; name: string; callback: () => void };
 	open: (onClose?: () => void) => void;
 	getStatus: () => Promise<StoryFilesStatus>;
-	isHintDismissed: () => boolean;
-	dismissHint: () => void;
+	isHintDismissed: (kind: StoryFilesHintKind) => boolean;
+	dismissHint: (kind: StoryFilesHintKind) => void;
 }
 
 export function wireStoryFiles(d: StoryFilesWiringDeps): StoryFilesWiring {
@@ -55,6 +62,8 @@ export function wireStoryFiles(d: StoryFilesWiringDeps): StoryFilesWiring {
 		const s = d.settings();
 		return { fileClassesFolder: s.fileClassesFolder, templatesFolder: s.templatesFolder, schemaFolder: s.schemaFolder };
 	};
+	const hintId = (kind: StoryFilesHintKind): string =>
+		kind === "setup" ? STORY_FILES_HINT_ID : storyFilesUpdatesHintId(d.pluginVersion);
 	const open = (onClose?: () => void): void => {
 		const modal = openStoryFiles({
 			app: d.app,
@@ -75,7 +84,7 @@ export function wireStoryFiles(d: StoryFilesWiringDeps): StoryFilesWiring {
 		command: { id: STORY_FILES_COMMAND_ID, name: "Set up story files", callback: () => open() },
 		open,
 		getStatus: () => readStoryFilesStatus(d.app, d.index, d.store.all(), folders()),
-		isHintDismissed: () => d.settings().dismissedHints.includes(STORY_FILES_HINT_ID),
-		dismissHint: () => d.dismissHint(STORY_FILES_HINT_ID),
+		isHintDismissed: (kind) => d.settings().dismissedHints.includes(hintId(kind)),
+		dismissHint: (kind) => d.dismissHint(hintId(kind)),
 	};
 }

@@ -38,7 +38,7 @@ vi.mock("artifacts/storyFilesStatus", () => ({
 	},
 }));
 
-const { wireStoryFiles, STORY_FILES_COMMAND_ID, STORY_FILES_HINT_ID } = await import("../../src/artifacts/storyFilesWiring");
+const { wireStoryFiles, STORY_FILES_COMMAND_ID, STORY_FILES_HINT_ID, storyFilesUpdatesHintId } = await import("../../src/artifacts/storyFilesWiring");
 
 const index: ArtifactIndex = { version: "1", entries: [] };
 const records = { "00 Meta/FileClasses/fc-a.md": { path: "00 Meta/FileClasses/fc-a.md" } };
@@ -154,14 +154,36 @@ describe("wireStoryFiles — the status (one settings → folders mapping)", () 
 describe("wireStoryFiles — the Library hint preference (S7)", () => {
 	it("is dismissed only once its id is in dismissedHints", () => {
 		const { wiring, set } = setup();
-		expect(wiring.isHintDismissed()).toBe(false);
+		expect(wiring.isHintDismissed("setup")).toBe(false);
 		set({ dismissedHints: [STORY_FILES_HINT_ID] });
-		expect(wiring.isHintDismissed()).toBe(true);
+		expect(wiring.isHintDismissed("setup")).toBe(true);
 	});
 
 	it("Don't show again records the hint id", () => {
 		const { wiring, dismissHint } = setup();
-		wiring.dismissHint();
+		wiring.dismissHint("setup");
 		expect(dismissHint).toHaveBeenCalledWith(STORY_FILES_HINT_ID);
+	});
+
+	it("R3: the updates hint has one id per plugin version", () => {
+		const { wiring, set, dismissHint } = setup();
+		expect(storyFilesUpdatesHintId("0.2.0")).toBe("story-files-updates-0.2.0");
+		expect(wiring.isHintDismissed("updates")).toBe(false);
+		wiring.dismissHint("updates");
+		expect(dismissHint).toHaveBeenCalledWith("story-files-updates-0.2.0");
+		set({ dismissedHints: ["story-files-updates-0.2.0"] });
+		expect(wiring.isHintDismissed("updates")).toBe(true);
+	});
+
+	it("R3: an updates dismissal from another version does not hide it", () => {
+		const { wiring } = setup({ dismissedHints: ["story-files-updates-0.1.0"] });
+		expect(wiring.isHintDismissed("updates")).toBe(false);
+	});
+
+	it("R3: the two hints are dismissed independently", () => {
+		const a = setup({ dismissedHints: [STORY_FILES_HINT_ID] });
+		expect(a.wiring.isHintDismissed("updates")).toBe(false);
+		const b = setup({ dismissedHints: ["story-files-updates-0.2.0"] });
+		expect(b.wiring.isHintDismissed("setup")).toBe(false);
 	});
 });

@@ -91,7 +91,7 @@ describe("main.ts — Set up story files (S1c)", () => {
 		const deps = storyFilesDeps();
 		const status = await deps.getStatus();
 		expect(status.kind).toBe("none");
-		expect(deps.isHintDismissed()).toBe(false);
+		expect(deps.isHintDismissed("setup")).toBe(false);
 		deps.open();
 		expect(dialog()).not.toBeNull();
 	});
@@ -114,8 +114,8 @@ describe("main.ts — Set up story files (S1c)", () => {
 	it("Don't show again is stored in the settings (data.json)", async () => {
 		const { plugin } = await makePlugin();
 		const deps = storyFilesDeps();
-		deps.dismissHint();
-		expect(deps.isHintDismissed()).toBe(true);
+		deps.dismissHint("setup");
+		expect(deps.isHintDismissed("setup")).toBe(true);
 		expect(plugin.settings.dismissedHints).toContain("story-files-not-set-up");
 	});
 });

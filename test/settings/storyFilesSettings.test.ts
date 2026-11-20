@@ -44,7 +44,7 @@ interface Harness {
 	tab: SettingsTab;
 }
 
-async function render(opts: { statuses?: Array<Promise<StoryFilesStatus> | StoryFilesStatus | typeof FAIL>; dismissed?: boolean; noDeps?: boolean } = {}): Promise<Harness> {
+async function render(opts: { statuses?: Array<Promise<StoryFilesStatus> | StoryFilesStatus | typeof FAIL>; dismissed?: boolean; dismissedUpdates?: boolean; noDeps?: boolean } = {}): Promise<Harness> {
 	const app = new App();
 	const data = { views: {} };
 	const store = new ViewStore({ load: vi.fn(async () => data), save: vi.fn(async () => {}) });
@@ -55,15 +55,16 @@ async function render(opts: { statuses?: Array<Promise<StoryFilesStatus> | Story
 		saveSettings: vi.fn(async () => {}),
 	};
 	const queue = [...(opts.statuses ?? [NONE])];
-	let dismissed = opts.dismissed ?? false;
+	const dismissed = new Set<"setup" | "updates">(opts.dismissed ? ["setup"] : []);
+	if (opts.dismissedUpdates) dismissed.add("updates");
 	const deps = {
 		getStatus: vi.fn(() => {
 			const next = queue.length > 1 ? queue.shift()! : queue[0]!;
 			return next === FAIL ? Promise.reject(new Error("boom")) : Promise.resolve(next);
 		}),
 		open: vi.fn((_onClose?: () => void) => {}),
-		isHintDismissed: () => dismissed,
-		dismissHint: vi.fn(() => { dismissed = true; }),
+		isHintDismissed: (k: "setup" | "updates") => dismissed.has(k),
+		dismissHint: vi.fn((k: "setup" | "updates") => { dismissed.add(k); }),
 	};
 	const none = { setPersistence: async () => {}, clear: async () => {} };
 	const tab = new SettingsTab(
@@ -237,7 +238,7 @@ describe("S7a · the Library tab hint", () => {
 		expect(h.compareDocumentPosition(collections) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 
-	it.each([[UP], [UPDATES], [status("partial", "FileClasses set up · Templates not set up.")]])(
+	it.each([[UP], [status("partial", "FileClasses set up · Templates not set up.")]])(
 		"is not shown once anything is set up: %#", async (s) => {
 			const { root } = await render({ statuses: [s] });
 			await flush();
@@ -280,6 +281,7 @@ describe("S7a · the Library tab hint", () => {
 		await flush();
 		button(hint(root)!, "Don't show again").click();
 		expect(deps.dismissHint).toHaveBeenCalledTimes(1);
+		expect(deps.dismissHint).toHaveBeenCalledWith("setup");
 		expect(hint(root)).toBeNull();
 	});
 
@@ -313,5 +315,100 @@ describe("S7a · the Library tab hint", () => {
 		await flush();
 		expect(hint(root)).toBeNull();
 		expect(statusEl(root).textContent).toBe(UP.line);
+	});
+});
+
+describe("R3 · the Library tab hint for updates", () => {
+	const updates = (n: number, kind: StoryFilesStatus["kind"] = "actions"): StoryFilesStatus =>
+		({ ...status(kind, `${n} updates available.`), updates: n });
+
+	it("shows with the signed-off wording above Collections", async () => {
+		const { root } = await render({ statuses: [updates(3)] });
+		await flush();
+		const h = hint(root)!;
+		expect(h.getAttribute("role")).toBe("status");
+		expect(h.querySelector("b")?.textContent).toBe("3 story file updates available.");
+		expect(h.querySelector(".sf-story-nudge-text")?.textContent).toBe(
+			"3 story file updates available. This version of Story Forge ships newer FileClasses, templates or schema notes. Files you edited are left as they are.",
+		);
+		const collections = row(panel(root, "library"), "Collections");
+		expect(h.compareDocumentPosition(collections) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	it("uses the singular for one update", async () => {
+		const { root } = await render({ statuses: [updates(1)] });
+		await flush();
+		expect(hint(root)!.querySelector("b")?.textContent).toBe("1 story file update available.");
+	});
+
+	it("also shows for a partly set up status that has updates", async () => {
+		const { root } = await render({ statuses: [updates(2, "partial")] });
+		await flush();
+		expect(hint(root)!.querySelector("b")?.textContent).toBe("2 story file updates available.");
+	});
+
+	it.each([[status("actions", "2 files missing.")], [status("partial", "FileClasses set up · Templates not set up.")], [UP]])(
+		"is not shown without updates: %#", async (s) => {
+			const { root } = await render({ statuses: [s] });
+			await flush();
+			expect(hint(root)).toBeNull();
+		},
+	);
+
+	it("S7a wins when nothing is set up, even with updates counted", async () => {
+		const { root } = await render({ statuses: [updates(3, "none")] });
+		await flush();
+		expect(hint(root)!.querySelector("b")?.textContent).toBe("Story files are not set up.");
+	});
+
+	it("draws nothing while checking or on failure", async () => {
+		const a = await render({ statuses: [new Promise(() => {})] });
+		await flush();
+		expect(hint(a.root)).toBeNull();
+		const b = await render({ statuses: [FAIL] });
+		await flush();
+		expect(hint(b.root)).toBeNull();
+	});
+
+	it("is not shown once dismissed for this version", async () => {
+		const { root } = await render({ statuses: [updates(3)], dismissedUpdates: true });
+		await flush();
+		expect(hint(root)).toBeNull();
+	});
+
+	it("S7a's dismissal does not hide it", async () => {
+		const { root } = await render({ statuses: [updates(3)], dismissed: true });
+		await flush();
+		expect(hint(root)).not.toBeNull();
+	});
+
+	it("its dismissal does not hide S7a", async () => {
+		const { root } = await render({ statuses: [NONE], dismissedUpdates: true });
+		await flush();
+		expect(hint(root)).not.toBeNull();
+	});
+
+	it("Review updates… opens the dialog and writes nothing; the hint redraws after close", async () => {
+		const { root, deps, app, plugin } = await render({ statuses: [updates(3), new Promise(() => {})] });
+		await flush();
+		button(hint(root)!, "Review updates…").click();
+		expect(deps.open).toHaveBeenCalledTimes(1);
+		expect(deps.dismissHint).not.toHaveBeenCalled();
+		expectNoVaultWrite(app);
+		expect(plugin.saveSettings).not.toHaveBeenCalled();
+		(deps.open.mock.calls[0]?.[0] as () => void)();
+		expect(hint(root)).toBeNull();
+		expect(deps.getStatus).toHaveBeenCalledTimes(2);
+	});
+
+	it("Not now is a link-styled button that stores the updates dismissal and removes the hint", async () => {
+		const { root, deps } = await render({ statuses: [updates(3)] });
+		await flush();
+		const b = button(hint(root)!, "Not now");
+		expect(b.classList.contains("sf-lb-link")).toBe(true);
+		b.click();
+		expect(deps.dismissHint).toHaveBeenCalledTimes(1);
+		expect(deps.dismissHint).toHaveBeenCalledWith("updates");
+		expect(hint(root)).toBeNull();
 	});
 });

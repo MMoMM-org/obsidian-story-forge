@@ -57,6 +57,13 @@ has signed off the mockups (T3.1).**
   classes. Punctuation: "Default: 00 Meta/FileClasses." gets a full stop before the added
   sentence (the mockup ran the two together). The sentence-case test helper allows "Templates"
   and "Property", both needed by the signed-off wording.
+- R3 (signed off 2026-11-20): the Library hint slot also shows "N story file update(s) available."
+  with "Review updates…" (same open path as S7a, redraw after close) and "Not now", when the status
+  counts at least one update and is not "none" (S7a wins then). One hint at a time. "Not now"
+  stores `story-files-updates-<pluginVersion>` in `dismissedHints`, so the hint returns after a
+  version change; the two dismissals are independent. The wiring takes a kind:
+  `isHintDismissed("setup" | "updates")` / `dismissHint(kind)`; the folders mapping is unchanged.
+  Same `sf-story-nudge*` classes, no new accent. No undrawn wording.
 - T3.5 live walk (docs/live-testing.md, 2026-11-20): items 1–4, 7–9 passed; #31 confirmed fixed
   in a popout. Items 5–6 (re-run, edited, missing) still open: no setup was confirmed in the vault. O9 confirmed with a correction: metadata-menu shows buttons between a property's name and
   value in the Properties panel, so the row now reads "Buttons in Obsidian's Properties panel,
