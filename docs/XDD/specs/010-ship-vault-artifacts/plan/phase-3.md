@@ -35,6 +35,19 @@ has signed off the mockups (T3.1).**
   `count()` counts notes with frontmatter, so the empty value-list notes are left out (8, not 11).
   The mockup's left accent bar on the new row is the mockup's proposal marker and is not shipped.
   Status text is set with `textContent` (the mock has no `setText`; same effect).
+- T3.2: a folder change is a preview; folders are saved only on confirm (O1). An emptied or
+  malformed field falls back to the set's default, as in settings. Rows that write come first (S3
+  note over the S3 drawing). The D9 button names the folder ("Add <folder> to excluded folders")
+  and needs the injected `addExcludedFolder`. A failed replan restores the previous folder and shows
+  "Could not check <folder>: <reason>. The folder stays <previous>." in the card (not drawn). Other
+  undrawn texts: "Could not read the story files: …", "Could not save the folder settings: … Nothing
+  was written.", "Could not add <folder> to excluded folders: …". Notice composition is the pure
+  `src/artifacts/storyFilesNotice.ts`; role "status" when it hides itself, "alert" when it stays.
+  While confirming, every control is locked; closing with Escape mid-write does not stop the write,
+  and the result notice still reports it (the user has already confirmed). The mock `Notice` now
+  accepts a DocumentFragment, as obsidian.d.ts does.
+- Debt: the folder suggester in the dialog is not closed on close, because `attachFolderSuggest`
+  (src/settings/suggesters.ts) returns no handle; its input is removed with the dialog content.
 
 **Dependencies**: Phase 2.
 
@@ -54,7 +67,7 @@ Gives the user the deliberate, previewed setup and update flow.
   4. Validate: User sign-off recorded
   5. Success: Signed-off mockups exist before any UI code `[ref: SDD/CON-6]`
 
-- [ ] **T3.2 StoryFilesModal** `[activity: frontend-ui]`
+- [x] **T3.2 StoryFilesModal** `[activity: frontend-ui]`
 
   1. Prime: signed-off S2–S5; `src/catalog/browserList.ts` (`renderFeedback`,
      `renderLabelled`); `isExcluded` in `src/scoping/workspaceScope.ts`
@@ -67,11 +80,11 @@ Gives the user the deliberate, previewed setup and update flow.
   3. Implement: `src/artifacts/StoryFilesModal.ts`, styles in `styles.css`
   4. Validate: DOM tests; sentence case; mutation-check
   5. Success:
-     - [ ] Per-file preview before writing `[ref: PRD/F2.3]`
-     - [ ] Deselect and cancel `[ref: PRD/F2.5; PRD/F2.6]`
-     - [ ] Result notice `[ref: PRD/F2.7]`
-     - [ ] Folder change saved `[ref: PRD/F3.2]`
-     - [ ] Not-excluded warning `[ref: PRD/F3.3]`
+     - [x] Per-file preview before writing `[ref: PRD/F2.3]`
+     - [x] Deselect and cancel `[ref: PRD/F2.5; PRD/F2.6]`
+     - [x] Result notice `[ref: PRD/F2.7]`
+     - [x] Folder change saved `[ref: PRD/F3.2]`
+     - [x] Not-excluded warning `[ref: PRD/F3.3]`
 
 - [ ] **T3.3 Command and Scope tab group** `[activity: frontend-ui]`
 
