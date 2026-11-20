@@ -29,6 +29,12 @@ has signed off the mockups (T3.1).**
 **Decisions taken during implementation**:
 - 2026-11-20 sign-off with review changes O7–O9 (mockups S6, S7): rename of the capability screen,
   Library tab hint, metadata-menu Properties panel bullet (checked live in T3.5 before it ships).
+- T3.4: the row status is computed by `src/artifacts/storyFilesStatus.ts` (`summarizeStoryFiles`
+  pure, `readStoryFilesStatus` read-only), reused by T3.3. While it loads the row reads "Checking
+  story files…" (S1 wording); a failed check reads "Could not check story files" (not drawn).
+  `count()` counts notes with frontmatter, so the empty value-list notes are left out (8, not 11).
+  The mockup's left accent bar on the new row is the mockup's proposal marker and is not shipped.
+  Status text is set with `textContent` (the mock has no `setText`; same effect).
 
 **Dependencies**: Phase 2.
 
@@ -84,7 +90,7 @@ Gives the user the deliberate, previewed setup and update flow.
      - [ ] Updates available shown with a count `[ref: PRD/F4.2]`
      - [ ] Folder settings in the settings tab `[ref: PRD/F3.1]`
 
-- [ ] **T3.4 Capability screen pointer** `[activity: frontend-ui]` `[parallel: true]`
+- [x] **T3.4 Capability screen pointer** `[activity: frontend-ui]` `[parallel: true]`
 
   1. Prime: signed-off S6; `src/library/CapabilitiesModal.ts`, `capabilityReport.ts`,
      `capabilitiesWiring.ts`
