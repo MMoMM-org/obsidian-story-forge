@@ -36,7 +36,12 @@ The dialog shows what it would do, before it does anything:
 - **One row per file**, with what will happen to it: **Create**, **Update**, **Up to date**,
   **Not updated**, **Already there**, **Missing**, **Unreadable** or **Damaged**. Rows that
   would write a file have their own checkbox, so you can leave single files out. A **Missing**
-  file starts unticked, with the label **Set up again**.
+  file starts unticked, with the label **Set up again**. Only **Create**, **Update** and a ticked
+  **Set up again** write anything:
+  - **Already there**: a file of yours is at that path; it is left alone.
+  - **Not updated**: you edited a file Story Forge set up; your edits are kept.
+  - **Missing**: a file set up earlier was deleted or moved; it comes back only if you tick it.
+  - **Unreadable** and **Damaged**: see [Troubleshooting](troubleshooting.md#story-files).
 - **A warning** when a folder is not in your excluded folders: "Not in your excluded folders."
   Notes there would be treated as story entities. The button **Add <folder> to excluded
   folders** fixes it without writing any file. The default folders are in `00 Meta`, which is
