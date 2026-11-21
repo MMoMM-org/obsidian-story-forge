@@ -39,7 +39,7 @@ function dotColor(kind: GroupKind, label: string): string {
 
 function stampGroupKey(sectionEl: HTMLElement, key: string): void {
 	const head = sectionEl.querySelector(".sf-sec-head");
-	if (head instanceof HTMLElement) head.setAttribute("data-sf-group-key", key);
+	if (head?.instanceOf(HTMLElement)) head.setAttribute("data-sf-group-key", key);
 }
 
 export function renderNavigator(

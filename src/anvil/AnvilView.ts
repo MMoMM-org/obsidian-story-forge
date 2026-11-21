@@ -749,7 +749,8 @@ export class AnvilView extends ItemView {
 	/** The `data-sf-ed-field` cell holding focus, or null when focus is outside the pane's fields. */
 	private _paneFocusedField(): HTMLElement | null {
 		const active = activeDocument.activeElement;
-		if (!(active instanceof HTMLElement) || !this.contentEl.contains(active)) return null;
+		// instanceOf, not instanceof: in a popout the element is of that window's realm (#50).
+		if (!active?.instanceOf(HTMLElement) || !this.contentEl.contains(active)) return null;
 		return active.closest<HTMLElement>(`[${FIELD_CONTROL_ATTR}]`);
 	}
 
@@ -824,8 +825,8 @@ export class AnvilView extends ItemView {
 	private _renderKeepingFocus(): void {
 		const name = this._paneFocusedField()?.getAttribute(FIELD_CONTROL_ATTR) ?? null;
 		const active = activeDocument.activeElement;
-		const start = active instanceof HTMLInputElement ? active.selectionStart : null;
-		const end = active instanceof HTMLInputElement ? active.selectionEnd : null;
+		const start = active?.instanceOf(HTMLInputElement) ? active.selectionStart : null;
+		const end = active?.instanceOf(HTMLInputElement) ? active.selectionEnd : null;
 		this._render();
 		if (name === null) return;
 		const cells = this.contentEl.querySelectorAll<HTMLElement>(`[${FIELD_CONTROL_ATTR}]`);
@@ -833,7 +834,7 @@ export class AnvilView extends ItemView {
 		this._focusField(cell);
 		// Null on input types with no caret (number, date), which also refuse a range.
 		const refocused = activeDocument.activeElement;
-		if (start !== null && end !== null && refocused instanceof HTMLInputElement) {
+		if (start !== null && end !== null && refocused?.instanceOf(HTMLInputElement)) {
 			refocused.setSelectionRange(start, end);
 		}
 	}

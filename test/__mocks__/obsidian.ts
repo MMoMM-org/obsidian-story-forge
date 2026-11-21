@@ -202,6 +202,24 @@ function installElementHelpers(): void {
 
 installElementHelpers();
 
+/**
+ * obsidian.d.ts `Node.instanceOf`: the cross-window `instanceof`. Like the real
+ * one it checks against the constructor of the NODE'S OWN window, so an element
+ * from another realm (a popout; an iframe in tests) answers true where the main
+ * window's `instanceof` answers false. Obsidian installs it in every window, so
+ * a test that builds a popout calls this on the iframe's window too.
+ */
+export function installInstanceOf(win: Window): void {
+	const proto = (win as unknown as { Node: { prototype: Record<string, unknown> } }).Node.prototype;
+	proto["instanceOf"] = function (this: Node, type: { name: string }): boolean {
+		const own = (this.ownerDocument?.defaultView ?? window) as unknown as Record<string, new () => unknown>;
+		const ctor = own[type.name];
+		return ctor !== undefined && this instanceof ctor;
+	};
+}
+
+installInstanceOf(window);
+
 // --- Core types ---
 
 /** Matches the real Obsidian PluginManifest interface. */

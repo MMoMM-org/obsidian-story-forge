@@ -1086,7 +1086,7 @@ export class SidebarView extends ItemView {
 	private _toggleSection(headEl: HTMLElement): void {
 		const sectionEl = headEl.closest(".sf-section");
 		const bodyEl = sectionEl?.querySelector(".sf-sec-body");
-		if (!(bodyEl instanceof HTMLElement)) return;
+		if (!bodyEl?.instanceOf(HTMLElement)) return;
 		const collapsed = bodyEl.classList.toggle("sf-sec-body--collapsed");
 		bodyEl.setAttribute("aria-hidden", collapsed ? "true" : "false");
 		headEl.setAttribute("aria-expanded", collapsed ? "false" : "true");

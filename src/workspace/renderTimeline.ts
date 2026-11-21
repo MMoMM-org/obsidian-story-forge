@@ -128,13 +128,13 @@ function renderRail(host: HTMLElement, groups: Group[], deps: TimelineDeps): voi
 			count: group.scenes.length,
 		});
 		const head = sectionEl.querySelector(".sf-sec-head");
-		if (head instanceof HTMLElement) {
+		if (head?.instanceOf(HTMLElement)) {
 			head.setAttribute("data-sf-group-key", group.key);
 			head.classList.add("sf-tl-acthead");
 			// The act label drills its shared beat note (when resolved).
 			const beat = actBeatLink(group.scenes);
 			const label = head.querySelector(".sf-sec-label");
-			if (beat && beat.path !== "" && label instanceof HTMLElement) {
+			if (beat && beat.path !== "" && label?.instanceOf(HTMLElement)) {
 				label.setAttribute("data-sf-link", beat.path);
 				label.setAttribute("role", "link");
 			}

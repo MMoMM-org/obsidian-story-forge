@@ -47,7 +47,7 @@ export function renderPlotlines(
 		});
 
 		const head = sectionEl.querySelector(".sf-sec-head");
-		if (head instanceof HTMLElement) {
+		if (head?.instanceOf(HTMLElement)) {
 			head.setAttribute("data-sf-group-key", group.key);
 			if (group.kind === "unresolved") head.classList.add("sf-pl-unresolved");
 			if (group.kind === "unassigned") head.classList.add("sf-pl-unassigned");
