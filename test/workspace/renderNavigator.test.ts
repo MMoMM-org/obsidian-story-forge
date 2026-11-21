@@ -92,6 +92,16 @@ describe("renderNavigator", () => {
 		expect(prog?.textContent).toContain("draft 2");
 	});
 
+	it("drives the progress fill through a CSS custom property (#49)", () => {
+		const el = host();
+		// One of four scenes written → 25%.
+		const data = { ...dataFrom(rows, ["The Dying Light"]), tally: { written: 1, draft: 3 } };
+		renderNavigator(el, data, { plotlineFilter: null }, expanded);
+		const fill = el.querySelector(".sf-nav-prog-bar i") as HTMLElement;
+		expect(fill.style.getPropertyValue("--sf-nav-progress")).toBe("25%");
+		expect(fill.style.width).toBe("");
+	});
+
 	it("renders an empty-state when there are no scenes", () => {
 		const el = host();
 		renderNavigator(el, { actGroups: [], plotlineGroups: [], tally: {} }, { plotlineFilter: null }, expanded);

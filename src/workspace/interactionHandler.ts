@@ -353,14 +353,12 @@ export class InteractionHandler {
 			// Create ghost — a clone of the dragged card that follows the pointer.
 			const ghost = this._drag.card.cloneNode(true) as HTMLElement;
 			ghost.classList.add("sf-drag-ghost");
-			ghost.style.left = `${e.clientX + 8}px`;
-			ghost.style.top = `${e.clientY + 8}px`;
+			placeGhost(ghost, e);
 			activeDocument.body.appendChild(ghost);
 			this._ghost = ghost;
 		} else if (this._drag.armed && this._ghost) {
 			// Update ghost position to track the pointer.
-			this._ghost.style.left = `${e.clientX + 8}px`;
-			this._ghost.style.top = `${e.clientY + 8}px`;
+			placeGhost(this._ghost, e);
 		}
 	}
 
@@ -576,4 +574,12 @@ export class InteractionHandler {
 		}
 		return null;
 	}
+}
+
+/**
+ * Put the drag ghost 8px below-right of the pointer. The position travels as
+ * custom properties that `.sf-drag-ghost` reads, not as inline left/top (#49).
+ */
+function placeGhost(ghost: HTMLElement, e: PointerEvent): void {
+	ghost.setCssProps({ "--sf-ghost-x": `${e.clientX + 8}px`, "--sf-ghost-y": `${e.clientY + 8}px` });
 }

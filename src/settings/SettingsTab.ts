@@ -1,4 +1,4 @@
-import type MyPlugin from "main";
+import type StoryForgePlugin from "main";
 import { type App, PluginSettingTab, Setting, SettingGroup } from "obsidian";
 import { attachFolderSuggest } from "./suggesters";
 import {
@@ -70,7 +70,7 @@ export const SETTINGS_TABS = [
 export type SettingsTabId = (typeof SETTINGS_TABS)[number]["id"];
 
 export class SettingsTab extends PluginSettingTab {
-	plugin: MyPlugin;
+	plugin: StoryForgePlugin;
 	private readonly header: HeaderSection;
 	private readonly store: ViewStore;
 	private readonly undo: UndoHistoryControl;
@@ -91,7 +91,7 @@ export class SettingsTab extends PluginSettingTab {
 
 	constructor(
 		app: App,
-		plugin: MyPlugin,
+		plugin: StoryForgePlugin,
 		store: ViewStore,
 		gate: ConsentGate,
 		importer: ViewImporter,

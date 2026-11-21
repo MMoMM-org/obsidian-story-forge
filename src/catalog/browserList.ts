@@ -121,7 +121,8 @@ export class BrowserList<T extends Filterable<CatalogEngine>> {
 		this.splitEl = this.host.createDiv({ cls: "sf-catalog-split" });
 		this.listEl = this.splitEl.createDiv({ cls: "sf-catalog-list", attr: { role: "listbox", "aria-label": this.opts.listLabel } });
 		for (const item of this.items) this._renderRow(item);
-		this.noMatchEl = this.listEl.createEl("p", { cls: "sf-picker-empty sf-catalog-nomatch sf-hidden" });
+		this.noMatchEl = this.listEl.createEl("p", { cls: "sf-picker-empty sf-catalog-nomatch" });
+		this.noMatchEl.hide();
 		this.paneEl = this.splitEl.createDiv({ cls: "sf-catalog-preview" });
 		this._renderPlaceholder();
 		this._applyFilter();
@@ -205,7 +206,7 @@ export class BrowserList<T extends Filterable<CatalogEngine>> {
 		// T's engine is one of CatalogEngine (the class bound), so its counts are keyed within it.
 		const counts = result.counts as EngineCounts<CatalogEngine>;
 		this.shown = shown;
-		for (const item of this.items) this._rowOf(item)?.toggleClass("sf-hidden", !shown.includes(item));
+		for (const item of this.items) this._rowOf(item)?.toggle(shown.includes(item));
 		for (const f of FILTERS) {
 			const count = this.filterEls.get(f.key)?.querySelector(".sf-catalog-filter-count");
 			if (count) count.textContent = String(counts[f.key] ?? 0);
@@ -218,7 +219,7 @@ export class BrowserList<T extends Filterable<CatalogEngine>> {
 
 	private _renderNoMatch(none: boolean, raw: string): void {
 		if (!this.noMatchEl) return;
-		this.noMatchEl.toggleClass("sf-hidden", !none);
+		this.noMatchEl.toggle(none);
 		const label = FILTERS.find((f) => f.key === this.filter)?.label ?? "";
 		this.noMatchEl.textContent = raw.length > 0 ? `No collections match "${raw}".` : `No ${label} collections.`;
 	}

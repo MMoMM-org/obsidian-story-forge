@@ -8,7 +8,7 @@
  *
  * Key behaviours:
  * - Obsidian's element helpers (`createEl/createDiv/createSpan/appendText/
- *   empty/addClass/removeClass/toggleClass`) are installed ONCE on
+ *   empty/addClass/removeClass/toggleClass/hide/show/toggle`) are installed ONCE on
  *   `HTMLElement.prototype`, the way the real app provides them, so every
  *   element has them however it was created. `augmentEl()` is a retained
  *   no-op kept for its many call sites.
@@ -180,6 +180,13 @@ function installElementHelpers(): void {
 		while (this.firstChild) this.removeChild(this.firstChild);
 	};
 
+	// setCssProps, as in obsidian.d.ts: each key is a CSS custom property
+	// ("--sf-…") set through style.setProperty, so tests read it back with
+	// style.getPropertyValue.
+	proto["setCssProps"] = function (this: HTMLElement, props: Record<string, string>): void {
+		for (const [k, v] of Object.entries(props)) this.style.setProperty(k, v);
+	};
+
 	proto["addClass"] = function (this: HTMLElement, ...classes: string[]): void {
 		this.classList.add(...classes);
 	};
@@ -191,9 +198,44 @@ function installElementHelpers(): void {
 	proto["toggleClass"] = function (this: HTMLElement, cls: string, force?: boolean): void {
 		this.classList.toggle(cls, force);
 	};
+
+	// Visibility helpers, as Obsidian implements them: an inline `display`, so a
+	// hidden element stays hidden whatever its classes set. `isShown()` is left
+	// out on purpose: Obsidian reads layout (`offsetParent`), which jsdom lacks,
+	// so tests assert on `style.display` instead.
+	proto["hide"] = function (this: HTMLElement): void {
+		this.style.display = "none";
+	};
+
+	proto["show"] = function (this: HTMLElement): void {
+		this.style.display = "";
+	};
+
+	proto["toggle"] = function (this: HTMLElement, show: boolean): void {
+		if (show) this.style.display = "";
+		else this.style.display = "none";
+	};
 }
 
 installElementHelpers();
+
+/**
+ * obsidian.d.ts `Node.instanceOf`: the cross-window `instanceof`. Like the real
+ * one it checks against the constructor of the NODE'S OWN window, so an element
+ * from another realm (a popout; an iframe in tests) answers true where the main
+ * window's `instanceof` answers false. Obsidian installs it in every window, so
+ * a test that builds a popout calls this on the iframe's window too.
+ */
+export function installInstanceOf(win: Window): void {
+	const proto = (win as unknown as { Node: { prototype: Record<string, unknown> } }).Node.prototype;
+	proto["instanceOf"] = function (this: Node, type: { name: string }): boolean {
+		const own = (this.ownerDocument?.defaultView ?? window) as unknown as Record<string, new () => unknown>;
+		const ctor = own[type.name];
+		return ctor !== undefined && this instanceof ctor;
+	};
+}
+
+installInstanceOf(window);
 
 // --- Core types ---
 
@@ -817,14 +859,24 @@ export class Modal {
 	app: App;
 	/** obsidian.d.ts `Modal.modalEl`: the dialog box; `contentEl` sits inside it, as in a vault. */
 	modalEl: HTMLElement;
+	/** obsidian.d.ts `Modal.titleEl`: the title slot `setTitle` fills, above `contentEl`. */
+	titleEl: HTMLElement;
 	contentEl: HTMLElement;
 	constructor(app: App) {
 		this.app = app;
 		this.modalEl = document.createElement("div");
 		this.modalEl.className = "modal";
+		this.titleEl = document.createElement("div");
+		this.titleEl.className = "modal-title";
+		this.modalEl.appendChild(this.titleEl);
 		this.contentEl = augmentEl(document.createElement("div"));
 		this.contentEl.className = "modal-content";
 		this.modalEl.appendChild(this.contentEl);
+	}
+	/** obsidian.d.ts `Modal.setTitle`: writes the title slot's text. */
+	setTitle(title: string): this {
+		this.titleEl.textContent = title;
+		return this;
 	}
 	open = vi.fn(() => {
 		// Mirror real Obsidian: mount the modal into document.body so tests can

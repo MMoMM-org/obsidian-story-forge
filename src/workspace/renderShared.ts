@@ -23,17 +23,21 @@ export function statusSlug(status: string): string {
 		.replace(/^-+|-+$/g, "");
 }
 
-/** Append a colored dot to `parent` (inline, data-driven color). */
+/**
+ * Append a colored dot to `parent`. The data-driven color travels as the
+ * `--sf-dot-color` custom property that styles.css reads, not as an inline
+ * background, so a theme can still restyle the dot (#49).
+ */
 export function appendDot(parent: HTMLElement, cls: string, color: string): HTMLElement {
-	const dot = parent.createEl("span", { cls });
-	dot.style.background = color;
+	const dot = parent.createSpan({ cls });
+	dot.setCssProps({ "--sf-dot-color": color });
 	return dot;
 }
 
 /** Append a status badge to `parent`; skips an empty status. */
 export function appendStatusBadge(parent: HTMLElement, status: string): HTMLElement | null {
 	if (status === "") return null;
-	return parent.createEl("span", { cls: `sf-tl-st sf-tl-st--${statusSlug(status)}`, text: status });
+	return parent.createSpan({ cls: `sf-tl-st sf-tl-st--${statusSlug(status)}`, text: status });
 }
 
 /**

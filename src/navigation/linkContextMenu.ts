@@ -17,6 +17,7 @@
 
 import { Menu, type App, type TFile, type WorkspaceLeaf } from "obsidian";
 import { walkTargetMarkers } from "./domTargetWalk";
+import { isHtmlElement } from "./keyboardRouting";
 
 /** `source` argument of the `file-menu` event: who is asking for the menu. */
 const MENU_SOURCE = "story-forge";
@@ -34,7 +35,8 @@ export function linkContextMenuHandler(
 	leaf?: WorkspaceLeaf,
 ): (event: MouseEvent) => void {
 	return (event: MouseEvent): void => {
-		if (!(event.target instanceof HTMLElement)) return;
+		// Cross-window check: in a popout the target is of that window's realm (#50).
+		if (!isHtmlElement(event.target)) return;
 		const { nearest } = walkTargetMarkers(event.target, root, isLink);
 		const file = nearest ? resolve(nearest) : null;
 		if (!file) return;

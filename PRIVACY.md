@@ -1,16 +1,35 @@
 # Privacy Policy: Story Forge
 
-_Last updated: 2026-11-20 (version 0.2.0)._
+_Last updated: 2026-11-21._
 
 ## Summary
 
 Story Forge works entirely on your machine. It makes no network requests, has no accounts and
 collects no telemetry or analytics. Your vault content is never uploaded.
 
-## What Story Forge reads and writes
+## Vault access
 
-Story Forge reads the notes in your vault to show your story entities. It writes only in the
-cases below.
+Story Forge asks Obsidian for the list of files in your vault. Obsidian's community directory
+flags this as "vault enumeration", because the list gives a plugin every file path in the vault.
+Story Forge needs the list because your story entities can live in any folder: it finds them
+by their frontmatter, not by where they are.
+
+| What it lists | Why | What it looks at |
+|---|---|---|
+| All notes | Find scenes and plotlines for the Workbench and the Anvil, and build the tag index for Codex filters | Each note's path, frontmatter `type` and tags, from Obsidian's metadata cache |
+| Notes in your FileClass folder | Read the FileClasses that define the editor's fields | Their frontmatter |
+| All notes and `.base` files | Offer the ones marked `sf-view: true`, and your `.base` files, as collections to import | Each note's frontmatter, and the file extension |
+| All files | Fill the image picker, when you open it | File paths of images |
+
+The file list and the metadata stay in memory and are not stored or sent anywhere. Story Forge
+reads the full text of a file only when it needs it: a collection you import or open, its
+DataviewJS code before you consent, and the story files it manages during **Set up story
+files**. Folder exclusions in settings take notes out of what Story Forge shows; they do
+not shorten the list Obsidian gives the plugin.
+
+## What Story Forge writes
+
+Story Forge writes only in the cases below.
 
 | What | When | Where |
 |---|---|---|

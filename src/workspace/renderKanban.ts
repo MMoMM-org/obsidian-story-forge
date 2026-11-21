@@ -39,7 +39,7 @@ import {
 	insertOrder,
 	RENUMBER,
 } from "./workspaceModel";
-import { appendStatusBadge, statusColumnColor } from "./renderShared";
+import { appendDot, appendStatusBadge, statusColumnColor } from "./renderShared";
 import type { Draggable, GestureContext, InteractionHandler } from "./interactionHandler";
 import type { JournalGroup } from "../undo/journalTypes";
 
@@ -285,7 +285,7 @@ export function renderKanban(
 		return;
 	}
 
-	const boardEl = host.createEl("div", { cls: "sf-kb-board" });
+	const boardEl = host.createDiv({ cls: "sf-kb-board" });
 
 	for (const group of groups) {
 		const isNeutral = group.kind === "unassigned";
@@ -294,18 +294,18 @@ export function renderKanban(
 			? "sf-kb-col sf-kb-col--neutral"
 			: "sf-kb-col";
 
-		const colEl = boardEl.createEl("div", { cls: colCls });
+		const colEl = boardEl.createDiv({ cls: colCls });
 		colEl.setAttribute("data-sf-status", colStatus);
 
 		// Column header
-		const headEl = colEl.createEl("div", { cls: "sf-kb-col-head" });
+		const headEl = colEl.createDiv({ cls: "sf-kb-col-head" });
 		const color = isNeutral ? "var(--text-faint)" : statusColumnColor(group.label);
-		headEl.createEl("span", { cls: "sf-kb-col-dot" }).style.background = color;
-		headEl.createEl("span", { cls: "sf-kb-col-label", text: group.label || "No status" });
-		headEl.createEl("span", { cls: "sf-kb-col-count", text: String(group.scenes.length) });
+		appendDot(headEl, "sf-kb-col-dot", color);
+		headEl.createSpan({ cls: "sf-kb-col-label", text: group.label || "No status" });
+		headEl.createSpan({ cls: "sf-kb-col-count", text: String(group.scenes.length) });
 
 		// Column body — the drop zone
-		const bodyEl = colEl.createEl("div", { cls: "sf-kb-col-body" });
+		const bodyEl = colEl.createDiv({ cls: "sf-kb-col-body" });
 
 		// Render cards
 		for (const scene of group.scenes) {
@@ -320,7 +320,7 @@ export function renderKanban(
 // ---------------------------------------------------------------------------
 
 function renderCard(parent: HTMLElement, scene: SceneRow, currentStatus: string): HTMLElement {
-	const cardEl = parent.createEl("div", {
+	const cardEl = parent.createDiv({
 		cls: "sf-kb-card",
 	});
 	cardEl.setAttribute("data-sf-card-path", scene.file.path);
@@ -332,19 +332,19 @@ function renderCard(parent: HTMLElement, scene: SceneRow, currentStatus: string)
 	cardEl.setAttribute("aria-label", `${scene.title} — ${currentStatus || "no status"}`);
 
 	// Title as [data-sf-link] drill span — NOT the drag surface
-	const titleEl = cardEl.createEl("span", { cls: "sf-kb-card-title", text: scene.title });
+	const titleEl = cardEl.createSpan({ cls: "sf-kb-card-title", text: scene.title });
 	titleEl.setAttribute("data-sf-link", scene.file.path);
 	titleEl.setAttribute("role", "link");
 	titleEl.setAttribute("tabindex", "0");
 
 	// Meta row
-	const metaEl = cardEl.createEl("div", { cls: "sf-kb-card-meta" });
+	const metaEl = cardEl.createDiv({ cls: "sf-kb-card-meta" });
 	appendStatusBadge(metaEl, scene.status);
 	if (scene.storyDay !== null) {
-		metaEl.createEl("span", { cls: "sf-kb-card-day", text: `Day ${scene.storyDay}` });
+		metaEl.createSpan({ cls: "sf-kb-card-day", text: `Day ${scene.storyDay}` });
 	}
 	if (scene.wordcount !== null) {
-		metaEl.createEl("span", { cls: "sf-kb-card-words", text: `${scene.wordcount}w` });
+		metaEl.createSpan({ cls: "sf-kb-card-words", text: `${scene.wordcount}w` });
 	}
 
 	return cardEl;

@@ -1,3 +1,10 @@
+## [0.2.1](https://github.com/MMoMM-org/obsidian-story-forge/compare/0.2.0...0.2.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **build:** make main.js reproducible from the tagged source ([08207dc](https://github.com/MMoMM-org/obsidian-story-forge/commit/08207dc1a915779100df7c397843e792edc62c2f)), closes [#53](https://github.com/MMoMM-org/obsidian-story-forge/issues/53)
+
 # [0.2.0](https://github.com/MMoMM-org/obsidian-story-forge/compare/0.1.0...0.2.0) (2026-11-20)
 
 

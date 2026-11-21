@@ -215,7 +215,7 @@ async function confirm(): Promise<void> {
 describe("StoryFilesModal — fresh vault (S2)", () => {
 	it("opens with three sets, each with checkbox, name, count, folder and chips, collapsed", async () => {
 		await open();
-		expect($(".sf-story h2").textContent).toBe("Set up story files");
+		expect($(".modal-title").textContent).toBe("Set up story files");
 		const names = [...document.querySelectorAll(".sf-story-set-name")].map((n) => n.textContent);
 		expect(names).toEqual(["FileClasses", "Templates", "Schema reference"]);
 		expect([...document.querySelectorAll(".sf-story-set-count")].map((n) => n.textContent)).toEqual(["3 files", "1 file", "2 files"]);
@@ -226,13 +226,13 @@ describe("StoryFilesModal — fresh vault (S2)", () => {
 		expect(chips("fileclasses")).toEqual(["3 create"]);
 		expect(chips("schema")).toEqual(["2 create"]);
 		for (const set of ["fileclasses", "templates", "schema"] as const) {
-			expect($(".sf-story-rows", setEl(set)).classList.contains("sf-hidden")).toBe(true);
+			expect($(".sf-story-rows", setEl(set)).style.display).toBe("none");
 			expect($(".sf-story-toggle", setEl(set)).textContent).toBe("▸ Show files");
 		}
 		expect(primary().textContent).toBe("Set up 6 files");
 		expect(cancel().textContent).toBe("Cancel");
 		expect($(".sf-story-foot-aside").textContent).toBe("Folders that do not exist yet are created.");
-		expect($(".sf-story-foot-aside").classList.contains("sf-hidden")).toBe(false);
+		expect($(".sf-story-foot-aside").style.display).not.toBe("none");
 		expect($(".sf-picker-foot").firstElementChild?.classList.contains("sf-story-foot-aside")).toBe(true);
 		expect(document.activeElement).toBe(setBox("fileclasses"));
 	});
@@ -257,7 +257,7 @@ describe("StoryFilesModal — fresh vault (S2)", () => {
 		await open();
 		const tog = $<HTMLButtonElement>(".sf-story-toggle", setEl("templates"));
 		tog.click();
-		expect($(".sf-story-rows", setEl("templates")).classList.contains("sf-hidden")).toBe(false);
+		expect($(".sf-story-rows", setEl("templates")).style.display).not.toBe("none");
 		expect(tog.textContent).toBe("▾ Hide files");
 		expect(tog.getAttribute("aria-expanded")).toBe("true");
 	});
@@ -265,7 +265,7 @@ describe("StoryFilesModal — fresh vault (S2)", () => {
 	it("omits the folder aside when every create goes into an existing folder", async () => {
 		for (const f of ["00 Meta", "00 Meta/FileClasses", "00 Meta/Templates", "00 Meta/Schema"]) mem.folders.add(f);
 		await open();
-		expect($(".sf-story-foot-aside").classList.contains("sf-hidden")).toBe(true);
+		expect($(".sf-story-foot-aside").style.display).toBe("none");
 	});
 
 	it("clicking rows, names, chips, the toggle and checkboxes writes nothing", async () => {
@@ -586,9 +586,9 @@ describe("StoryFilesModal — mixed (S3)", () => {
 		expect(chips("fileclasses")).toEqual(["1 update", "1 edited", "1 missing"]);
 		expect(chips("templates")).toEqual(["1 up to date"]);
 		expect(chips("schema")).toEqual(["1 already there", "1 unreadable"]);
-		expect($(".sf-story-rows", setEl("fileclasses")).classList.contains("sf-hidden")).toBe(false);
-		expect($(".sf-story-rows", setEl("schema")).classList.contains("sf-hidden")).toBe(false);
-		expect($(".sf-story-rows", setEl("templates")).classList.contains("sf-hidden")).toBe(true);
+		expect($(".sf-story-rows", setEl("fileclasses")).style.display).not.toBe("none");
+		expect($(".sf-story-rows", setEl("schema")).style.display).not.toBe("none");
+		expect($(".sf-story-rows", setEl("templates")).style.display).toBe("none");
 	});
 
 	it("orders rows: writes first, then rows that need you, then up to date", async () => {

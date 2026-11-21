@@ -41,7 +41,7 @@ function describeControl(el: HTMLElement, direction: UndoDirection, label: strin
 export function buildAnvilUndoControls(head: HTMLElement): HTMLElement {
 	const group = head.createDiv({ cls: "sf-undo-group" });
 	for (const direction of ["undo", "redo"] as const) {
-		const tool = group.createEl("span", {
+		const tool = group.createSpan({
 			cls: "sf-undo-tool",
 			text: GLYPH[direction],
 			attr: { role: "button", tabindex: "0", "data-sf-undo": direction },

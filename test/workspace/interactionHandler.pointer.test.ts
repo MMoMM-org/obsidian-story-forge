@@ -455,15 +455,18 @@ describe("InteractionHandler — pointer state machine", () => {
 		const ghost = document.querySelector(".sf-drag-ghost") as HTMLElement | null;
 		expect(ghost).not.toBeNull();
 
-		const leftAfterArm = ghost!.style.left;
-		const topAfterArm = ghost!.style.top;
+		// The position travels as CSS custom properties, offset 8px from the
+		// pointer, never as inline left/top (#49).
+		expect(ghost!.style.getPropertyValue("--sf-ghost-x")).toBe("118px");
+		expect(ghost!.style.getPropertyValue("--sf-ghost-y")).toBe("108px");
+		expect(ghost!.style.left).toBe("");
+		expect(ghost!.style.top).toBe("");
 
 		// Move to a clearly different position.
 		pointerMove(200, 150);
 
-		// Position must have changed.
-		expect(ghost!.style.left).not.toBe(leftAfterArm);
-		expect(ghost!.style.top).not.toBe(topAfterArm);
+		expect(ghost!.style.getPropertyValue("--sf-ghost-x")).toBe("208px");
+		expect(ghost!.style.getPropertyValue("--sf-ghost-y")).toBe("158px");
 	});
 
 	// -----------------------------------------------------------------------
