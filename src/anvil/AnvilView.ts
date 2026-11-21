@@ -462,8 +462,8 @@ export class AnvilView extends ItemView {
 		// layout (visibility synced in _syncToggle).
 		const tlBar = head.createDiv({ cls: "sf-ws-tlbar" });
 		const modeGroup = tlBar.createDiv({ cls: "sf-ws-tlmode" });
-		modeGroup.createEl("span", { cls: "sf-ws-tlmode-opt", text: "Rail" }).setAttribute("data-ws-tlmode", "rail");
-		modeGroup.createEl("span", { cls: "sf-ws-tlmode-opt", text: "Swimlane" }).setAttribute("data-ws-tlmode", "swimlane");
+		modeGroup.createSpan({ cls: "sf-ws-tlmode-opt", text: "Rail" }).setAttribute("data-ws-tlmode", "rail");
+		modeGroup.createSpan({ cls: "sf-ws-tlmode-opt", text: "Swimlane" }).setAttribute("data-ws-tlmode", "swimlane");
 
 		// Group-by dropdown (Obsidian .dropdown). Enabled only in Swimlane mode.
 		const keySelect = tlBar.createEl("select", { cls: "dropdown sf-ws-tlkey-select" });

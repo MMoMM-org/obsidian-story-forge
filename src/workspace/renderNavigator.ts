@@ -48,7 +48,7 @@ export function renderNavigator(
 	state: NavigatorState,
 	deps: NavigatorDeps,
 ): void {
-	host.createEl("div", { cls: "sf-nav-filter", text: "Filter scenes…" });
+	host.createDiv({ cls: "sf-nav-filter", text: "Filter scenes…" });
 
 	if (data.actGroups.length === 0) {
 		emptyLine(host, "No scenes in scope.");
@@ -65,12 +65,12 @@ export function renderNavigator(
 	stampGroupKey(pl.sectionEl, "nav:plotlines");
 
 	const addFilterRow = (label: string, count: number, color: string, plotline: string): void => {
-		const r = pl.bodyEl.createEl("div", { cls: "sf-nav-pl-row" });
+		const r = pl.bodyEl.createDiv({ cls: "sf-nav-pl-row" });
 		r.setAttribute("data-sf-plotline", plotline);
 		if (state.plotlineFilter === (plotline === "" ? null : plotline)) r.classList.add("sf-nav-pl-row--sel");
 		appendDot(r, "sf-nav-dot", color);
-		r.createEl("span", { cls: "sf-nav-pl-name", text: label });
-		r.createEl("span", { cls: "sf-nav-pl-count", text: String(count) });
+		r.createSpan({ cls: "sf-nav-pl-name", text: label });
+		r.createSpan({ cls: "sf-nav-pl-count", text: String(count) });
 	};
 
 	addFilterRow("All", total, NEUTRAL_DOT_COLOR, "");
@@ -84,17 +84,17 @@ export function renderNavigator(
 		});
 		stampGroupKey(sectionEl, group.key);
 		for (const scene of group.scenes) {
-			const rowEl = bodyEl.createEl("div", { cls: "sf-nav-sc-row" });
+			const rowEl = bodyEl.createDiv({ cls: "sf-nav-sc-row" });
 			appendDot(rowEl, "sf-nav-dot", rowColor(scene));
-			if (scene.order !== null) rowEl.createEl("span", { cls: "sf-nav-idx", text: String(scene.order) });
+			if (scene.order !== null) rowEl.createSpan({ cls: "sf-nav-idx", text: String(scene.order) });
 			rowEl.appendChild(stampLinkEl(scene.title, scene.file.path));
-			if (scene.when !== "") rowEl.createEl("span", { cls: "sf-nav-when", text: scene.when });
+			if (scene.when !== "") rowEl.createSpan({ cls: "sf-nav-when", text: scene.when });
 		}
 	}
 
 	// Progress bar from the status tally.
-	const prog = host.createEl("div", { cls: "sf-nav-prog" });
-	const fill = prog.createEl("div", { cls: "sf-nav-prog-bar" }).createEl("i");
+	const prog = host.createDiv({ cls: "sf-nav-prog" });
+	const fill = prog.createDiv({ cls: "sf-nav-prog-bar" }).createEl("i");
 	const done = Object.entries(data.tally)
 		.filter(([k]) => WRITTEN.has(k))
 		.reduce((a, [, v]) => a + v, 0);
@@ -103,5 +103,5 @@ export function renderNavigator(
 		.filter(([k]) => k !== "")
 		.map(([k, v]) => `${k} ${v}`)
 		.join(" · ");
-	prog.createEl("span", { cls: "sf-nav-prog-label", text: summary === "" ? `${total} scenes` : summary });
+	prog.createSpan({ cls: "sf-nav-prog-label", text: summary === "" ? `${total} scenes` : summary });
 }

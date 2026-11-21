@@ -57,11 +57,11 @@ export function renderPlotlines(
 		}
 
 		for (const scene of group.scenes) {
-			const rowEl = bodyEl.createEl("div", { cls: "sf-pl-row" });
+			const rowEl = bodyEl.createDiv({ cls: "sf-pl-row" });
 			appendDot(rowEl, "sf-pl-rowdot", rowColor(scene));
-			if (scene.order !== null) rowEl.createEl("span", { cls: "sf-pl-idx", text: String(scene.order) });
+			if (scene.order !== null) rowEl.createSpan({ cls: "sf-pl-idx", text: String(scene.order) });
 			rowEl.appendChild(stampLinkEl(scene.title, scene.file.path));
-			if (scene.status !== "") rowEl.createEl("span", { cls: "sf-trail", text: scene.status });
+			if (scene.status !== "") rowEl.createSpan({ cls: "sf-trail", text: scene.status });
 		}
 	}
 }

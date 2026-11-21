@@ -37,7 +37,7 @@ export interface TimelineOptions {
 
 /** Append a drill link span; a "" path renders as plain (non-clickable) text. */
 function fieldLink(parent: HTMLElement, cls: string, name: string, path: string): HTMLElement {
-	const el = parent.createEl("span", { cls, text: name });
+	const el = parent.createSpan({ cls, text: name });
 	if (path !== "") {
 		el.setAttribute("data-sf-link", path);
 		el.setAttribute("role", "link");
@@ -51,8 +51,8 @@ function fieldLink(parent: HTMLElement, cls: string, name: string, path: string)
  * Used by both rail and swimlane modes — no DOM duplication.
  */
 function renderSceneCard(rail: HTMLElement, scene: SceneRow): void {
-	const item = rail.createEl("div", { cls: "sf-tl-item" });
-	item.createEl("div", { cls: "sf-tl-when", text: scene.when !== "" ? scene.when : "—" });
+	const item = rail.createDiv({ cls: "sf-tl-item" });
+	item.createDiv({ cls: "sf-tl-when", text: scene.when !== "" ? scene.when : "—" });
 
 	// Rail node: plotline colour + hover name + drill the plotline.
 	const dot = appendDot(item, "sf-tl-node", rowColor(scene));
@@ -66,31 +66,31 @@ function renderSceneCard(rail: HTMLElement, scene: SceneRow): void {
 	}
 
 	// The whole card drills the scene; its fields drill their own notes.
-	const card = item.createEl("div", { cls: "sf-tl-card" });
+	const card = item.createDiv({ cls: "sf-tl-card" });
 	card.setAttribute("data-sf-link", scene.file.path);
 	card.setAttribute("role", "link");
 	card.setAttribute("tabindex", "0");
-	card.createEl("div", { cls: "sf-tl-ct", text: scene.title });
+	card.createDiv({ cls: "sf-tl-ct", text: scene.title });
 
-	const cm = card.createEl("div", { cls: "sf-tl-cm" });
+	const cm = card.createDiv({ cls: "sf-tl-cm" });
 	if (scene.pov) {
-		const pov = cm.createEl("span", { cls: "sf-tl-pov" });
-		pov.createEl("span", { cls: "sf-tl-pov-k", text: "POV: " });
+		const pov = cm.createSpan({ cls: "sf-tl-pov" });
+		pov.createSpan({ cls: "sf-tl-pov-k", text: "POV: " });
 		fieldLink(pov, "sf-tl-flink", scene.pov.name, scene.pov.path);
 	}
 	if (scene.location) {
-		const loc = cm.createEl("span", { cls: "sf-tl-loc" });
+		const loc = cm.createSpan({ cls: "sf-tl-loc" });
 		fieldLink(loc, "sf-tl-flink", scene.location.name, scene.location.path);
 	}
 
-	const meta = card.createEl("div", { cls: "sf-tl-meta" });
+	const meta = card.createDiv({ cls: "sf-tl-meta" });
 	appendStatusBadge(meta, scene.status);
 	if (scene.wordcount !== null) {
-		meta.createEl("span", { cls: "sf-tl-words", text: `${scene.wordcount} words` });
+		meta.createSpan({ cls: "sf-tl-words", text: `${scene.wordcount} words` });
 	}
 
 	if (scene.characters.length > 0) {
-		const chips = card.createEl("div", { cls: "sf-tl-chips" });
+		const chips = card.createDiv({ cls: "sf-tl-chips" });
 		for (const c of scene.characters) {
 			const chip = fieldLink(chips, "sf-tl-chip", c.name, c.path);
 			const isPov =
@@ -140,7 +140,7 @@ function renderRail(host: HTMLElement, groups: Group[], deps: TimelineDeps): voi
 			}
 		}
 
-		const rail = bodyEl.createEl("div", { cls: "sf-tl-rail" });
+		const rail = bodyEl.createDiv({ cls: "sf-tl-rail" });
 		for (const scene of group.scenes) {
 			renderSceneCard(rail, scene);
 		}
@@ -165,12 +165,12 @@ function renderSwimlane(host: HTMLElement, grid: SwimlaneGrid | undefined): void
 	}
 
 	const { lanes, actRows } = grid;
-	const gridEl = host.createEl("div", { cls: "sf-sw-grid" });
+	const gridEl = host.createDiv({ cls: "sf-sw-grid" });
 	// Drive the (dynamic) column template via a custom property; CSS reads it.
 	gridEl.setCssProps({ "--sf-sw-cols": `${SW_SEQ_W} repeat(${lanes.length}, ${SW_LANE_MIN})` });
 
 	// Header row: sticky corner ("#") + one sticky header per lane.
-	const corner = gridEl.createEl("div", { cls: "sf-sw-corner", text: "#" });
+	const corner = gridEl.createDiv({ cls: "sf-sw-corner", text: "#" });
 	corner.setAttribute("role", "columnheader");
 	for (const lane of lanes) {
 		const laneCls =
@@ -179,14 +179,14 @@ function renderSwimlane(host: HTMLElement, grid: SwimlaneGrid | undefined): void
 				: lane.kind === "unassigned"
 					? "sf-sw-lanehead sf-sw-lanehead--neutral"
 					: "sf-sw-lanehead";
-		const h = gridEl.createEl("div", { cls: laneCls, text: lane.label });
+		const h = gridEl.createDiv({ cls: laneCls, text: lane.label });
 		h.setAttribute("role", "columnheader");
 	}
 
 	// Body: act-divider rows (full width) + one row per scene.
 	let seq = 0;
 	for (const actRow of actRows) {
-		const divider = gridEl.createEl("div", { cls: "sf-sw-actrow", text: actRow.label });
+		const divider = gridEl.createDiv({ cls: "sf-sw-actrow", text: actRow.label });
 		// The act label drills its shared beat note (when resolved).
 		const beat = actBeatLink(actRow.scenes);
 		if (beat && beat.path !== "") {
@@ -199,7 +199,7 @@ function renderSwimlane(host: HTMLElement, grid: SwimlaneGrid | undefined): void
 			renderSeqCell(gridEl, scene, seq);
 			const keys = new Set(grid.laneOf(scene));
 			for (const lane of lanes) {
-				const cell = gridEl.createEl("div", { cls: "sf-sw-cell" });
+				const cell = gridEl.createDiv({ cls: "sf-sw-cell" });
 				if (keys.has(lane.key)) {
 					renderMiniCard(cell, scene);
 				}
@@ -210,12 +210,12 @@ function renderSwimlane(host: HTMLElement, grid: SwimlaneGrid | undefined): void
 
 /** Sequence cell (grid col 1): order index + a storyDay/when badge. */
 function renderSeqCell(gridEl: HTMLElement, scene: SceneRow, seq: number): void {
-	const cell = gridEl.createEl("div", { cls: "sf-sw-seq" });
-	cell.createEl("span", { cls: "sf-sw-seqn", text: String(seq) });
+	const cell = gridEl.createDiv({ cls: "sf-sw-seq" });
+	cell.createSpan({ cls: "sf-sw-seqn", text: String(seq) });
 	const badge =
 		scene.storyDay !== null ? `D${scene.storyDay}` : scene.when !== "" ? scene.when : "";
 	if (badge !== "") {
-		cell.createEl("span", { cls: "sf-sw-seqwhen", text: badge });
+		cell.createSpan({ cls: "sf-sw-seqwhen", text: badge });
 	}
 }
 
@@ -224,17 +224,17 @@ function renderSeqCell(gridEl: HTMLElement, scene: SceneRow, seq: number): void 
  * + a small status·when line. Read-only — the title carries data-sf-link only.
  */
 function renderMiniCard(cell: HTMLElement, scene: SceneRow): void {
-	const card = cell.createEl("div", { cls: "sf-sw-mini" });
+	const card = cell.createDiv({ cls: "sf-sw-mini" });
 	appendDot(card, "sf-sw-mini-dot", rowColor(scene));
 
-	const title = card.createEl("span", { cls: "sf-sw-mini-title", text: scene.title });
+	const title = card.createSpan({ cls: "sf-sw-mini-title", text: scene.title });
 	title.setAttribute("data-sf-link", scene.file.path);
 	title.setAttribute("role", "link");
 	title.setAttribute("tabindex", "0");
 
-	const meta = card.createEl("div", { cls: "sf-sw-mini-meta" });
+	const meta = card.createDiv({ cls: "sf-sw-mini-meta" });
 	appendStatusBadge(meta, scene.status);
 	if (scene.when !== "") {
-		meta.createEl("span", { cls: "sf-sw-mini-when", text: scene.when });
+		meta.createSpan({ cls: "sf-sw-mini-when", text: scene.when });
 	}
 }

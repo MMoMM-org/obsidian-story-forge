@@ -99,14 +99,14 @@ export class BindModal extends Modal {
 		this.setTitle("Bind collection");
 		el.createEl("p", { text: this.seed.name, cls: "sf-bind-name" });
 
-		const bodyEl = el.createEl("div", { cls: "sf-bind-body" });
+		const bodyEl = el.createDiv({ cls: "sf-bind-body" });
 
 		// Tab label row — every imported view is a Workbench tab, so the label
 		// is always present and enabled (no checkbox gates it). T2.6: the
 		// sidebar surface is named "Workbench" (display only).
-		const tabRow = bodyEl.createEl("div", { cls: "sf-bind-row" });
+		const tabRow = bodyEl.createDiv({ cls: "sf-bind-row" });
 
-		tabRow.createEl("span", { text: "Workbench tab label", cls: "sf-bind-label" });
+		tabRow.createSpan({ text: "Workbench tab label", cls: "sf-bind-label" });
 
 		const tabInputEl = activeDocument.createElement("input");
 		tabInputEl.type = "text";
@@ -119,7 +119,7 @@ export class BindModal extends Modal {
 
 		// Command registration row — a checkbox that gates a dedicated
 		// command-name input. The command name is independent of the tab label.
-		const cmdRow = bodyEl.createEl("div", { cls: "sf-bind-row" });
+		const cmdRow = bodyEl.createDiv({ cls: "sf-bind-row" });
 
 		const cmdCheckbox = activeDocument.createElement("input");
 		cmdCheckbox.type = "checkbox";
@@ -127,7 +127,7 @@ export class BindModal extends Modal {
 		cmdCheckbox.className = "sf-bind-checkbox";
 		cmdCheckbox.dataset["role"] = "command";
 		cmdRow.appendChild(cmdCheckbox);
-		cmdRow.createEl("span", { text: "Register as command", cls: "sf-bind-label" });
+		cmdRow.createSpan({ text: "Register as command", cls: "sf-bind-label" });
 
 		this.commandCheckboxEl = cmdCheckbox;
 
@@ -135,9 +135,9 @@ export class BindModal extends Modal {
 		// "Story Forge: " prefix; Obsidian prefixes the plugin name in the
 		// palette automatically). Defaults to the tab label, still editable.
 		// Gated by the checkbox above.
-		const cmdInputRow = bodyEl.createEl("div", { cls: "sf-bind-row" });
+		const cmdInputRow = bodyEl.createDiv({ cls: "sf-bind-row" });
 
-		cmdInputRow.createEl("span", { text: "Command name", cls: "sf-bind-label" });
+		cmdInputRow.createSpan({ text: "Command name", cls: "sf-bind-label" });
 
 		const cmdInputEl = activeDocument.createElement("input");
 		cmdInputEl.type = "text";
@@ -155,7 +155,7 @@ export class BindModal extends Modal {
 		});
 
 		// Footer buttons
-		const footEl = el.createEl("div", { cls: "sf-bind-foot" });
+		const footEl = el.createDiv({ cls: "sf-bind-foot" });
 		const backBtn = footEl.createEl("button", { text: "Back" });
 		const doneBtn = footEl.createEl("button", { text: "Done" });
 
