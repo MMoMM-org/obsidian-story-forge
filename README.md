@@ -43,6 +43,10 @@ New here? Start with [Getting started](docs/getting-started.md). The full docume
 
 - **No network.** It makes no network requests, has no accounts and sends no telemetry. The
   catalog of ready-made collections is bundled in the plugin; nothing is downloaded.
+- **Reads the file list.** It asks Obsidian for the list of files in your vault and reads
+  each note's frontmatter and tags from Obsidian's metadata cache, to find your story entities
+  wherever they are. The list stays in memory. Obsidian's community directory flags this as
+  "vault enumeration".
 - **Your story notes.** It changes a note's frontmatter (Properties) only when you save an edit
   in the Anvil editor or the Workbench, or move a card on the Board. Each change is written with
   Obsidian's own frontmatter API, one field at a time, and nothing is written on a bare click.

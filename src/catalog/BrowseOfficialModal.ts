@@ -93,7 +93,7 @@ export class BrowseOfficialModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 		el.addClass("sf-catalog");
-		el.createEl("h2", { text: "Collections from the repo" });
+		this.setTitle("Collections from the repo");
 		el.createEl("p", { text: "Bundled, offline curated library. No network required.", cls: "sf-picker-sub" });
 		await this._loadInstalled();
 		if (this.closed) return;
@@ -237,7 +237,8 @@ export class BrowseOfficialModal extends Modal {
 			text: "▸ Details",
 			attr: { type: "button", "aria-expanded": "false" },
 		});
-		const dl = box.createEl("dl", { cls: "sf-hidden" });
+		const dl = box.createEl("dl");
+		dl.hide();
 		const row = (term: string, value: string, title?: string): void => {
 			dl.createEl("dt", { text: term });
 			dl.createEl("dd", { text: value, ...(title !== undefined ? { title } : {}) });
@@ -249,7 +250,7 @@ export class BrowseOfficialModal extends Modal {
 			const open = toggle.getAttribute("aria-expanded") !== "true";
 			toggle.setAttribute("aria-expanded", String(open));
 			toggle.textContent = open ? "▾ Details" : "▸ Details";
-			dl.toggleClass("sf-hidden", !open);
+			dl.toggle(open);
 		});
 	}
 

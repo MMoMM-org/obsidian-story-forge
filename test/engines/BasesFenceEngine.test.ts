@@ -19,7 +19,7 @@
  * @ref PRD/AC-F1.5 — missing-field tolerated (no throw)
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { App, augmentEl, createMockTFile } from "../__mocks__/obsidian";
 import { BasesFenceEngine } from "engines/BasesFenceEngine";
 import type { NoteContext } from "scoping/NoteContext";
@@ -85,7 +85,7 @@ describe("BasesFenceEngine", () => {
 		vi.mocked(renderBaseFence).mockResolvedValue(undefined);
 
 		const callOrder: string[] = [];
-		let capturedComponent: { load: ReturnType<typeof vi.fn> } | undefined;
+		let capturedComponent: { load: Mock } | undefined;
 
 		vi.mocked(renderBaseFence).mockImplementation(async (_app, _yaml, _el, _sourcePath, comp) => {
 			capturedComponent = comp as typeof capturedComponent;
@@ -135,7 +135,7 @@ describe("BasesFenceEngine", () => {
 	it("teardown() calls component.unload() after a render (leak-free)", async () => {
 		vi.mocked(renderBaseFence).mockResolvedValue(undefined);
 
-		let capturedComponent: { unload: ReturnType<typeof vi.fn> } | undefined;
+		let capturedComponent: { unload: Mock } | undefined;
 		vi.mocked(renderBaseFence).mockImplementation(async (_app, _yaml, _el, _sourcePath, comp) => {
 			capturedComponent = comp as typeof capturedComponent;
 		});
@@ -170,7 +170,7 @@ describe("BasesFenceEngine", () => {
 	});
 
 	it("on renderBaseFence throw: Component is unloaded + error re-throws", async () => {
-		let capturedComponent: { unload: ReturnType<typeof vi.fn> } | undefined;
+		let capturedComponent: { unload: Mock } | undefined;
 		vi.mocked(renderBaseFence).mockImplementation(async (_app, _yaml, _el, _sourcePath, comp) => {
 			capturedComponent = comp as typeof capturedComponent;
 			throw new Error("bases render error");
@@ -197,7 +197,7 @@ describe("BasesFenceEngine", () => {
 
 		// Second render should succeed and use a fresh component
 		await expect(engine.render(makeView(), makeCtx(), el)).resolves.not.toThrow();
-		const freshComponent = components[0] as { load: ReturnType<typeof vi.fn> };
+		const freshComponent = components[0] as { load: Mock };
 		expect(freshComponent).toBeDefined();
 		expect(freshComponent.load).toHaveBeenCalled();
 	});

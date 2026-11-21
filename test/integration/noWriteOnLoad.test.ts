@@ -6,13 +6,13 @@
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, wireMemoryVault } from "obsidian";
 
 type Plugin = InstanceType<typeof import("main").default>;
 
 /** Every writer obsidian.d.ts declares on Vault, DataAdapter and FileManager. */
-function vaultMutators(app: App): Record<string, ReturnType<typeof vi.fn>> {
+function vaultMutators(app: App): Record<string, Mock> {
 	const v = app.vault;
 	const a = app.vault.adapter;
 	const fm = app.fileManager;

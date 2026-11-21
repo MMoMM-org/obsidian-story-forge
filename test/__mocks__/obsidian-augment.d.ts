@@ -17,6 +17,11 @@ declare global {
 	/** Obsidian's popout-window-aware window reference. */
 	const activeWindow: Window;
 
+	interface Node {
+		/** Cross-window instanceof, as in obsidian.d.ts (installed by installInstanceOf). */
+		instanceOf<T>(type: { new (): T }): this is T;
+	}
+
 	interface HTMLElement {
 		// Generic over the tag name, mirroring real obsidian.d.ts so createEl("input")
 		// resolves to HTMLInputElement (not a bare HTMLElement) under the test compile.
@@ -39,10 +44,16 @@ declare global {
 		createSpan(opts?: { cls?: string | string[]; text?: string; attr?: Record<string, string>; title?: string }): HTMLSpanElement;
 		appendText(text: string): void;
 		empty(): void;
+		setCssProps(props: Record<string, string>): void;
 		addClass(...classes: string[]): void;
 		removeClass(...classes: string[]): void;
 		toggleClass(cls: string, force?: boolean): void;
 		setText(text: string): void;
+		// Visibility, as in obsidian.d.ts. isShown() is deliberately absent: the
+		// real one reads layout, which jsdom has none of (see obsidian.ts).
+		show(): void;
+		hide(): void;
+		toggle(show: boolean): void;
 	}
 }
 

@@ -41,8 +41,7 @@ export function isAnvilTab(v: unknown): v is AnvilLayout {
 export function buildAnvilTabStrip(host: HTMLElement): HTMLElement {
 	const strip = host.createDiv({ cls: "sf-ws-toggle" });
 	for (const tab of ANVIL_TABS) {
-		strip
-			.createEl("span", { cls: "sf-ws-mode", text: ANVIL_TAB_LABEL[tab] })
+		strip.createSpan({ cls: "sf-ws-mode", text: ANVIL_TAB_LABEL[tab] })
 			.setAttribute("data-ws-layout", tab);
 	}
 	return strip;

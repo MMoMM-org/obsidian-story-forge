@@ -30,7 +30,7 @@
  *     registration itself is declined (one on/off signal, not four).
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { App, Plugin, TFile, BasesEntry, BasesQueryResult, _setApiVersion, _resetApiVersion } from "../__mocks__/obsidian";
 import { isBasesAvailable, registerCodexView, getBasesCapability } from "bases/BasesAdapter";
 import { CodexBasesView } from "bases/CodexBasesView";
@@ -46,7 +46,7 @@ import type { LinkClickAction } from "navigation/navigationController";
  * Wire a spy registerBasesView onto a Plugin instance.
  * Returns the spy so tests can assert call count.
  */
-function wireRegisterBasesView(plugin: Plugin, returnValue: boolean): ReturnType<typeof vi.fn> {
+function wireRegisterBasesView(plugin: Plugin, returnValue: boolean): Mock {
 	const spy = vi.fn(() => returnValue);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(plugin as any).registerBasesView = spy;
@@ -638,7 +638,7 @@ describe("registerCodexView — getLinkClickAction threaded through to Card fact
 function wirePerViewIdBehavior(
 	plugin: Plugin,
 	behaviors: Record<string, boolean | "throw">,
-): ReturnType<typeof vi.fn> {
+): Mock {
 	const spy = vi.fn((viewId: string) => {
 		const behavior = behaviors[viewId];
 		if (behavior === "throw") throw new Error(`registerBasesView threw for "${viewId}"`);

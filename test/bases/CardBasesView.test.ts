@@ -22,7 +22,7 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-2, ADR-30
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, type Mock } from "vitest";
 import {
 	QueryController,
 	BasesEntry,
@@ -88,7 +88,7 @@ function makeView(overrides?: Partial<CardBasesViewDeps>): {
 	view: CardBasesView;
 	container: HTMLElement;
 	app: App;
-	onEntryClick: ReturnType<typeof vi.fn>;
+	onEntryClick: Mock;
 } {
 	const controller = makeController();
 	const container = document.createElement("div");

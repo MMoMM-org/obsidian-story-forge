@@ -22,7 +22,7 @@
  * @ref docs/XDD/specs/008-codex-surface/mockups.html — S91
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, TFolder, WorkspaceLeaf, type EventRef, type TFile } from "obsidian";
 import { createMockCachedMetadata, createMockTFile, type CachedMetadata } from "../__mocks__/obsidian";
 import { AnvilView } from "anvil/AnvilView";
@@ -822,7 +822,7 @@ describe("renderCodexTab: the shared body", () => {
 describe("renderCodexTab: an engine collection's host (T7.2 live-test fix, embed width)", () => {
 	const BASES_COLLECTION = { id: "imported-1", label: "Overview", tag: "", enabled: true, engine: "bases" as const };
 
-	function renderEngine(cardId: string, basesCapability: BasesCapability, renderEmbed?: ReturnType<typeof vi.fn>): HTMLElement {
+	function renderEngine(cardId: string, basesCapability: BasesCapability, renderEmbed?: Mock): HTMLElement {
 		const container = document.createElement("div");
 		renderCodexTab(container, {
 			collections: [BASES_COLLECTION],

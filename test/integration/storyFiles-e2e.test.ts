@@ -22,6 +22,7 @@
  * @ref SDD/Primary Flow
  */
 
+import { implOf } from "../mockImpl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, Notice, parseYaml, wireMemoryVault, type CachedMetadata, type EventRef, type MemoryVault, type TFile } from "obsidian";
 import { artifactIndex } from "../../src/artifacts/artifactIndex";
@@ -94,21 +95,21 @@ let modal: StoryFilesModal | null;
 function wireIndexer(): void {
 	const v = app.vault;
 	const mc = app.metadataCache;
-	const create = vi.mocked(v.create).getMockImplementation()!;
+	const create = implOf(vi.mocked(v.create))!;
 	vi.mocked(v.create).mockImplementation(async (path: string, data: string) => {
 		const file = await create(path, data);
 		v._trigger("create", file);
 		mc._trigger("changed", file, data, cacheOf(data));
 		return file;
 	});
-	const process = vi.mocked(v.process).getMockImplementation()!;
+	const process = implOf(vi.mocked(v.process))!;
 	vi.mocked(v.process).mockImplementation(async (file: TFile, fn: (data: string) => string) => {
 		const next = await process(file, fn);
 		v._trigger("modify", file);
 		mc._trigger("changed", file, next, cacheOf(next));
 		return next;
 	});
-	const trash = vi.mocked(app.fileManager.trashFile).getMockImplementation()!;
+	const trash = implOf(vi.mocked(app.fileManager.trashFile))!;
 	vi.mocked(app.fileManager.trashFile).mockImplementation(async (file: TFile) => {
 		await trash(file);
 		v._trigger("delete", file);

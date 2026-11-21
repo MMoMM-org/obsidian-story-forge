@@ -16,7 +16,7 @@
  * @ref PRD/AC-F1.6 — no cross-engine bleed
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, WorkspaceLeaf, TFile } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
@@ -88,8 +88,8 @@ function makeViewRecord(engine: ViewRecord["engine"]): ViewRecord {
 }
 
 function makeMockEngine(kind: QueryEngine["kind"]): QueryEngine & {
-	render: ReturnType<typeof vi.fn>;
-	teardown: ReturnType<typeof vi.fn>;
+	render: Mock;
+	teardown: Mock;
 } {
 	return {
 		kind,
@@ -99,16 +99,16 @@ function makeMockEngine(kind: QueryEngine["kind"]): QueryEngine & {
 }
 
 function makeMockNativeEngine(): NativeScopingEngine & {
-	render: ReturnType<typeof vi.fn>;
-	teardown: ReturnType<typeof vi.fn>;
+	render: Mock;
+	teardown: Mock;
 } {
 	return {
 		kind: "native" as const,
 		render: vi.fn(async () => {}),
 		teardown: vi.fn(),
 	} as unknown as NativeScopingEngine & {
-		render: ReturnType<typeof vi.fn>;
-		teardown: ReturnType<typeof vi.fn>;
+		render: Mock;
+		teardown: Mock;
 	};
 }
 

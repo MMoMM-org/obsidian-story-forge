@@ -25,7 +25,7 @@
  * @ref CON-4 — teardown discipline, listener cleanup
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { App, TFile, Component } from "../__mocks__/obsidian";
 import { InspectorController } from "inspector/InspectorController";
 import * as frontmatterWriter from "inspector/frontmatterWriter";
@@ -34,6 +34,12 @@ import { inspectorFieldsFromModel } from "inspector/inspectorFieldsFromModel";
 import { buildFieldModel } from "editor/fieldModel";
 import type { FieldType as DeclaredType } from "fileclass/fileClassTypes";
 import type { NoteContext, EntityKind } from "scoping/NoteContext";
+
+// Each test spies on frontmatterWriter.commit; vitest 4 reuses an existing spy, so restore
+// it after every test or its call count carries into the next one.
+afterEach(() => {
+	vi.restoreAllMocks();
+});
 
 // ---------------------------------------------------------------------------
 // Factories

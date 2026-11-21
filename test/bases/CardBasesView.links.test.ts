@@ -8,7 +8,7 @@
  * card's note nor throw. Right-click shows Obsidian's file menu.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 import { QueryController, BasesEntry, BasesQueryResult, App, TFile } from "../__mocks__/obsidian";
 import { CardBasesView } from "bases/CardBasesView";
 import { createCardRegistry, type CardEntry, type CardRenderer } from "codex/cardRegistry";
@@ -37,7 +37,7 @@ function setup(allies: string[]): {
 	view: CardBasesView;
 	container: HTMLElement;
 	app: App;
-	onEntryClick: ReturnType<typeof vi.fn>;
+	onEntryClick: Mock;
 	tobias: TFile;
 } {
 	const app = new App();

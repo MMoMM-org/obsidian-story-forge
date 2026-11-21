@@ -10,7 +10,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { AbstractInputSuggest, App } from "../__mocks__/obsidian";
 import { SettingsTab, type StoryFilesTabDeps } from "../../src/settings/SettingsTab";
 import { ViewStore } from "../../src/store/ViewStore";
@@ -35,11 +35,11 @@ const FAIL = "fail" as const;
 interface Harness {
 	root: HTMLElement;
 	app: App;
-	plugin: { settings: PluginSettings; saveSettings: ReturnType<typeof vi.fn> };
+	plugin: { settings: PluginSettings; saveSettings: Mock };
 	deps: StoryFilesTabDeps & {
-		getStatus: ReturnType<typeof vi.fn>;
-		open: ReturnType<typeof vi.fn>;
-		dismissHint: ReturnType<typeof vi.fn>;
+		getStatus: Mock;
+		open: Mock;
+		dismissHint: Mock;
 	};
 	tab: SettingsTab;
 }

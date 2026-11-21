@@ -90,7 +90,7 @@ export class CodexBasesView extends BasesView {
 		if (this.disposed) return;
 
 		// CON-4: empty before repaint.
-		this.containerEl.innerHTML = "";
+		this.containerEl.empty();
 
 		// ADR-2: read this.data FRESH — no cached references.
 		const entries: BasesEntry[] = this.data.data;

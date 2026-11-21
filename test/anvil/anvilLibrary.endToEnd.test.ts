@@ -9,6 +9,7 @@
  *
  * @ref docs/XDD/specs/008-codex-surface/mockups-library.html — L2a, L6a, L8a, L8b
  */
+import { implOf } from "../mockImpl";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { App, MarkdownRenderer, Menu, WorkspaceLeaf, createMockCachedMetadata, createMockFrontmatterLink, createMockTFile, type TFile } from "obsidian";
 import type { AnvilView } from "anvil/AnvilView";
@@ -73,7 +74,7 @@ async function load(): Promise<Session> {
 		[MARA, createMockCachedMetadata({ tags: [{ tag: "#canon/character" }], frontmatterLinks: [createMockFrontmatterLink("allies.0", "Tobias Ferro")] })],
 		[TOBIAS, createMockCachedMetadata({ tags: [{ tag: "#canon/character" }] })],
 	]);
-	const getCache = vi.mocked(app.metadataCache.getFileCache).getMockImplementation();
+	const getCache = implOf(vi.mocked(app.metadataCache.getFileCache));
 	vi.mocked(app.metadataCache.getFileCache).mockImplementation((f: TFile) => caches.get(f) ?? getCache?.(f) ?? null);
 	vi.mocked(app.metadataCache.getFirstLinkpathDest).mockImplementation((l: string) => (l === "Tobias Ferro" ? TOBIAS : null));
 

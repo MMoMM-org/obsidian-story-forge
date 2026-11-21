@@ -68,7 +68,8 @@ export class CapabilitiesModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 		el.addClass("sf-cap");
-		el.createEl("h2", { text: "What Story Forge can use", attr: { id: TITLE_ID } });
+		this.setTitle("What Story Forge can use");
+		this.titleEl.setAttribute("id", TITLE_ID);
 		const body = el.createDiv({ cls: "sf-cap-body" });
 		body.createEl("p", {
 			cls: "sf-cap-intro",

@@ -84,6 +84,17 @@ describe("BindModal", () => {
 
 	// T2.6: the sidebar surface is renamed to "Workbench" — this field labels
 	// the tab it creates inside that surface.
+	// #50: the title goes in Obsidian's title slot, not a raw heading in the content.
+	it("titles itself through setTitle, with no heading in its content", () => {
+		const modal = new BindModal(app, { name: "My View" });
+		void modal.present();
+
+		expect(modal.titleEl.textContent).toBe("Bind collection");
+		expect(modal.contentEl.querySelector("h1, h2, h3, h4, h5, h6")).toBeNull();
+
+		modal.close();
+	});
+
 	it("labels the tab-label field 'Workbench tab label'", () => {
 		const modal = new BindModal(app, { name: "My View" });
 		void modal.present();

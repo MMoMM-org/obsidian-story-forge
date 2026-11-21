@@ -112,7 +112,7 @@ describe("importing a .base from the vault", () => {
 		const { store, views } = makeStore();
 		const consent = makeConsent(null);
 		const el = await pickAndConfirm(app, new ViewImporter(app, store), consent, "Organizations");
-		expect(el.querySelector("h2")?.textContent).toBe("Import a collection");
+		expect(el.parentElement?.querySelector(".modal-title")?.textContent).toBe("Import a collection");
 
 		const record = await vi.waitFor(() => {
 			const r = Object.values(views())[0];

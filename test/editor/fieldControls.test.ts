@@ -27,7 +27,7 @@
  * @ref docs/XDD/specs/008-codex-surface/mockups.html — S102, S103
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, WorkspaceLeaf, type TFile } from "obsidian";
 import { createMockCachedMetadata, createMockTFile, type CachedMetadata } from "../__mocks__/obsidian";
 import { AnvilView } from "anvil/AnvilView";
@@ -923,7 +923,7 @@ describe("field controls — inside the live editor pane (T5.2)", () => {
 // ---------------------------------------------------------------------------
 
 interface MediaHarness extends Rendered {
-	readonly pick: ReturnType<typeof vi.fn>;
+	readonly pick: Mock;
 }
 
 function renderMedia(
@@ -979,6 +979,21 @@ describe("the Media control is chosen by TYPE, never by name (T5.5, ADR-32)", ()
 	it("leaves MultiMedia on the text fallback", () => {
 		const { el } = render(fieldDef({ name: "gallery", type: "MultiMedia" }), "a.png");
 		expect(el.querySelector(MEDIA_PATH)).toBeNull();
+	});
+});
+
+// #51: the media panel is the box, so its cell must draw none. The stylesheet
+// keys that off a modifier class rather than `:has(> .sf-ed-media)`.
+describe("the Media cell carries its own modifier class (#51)", () => {
+	it("marks the cell of a Media field with sf-ed-f--media", () => {
+		const { el } = renderMedia(mediaField("portrait"), "[[mara.png]]");
+		expect(el.classList.contains("sf-ed-f")).toBe(true);
+		expect(el.classList.contains("sf-ed-f--media")).toBe(true);
+	});
+
+	it("does not mark the cell of any other field", () => {
+		const { el } = render(fieldDef({ name: "portrait", type: "Input" }), "mara.png");
+		expect(el.classList.contains("sf-ed-f--media")).toBe(false);
 	});
 });
 

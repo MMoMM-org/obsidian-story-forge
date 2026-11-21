@@ -10,7 +10,7 @@
  *   closing that one records nothing.
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, type MockInstance } from "vitest";
 import { App, WorkspaceLeaf } from "obsidian";
 import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { StoryForgeData } from "store/types";
@@ -84,7 +84,7 @@ describe("main.ts — the capability screen's first run (S1)", () => {
 		expect(screen()).toBeNull(); // not at plugin load
 
 		await openView(first.plugin, first.app, type);
-		expect(screen()?.querySelector("h2")?.textContent).toBe("What Story Forge can use");
+		expect(screen()?.querySelector(".modal-title")?.textContent).toBe("What Story Forge can use");
 		footButton("Got it").click();
 		expect(screen()).toBeNull();
 		await vi.waitFor(() => expect(blob.data.settings?.dismissedHints).toContain(CAPABILITIES_HINT_ID));
@@ -219,7 +219,7 @@ describe("main.ts — the Library link (S1, P14)", () => {
 		);
 		if (!deps) throw new Error("no LibraryDeps argument with openCapabilities");
 		deps.openCapabilities();
-		expect(screen()?.querySelector("h2")?.textContent).toBe("What Story Forge can use");
+		expect(screen()?.querySelector(".modal-title")?.textContent).toBe("What Story Forge can use");
 		expect(Array.from(screen()!.querySelectorAll(".sf-picker-foot button")).map((b) => b.textContent)).toEqual(["Close"]);
 		footButton("Close").click();
 		expect(screen()).toBeNull();
@@ -238,7 +238,7 @@ describe("main.ts — the capability screen says why it stayed closed (console.d
 		return made;
 	}
 
-	function debugLines(spy: ReturnType<typeof vi.spyOn>): string[] {
+	function debugLines(spy: MockInstance<typeof console.debug>): string[] {
 		return spy.mock.calls.map((c) => String(c[0])).filter((l) => l.startsWith("[StoryForge] capability screen"));
 	}
 

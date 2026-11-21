@@ -100,8 +100,10 @@ export class ScopingService {
 				// Object.create is used to build a stub with the correct prototype
 				// without constructing a full vault-backed TFile; the path carries
 				// the link text so callers know what was referenced.
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Object.create returns any; the stub has TFile.prototype by construction
-				const placeholder: TFile = Object.create(TFile.prototype);
+				// Object.create returns `any`; narrowing through `instanceof` types the
+				// stub from its prototype instead of asserting it.
+				const placeholder: unknown = Object.create(TFile.prototype);
+				if (!(placeholder instanceof TFile)) continue;
 				placeholder.path = fmLink.link;
 
 				entities.push({

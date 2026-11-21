@@ -172,7 +172,7 @@ function rows(): HTMLElement[] {
 }
 
 function visibleRows(): HTMLElement[] {
-	return rows().filter((r) => !r.classList.contains("sf-hidden"));
+	return rows().filter((r) => r.style.display !== "none");
 }
 
 function rowNamed(name: string): HTMLElement {
@@ -259,6 +259,13 @@ describe("BrowseOfficialModal — S47 catalog list", () => {
 			expect(document.body.textContent).toContain("Characters overview");
 			expect(document.body.textContent).toContain("Scenes overview");
 		});
+	});
+
+	// #50: the title goes in Obsidian's title slot, not a raw heading in the content.
+	it("titles itself through setTitle, with no heading in its content", async () => {
+		const { modal } = await openModal([makeEntry()]);
+		expect(modal.titleEl.textContent).toBe("Collections from the repo");
+		expect(modal.contentEl.querySelector("h1, h2, h3, h4, h5, h6")).toBeNull();
 	});
 
 	it("shows the engine's product name (ENGINE_LABEL) per entry", async () => {
@@ -492,7 +499,7 @@ describe("BrowseOfficialModal — L10 catalog browser", () => {
 		const toggle = details.querySelector<HTMLButtonElement>("button")!;
 		expect(toggle.textContent).toBe("▸ Details");
 		expect(toggle.getAttribute("aria-expanded")).toBe("false");
-		expect(details.querySelector("dl")!.classList.contains("sf-hidden")).toBe(true);
+		expect(details.querySelector("dl")!.style.display).toBe("none");
 	});
 
 	it("L10d: Details opens to source file, version and a shortened checksum with the full value as its title", async () => {
@@ -505,7 +512,7 @@ describe("BrowseOfficialModal — L10 catalog browser", () => {
 		expect(toggle.getAttribute("aria-expanded")).toBe("true");
 		expect(toggle.textContent).toBe("▾ Details");
 		const dl = details.querySelector("dl")!;
-		expect(dl.classList.contains("sf-hidden")).toBe(false);
+		expect(dl.style.display).not.toBe("none");
 		const dd = Array.from(dl.querySelectorAll("dd")).map((d) => d.textContent);
 		expect(Array.from(dl.querySelectorAll("dt")).map((d) => d.textContent)).toEqual(["Source", "Version", "Checksum"]);
 		expect(dd).toEqual(["catalog/open-plot-threads.md", "3", "sha256:9f1c07a4e2…"]);
@@ -636,8 +643,8 @@ describe("BrowseOfficialModal — L10 catalog browser", () => {
 		expect(detail().textContent).not.toContain(PLACEHOLDER);
 		typeSearch("timeline");
 		expect(visibleRows()).toHaveLength(0);
-		const empty = document.body.querySelector(".sf-catalog-nomatch")!;
-		expect(empty.classList.contains("sf-hidden")).toBe(false);
+		const empty = document.body.querySelector<HTMLElement>(".sf-catalog-nomatch")!;
+		expect(empty.style.display).not.toBe("none");
 		expect(empty.textContent).toBe("No collections match \"timeline\".");
 		expect(["All", "Bases", "Dataview", "DataviewJS"].map(filterCount)).toEqual(["0", "0", "0", "0"]);
 		expect(document.body.querySelector('[aria-selected="true"]')).toBeNull();

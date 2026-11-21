@@ -97,12 +97,12 @@ export function createTimelineZoom(
 	let zoom = 1;
 
 	// --- Build controls (in the toolbar) ---
-	const controlsEl = hosts.controlsHost.createEl("div", { cls: "sf-zoom-bar" });
+	const controlsEl = hosts.controlsHost.createDiv({ cls: "sf-zoom-bar" });
 	const btnOut = controlsEl.createEl("button", { cls: "sf-zoom-btn", text: "−" });
 	btnOut.setAttribute("aria-label", "Zoom out");
 	btnOut.setAttribute("type", "button");
 
-	const label = controlsEl.createEl("span", { cls: "sf-zoom-label", text: "100%" });
+	const label = controlsEl.createSpan({ cls: "sf-zoom-label", text: "100%" });
 
 	const btnReset = controlsEl.createEl("button", { cls: "sf-zoom-btn", text: "⊙" });
 	btnReset.setAttribute("aria-label", "Reset zoom");
@@ -113,13 +113,13 @@ export function createTimelineZoom(
 	btnIn.setAttribute("type", "button");
 
 	// --- Build scaled body (in the main body) ---
-	const wrapEl = hosts.scaledHost.createEl("div", { cls: "sf-zoom-wrap" });
-	const scaledEl = wrapEl.createEl("div", { cls: "sf-zoom-scaled" });
+	const wrapEl = hosts.scaledHost.createDiv({ cls: "sf-zoom-wrap" });
+	const scaledEl = wrapEl.createDiv({ cls: "sf-zoom-scaled" });
 
 	// --- Zoom state ---
 	function applyZoom(): void {
-		scaledEl.style.setProperty("--sf-zoom", String(zoom));
-		scaledEl.style.transform = `scale(${zoom})`;
+		// styles.css applies the scale from --sf-zoom (#49).
+		scaledEl.setCssProps({ "--sf-zoom": String(zoom) });
 		label.textContent = `${Math.round(zoom * 100)}%`;
 	}
 

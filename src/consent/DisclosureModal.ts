@@ -76,11 +76,11 @@ export class DisclosureModal extends Modal {
 
 		// --- Header ---
 		const head = contentEl.createDiv({ cls: "sf-modal-head" });
-		head.createEl("div", { cls: "sf-modal-title", text: this._info.name });
+		head.createDiv({ cls: "sf-modal-title", text: this._info.name });
 		if (this._info.description) {
-			head.createEl("div", { cls: "sf-modal-sub", text: this._info.description });
+			head.createDiv({ cls: "sf-modal-sub", text: this._info.description });
 		}
-		const pathEl = head.createEl("div", { cls: "sf-modal-path" });
+		const pathEl = head.createDiv({ cls: "sf-modal-path" });
 		pathEl.textContent = this._info.sourcePath;
 
 		// --- Body ---
@@ -112,9 +112,9 @@ export class DisclosureModal extends Modal {
 		}
 
 		// Source label + engine badge
-		const sourceLabel = body.createEl("div", { cls: "sf-source-label" });
+		const sourceLabel = body.createDiv({ cls: "sf-source-label" });
 		sourceLabel.textContent = "Source ";
-		sourceLabel.createEl("span", { cls: "sf-badge sf-badge-dvjs", text: "DataviewJS" });
+		sourceLabel.createSpan({ cls: "sf-badge sf-badge-dvjs", text: "DataviewJS" });
 
 		// Source code in a scrollable pre block
 		const pre = body.createEl("pre", { cls: "sf-source-pre" });
@@ -122,12 +122,12 @@ export class DisclosureModal extends Modal {
 
 		// Checksum section
 		const checksumSection = body.createDiv({ cls: "sf-checksum-section" });
-		checksumSection.createEl("div", { cls: "sf-checksum-label", text: "SHA-256 checksum" });
-		const checksumEl = checksumSection.createEl("div", { cls: "sf-checksum-value" });
+		checksumSection.createDiv({ cls: "sf-checksum-label", text: "SHA-256 checksum" });
+		const checksumEl = checksumSection.createDiv({ cls: "sf-checksum-value" });
 		checksumEl.textContent = this._info.checksum;
 
 		// Security warning
-		const warn = body.createEl("div", { cls: "sf-security-warn" });
+		const warn = body.createDiv({ cls: "sf-security-warn" });
 		warn.textContent =
 			"⚠ This collection runs JavaScript with full vault access. Only enable collections whose source you have read and trust. You will be re-prompted if the code changes.";
 	}

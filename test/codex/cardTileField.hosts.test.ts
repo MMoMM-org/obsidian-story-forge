@@ -9,6 +9,7 @@
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-6.md — T6.2b
  */
 
+import { implOf } from "../mockImpl";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { App as ObsidianApp, WorkspaceLeaf, type TFile } from "obsidian";
 import {
@@ -273,7 +274,7 @@ describe("Hero Card in a standalone .base", () => {
 		const mara = character("Mara", { avatar: "[[Media/a.png]]", face: FACE });
 		const app = vaultOf([mara], MINE);
 		const cached = vi.mocked(app.metadataCache.getFileCache);
-		const before = cached.getMockImplementation();
+		const before = implOf(cached);
 		const after = createMockCachedMetadata({ frontmatter: fileClass([["face", "Media"]]) });
 		return {
 			app,

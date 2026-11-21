@@ -16,7 +16,7 @@
  *    it down.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, WorkspaceLeaf, TFile } from "obsidian";
 import { SidebarView, activateView, revealAndShowFile } from "views/SidebarView";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
@@ -233,7 +233,7 @@ describe("SidebarView: drill-in navigation", () => {
 		// Back control present in the header (S41 — moved out of the body).
 		const back = view.contentEl.querySelector('.sf-chead [data-sf-nav="back"]') as HTMLElement | null;
 		expect(back).not.toBeNull();
-		expect(back!.classList.contains("sf-hidden")).toBe(false);
+		expect(back!.style.display).not.toBe("none");
 
 		// Pop
 		const evt = new MouseEvent("click", { bubbles: true });
@@ -379,7 +379,7 @@ describe("SidebarView: drill-in navigation", () => {
 
 		// Count registerDomEvent calls that target the body element for "click".
 		const bodyEl = getBody(view);
-		const calls = (view.registerDomEvent as ReturnType<typeof vi.fn>).mock.calls;
+		const calls = (view.registerDomEvent as Mock).mock.calls;
 		const bodyClicks = calls.filter(
 			(c) => c[0] === bodyEl && c[1] === "click",
 		);
@@ -401,7 +401,7 @@ describe("SidebarView: drill-in navigation", () => {
 		}
 
 		const bodyEl = getBody(view);
-		const calls = (view.registerDomEvent as ReturnType<typeof vi.fn>).mock.calls;
+		const calls = (view.registerDomEvent as Mock).mock.calls;
 		const bodyClicks = calls.filter(
 			(c) => c[0] === bodyEl && c[1] === "click",
 		);
@@ -734,7 +734,7 @@ describe("SidebarView: header Back + drill trail (S41)", () => {
 		const title = head().querySelector(".sf-title") as HTMLElement;
 		expect(back!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 		// Hidden while not drilled.
-		expect(back!.classList.contains("sf-hidden")).toBe(true);
+		expect(back!.style.display).toBe("none");
 	});
 
 	it("header Back becomes visible after drilling and pops the stack", () => {
@@ -744,7 +744,7 @@ describe("SidebarView: header Back + drill trail (S41)", () => {
 		clickLink(view, to.path);
 
 		const back = head().querySelector('[data-sf-nav="back"]') as HTMLElement;
-		expect(back.classList.contains("sf-hidden")).toBe(false);
+		expect(back.style.display).not.toBe("none");
 
 		back.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
@@ -752,7 +752,7 @@ describe("SidebarView: header Back + drill trail (S41)", () => {
 		expect(pv.subject.file?.path).toBe(from.path);
 		expect(pv.subject.source).toBe("follow");
 		// Hidden again once the stack is empty.
-		expect(back.classList.contains("sf-hidden")).toBe(true);
+		expect(back.style.display).toBe("none");
 	});
 
 	it("renders a drill trail 'from <prev> › <current>' in the body when drilled", () => {
@@ -779,7 +779,7 @@ describe("SidebarView: header Back + drill trail (S41)", () => {
 
 	it("the header Back handler is registered once (leak-free)", () => {
 		const back = head().querySelector('[data-sf-nav="back"]') as HTMLElement;
-		const calls = (view.registerDomEvent as ReturnType<typeof vi.fn>).mock.calls;
+		const calls = (view.registerDomEvent as Mock).mock.calls;
 		const backClicks = calls.filter((c) => c[0] === back && c[1] === "click");
 		expect(backClicks.length).toBe(1);
 	});
@@ -849,7 +849,7 @@ describe("SidebarView: pin preserves Back while drilled (fix #9)", () => {
 		expect(pv.navStack.length).toBe(1);
 		// …and Back stays visible (gated on navStack, not source).
 		const back = head().querySelector('[data-sf-nav="back"]') as HTMLElement;
-		expect(back.classList.contains("sf-hidden")).toBe(false);
+		expect(back.style.display).not.toBe("none");
 	});
 
 	it("Back still works after pinning while drilled", () => {

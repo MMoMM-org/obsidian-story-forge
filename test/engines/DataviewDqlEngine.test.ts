@@ -28,7 +28,7 @@
  * active note's full-path wikilink before the query reaches Dataview.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { App, augmentEl, createMockTFile, createMockDataviewApi, wireDataviewApi } from "../__mocks__/obsidian";
 import { DataviewDqlEngine } from "engines/DataviewDqlEngine";
 import type { NoteContext } from "scoping/NoteContext";
@@ -148,7 +148,7 @@ describe("DataviewDqlEngine", () => {
 		const passedComponent = vi.mocked(dvApi.execute).mock.calls[0]?.[2];
 		expect(passedComponent).toBeDefined();
 		// The mock Component tracks load calls
-		expect((passedComponent as { load: ReturnType<typeof vi.fn> }).load).toHaveBeenCalled();
+		expect((passedComponent as { load: Mock }).load).toHaveBeenCalled();
 	});
 
 	it("render() renders source-missing message when readFencedBlock returns null", async () => {
@@ -179,7 +179,7 @@ describe("DataviewDqlEngine", () => {
 
 		await engine.render(makeView(), makeCtx(), el);
 
-		const passedComponent = vi.mocked(dvApi.execute).mock.calls[0]?.[2] as { unload: ReturnType<typeof vi.fn> };
+		const passedComponent = vi.mocked(dvApi.execute).mock.calls[0]?.[2] as { unload: Mock };
 		engine.teardown();
 
 		expect(passedComponent.unload).toHaveBeenCalled();
@@ -222,7 +222,7 @@ describe("DataviewDqlEngine", () => {
 		el.empty();
 
 		await engine.render(makeView(), makeCtx(), el);
-		const freshComponent = vi.mocked(dvApi.execute).mock.calls[0]?.[2] as { load: ReturnType<typeof vi.fn>; unload: ReturnType<typeof vi.fn> };
+		const freshComponent = vi.mocked(dvApi.execute).mock.calls[0]?.[2] as { load: Mock; unload: Mock };
 		expect(freshComponent).toBeDefined();
 		expect(freshComponent.load).toHaveBeenCalled(); // fresh component was loaded
 	});
@@ -234,7 +234,7 @@ describe("DataviewDqlEngine", () => {
 
 		// Capture the component passed to execute by resolving once, then reset
 		// to test the throw path with the captured component's unload spy
-		let capturedComponent: { load: ReturnType<typeof vi.fn>; unload: ReturnType<typeof vi.fn> } | undefined;
+		let capturedComponent: { load: Mock; unload: Mock } | undefined;
 		vi.mocked(dvApi.execute).mockImplementation(async (_body, _el, comp) => {
 			capturedComponent = comp as typeof capturedComponent;
 			throw new Error("dv error");

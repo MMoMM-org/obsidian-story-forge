@@ -9,7 +9,7 @@
  * @ref docs/XDD/specs/009-undo-journal/solution.md — ADR-43, Integration Points
  */
 
-import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeAll, type Mock } from "vitest";
 import { App, Notice, Tasks, WorkspaceLeaf, createMockTFile } from "obsidian";
 import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { AnvilView } from "anvil/AnvilView";
@@ -32,7 +32,7 @@ interface Captured {
 	deps: UndoJournalDeps | null;
 	journal: OwnedUndoJournal | null;
 	storeDeps: JournalStoreDeps | null;
-	store: JournalStore & { load: ReturnType<typeof vi.fn> };
+	store: JournalStore & { load: Mock };
 	events: string[];
 }
 const captured: Captured = {

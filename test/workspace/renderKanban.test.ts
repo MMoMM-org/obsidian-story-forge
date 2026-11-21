@@ -14,7 +14,7 @@
  * @ref docs/XDD/specs/007-interactive-views/solution.md — AC-1/AC-2/AC-F1.*
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, TFile, createMockTFile, augmentEl } from "../__mocks__/obsidian";
 import { renderKanban, type KanbanDeps } from "workspace/renderKanban";
 import { InteractionHandler, type InteractionHandlerOpts } from "workspace/interactionHandler";
@@ -143,9 +143,9 @@ function armedDrag(card: HTMLElement, dropTarget: Element): void {
 describe("renderKanban", () => {
 	let app: App;
 	let host: HTMLElement;
-	let onWrite: ReturnType<typeof vi.fn>;
-	let onAfter: ReturnType<typeof vi.fn>;
-	let renumber: ReturnType<typeof vi.fn>;
+	let onWrite: Mock;
+	let onAfter: Mock;
+	let renumber: Mock;
 	let handler: InteractionHandler;
 
 	beforeEach(() => {
@@ -182,6 +182,24 @@ describe("renderKanban", () => {
 		const ideaIdx = statuses.indexOf("idea");
 		const draftIdx = statuses.indexOf("draft");
 		expect(ideaIdx).toBeLessThan(draftIdx);
+	});
+
+	it("colours each column dot through a CSS custom property (#49)", () => {
+		const rows = [makeSceneRow({ title: "A", status: "draft", order: 10 })];
+		const groups = kanbanModel(rows, STATUS_VOCAB);
+		renderKanban(host, groups, { app, renumber }, handler);
+
+		const dot = host.querySelector("[data-sf-status='draft'] .sf-kb-col-dot") as HTMLElement;
+		expect(dot.style.getPropertyValue("--sf-dot-color")).not.toBe("");
+		expect(dot.style.background).toBe("");
+	});
+
+	it("colours the neutral column dot with a theme variable (#49)", () => {
+		const groups = kanbanModel([makeSceneRow({ title: "Orphan", status: "published", order: 10 })], STATUS_VOCAB);
+		renderKanban(host, groups, { app, renumber }, handler);
+
+		const dot = host.querySelector("[data-sf-status=''] .sf-kb-col-dot") as HTMLElement;
+		expect(dot.style.getPropertyValue("--sf-dot-color")).toBe("var(--text-faint)");
 	});
 
 	// -------------------------------------------------------------------------

@@ -214,7 +214,7 @@ export class StoryFilesModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 		el.addClass("sf-story");
-		el.createEl("h2", { text: "Set up story files" });
+		this.setTitle("Set up story files");
 		el.createEl("p", {
 			cls: "sf-picker-sub",
 			text: "Story Forge writes these notes into your vault when you select the button below. It never overwrites a file that is already there.",
@@ -334,7 +334,7 @@ export class StoryFilesModal extends Modal {
 	private _applyExpanded(view: SetView): void {
 		view.toggle.textContent = view.expanded ? "▾ Hide files" : "▸ Show files";
 		view.toggle.setAttribute("aria-expanded", String(view.expanded));
-		view.rows.toggleClass("sf-hidden", !view.expanded);
+		view.rows.toggle(view.expanded);
 	}
 
 	private _onFolder(set: ArtifactSet, input: HTMLInputElement): void {
@@ -576,7 +576,7 @@ export class StoryFilesModal extends Modal {
 		this.cancelBtn = foot.createEl("button", { text: "Cancel", attr: { type: "button" } });
 		this.cancelBtn.addEventListener("click", () => this.close());
 		if (this.views.size === 0) {
-			this.asideEl.addClass("sf-hidden");
+			this.asideEl.hide();
 			return;
 		}
 		this.primaryBtn = foot.createEl("button", { cls: "mod-cta", attr: { type: "button" } });
@@ -596,7 +596,7 @@ export class StoryFilesModal extends Modal {
 		btn.disabled = items.length === 0 || this.pending > 0 || this.busy;
 		if (this.cancelBtn) this.cancelBtn.disabled = this.busy;
 		const needsFolder = items.some((i) => i.action !== "update" && !this._folderExists(parentFolderOf(i.path)));
-		this.asideEl?.toggleClass("sf-hidden", !needsFolder);
+		this.asideEl?.toggle(needsFolder);
 	}
 
 	private _folderExists(folder: string): boolean {

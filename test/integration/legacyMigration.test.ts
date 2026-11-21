@@ -28,7 +28,7 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
 	App,
 	WorkspaceLeaf,
@@ -114,7 +114,7 @@ function wireVault(app: App, vault: Map<string, VaultFile>): void {
  * Keep it complete: whenever obsidian.d.ts gains a writer on any of the three, add it here (and to
  * the mock), or a write through it would pass unseen.
  */
-function vaultMutators(app: App): Record<string, ReturnType<typeof vi.fn>> {
+function vaultMutators(app: App): Record<string, Mock> {
 	const v = app.vault;
 	const a = app.vault.adapter;
 	const fm = app.fileManager;

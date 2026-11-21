@@ -17,6 +17,7 @@
  * @ref docs/XDD/specs/009-undo-journal/mockups.html — U1, U2, U3, U9 (P1)
  */
 
+import { implOf } from "../mockImpl";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	Notice,
@@ -167,7 +168,7 @@ function commitInto(view: AnvilView, key: string, value: string): void {
 /** Hold the next `processFrontMatter` for `path` until `release()`; other files pass through. */
 function holdNextWrite(app: App, path: string, fail = false): { release: () => void } {
 	const fm = vi.mocked(app.fileManager.processFrontMatter);
-	const real = fm.getMockImplementation()!;
+	const real = implOf(fm)!;
 	let release: () => void = () => {};
 	fm.mockImplementation((file: TFile, fn: (fm: Record<string, unknown>) => void, options?: unknown) => {
 		if (file.path !== path) return real(file, fn, options);

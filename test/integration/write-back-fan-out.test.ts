@@ -27,7 +27,7 @@
  * @ref plan/phase-6.md T6.1
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vitest";
 import {
 	App,
 	WorkspaceLeaf,
@@ -246,7 +246,7 @@ async function mountAndRenderInspector(
 function makeCodexView(category = "character"): {
 	view: CodexBasesView;
 	container: HTMLElement;
-	onRowClick: ReturnType<typeof vi.fn>;
+	onRowClick: Mock;
 } {
 	const controller = new QueryController();
 	const container = document.createElement("div");

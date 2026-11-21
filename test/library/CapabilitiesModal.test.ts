@@ -73,7 +73,10 @@ afterEach(() => {
 describe("CapabilitiesModal — what it shows (L12a/b)", () => {
 	it("draws the title, the intro and one row per plugin under its group", () => {
 		const { modal } = open("first-run");
-		expect(document.body.querySelector("h2")?.textContent).toBe("What Story Forge can use");
+		expect(document.body.querySelector(".modal-title")?.textContent).toBe("What Story Forge can use");
+		// The dialog's accessible name still points at the title, now in Obsidian's title slot (#50).
+		const labelledBy = modal.modalEl.getAttribute("aria-labelledby") ?? "";
+		expect(document.getElementById(labelledBy)).toBe(modal.titleEl);
 		expect(document.body.querySelector(".sf-cap-intro")?.textContent)
 			.toBe("Story Forge works without any of these, and best with its story files. Each row says what it adds and what you have without it.");
 		expect(Array.from(document.body.querySelectorAll(".sf-cap-grp")).map((g) => g.textContent)).toEqual([

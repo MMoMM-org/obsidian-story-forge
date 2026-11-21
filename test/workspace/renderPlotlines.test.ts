@@ -51,7 +51,8 @@ describe("renderPlotlines (list)", () => {
 		expect(el.querySelector(".sf-count")?.textContent).toContain("1");
 		const dot = el.querySelector(".sf-sec-head .sf-pl-dot") as HTMLElement;
 		expect(dot).not.toBeNull();
-		expect(dot.style.background).not.toBe("");
+		expect(dot.style.getPropertyValue("--sf-dot-color")).not.toBe("");
+		expect(dot.style.background).toBe("");
 	});
 
 	it("stamps data-sf-group-key on the header and data-sf-link on scene rows", () => {

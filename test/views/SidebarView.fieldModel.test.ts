@@ -7,7 +7,7 @@
  * @ref docs/XDD/specs/008-codex-surface/plan/phase-6.md — T6.3
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 import {
 	App,
 	WorkspaceLeaf,
@@ -52,7 +52,7 @@ const note = createMockTFile({ basename: "Mara", path: "30 Canon/Mara.md" });
 
 interface World {
 	app: App;
-	nativeEngine: NativeScopingEngine & { render: ReturnType<typeof vi.fn> };
+	nativeEngine: NativeScopingEngine & { render: Mock };
 }
 
 function world(frontmatter: Fm, fileClasses: Record<string, Fm> = {}, folder = DEFAULT_FILE_CLASSES_FOLDER): World {

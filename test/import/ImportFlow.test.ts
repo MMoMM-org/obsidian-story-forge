@@ -16,7 +16,7 @@
  *   surfaces a Notice without throwing.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { App, Notice } from "../__mocks__/obsidian";
 import { runImportFlow, installCurated } from "import/ImportFlow";
 import { ImportError } from "import/ViewDefinition";
@@ -314,7 +314,7 @@ describe("installCurated — T4.3 gate-less declarative flow", () => {
 		// gate was never called, so the granted tokens had no effect
 		expect(gate.requestConsentForDef).not.toHaveBeenCalled();
 		const [, calledRec] = (
-			importer.importToStore as ReturnType<typeof vi.fn>
+			importer.importToStore as Mock
 		).mock.calls[0]!;
 		expect(calledRec.okayed).toBeNull();
 	});

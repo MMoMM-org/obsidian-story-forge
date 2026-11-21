@@ -224,7 +224,8 @@ describe("renderPlotgrid (read-only coverage view)", () => {
 
 		const colDot = host.querySelector(".sf-pg-col-dot") as HTMLElement;
 		expect(colDot).not.toBeNull();
-		expect(colDot.style.background).not.toBe("");
+		expect(colDot.style.getPropertyValue("--sf-dot-color")).not.toBe("");
+		expect(colDot.style.background).toBe("");
 	});
 
 	// -------------------------------------------------------------------------

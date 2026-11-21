@@ -10,7 +10,7 @@
  *     With no active file, stays no-note.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, WorkspaceLeaf, TFile } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
@@ -79,8 +79,8 @@ function makeViewRecord(overrides?: Partial<ViewRecord>): ViewRecord {
 }
 
 function makeMockEngine(kind: QueryEngine["kind"] = "dataview-dql"): QueryEngine & {
-	teardown: ReturnType<typeof vi.fn>;
-	render: ReturnType<typeof vi.fn>;
+	teardown: Mock;
+	render: Mock;
 } {
 	return {
 		kind,
@@ -90,16 +90,16 @@ function makeMockEngine(kind: QueryEngine["kind"] = "dataview-dql"): QueryEngine
 }
 
 function makeMockNativeEngine(): NativeScopingEngine & {
-	teardown: ReturnType<typeof vi.fn>;
-	render: ReturnType<typeof vi.fn>;
+	teardown: Mock;
+	render: Mock;
 } {
 	return {
 		kind: "native" as const,
 		teardown: vi.fn(),
 		render: vi.fn(async () => {}),
 	} as unknown as NativeScopingEngine & {
-		teardown: ReturnType<typeof vi.fn>;
-		render: ReturnType<typeof vi.fn>;
+		teardown: Mock;
+		render: Mock;
 	};
 }
 
@@ -270,7 +270,7 @@ describe("SidebarView Bug D2: onOpen seeds the active file context", () => {
 		const file = makeMdFile("Active Note");
 
 		// Make getActiveFile return our markdown file
-		const anyApp = app as unknown as { workspace: { getActiveFile: ReturnType<typeof vi.fn> } };
+		const anyApp = app as unknown as { workspace: { getActiveFile: Mock } };
 		anyApp.workspace.getActiveFile = vi.fn(() => file);
 
 		// Provide metadata cache so ScopingService.classify can read it
@@ -286,7 +286,7 @@ describe("SidebarView Bug D2: onOpen seeds the active file context", () => {
 	});
 
 	it("onOpen with no active file (getActiveFile returns null) stays no-note", async () => {
-		const anyApp = app as unknown as { workspace: { getActiveFile: ReturnType<typeof vi.fn> } };
+		const anyApp = app as unknown as { workspace: { getActiveFile: Mock } };
 		anyApp.workspace.getActiveFile = vi.fn(() => null);
 
 		view = new SidebarView(leaf, undefined, undefined, nativeEngine);
@@ -308,7 +308,7 @@ describe("SidebarView Bug D2: onOpen seeds the active file context", () => {
 		imageFile.basename = "image";
 		imageFile.extension = "png";
 
-		const anyApp = app as unknown as { workspace: { getActiveFile: ReturnType<typeof vi.fn> } };
+		const anyApp = app as unknown as { workspace: { getActiveFile: Mock } };
 		anyApp.workspace.getActiveFile = vi.fn(() => imageFile);
 
 		view = new SidebarView(leaf, undefined, undefined, nativeEngine);
@@ -323,7 +323,7 @@ describe("SidebarView Bug D2: onOpen seeds the active file context", () => {
 
 	it("seeding active file does NOT break subsequent active-leaf-change follow behavior", async () => {
 		const file = makeMdFile("Active Note");
-		const anyApp = app as unknown as { workspace: { getActiveFile: ReturnType<typeof vi.fn> } };
+		const anyApp = app as unknown as { workspace: { getActiveFile: Mock } };
 		anyApp.workspace.getActiveFile = vi.fn(() => file);
 		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: { type: "scene" } }));
 

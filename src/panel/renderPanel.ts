@@ -69,11 +69,11 @@ function renderFallback(ctx: NoteContext, el: HTMLElement, _deps: PanelDeps): vo
 	for (const entity of ctx.entities) {
 		const item = list.createEl("li", { cls: "sf-entity-item" });
 		if (entity.field) {
-			item.createEl("span", { cls: "sf-entity-field", text: entity.field });
-			item.createEl("span", { cls: "sf-entity-sep", text: ": " });
+			item.createSpan({ cls: "sf-entity-field", text: entity.field });
+			item.createSpan({ cls: "sf-entity-sep", text: ": " });
 		}
-		item.createEl("span", { cls: "sf-entity-name", text: entity.file.basename });
-		item.createEl("span", { cls: "sf-entity-kind", text: ` (${entity.kind})` });
+		item.createSpan({ cls: "sf-entity-name", text: entity.file.basename });
+		item.createSpan({ cls: "sf-entity-kind", text: ` (${entity.kind})` });
 	}
 }
 

@@ -25,7 +25,7 @@
 import { join, resolve } from "node:path";
 import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, TFile, wireMemoryVault } from "../__mocks__/obsidian";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import { CatalogService } from "catalog/CatalogService";
@@ -174,7 +174,7 @@ interface E2EHarness {
 	gate: ConsentGate;
 	service: CatalogService;
 	modal: BrowseOfficialModal;
-	subscriber: ReturnType<typeof vi.fn>;
+	subscriber: Mock;
 }
 
 async function mountHarness(
@@ -383,10 +383,10 @@ describe("E2E T6.3.2 — fail-closed: checksum mismatch writes nothing, surfaces
 		(await waitForButton("Install")).click();
 
 		await vi.waitFor(() => {
-			const feedback = document.body.querySelector(".sf-picker-feedback");
+			const feedback = document.body.querySelector<HTMLElement>(".sf-picker-feedback");
 			expect(feedback).not.toBeNull();
 			expect(feedback!.textContent).toMatch(/checksum/i);
-			expect(feedback!.classList.contains("sf-hidden")).toBe(false);
+			expect(feedback!.style.display).not.toBe("none");
 		});
 	});
 });
@@ -927,7 +927,7 @@ interface DeclinedGateHarness {
 	storeRaw: () => Record<string, ViewRecord>;
 	gate: ConsentGate;
 	/** importToStore spy — asserts it was never called on decline. */
-	importToStore: ReturnType<typeof vi.fn>;
+	importToStore: Mock;
 	importer: ViewImporter;
 	/** The DisclosureModal.present spy (returns false). */
 	presentSpy: ReturnType<typeof vi.spyOn>;

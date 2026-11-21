@@ -12,7 +12,7 @@
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-15, AC-F8.1, AC-F8.2
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, TFile, createMockTFile } from "../__mocks__/obsidian";
 
 // ---------------------------------------------------------------------------
@@ -97,10 +97,10 @@ function keyDown(el: Element, key: string, altKey = false): void {
 describe("InteractionHandler — keyboard command parity", () => {
 	let app: App;
 	let host: HTMLElement;
-	let onWrite: ReturnType<typeof vi.fn>;
-	let onAfter: ReturnType<typeof vi.fn>;
-	let onError: ReturnType<typeof vi.fn>;
-	let announce: ReturnType<typeof vi.fn>;
+	let onWrite: Mock;
+	let onAfter: Mock;
+	let onError: Mock;
+	let announce: Mock;
 	let file: TFile;
 	let handler: InteractionHandler;
 

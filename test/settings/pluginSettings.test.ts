@@ -13,7 +13,7 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — Data Storage Changes, Known Technical Issues
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, type Mock } from "vitest";
 import { App } from "../__mocks__/obsidian";
 import { SettingsTab } from "../../src/settings/SettingsTab";
 import { ViewStore } from "../../src/store/ViewStore";
@@ -94,7 +94,7 @@ function makePlugin(overrides: Partial<{
 		excludedFolders: string[];
 		editorDock: "bottom" | "right";
 	};
-	saveSettings: ReturnType<typeof vi.fn>;
+	saveSettings: Mock;
 } {
 	return {
 		app: makeApp(),

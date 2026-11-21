@@ -72,36 +72,36 @@ export function section(
 	const collapsed = opts.collapsed ?? false;
 	const obs = asObs(container);
 
-	const sectionEl = obs.createEl("div", { cls: "sf-section" });
+	const sectionEl = obs.createDiv({ cls: "sf-section" });
 
 	// Header — role=button for keyboard/screen-reader access.
 	// data-sf-section-toggle marks it for SidebarView's delegated body handler,
 	// which toggles the body's collapsed class on click/Enter/Space (no re-render).
-	const headEl = asObs(sectionEl).createEl("div", { cls: "sf-sec-head" });
+	const headEl = asObs(sectionEl).createDiv({ cls: "sf-sec-head" });
 	headEl.setAttribute("role", "button");
 	headEl.setAttribute("aria-expanded", collapsed ? "false" : "true");
 	headEl.setAttribute("tabindex", "0");
 	headEl.setAttribute("data-sf-section-toggle", "");
 
 	// Chevron indicator
-	asObs(headEl).createEl("span", {
+	asObs(headEl).createSpan({
 		cls: "sf-sec-chev",
 		text: collapsed ? "▶" : "▼",
 	});
 
 	// Label text
-	asObs(headEl).createEl("span", { cls: "sf-sec-label", text: label });
+	asObs(headEl).createSpan({ cls: "sf-sec-label", text: label });
 
 	// Count badge — only when count is provided
 	if (opts.count !== undefined) {
-		asObs(headEl).createEl("span", {
+		asObs(headEl).createSpan({
 			cls: "sf-count",
 			text: String(opts.count),
 		});
 	}
 
 	// Body region
-	const bodyEl = asObs(sectionEl).createEl("div", { cls: "sf-sec-body" });
+	const bodyEl = asObs(sectionEl).createDiv({ cls: "sf-sec-body" });
 	if (collapsed) {
 		bodyEl.setAttribute("aria-hidden", "true");
 		bodyEl.classList.add("sf-sec-body--collapsed");
@@ -127,12 +127,12 @@ export function factRow(
 	key: string,
 	value: string | HTMLElement,
 ): HTMLElement {
-	const rowEl = asObs(container).createEl("div", { cls: "sf-frow" });
+	const rowEl = asObs(container).createDiv({ cls: "sf-frow" });
 
-	asObs(rowEl).createEl("span", { cls: "sf-frow-k", text: key });
+	asObs(rowEl).createSpan({ cls: "sf-frow-k", text: key });
 
 	if (typeof value === "string") {
-		asObs(rowEl).createEl("span", { cls: "sf-frow-v", text: value });
+		asObs(rowEl).createSpan({ cls: "sf-frow-v", text: value });
 	} else {
 		rowEl.appendChild(value);
 	}
@@ -157,11 +157,11 @@ export function relationRow(
 	label: string,
 	linkEls: HTMLElement[],
 ): HTMLElement {
-	const rowEl = asObs(container).createEl("div", { cls: "sf-rel" });
+	const rowEl = asObs(container).createDiv({ cls: "sf-rel" });
 
-	asObs(rowEl).createEl("span", { cls: "sf-rel-k", text: label });
+	asObs(rowEl).createSpan({ cls: "sf-rel-k", text: label });
 
-	const linksContainer = asObs(rowEl).createEl("div", { cls: "sf-rel-lnks" });
+	const linksContainer = asObs(rowEl).createDiv({ cls: "sf-rel-lnks" });
 	for (const el of linkEls) {
 		linksContainer.appendChild(el);
 	}
@@ -214,7 +214,7 @@ export function linkRow(
 	text: string,
 	opts: LinkRowOptions = {},
 ): HTMLElement {
-	const rowEl = asObs(container).createEl("div", { cls: "sf-lrow" });
+	const rowEl = asObs(container).createDiv({ cls: "sf-lrow" });
 
 	// The link element — a span with role=link. When a target path is given it
 	// carries data-sf-link so the delegated body handler routes the click (T4.2).
@@ -234,7 +234,7 @@ export function linkRow(
 	// (mockups.html:111 `.tag.pov`) so it reads clearly in light themes.
 	if (opts.tag !== undefined) {
 		const cls = opts.tag === "pov" ? "sf-trail sf-trail--pov" : "sf-trail";
-		asObs(rowEl).createEl("span", { cls, text: opts.tag });
+		asObs(rowEl).createSpan({ cls, text: opts.tag });
 	}
 
 	return rowEl;
@@ -255,7 +255,7 @@ export function emptyLine(
 	container: HTMLElement,
 	text: string,
 ): HTMLElement {
-	return asObs(container).createEl("div", { cls: "sf-emptyline", text });
+	return asObs(container).createDiv({ cls: "sf-emptyline", text });
 }
 
 // ---------------------------------------------------------------------------
@@ -388,7 +388,7 @@ export function imageTile(
 ): HTMLElement | null {
 	if (!image) return null;
 
-	const tileEl = asObs(container).createEl("div", { cls: "sf-imgtile" });
+	const tileEl = asObs(container).createDiv({ cls: "sf-imgtile" });
 
 	// Render an img element (activeDocument for popout window compat)
 	const imgEl = activeDocument.createElement("img");
@@ -420,16 +420,16 @@ export function profileRow(
 	tileEl: HTMLElement,
 	lines: Array<string | HTMLElement>,
 ): HTMLElement {
-	const profileEl = asObs(container).createEl("div", { cls: "sf-profile" });
+	const profileEl = asObs(container).createDiv({ cls: "sf-profile" });
 	profileEl.appendChild(tileEl);
 
-	const pinfoEl = asObs(profileEl).createEl("div", { cls: "sf-pinfo" });
+	const pinfoEl = asObs(profileEl).createDiv({ cls: "sf-pinfo" });
 	lines.forEach((line, i) => {
 		const cls = i === 0 ? "sf-pinfo-line sf-lead" : "sf-pinfo-line";
 		if (typeof line === "string") {
-			asObs(pinfoEl).createEl("div", { cls, text: line });
+			asObs(pinfoEl).createDiv({ cls, text: line });
 		} else {
-			const lineEl = asObs(pinfoEl).createEl("div", { cls });
+			const lineEl = asObs(pinfoEl).createDiv({ cls });
 			lineEl.appendChild(line);
 		}
 	});
@@ -450,7 +450,7 @@ export function profileRow(
  * @returns          The tagline element.
  */
 export function taglineLine(container: HTMLElement, text: string): HTMLElement {
-	return asObs(container).createEl("div", {
+	return asObs(container).createDiv({
 		cls: "sf-ptagline",
 		text: `"${text}"`,
 	});
