@@ -824,14 +824,24 @@ export class Modal {
 	app: App;
 	/** obsidian.d.ts `Modal.modalEl`: the dialog box; `contentEl` sits inside it, as in a vault. */
 	modalEl: HTMLElement;
+	/** obsidian.d.ts `Modal.titleEl`: the title slot `setTitle` fills, above `contentEl`. */
+	titleEl: HTMLElement;
 	contentEl: HTMLElement;
 	constructor(app: App) {
 		this.app = app;
 		this.modalEl = document.createElement("div");
 		this.modalEl.className = "modal";
+		this.titleEl = document.createElement("div");
+		this.titleEl.className = "modal-title";
+		this.modalEl.appendChild(this.titleEl);
 		this.contentEl = augmentEl(document.createElement("div"));
 		this.contentEl.className = "modal-content";
 		this.modalEl.appendChild(this.contentEl);
+	}
+	/** obsidian.d.ts `Modal.setTitle`: writes the title slot's text. */
+	setTitle(title: string): this {
+		this.titleEl.textContent = title;
+		return this;
 	}
 	open = vi.fn(() => {
 		// Mirror real Obsidian: mount the modal into document.body so tests can

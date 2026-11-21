@@ -214,7 +214,7 @@ async function confirm(): Promise<void> {
 describe("StoryFilesModal — fresh vault (S2)", () => {
 	it("opens with three sets, each with checkbox, name, count, folder and chips, collapsed", async () => {
 		await open();
-		expect($(".sf-story h2").textContent).toBe("Set up story files");
+		expect($(".modal-title").textContent).toBe("Set up story files");
 		const names = [...document.querySelectorAll(".sf-story-set-name")].map((n) => n.textContent);
 		expect(names).toEqual(["FileClasses", "Templates", "Schema reference"]);
 		expect([...document.querySelectorAll(".sf-story-set-count")].map((n) => n.textContent)).toEqual(["3 files", "1 file", "2 files"]);

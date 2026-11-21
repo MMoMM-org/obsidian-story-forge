@@ -116,7 +116,7 @@ export class ImportPickerModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 		el.addClass("sf-catalog");
-		el.createEl("h2", { text: "Import a collection" });
+		this.setTitle("Import a collection");
 		el.createEl("p", { text: "Notes in your vault marked sf-view: true, and .base files", cls: "sf-picker-sub" });
 		const scanned = await this._scanSafely();
 		if (this.closed || scanned === null) return;

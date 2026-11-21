@@ -214,7 +214,7 @@ export class StoryFilesModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 		el.addClass("sf-story");
-		el.createEl("h2", { text: "Set up story files" });
+		this.setTitle("Set up story files");
 		el.createEl("p", {
 			cls: "sf-picker-sub",
 			text: "Story Forge writes these notes into your vault when you select the button below. It never overwrites a file that is already there.",

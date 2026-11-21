@@ -887,11 +887,6 @@ body {
 	gap: 0;
 }
 
-.sf-catalog > h2 {
-	margin: 0 0 2px 0;
-	font-size: 15px;
-}
-
 .sf-catalog > .sf-picker-sub {
 	margin-bottom: 10px;
 }
@@ -4597,11 +4592,6 @@ body {
 	container-type: inline-size;
 }
 
-.sf-cap > h2 {
-	margin: 0 0 6px 0;
-	font-size: 15px;
-}
-
 .sf-cap-body {
 	display: flex;
 	flex-direction: column;
@@ -4794,11 +4784,6 @@ body {
 	container-type: inline-size;
 	display: flex;
 	flex-direction: column;
-}
-
-.sf-story > h2 {
-	margin: 0 0 2px 0;
-	font-size: 15px;
 }
 
 .sf-story > .sf-picker-sub {

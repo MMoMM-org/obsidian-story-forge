@@ -96,7 +96,7 @@ export class BindModal extends Modal {
 
 		const registerCommand = this.seed.registerCommand ?? false;
 
-		el.createEl("h2", { text: "Bind collection" });
+		this.setTitle("Bind collection");
 		el.createEl("p", { text: this.seed.name, cls: "sf-bind-name" });
 
 		const bodyEl = el.createEl("div", { cls: "sf-bind-body" });

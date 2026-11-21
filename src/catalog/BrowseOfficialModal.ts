@@ -93,7 +93,7 @@ export class BrowseOfficialModal extends Modal {
 		const el = this.contentEl;
 		el.empty();
 		el.addClass("sf-catalog");
-		el.createEl("h2", { text: "Collections from the repo" });
+		this.setTitle("Collections from the repo");
 		el.createEl("p", { text: "Bundled, offline curated library. No network required.", cls: "sf-picker-sub" });
 		await this._loadInstalled();
 		if (this.closed) return;
