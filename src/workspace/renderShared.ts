@@ -23,10 +23,14 @@ export function statusSlug(status: string): string {
 		.replace(/^-+|-+$/g, "");
 }
 
-/** Append a colored dot to `parent` (inline, data-driven color). */
+/**
+ * Append a colored dot to `parent`. The data-driven color travels as the
+ * `--sf-dot-color` custom property that styles.css reads, not as an inline
+ * background, so a theme can still restyle the dot (#49).
+ */
 export function appendDot(parent: HTMLElement, cls: string, color: string): HTMLElement {
 	const dot = parent.createEl("span", { cls });
-	dot.style.background = color;
+	dot.setCssProps({ "--sf-dot-color": color });
 	return dot;
 }
 

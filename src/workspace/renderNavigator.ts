@@ -98,7 +98,7 @@ export function renderNavigator(
 	const done = Object.entries(data.tally)
 		.filter(([k]) => WRITTEN.has(k))
 		.reduce((a, [, v]) => a + v, 0);
-	fill.style.width = `${total > 0 ? Math.round((done / total) * 100) : 0}%`;
+	fill.setCssProps({ "--sf-nav-progress": `${total > 0 ? Math.round((done / total) * 100) : 0}%` });
 	const summary = Object.entries(data.tally)
 		.filter(([k]) => k !== "")
 		.map(([k, v]) => `${k} ${v}`)

@@ -41,7 +41,7 @@ import {
 	plotlineColor,
 	type SceneRow,
 } from "./workspaceModel";
-import { statusSlug } from "./renderShared";
+import { appendDot, statusSlug } from "./renderShared";
 
 // ---------------------------------------------------------------------------
 // Main render (read-only)
@@ -95,9 +95,8 @@ export function renderPlotgrid(
 		// Colour dot + name
 		if (!isUnresolved) {
 			const color = plotlineColor(plotline.name);
-			const dotEl = thEl.createEl("span", { cls: "sf-pg-col-dot" });
-			dotEl.style.background = color;
-			thEl.style.setProperty("--sf-pg-col-color", color);
+			appendDot(thEl, "sf-pg-col-dot", color);
+			thEl.setCssProps({ "--sf-pg-col-color": color });
 		}
 
 		const nameSpan = thEl.createEl("span", {
@@ -164,7 +163,7 @@ function renderSceneRow(
 		if (isUnresolved) {
 			cellEl.setAttribute("aria-disabled", "true");
 		} else {
-			cellEl.style.setProperty("--sf-pg-col-color", plotlineColor(plotline.name));
+			cellEl.setCssProps({ "--sf-pg-col-color": plotlineColor(plotline.name) });
 		}
 
 		if (isFilled) {

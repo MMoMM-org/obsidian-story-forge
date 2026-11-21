@@ -39,6 +39,7 @@ declare global {
 		createSpan(opts?: { cls?: string | string[]; text?: string; attr?: Record<string, string>; title?: string }): HTMLSpanElement;
 		appendText(text: string): void;
 		empty(): void;
+		setCssProps(props: Record<string, string>): void;
 		addClass(...classes: string[]): void;
 		removeClass(...classes: string[]): void;
 		toggleClass(cls: string, force?: boolean): void;

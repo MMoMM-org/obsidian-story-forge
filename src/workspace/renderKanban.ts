@@ -39,7 +39,7 @@ import {
 	insertOrder,
 	RENUMBER,
 } from "./workspaceModel";
-import { appendStatusBadge, statusColumnColor } from "./renderShared";
+import { appendDot, appendStatusBadge, statusColumnColor } from "./renderShared";
 import type { Draggable, GestureContext, InteractionHandler } from "./interactionHandler";
 import type { JournalGroup } from "../undo/journalTypes";
 
@@ -300,7 +300,7 @@ export function renderKanban(
 		// Column header
 		const headEl = colEl.createEl("div", { cls: "sf-kb-col-head" });
 		const color = isNeutral ? "var(--text-faint)" : statusColumnColor(group.label);
-		headEl.createEl("span", { cls: "sf-kb-col-dot" }).style.background = color;
+		appendDot(headEl, "sf-kb-col-dot", color);
 		headEl.createEl("span", { cls: "sf-kb-col-label", text: group.label || "No status" });
 		headEl.createEl("span", { cls: "sf-kb-col-count", text: String(group.scenes.length) });
 

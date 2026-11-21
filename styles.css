@@ -2434,7 +2434,17 @@ body {
  * emitted inline (data-driven via plotlineColor); everything else uses theme tokens.
  * ═════════════════════════════════════════════════════════════════════════ */
 
-/* Colored dots (size/shape only; background set inline). */
+/* Colored dots. The renderer sets the data-driven color as --sf-dot-color. */
+.sf-nav-dot,
+.sf-tl-node,
+.sf-pl-dot,
+.sf-pl-rowdot,
+.sf-sw-mini-dot,
+.sf-kb-col-dot,
+.sf-pg-col-dot {
+	background: var(--sf-dot-color, var(--text-faint));
+}
+
 .sf-nav-dot,
 .sf-tl-node,
 .sf-pl-dot,
@@ -2512,6 +2522,7 @@ body {
 
 .sf-nav-prog-bar i {
 	display: block;
+	width: var(--sf-nav-progress, 0%);
 	height: 100%;
 	background: var(--interactive-accent);
 }
@@ -3034,6 +3045,8 @@ body {
 /* Floating ghost that follows the pointer during an armed drag */
 .sf-drag-ghost {
 	position: fixed;
+	left: var(--sf-ghost-x, 0);
+	top: var(--sf-ghost-y, 0);
 	pointer-events: none;
 	z-index: 9999;
 	opacity: 0.85;
@@ -3424,7 +3437,7 @@ body {
 
 .sf-zoom-scaled {
 	transform-origin: top left;
-	/* scale is set inline via CSS custom property */
+	/* the renderer sets --sf-zoom */
 	transform: scale(var(--sf-zoom, 1));
 	/* Keep a stable layout box even when scaled down. */
 	width: fit-content;
