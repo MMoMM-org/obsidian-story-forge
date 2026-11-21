@@ -7,7 +7,7 @@
  * @ref docs/XDD/specs/006-declarative-views/plan/phase-5.md
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, WorkspaceLeaf, type TFile } from "obsidian";
 import {
 	createMockCachedMetadata,
@@ -56,7 +56,7 @@ describe("AnvilView", () => {
 	let app: App;
 	let view: AnvilView;
 	let activeFile: TFile | null;
-	let drill: ReturnType<typeof vi.fn>;
+	let drill: Mock;
 	let clickAction: "drill" | "open";
 
 	beforeEach(async () => {

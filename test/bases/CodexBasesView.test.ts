@@ -22,7 +22,7 @@
  * @ref PRD/AC-F2.4 — read-only
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import {
 	QueryController,
 	BasesViewConfig,
@@ -74,7 +74,7 @@ function makeResult(entries: BasesEntry[]): BasesQueryResult {
 function makeView(category?: string): {
 	view: CodexBasesView;
 	container: HTMLElement;
-	onRowClick: ReturnType<typeof vi.fn>;
+	onRowClick: Mock;
 } {
 	const controller = makeController();
 	const container = document.createElement("div");

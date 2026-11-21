@@ -11,7 +11,7 @@
  * @ref docs/XDD/specs/004-contextual-panel/plan/phase-4.md §T4.1
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { App } from "../__mocks__/obsidian";
 import { DEFAULT_SETTINGS, isLinkClickAction, normalizeLinkClickAction } from "../../src/types/index";
 import { SettingsTab } from "../../src/settings/SettingsTab";
@@ -70,7 +70,7 @@ function makePlugin(overrides: Partial<{
 	app: App;
 	manifest: { id: string; name: string; version: string; minAppVersion: string };
 	settings: { linkClickAction: "drill" | "open" };
-	saveSettings: ReturnType<typeof vi.fn>;
+	saveSettings: Mock;
 } {
 	return {
 		app: makeApp(),

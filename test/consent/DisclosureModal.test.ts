@@ -13,7 +13,7 @@
  * - No innerHTML with untrusted data (XSS-safe: all via createEl/textContent).
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, TFile } from "obsidian";
 import { ConsentGate } from "consent/ConsentGate";
 import type { EngineRegistryLike, DvSettingsReader } from "consent/ConsentGate";
@@ -46,7 +46,7 @@ function makeDvSettings(enabled = true): DvSettingsReader {
 	return { isDvJsEnabled: vi.fn(() => enabled) };
 }
 
-function makeStore(): { store: ViewStore; setRecord: ReturnType<typeof vi.fn> } {
+function makeStore(): { store: ViewStore; setRecord: Mock } {
 	const setRecord = vi.fn(async () => {});
 	const store = {
 		getViews: vi.fn(async () => ({})),

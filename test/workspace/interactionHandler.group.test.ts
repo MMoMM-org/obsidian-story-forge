@@ -5,7 +5,7 @@
  * (ADR-38, ADR-39, ADR-52).
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, createMockTFile } from "../__mocks__/obsidian";
 import {
 	InteractionHandler,
@@ -79,7 +79,7 @@ describe("InteractionHandler — gestures, pending work, flushing destroy", () =
 	let host: HTMLElement;
 	let groups: FakeGroup[];
 	let opened: number;
-	let onWrite: ReturnType<typeof vi.fn>;
+	let onWrite: Mock;
 
 	function make(withGroups = true): InteractionHandler {
 		const opts: InteractionHandlerOpts = {

@@ -9,6 +9,7 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-32
  */
 
+import { implOf } from "../mockImpl";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -143,7 +144,7 @@ describe("tagline in the running editor", () => {
 	it("renders the tagline label full width through a real AnvilView", async () => {
 		const app = new App();
 		seedVault(app);
-		const base = vi.mocked(app.metadataCache.getFileCache).getMockImplementation()!;
+		const base = implOf(vi.mocked(app.metadataCache.getFileCache))!;
 		vi.mocked(app.metadataCache.getFileCache).mockImplementation((file) => {
 			if (file.path !== fcFile.path) return base(file);
 			return createMockCachedMetadata({

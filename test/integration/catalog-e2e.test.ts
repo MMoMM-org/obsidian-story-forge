@@ -25,7 +25,7 @@
 import { join, resolve } from "node:path";
 import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, TFile, wireMemoryVault } from "../__mocks__/obsidian";
 import { BrowseOfficialModal } from "catalog/BrowseOfficialModal";
 import { CatalogService } from "catalog/CatalogService";
@@ -174,7 +174,7 @@ interface E2EHarness {
 	gate: ConsentGate;
 	service: CatalogService;
 	modal: BrowseOfficialModal;
-	subscriber: ReturnType<typeof vi.fn>;
+	subscriber: Mock;
 }
 
 async function mountHarness(
@@ -927,7 +927,7 @@ interface DeclinedGateHarness {
 	storeRaw: () => Record<string, ViewRecord>;
 	gate: ConsentGate;
 	/** importToStore spy — asserts it was never called on decline. */
-	importToStore: ReturnType<typeof vi.fn>;
+	importToStore: Mock;
 	importer: ViewImporter;
 	/** The DisclosureModal.present spy (returns false). */
 	presentSpy: ReturnType<typeof vi.spyOn>;

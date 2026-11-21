@@ -12,7 +12,7 @@
  * - ALL listeners registered via registerEvent (not raw addEventListener)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, WorkspaceLeaf, TFile } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
@@ -313,7 +313,7 @@ describe("SidebarView: follow lifecycle", () => {
 	it("ALL listeners registered via registerEvent (not raw addEventListener)", async () => {
 		// registerEvent is tracked on the Component mock
 		// It should have been called for active-leaf-change and metadataCache.changed
-		const registerEventCalls = (view.registerEvent as ReturnType<typeof vi.fn>).mock.calls;
+		const registerEventCalls = (view.registerEvent as Mock).mock.calls;
 		expect(registerEventCalls.length).toBeGreaterThanOrEqual(2);
 	});
 });
@@ -345,7 +345,7 @@ describe("SidebarView: layout-ready gating", () => {
 		// Before layout-ready: the callback is captured but not run, so the follow
 		// listeners must NOT have been registered yet.
 		expect(app.workspace._layoutReadyCbs.length).toBe(1);
-		const registerEvent = view.registerEvent as ReturnType<typeof vi.fn>;
+		const registerEvent = view.registerEvent as Mock;
 		expect(registerEvent).not.toHaveBeenCalled();
 
 		// Fire the stored layout-ready callback.

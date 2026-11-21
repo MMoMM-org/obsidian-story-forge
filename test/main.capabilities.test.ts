@@ -10,7 +10,7 @@
  *   closing that one records nothing.
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, type MockInstance } from "vitest";
 import { App, WorkspaceLeaf } from "obsidian";
 import { SIDEBAR_VIEW_TYPE, WORKSPACE_VIEW_TYPE } from "pluginConstants";
 import type { StoryForgeData } from "store/types";
@@ -238,7 +238,7 @@ describe("main.ts — the capability screen says why it stayed closed (console.d
 		return made;
 	}
 
-	function debugLines(spy: ReturnType<typeof vi.spyOn>): string[] {
+	function debugLines(spy: MockInstance<typeof console.debug>): string[] {
 		return spy.mock.calls.map((c) => String(c[0])).filter((l) => l.startsWith("[StoryForge] capability screen"));
 	}
 

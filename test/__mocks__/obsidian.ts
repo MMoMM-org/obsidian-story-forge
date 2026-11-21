@@ -575,7 +575,7 @@ class MockFileManager {
 	/** Back-reference to the owning App's metadataCache (set by App constructor). */
 	_metadataCache: MetadataCacheTrigger | null = null;
 
-	processFrontMatter: ReturnType<typeof vi.fn> = vi.fn(
+	processFrontMatter: Mock = vi.fn(
 		async (
 			file: TFile,
 			fn: (fm: Record<string, unknown>) => void,
@@ -592,8 +592,8 @@ class MockFileManager {
 	);
 
 	/** obsidian.d.ts FileManager.renameFile / trashFile: spies, so a test can prove no note moved. */
-	renameFile: ReturnType<typeof vi.fn> = vi.fn(async (_file: TAbstractFile, _newPath: string): Promise<void> => {});
-	trashFile: ReturnType<typeof vi.fn> = vi.fn(async (_file: TAbstractFile): Promise<void> => {});
+	renameFile: Mock = vi.fn(async (_file: TAbstractFile, _newPath: string): Promise<void> => {});
+	trashFile: Mock = vi.fn(async (_file: TAbstractFile): Promise<void> => {});
 
 	/** Pre-seed a file's frontmatter. Copies the object so mutations are isolated. */
 	_setFrontmatter(path: string, obj: Record<string, unknown>): void {
@@ -1395,7 +1395,7 @@ export class WorkspaceLeaf {
 	app: App = new App();
 
 	view: {
-		getViewType: ReturnType<typeof vi.fn>;
+		getViewType: Mock;
 		file: TFile | null;
 	} = {
 		getViewType: vi.fn(() => "markdown"),
@@ -1722,9 +1722,9 @@ export class MarkdownRenderer {
 
 /** Minimal Dataview API test double (v0.5.68 shape). */
 export interface MockDataviewApi {
-	execute: ReturnType<typeof vi.fn>;
-	executeJs: ReturnType<typeof vi.fn>;
-	version: { satisfies: ReturnType<typeof vi.fn> };
+	execute: Mock;
+	executeJs: Mock;
+	version: { satisfies: Mock };
 	settings: { enableDataviewJs: boolean };
 }
 

@@ -9,6 +9,7 @@
  *      PRD/F5.8 (files name the folders configured at setup)
  */
 
+import { implOf } from "../mockImpl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App, wireMemoryVault, type MemoryVault } from "obsidian";
 import { executePlan } from "../../src/artifacts/executePlan";
@@ -145,8 +146,8 @@ describe("executePlan — writes and records", () => {
 		await store.setRecord(c.id, { ...old, path: "Story/Classes/fc-c.md" });
 
 		const events: string[] = [];
-		const create = vi.mocked(app.vault.create).getMockImplementation()!;
-		const process = vi.mocked(app.vault.process).getMockImplementation()!;
+		const create = implOf(vi.mocked(app.vault.create))!;
+		const process = implOf(vi.mocked(app.vault.process))!;
 		vi.mocked(app.vault.create).mockImplementation(async (p, d) => { events.push(`write ${p}`); return create(p, d); });
 		vi.mocked(app.vault.process).mockImplementation(async (f, fn) => { events.push(`write ${f.path}`); return process(f, fn); });
 		const save = port.save.bind(port);
@@ -315,7 +316,7 @@ describe("executePlan — failures", () => {
 		const a = await entry("fc-a.md");
 		const b = await entry("fc-b.md");
 		const c = await entry("fc-c.md");
-		const create = vi.mocked(app.vault.create).getMockImplementation()!;
+		const create = implOf(vi.mocked(app.vault.create))!;
 		vi.mocked(app.vault.create).mockImplementation(async (p, d) => {
 			if (p === "Story/Classes/fc-b.md") throw new Error("EIO");
 			return create(p, d);
@@ -387,7 +388,7 @@ describe("executePlan — failures", () => {
 
 	it("a file created at the path between the occupancy check and create is not overwritten and fails", async () => {
 		const e = await entry("fc-a.md");
-		const create = vi.mocked(app.vault.create).getMockImplementation()!;
+		const create = implOf(vi.mocked(app.vault.create))!;
 		vi.mocked(app.vault.create).mockImplementation(async (p, d) => {
 			if (p === "Story/Classes/fc-a.md") mem.files.set(p, "raced in");
 			return create(p, d);
@@ -404,7 +405,7 @@ describe("executePlan — failures", () => {
 	it("a file that appears after the occupancy check is rejected by create, never overwritten, and fails", async () => {
 		const e = await entry("fc-a.md");
 		addFolders("Story/Classes");
-		const lookup = vi.mocked(app.vault.getAbstractFileByPath).getMockImplementation()!;
+		const lookup = implOf(vi.mocked(app.vault.getAbstractFileByPath))!;
 		let seen = 0;
 		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation((p) => {
 			const found = lookup(p);
@@ -427,7 +428,7 @@ describe("executePlan — failures", () => {
 		addFolders("Story/Classes");
 		mem.files.set("Story/Classes/fc-a.md", OLD_RESOLVED);
 		await store.setRecord(e.id, { path: "Story/Classes/fc-a.md", sourceChecksum: `sha256:${"0".repeat(64)}`, instanceChecksum: await computeChecksum(OLD_RESOLVED), params: folders, pluginVersion: "0.1.0" });
-		const process = vi.mocked(app.vault.process).getMockImplementation()!;
+		const process = implOf(vi.mocked(app.vault.process))!;
 		vi.mocked(app.vault.process).mockImplementationOnce(async (f, fn) => {
 			mem.files.set(f.path, "raced in");
 			return process(f, fn);
@@ -446,7 +447,7 @@ describe("executePlan — failures", () => {
 		addFolders("Story/Classes");
 		mem.files.set("Story/Classes/fc-a.md", OLD_RESOLVED);
 		await store.setRecord(e.id, { path: "Story/Classes/fc-a.md", sourceChecksum: `sha256:${"0".repeat(64)}`, instanceChecksum: await computeChecksum(OLD_RESOLVED), params: folders, pluginVersion: "0.1.0" });
-		const process = vi.mocked(app.vault.process).getMockImplementation()!;
+		const process = implOf(vi.mocked(app.vault.process))!;
 		vi.mocked(app.vault.process)
 			.mockImplementationOnce(async (f, fn) => {
 				mem.files.set(f.path, "raced in");

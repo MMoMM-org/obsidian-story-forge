@@ -7,7 +7,7 @@
  * stood in for: a vault holding the `.base` and note files, a metadata cache, `MarkdownRenderer`
  * (records the fence it was handed) and Dataview's API (writes a table).
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
 	App,
 	MarkdownRenderer,
@@ -113,8 +113,8 @@ interface World {
 	readonly host: LibraryHost;
 	readonly bodies: Map<string, string>;
 	readonly dv: MockDataviewApi;
-	readonly manage: ReturnType<typeof vi.fn>;
-	readonly changeTag: ReturnType<typeof vi.fn>;
+	readonly manage: Mock;
+	readonly changeTag: Mock;
 	readonly subscribers: { count: number };
 	/** Every engine the Anvil created, with how many times its `teardown` ran. */
 	readonly engines: Array<{ kind: string; teardown: { mock: { calls: unknown[][] } } }>;

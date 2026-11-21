@@ -20,7 +20,7 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, WorkspaceLeaf, type TFile } from "obsidian";
 import {
 	createMockCachedMetadata,
@@ -148,7 +148,7 @@ describe("AnvilView: inspect targets the Anvil's own body, never another leaf", 
 describe("AnvilView: open-note changes no panel's selected tab", () => {
 	let app: App;
 	let view: AnvilView;
-	let drill: ReturnType<typeof vi.fn>;
+	let drill: Mock;
 
 	beforeEach(async () => {
 		app = new App();
@@ -178,7 +178,7 @@ describe("AnvilView: open-note changes no panel's selected tab", () => {
 describe("AnvilView: timeline act label drills, its section chevron collapses", () => {
 	let app: App;
 	let view: AnvilView;
-	let drill: ReturnType<typeof vi.fn>;
+	let drill: Mock;
 
 	beforeEach(async () => {
 		app = new App();
@@ -238,7 +238,7 @@ describe("AnvilView: timeline act label drills, its section chevron collapses", 
 describe("AnvilView: a click with no known target kind takes no action", () => {
 	let app: App;
 	let view: AnvilView;
-	let drill: ReturnType<typeof vi.fn>;
+	let drill: Mock;
 
 	beforeEach(async () => {
 		app = new App();

@@ -27,7 +27,7 @@
  * @ref docs/XDD/specs/008-codex-surface/mockups.html — S102, S103
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, WorkspaceLeaf, type TFile } from "obsidian";
 import { createMockCachedMetadata, createMockTFile, type CachedMetadata } from "../__mocks__/obsidian";
 import { AnvilView } from "anvil/AnvilView";
@@ -923,7 +923,7 @@ describe("field controls — inside the live editor pane (T5.2)", () => {
 // ---------------------------------------------------------------------------
 
 interface MediaHarness extends Rendered {
-	readonly pick: ReturnType<typeof vi.fn>;
+	readonly pick: Mock;
 }
 
 function renderMedia(
