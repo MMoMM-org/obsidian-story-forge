@@ -74,6 +74,7 @@ export interface OwnedFileClassCache extends FileClassCache {
 
 interface DeclaredClass {
 	readonly name: string;
+	readonly path: string;
 	readonly frontmatter: Record<string, unknown>;
 }
 
@@ -172,13 +173,14 @@ function watchFolder(
  * subfolder can claim a note; resolving it by the same rule keeps that claim
  * from pointing at nothing. Metadata-menu names a class by its file's
  * basename wherever it sits under the folder, so subfolders are kept rather
- * than cutting the scan back.
+ * than cutting the scan back. The fallback reads the generation's one folder
+ * scan (`classesIn`) instead of walking the vault again for every name (#50).
  */
 function classFile(app: App, generation: Generation, name: string): unknown {
 	const direct = app.vault.getAbstractFileByPath(`${generation.folder}/${name}.md`);
 	if (direct) return direct;
-	const prefix = `${generation.folder}/`;
-	return app.vault.getMarkdownFiles().find((f) => f.basename === name && f.path.startsWith(prefix));
+	const below = classesIn(app, generation).find((fc) => fc.name === name);
+	return below ? app.vault.getAbstractFileByPath(below.path) : null;
 }
 
 /** The named FileClass's frontmatter, read at most once per generation. */
@@ -201,8 +203,8 @@ function classesIn(app: App, generation: Generation): readonly DeclaredClass[] {
 	const caches = app.vault
 		.getMarkdownFiles()
 		.filter((file) => file.path.startsWith(prefix))
-		.map((file) => ({ name: file.basename, cache: app.metadataCache.getFileCache(file) }));
-	const classes = caches.map(({ name, cache }) => ({ name, frontmatter: cache?.frontmatter ?? {} }));
+		.map((file) => ({ name: file.basename, path: file.path, cache: app.metadataCache.getFileCache(file) }));
+	const classes = caches.map(({ name, path, cache }) => ({ name, path, frontmatter: cache?.frontmatter ?? {} }));
 	if (caches.every(({ cache }) => cache !== null)) generation.classes = classes;
 	return classes;
 }
