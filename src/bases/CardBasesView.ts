@@ -194,7 +194,7 @@ export class CardBasesView extends BasesView {
 		this.drawn = true;
 
 		// CON-4: empty before repaint.
-		this.containerEl.innerHTML = "";
+		this.containerEl.empty();
 
 		// Resolve at DRAW time, never captured at registration (module doc).
 		const card = this.deps.registry.resolve(this.deps.cardId);
