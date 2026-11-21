@@ -111,10 +111,9 @@ export function buildCodexGrid(container: HTMLElement, opts: CodexGridOptions): 
 
 	// Drive the CSS grid template from the (dynamic) column count so the header
 	// and every row share one template and stay aligned. +1 leading Name column.
-	container.style.setProperty(
-		"--sf-codex-cols",
-		`minmax(120px, 1.4fr) repeat(${columns.length}, minmax(70px, 1fr))`,
-	);
+	container.setCssProps({
+		"--sf-codex-cols": `minmax(120px, 1.4fr) repeat(${columns.length}, minmax(70px, 1fr))`,
+	});
 
 	renderHeader(container, columns);
 	renderRows(container, rows, columns);

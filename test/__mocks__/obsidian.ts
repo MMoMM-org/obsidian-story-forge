@@ -180,6 +180,13 @@ function installElementHelpers(): void {
 		while (this.firstChild) this.removeChild(this.firstChild);
 	};
 
+	// setCssProps, as in obsidian.d.ts: each key is a CSS custom property
+	// ("--sf-…") set through style.setProperty, so tests read it back with
+	// style.getPropertyValue.
+	proto["setCssProps"] = function (this: HTMLElement, props: Record<string, string>): void {
+		for (const [k, v] of Object.entries(props)) this.style.setProperty(k, v);
+	};
+
 	proto["addClass"] = function (this: HTMLElement, ...classes: string[]): void {
 		this.classList.add(...classes);
 	};

@@ -184,6 +184,24 @@ describe("renderKanban", () => {
 		expect(ideaIdx).toBeLessThan(draftIdx);
 	});
 
+	it("colours each column dot through a CSS custom property (#49)", () => {
+		const rows = [makeSceneRow({ title: "A", status: "draft", order: 10 })];
+		const groups = kanbanModel(rows, STATUS_VOCAB);
+		renderKanban(host, groups, { app, renumber }, handler);
+
+		const dot = host.querySelector("[data-sf-status='draft'] .sf-kb-col-dot") as HTMLElement;
+		expect(dot.style.getPropertyValue("--sf-dot-color")).not.toBe("");
+		expect(dot.style.background).toBe("");
+	});
+
+	it("colours the neutral column dot with a theme variable (#49)", () => {
+		const groups = kanbanModel([makeSceneRow({ title: "Orphan", status: "published", order: 10 })], STATUS_VOCAB);
+		renderKanban(host, groups, { app, renumber }, handler);
+
+		const dot = host.querySelector("[data-sf-status=''] .sf-kb-col-dot") as HTMLElement;
+		expect(dot.style.getPropertyValue("--sf-dot-color")).toBe("var(--text-faint)");
+	});
+
 	// -------------------------------------------------------------------------
 	// T5.1-2: Card title has [data-sf-link] drill span
 	// -------------------------------------------------------------------------

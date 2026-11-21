@@ -167,10 +167,7 @@ function renderSwimlane(host: HTMLElement, grid: SwimlaneGrid | undefined): void
 	const { lanes, actRows } = grid;
 	const gridEl = host.createEl("div", { cls: "sf-sw-grid" });
 	// Drive the (dynamic) column template via a custom property; CSS reads it.
-	gridEl.style.setProperty(
-		"--sf-sw-cols",
-		`${SW_SEQ_W} repeat(${lanes.length}, ${SW_LANE_MIN})`,
-	);
+	gridEl.setCssProps({ "--sf-sw-cols": `${SW_SEQ_W} repeat(${lanes.length}, ${SW_LANE_MIN})` });
 
 	// Header row: sticky corner ("#") + one sticky header per lane.
 	const corner = gridEl.createEl("div", { cls: "sf-sw-corner", text: "#" });

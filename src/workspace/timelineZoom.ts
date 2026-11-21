@@ -118,8 +118,8 @@ export function createTimelineZoom(
 
 	// --- Zoom state ---
 	function applyZoom(): void {
-		scaledEl.style.setProperty("--sf-zoom", String(zoom));
-		scaledEl.style.transform = `scale(${zoom})`;
+		// styles.css applies the scale from --sf-zoom (#49).
+		scaledEl.setCssProps({ "--sf-zoom": String(zoom) });
 		label.textContent = `${Math.round(zoom * 100)}%`;
 	}
 

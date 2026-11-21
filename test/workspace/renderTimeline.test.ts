@@ -105,7 +105,9 @@ describe("renderTimeline (rail)", () => {
 		const node = el.querySelector(".sf-tl-node") as HTMLElement;
 		expect(node.getAttribute("title")).toBe("The Dying Light");
 		expect(node.getAttribute("data-sf-link")).toBe("The Dying Light.md");
-		expect(node.style.background).toBe(hexToRgb(plotlineColor("The Dying Light")));
+		// The colour travels as a CSS custom property, not an inline background (#49).
+		expect(node.style.getPropertyValue("--sf-dot-color")).toBe(plotlineColor("The Dying Light"));
+		expect(node.style.background).toBe("");
 
 		// Character chips are links; the POV character's chip is highlighted.
 		const chips = [...el.querySelectorAll(".sf-tl-chip")] as HTMLElement[];
@@ -141,9 +143,3 @@ describe("renderTimeline (rail)", () => {
 		expect(() => renderTimeline(host(), [], expanded, "swimlane")).not.toThrow();
 	});
 });
-
-// jsdom normalizes `style.background` set to a hex into `rgb(...)`.
-function hexToRgb(hex: string): string {
-	const n = parseInt(hex.slice(1), 16);
-	return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
-}
