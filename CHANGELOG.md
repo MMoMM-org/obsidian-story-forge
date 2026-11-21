@@ -1,3 +1,19 @@
+## [0.2.2](https://github.com/MMoMM-org/obsidian-story-forge/compare/0.2.1...0.2.2) (2026-11-21)
+
+
+### Bug Fixes
+
+* **dom:** use Obsidian's cross-window instanceOf instead of instanceof ([afc7dec](https://github.com/MMoMM-org/obsidian-story-forge/commit/afc7dec3a60a979e4121073c69b1210c14976559)), closes [#50](https://github.com/MMoMM-org/obsidian-story-forge/issues/50)
+* **modals:** set modal titles through setTitle, not raw h2 headings ([b25d961](https://github.com/MMoMM-org/obsidian-story-forge/commit/b25d961f47560da9f6f806a78b4bcbf48bec344b)), closes [#50](https://github.com/MMoMM-org/obsidian-story-forge/issues/50)
+* **styles:** drop !important and :has from styles.css ([ba8a73e](https://github.com/MMoMM-org/obsidian-story-forge/commit/ba8a73ef27e1d6ac109a5101d9479c0261b55927)), closes [#51](https://github.com/MMoMM-org/obsidian-story-forge/issues/51)
+* **styles:** pass runtime values as CSS custom properties, not inline styles ([54fcf1d](https://github.com/MMoMM-org/obsidian-story-forge/commit/54fcf1dee49496e268209a7caa784f8e207d2a83)), closes [#49](https://github.com/MMoMM-org/obsidian-story-forge/issues/49) [#49](https://github.com/MMoMM-org/obsidian-story-forge/issues/49)
+* **views:** clear Bases views with empty() and drop the last src lint disable ([6e7cbcb](https://github.com/MMoMM-org/obsidian-story-forge/commit/6e7cbcb258a6cf21fc2eaa03019ef2a74011f56c)), closes [#48](https://github.com/MMoMM-org/obsidian-story-forge/issues/48)
+
+
+### Performance Improvements
+
+* **fileclass:** resolve a subfolder FileClass from the folder scan ([f2e67bf](https://github.com/MMoMM-org/obsidian-story-forge/commit/f2e67bf210fe78738a1f7ce191c0e914fee59854)), closes [#50](https://github.com/MMoMM-org/obsidian-story-forge/issues/50)
+
 ## [0.2.1](https://github.com/MMoMM-org/obsidian-story-forge/compare/0.2.0...0.2.1) (2026-11-20)
 
 

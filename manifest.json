@@ -1,7 +1,7 @@
 {
 	"id": "story-forge",
 	"name": "Story Forge",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"minAppVersion": "1.12.7",
 	"description": "Shows your story's entities from frontmatter: browse and edit them in the Anvil, and see the ones linked from the active note in the Workbench.",
 	"author": "Marcus Breiden",
