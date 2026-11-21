@@ -31,7 +31,7 @@
  * @ref plan/phase-6.md T6.2
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, WorkspaceLeaf, TFile } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
@@ -105,7 +105,7 @@ function makeViewRecord(overrides?: Partial<ViewRecord>): ViewRecord {
 function makeContentEngine(
 	kind: QueryEngine["kind"],
 	outputText: string,
-): QueryEngine & { teardown: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> } {
+): QueryEngine & { teardown: Mock; render: Mock } {
 	return {
 		kind,
 		teardown: vi.fn(),
@@ -123,7 +123,7 @@ function makeOrderTrackingEngine(
 	kind: QueryEngine["kind"],
 	callOrder: string[],
 	label: string,
-): QueryEngine & { teardown: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> } {
+): QueryEngine & { teardown: Mock; render: Mock } {
 	return {
 		kind,
 		teardown: vi.fn(() => { callOrder.push(`teardown:${label}`); }),
@@ -138,16 +138,16 @@ function makeOrderTrackingEngine(
 }
 
 function makeMockNativeEngine(): NativeScopingEngine & {
-	teardown: ReturnType<typeof vi.fn>;
-	render: ReturnType<typeof vi.fn>;
+	teardown: Mock;
+	render: Mock;
 } {
 	return {
 		kind: "native" as const,
 		teardown: vi.fn(),
 		render: vi.fn(async () => {}),
 	} as unknown as NativeScopingEngine & {
-		teardown: ReturnType<typeof vi.fn>;
-		render: ReturnType<typeof vi.fn>;
+		teardown: Mock;
+		render: Mock;
 	};
 }
 
@@ -344,7 +344,7 @@ describe("Codex row click re-subjects panel (S56)", () => {
 		getTabByViewId(view, "v1").click();
 		await new Promise((r) => setTimeout(r, 0));
 		// Reset the engine spy so we only count calls after showFile
-		(engine.render as ReturnType<typeof vi.fn>).mockClear();
+		(engine.render as Mock).mockClear();
 
 		// Act: Codex row click → showFile → _drillInto → _resolveOrClassify → render
 		view.showFile(clickedFile);
@@ -559,7 +559,7 @@ describe("Tab switch → teardown prior engine, no stale content", () => {
 	it("body is emptied before the new engine renders (no stale DOM from prior tab)", async () => {
 		// engineA plants a sentinel div; after tab switch to B that sentinel must be gone
 		const sentinel = "stale-sentinel";
-		const engineA: QueryEngine & { teardown: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> } = {
+		const engineA: QueryEngine & { teardown: Mock; render: Mock } = {
 			kind: "dataview-dql" as const,
 			teardown: vi.fn(),
 			render: vi.fn(async (_v: ViewRecord | null, _c: NoteContext, el: HTMLElement) => {
@@ -569,7 +569,7 @@ describe("Tab switch → teardown prior engine, no stale content", () => {
 				el.appendChild(div);
 			}),
 		};
-		const engineB: QueryEngine & { teardown: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> } = {
+		const engineB: QueryEngine & { teardown: Mock; render: Mock } = {
 			kind: "bases" as const,
 			teardown: vi.fn(),
 			render: vi.fn(async (_v: ViewRecord | null, _c: NoteContext, el: HTMLElement) => {
@@ -686,7 +686,7 @@ describe("Tab switch → teardown prior engine, no stale content", () => {
 		await new Promise((r) => setTimeout(r, 0));
 
 		// Reset spy counts before the switch
-		(engineA.teardown as ReturnType<typeof vi.fn>).mockClear();
+		(engineA.teardown as Mock).mockClear();
 
 		getTabByViewId(view, "b").click();
 		await new Promise((r) => setTimeout(r, 0));

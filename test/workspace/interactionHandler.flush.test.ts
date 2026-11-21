@@ -14,7 +14,7 @@
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-22, ADR-23, CON-4
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, createMockTFile } from "../__mocks__/obsidian";
 import type { TFile } from "../__mocks__/obsidian";
 import {
@@ -126,9 +126,9 @@ function keyRight(card: HTMLElement): void {
 describe("InteractionHandler — per-file debounce + flush + cleanup", () => {
 	let app: App;
 	let host: HTMLElement;
-	let onWrite: ReturnType<typeof vi.fn>;
-	let onAfter: ReturnType<typeof vi.fn>;
-	let onError: ReturnType<typeof vi.fn>;
+	let onWrite: Mock;
+	let onAfter: Mock;
+	let onError: Mock;
 	let handler: InteractionHandler;
 
 	function makeHandler(debounceMs = 200): InteractionHandler {

@@ -9,7 +9,7 @@
  * @ref PRD/F2.2 (command), F2.4 (button), F3.2 (folders saved)
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App } from "obsidian";
 import type { StoryFilesDeps } from "../../src/artifacts/StoryFilesModal";
 import type { ArtifactIndex } from "../../src/artifacts/artifactTypes";
@@ -18,7 +18,7 @@ import { DEFAULT_SETTINGS, type PluginSettings } from "../../src/types/index";
 
 const doubles = vi.hoisted(() => ({
 	opened: [] as StoryFilesDeps[],
-	modals: [] as { setCloseCallback: ReturnType<typeof vi.fn> }[],
+	modals: [] as { setCloseCallback: Mock }[],
 	statusCalls: [] as unknown[][],
 }));
 

@@ -13,7 +13,7 @@
  *  - isDvJsEnabled returns false when enableDataviewJs is off
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from "vitest";
 import { App, augmentEl, createMockTFile, createMockDataviewApi, wireDataviewApi, Platform } from "../__mocks__/obsidian";
 import { DataviewJsEngine, isDvJsEnabled } from "engines/DataviewJsEngine";
 import type { NoteContext } from "scoping/NoteContext";
@@ -174,7 +174,7 @@ describe("DataviewJsEngine", () => {
 
 			const passedComponent = vi.mocked(dvApi.executeJs).mock.calls[0]?.[2];
 			expect(passedComponent).toBeDefined();
-			expect((passedComponent as { load: ReturnType<typeof vi.fn> }).load).toHaveBeenCalled();
+			expect((passedComponent as { load: Mock }).load).toHaveBeenCalled();
 		});
 	});
 
@@ -186,7 +186,7 @@ describe("DataviewJsEngine", () => {
 
 			await engine.render(makeView(), makeCtx(), el);
 
-			const passedComponent = vi.mocked(dvApi.executeJs).mock.calls[0]?.[2] as { unload: ReturnType<typeof vi.fn> };
+			const passedComponent = vi.mocked(dvApi.executeJs).mock.calls[0]?.[2] as { unload: Mock };
 			engine.teardown();
 
 			expect(passedComponent.unload).toHaveBeenCalled();
@@ -218,7 +218,7 @@ describe("DataviewJsEngine", () => {
 			wireDataviewApi(app, dvApi);
 			vi.mocked(readFencedBlock).mockResolvedValue({ lang: "dataviewjs", body: "dv.list()" });
 
-			let capturedComponent: { load: ReturnType<typeof vi.fn>; unload: ReturnType<typeof vi.fn> } | undefined;
+			let capturedComponent: { load: Mock; unload: Mock } | undefined;
 			vi.mocked(dvApi.executeJs).mockImplementation(async (_body, _el, comp) => {
 				capturedComponent = comp as typeof capturedComponent;
 				throw new Error("dv error");
@@ -243,7 +243,7 @@ describe("DataviewJsEngine", () => {
 			el.empty();
 
 			await engine.render(makeView(), makeCtx(), el);
-			const freshComponent = vi.mocked(dvApi.executeJs).mock.calls[0]?.[2] as { load: ReturnType<typeof vi.fn> };
+			const freshComponent = vi.mocked(dvApi.executeJs).mock.calls[0]?.[2] as { load: Mock };
 			expect(freshComponent).toBeDefined();
 			expect(freshComponent.load).toHaveBeenCalled();
 		});

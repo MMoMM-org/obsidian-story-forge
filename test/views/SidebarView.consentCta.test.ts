@@ -8,7 +8,7 @@
  * tab is selected (selectedViewId non-null). No gate / Context tab → text-only.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, WorkspaceLeaf, TFile } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
@@ -98,16 +98,16 @@ function makeMockRegistry(engine?: QueryEngine): EngineRegistry {
 }
 
 function makeMockConsentGate(decision: ConsentDecision): ConsentGate & {
-	requestConsent: ReturnType<typeof vi.fn>;
-	requestReConsent: ReturnType<typeof vi.fn>;
+	requestConsent: Mock;
+	requestReConsent: Mock;
 } {
 	return {
 		evaluate: vi.fn(async () => decision),
 		requestConsent: vi.fn(async () => false),
 		requestReConsent: vi.fn(async () => false),
 	} as unknown as ConsentGate & {
-		requestConsent: ReturnType<typeof vi.fn>;
-		requestReConsent: ReturnType<typeof vi.fn>;
+		requestConsent: Mock;
+		requestReConsent: Mock;
 	};
 }
 

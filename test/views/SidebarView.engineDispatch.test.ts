@@ -17,7 +17,7 @@
  *   onClose              → currentEngine.teardown() called
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, WorkspaceLeaf, TFile, createMockCachedMetadata } from "obsidian";
 import { SidebarView } from "views/SidebarView";
 import { SIDEBAR_VIEW_TYPE } from "pluginConstants";
@@ -89,8 +89,8 @@ function makeViewRecord(
 
 /** Create a mock QueryEngine that records call order. */
 function makeMockEngine(kind: QueryEngine["kind"] = "dataview-dql"): QueryEngine & {
-	teardown: ReturnType<typeof vi.fn>;
-	render: ReturnType<typeof vi.fn>;
+	teardown: Mock;
+	render: Mock;
 } {
 	return {
 		kind,
@@ -101,16 +101,16 @@ function makeMockEngine(kind: QueryEngine["kind"] = "dataview-dql"): QueryEngine
 
 /** Create a mock NativeScopingEngine. */
 function makeMockNativeEngine(): NativeScopingEngine & {
-	teardown: ReturnType<typeof vi.fn>;
-	render: ReturnType<typeof vi.fn>;
+	teardown: Mock;
+	render: Mock;
 } {
 	return {
 		kind: "native" as const,
 		teardown: vi.fn(),
 		render: vi.fn(async () => {}),
 	} as unknown as NativeScopingEngine & {
-		teardown: ReturnType<typeof vi.fn>;
-		render: ReturnType<typeof vi.fn>;
+		teardown: Mock;
+		render: Mock;
 	};
 }
 

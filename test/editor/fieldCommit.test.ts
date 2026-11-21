@@ -22,7 +22,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
 	App,
 	Notice,
@@ -173,7 +173,7 @@ function click(el: Element | null | undefined): void {
 interface MountedPane {
 	readonly host: HTMLElement;
 	readonly committer: FieldCommitter;
-	readonly valueOf: ReturnType<typeof vi.fn>;
+	readonly valueOf: Mock;
 }
 
 function modelFor(frontmatter: Record<string, unknown>): FieldModel {

@@ -3,7 +3,7 @@
  *
  * @ref SDD/ADR-48 — AC-F7.2, AC-F7.3, AC-F7.4, AC-F7.8
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { createJournalStore } from "undo/journalStore";
 import { MARA, fakeStore, present, setup, stepOf, teardownAndCheckUntouched, type FakeStore } from "./journalHarness";
 
@@ -17,7 +17,7 @@ function spyStore(initial = { undo: [seeded()], redo: [] as ReturnType<typeof se
 		flushNow: vi.fn(() => Promise.resolve()),
 		remove: vi.fn(() => Promise.resolve()),
 		load: vi.fn(() => Promise.resolve(initial)),
-	}) as FakeStore & { flushNow: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn>; load: ReturnType<typeof vi.fn> };
+	}) as FakeStore & { flushNow: Mock; remove: Mock; load: Mock };
 }
 
 describe("UndoJournal — persistence off", () => {

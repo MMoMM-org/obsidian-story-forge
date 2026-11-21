@@ -14,7 +14,7 @@
  * @ref docs/XDD/specs/007-interactive-views/solution.md — AC-1/AC-2/AC-F1.*
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, TFile, createMockTFile, augmentEl } from "../__mocks__/obsidian";
 import { renderKanban, type KanbanDeps } from "workspace/renderKanban";
 import { InteractionHandler, type InteractionHandlerOpts } from "workspace/interactionHandler";
@@ -143,9 +143,9 @@ function armedDrag(card: HTMLElement, dropTarget: Element): void {
 describe("renderKanban", () => {
 	let app: App;
 	let host: HTMLElement;
-	let onWrite: ReturnType<typeof vi.fn>;
-	let onAfter: ReturnType<typeof vi.fn>;
-	let renumber: ReturnType<typeof vi.fn>;
+	let onWrite: Mock;
+	let onAfter: Mock;
+	let renumber: Mock;
 	let handler: InteractionHandler;
 
 	beforeEach(() => {

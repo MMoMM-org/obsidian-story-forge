@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi, type Mock } from "vitest";
 import { Platform } from "obsidian";
 import { createUndoKeyHandler, isEditableText, type UndoKeyHost } from "../../src/undo/undoKeys";
 
@@ -103,10 +103,10 @@ describe("isEditableText", () => {
 type Policy = "text" | "journal";
 
 interface Rig {
-	host: UndoKeyHost & { undoKeyPolicy: ReturnType<typeof vi.fn> };
-	activeHost: ReturnType<typeof vi.fn>;
-	undo: ReturnType<typeof vi.fn>;
-	redo: ReturnType<typeof vi.fn>;
+	host: UndoKeyHost & { undoKeyPolicy: Mock };
+	activeHost: Mock;
+	undo: Mock;
+	redo: Mock;
 	/** Dispatch a keydown on `target` and return the event (to read `defaultPrevented`). */
 	press: (target: EventTarget, init: KeyboardEventInit) => KeyboardEvent;
 }

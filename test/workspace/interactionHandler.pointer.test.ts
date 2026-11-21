@@ -20,7 +20,7 @@
  * @ref docs/XDD/specs/007-interactive-views/solution.md — ADR-15, AC-F8.3
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { App, TFile, createMockTFile } from "../__mocks__/obsidian";
 import {
 	InteractionHandler,
@@ -162,9 +162,9 @@ function pointerUp(x = 120, y = 120): void {
 describe("InteractionHandler — pointer state machine", () => {
 	let app: App;
 	let host: HTMLElement;
-	let onWrite: ReturnType<typeof vi.fn>;
-	let onAfter: ReturnType<typeof vi.fn>;
-	let onError: ReturnType<typeof vi.fn>;
+	let onWrite: Mock;
+	let onAfter: Mock;
+	let onError: Mock;
 	let file: TFile;
 	let handler: InteractionHandler;
 

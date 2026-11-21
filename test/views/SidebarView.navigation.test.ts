@@ -16,7 +16,7 @@
  *    it down.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { App, WorkspaceLeaf, TFile } from "obsidian";
 import { SidebarView, activateView, revealAndShowFile } from "views/SidebarView";
 import { NativeScopingEngine } from "engines/NativeScopingEngine";
@@ -379,7 +379,7 @@ describe("SidebarView: drill-in navigation", () => {
 
 		// Count registerDomEvent calls that target the body element for "click".
 		const bodyEl = getBody(view);
-		const calls = (view.registerDomEvent as ReturnType<typeof vi.fn>).mock.calls;
+		const calls = (view.registerDomEvent as Mock).mock.calls;
 		const bodyClicks = calls.filter(
 			(c) => c[0] === bodyEl && c[1] === "click",
 		);
@@ -401,7 +401,7 @@ describe("SidebarView: drill-in navigation", () => {
 		}
 
 		const bodyEl = getBody(view);
-		const calls = (view.registerDomEvent as ReturnType<typeof vi.fn>).mock.calls;
+		const calls = (view.registerDomEvent as Mock).mock.calls;
 		const bodyClicks = calls.filter(
 			(c) => c[0] === bodyEl && c[1] === "click",
 		);
@@ -779,7 +779,7 @@ describe("SidebarView: header Back + drill trail (S41)", () => {
 
 	it("the header Back handler is registered once (leak-free)", () => {
 		const back = head().querySelector('[data-sf-nav="back"]') as HTMLElement;
-		const calls = (view.registerDomEvent as ReturnType<typeof vi.fn>).mock.calls;
+		const calls = (view.registerDomEvent as Mock).mock.calls;
 		const backClicks = calls.filter((c) => c[0] === back && c[1] === "click");
 		expect(backClicks.length).toBe(1);
 	});

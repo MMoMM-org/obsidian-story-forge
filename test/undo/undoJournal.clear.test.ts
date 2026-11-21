@@ -3,13 +3,13 @@
  *
  * @ref SDD/ADR-48 — AC-C.1
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { RestoreFn } from "inspector/frontmatterWriter";
 import { MARA, fakeStore, setup, teardownAndCheckUntouched, type FakeStore } from "./journalHarness";
 
 afterEach(teardownAndCheckUntouched);
 
-function spyStore(): FakeStore & { remove: ReturnType<typeof vi.fn> } {
+function spyStore(): FakeStore & { remove: Mock } {
 	return Object.assign(fakeStore(), { remove: vi.fn(() => Promise.resolve()) });
 }
 

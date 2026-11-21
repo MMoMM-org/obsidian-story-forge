@@ -21,7 +21,7 @@
  * @ref docs/XDD/specs/008-codex-surface/solution.md — ADR-28
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, type Mock } from "vitest";
 import { QueryController, BasesEntry, BasesQueryResult, App, TFile } from "../__mocks__/obsidian";
 import { CardBasesView, type CardBasesViewDeps } from "bases/CardBasesView";
 import { createCardRegistry, type CardEntry, type CardRegistry, type CardRenderer } from "codex/cardRegistry";
@@ -74,7 +74,7 @@ function makeView(overrides?: Partial<CardBasesViewDeps>): {
 	view: CardBasesView;
 	container: HTMLElement;
 	app: App;
-	onEntryClick: ReturnType<typeof vi.fn>;
+	onEntryClick: Mock;
 } {
 	const controller = new QueryController();
 	const container = document.createElement("div");
@@ -138,7 +138,7 @@ describe("CardBasesView — F2 target-kind routing (ADR-28 closure)", () => {
 // ---------------------------------------------------------------------------
 
 describe("CardBasesView — inside a host that navigates for itself (the Anvil's embed)", () => {
-	function nameClick(host: boolean): ReturnType<typeof vi.fn> {
+	function nameClick(host: boolean): Mock {
 		const { view, container, onEntryClick } = makeView({ getLinkClickAction: (): LinkClickAction => "open" });
 		const wrap = document.createElement("div");
 		if (host) wrap.setAttribute("data-sf-nav-host", "");

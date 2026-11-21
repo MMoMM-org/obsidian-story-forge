@@ -9,6 +9,7 @@
  * @ref mockups.html S2–S5, D4–D10, O1, O3–O6
  */
 
+import { implOf } from "../mockImpl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, Notice, wireMemoryVault, type MemoryVault } from "obsidian";
 import { ArtifactStore } from "../../src/artifacts/ArtifactStore";
@@ -195,7 +196,7 @@ function writes(): number {
 /** Reading any of `paths` throws "EACCES: permission denied" (each file is put in the vault). */
 function unreadable(...paths: string[]): void {
 	for (const p of paths) if (!mem.files.has(p)) mem.files.set(p, "x");
-	const read = vi.mocked(app.vault.read).getMockImplementation()!;
+	const read = implOf(vi.mocked(app.vault.read))!;
 	vi.mocked(app.vault.read).mockImplementation(async (file) => {
 		if (paths.includes(file.path)) throw new Error("EACCES: permission denied");
 		return read(file);
@@ -536,7 +537,7 @@ async function mixedVault(): Promise<void> {
 	void readme;
 	for (const f of ["00 Meta", "00 Meta/FileClasses", "00 Meta/Templates", "00 Meta/Schema"]) mem.folders.add(f);
 	port = fakePort({ artifacts: records });
-	const read = vi.mocked(app.vault.read).getMockImplementation()!;
+	const read = implOf(vi.mocked(app.vault.read))!;
 	vi.mocked(app.vault.read).mockImplementation(async (file) => {
 		if (file.path === "00 Meta/Schema/s-a.md") throw new Error("EACCES: permission denied");
 		return read(file);
@@ -946,7 +947,7 @@ describe("StoryFilesModal — async edges", () => {
 	it("renders only the latest of two overlapping replans; the button waits for both", async () => {
 		mem.files.set("A/t-a.md", "slow");
 		const slow = deferred<string>();
-		const read = vi.mocked(app.vault.read).getMockImplementation()!;
+		const read = implOf(vi.mocked(app.vault.read))!;
 		vi.mocked(app.vault.read).mockImplementation(async (file) => (file.path === "A/t-a.md" ? slow.promise : read(file)));
 		await open();
 		typeFolder("templates", "A");
@@ -986,7 +987,7 @@ describe("StoryFilesModal — async edges", () => {
 	it("closing during a replan draws nothing afterwards", async () => {
 		mem.files.set("A/t-a.md", "slow");
 		const slow = deferred<string>();
-		const read = vi.mocked(app.vault.read).getMockImplementation()!;
+		const read = implOf(vi.mocked(app.vault.read))!;
 		vi.mocked(app.vault.read).mockImplementation(async (file) => (file.path === "A/t-a.md" ? slow.promise : read(file)));
 		const m = await open();
 		typeFolder("templates", "A");
@@ -998,7 +999,7 @@ describe("StoryFilesModal — async edges", () => {
 
 	it("closing during the write still reports the result and draws nothing", async () => {
 		const gate = deferred<void>();
-		const create = vi.mocked(app.vault.create).getMockImplementation()!;
+		const create = implOf(vi.mocked(app.vault.create))!;
 		vi.mocked(app.vault.create).mockImplementation(async (p: string, data: string) => {
 			await gate.promise;
 			return create(p, data);
