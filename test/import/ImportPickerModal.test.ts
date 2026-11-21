@@ -126,7 +126,7 @@ function rows(): HTMLElement[] {
 }
 
 function visibleNames(): string[] {
-	return rows().filter((r) => !r.classList.contains("sf-hidden")).map((r) => r.querySelector(".sf-catalog-name")?.textContent ?? "");
+	return rows().filter((r) => r.style.display !== "none").map((r) => r.querySelector(".sf-catalog-name")?.textContent ?? "");
 }
 
 function rowNamed(name: string): HTMLElement {

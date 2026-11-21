@@ -383,10 +383,10 @@ describe("E2E T6.3.2 — fail-closed: checksum mismatch writes nothing, surfaces
 		(await waitForButton("Install")).click();
 
 		await vi.waitFor(() => {
-			const feedback = document.body.querySelector(".sf-picker-feedback");
+			const feedback = document.body.querySelector<HTMLElement>(".sf-picker-feedback");
 			expect(feedback).not.toBeNull();
 			expect(feedback!.textContent).toMatch(/checksum/i);
-			expect(feedback!.classList.contains("sf-hidden")).toBe(false);
+			expect(feedback!.style.display).not.toBe("none");
 		});
 	});
 });

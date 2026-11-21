@@ -837,7 +837,8 @@ export class SidebarView extends ItemView {
 		// Header Back (S41) — FIRST child, before the title. Hidden until drilled
 		// with a non-empty nav stack. Lives outside _bodyEl, so its click/keydown
 		// are wired directly here (registered once → leak-free).
-		const backEl = chead.createSpan({ cls: "sf-back sf-hidden" });
+		const backEl = chead.createSpan({ cls: "sf-back" });
+		backEl.hide();
 		backEl.setAttribute("role", "button");
 		backEl.setAttribute("tabindex", "0");
 		backEl.setAttribute("data-sf-nav", "back");
@@ -852,7 +853,8 @@ export class SidebarView extends ItemView {
 		});
 
 		this._titleEl = chead.createSpan({ cls: "sf-title" });
-		this._pinTagEl = chead.createSpan({ cls: "sf-pin-tag sf-hidden" });
+		this._pinTagEl = chead.createSpan({ cls: "sf-pin-tag" });
+		this._pinTagEl.hide();
 		this._badgeEl = chead.createSpan({ cls: "sf-badge" });
 
 		// Tab strip (role=tablist) — Stage 1: delegated handlers registered once here
@@ -1445,21 +1447,21 @@ export class SidebarView extends ItemView {
 			badgeEl.className = "sf-badge sf-badge-none";
 		}
 
-		// Pin tag — show/hide via CSS class (no style.display)
+		// Pin tag — shown and hidden through Obsidian's show()/hide()
 		const showPin = this.subject.source === "pinned" && state.kind !== "no-note";
 		if (showPin) {
 			pinTagEl.textContent = "Pinned";
-			pinTagEl.classList.remove("sf-hidden");
+			pinTagEl.show();
 		} else {
 			pinTagEl.textContent = "";
-			pinTagEl.classList.add("sf-hidden");
+			pinTagEl.hide();
 		}
 
 		// Header Back (S41 / fix #8, #9) — shown whenever there is somewhere to go
 		// back to, gated on navStack (NOT source), so pinning while drilled keeps it.
 		if (this._backEl) {
 			const showBack = this.navStack.length > 0 && state.kind !== "no-note";
-			this._backEl.classList.toggle("sf-hidden", !showBack);
+			this._backEl.toggle(showBack);
 		}
 	}
 

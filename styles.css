@@ -486,11 +486,6 @@ body {
 	outline-offset: 1px;
 }
 
-/* Utility */
-.sf-hidden {
-	display: none !important;
-}
-
 /* ===========================================================================
  * Engine badges — dql / dataviewjs. Same color-mix pattern as the kind badges
  * above; hues come from the --sf-engine-* vars so themes can override them.
@@ -4399,7 +4394,7 @@ body {
 
 /* Media control (T5.5, mockup S102 ".ed-por"): preview, path, two buttons.
  * The panel is the box, so its cell draws none, or the two borders nest. */
-.sf-ed-f:has(> .sf-ed-media) {
+.sf-ed-f.sf-ed-f--media {
 	border: none;
 	background: none;
 	padding: 0;

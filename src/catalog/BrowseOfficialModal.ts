@@ -237,7 +237,8 @@ export class BrowseOfficialModal extends Modal {
 			text: "▸ Details",
 			attr: { type: "button", "aria-expanded": "false" },
 		});
-		const dl = box.createEl("dl", { cls: "sf-hidden" });
+		const dl = box.createEl("dl");
+		dl.hide();
 		const row = (term: string, value: string, title?: string): void => {
 			dl.createEl("dt", { text: term });
 			dl.createEl("dd", { text: value, ...(title !== undefined ? { title } : {}) });
@@ -249,7 +250,7 @@ export class BrowseOfficialModal extends Modal {
 			const open = toggle.getAttribute("aria-expanded") !== "true";
 			toggle.setAttribute("aria-expanded", String(open));
 			toggle.textContent = open ? "▾ Details" : "▸ Details";
-			dl.toggleClass("sf-hidden", !open);
+			dl.toggle(open);
 		});
 	}
 
