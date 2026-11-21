@@ -195,7 +195,7 @@ describe("ImportPickerModal — L11a opening", () => {
 			"00 Meta/Views/scenes-at-this-location.md": dqlDef("00 Meta/Views/scenes-at-this-location.md"),
 			"30 Canon/x.base": baseDef("30 Canon/x.base"),
 		});
-		expect(document.body.querySelector("h2")?.textContent).toBe("Import a collection");
+		expect(document.body.querySelector(".modal-title")?.textContent).toBe("Import a collection");
 		expect(document.body.querySelector(".sf-picker-sub")?.textContent).toBe("Notes in your vault marked sf-view: true, and .base files");
 		expect(document.body.querySelector(".sf-catalog-list")?.getAttribute("aria-label")).toBe("Importable collections");
 		expect(document.body.querySelector('[aria-selected="true"]')).toBeNull();

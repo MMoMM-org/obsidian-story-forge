@@ -516,6 +516,21 @@ describe("createFileClassCache — a FileClass in a subfolder", () => {
 
 		expect(cacheOver(app).lookup.getFileClassFrontmatter("fc-character")).toMatchObject({ icon: "top" });
 	});
+
+	// #50: the by-name fallback used to walk getMarkdownFiles() a second time.
+	it("resolves it by name from the generation's one folder scan", () => {
+		const note = createMockTFile({ basename: "Tern", path: "30 Canon/Tern.md" });
+		const r = reads([
+			{ file: nested, frontmatter: { tagNames: ["canon/bird"], fields: [] } },
+			{ file: note, tags: ["#canon/bird"] },
+		]);
+
+		expect(r.cache.nameFor(note)).toBe("fc-nested");
+		expect(r.cache.lookup.getFileClassFrontmatter("fc-nested")).toMatchObject({ tagNames: ["canon/bird"] });
+		expect(r.cache.lookup.getFileClassFrontmatter("fc-elsewhere")).toBeUndefined();
+
+		expect(r.scans()).toBe(1);
+	});
 });
 
 // T7.4 (PRD F8, mockups-capabilities.html S3/S6): the capability screen's metadata-menu row reads

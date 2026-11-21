@@ -1,22 +1,9 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { Platform } from "obsidian";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Platform, installInstanceOf } from "obsidian";
 import { createUndoKeyHandler, isEditableText, type UndoKeyHost } from "../../src/undo/undoKeys";
 
-/**
- * The mock does not provide Node.prototype.instanceOf, which real Obsidian
- * does. This stand-in behaves like it: it checks against the constructor of
- * the NODE'S OWN window, so an element from another realm (a popout, here an
- * iframe) answers correctly where the main window's `instanceof` would not.
- */
-const installInstanceOf = (win: Window): void => {
-	const proto = (win as unknown as { Node: { prototype: Record<string, unknown> } }).Node.prototype;
-	proto["instanceOf"] = function (this: Node, type: { name: string }): boolean {
-		const win = (this.ownerDocument?.defaultView ?? window) as unknown as Record<string, new () => unknown>;
-		const ctor = win[type.name];
-		return ctor !== undefined && this instanceof ctor;
-	};
-};
-beforeAll(() => installInstanceOf(window));
+// The mock installs Node.instanceOf on the main window; makeForeign installs it
+// in each iframe, as Obsidian does in every popout.
 
 afterEach(() => {
 	document.body.replaceChildren();

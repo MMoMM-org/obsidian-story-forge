@@ -66,23 +66,23 @@ export function renderPlotgrid(
 	}
 
 	// Build the grid table
-	const tableEl = host.createEl("div", { cls: "sf-pg-table" });
+	const tableEl = host.createDiv({ cls: "sf-pg-table" });
 	tableEl.setAttribute("role", "table");
 	tableEl.setAttribute("aria-label", "Plotgrid: scenes by plotline");
 
 	// Header row: corner + one column header per plotline
-	const theadEl = tableEl.createEl("div", { cls: "sf-pg-thead" });
-	const headRowEl = theadEl.createEl("div", { cls: "sf-pg-tr" });
+	const theadEl = tableEl.createDiv({ cls: "sf-pg-thead" });
+	const headRowEl = theadEl.createDiv({ cls: "sf-pg-tr" });
 
 	// Corner cell (top-left)
-	const cornerEl = headRowEl.createEl("div", { cls: "sf-pg-th sf-pg-corner" });
+	const cornerEl = headRowEl.createDiv({ cls: "sf-pg-th sf-pg-corner" });
 	cornerEl.setAttribute("role", "columnheader");
 	cornerEl.textContent = "Plotgrid";
 
 	// One column header per plotline, colour-coded
 	for (const plotline of model.plotlines) {
 		const isUnresolved = plotline.path === "";
-		const thEl = headRowEl.createEl("div", {
+		const thEl = headRowEl.createDiv({
 			cls: isUnresolved
 				? "sf-pg-th sf-pg-col-head sf-pg-col-head--unresolved"
 				: "sf-pg-th sf-pg-col-head",
@@ -99,7 +99,7 @@ export function renderPlotgrid(
 			thEl.setCssProps({ "--sf-pg-col-color": color });
 		}
 
-		const nameSpan = thEl.createEl("span", {
+		const nameSpan = thEl.createSpan({
 			cls: "sf-pg-col-name",
 			text: plotline.name,
 		});
@@ -111,7 +111,7 @@ export function renderPlotgrid(
 	}
 
 	// Body rows: one row per scene
-	const tbodyEl = tableEl.createEl("div", { cls: "sf-pg-tbody" });
+	const tbodyEl = tableEl.createDiv({ cls: "sf-pg-tbody" });
 
 	for (let sceneIdx = 0; sceneIdx < model.scenes.length; sceneIdx++) {
 		const scene = model.scenes[sceneIdx]!;
@@ -129,15 +129,15 @@ function renderSceneRow(
 	sceneIdx: number,
 	model: PlotgridModel,
 ): void {
-	const rowEl = tbody.createEl("div", { cls: "sf-pg-tr" });
+	const rowEl = tbody.createDiv({ cls: "sf-pg-tr" });
 	rowEl.setAttribute("role", "row");
 
 	// Row header: scene order index + title as drill link
-	const rhEl = rowEl.createEl("div", { cls: "sf-pg-row-head" });
+	const rhEl = rowEl.createDiv({ cls: "sf-pg-row-head" });
 	rhEl.setAttribute("role", "rowheader");
 
 	const orderLabel = scene.order !== null ? `${scene.order}. ` : "";
-	const titleSpan = rhEl.createEl("span", {
+	const titleSpan = rhEl.createSpan({
 		cls: "sf-pg-scene-title",
 		text: `${orderLabel}${scene.title}`,
 	});
@@ -150,7 +150,7 @@ function renderSceneRow(
 		const isUnresolved = plotline.path === "";
 		const isFilled = model.has(sceneIdx, plotline);
 
-		const cellEl = rowEl.createEl("div", {
+		const cellEl = rowEl.createDiv({
 			cls: isFilled
 				? "sf-pg-cell sf-pg-cell--filled"
 				: "sf-pg-cell",
@@ -182,11 +182,11 @@ function renderSceneRow(
  * status badge + when field (e.g. "Draft · Night 1").
  */
 function renderFilledContent(cell: HTMLElement, scene: SceneRow): void {
-	const innerEl = cell.createEl("span", { cls: "sf-pg-cell-inner" });
+	const innerEl = cell.createSpan({ cls: "sf-pg-cell-inner" });
 
 	// Status badge (skips if empty)
 	if (scene.status !== "") {
-		innerEl.createEl("span", {
+		innerEl.createSpan({
 			cls: `sf-pg-cell-status sf-pg-cell-status--${statusSlug(scene.status)}`,
 			text: scene.status,
 		});
@@ -194,7 +194,7 @@ function renderFilledContent(cell: HTMLElement, scene: SceneRow): void {
 
 	// When field
 	if (scene.when !== "") {
-		innerEl.createEl("span", {
+		innerEl.createSpan({
 			cls: "sf-pg-cell-when",
 			text: scene.when,
 		});

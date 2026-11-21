@@ -261,6 +261,13 @@ describe("BrowseOfficialModal — S47 catalog list", () => {
 		});
 	});
 
+	// #50: the title goes in Obsidian's title slot, not a raw heading in the content.
+	it("titles itself through setTitle, with no heading in its content", async () => {
+		const { modal } = await openModal([makeEntry()]);
+		expect(modal.titleEl.textContent).toBe("Collections from the repo");
+		expect(modal.contentEl.querySelector("h1, h2, h3, h4, h5, h6")).toBeNull();
+	});
+
 	it("shows the engine's product name (ENGINE_LABEL) per entry", async () => {
 		await openModal([makeEntry({ engine: "bases" })]);
 		const pill = rows()[0]!.querySelector(".sf-catalog-engine");

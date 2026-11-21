@@ -17,6 +17,11 @@ declare global {
 	/** Obsidian's popout-window-aware window reference. */
 	const activeWindow: Window;
 
+	interface Node {
+		/** Cross-window instanceof, as in obsidian.d.ts (installed by installInstanceOf). */
+		instanceOf<T>(type: { new (): T }): this is T;
+	}
+
 	interface HTMLElement {
 		// Generic over the tag name, mirroring real obsidian.d.ts so createEl("input")
 		// resolves to HTMLInputElement (not a bare HTMLElement) under the test compile.

@@ -26,7 +26,8 @@ export const ENGINE_LABEL: Record<ViewRecord["engine"], string> = {
 /** The `data-focus` key of whatever has focus inside `host`, or `null`. */
 export function focusedKey(host: HTMLElement): string | null {
 	const el = activeDocument.activeElement;
-	return el instanceof HTMLElement && host.contains(el) ? (el.dataset["focus"] ?? null) : null;
+	// instanceOf, not instanceof: in a popout the element is of that window's realm (#50).
+	return el?.instanceOf(HTMLElement) && host.contains(el) ? (el.dataset["focus"] ?? null) : null;
 }
 
 /** Focus the control carrying `key` inside `host`. A null key or a missing control does nothing. */

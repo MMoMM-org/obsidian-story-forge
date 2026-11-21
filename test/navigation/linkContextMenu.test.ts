@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { App, Menu, WorkspaceLeaf, type TFile } from "obsidian";
-import { createMockTFile } from "../__mocks__/obsidian";
+import { createMockTFile, installInstanceOf } from "../__mocks__/obsidian";
 import { linkContextMenuHandler } from "navigation/linkContextMenu";
 
 const mara = createMockTFile({ basename: "Mara", path: "Characters/Mara.md" });
@@ -96,5 +96,30 @@ describe("linkContextMenuHandler", () => {
 		const { link, fire } = setup(resolve);
 		fire(link);
 		expect((resolve.mock.calls[0] as unknown as [HTMLElement])[0].getAttribute("data-sf-link")).toBe("Mara");
+	});
+});
+
+// #50: in a popout the event target comes from that window's realm, where the
+// main window's `instanceof HTMLElement` answers false.
+describe("linkContextMenuHandler — popout", () => {
+	it("shows the file menu for a link whose element belongs to another window's realm", () => {
+		const frame = document.createElement("iframe");
+		document.body.appendChild(frame);
+		const win = frame.contentWindow! as Window & typeof globalThis;
+		installInstanceOf(win);
+		const doc = frame.contentDocument!;
+		const app = new App();
+		const root = doc.createElement("div");
+		const link = doc.createElement("span");
+		link.setAttribute("data-sf-link", "Mara");
+		root.appendChild(link);
+		doc.body.appendChild(root);
+		root.addEventListener("contextmenu", linkContextMenuHandler(app, root as HTMLElement, () => mara));
+		expect(link instanceof HTMLElement).toBe(false);
+
+		link.dispatchEvent(new win.MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+
+		expect(app.workspace.trigger).toHaveBeenCalledWith("file-menu", expect.any(Menu), mara, "story-forge", undefined);
+		frame.remove();
 	});
 });
